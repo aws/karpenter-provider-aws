@@ -152,7 +152,7 @@ var _ = Describe("NetworkInterfaces", func() {
 
 		Expect(instance.NetworkInterfaces[0]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[0].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(0)))))
-		Expect(instance.NetworkInterfaces[0].Description).To(Equal(desc1))
+		Expect(*instance.NetworkInterfaces[0].Description).To(Equal(desc1))
 
 		Expect(instance.NetworkInterfaces[1]).ToNot(BeNil())
 		Expect(instance.NetworkInterfaces[1].Attachment).To(HaveField("DeviceIndex", HaveValue(Equal(int64(1)))))
