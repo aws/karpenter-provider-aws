@@ -470,10 +470,8 @@ INSTANCE_ID=$(kubectl get node <node-name> -ojson | jq -r ".spec.providerID" | c
 aws ssm start-session --target $INSTANCE_ID
 # Enter the admin container
 enter-admin-container
-# Run sheltie
-sudo sheltie
 # Check Kubelet logs
-journalctl -u kubelet
+journalctl -D /.bottlerocket/rootfs/var/log/journal -u kubelet.service
 ```
 
 Here are examples of errors from Node NotReady issues that you might see from `journalctl`:
