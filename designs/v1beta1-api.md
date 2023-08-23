@@ -37,7 +37,7 @@ To help clearly define where configuration should live within Karpenter’s API,
     1. Neutral Node configuration-based fields that affect the **compatibility between Nodes and Pods during scheduling** (e.g. requirements, taints, labels)
     2. Neutral behavior-based fields for configuring Karpenter’s scheduling and deprovisioning decision-making
 2. `NodeClass`
-    1. Cloudprovider-specific Node configuration-based fields that affect launch and bootstrap process for that Node including: configuring startup scripts (including kubelet configuration), volume mappings, metadata settings, etc.
+    1. Cloudprovider-specific Node configuration-based fields that affect launch and bootstrap process for that Node including: configuring startup scripts, volume mappings, metadata settings, etc.
     2. Cloudprovider-specific behavior-based fields for configuring Karpenter’s scheduling and deprovisioning decision-making (e.g. interruption-based disruption, allocation strategy)
 3. `NodeClaim`
     1. A Karpenter management object that fully manages the lifecycle of a single node including: configuring and launching the node, monitoring the node health (including disruption conditions), and handling the deprovisioning and termination of the node

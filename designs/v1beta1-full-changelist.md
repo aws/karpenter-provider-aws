@@ -101,7 +101,7 @@ We’ve recommended that customers leverage spec.providerRef in favor of spec.pr
 
 #### Update `nodeClass.spec.amiSelector`
 
-The current `amiSelector` has two primary limitations that restrict user’s ability to specify the AMIs that they want Karpenter to use:
+The alpha API `amiSelector` has two primary limitations that restrict user’s ability to specify the AMIs that they want Karpenter to use:
 
 1. Users can only specify “ANDed” together requirements, meaning that if a user has an orthogonal set of tags that they want to match their images to, they have to specify them by `aws::ids` directly, since there is no way with the current tag-selection logic to specify those values
 2. Users want more flexibility to do things like specify a name/owner combination for images. Users have generally been asking Karpenter to more closely adhere to the EC2 APIs in our amiSelector design so that users can use more built-in filtering for AMIs, instead of having to use custom tagging to achieve the same outcome
@@ -146,14 +146,15 @@ The same logic for `subnetSelectorTerms` applies to `securityGroupSelectorTerms`
 ```
 securityGroupSelectorTerms:
 - id: abc-123
-  name: default-security-group # Not the same as the name tag
   tags:
-    key: value
+    use: private-subnet
 # Selector Terms are ORed
-- id: abc-123
-  name: custom-security-group # Not the same as the name tag
+- name: custom-security-group-b # not the same as the "Name" tag
   tags:
-    key: value
+    use: private-subnet
+- tags:
+    use: private-subnet
+    Name: custom-security-group-c # not the same as the "name" field
 ```
 
 #### Remove `nodeClass.spec.launchTemplate`
