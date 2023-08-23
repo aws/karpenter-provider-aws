@@ -155,6 +155,14 @@ var _ = Describe("Webhooks", func() {
 					},
 				}))).ToNot(Succeed())
 			})
+			It("should allow a restricted label exception to be used in labels (node-restriction.kubernetes.io/custom-label)", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
+					Labels: map[string]string{
+						v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+					},
+				}))).To(Succeed())
+			})
 			It("should error when a requirement references a restricted label (karpenter.sh/provisioner-name)", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
