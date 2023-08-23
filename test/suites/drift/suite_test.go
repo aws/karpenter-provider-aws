@@ -337,6 +337,121 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		Entry("DetailedMonitoring Drift", "DetailedMonitoring", v1alpha1.AWSNodeTemplateSpec{DetailedMonitoring: awssdk.Bool(true)}),
 		Entry("AMIFamily Drift", "AMIFamily", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{AMIFamily: awssdk.String(v1alpha1.AMIFamilyBottlerocket)}}),
 	)
+	Context("Drift Failure", func() {
+		It("should not continue to drift if a node never registers", func() {
+			// launch a new machine
+			var numPods int32 = 2
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: 2,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "inflate"}},
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"app": "inflate"},
+						}},
+					},
+				},
+			})
+			env.ExpectCreated(dep, nodeTemplate, provisioner)
+			env.EventuallyExpectNodeCount("==", 2)
+
+			// Drift the machine with bad configuration
+			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
+				Name: awssdk.String("/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-ebs"),
+			})
+			Expect(err).ToNot(HaveOccurred())
+			nodeTemplate.Spec.AMISelector = map[string]string{"aws::ids": *parameter.Parameter.Value}
+			env.ExpectCreatedOrUpdated(nodeTemplate)
+
+			// Should see the machine has drifted
+			statingMachineState := env.EventuallyExpectCreatedMachineCount("==", int(numPods))
+			Eventually(func(g Gomega) {
+				for _, machine := range statingMachineState {
+					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+					g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
+				}
+			}).Should(Succeed())
+
+			// Expect nodes To get cordoned
+			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
+
+			// Drift should fail and the original node should be uncordoned
+			// TODO: reduce timeouts when deprovisioning waits are factored out
+			Eventually(func(g Gomega) {
+				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
+				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
+			}).WithTimeout(11 * time.Minute).Should(Succeed())
+
+			endMachineState := &v1alpha5.MachineList{}
+			Eventually(func(g Gomega) {
+				g.Expect(env.Client.List(env, endMachineState, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+				g.Expect(len(endMachineState.Items)).To(BeNumerically("==", int(numPods)))
+			}).WithTimeout(6 * time.Minute).Should(Succeed())
+
+			Consistently(func(g Gomega) {
+				g.Expect(lo.EveryBy(statingMachineState, func(sm *v1alpha5.Machine) bool {
+					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(sm), sm)).To(Succeed())
+					return lo.ContainsBy(endMachineState.Items, func(em v1alpha5.Machine) bool {
+						g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(&em), &em)).To(Succeed())
+						return sm.Name == em.Name
+					})
+				})).To(BeTrue())
+			}, "2m").Should(Succeed())
+		})
+		It("should not continue to drift if a node registers but never becomes initialized", func() {
+			// launch a new machine
+			var numPods int32 = 2
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: 2,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "inflate"}},
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"app": "inflate"},
+						}},
+					},
+				},
+			})
+			env.ExpectCreated(dep, nodeTemplate, provisioner)
+			statingNodeState := env.EventuallyExpectNodeCount("==", int(numPods))
+
+			// Drift the machine with bad configuration
+			provisioner.Spec.StartupTaints = []v1.Taint{{Key: "example.com/taint", Effect: v1.TaintEffectPreferNoSchedule}}
+			env.ExpectCreatedOrUpdated(provisioner)
+
+			// Should see the machine has drifted
+			machines := env.EventuallyExpectCreatedMachineCount("==", int(numPods))
+			Eventually(func(g Gomega) {
+				for _, machine := range machines {
+					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+					g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
+				}
+			}).Should(Succeed())
+
+			// Expect nodes To be cordoned
+			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
+
+			// Drift should fail and original node should be uncordoned
+			// TODO: reduce timeouts when deprovisioning waits are factored outr
+			Eventually(func(g Gomega) {
+				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
+				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
+			}).WithTimeout(12 * time.Minute).Should(Succeed())
+			endingNodeState := env.EventuallyExpectNodeCount("==", 3)
+
+			Consistently(func(g Gomega) {
+				g.Expect(lo.EveryBy(statingNodeState, func(sn *v1.Node) bool {
+					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(sn), sn)).To(Succeed())
+					return lo.ContainsBy(endingNodeState, func(en *v1.Node) bool {
+						g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(en), en)).To(Succeed())
+						return sn.Name == en.Name
+					})
+				})).To(BeTrue())
+			}, "2m").Should(Succeed())
+		})
+	})
 })
 
 func ExpectInstanceProfileCreated(instanceProfileName *string) {
