@@ -43,6 +43,7 @@ import (
 	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 )
 
 func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
@@ -572,8 +573,8 @@ func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
 
 	return lo.CountBy(daemonSetList.Items, func(d appsv1.DaemonSet) bool {
 		p := &v1.Pod{Spec: d.Spec.Template.Spec}
-		nodeTemplate := pscheduling.NewMachineTemplate(prov)
-		if err := nodeTemplate.Taints.Tolerates(p); err != nil {
+		nodeTemplate := pscheduling.NewNodeClaimTemplate(nodepoolutil.New(prov))
+		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
 			return false
 		}
 		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p)); err != nil {
