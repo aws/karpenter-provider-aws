@@ -103,18 +103,18 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 		return nil
 	}
 	// Each of these slices needs to be pre-populated with the "0" element so that we can properly generate permutations
-	ids := []*string{nil}
-	names := []*string{nil}
-	owners := []*string{nil}
+	ids := []string{""}
+	names := []string{""}
+	owners := []string{""}
 	tags := map[string]string{}
 	for k, v := range amiSelector {
 		switch k {
 		case "aws-ids", "aws::ids":
-			ids = lo.ToSlicePtr(strings.Split(strings.Trim(v, " "), ","))
+			ids = strings.Split(strings.Trim(v, " "), ",")
 		case "aws::name":
-			names = lo.ToSlicePtr(strings.Split(strings.Trim(v, " "), ","))
+			names = strings.Split(strings.Trim(v, " "), ",")
 		case "aws::owners":
-			owners = lo.ToSlicePtr(strings.Split(strings.Trim(v, " "), ","))
+			owners = strings.Split(strings.Trim(v, " "), ",")
 		default:
 			tags[k] = v
 		}

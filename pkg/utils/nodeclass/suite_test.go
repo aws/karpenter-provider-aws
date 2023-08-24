@@ -199,33 +199,33 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(nodeClass.Spec.AMISelectorTerms).To(HaveLen(6))
 		Expect(nodeClass.Spec.AMISelectorTerms).To(ConsistOf(
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name1"),
-				Owner: lo.ToPtr("self"),
+				Name:  "ami-name1",
+				Owner: "self",
 				Tags:  map[string]string{},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name1"),
-				Owner: lo.ToPtr("amazon"),
+				Name:  "ami-name1",
+				Owner: "amazon",
 				Tags:  map[string]string{},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name1"),
-				Owner: lo.ToPtr("123456789"),
+				Name:  "ami-name1",
+				Owner: "123456789",
 				Tags:  map[string]string{},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name2"),
-				Owner: lo.ToPtr("self"),
+				Name:  "ami-name2",
+				Owner: "self",
 				Tags:  map[string]string{},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name2"),
-				Owner: lo.ToPtr("amazon"),
+				Name:  "ami-name2",
+				Owner: "amazon",
 				Tags:  map[string]string{},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name2"),
-				Owner: lo.ToPtr("123456789"),
+				Name:  "ami-name2",
+				Owner: "123456789",
 				Tags:  map[string]string{},
 			},
 		))
@@ -266,15 +266,15 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(nodeClass.Spec.AMISelectorTerms).To(HaveLen(3))
 		Expect(nodeClass.Spec.AMISelectorTerms).To(ConsistOf(
 			v1beta1.AMISelectorTerm{
-				ID:   lo.ToPtr("ami-1234"),
+				ID:   "ami-1234",
 				Tags: map[string]string{},
 			},
 			v1beta1.AMISelectorTerm{
-				ID:   lo.ToPtr("ami-5678"),
+				ID:   "ami-5678",
 				Tags: map[string]string{},
 			},
 			v1beta1.AMISelectorTerm{
-				ID:   lo.ToPtr("ami-custom-id"),
+				ID:   "ami-custom-id",
 				Tags: map[string]string{},
 			},
 		))
@@ -320,72 +320,72 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(nodeClass.Spec.AMISelectorTerms).To(HaveLen(8))
 		Expect(nodeClass.Spec.AMISelectorTerms).To(ConsistOf(
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name1"),
-				Owner: lo.ToPtr("self"),
-				ID:    lo.ToPtr("ami-1234"),
+				Name:  "ami-name1",
+				Owner: "self",
+				ID:    "ami-1234",
 				Tags: map[string]string{
 					"custom-tag":  "custom-value",
 					"custom-tag2": "custom-value2",
 				},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name1"),
-				Owner: lo.ToPtr("self"),
-				ID:    lo.ToPtr("ami-5678"),
+				Name:  "ami-name1",
+				Owner: "self",
+				ID:    "ami-5678",
 				Tags: map[string]string{
 					"custom-tag":  "custom-value",
 					"custom-tag2": "custom-value2",
 				},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name1"),
-				Owner: lo.ToPtr("amazon"),
-				ID:    lo.ToPtr("ami-1234"),
+				Name:  "ami-name1",
+				Owner: "amazon",
+				ID:    "ami-1234",
 				Tags: map[string]string{
 					"custom-tag":  "custom-value",
 					"custom-tag2": "custom-value2",
 				},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name1"),
-				Owner: lo.ToPtr("amazon"),
-				ID:    lo.ToPtr("ami-5678"),
+				Name:  "ami-name1",
+				Owner: "amazon",
+				ID:    "ami-5678",
 				Tags: map[string]string{
 					"custom-tag":  "custom-value",
 					"custom-tag2": "custom-value2",
 				},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name2"),
-				Owner: lo.ToPtr("self"),
-				ID:    lo.ToPtr("ami-1234"),
+				Name:  "ami-name2",
+				Owner: "self",
+				ID:    "ami-1234",
 				Tags: map[string]string{
 					"custom-tag":  "custom-value",
 					"custom-tag2": "custom-value2",
 				},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name2"),
-				Owner: lo.ToPtr("self"),
-				ID:    lo.ToPtr("ami-5678"),
+				Name:  "ami-name2",
+				Owner: "self",
+				ID:    "ami-5678",
 				Tags: map[string]string{
 					"custom-tag":  "custom-value",
 					"custom-tag2": "custom-value2",
 				},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name2"),
-				Owner: lo.ToPtr("amazon"),
-				ID:    lo.ToPtr("ami-1234"),
+				Name:  "ami-name2",
+				Owner: "amazon",
+				ID:    "ami-1234",
 				Tags: map[string]string{
 					"custom-tag":  "custom-value",
 					"custom-tag2": "custom-value2",
 				},
 			},
 			v1beta1.AMISelectorTerm{
-				Name:  lo.ToPtr("ami-name2"),
-				Owner: lo.ToPtr("amazon"),
-				ID:    lo.ToPtr("ami-5678"),
+				Name:  "ami-name2",
+				Owner: "amazon",
+				ID:    "ami-5678",
 				Tags: map[string]string{
 					"custom-tag":  "custom-value",
 					"custom-tag2": "custom-value2",
