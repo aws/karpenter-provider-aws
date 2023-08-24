@@ -33,7 +33,7 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -41,7 +41,7 @@ import (
 var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
-var nodeTemplate *v1alpha1.AWSNodeTemplate
+var nodeClass *v1beta1.NodeClass
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -123,88 +123,84 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = Describe("AMI Provider", func() {
+var _ = Describe("AMIProvider", func() {
 	var version string
 	BeforeEach(func() {
 		version = lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
+		nodeClass = test.NodeClass()
 	})
 	It("should succeed to resolve AMIs (AL2)", func() {
-		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily: &v1alpha1.AMIFamilyAL2,
-			},
-		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       amd64AMIName,
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   amd64NvidiaAMIName,
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): arm64AMIName,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(4))
 	})
 	It("should succeed to resolve AMIs (Bottlerocket)", func() {
-		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily: &v1alpha1.AMIFamilyBottlerocket,
-			},
-		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version):        amd64AMIName,
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version): amd64NvidiaAMIName,
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMIName,
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/latest/image_id", version):  arm64NvidiaAMIName,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(6))
 	})
 	It("should succeed to resolve AMIs (Ubuntu)", func() {
-		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily: &v1alpha1.AMIFamilyUbuntu,
-			},
-		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", version): amd64AMIName,
 			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMIName,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(2))
 	})
+	It("should succeed to resolve AMIs (Windows2019)", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2019
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", version): amd64AMIName,
+		}
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(1))
+	})
+	It("should succeed to resolve AMIs (Windows2022)", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2019
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", version): amd64AMIName,
+		}
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(1))
+	})
 	It("should succeed to resolve AMIs (Custom)", func() {
-		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily: &v1alpha1.AMIFamilyCustom,
-			},
-		})
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(0))
 	})
+
 	It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Al2)", func() {
-		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily: &v1alpha1.AMIFamilyAL2,
-			},
-		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 		// No GPU AMI exists here
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       amd64AMIName,
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): arm64AMIName,
 		}
 		// Only 2 of the requirements sets for the SSM aliases will resolve
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(2))
 	})
 	It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Bottlerocket)", func() {
-		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily: &v1alpha1.AMIFamilyBottlerocket,
-			},
-		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 		// No GPU AMI exists for AM64 here
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version):        amd64AMIName,
@@ -212,129 +208,217 @@ var _ = Describe("AMI Provider", func() {
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMIName,
 		}
 		// Only 4 of the requirements sets for the SSM aliases will resolve
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(4))
 	})
 	It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Ubuntu)", func() {
-		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily: &v1alpha1.AMIFamilyUbuntu,
-			},
-		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
 		// No AMD64 AMI exists here
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMIName,
 		}
 		// Only 1 of the requirements sets for the SSM aliases will resolve
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(1))
 	})
 	Context("AMI Selectors", func() {
 		It("should have default owners and use tags when prefixes aren't set", func() {
-			amiSelector := map[string]string{
-				"Name": "my-ami",
-			}
-			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
-			Expect(owners).Should(ConsistOf(defaultOwners))
-			Expect(filters).Should(ConsistOf([]*ec2.Filter{
+			amiSelectorTerms := []v1beta1.AMISelectorTerm{
 				{
-					Name:   aws.String("tag:Name"),
-					Values: aws.StringSlice([]string{"my-ami"}),
+					Tags: map[string]string{
+						"Name": "my-ami",
+					},
+				},
+			}
+			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
+			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+				{
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("tag:Name"),
+							Values: aws.StringSlice([]string{"my-ami"}),
+						},
+					},
 				},
 			}))
 		})
 		It("should have default owners and use name when prefixed", func() {
-			amiSelector := map[string]string{
-				"aws::name": "my-ami",
-			}
-			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
-			Expect(owners).Should(ConsistOf(defaultOwners))
-			Expect(filters).Should(ConsistOf([]*ec2.Filter{
+			amiSelectorTerms := []v1beta1.AMISelectorTerm{
 				{
-					Name:   aws.String("name"),
-					Values: aws.StringSlice([]string{"my-ami"}),
+					Name: "my-ami",
+				},
+			}
+			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
+			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+				{
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("name"),
+							Values: aws.StringSlice([]string{"my-ami"}),
+						},
+					},
 				},
 			}))
 		})
 		It("should not set owners when legacy ids are passed", func() {
-			amiSelector := map[string]string{
-				"aws-ids": "ami-abcd1234,ami-cafeaced",
-			}
-			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
-			Expect(owners).Should(BeNil())
-			Expect(filters).Should(ConsistOf([]*ec2.Filter{
+			amiSelectorTerms := []v1beta1.AMISelectorTerm{
 				{
-					Name: aws.String("image-id"),
-					Values: aws.StringSlice([]string{
-						"ami-abcd1234",
-						"ami-cafeaced",
-					}),
+					ID: "ami-abcd1234",
 				},
-			}))
-		})
-		It("should not set owners when prefixed ids are passed", func() {
-			amiSelector := map[string]string{
-				"aws::ids": "ami-abcd1234,ami-cafeaced",
-			}
-			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
-			Expect(owners).Should(BeNil())
-			Expect(filters).Should(ConsistOf([]*ec2.Filter{
 				{
-					Name: aws.String("image-id"),
-					Values: aws.StringSlice([]string{
-						"ami-abcd1234",
-						"ami-cafeaced",
-					}),
+					ID: "ami-cafeaced",
+				},
+			}
+			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
+			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+				{
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("image-id"),
+							Values: aws.StringSlice([]string{"ami-abcd1234"}),
+						},
+					},
+				},
+				{
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("image-id"),
+							Values: aws.StringSlice([]string{"ami-cafeaced"}),
+						},
+					},
 				},
 			}))
 		})
 		It("should allow only specifying owners", func() {
-			amiSelector := map[string]string{
-				"aws::owners": "abcdef,123456789012",
-			}
-			_, owners := amifamily.getFiltersAndOwners(amiSelector)
-			Expect(owners).Should(ConsistOf(
-				[]*string{aws.String("abcdef"), aws.String("123456789012")},
-			))
-		})
-		It("should allow prefixed id, prefixed name, and prefixed owners", func() {
-			amiSelector := map[string]string{
-				"aws::name":   "my-ami",
-				"aws::ids":    "ami-abcd1234,ami-cafeaced",
-				"aws::owners": "self,amazon",
-			}
-			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
-			Expect(owners).Should(ConsistOf(defaultOwners))
-			Expect(filters).Should(ConsistOf([]*ec2.Filter{
+			amiSelectorTerms := []v1beta1.AMISelectorTerm{
 				{
-					Name:   aws.String("name"),
-					Values: aws.StringSlice([]string{"my-ami"}),
+					Owner: "abcdef",
 				},
 				{
-					Name: aws.String("image-id"),
-					Values: aws.StringSlice([]string{
-						"ami-abcd1234",
-						"ami-cafeaced",
-					}),
+					Owner: "123456789012",
+				},
+			}
+			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
+			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+				{
+					Owner: "abcdef",
+				},
+				{
+					Owner: "123456789012",
+				},
+			}))
+		})
+		It("should allow prefixed id, prefixed name, and prefixed owners", func() {
+			amiSelectorTerms := []v1beta1.AMISelectorTerm{
+				{
+					Name:  "my-ami",
+					ID:    "ami-abcd1234",
+					Owner: "self",
+				},
+				{
+					Name:  "my-ami",
+					ID:    "ami-cafeaced",
+					Owner: "self",
+				},
+				{
+					Name:  "my-ami",
+					ID:    "ami-abcd1234",
+					Owner: "amazon",
+				},
+				{
+					Name:  "my-ami",
+					ID:    "ami-cafeaced",
+					Owner: "amazon",
+				},
+			}
+			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
+			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+				{
+					Owner: "self",
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("name"),
+							Values: aws.StringSlice([]string{"my-ami"}),
+						},
+						{
+							Name:   aws.String("image-id"),
+							Values: aws.StringSlice([]string{"ami-abcd1234"}),
+						},
+					},
+				},
+				{
+					Owner: "self",
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("name"),
+							Values: aws.StringSlice([]string{"my-ami"}),
+						},
+						{
+							Name:   aws.String("image-id"),
+							Values: aws.StringSlice([]string{"ami-cafeaced"}),
+						},
+					},
+				},
+				{
+					Owner: "amazon",
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("name"),
+							Values: aws.StringSlice([]string{"my-ami"}),
+						},
+						{
+							Name:   aws.String("image-id"),
+							Values: aws.StringSlice([]string{"ami-abcd1234"}),
+						},
+					},
+				},
+				{
+					Owner: "amazon",
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("name"),
+							Values: aws.StringSlice([]string{"my-ami"}),
+						},
+						{
+							Name:   aws.String("image-id"),
+							Values: aws.StringSlice([]string{"ami-cafeaced"}),
+						},
+					},
 				},
 			}))
 		})
 		It("should allow prefixed name and prefixed owners", func() {
-			amiSelector := map[string]string{
-				"aws::name":   "my-ami",
-				"aws::owners": "0123456789,self",
-			}
-			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
-			Expect(owners).Should(ConsistOf([]*string{
-				aws.String("0123456789"),
-				aws.String("self"),
-			}))
-			Expect(filters).Should(ConsistOf([]*ec2.Filter{
+			amiSelectorTerms := []v1beta1.AMISelectorTerm{
 				{
-					Name:   aws.String("name"),
-					Values: aws.StringSlice([]string{"my-ami"}),
+					Name:  "my-name",
+					Owner: "0123456789",
+				},
+				{
+					Name:  "my-name",
+					Owner: "self",
+				},
+			}
+			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
+			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+				{
+					Owner: "0123456789",
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("name"),
+							Values: aws.StringSlice([]string{"my-name"}),
+						},
+					},
+				},
+				{
+					Owner: "self",
+					Filters: []*ec2.Filter{
+						{
+							Name:   aws.String("name"),
+							Values: aws.StringSlice([]string{"my-name"}),
+						},
+					},
 				},
 			}))
 		})

@@ -202,22 +202,23 @@ func (c *CloudProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) e
 }
 
 func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.Machine) (cloudprovider.DriftReason, error) {
-	// Not needed when GetInstanceTypes removes provisioner dependency
-	provisioner := &v1alpha5.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: machine.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
-		return "", client.IgnoreNotFound(fmt.Errorf("getting provisioner, %w", err))
+	nodeClaim := nodeclaimutil.New(machine)
+	// Not needed when GetInstanceTypes removes nodepool dependency
+	nodePool, err := nodeclaimutil.Owner(ctx, c.kubeClient, nodeClaim)
+	if err != nil {
+		return "", client.IgnoreNotFound(fmt.Errorf("resolving owner, %w", err))
 	}
-	if provisioner.Spec.ProviderRef == nil {
+	if nodePool.Spec.Template.Spec.NodeClass == nil {
 		return "", nil
 	}
-	nodeTemplate, err := c.resolveNodeTemplate(ctx, nil, provisioner.Spec.ProviderRef)
+	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			c.recorder.Publish(cloudproviderevents.ProvisionerFailedToResolveNodeTemplate(provisioner))
 		}
 		return "", client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
 	}
-	driftReason, err := c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
+	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodePool, nodeClass)
 	if err != nil {
 		return "", err
 	}

@@ -212,7 +212,7 @@ func (p *Provider) getAMIsFromSelectorTerms(ctx context.Context, terms []v1beta1
 }
 
 func (p *Provider) fetchAMIsFromEC2(ctx context.Context, terms []v1beta1.AMISelectorTerm) ([]*ec2.Image, error) {
-	filterAndOwnerSets := getFilterAndOwnerSets(terms)
+	filterAndOwnerSets := GetFilterAndOwnerSets(terms)
 	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
@@ -258,7 +258,7 @@ type FiltersAndOwner struct {
 
 // TODO @joinnis: It's possible that we could make this filtering logic more efficient by combining selectors
 // that only use the term "id" into a single filtered term or that only use the term "name" into a single filtered term
-func getFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) []FiltersAndOwner {
+func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) []FiltersAndOwner {
 	return lo.Map(terms, func(t v1beta1.AMISelectorTerm, _ int) FiltersAndOwner {
 		return getFiltersAndOwner(t)
 	})
