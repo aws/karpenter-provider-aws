@@ -133,6 +133,8 @@ var _ = BeforeEach(func() {
 	cluster.Reset()
 	awsEnv.Reset()
 
+	lo.Must0(awsEnv.KubernetesVersionCache.Add("kubernetesVersion", env.Version.String(), 0), "failed to cache Kubernetes version")
+
 	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 })
@@ -1036,6 +1038,9 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2), fmt.Sprintf("--max-pods=%d", 100))
 		})
 		It("should specify --container-runtime containerd by default", func() {
+			if env.Version.Minor() >= 27 {
+				Skip("Container runtime not passed for K8s >= 1.27")
+			}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1043,6 +1048,9 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
 		})
 		It("should specify dockerd if specified in the provisionerSpec", func() {
+			if env.Version.Minor() >= 27 {
+				Skip("Container runtime not passed for K8s >= 1.27")
+			}
 			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod()
@@ -1051,6 +1059,9 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime dockerd")
 		})
 		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
+			if env.Version.Minor() >= 27 {
+				Skip("Container runtime not passed for K8s >= 1.27")
+			}
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -1069,6 +1080,9 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
 		})
 		It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
+			if env.Version.Minor() >= 27 {
+				Skip("Container runtime not passed for K8s >= 1.27")
+			}
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -1418,7 +1432,12 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
+				var expectedUserData string
+				if env.Version.Minor() >= 27 {
+					expectedUserData = fmt.Sprintf(string(content), "", newProvisioner.Name)
+				} else {
+					expectedUserData = fmt.Sprintf(string(content), "\n--container-runtime containerd \\\n", newProvisioner.Name)
+				}
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data not in multi-part mime format", func() {
@@ -1437,7 +1456,12 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
+				var expectedUserData string
+				if env.Version.Minor() >= 27 {
+					expectedUserData = fmt.Sprintf(string(content), "", newProvisioner.Name)
+				} else {
+					expectedUserData = fmt.Sprintf(string(content), "\n--container-runtime containerd \\\n", newProvisioner.Name)
+				}
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should handle empty custom user data", func() {
@@ -1453,7 +1477,12 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
+				var expectedUserData string
+				if env.Version.Minor() >= 27 {
+					expectedUserData = fmt.Sprintf(string(content), "", newProvisioner.Name)
+				} else {
+					expectedUserData = fmt.Sprintf(string(content), "\n--container-runtime containerd \\\n", newProvisioner.Name)
+				}
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 		})
