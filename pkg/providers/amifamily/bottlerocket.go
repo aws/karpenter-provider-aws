@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/samber/lo"
 
@@ -89,7 +90,7 @@ func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, _ *version.Version, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
 			ClusterName:             b.Options.ClusterName,

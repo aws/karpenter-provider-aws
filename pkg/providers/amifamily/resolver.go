@@ -17,6 +17,7 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/version"
 	"net"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -74,7 +75,7 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DefaultAMIs(version string) []DefaultAMIOutput
-	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
+	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, kubeServerVersion *version.Version, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1alpha1.MetadataOptions
 	EphemeralBlockDevice() *string
@@ -128,6 +129,11 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
 	}
+	kubeVersionStr, err := r.amiProvider.KubeServerVersion(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting kubernetes version %w", err)
+	}
+	kubeVersion := version.MustParseGeneric(kubeVersionStr)
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -150,6 +156,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 				Options: options,
 				UserData: amiFamily.UserData(
 					r.defaultClusterDNS(options, kubeletConfig),
+					kubeVersion,
 					append(machine.Spec.Taints, machine.Spec.StartupTaints...),
 					options.Labels,
 					options.CABundle,

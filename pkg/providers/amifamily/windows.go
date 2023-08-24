@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/aws/karpenter-core/pkg/scheduling"
 
@@ -55,7 +56,7 @@ func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, _ *version.Version, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:     w.Options.ClusterName,

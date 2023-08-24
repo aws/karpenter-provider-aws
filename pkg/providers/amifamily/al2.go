@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
@@ -73,9 +74,11 @@ func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
-func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (a AL2) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, kubeServerVersion *version.Version, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	containerRuntime := aws.String("containerd")
-	if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
+	if kubeServerVersion.Minor() >= 27 {
+		containerRuntime = aws.String("")
+	} else if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
 		containerRuntime = kubeletConfig.ContainerRuntime
 	}
 	return bootstrap.EKS{

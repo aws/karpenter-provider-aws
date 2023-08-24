@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"fmt"
+	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
@@ -52,7 +53,7 @@ func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (u Ubuntu) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (u Ubuntu) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, _ *version.Version, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
 			ClusterName:             u.Options.ClusterName,
