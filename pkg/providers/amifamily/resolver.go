@@ -17,8 +17,9 @@ package amifamily
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/version"
 	"net"
+
+	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -118,22 +119,20 @@ func New(amiProvider *Provider) *Resolver {
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
-	amis, err := r.amiProvider.Get(ctx, nodeTemplate, options)
+	mappedAMIs, err := r.getMappedAMIs(ctx, nodeTemplate, instanceTypes, options)
 	if err != nil {
 		return nil, err
 	}
-	if len(amis) == 0 {
-		return nil, fmt.Errorf("no amis exist given constraints")
-	}
-	mappedAMIs := MapInstanceTypes(amis, instanceTypes)
-	if len(mappedAMIs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
-	}
+
 	kubeVersionStr, err := r.amiProvider.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	kubeVersion := version.MustParseGeneric(kubeVersionStr)
+	kubeVersion, err := version.ParseGeneric(kubeVersionStr)
+	if err != nil {
+		return nil, fmt.Errorf("parsing kubernetes version %w", err)
+	}
+
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -222,4 +221,20 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1alpha5.Kubel
 	newKubeletConfig := kubeletConfig.DeepCopy()
 	newKubeletConfig.ClusterDNS = []string{opts.KubeDNSIP.String()}
 	return newKubeletConfig
+}
+
+func (r Resolver) getMappedAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, options *Options) (map[string][]*cloudprovider.InstanceType, error) {
+	amis, err := r.amiProvider.Get(ctx, nodeTemplate, options)
+	if err != nil {
+		return nil, err
+	}
+	if len(amis) == 0 {
+		return nil, fmt.Errorf("no amis exist given constraints")
+	}
+	mappedAMIs := MapInstanceTypes(amis, instanceTypes)
+	if len(mappedAMIs) == 0 {
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
+	}
+
+	return mappedAMIs, nil
 }

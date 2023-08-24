@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"fmt"
+
 	"k8s.io/apimachinery/pkg/util/version"
 
 	"github.com/aws/aws-sdk-go/aws"
