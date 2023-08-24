@@ -19,6 +19,8 @@ import (
 
 	"github.com/samber/lo"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -89,7 +91,7 @@ func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (b Bottlerocket) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
 			ClusterName:             b.Options.ClusterName,
@@ -105,10 +107,10 @@ func (b Bottlerocket) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, tai
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (b Bottlerocket) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
+func (b Bottlerocket) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
 	xvdaEBS := DefaultEBS
 	xvdaEBS.VolumeSize = lo.ToPtr(resource.MustParse("4Gi"))
-	return []*v1alpha1.BlockDeviceMapping{
+	return []*v1beta1.BlockDeviceMapping{
 		{
 			DeviceName: aws.String("/dev/xvda"),
 			EBS:        &xvdaEBS,

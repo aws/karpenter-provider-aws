@@ -30,7 +30,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 type Provider struct {
@@ -51,13 +51,13 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.SecurityGroup, error) {
+func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*ec2.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
 	// TODO: When removing custom launchTemplates for v1beta1, security groups will be required.
 	// The check will not be necessary
-	filters := p.getFilters(nodeTemplate)
+	filters := p.getFilters(nodeClass)
 	if len(filters) == 0 {
 		return []*ec2.SecurityGroup{}, nil
 	}
@@ -65,7 +65,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	if err != nil {
 		return nil, err
 	}
-	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeTemplate.Name), securityGroups) {
+	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroups) {
 		logging.FromContext(ctx).
 			With("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
 				return aws.StringValue(s.GroupId)
@@ -75,9 +75,10 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	return securityGroups, nil
 }
 
-func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
+// TODO @joinnis: Need to re-write the filtering logic here to generate multiple requests if needed
+func (p *Provider) getFilters(nodeClass *v1beta1.NodeClass) []*ec2.Filter {
 	var filters []*ec2.Filter
-	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
+	for key, value := range nodeClass.Spec.SecurityGroupSelectorTerms {
 		switch key {
 		case "aws-ids", "aws::ids":
 			filters = append(filters, &ec2.Filter{

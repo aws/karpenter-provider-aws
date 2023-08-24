@@ -37,6 +37,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
@@ -113,22 +114,23 @@ func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) m
 }
 
 // Get Returning a list of AMIs with its associated requirements
-func (p *Provider) Get(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) ([]AMI, error) {
+func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) ([]AMI, error) {
 	var err error
 	var amis []AMI
-	if len(nodeTemplate.Spec.AMISelector) == 0 {
-		amis, err = p.getDefaultAMIFromSSM(ctx, nodeTemplate, options)
+	// TODO @joinnis: Need to re-write the filtering logic here to generate multiple requests if needed
+	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
+		amis, err = p.getDefaultAMIFromSSM(ctx, nodeClass, options)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIsFromSelector(ctx, nodeTemplate.Spec.AMISelector)
+		amis, err = p.getAMIsFromSelector(ctx, nodeClass.Spec.AMISelectorTerms)
 		if err != nil {
 			return nil, err
 		}
 	}
 	amis = groupAMIsByRequirements(SortAMIsByCreationDate(amis))
-	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeTemplate.Name), amis) {
+	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), amis) {
 		logging.FromContext(ctx).With("ids", amiList(amis), "count", len(amis)).Debugf("discovered amis")
 	}
 	return amis, nil
@@ -148,8 +150,8 @@ func groupAMIsByRequirements(amis []AMI) []AMI {
 	return result
 }
 
-func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, options *Options) ([]AMI, error) {
-	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
+func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) ([]AMI, error) {
+	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)

@@ -29,7 +29,7 @@ import (
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
@@ -56,10 +56,10 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.Subnet, error) {
+func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
-	filters := getFilters(nodeTemplate)
+	filters := getFilters(nodeClass)
 	if len(filters) == 0 {
 		return []*ec2.Subnet{}, nil
 	}
@@ -79,7 +79,7 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	for _, subnet := range output.Subnets {
 		delete(p.inflightIPs, *subnet.SubnetId)
 	}
-	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeTemplate.Name), output.Subnets) {
+	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), output.Subnets) {
 		logging.FromContext(ctx).
 			With("subnets", lo.Map(output.Subnets, func(s *ec2.Subnet, _ int) string {
 				return fmt.Sprintf("%s (%s)", aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone))
@@ -90,8 +90,8 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 }
 
 // CheckAnyPublicIPAssociations returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
-func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (bool, error) {
-	subnets, err := p.List(ctx, nodeTemplate)
+func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeClass *v1beta1.NodeClass) (bool, error) {
+	subnets, err := p.List(ctx, nodeClass)
 	if err != nil {
 		return false, err
 	}
@@ -102,13 +102,14 @@ func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeTemplat
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
-func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
-	subnets, err := p.List(ctx, nodeTemplate)
+func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1.NodeClass, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
+	subnets, err := p.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
 	if len(subnets) == 0 {
-		return nil, fmt.Errorf("no subnets matched selector %v", nodeTemplate.Spec.SubnetSelector)
+		// TODO @joinnis: Come back here and make sure that this prints in a nice format
+		return nil, fmt.Errorf("no subnets matched selector %v", nodeClass.Spec.SubnetSelectorTerms)
 	}
 	p.Lock()
 	defer p.Unlock()
@@ -225,10 +226,10 @@ func (p *Provider) minPods(instanceTypes []*cloudprovider.InstanceType, zone str
 	return pods
 }
 
-func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
+// TODO @joinnis: Need to re-write the filtering logic here to generate multiple requests if needed
+func getFilters(nodeClass *v1beta1.NodeClass) []*ec2.Filter {
 	var filters []*ec2.Filter
-	// Filter by subnet
-	for key, value := range nodeTemplate.Spec.SubnetSelector {
+	for key, value := range nodeClass.Spec.SubnetSelectorTerms {
 		switch key {
 		case "aws-ids", "aws::ids":
 			filters = append(filters, &ec2.Filter{
