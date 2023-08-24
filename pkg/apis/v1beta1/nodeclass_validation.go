@@ -81,7 +81,7 @@ func (in *NodeClassSpec) validateSubnetSelectorTerms() (errs *apis.FieldError) {
 
 func (in *SubnetSelectorTerm) validate() (errs *apis.FieldError) {
 	errs = errs.Also(validateTags(in.Tags).ViaField("tags"))
-	if len(in.Tags) == 0 && in.ID == "" {
+	if len(in.Tags) == 0 && in.ID == nil {
 		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id"))
 	}
 	return errs
@@ -99,7 +99,7 @@ func (in *NodeClassSpec) validateSecurityGroupSelectorTerms() (errs *apis.FieldE
 
 func (in *SecurityGroupSelectorTerm) validate() (errs *apis.FieldError) {
 	errs = errs.Also(validateTags(in.Tags).ViaField("tags"))
-	if len(in.Tags) == 0 && in.ID == "" && in.Name == "" {
+	if len(in.Tags) == 0 && in.ID == nil && in.Name == nil {
 		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id", "name"))
 	}
 	return errs
@@ -114,7 +114,7 @@ func (in *NodeClassSpec) validateAMISelectorTerms() (errs *apis.FieldError) {
 
 func (in *AMISelectorTerm) validate() (errs *apis.FieldError) {
 	errs = errs.Also(validateTags(in.Tags).ViaField("tags"))
-	if len(in.Tags) == 0 && in.ID == "" && in.Name == "" && in.SSM == "" {
+	if len(in.Tags) == 0 && in.ID == nil && in.Name == nil && in.SSM == nil {
 		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id", "name", "ssm"))
 	}
 	return errs

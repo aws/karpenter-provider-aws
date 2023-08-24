@@ -22,6 +22,7 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 
@@ -138,7 +139,7 @@ var _ = Describe("Validation", func() {
 		It("should succeed with a valid subnet selector on id", func() {
 			nc.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 				{
-					ID: "sg-12345749",
+					ID: lo.ToPtr("sg-12345749"),
 				},
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
@@ -225,7 +226,7 @@ var _ = Describe("Validation", func() {
 		It("should succeed with a valid security group selector on id", func() {
 			nc.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
 				{
-					ID: "sg-12345749",
+					ID: lo.ToPtr("sg-12345749"),
 				},
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
@@ -233,7 +234,7 @@ var _ = Describe("Validation", func() {
 		It("should succeed with a valid security group selector on name", func() {
 			nc.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
 				{
-					Name: "testname",
+					Name: lo.ToPtr("testname"),
 				},
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
@@ -320,7 +321,7 @@ var _ = Describe("Validation", func() {
 		It("should succeed with a valid ami selector on id", func() {
 			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
-					ID: "sg-12345749",
+					ID: lo.ToPtr("sg-12345749"),
 				},
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
@@ -328,7 +329,7 @@ var _ = Describe("Validation", func() {
 		It("should succeed with a valid ami selector on name", func() {
 			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
-					Name: "testname",
+					Name: lo.ToPtr("testname"),
 				},
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
@@ -336,7 +337,7 @@ var _ = Describe("Validation", func() {
 		It("should succeed with a valid ami selector on ssm", func() {
 			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
-					SSM: "/test/ssm/path",
+					SSM: lo.ToPtr("/test/ssm/path"),
 				},
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
