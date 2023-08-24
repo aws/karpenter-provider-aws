@@ -117,14 +117,13 @@ func MapInstanceTypes(amis []AMI, instanceTypes []*cloudprovider.InstanceType) m
 func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) ([]AMI, error) {
 	var err error
 	var amis []AMI
-	// TODO @joinnis: Need to re-write the filtering logic here to generate multiple requests if needed
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
 		amis, err = p.getDefaultAMIFromSSM(ctx, nodeClass, options)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIsFromSelector(ctx, nodeClass.Spec.AMISelectorTerms)
+		amis, err = p.getAMIsFromSelectorTerms(ctx, nodeClass.Spec.AMISelectorTerms)
 		if err != nil {
 			return nil, err
 		}
@@ -151,55 +150,33 @@ func groupAMIsByRequirements(amis []AMI) []AMI {
 }
 
 func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) ([]AMI, error) {
+	var res []AMI
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-
-	var amis []AMI
-	ssmRequirements := amiFamily.DefaultAMIs(kubernetesVersion)
-	for _, ssmOutput := range ssmRequirements {
-		amiID, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
+	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion)
+	for _, ami := range defaultAMIs {
+		id, err := p.fetchAMIsFromSSM(ctx, ami.Query)
 		if err != nil {
-			logging.FromContext(ctx).With("query", ssmOutput.Query).Errorf("discovering amis from ssm, %s", err)
+			logging.FromContext(ctx).With("query", ami.Query).Errorf("discovering amis from ssm, %s", err)
 			continue
 		}
-		amis = append(amis, AMI{AmiID: amiID, Requirements: ssmOutput.Requirements})
-	}
-	amis, err = p.findAMINames(ctx, amis)
-	if err != nil {
-		return nil, err
-	}
-	return amis, nil
-}
-
-// Associate a list of amiIDs with there ec2 AMI names
-func (p *Provider) findAMINames(ctx context.Context, amis []AMI) ([]AMI, error) {
-	// Creating selector filter by making a string of amiIds into a comma delineated string
-	ids := lo.Reduce(amis, func(agg string, item AMI, _ int) string {
-		return agg + item.AmiID + ","
-	}, "")
-	selector := map[string]string{"aws-ids": ids}
-	// Collecting the AMI details of the default AMIs from EC2
-	amisDetails, err := p.fetchAMIsFromEC2(ctx, selector)
-	if err != nil {
-		return nil, err
-	}
-
-	// matching up the AMIs details that is received from EC2 with the default AMIs
-	// collecting the names of the default AMIs
-	amis = lo.Map(amis, func(x AMI, _ int) AMI {
-		ami, ok := lo.Find(amisDetails, func(image *ec2.Image) bool {
-			return *image.ImageId == x.AmiID
+		output, err := p.getAMIsFromSelectorTerms(ctx, []v1beta1.AMISelectorTerm{
+			{
+				ID: id,
+			},
 		})
-		if ok {
-			x.Name = *ami.Name
+		if err != nil {
+			return nil, fmt.Errorf("discovering ami, %w", err)
 		}
-		return x
-	})
-
-	return amis, nil
+		if len(output) > 0 {
+			output[0].Requirements = ami.Requirements
+			res = append(res, output[0])
+		}
+	}
+	return res, nil
 }
 
 func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (string, error) {
@@ -215,42 +192,51 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	return ami, nil
 }
 
-func (p *Provider) getAMIsFromSelector(ctx context.Context, selector map[string]string) (amis []AMI, err error) {
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, selector)
+func (p *Provider) getAMIsFromSelectorTerms(ctx context.Context, terms []v1beta1.AMISelectorTerm) ([]AMI, error) {
+	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, terms)
 	if err != nil {
 		return nil, err
 	}
-	for _, ec2AMI := range ec2AMIs {
-		a := AMI{*ec2AMI.Name, *ec2AMI.ImageId, *ec2AMI.CreationDate, p.getRequirementsFromImage(ec2AMI)}
-		// Only support well-known architectures for AMI resolution
-		if v1alpha1.WellKnownArchitectures.Has(a.Requirements.Get(v1.LabelArchStable).Any()) {
-			amis = append(amis, a)
+	amis := lo.Map(ec2AMIs, func(i *ec2.Image, _ int) AMI {
+		return AMI{
+			Name:         lo.FromPtr(i.Name),
+			AmiID:        lo.FromPtr(i.ImageId),
+			CreationDate: lo.FromPtr(i.CreationDate),
+			Requirements: p.getRequirementsFromImage(i),
 		}
-	}
+	})
+	amis = lo.Filter(amis, func(a AMI, _ int) bool {
+		return v1beta1.WellKnownArchitectures.Has(a.Requirements.Get(v1.LabelArchStable).Any())
+	})
 	return amis, nil
 }
 
-func (p *Provider) fetchAMIsFromEC2(ctx context.Context, amiSelector map[string]string) ([]*ec2.Image, error) {
-	filters, owners := GetFiltersAndOwners(amiSelector)
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+func (p *Provider) fetchAMIsFromEC2(ctx context.Context, terms []v1beta1.AMISelectorTerm) ([]*ec2.Image, error) {
+	filterAndOwnerSets := getFilterAndOwnerSets(terms)
+	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
 	}
-	if amis, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
-		return amis.([]*ec2.Image), nil
+	if images, ok := p.ec2Cache.Get(fmt.Sprint(hash)); ok {
+		return images.([]*ec2.Image), nil
 	}
-	describeImagesInput := &ec2.DescribeImagesInput{Owners: owners}
-	// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
-	if len(filters) != 0 {
-		describeImagesInput.Filters = filters
+	images := map[string]*ec2.Image{}
+	for _, filtersAndOwner := range filterAndOwnerSets {
+		// This API is not paginated, so a single call suffices.
+		output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{
+			// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
+			Filters: lo.Ternary(len(filtersAndOwner.Filters) > 0, filtersAndOwner.Filters, nil),
+			Owners:  aws.StringSlice([]string{filtersAndOwner.Owner}),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("describing images, %w", err)
+		}
+		for _, i := range output.Images {
+			images[lo.FromPtr(i.ImageId)] = i
+		}
 	}
-	// This API is not paginated, so a single call suffices.
-	output, err := p.ec2api.DescribeImagesWithContext(ctx, describeImagesInput)
-	if err != nil {
-		return nil, fmt.Errorf("describing images %+v, %w", filters, err)
-	}
-	p.ec2Cache.SetDefault(fmt.Sprint(hash), output.Images)
-	return output.Images, nil
+	p.ec2Cache.SetDefault(fmt.Sprint(hash), lo.Values(images))
+	return lo.Values(images), nil
 }
 
 func amiList(amis []AMI) string {
@@ -265,39 +251,49 @@ func amiList(amis []AMI) string {
 	return sb.String()
 }
 
-func GetFiltersAndOwners(amiSelector map[string]string) ([]*ec2.Filter, []*string) {
-	var filters []*ec2.Filter
-	var owners []*string
-	imagesSet := false
-	for key, value := range amiSelector {
-		switch key {
-		case "aws-ids", "aws::ids":
-			filterValues := functional.SplitCommaSeparatedString(value)
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("image-id"),
-				Values: aws.StringSlice(filterValues),
+type FiltersAndOwner struct {
+	Filters []*ec2.Filter
+	Owner   string
+}
+
+// TODO @joinnis: It's possible that we could make this filtering logic more efficient by combining selectors
+// that only use the term "id" into a single filtered term or that only use the term "name" into a single filtered term
+func getFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) []FiltersAndOwner {
+	return lo.Map(terms, func(t v1beta1.AMISelectorTerm, _ int) FiltersAndOwner {
+		return getFiltersAndOwner(t)
+	})
+}
+
+func getFiltersAndOwner(term v1beta1.AMISelectorTerm) (res FiltersAndOwner) {
+	if term.Owner != "" {
+		res.Owner = term.Owner
+	}
+	if term.ID != "" {
+		res.Filters = append(res.Filters, &ec2.Filter{
+			Name:   aws.String("image-id"),
+			Values: aws.StringSlice([]string{term.ID}),
+		})
+	}
+	if term.Name != "" {
+		res.Filters = append(res.Filters, &ec2.Filter{
+			Name:   aws.String("name"),
+			Values: aws.StringSlice([]string{term.Name}),
+		})
+	}
+	for k, v := range term.Tags {
+		if v == "*" {
+			res.Filters = append(res.Filters, &ec2.Filter{
+				Name:   aws.String("tag-key"),
+				Values: []*string{aws.String(k)},
 			})
-			imagesSet = true
-		case "aws::owners":
-			ownerValues := functional.SplitCommaSeparatedString(value)
-			owners = aws.StringSlice(ownerValues)
-		case "aws::name":
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("name"),
-				Values: []*string{aws.String(value)},
-			})
-		default:
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: []*string{aws.String(value)},
+		} else {
+			res.Filters = append(res.Filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", k)),
+				Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
 			})
 		}
 	}
-	if owners == nil && !imagesSet {
-		owners = []*string{aws.String("self"), aws.String("amazon")}
-	}
-
-	return filters, owners
+	return res
 }
 
 // SortAMIsByCreationDate the AMIs are sorted by creation date in descending order.

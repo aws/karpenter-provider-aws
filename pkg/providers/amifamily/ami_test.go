@@ -236,7 +236,7 @@ var _ = Describe("AMI Provider", func() {
 			amiSelector := map[string]string{
 				"Name": "my-ami",
 			}
-			filters, owners := amifamily.GetFiltersAndOwners(amiSelector)
+			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
 			Expect(owners).Should(ConsistOf(defaultOwners))
 			Expect(filters).Should(ConsistOf([]*ec2.Filter{
 				{
@@ -249,7 +249,7 @@ var _ = Describe("AMI Provider", func() {
 			amiSelector := map[string]string{
 				"aws::name": "my-ami",
 			}
-			filters, owners := amifamily.GetFiltersAndOwners(amiSelector)
+			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
 			Expect(owners).Should(ConsistOf(defaultOwners))
 			Expect(filters).Should(ConsistOf([]*ec2.Filter{
 				{
@@ -262,7 +262,7 @@ var _ = Describe("AMI Provider", func() {
 			amiSelector := map[string]string{
 				"aws-ids": "ami-abcd1234,ami-cafeaced",
 			}
-			filters, owners := amifamily.GetFiltersAndOwners(amiSelector)
+			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
 			Expect(owners).Should(BeNil())
 			Expect(filters).Should(ConsistOf([]*ec2.Filter{
 				{
@@ -278,7 +278,7 @@ var _ = Describe("AMI Provider", func() {
 			amiSelector := map[string]string{
 				"aws::ids": "ami-abcd1234,ami-cafeaced",
 			}
-			filters, owners := amifamily.GetFiltersAndOwners(amiSelector)
+			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
 			Expect(owners).Should(BeNil())
 			Expect(filters).Should(ConsistOf([]*ec2.Filter{
 				{
@@ -294,7 +294,7 @@ var _ = Describe("AMI Provider", func() {
 			amiSelector := map[string]string{
 				"aws::owners": "abcdef,123456789012",
 			}
-			_, owners := amifamily.GetFiltersAndOwners(amiSelector)
+			_, owners := amifamily.getFiltersAndOwners(amiSelector)
 			Expect(owners).Should(ConsistOf(
 				[]*string{aws.String("abcdef"), aws.String("123456789012")},
 			))
@@ -305,7 +305,7 @@ var _ = Describe("AMI Provider", func() {
 				"aws::ids":    "ami-abcd1234,ami-cafeaced",
 				"aws::owners": "self,amazon",
 			}
-			filters, owners := amifamily.GetFiltersAndOwners(amiSelector)
+			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
 			Expect(owners).Should(ConsistOf(defaultOwners))
 			Expect(filters).Should(ConsistOf([]*ec2.Filter{
 				{
@@ -326,7 +326,7 @@ var _ = Describe("AMI Provider", func() {
 				"aws::name":   "my-ami",
 				"aws::owners": "0123456789,self",
 			}
-			filters, owners := amifamily.GetFiltersAndOwners(amiSelector)
+			filters, owners := amifamily.getFiltersAndOwners(amiSelector)
 			Expect(owners).Should(ConsistOf([]*string{
 				aws.String("0123456789"),
 				aws.String("self"),

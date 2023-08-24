@@ -59,34 +59,39 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
-	filters := getFilters(nodeClass)
-	if len(filters) == 0 {
+	filterSets := getFilterSets(nodeClass.Spec.SubnetSelectorTerms)
+	if len(filterSets) == 0 {
 		return []*ec2.Subnet{}, nil
 	}
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
 	}
 	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
 		return subnets.([]*ec2.Subnet), nil
 	}
-	output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
-	if err != nil {
-		return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
+
+	// Ensure that all the subnets that are returned here are unique
+	subnets := map[string]*ec2.Subnet{}
+	for _, filters := range filterSets {
+		output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+		if err != nil {
+			return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
+		}
+		for _, elem := range output.Subnets {
+			subnets[lo.FromPtr(elem.SubnetId)] = elem
+			delete(p.inflightIPs, lo.FromPtr(elem.SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
+		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), output.Subnets)
-	// remove any previously tracked IP addresses since we just refreshed from EC2
-	for _, subnet := range output.Subnets {
-		delete(p.inflightIPs, *subnet.SubnetId)
-	}
-	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), output.Subnets) {
+	p.cache.SetDefault(fmt.Sprint(hash), subnets)
+	if p.cm.HasChanged(fmt.Sprintf("subnets/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), subnets) {
 		logging.FromContext(ctx).
-			With("subnets", lo.Map(output.Subnets, func(s *ec2.Subnet, _ int) string {
+			With("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) string {
 				return fmt.Sprintf("%s (%s)", aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone))
 			})).
 			Debugf("discovered subnets")
 	}
-	return output.Subnets, nil
+	return lo.Values(subnets), nil
 }
 
 // CheckAnyPublicIPAssociations returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
@@ -226,29 +231,33 @@ func (p *Provider) minPods(instanceTypes []*cloudprovider.InstanceType, zone str
 	return pods
 }
 
-// TODO @joinnis: Need to re-write the filtering logic here to generate multiple requests if needed
-func getFilters(nodeClass *v1beta1.NodeClass) []*ec2.Filter {
+// TODO @joinnis: It's possible that we could make this filtering logic more efficient by combining selectors
+// that only use the term "id" into a single filtered term
+func getFilterSets(terms []v1beta1.SubnetSelectorTerm) [][]*ec2.Filter {
+	return lo.Map(terms, func(t v1beta1.SubnetSelectorTerm, _ int) []*ec2.Filter {
+		return getFilters(t)
+	})
+}
+
+func getFilters(term v1beta1.SubnetSelectorTerm) []*ec2.Filter {
 	var filters []*ec2.Filter
-	for key, value := range nodeClass.Spec.SubnetSelectorTerms {
-		switch key {
-		case "aws-ids", "aws::ids":
+	if term.ID != "" {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String("subnet-id"),
+			Values: aws.StringSlice([]string{term.ID}),
+		})
+	}
+	for k, v := range term.Tags {
+		if v == "*" {
 			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("subnet-id"),
-				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
+				Name:   aws.String("tag-key"),
+				Values: []*string{aws.String(k)},
 			})
-		default:
-			switch value {
-			case "*":
-				filters = append(filters, &ec2.Filter{
-					Name:   aws.String("tag-key"),
-					Values: []*string{aws.String(key)},
-				})
-			default:
-				filters = append(filters, &ec2.Filter{
-					Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-					Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
-				})
-			}
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", k)),
+				Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+			})
 		}
 	}
 	return filters

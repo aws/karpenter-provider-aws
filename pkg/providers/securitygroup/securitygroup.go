@@ -57,11 +57,11 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*e
 	// Get SecurityGroups
 	// TODO: When removing custom launchTemplates for v1beta1, security groups will be required.
 	// The check will not be necessary
-	filters := p.getFilters(nodeClass)
-	if len(filters) == 0 {
+	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms)
+	if len(filterSets) == 0 {
 		return []*ec2.SecurityGroup{}, nil
 	}
-	securityGroups, err := p.getSecurityGroups(ctx, filters)
+	securityGroups, err := p.getSecurityGroups(ctx, filterSets)
 	if err != nil {
 		return nil, err
 	}
@@ -75,46 +75,62 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*e
 	return securityGroups, nil
 }
 
-// TODO @joinnis: Need to re-write the filtering logic here to generate multiple requests if needed
-func (p *Provider) getFilters(nodeClass *v1beta1.NodeClass) []*ec2.Filter {
-	var filters []*ec2.Filter
-	for key, value := range nodeClass.Spec.SecurityGroupSelectorTerms {
-		switch key {
-		case "aws-ids", "aws::ids":
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("group-id"),
-				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
-			})
-		default:
-			switch value {
-			case "*":
-				filters = append(filters, &ec2.Filter{
-					Name:   aws.String("tag-key"),
-					Values: []*string{aws.String(key)},
-				})
-			default:
-				filters = append(filters, &ec2.Filter{
-					Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-					Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
-				})
-			}
-		}
-	}
-	return filters
-}
-
-func (p *Provider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+func (p *Provider) getSecurityGroups(ctx context.Context, filterSets [][]*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
 	}
-	if securityGroups, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return securityGroups.([]*ec2.SecurityGroup), nil
+	if sg, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+		return sg.([]*ec2.SecurityGroup), nil
 	}
-	output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
-	if err != nil {
-		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
+	securityGroups := map[string]*ec2.SecurityGroup{}
+	for _, filters := range filterSets {
+		output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+		if err != nil {
+			return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
+		}
+		for _, sg := range output.SecurityGroups {
+			securityGroups[lo.FromPtr(sg.GroupId)] = sg
+		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	return output.SecurityGroups, nil
+	p.cache.SetDefault(fmt.Sprint(hash), securityGroups)
+	return lo.Values(securityGroups), nil
+}
+
+// TODO @joinnis: It's possible that we could make this filtering logic more efficient by combining selectors
+// that only use the term "id" into a single filtered term or that only use the term "name" into a single filtered term
+func getFilterSets(terms []v1beta1.SecurityGroupSelectorTerm) [][]*ec2.Filter {
+	return lo.Map(terms, func(t v1beta1.SecurityGroupSelectorTerm, _ int) []*ec2.Filter {
+		return getFilters(t)
+	})
+}
+
+func getFilters(term v1beta1.SecurityGroupSelectorTerm) []*ec2.Filter {
+	var filters []*ec2.Filter
+	if term.ID != "" {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String("group-id"),
+			Values: aws.StringSlice([]string{term.ID}),
+		})
+	}
+	if term.Name != "" {
+		filters = append(filters, &ec2.Filter{
+			Name:   aws.String("group-name"),
+			Values: aws.StringSlice([]string{term.Name}),
+		})
+	}
+	for k, v := range term.Tags {
+		if v == "*" {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String("tag-key"),
+				Values: []*string{aws.String(k)},
+			})
+		} else {
+			filters = append(filters, &ec2.Filter{
+				Name:   aws.String(fmt.Sprintf("tag:%s", k)),
+				Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+			})
+		}
+	}
+	return filters
 }
