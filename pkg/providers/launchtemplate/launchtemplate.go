@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
@@ -139,6 +141,13 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 }
 
 func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels, tags map[string]string) (*amifamily.Options, error) {
+	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" since the kubelet can't
+	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
+	for k := range labels {
+		if strings.HasPrefix(k, v1.LabelNamespaceNodeRestriction) {
+			delete(labels, k)
+		}
+	}
 	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
 	if err != nil {
 		return nil, err
