@@ -1430,14 +1430,10 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
+				testdata := lo.Ternary(env.Version.Minor() >= 27, "testdata/al2_userdata_merged.golden", "testdata/al2_userdata_merged_pre_1_27.golden")
+				content, err = os.ReadFile(testdata)
 				Expect(err).To(BeNil())
-				var expectedUserData string
-				if env.Version.Minor() >= 27 {
-					expectedUserData = fmt.Sprintf(string(content), "", newProvisioner.Name)
-				} else {
-					expectedUserData = fmt.Sprintf(string(content), "\n--container-runtime containerd \\\n", newProvisioner.Name)
-				}
+				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data not in multi-part mime format", func() {
@@ -1454,14 +1450,10 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
+				testdata := lo.Ternary(env.Version.Minor() >= 27, "testdata/al2_userdata_merged.golden", "testdata/al2_userdata_merged_pre_1_27.golden")
+				content, err = os.ReadFile(testdata)
 				Expect(err).To(BeNil())
-				var expectedUserData string
-				if env.Version.Minor() >= 27 {
-					expectedUserData = fmt.Sprintf(string(content), "", newProvisioner.Name)
-				} else {
-					expectedUserData = fmt.Sprintf(string(content), "\n--container-runtime containerd \\\n", newProvisioner.Name)
-				}
+				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should handle empty custom user data", func() {
@@ -1475,14 +1467,10 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
+				testdata := lo.Ternary(env.Version.Minor() >= 27, "testdata/al2_userdata_unmerged.golden", "testdata/al2_userdata_unmerged_pre_1_27.golden")
+				content, err := os.ReadFile(testdata)
 				Expect(err).To(BeNil())
-				var expectedUserData string
-				if env.Version.Minor() >= 27 {
-					expectedUserData = fmt.Sprintf(string(content), "", newProvisioner.Name)
-				} else {
-					expectedUserData = fmt.Sprintf(string(content), "\n--container-runtime containerd \\\n", newProvisioner.Name)
-				}
+				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 		})
