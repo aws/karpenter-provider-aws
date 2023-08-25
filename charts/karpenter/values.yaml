@@ -44,19 +44,6 @@ podAnnotations: {}
 podDisruptionBudget:
   name: karpenter
   maxUnavailable: 1
-# -- SecurityContext for the pod.
-podSecurityContext:
-  # -- The group to assign as owner for files created in volumeMounts.
-  fsGroup: 65536
-  # -- The user to run all containers as.
-  runAsUser: 65536
-  # -- The group to run all containers as.
-  runAsGroup: 65536
-  # -- Enforce that all containers run as non-root.
-  runAsNonRoot: true
-  # -- SeccompProfile for all containers.
-  seccompProfile:
-    type: RuntimeDefault
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
 # -- Override the default termination grace period for the pod.
@@ -112,16 +99,6 @@ controller:
     tag: v0.30.0-rc.0
     # -- SHA256 digest of the controller image.
     digest: sha256:06f08a2c9b5125a2da57936a5ccfb54e5796677e247fb0bb960e70e79242a147
-  # -- SecurityContext for the container.
-  securityContext:
-    # -- Disabling privilege escalation for the container.
-    allowPrivilegeEscalation: false
-    # -- Dropping all capabilities for the container.
-    capabilities:
-      drop:
-      - ALL
-    # -- Set root filesystem to read only for the container.
-    readOnlyRootFilesystem: true
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION

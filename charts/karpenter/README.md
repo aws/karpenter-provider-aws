@@ -45,10 +45,6 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.metrics.port | int | `8000` | The container port to use for metrics. |
 | controller.outputPaths | list | `["stdout"]` | Controller outputPaths - default to stdout only |
 | controller.resources | object | `{}` | Resources for the controller pod. |
-| controller.securityContext | object | `{"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]},"readOnlyRootFilesystem":true}` | SecurityContext for the container. |
-| controller.securityContext.allowPrivilegeEscalation | bool | `false` | Disabling privilege escalation for the container. |
-| controller.securityContext.capabilities | object | `{"drop":["ALL"]}` | Dropping all capabilities for the container. |
-| controller.securityContext.readOnlyRootFilesystem | bool | `true` | Set root filesystem to read only for the container. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
@@ -66,12 +62,6 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podDisruptionBudget.name | string | `"karpenter"` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
-| podSecurityContext | object | `{"fsGroup":65536,"runAsGroup":65536,"runAsNonRoot":true,"runAsUser":65536,"seccompProfile":{"type":"RuntimeDefault"}}` | SecurityContext for the pod. |
-| podSecurityContext.fsGroup | int | `65536` | The group to assign as owner for files created in volumeMounts. |
-| podSecurityContext.runAsGroup | int | `65536` | The group to run all containers as. |
-| podSecurityContext.runAsNonRoot | bool | `true` | Enforce that all containers run as non-root. |
-| podSecurityContext.runAsUser | int | `65536` | The user to run all containers as. |
-| podSecurityContext.seccompProfile | object | `{"type":"RuntimeDefault"}` | SeccompProfile for all containers. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
