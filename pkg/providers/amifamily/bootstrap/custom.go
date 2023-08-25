@@ -15,15 +15,49 @@ limitations under the License.
 package bootstrap
 
 import (
+	"bytes"
 	"encoding/base64"
-
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	"text/template"
 )
 
 type Custom struct {
 	Options
 }
 
+type TemplateData struct {
+	Taints        []v1.Taint        `hash:"set"`
+	Labels        map[string]string `hash:"set"`
+	InstanceTypes []string
+}
+
 func (e Custom) Script() (string, error) {
-	return base64.StdEncoding.EncodeToString([]byte(aws.StringValue(e.Options.CustomUserData))), nil
+	userData, err := e.templateUserData(lo.FromPtr(e.Options.CustomUserData))
+	if err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString([]byte(userData)), nil
+}
+
+func (e Custom) templateUserData(rawUserData string) (string, error) {
+	tmpl, err := template.New("custom").Parse(rawUserData)
+	if err != nil {
+		return "", err
+	}
+
+	data := TemplateData{
+		Taints:        e.Options.Taints,
+		Labels:        e.Options.Labels,
+		InstanceTypes: e.Options.InstanceTypes,
+	}
+
+	var buf bytes.Buffer
+
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
