@@ -133,7 +133,7 @@ var _ = BeforeEach(func() {
 	cluster.Reset()
 	awsEnv.Reset()
 
-	lo.Must0(awsEnv.KubernetesVersionCache.Add("kubernetesVersion", env.Version.String(), 0), "failed to cache Kubernetes version")
+	lo.Must0(awsEnv.KubernetesVersionCache.Add("kubernetesVersion", env.Version, 0), "failed to cache Kubernetes version")
 
 	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
@@ -1662,7 +1662,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
 				version := lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
 				awsEnv.SSMAPI.Parameters = map[string]string{
-					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): "test-ami-123",
+					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version.String()): "test-ami-123",
 				}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{

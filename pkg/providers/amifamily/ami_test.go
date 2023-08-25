@@ -126,7 +126,7 @@ var _ = AfterSuite(func() {
 var _ = Describe("AMI Provider", func() {
 	var version string
 	BeforeEach(func() {
-		version = lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
+		version = lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx)).String()
 	})
 	It("should succeed to resolve AMIs (AL2)", func() {
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{

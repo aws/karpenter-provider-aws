@@ -124,13 +124,9 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 		return nil, err
 	}
 
-	kubeVersionStr, err := r.amiProvider.KubeServerVersion(ctx)
+	kubeVersion, err := r.amiProvider.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
-	}
-	kubeVersion, err := version.ParseGeneric(kubeVersionStr)
-	if err != nil {
-		return nil, fmt.Errorf("parsing kubernetes version %w", err)
 	}
 
 	var resolvedTemplates []*LaunchTemplate

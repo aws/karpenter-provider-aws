@@ -21,6 +21,8 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/util/version"
+
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -81,20 +83,28 @@ func NewProvider(kubeClient client.Client, kubernetesInterface kubernetes.Interf
 	}
 }
 
-func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
-	if version, ok := p.kubernetesVersionCache.Get(kubernetesVersionCacheKey); ok {
-		return version.(string), nil
+func (p *Provider) KubeServerVersion(ctx context.Context) (*version.Version, error) {
+	if v, ok := p.kubernetesVersionCache.Get(kubernetesVersionCacheKey); ok {
+		return v.(*version.Version), nil
 	}
+
 	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
-	p.kubernetesVersionCache.SetDefault(kubernetesVersionCacheKey, version)
-	if p.cm.HasChanged("kubernetes-version", version) {
-		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
+
+	vStr := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
+	v, err := version.ParseGeneric(vStr)
+	if err != nil {
+		return nil, fmt.Errorf("to parse version string %w", err)
 	}
-	return version, nil
+
+	p.kubernetesVersionCache.SetDefault(kubernetesVersionCacheKey, v)
+	if p.cm.HasChanged("kubernetes-version", v) {
+		logging.FromContext(ctx).With("version", v.String()).Debugf("discovered kubernetes version")
+	}
+
+	return v, nil
 }
 
 // MapInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
@@ -156,7 +166,7 @@ func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeTemplate *v1alp
 	}
 
 	var amis []AMI
-	ssmRequirements := amiFamily.DefaultAMIs(kubernetesVersion)
+	ssmRequirements := amiFamily.DefaultAMIs(kubernetesVersion.String())
 	for _, ssmOutput := range ssmRequirements {
 		amiID, err := p.fetchAMIsFromSSM(ctx, ssmOutput.Query)
 		if err != nil {
