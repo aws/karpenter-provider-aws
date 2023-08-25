@@ -34,7 +34,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -117,11 +116,6 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
-	nodeTemplate.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   v1alpha1.SchemeGroupVersion.Group,
-		Version: v1alpha1.SchemeGroupVersion.Version,
-		Kind:    "AWSNodeTemplate",
-	})
 	provisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
@@ -1525,14 +1519,20 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
-				actualFilter := awsEnv.EC2API.CalledWithDescribeImagesInput.Pop().Filters
-				expectedFilter := []*ec2.Filter{
-					{
-						Name:   aws.String("image-id"),
-						Values: aws.StringSlice([]string{"ami-123", "ami-456"}),
-					},
-				}
-				Expect(actualFilter).To(Equal(expectedFilter))
+				reqs := awsEnv.EC2API.CalledWithDescribeImagesInput.PopAll()
+				Expect(reqs).To(HaveLen(2))
+
+				// Expect to find all the requests in the request set
+				_, ok := lo.Find(reqs, func(input *ec2.DescribeImagesInput) bool {
+					return lo.FromPtr(input.Filters[0].Name) == "image-id" &&
+						sets.New(aws.StringValueSlice(input.Filters[0].Values)...).Equal(sets.New("ami-123"))
+				})
+				Expect(ok).To(BeTrue())
+				_, ok = lo.Find(reqs, func(input *ec2.DescribeImagesInput) bool {
+					return lo.FromPtr(input.Filters[0].Name) == "image-id" &&
+						sets.New(aws.StringValueSlice(input.Filters[0].Values)...).Equal(sets.New("ami-456"))
+				})
+				Expect(ok).To(BeTrue())
 			})
 			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{

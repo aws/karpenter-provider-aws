@@ -39,6 +39,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
+	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 )
 
 var _ corecontroller.TypedController[*v1alpha1.AWSNodeTemplate] = (*Controller)(nil)
@@ -102,7 +103,7 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 }
 
 func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	subnetList, err := c.subnetProvider.List(ctx, nodeTemplate)
+	subnetList, err := c.subnetProvider.List(ctx, nodeclassutil.New(nodeTemplate))
 	if err != nil {
 		return err
 	}
@@ -126,7 +127,7 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.
 }
 
 func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	securityGroups, err := c.securityGroupProvider.List(ctx, nodeTemplate)
+	securityGroups, err := c.securityGroupProvider.List(ctx, nodeclassutil.New(nodeTemplate))
 	if err != nil {
 		return err
 	}
@@ -146,7 +147,7 @@ func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1
 }
 
 func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	amis, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+	amis, err := c.amiProvider.Get(ctx, nodeclassutil.New(nodeTemplate), &amifamily.Options{})
 	if err != nil {
 		return err
 	}

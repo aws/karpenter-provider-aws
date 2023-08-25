@@ -163,7 +163,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.NodeClass, nod
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
 			}
-			if resolved.BlockDeviceMappings == nil {
+			if len(resolved.BlockDeviceMappings) == 0 {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
 			}
 			if resolved.MetadataOptions == nil {

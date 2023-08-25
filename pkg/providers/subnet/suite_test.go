@@ -19,8 +19,10 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/karpenter/pkg/apis"
@@ -102,12 +104,14 @@ var _ = Describe("SubnetProvider", func() {
 				},
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
-
 			Expect(err).To(BeNil())
-			Expect(subnets).To(HaveLen(1))
-			Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
-			Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
-			Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+			ExpectConsistsOfSubnets([]*ec2.Subnet{
+				{
+					SubnetId:                lo.ToPtr("subnet-test1"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+			}, subnets)
 		})
 		It("should discover subnets by IDs", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -120,13 +124,18 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			Expect(subnets).To(HaveLen(2))
-			Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
-			Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
-			Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
-			Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
-			Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
-			Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+			ExpectConsistsOfSubnets([]*ec2.Subnet{
+				{
+					SubnetId:                lo.ToPtr("subnet-test1"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+				{
+					SubnetId:                lo.ToPtr("subnet-test2"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+			}, subnets)
 		})
 		It("should discover subnets by IDs and tags", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -140,15 +149,19 @@ var _ = Describe("SubnetProvider", func() {
 				},
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
-
 			Expect(err).To(BeNil())
-			Expect(subnets).To(HaveLen(2))
-			Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
-			Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
-			Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
-			Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
-			Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
-			Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+			ExpectConsistsOfSubnets([]*ec2.Subnet{
+				{
+					SubnetId:                lo.ToPtr("subnet-test1"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+				{
+					SubnetId:                lo.ToPtr("subnet-test2"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+			}, subnets)
 		})
 		It("should discover subnets by a single tag", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -157,12 +170,14 @@ var _ = Describe("SubnetProvider", func() {
 				},
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
-
 			Expect(err).To(BeNil())
-			Expect(subnets).To(HaveLen(1))
-			Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
-			Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
-			Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+			ExpectConsistsOfSubnets([]*ec2.Subnet{
+				{
+					SubnetId:                lo.ToPtr("subnet-test1"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+			}, subnets)
 		})
 		It("should discover subnets by multiple tag values", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -174,15 +189,19 @@ var _ = Describe("SubnetProvider", func() {
 				},
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
-
 			Expect(err).To(BeNil())
-			Expect(subnets).To(HaveLen(2))
-			Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test1"))
-			Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1a"))
-			Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
-			Expect(aws.StringValue(subnets[1].SubnetId)).To(Equal("subnet-test2"))
-			Expect(aws.StringValue(subnets[1].AvailabilityZone)).To(Equal("test-zone-1b"))
-			Expect(aws.Int64Value(subnets[1].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+			ExpectConsistsOfSubnets([]*ec2.Subnet{
+				{
+					SubnetId:                lo.ToPtr("subnet-test1"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+				{
+					SubnetId:                lo.ToPtr("subnet-test2"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+			}, subnets)
 		})
 		It("should discover subnets by IDs intersected with tags", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -192,12 +211,14 @@ var _ = Describe("SubnetProvider", func() {
 				},
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
-
 			Expect(err).To(BeNil())
-			Expect(subnets).To(HaveLen(1))
-			Expect(aws.StringValue(subnets[0].SubnetId)).To(Equal("subnet-test2"))
-			Expect(aws.StringValue(subnets[0].AvailabilityZone)).To(Equal("test-zone-1b"))
-			Expect(aws.Int64Value(subnets[0].AvailableIpAddressCount)).To(BeNumerically("==", 100))
+			ExpectConsistsOfSubnets([]*ec2.Subnet{
+				{
+					SubnetId:                lo.ToPtr("subnet-test2"),
+					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailableIpAddressCount: lo.ToPtr[int64](100),
+				},
+			}, subnets)
 		})
 	})
 	Context("CheckAnyPublicIPAssociations", func() {
@@ -224,3 +245,16 @@ var _ = Describe("SubnetProvider", func() {
 		})
 	})
 })
+
+func ExpectConsistsOfSubnets(expected, actual []*ec2.Subnet) {
+	GinkgoHelper()
+	Expect(actual).To(HaveLen(len(expected)))
+	for _, elem := range expected {
+		_, ok := lo.Find(actual, func(s *ec2.Subnet) bool {
+			return lo.FromPtr(s.SubnetId) == lo.FromPtr(elem.SubnetId) &&
+				lo.FromPtr(s.AvailabilityZone) == lo.FromPtr(elem.AvailabilityZone) &&
+				lo.FromPtr(s.AvailableIpAddressCount) == lo.FromPtr(elem.AvailableIpAddressCount)
+		})
+		Expect(ok).To(BeTrue(), `Expected subnet with {"SubnetId": %q, "AvailabilityZone": %q, "AvailableIpAddressCount": %q} to exist`, lo.FromPtr(elem.SubnetId), lo.FromPtr(elem.AvailabilityZone), lo.FromPtr(elem.AvailableIpAddressCount))
+	}
+}

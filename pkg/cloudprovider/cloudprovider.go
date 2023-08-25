@@ -95,7 +95,7 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			c.recorder.Publish(cloudproviderevents.MachineFailedToResolveNodeTemplate(machine))
+			c.recorder.Publish(cloudproviderevents.NodeClaimFailedToResolveNodeClass(nodeClaim))
 		}
 		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
@@ -177,7 +177,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			c.recorder.Publish(cloudproviderevents.ProvisionerFailedToResolveNodeTemplate(provisioner))
+			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 		}
 		return nil, client.IgnoreNotFound(fmt.Errorf("resolving node class, %w", err))
 	}
@@ -214,9 +214,9 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			c.recorder.Publish(cloudproviderevents.ProvisionerFailedToResolveNodeTemplate(provisioner))
+			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 		}
-		return "", client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
+		return "", client.IgnoreNotFound(fmt.Errorf("resolving node class, %w", err))
 	}
 	driftReason, err := c.isNodeClassDrifted(ctx, nodeClaim, nodePool, nodeClass)
 	if err != nil {
@@ -255,7 +255,7 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 		}
 		nodeTemplate, err := c.resolveNodeTemplate(ctx, rawProvider, machineutil.NewMachineTemplateRef(nodePool.Spec.Template.Spec.NodeClass))
 		if err != nil {
-			return nil, client.IgnoreNotFound(err)
+			return nil, fmt.Errorf("resolving node template, %w", err)
 		}
 		return nodeclassutil.New(nodeTemplate), nil
 	}

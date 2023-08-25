@@ -65,7 +65,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*e
 	if err != nil {
 		return nil, err
 	}
-	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroups) {
+	if p.cm.HasChanged(fmt.Sprintf("security-groups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), securityGroups) {
 		logging.FromContext(ctx).
 			With("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
 				return aws.StringValue(s.GroupId)
@@ -93,7 +93,7 @@ func (p *Provider) getSecurityGroups(ctx context.Context, filterSets [][]*ec2.Fi
 			securityGroups[lo.FromPtr(sg.GroupId)] = sg
 		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), securityGroups)
+	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(securityGroups))
 	return lo.Values(securityGroups), nil
 }
 

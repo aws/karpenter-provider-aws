@@ -17,6 +17,7 @@ package amifamily_test
 import (
 	"context"
 	"fmt"
+	"sort"
 	"testing"
 	"time"
 
@@ -54,10 +55,6 @@ const (
 	arm64AMIName       = "arm64-ami"
 	amd64NvidiaAMIName = "amd64-nvidia-ami"
 	arm64NvidiaAMIName = "arm64-nvidia-ami"
-)
-
-var (
-	defaultOwners = []*string{aws.String("self"), aws.String("amazon")}
 )
 
 var _ = BeforeSuite(func() {
@@ -172,7 +169,7 @@ var _ = Describe("AMIProvider", func() {
 		Expect(amis).To(HaveLen(1))
 	})
 	It("should succeed to resolve AMIs (Windows2022)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2019
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", version): amd64AMIName,
 		}
@@ -233,7 +230,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}
 			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwner{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -242,7 +239,7 @@ var _ = Describe("AMIProvider", func() {
 						},
 					},
 				},
-			}))
+			}, filterAndOwnersSets)
 		})
 		It("should have default owners and use name when prefixed", func() {
 			amiSelectorTerms := []v1beta1.AMISelectorTerm{
@@ -251,7 +248,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}
 			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwner{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -260,7 +257,7 @@ var _ = Describe("AMIProvider", func() {
 						},
 					},
 				},
-			}))
+			}, filterAndOwnersSets)
 		})
 		It("should not set owners when legacy ids are passed", func() {
 			amiSelectorTerms := []v1beta1.AMISelectorTerm{
@@ -272,7 +269,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}
 			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwner{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -289,7 +286,7 @@ var _ = Describe("AMIProvider", func() {
 						},
 					},
 				},
-			}))
+			}, filterAndOwnersSets)
 		})
 		It("should allow only specifying owners", func() {
 			amiSelectorTerms := []v1beta1.AMISelectorTerm{
@@ -301,14 +298,14 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}
 			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwner{
 				{
 					Owner: "abcdef",
 				},
 				{
 					Owner: "123456789012",
 				},
-			}))
+			}, filterAndOwnersSets)
 		})
 		It("should allow prefixed id, prefixed name, and prefixed owners", func() {
 			amiSelectorTerms := []v1beta1.AMISelectorTerm{
@@ -334,7 +331,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}
 			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwner{
 				{
 					Owner: "self",
 					Filters: []*ec2.Filter{
@@ -387,7 +384,7 @@ var _ = Describe("AMIProvider", func() {
 						},
 					},
 				},
-			}))
+			}, filterAndOwnersSets)
 		})
 		It("should allow prefixed name and prefixed owners", func() {
 			amiSelectorTerms := []v1beta1.AMISelectorTerm{
@@ -401,7 +398,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			}
 			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			Expect(filterAndOwnersSets).Should(ConsistOf([]amifamily.FiltersAndOwner{
+			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwner{
 				{
 					Owner: "0123456789",
 					Filters: []*ec2.Filter{
@@ -420,7 +417,7 @@ var _ = Describe("AMIProvider", func() {
 						},
 					},
 				},
-			}))
+			}, filterAndOwnersSets)
 		})
 		It("should sort amis by creationDate", func() {
 			amis := []amifamily.AMI{
@@ -481,3 +478,22 @@ var _ = Describe("AMIProvider", func() {
 		})
 	})
 })
+
+func ExpectConsistsOfFiltersAndOwners(expected, actual []amifamily.FiltersAndOwner) {
+	GinkgoHelper()
+	Expect(actual).To(HaveLen(len(expected)))
+
+	for _, list := range [][]amifamily.FiltersAndOwner{expected, actual} {
+		for _, elem := range list {
+			for _, f := range elem.Filters {
+				sort.Slice(f.Values, func(i, j int) bool {
+					return lo.FromPtr(f.Values[i]) < lo.FromPtr(f.Values[j])
+				})
+			}
+			sort.Slice(elem.Filters, func(i, j int) bool {
+				return lo.FromPtr(elem.Filters[i].Name) < lo.FromPtr(elem.Filters[j].Name)
+			})
+		}
+	}
+	Expect(actual).To(ConsistOf(lo.Map(expected, func(f amifamily.FiltersAndOwner, _ int) interface{} { return f })...))
+}

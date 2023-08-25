@@ -129,7 +129,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.NodeClass, option
 		}
 	}
 	amis = groupAMIsByRequirements(SortAMIsByCreationDate(amis))
-	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), amis) {
+	if p.cm.HasChanged(fmt.Sprintf("amis/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), amis) {
 		logging.FromContext(ctx).With("ids", amiList(amis), "count", len(amis)).Debugf("discovered amis")
 	}
 	return amis, nil

@@ -83,7 +83,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*e
 			delete(p.inflightIPs, lo.FromPtr(elem.SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
 		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), subnets)
+	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
 	if p.cm.HasChanged(fmt.Sprintf("subnets/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), subnets) {
 		logging.FromContext(ctx).
 			With("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) string {
