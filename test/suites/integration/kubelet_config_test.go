@@ -106,9 +106,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				},
 					// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
 					v1.NodeSelectorRequirement{
-						Key:      v1alpha1.LabelInstanceGeneration,
-						Operator: v1.NodeSelectorOpLt,
-						Values:   []string{"7"},
+						Key:      v1alpha1.LabelInstanceFamily,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   []string{"m7a"},
 					})
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
@@ -142,9 +142,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				},
 					// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
 					v1.NodeSelectorRequirement{
-						Key:      v1alpha1.LabelInstanceGeneration,
-						Operator: v1.NodeSelectorOpLt,
-						Values:   []string{"7"},
+						Key:      v1alpha1.LabelInstanceFamily,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   []string{"m7a"},
 					})
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
