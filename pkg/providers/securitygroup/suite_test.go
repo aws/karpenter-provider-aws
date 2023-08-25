@@ -256,10 +256,6 @@ var _ = Describe("SecurityGroupProvider", func() {
 	It("should discover security groups by names intersected with tags", func() {
 		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
 			{
-				Name: "securityGroup-test2",
-				Tags: map[string]string{"TestTag": "*"},
-			},
-			{
 				Name: "securityGroup-test3",
 				Tags: map[string]string{"TestTag": "*"},
 			},

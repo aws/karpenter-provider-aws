@@ -118,12 +118,12 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.NodeClass, option
 	var err error
 	var amis []AMI
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
-		amis, err = p.getDefaultAMIFromSSM(ctx, nodeClass, options)
+		amis, err = p.getDefaultAMIsFromSSM(ctx, nodeClass, options)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIsFromSelectorTerms(ctx, nodeClass.Spec.AMISelectorTerms)
+		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms)
 		if err != nil {
 			return nil, err
 		}
@@ -149,37 +149,42 @@ func groupAMIsByRequirements(amis []AMI) []AMI {
 	return result
 }
 
-func (p *Provider) getDefaultAMIFromSSM(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) ([]AMI, error) {
-	var res []AMI
+func (p *Provider) getDefaultAMIsFromSSM(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) (res []AMI, err error) {
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
 	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion)
+
 	for _, ami := range defaultAMIs {
-		id, err := p.fetchAMIsFromSSM(ctx, ami.Query)
-		if err != nil {
+		if id, err := p.getAMIsFromSSM(ctx, ami.Query); err != nil {
 			logging.FromContext(ctx).With("query", ami.Query).Errorf("discovering amis from ssm, %s", err)
-			continue
+		} else {
+			res = append(res, AMI{AmiID: id, Requirements: ami.Requirements})
 		}
-		output, err := p.getAMIsFromSelectorTerms(ctx, []v1beta1.AMISelectorTerm{
-			{
-				ID: id,
-			},
-		})
-		if err != nil {
-			return nil, fmt.Errorf("discovering ami, %w", err)
+	}
+	images, err := p.getAMIs(ctx, lo.Map(res, func(a AMI, _ int) v1beta1.AMISelectorTerm {
+		return v1beta1.AMISelectorTerm{
+			ID: a.AmiID,
 		}
-		if len(output) > 0 {
-			output[0].Requirements = ami.Requirements
-			res = append(res, output[0])
+	}))
+	if err != nil {
+		return nil, fmt.Errorf("discovering amis, %w", err)
+	}
+	// Resolve additional information from the set of default AMIs
+	for i := range res {
+		if image, ok := lo.Find(images, func(a AMI) bool {
+			return res[i].AmiID == a.AmiID
+		}); ok {
+			res[i].Name = image.Name
+			res[i].CreationDate = image.CreationDate
 		}
 	}
 	return res, nil
 }
 
-func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (string, error) {
+func (p *Provider) getAMIsFromSSM(ctx context.Context, ssmQuery string) (string, error) {
 	if id, ok := p.ssmCache.Get(ssmQuery); ok {
 		return id.(string), nil
 	}
@@ -192,8 +197,8 @@ func (p *Provider) fetchAMIsFromSSM(ctx context.Context, ssmQuery string) (strin
 	return ami, nil
 }
 
-func (p *Provider) getAMIsFromSelectorTerms(ctx context.Context, terms []v1beta1.AMISelectorTerm) ([]AMI, error) {
-	ec2AMIs, err := p.fetchAMIsFromEC2(ctx, terms)
+func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm) ([]AMI, error) {
+	ec2AMIs, err := p.getAMIsFromEC2(ctx, terms)
 	if err != nil {
 		return nil, err
 	}
@@ -211,7 +216,7 @@ func (p *Provider) getAMIsFromSelectorTerms(ctx context.Context, terms []v1beta1
 	return amis, nil
 }
 
-func (p *Provider) fetchAMIsFromEC2(ctx context.Context, terms []v1beta1.AMISelectorTerm) ([]*ec2.Image, error) {
+func (p *Provider) getAMIsFromEC2(ctx context.Context, terms []v1beta1.AMISelectorTerm) ([]*ec2.Image, error) {
 	filterAndOwnerSets := GetFilterAndOwnerSets(terms)
 	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
@@ -221,18 +226,18 @@ func (p *Provider) fetchAMIsFromEC2(ctx context.Context, terms []v1beta1.AMISele
 		return images.([]*ec2.Image), nil
 	}
 	images := map[string]*ec2.Image{}
-	for _, filtersAndOwner := range filterAndOwnerSets {
+	for _, filtersAndOwners := range filterAndOwnerSets {
 		// This API is not paginated, so a single call suffices.
 		output, err := p.ec2api.DescribeImagesWithContext(ctx, &ec2.DescribeImagesInput{
 			// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
-			Filters: lo.Ternary(len(filtersAndOwner.Filters) > 0, filtersAndOwner.Filters, nil),
-			Owners:  aws.StringSlice([]string{filtersAndOwner.Owner}),
+			Filters: lo.Ternary(len(filtersAndOwners.Filters) > 0, filtersAndOwners.Filters, nil),
+			Owners:  lo.Ternary(len(filtersAndOwners.Owners) > 0, aws.StringSlice(filtersAndOwners.Owners), nil),
 		})
 		if err != nil {
 			return nil, fmt.Errorf("describing images, %w", err)
 		}
-		for _, i := range output.Images {
-			images[lo.FromPtr(i.ImageId)] = i
+		for i := range output.Images {
+			images[lo.FromPtr(output.Images[i].ImageId)] = output.Images[i]
 		}
 	}
 	p.ec2Cache.SetDefault(fmt.Sprint(hash), lo.Values(images))
@@ -251,47 +256,45 @@ func amiList(amis []AMI) string {
 	return sb.String()
 }
 
-type FiltersAndOwner struct {
+type FiltersAndOwners struct {
 	Filters []*ec2.Filter
-	Owner   string
+	Owners  []string
 }
 
-// TODO @joinnis: It's possible that we could make this filtering logic more efficient by combining selectors
-// that only use the term "id" into a single filtered term or that only use the term "name" into a single filtered term
-func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) []FiltersAndOwner {
-	return lo.Map(terms, func(t v1beta1.AMISelectorTerm, _ int) FiltersAndOwner {
-		return getFiltersAndOwner(t)
-	})
-}
-
-func getFiltersAndOwner(term v1beta1.AMISelectorTerm) (res FiltersAndOwner) {
-	if term.Owner != "" {
-		res.Owner = term.Owner
-	}
-	if term.ID != "" {
-		res.Filters = append(res.Filters, &ec2.Filter{
-			Name:   aws.String("image-id"),
-			Values: aws.StringSlice([]string{term.ID}),
-		})
-	}
-	if term.Name != "" {
-		res.Filters = append(res.Filters, &ec2.Filter{
-			Name:   aws.String("name"),
-			Values: aws.StringSlice([]string{term.Name}),
-		})
-	}
-	for k, v := range term.Tags {
-		if v == "*" {
-			res.Filters = append(res.Filters, &ec2.Filter{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(k)},
-			})
-		} else {
-			res.Filters = append(res.Filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-				Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
-			})
+func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwners) {
+	idFilter := &ec2.Filter{Name: aws.String("image-id")}
+	for _, term := range terms {
+		switch {
+		case term.ID != "":
+			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
+		default:
+			elem := FiltersAndOwners{
+				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
+			}
+			if term.Name != "" {
+				elem.Filters = append(elem.Filters, &ec2.Filter{
+					Name:   aws.String("name"),
+					Values: aws.StringSlice([]string{term.Name}),
+				})
+			}
+			for k, v := range term.Tags {
+				if v == "*" {
+					elem.Filters = append(elem.Filters, &ec2.Filter{
+						Name:   aws.String("tag-key"),
+						Values: []*string{aws.String(k)},
+					})
+				} else {
+					elem.Filters = append(elem.Filters, &ec2.Filter{
+						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
+						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+					})
+				}
+			}
+			res = append(res, elem)
 		}
+	}
+	if len(idFilter.Values) > 0 {
+		res = append(res, FiltersAndOwners{Filters: []*ec2.Filter{idFilter}})
 	}
 	return res
 }

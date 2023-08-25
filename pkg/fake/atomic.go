@@ -161,16 +161,6 @@ func (a *AtomicPtrSlice[T]) Pop() *T {
 	return last
 }
 
-func (a *AtomicPtrSlice[T]) PopAll() (ret []*T) {
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	for len(a.values) > 0 {
-		ret = append(ret, a.values[len(a.values)-1])
-		a.values = a.values[0 : len(a.values)-1]
-	}
-	return ret
-}
-
 func (a *AtomicPtrSlice[T]) ForEach(fn func(*T)) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

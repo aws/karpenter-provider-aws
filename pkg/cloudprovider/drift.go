@@ -96,7 +96,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1
 
 func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
 	// If the node template status does not have subnets, wait for the subnets to be populated before continuing
-	if nodeClass.Status.Subnets == nil {
+	if len(nodeClass.Status.Subnets) == 0 {
 		return "", fmt.Errorf("AWSNodeTemplate has no subnets")
 	}
 	_, found := lo.Find(nodeClass.Status.Subnets, func(subnet v1beta1.Subnet) bool {

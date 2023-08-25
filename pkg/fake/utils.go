@@ -80,16 +80,23 @@ func FilterDescribeSubnets(subnets []*ec2.Subnet, filters []*ec2.Filter) []*ec2.
 	})
 }
 
+func FilterDescribeImages(images []*ec2.Image, filters []*ec2.Filter) []*ec2.Image {
+	return lo.Filter(images, func(image *ec2.Image, _ int) bool {
+		return Filter(filters, *image.ImageId, *image.Name, image.Tags)
+	})
+}
+
+//nolint:gocyclo
 func Filter(filters []*ec2.Filter, id, name string, tags []*ec2.Tag) bool {
 	return lo.EveryBy(filters, func(filter *ec2.Filter) bool {
 		switch filterName := aws.StringValue(filter.Name); {
-		case filterName == "subnet-id" || filterName == "group-id":
+		case filterName == "subnet-id" || filterName == "group-id" || filterName == "image-id":
 			for _, val := range filter.Values {
 				if id == aws.StringValue(val) {
 					return true
 				}
 			}
-		case filterName == "group-name":
+		case filterName == "group-name" || filterName == "name":
 			for _, val := range filter.Values {
 				if name == aws.StringValue(val) {
 					return true
@@ -100,7 +107,7 @@ func Filter(filters []*ec2.Filter, id, name string, tags []*ec2.Tag) bool {
 				return true
 			}
 		default:
-			panic("Unsupported mock filter")
+			panic(fmt.Sprintf("Unsupported mock filter %q", filter))
 		}
 		return false
 	})

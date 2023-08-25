@@ -274,12 +274,24 @@ var _ = Describe("LaunchTemplates", func() {
 					ImageId:      aws.String("ami-123"),
 					Architecture: aws.String("x86_64"),
 					CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("karpenter.sh/discovery"),
+							Value: aws.String("my-cluster"),
+						},
+					},
 				},
 				{
 					Name:         aws.String(coretest.RandomName()),
 					ImageId:      aws.String("ami-456"),
 					Architecture: aws.String("arm64"),
 					CreationDate: aws.String("2022-08-10T12:00:00Z"),
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String("karpenter.sh/discovery"),
+							Value: aws.String("my-cluster"),
+						},
+					},
 				},
 			}})
 			nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
@@ -1462,7 +1474,14 @@ var _ = Describe("LaunchTemplates", func() {
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						CreationDate: aws.String("2022-08-15T12:00:00Z")},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("karpenter.sh/discovery"),
+								Value: aws.String("my-cluster"),
+							},
+						},
+					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
@@ -1484,7 +1503,14 @@ var _ = Describe("LaunchTemplates", func() {
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						CreationDate: aws.String("2022-08-15T12:00:00Z")},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("karpenter.sh/discovery"),
+								Value: aws.String("my-cluster"),
+							},
+						},
+					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
@@ -1519,20 +1545,14 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
-				reqs := awsEnv.EC2API.CalledWithDescribeImagesInput.PopAll()
-				Expect(reqs).To(HaveLen(2))
-
-				// Expect to find all the requests in the request set
-				_, ok := lo.Find(reqs, func(input *ec2.DescribeImagesInput) bool {
-					return lo.FromPtr(input.Filters[0].Name) == "image-id" &&
-						sets.New(aws.StringValueSlice(input.Filters[0].Values)...).Equal(sets.New("ami-123"))
-				})
-				Expect(ok).To(BeTrue())
-				_, ok = lo.Find(reqs, func(input *ec2.DescribeImagesInput) bool {
-					return lo.FromPtr(input.Filters[0].Name) == "image-id" &&
-						sets.New(aws.StringValueSlice(input.Filters[0].Values)...).Equal(sets.New("ami-456"))
-				})
-				Expect(ok).To(BeTrue())
+				actualFilter := awsEnv.EC2API.CalledWithDescribeImagesInput.Pop().Filters
+				expectedFilter := []*ec2.Filter{
+					{
+						Name:   aws.String("image-id"),
+						Values: aws.StringSlice([]string{"ami-123", "ami-456"}),
+					},
+				}
+				Expect(actualFilter).To(Equal(expectedFilter))
 			})
 			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
@@ -1540,14 +1560,32 @@ var _ = Describe("LaunchTemplates", func() {
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String(v1.LabelInstanceTypeStable),
+								Value: aws.String("m5.large"),
+							},
+							{
+								Key:   aws.String("karpenter.sh/discovery"),
+								Value: aws.String("my-cluster"),
+							},
+						},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String(v1.LabelInstanceTypeStable),
+								Value: aws.String("m5.xlarge"),
+							},
+							{
+								Key:   aws.String("karpenter.sh/discovery"),
+								Value: aws.String("my-cluster"),
+							},
+						},
 						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})
@@ -1573,12 +1611,24 @@ var _ = Describe("LaunchTemplates", func() {
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2020-01-01T12:00:00Z"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("karpenter.sh/discovery"),
+								Value: aws.String("my-cluster"),
+							},
+						},
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2021-01-01T12:00:00Z"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("karpenter.sh/discovery"),
+								Value: aws.String("my-cluster"),
+							},
+						},
 					},
 					{
 						// Incompatible because required ARM64
@@ -1586,6 +1636,12 @@ var _ = Describe("LaunchTemplates", func() {
 						ImageId:      aws.String("ami-789"),
 						Architecture: aws.String("arm64"),
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("karpenter.sh/discovery"),
+								Value: aws.String("my-cluster"),
+							},
+						},
 					},
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}

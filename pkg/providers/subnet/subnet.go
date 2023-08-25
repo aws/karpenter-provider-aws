@@ -78,9 +78,9 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*e
 		if err != nil {
 			return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 		}
-		for _, elem := range output.Subnets {
-			subnets[lo.FromPtr(elem.SubnetId)] = elem
-			delete(p.inflightIPs, lo.FromPtr(elem.SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
+		for i := range output.Subnets {
+			subnets[lo.FromPtr(output.Subnets[i].SubnetId)] = output.Subnets[i]
+			delete(p.inflightIPs, lo.FromPtr(output.Subnets[i].SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
 		}
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
@@ -231,34 +231,32 @@ func (p *Provider) minPods(instanceTypes []*cloudprovider.InstanceType, zone str
 	return pods
 }
 
-// TODO @joinnis: It's possible that we could make this filtering logic more efficient by combining selectors
-// that only use the term "id" into a single filtered term
-func getFilterSets(terms []v1beta1.SubnetSelectorTerm) [][]*ec2.Filter {
-	return lo.Map(terms, func(t v1beta1.SubnetSelectorTerm, _ int) []*ec2.Filter {
-		return getFilters(t)
-	})
-}
-
-func getFilters(term v1beta1.SubnetSelectorTerm) []*ec2.Filter {
-	var filters []*ec2.Filter
-	if term.ID != "" {
-		filters = append(filters, &ec2.Filter{
-			Name:   aws.String("subnet-id"),
-			Values: aws.StringSlice([]string{term.ID}),
-		})
-	}
-	for k, v := range term.Tags {
-		if v == "*" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(k)},
-			})
-		} else {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-				Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
-			})
+func getFilterSets(terms []v1beta1.SubnetSelectorTerm) (res [][]*ec2.Filter) {
+	idFilter := &ec2.Filter{Name: aws.String("subnet-id")}
+	for _, term := range terms {
+		switch {
+		case term.ID != "":
+			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
+		default:
+			var filters []*ec2.Filter
+			for k, v := range term.Tags {
+				if v == "*" {
+					filters = append(filters, &ec2.Filter{
+						Name:   aws.String("tag-key"),
+						Values: []*string{aws.String(k)},
+					})
+				} else {
+					filters = append(filters, &ec2.Filter{
+						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
+						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+					})
+				}
+			}
+			res = append(res, filters)
 		}
 	}
-	return filters
+	if len(idFilter.Values) > 0 {
+		res = append(res, []*ec2.Filter{idFilter})
+	}
+	return res
 }
