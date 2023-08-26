@@ -30,17 +30,11 @@ type Custom struct {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (c Custom) UserData(_ *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, _ *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
-	var iTypes []string
-	for _, i := range instanceTypes {
-		iTypes = append(iTypes, i.Name)
-	}
-
+func (c Custom) UserData(_ *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Custom{
 		Options: bootstrap.Options{
 			Taints:         taints,
 			Labels:         labels,
-			InstanceTypes:  iTypes,
 			CustomUserData: customUserData,
 		},
 	}

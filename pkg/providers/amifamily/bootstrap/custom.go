@@ -27,9 +27,8 @@ type Custom struct {
 }
 
 type TemplateData struct {
-	Taints        []v1.Taint        `hash:"set"`
-	Labels        map[string]string `hash:"set"`
-	InstanceTypes []string
+	Taints []v1.Taint        `hash:"set"`
+	Labels map[string]string `hash:"set"`
 }
 
 func (e Custom) Script() (string, error) {
@@ -48,9 +47,8 @@ func (e Custom) templateUserData(rawUserData string) (string, error) {
 	}
 
 	data := TemplateData{
-		Taints:        e.Options.Taints,
-		Labels:        e.Options.Labels,
-		InstanceTypes: e.Options.InstanceTypes,
+		Taints: e.Options.Taints,
+		Labels: e.Options.Labels,
 	}
 
 	var buf bytes.Buffer

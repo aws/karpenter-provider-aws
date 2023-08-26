@@ -35,7 +35,6 @@ type Options struct {
 	KubeletConfig           *v1alpha5.KubeletConfiguration
 	Taints                  []core.Taint      `hash:"set"`
 	Labels                  map[string]string `hash:"set"`
-	InstanceTypes           []string
 	CABundle                *string
 	AWSENILimitedPodDensity bool
 	ContainerRuntime        *string
