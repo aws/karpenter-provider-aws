@@ -128,13 +128,15 @@ type AMISelectorTerm struct {
 	// +optional
 	ID string `json:"id,omitempty"`
 	// Name is the ami name in EC2.
-	// This value is thename field, which is different from the name tag.
+	// This value is the name field, which is different from the name tag.
 	// +optional
 	Name string `json:"name,omitempty"`
 	// Owner is the owner for the ami.
-	// You can specify a combination of AWS account IDs, "self", "amazon",and "aws-marketplace"
+	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
+	// +optional
 	Owner string `json:"owner,omitempty"`
 	// SSM is the ssm alias for an ami.
+	// +optional
 	SSM string `json:"ssm,omitempty"`
 }
 

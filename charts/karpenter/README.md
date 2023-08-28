@@ -73,8 +73,11 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels for the ServiceMonitor. |
 | serviceMonitor.enabled | bool | `false` | Specifies whether a ServiceMonitor should be created. |
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
-| settings | object | `{"aws":{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"tags":null,"vmMemoryOverheadPercent":0.075},"batchIdleDuration":"1s","batchMaxDuration":"10s","featureGates":{"driftEnabled":false}}` | Global Settings to configure Karpenter |
-| settings.aws | object | `{"clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"tags":null,"vmMemoryOverheadPercent":0.075}` | AWS-specific configuration values |
+| settings | object | `{"aws":{"assumeRoleARN":"","assumeRoleDuration":"15m","clusterCABundle":"","clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"tags":null,"vmMemoryOverheadPercent":0.075},"batchIdleDuration":"1s","batchMaxDuration":"10s","featureGates":{"driftEnabled":false}}` | Global Settings to configure Karpenter |
+| settings.aws | object | `{"assumeRoleARN":"","assumeRoleDuration":"15m","clusterCABundle":"","clusterEndpoint":"","clusterName":"","defaultInstanceProfile":"","enableENILimitedPodDensity":true,"enablePodENI":false,"interruptionQueueName":"","isolatedVPC":false,"tags":null,"vmMemoryOverheadPercent":0.075}` | AWS-specific configuration values |
+| settings.aws.assumeRoleARN | string | `""` | Role to assume for calling AWS services. |
+| settings.aws.assumeRoleDuration | string | `"15m"` | Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRoleARN set. |
+| settings.aws.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
 | settings.aws.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.aws.clusterName | string | `""` | Cluster name. |
 | settings.aws.defaultInstanceProfile | string | `""` | The default instance profile to use when launching nodes |
@@ -94,4 +97,3 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels. |
 | webhook.logLevel | string | `"error"` |  |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
-

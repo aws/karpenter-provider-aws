@@ -54,12 +54,12 @@ spec:
                       pattern: ami-[0-9a-z]+
                       type: string
                     name:
-                      description: Name is the ami name in EC2. This value is thename
-                        field, which is different from the name tag.
+                      description: Name is the ami name in EC2. This value is the
+                        name field, which is different from the name tag.
                       type: string
                     owner:
                       description: Owner is the owner for the ami. You can specify
-                        a combination of AWS account IDs, "self", "amazon",and "aws-marketplace"
+                        a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
                       type: string
                     ssm:
                       description: SSM is the ssm alias for an ami.

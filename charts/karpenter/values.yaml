@@ -170,6 +170,8 @@ settings:
     assumeRoleARN: ""
     # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRoleARN set.
     assumeRoleDuration: 15m
+    # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
+    clusterCABundle: ""
     # -- Cluster name.
     clusterName: ""
     # -- Cluster endpoint. If not set, will be discovered during startup (EKS only)

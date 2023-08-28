@@ -255,9 +255,44 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
 			Key:      v1.LabelOSStable,
 			Operator: v1.NodeSelectorOpExists,
-		})
+		},
+			// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+			v1.NodeSelectorRequirement{
+				Key:      v1alpha1.LabelInstanceGeneration,
+				Operator: v1.NodeSelectorOpLt,
+				Values:   []string{"7"},
+			})
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+		env.ExpectCreatedNodeCount("==", 1)
+	})
+	It("should support the node-restriction.kubernetes.io label domain", func() {
+		// Assign labels to the provisioner so that it has known values
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelNamespaceNodeRestriction + "/team",
+				Operator: v1.NodeSelectorOpExists,
+			},
+			{
+				Key:      v1.LabelNamespaceNodeRestriction + "/custom-label",
+				Operator: v1.NodeSelectorOpExists,
+			},
+		}
+		nodeSelector := map[string]string{
+			v1.LabelNamespaceNodeRestriction + "/team":         "team-1",
+			v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+		}
+		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
+		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
+			return v1.NodeSelectorRequirement{Key: key, Operator: v1.NodeSelectorOpIn, Values: []string{value}}
+		})
+		deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+			NodeSelector:     nodeSelector,
+			NodePreferences:  requirements,
+			NodeRequirements: requirements,
+		}})
+		env.ExpectCreated(provisioner, provider, deployment)
+		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should provision a node for naked pods", func() {

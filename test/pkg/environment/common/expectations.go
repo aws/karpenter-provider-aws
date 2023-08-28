@@ -43,6 +43,7 @@ import (
 	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 )
 
 func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
@@ -363,10 +364,52 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*
 	return createdNodes
 }
 
+func MachineNames(machines []*v1alpha5.Machine) []string {
+	return lo.Map(machines, func(m *v1alpha5.Machine, index int) string {
+		return m.Name
+	})
+}
+
 func NodeNames(nodes []*v1.Node) []string {
 	return lo.Map(nodes, func(n *v1.Node, index int) string {
 		return n.Name
 	})
+}
+
+func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int, duration string) []*v1.Node {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting nodes to be %s to %d for %s", comparator, count, duration))
+	nodeList := &v1.NodeList{}
+	Consistently(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d nodes, had %d (%v) for %s", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items)), duration))
+	}, duration).Should(Succeed())
+	return lo.ToSlicePtr(nodeList.Items)
+}
+
+func (env *Environment) ConsistentlyExpectMachineCount(comparator string, count int, duration string) []*v1alpha5.Machine {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting machines to be %s to %d for %s", comparator, count, duration))
+	machineList := &v1alpha5.MachineList{}
+	Consistently(func(g Gomega) {
+		g.Expect(env.Client.List(env, machineList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d machines, had %d (%v) for %s", count, len(machineList.Items), MachineNames(lo.ToSlicePtr(machineList.Items)), duration))
+	}, duration).Should(Succeed())
+	return lo.ToSlicePtr(machineList.Items)
+}
+
+func (env *Environment) EventuallyExpectCordonedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for cordoned nodes to be %s to %d", comparator, count))
+	nodeList := &v1.NodeList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.unschedulable": "true"})).To(Succeed())
+		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d cordoned nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+	}).Should(Succeed())
+	return lo.ToSlicePtr(nodeList.Items)
 }
 
 func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) []*v1.Node {
@@ -379,6 +422,18 @@ func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) 
 			fmt.Sprintf("expected %d nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
+}
+
+func (env *Environment) EventuallyExpectMachineCount(comparator string, count int) []*v1alpha5.Machine {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for machines to be %s to %d", comparator, count))
+	machineList := &v1alpha5.MachineList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env, machineList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d machines, had %d (%v)", count, len(machineList.Items), MachineNames(lo.ToSlicePtr(machineList.Items))))
+	}).Should(Succeed())
+	return lo.ToSlicePtr(machineList.Items)
 }
 
 func (env *Environment) EventuallyExpectNodeCountWithSelector(comparator string, count int, selector labels.Selector) []*v1.Node {
@@ -572,8 +627,8 @@ func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
 
 	return lo.CountBy(daemonSetList.Items, func(d appsv1.DaemonSet) bool {
 		p := &v1.Pod{Spec: d.Spec.Template.Spec}
-		nodeTemplate := pscheduling.NewMachineTemplate(prov)
-		if err := nodeTemplate.Taints.Tolerates(p); err != nil {
+		nodeTemplate := pscheduling.NewNodeClaimTemplate(nodepoolutil.New(prov))
+		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
 			return false
 		}
 		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p)); err != nil {
