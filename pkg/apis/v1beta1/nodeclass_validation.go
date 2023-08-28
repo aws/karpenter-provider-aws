@@ -82,7 +82,9 @@ func (in *NodeClassSpec) validateSubnetSelectorTerms() (errs *apis.FieldError) {
 func (in *SubnetSelectorTerm) validate() (errs *apis.FieldError) {
 	errs = errs.Also(validateTags(in.Tags).ViaField("tags"))
 	if len(in.Tags) == 0 && in.ID == "" {
-		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id"))
+		errs = errs.Also(apis.ErrGeneric("expected at least one, got none", "tags", "id"))
+	} else if in.ID != "" && len(in.Tags) > 0 {
+		errs = errs.Also(apis.ErrGeneric(`"id" is mutually exclusive, cannot be set with a combination of other fields in`))
 	}
 	return errs
 }
@@ -97,10 +99,15 @@ func (in *NodeClassSpec) validateSecurityGroupSelectorTerms() (errs *apis.FieldE
 	return errs
 }
 
+//nolint:gocyclo
 func (in *SecurityGroupSelectorTerm) validate() (errs *apis.FieldError) {
 	errs = errs.Also(validateTags(in.Tags).ViaField("tags"))
 	if len(in.Tags) == 0 && in.ID == "" && in.Name == "" {
 		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id", "name"))
+	} else if in.ID != "" && (len(in.Tags) > 0 || in.Name != "") {
+		errs = errs.Also(apis.ErrGeneric(`"id" is mutually exclusive, cannot be set with a combination of other fields in`))
+	} else if in.Name != "" && (len(in.Tags) > 0 || in.ID != "") {
+		errs = errs.Also(apis.ErrGeneric(`"name" is mutually exclusive, cannot be set with a combination of other fields in`))
 	}
 	return errs
 }
@@ -112,10 +119,13 @@ func (in *NodeClassSpec) validateAMISelectorTerms() (errs *apis.FieldError) {
 	return errs
 }
 
+//nolint:gocyclo
 func (in *AMISelectorTerm) validate() (errs *apis.FieldError) {
 	errs = errs.Also(validateTags(in.Tags).ViaField("tags"))
 	if len(in.Tags) == 0 && in.ID == "" && in.Name == "" && in.SSM == "" {
 		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id", "name", "ssm"))
+	} else if in.ID != "" && (len(in.Tags) > 0 || in.Name != "" || in.SSM != "" || in.Owner != "") {
+		errs = errs.Also(apis.ErrGeneric(`"id" is mutually exclusive, cannot be set with a combination of other fields in`))
 	}
 	return errs
 }

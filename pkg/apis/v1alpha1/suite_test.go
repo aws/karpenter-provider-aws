@@ -58,6 +58,108 @@ var _ = Describe("Validation", func() {
 		}
 	})
 
+	Context("SubnetSelector", func() {
+		It("should succeed with a valid subnet selector", func() {
+			ant.Spec.SubnetSelector = map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should succeed with a valid id subnet selector", func() {
+			ant.Spec.SubnetSelector = map[string]string{
+				"aws-ids": "subnet-123,subnet-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+
+			ant.Spec.SubnetSelector = map[string]string{
+				"aws::ids": "subnet-123,subnet-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should fail when a id subnet selector is used in combination with tags", func() {
+			ant.Spec.SubnetSelector = map[string]string{
+				"aws-ids": "subnet-123",
+				"foo":     "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+
+			ant.Spec.SubnetSelector = map[string]string{
+				"aws::ids": "subnet-123",
+				"foo":      "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+		})
+	})
+	Context("SecurityGroupSelector", func() {
+		It("should succeed with a valid security group selector", func() {
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should succeed with a valid id security group selector", func() {
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"aws-ids": "sg-123,sg-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"aws::ids": "sg-123,sg-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should fail when a id security group selector is used in combination with tags", func() {
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"aws-ids": "sg-123",
+				"foo":     "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"aws::ids": "sg-123",
+				"foo":      "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+		})
+	})
+	Context("AMISelector", func() {
+		It("should succeed with a valid ami selector", func() {
+			ant.Spec.AMISelector = map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should succeed with a valid id ami selector", func() {
+			ant.Spec.AMISelector = map[string]string{
+				"aws-ids": "ami-123,ami-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+
+			ant.Spec.AMISelector = map[string]string{
+				"aws::ids": "ami-123,ami-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should fail when a id ami selector is used in combination with tags", func() {
+			ant.Spec.AMISelector = map[string]string{
+				"aws-ids": "ami-123",
+				"foo":     "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+
+			ant.Spec.AMISelector = map[string]string{
+				"aws::ids": "ami-123",
+				"foo":      "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+		})
+	})
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
 			Expect(ant.Validate(ctx)).To(Succeed())

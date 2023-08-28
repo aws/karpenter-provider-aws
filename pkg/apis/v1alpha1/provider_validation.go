@@ -87,11 +87,13 @@ func (a *AWS) validateSubnets() (errs *apis.FieldError) {
 	if a.SubnetSelector == nil {
 		errs = errs.Also(apis.ErrMissingField(fieldPathSubnetSelectorPath))
 	}
+	var idFilterKeyUsed string
 	for key, value := range a.SubnetSelector {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("%s['%s']", fieldPathSubnetSelectorPath, key)))
 		}
-		if key == "aws-ids" {
+		if key == "aws-ids" || key == "aws::ids" {
+			idFilterKeyUsed = key
 			for _, subnetID := range functional.SplitCommaSeparatedString(value) {
 				if !subnetRegex.MatchString(subnetID) {
 					fieldValue := fmt.Sprintf("\"%s\"", subnetID)
@@ -101,9 +103,13 @@ func (a *AWS) validateSubnets() (errs *apis.FieldError) {
 			}
 		}
 	}
+	if idFilterKeyUsed != "" && len(a.SubnetSelector) > 1 {
+		errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%q filter is mutually exclusive, cannot be set with a combination of other filters in", idFilterKeyUsed), fieldPathSubnetSelectorPath))
+	}
 	return errs
 }
 
+//nolint:gocyclo
 func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 	if a.LaunchTemplateName != nil {
 		return nil
@@ -111,11 +117,13 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 	if a.SecurityGroupSelector == nil {
 		errs = errs.Also(apis.ErrMissingField(securityGroupSelectorPath))
 	}
+	var idFilterKeyUsed string
 	for key, value := range a.SecurityGroupSelector {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("%s['%s']", securityGroupSelectorPath, key)))
 		}
-		if key == "aws-ids" {
+		if key == "aws-ids" || key == "aws::ids" {
+			idFilterKeyUsed = key
 			for _, securityGroupID := range functional.SplitCommaSeparatedString(value) {
 				if !securityGroupRegex.MatchString(securityGroupID) {
 					fieldValue := fmt.Sprintf("\"%s\"", securityGroupID)
@@ -124,6 +132,9 @@ func (a *AWS) validateSecurityGroups() (errs *apis.FieldError) {
 				}
 			}
 		}
+	}
+	if idFilterKeyUsed != "" && len(a.SecurityGroupSelector) > 1 {
+		errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%q filter is mutually exclusive, cannot be set with a combination of other filters in", idFilterKeyUsed), securityGroupSelectorPath))
 	}
 	return errs
 }
