@@ -12,9 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package integration_test
+package expiration_test
 
 import (
+	"testing"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -25,20 +26,38 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ssm"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
 
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
+
+var env *aws.Environment
+
+func TestExpiration(t *testing.T) {
+	RegisterFailHandler(Fail)
+	BeforeSuite(func() {
+		env = aws.NewEnvironment(t)
+	})
+	RunSpecs(t, "Expiration")
+}
+
+var _ = BeforeEach(func() {
+	env.BeforeEach()
+})
+
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Expiration", func() {
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
@@ -197,20 +216,21 @@ var _ = Describe("Expiration", func() {
 				},
 			})
 			env.ExpectCreated(dep, nodeTemplate, provisioner)
-			env.EventuallyExpectNodeCount("==", 2)
+
+			startingMachineState := env.EventuallyExpectCreatedMachineCount("==", int(numPods))
+			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
 
 			// Set a configuration that will not register a machine
 			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-				Name: aws.String("/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-ebs"),
+				Name: lo.ToPtr("/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-ebs"),
 			})
 			Expect(err).ToNot(HaveOccurred())
 			nodeTemplate.Spec.AMISelector = map[string]string{"aws::ids": *parameter.Parameter.Value}
 			env.ExpectCreatedOrUpdated(nodeTemplate)
 
 			// Should see the machine has expired
-			statingMachineState := env.EventuallyExpectCreatedMachineCount("==", int(numPods))
 			Eventually(func(g Gomega) {
-				for _, machine := range statingMachineState {
+				for _, machine := range startingMachineState {
 					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 					g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineExpired).IsTrue()).To(BeTrue())
 				}
@@ -222,27 +242,31 @@ var _ = Describe("Expiration", func() {
 			// Expire should fail and the original node should be uncordoned
 			// TODO: reduce timeouts when deprovisioning waits are factored out
 			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
+				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0])).To(Succeed())
 				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
 			}).WithTimeout(11 * time.Minute).Should(Succeed())
 
-			endMachineState := &v1alpha5.MachineList{}
+			// The machine that never registers will be removed
 			Eventually(func(g Gomega) {
-				g.Expect(env.Client.List(env, endMachineState, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-				g.Expect(len(endMachineState.Items)).To(BeNumerically("==", int(numPods)))
+				machines := &v1alpha5.MachineList{}
+				g.Expect(env.Client.List(env, machines, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+				g.Expect(len(machines.Items)).To(BeNumerically("==", int(numPods)))
 			}).WithTimeout(6 * time.Minute).Should(Succeed())
 
+			// Expect all the Machines that existed on the initial provisioning loop are not removed
 			Consistently(func(g Gomega) {
-				g.Expect(lo.EveryBy(statingMachineState, func(sm *v1alpha5.Machine) bool {
-					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(sm), sm)).To(Succeed())
-					return lo.ContainsBy(endMachineState.Items, func(em v1alpha5.Machine) bool {
-						g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(&em), &em)).To(Succeed())
-						return sm.Name == em.Name
-					})
-				})).To(BeTrue())
+				machines := &v1alpha5.MachineList{}
+				g.Expect(env.Client.List(env, machines, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+
+				startingMachineUIDs := lo.Map(startingMachineState, func(m *v1alpha5.Machine, _ int) types.UID { return m.UID })
+				machineUIDs := lo.Map(machines.Items, func(m v1alpha5.Machine, _ int) types.UID { return m.UID })
+				g.Expect(sets.New(machineUIDs...).IsSuperset(sets.New(startingMachineUIDs...))).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
 		It("should not continue to expiration if a node registers but never becomes initialized", func() {
+			// Set a configuration that will allow us to make a Machine not be initialized
+			provisioner.Spec.StartupTaints = []v1.Taint{{Key: "example.com/taint", Effect: v1.TaintEffectPreferNoSchedule}}
+
 			// launch a new machine
 			var numPods int32 = 2
 			dep := test.Deployment(test.DeploymentOptions{
@@ -258,16 +282,23 @@ var _ = Describe("Expiration", func() {
 				},
 			})
 			env.ExpectCreated(dep, nodeTemplate, provisioner)
-			statingNodeState := env.EventuallyExpectNodeCount("==", int(numPods))
 
-			// Set a configuration that will not initialize a machine
-			provisioner.Spec.StartupTaints = []v1.Taint{{Key: "example.com/taint", Effect: v1.TaintEffectPreferNoSchedule}}
-			env.ExpectCreatedOrUpdated(provisioner)
+			startingMachineState := env.EventuallyExpectCreatedMachineCount("==", int(numPods))
+			nodes := env.EventuallyExpectCreatedNodeCount("==", int(numPods))
+
+			// Remove the startup taints from these nodes to initialize them
+			Eventually(func(g Gomega) {
+				for _, node := range nodes {
+					g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+					stored := node.DeepCopy()
+					node.Spec.Taints = lo.Reject(node.Spec.Taints, func(t v1.Taint, _ int) bool { return t.Key == "example.com/taint" })
+					g.Expect(env.Client.Patch(env.Context, node, client.MergeFrom(stored))).To(Succeed())
+				}
+			}).Should(Succeed())
 
 			// Should see the machine has expired
-			machines := env.EventuallyExpectCreatedMachineCount("==", int(numPods))
 			Eventually(func(g Gomega) {
-				for _, machine := range machines {
+				for _, machine := range startingMachineState {
 					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 					g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineExpired).IsTrue()).To(BeTrue())
 				}
@@ -276,22 +307,30 @@ var _ = Describe("Expiration", func() {
 			// Expect nodes To be cordoned
 			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
 
-			// Expire should fail and original node should be uncordoned
+			// Expire should fail and original node should be uncordoned and no machines should be removed
 			// TODO: reduce timeouts when deprovisioning waits are factored out
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
 				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
 			}).WithTimeout(15 * time.Minute).Should(Succeed())
-			endingNodeState := env.EventuallyExpectNodeCount("==", 3)
 
+			// Expect that the new machine/node is kept around after the un-cordon
+			nodeList := &v1.NodeList{}
+			Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+			Expect(nodeList.Items).To(HaveLen(int(numPods) + 1))
+
+			machineList := &v1alpha5.MachineList{}
+			Expect(env.Client.List(env, machineList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+			Expect(machineList.Items).To(HaveLen(int(numPods) + 1))
+
+			// Expect all the Machines that existed on the initial provisioning loop are not removed
 			Consistently(func(g Gomega) {
-				g.Expect(lo.EveryBy(statingNodeState, func(sn *v1.Node) bool {
-					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(sn), sn)).To(Succeed())
-					return lo.ContainsBy(endingNodeState, func(en *v1.Node) bool {
-						g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(en), en)).To(Succeed())
-						return sn.Name == en.Name
-					})
-				})).To(BeTrue())
+				machines := &v1alpha5.MachineList{}
+				g.Expect(env.Client.List(env, machines, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+
+				startingMachineUIDs := lo.Map(startingMachineState, func(m *v1alpha5.Machine, _ int) types.UID { return m.UID })
+				machineUIDs := lo.Map(machines.Items, func(m v1alpha5.Machine, _ int) types.UID { return m.UID })
+				g.Expect(sets.New(machineUIDs...).IsSuperset(sets.New(startingMachineUIDs...))).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
 	})

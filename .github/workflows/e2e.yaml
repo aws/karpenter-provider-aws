@@ -20,6 +20,7 @@ on:
           - Utilization
           - Interruption
           - Drift
+          - Expiration
           - Chaos
           - IPv6
           - Scale
