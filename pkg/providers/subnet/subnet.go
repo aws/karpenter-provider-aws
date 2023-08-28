@@ -226,24 +226,28 @@ func (p *Provider) minPods(instanceTypes []*cloudprovider.InstanceType, zone str
 }
 
 func getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
-	filters := []*ec2.Filter{}
+	var filters []*ec2.Filter
 	// Filter by subnet
 	for key, value := range nodeTemplate.Spec.SubnetSelector {
-		if key == "aws-ids" {
+		switch key {
+		case "aws-ids", "aws::ids":
 			filters = append(filters, &ec2.Filter{
 				Name:   aws.String("subnet-id"),
 				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
 			})
-		} else if value == "*" {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("tag-key"),
-				Values: []*string{aws.String(key)},
-			})
-		} else {
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
-			})
+		default:
+			switch value {
+			case "*":
+				filters = append(filters, &ec2.Filter{
+					Name:   aws.String("tag-key"),
+					Values: []*string{aws.String(key)},
+				})
+			default:
+				filters = append(filters, &ec2.Filter{
+					Name:   aws.String(fmt.Sprintf("tag:%s", key)),
+					Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
+				})
+			}
 		}
 	}
 	return filters
