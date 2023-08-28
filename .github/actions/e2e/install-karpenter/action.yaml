@@ -33,6 +33,7 @@ runs:
     run: |
       kubectl create ns karpenter || true
       kubectl label ns karpenter scrape=enabled --overwrite=true
+      kubectl label ns karpenter pod-security.kubernetes.io/enforce=restricted --overwrite=true
   - name: install-karpenter
     shell: bash
     run: |
