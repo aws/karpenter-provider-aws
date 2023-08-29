@@ -91,7 +91,7 @@ var _ = BeforeEach(func() {
 		Version: v1alpha1.SchemeGroupVersion.Version,
 		Kind:    "AWSNodeTemplate",
 	})
-	provisioner = test.Provisioner(coretest.ProvisionerOptions{
+	provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
 			Operator: v1.NodeSelectorOpExists,

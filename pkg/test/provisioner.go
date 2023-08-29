@@ -26,7 +26,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 
-func Provisioner(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
+func ProvisionerE2ETests(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
 	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
 	provisioner.SetDefaults(context.Background())
 	provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
@@ -37,7 +37,8 @@ func Provisioner(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
 	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))
 }
 
-func ProvisionerUnwrapped(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
+// Only use this for unit tests. Provisioner() will add in provisioner requirements for the e2etests.
+func Provisioner(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
 	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
 	provisioner.SetDefaults(context.Background())
 	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))

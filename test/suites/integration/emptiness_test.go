@@ -36,7 +36,7 @@ var _ = Describe("Emptiness", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
 			ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			TTLSecondsAfterEmpty: ptr.Int64(1e6), // A really long timeframe so that we set the Empty Status Condition
 		})

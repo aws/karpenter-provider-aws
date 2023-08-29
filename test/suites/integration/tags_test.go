@@ -37,7 +37,7 @@ var _ = Describe("Tags", func() {
 				Tags:                  map[string]string{"TestTag": "TestVal"},
 			},
 		})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -61,7 +61,7 @@ var _ = Describe("Tags", func() {
 		env.ExpectSettingsOverridden(map[string]string{
 			"aws.tags": `{"TestTag": "TestVal", "example.com/tag": "custom-value"}`,
 		})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)

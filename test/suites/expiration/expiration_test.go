@@ -67,7 +67,7 @@ var _ = Describe("Expiration", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner = awstest.Provisioner(test.ProvisionerOptions{
+		provisioner = awstest.ProvisionerE2ETests(test.ProvisionerOptions{
 			ProviderRef:            &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
 			TTLSecondsUntilExpired: ptr.Int64(30),
 		})

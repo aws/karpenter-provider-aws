@@ -90,7 +90,7 @@ var _ = Describe("MachineLink", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 		env.ExpectCreated(provisioner, provider)
@@ -145,7 +145,7 @@ var _ = Describe("MachineLink", func() {
 		}, time.Minute, time.Second).Should(Succeed())
 	})
 	It("should succeed to link a Machine for an existing instance launched by Karpenter with provider", func() {
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
 			Provider: &v1alpha1.AWS{
 				AMIFamily:             &v1alpha1.AMIFamilyAL2,
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -209,7 +209,7 @@ var _ = Describe("MachineLink", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 		env.ExpectCreated(provisioner, provider)

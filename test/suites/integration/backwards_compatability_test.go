@@ -28,7 +28,7 @@ import (
 
 var _ = Describe("BackwardsCompatability", func() {
 	It("should succeed to launch a node by specifying a provider in the Provisioner", func() {
-		provisioner := awstest.Provisioner(
+		provisioner := awstest.ProvisionerE2ETests(
 			test.ProvisionerOptions{
 				Provider: &v1alpha1.AWS{
 					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

@@ -50,7 +50,7 @@ var _ = Describe("BlockDeviceMappings", func() {
 				},
 			},
 		})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)

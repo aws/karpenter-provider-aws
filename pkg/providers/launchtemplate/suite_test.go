@@ -119,7 +119,7 @@ var _ = BeforeEach(func() {
 		Version: v1alpha1.SchemeGroupVersion.Version,
 		Kind:    "AWSNodeTemplate",
 	})
-	provisioner = test.Provisioner(coretest.ProvisionerOptions{
+	provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
 			Operator: v1.NodeSelectorOpExists,
@@ -287,7 +287,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}})
 			nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+			newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 			ExpectApplied(ctx, env.Client, newProvisioner)
 			Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(newProvisioner), newProvisioner)).To(Succeed())
 			pod := coretest.UnschedulablePod()
@@ -1188,7 +1188,7 @@ var _ = Describe("LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: "doesnotexist"}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: "doesnotexist"}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1199,7 +1199,7 @@ var _ = Describe("LaunchTemplates", func() {
 				nodeTemplate.Spec.UserData = aws.String("#/bin/bash\n ./not-toml.sh")
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1209,7 +1209,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should override system reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
+				provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{
 						Name: nodeTemplate.Name,
 					},
@@ -1240,7 +1240,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should override kube reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
+				provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{
 						Name: nodeTemplate.Name,
 					},
@@ -1271,7 +1271,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should override kube reserved values in user data", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
+				provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{
 						Name: nodeTemplate.Name,
 					},
@@ -1301,7 +1301,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				provisioner = test.Provisioner(coretest.ProvisionerOptions{
+				provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{
 						Name: nodeTemplate.Name,
 					},
@@ -1411,7 +1411,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(err).To(BeNil())
 				nodeTemplate.Spec.UserData = aws.String(string(content))
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1430,7 +1430,7 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(err).To(BeNil())
 				nodeTemplate.Spec.UserData = aws.String(string(content))
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1446,7 +1446,7 @@ var _ = Describe("LaunchTemplates", func() {
 				}))
 				nodeTemplate.Spec.UserData = nil
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1468,7 +1468,7 @@ var _ = Describe("LaunchTemplates", func() {
 						CreationDate: aws.String("2022-08-15T12:00:00Z")},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1490,7 +1490,7 @@ var _ = Describe("LaunchTemplates", func() {
 						CreationDate: aws.String("2022-08-15T12:00:00Z")},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1516,7 +1516,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1550,7 +1550,7 @@ var _ = Describe("LaunchTemplates", func() {
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1587,7 +1587,7 @@ var _ = Describe("LaunchTemplates", func() {
 				}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
@@ -1611,7 +1611,7 @@ var _ = Describe("LaunchTemplates", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1623,7 +1623,7 @@ var _ = Describe("LaunchTemplates", func() {
 					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
 				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1644,7 +1644,7 @@ var _ = Describe("LaunchTemplates", func() {
 					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				newProvisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)

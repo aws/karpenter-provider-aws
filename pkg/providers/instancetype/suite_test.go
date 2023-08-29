@@ -117,7 +117,7 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
-	provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+	provisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
 			Operator: v1.NodeSelectorOpExists,
@@ -133,7 +133,7 @@ var _ = BeforeEach(func() {
 			AMIFamily: &v1alpha1.AMIFamilyWindows2022,
 		},
 	})
-	windowsProvisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+	windowsProvisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{
 			{
 				Key:      v1alpha1.LabelInstanceCategory,
@@ -754,7 +754,7 @@ var _ = Describe("Instance Types", func() {
 				Expect(it.Overhead.SystemReserved.StorageEphemeral().String()).To(Equal("0"))
 			})
 			It("should override system reserved cpus when specified", func() {
-				provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceCPU:              resource.MustParse("2"),
@@ -802,7 +802,7 @@ var _ = Describe("Instance Types", func() {
 			})
 			Context("Eviction Hard", func() {
 				It("should override eviction threshold when specified as a quantity", func() {
-					provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -819,7 +819,7 @@ var _ = Describe("Instance Types", func() {
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 				})
 				It("should override eviction threshold when specified as a percentage value", func() {
-					provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -836,7 +836,7 @@ var _ = Describe("Instance Types", func() {
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 				})
 				It("should consider the eviction threshold disabled when specified as 100%", func() {
-					provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -853,7 +853,7 @@ var _ = Describe("Instance Types", func() {
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
 				})
 				It("should used default eviction threshold for memory when evictionHard not specified", func() {
-					provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -872,7 +872,7 @@ var _ = Describe("Instance Types", func() {
 			})
 			Context("Eviction Soft", func() {
 				It("should override eviction threshold when specified as a quantity", func() {
-					provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -889,7 +889,7 @@ var _ = Describe("Instance Types", func() {
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 				})
 				It("should override eviction threshold when specified as a percentage value", func() {
-					provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -909,7 +909,7 @@ var _ = Describe("Instance Types", func() {
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 				})
 				It("should consider the eviction threshold disabled when specified as 100%", func() {
-					provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -927,7 +927,7 @@ var _ = Describe("Instance Types", func() {
 				})
 				It("should ignore eviction threshold when using Bottlerocket AMI", func() {
 					nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-					provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+					provisioner = test.Provisioner(coretest.ProvisionerOptions{
 						Kubelet: &v1alpha5.KubeletConfiguration{
 							SystemReserved: v1.ResourceList{
 								v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -954,7 +954,7 @@ var _ = Describe("Instance Types", func() {
 				Expect(it.Overhead.EvictionThreshold.StorageEphemeral().AsApproximateFloat64()).To(BeNumerically("~", resources.Quantity("2Gi").AsApproximateFloat64()))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
-				provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -974,7 +974,7 @@ var _ = Describe("Instance Types", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("3Gi"))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
-				provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -994,7 +994,7 @@ var _ = Describe("Instance Types", func() {
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead with mixed percentage/value", func() {
-				provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
 							v1.ResourceMemory: resource.MustParse("20Gi"),
@@ -1017,7 +1017,7 @@ var _ = Describe("Instance Types", func() {
 		It("should default max pods based off of network interfaces", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{})
 			for _, info := range instanceInfo {
 				if *info.InstanceType == "t3.large" {
 					it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
@@ -1032,7 +1032,7 @@ var _ = Describe("Instance Types", func() {
 		It("should set max-pods to user-defined value if specified", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
@@ -1045,7 +1045,7 @@ var _ = Describe("Instance Types", func() {
 
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
@@ -1095,7 +1095,7 @@ var _ = Describe("Instance Types", func() {
 		It("should override pods-per-core value", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", ptr.Int64Value(info.VCpuInfo.DefaultVCpus)))
@@ -1104,7 +1104,7 @@ var _ = Describe("Instance Types", func() {
 		It("should take the minimum of pods-per-core and max-pods", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(4), MaxPods: ptr.Int32(20)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(4), MaxPods: ptr.Int32(20)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, ptr.Int64Value(info.VCpuInfo.DefaultVCpus) * 4})))
@@ -1114,7 +1114,7 @@ var _ = Describe("Instance Types", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				limitedPods := instancetype.ENILimitedPods(ctx, info)
@@ -1128,7 +1128,7 @@ var _ = Describe("Instance Types", func() {
 
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
-			provisioner = test.ProvisionerUnwrapped(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(0)}})
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{PodsPerCore: ptr.Int32(0)}})
 			for _, info := range instanceInfo {
 				it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))

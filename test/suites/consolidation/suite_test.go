@@ -60,7 +60,7 @@ var _ = Describe("Consolidation", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha5.LabelCapacityType,
@@ -126,7 +126,7 @@ var _ = Describe("Consolidation", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha5.LabelCapacityType,
@@ -242,7 +242,7 @@ var _ = Describe("Consolidation", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := awstest.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
 				{
 					Key:      v1alpha5.LabelCapacityType,
