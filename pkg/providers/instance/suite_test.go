@@ -85,7 +85,7 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
-	provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+	provisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
 			Operator: v1.NodeSelectorOpExists,

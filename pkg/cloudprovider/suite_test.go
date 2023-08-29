@@ -111,7 +111,7 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
-	provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+	provisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
 			Operator: v1.NodeSelectorOpExists,
@@ -419,7 +419,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		Context("Static Drift Detection", func() {
 			BeforeEach(func() {
-				provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+				provisioner = test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Kind: nodeTemplate.Kind, Name: nodeTemplate.Name},
 				})
 				machine.ObjectMeta.Labels = lo.Assign(machine.ObjectMeta.Labels, map[string]string{
@@ -487,7 +487,7 @@ var _ = Describe("CloudProvider", func() {
 	})
 	Context("Provider Backwards Compatibility", func() {
 		It("should launch a machine using provider defaults", func() {
-			provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"*": "*"},
@@ -519,7 +519,7 @@ var _ = Describe("CloudProvider", func() {
 			}
 		})
 		It("should discover security groups by ID", func() {
-			provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"*": "*"},
@@ -540,7 +540,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 		})
 		It("should discover security groups by ID in the LT when no network interfaces are defined", func() {
-			provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"aws-ids": "subnet-test2"},
@@ -561,7 +561,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 		})
 		It("should discover subnets by ID", func() {
-			provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"aws-ids": "subnet-test1"},
@@ -580,7 +580,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("subnet-test1"))
 		})
 		It("should use the instance profile on the Provisioner when specified", func() {
-			provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{
 				Provider: v1alpha1.AWS{
 					AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
 					SubnetSelector:        map[string]string{"*": "*"},
@@ -693,7 +693,7 @@ var _ = Describe("CloudProvider", func() {
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 
-			provisioner = test.ProvisionerE2ETests(coretest.ProvisionerOptions{Provider: &v1alpha1.AWS{
+			provisioner = test.Provisioner(coretest.ProvisionerOptions{Provider: &v1alpha1.AWS{
 				SubnetSelector:        map[string]string{"Name": "test-subnet-2"},
 				SecurityGroupSelector: map[string]string{"*": "*"},
 			}})
@@ -715,7 +715,7 @@ var _ = Describe("CloudProvider", func() {
 				// select nothing!
 				AMISelector: map[string]string{"Name": "nothing"},
 			})
-			prov2 := test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+			prov2 := test.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{
 					APIVersion: misconfiguredNodeTemplate.APIVersion,
 					Kind:       misconfiguredNodeTemplate.Kind,

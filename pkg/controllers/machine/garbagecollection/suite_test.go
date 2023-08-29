@@ -91,7 +91,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		instanceID := fake.InstanceID()
 		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
 		nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
-		provisioner := test.ProvisionerE2ETests(coretest.ProvisionerOptions{
+		provisioner := test.Provisioner(coretest.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{
 				APIVersion: v1alpha5.TestingGroup + "v1alpha1",
 				Kind:       "NodeTemplate",
