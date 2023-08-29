@@ -28,11 +28,17 @@ import (
 
 func Provisioner(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
 	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
+	provisioner.SetDefaults(context.Background())
 	provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
 		Key:      v1alpha1.LabelInstanceFamily,
 		Operator: v1.NodeSelectorOpNotIn,
 		Values:   []string{"m7a"},
 	})
+	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))
+}
+
+func ProvisionerUnwrapped(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
+	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
 	provisioner.SetDefaults(context.Background())
 	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))
 }
