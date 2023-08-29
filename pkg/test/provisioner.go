@@ -18,14 +18,21 @@ import (
 	"context"
 
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 
 	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 
-func Provisioner(options test.ProvisionerOptions) *corev1alpha5.Provisioner {
-	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options)))
+func Provisioner(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
+	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
+	provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+		Key:      v1alpha1.LabelInstanceFamily,
+		Operator: v1.NodeSelectorOpNotIn,
+		Values:   []string{"m7a"},
+	})
 	provisioner.SetDefaults(context.Background())
 	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))
 }
