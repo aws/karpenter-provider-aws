@@ -26,7 +26,7 @@ func ProvisionerFailedToResolveNodeTemplate(provisioner *v1alpha5.Provisioner) e
 		InvolvedObject: provisioner,
 		Type:           v1.EventTypeWarning,
 		Message:        "Failed resolving AWSNodeTemplate",
-		DedupeValues:   []string{provisioner.Name},
+		DedupeValues:   []string{string(provisioner.UID)},
 	}
 }
 
@@ -35,6 +35,6 @@ func MachineFailedToResolveNodeTemplate(machine *v1alpha5.Machine) events.Event 
 		InvolvedObject: machine,
 		Type:           v1.EventTypeWarning,
 		Message:        "Failed resolving AWSNodeTemplate",
-		DedupeValues:   []string{machine.Name},
+		DedupeValues:   []string{string(machine.UID)},
 	}
 }
