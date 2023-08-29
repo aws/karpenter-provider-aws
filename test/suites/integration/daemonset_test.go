@@ -48,7 +48,7 @@ var _ = Describe("DaemonSet", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner = test.Provisioner(test.ProvisionerOptions{
+		provisioner = awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Consolidation: &v1alpha5.Consolidation{
 				Enabled: lo.ToPtr(true),

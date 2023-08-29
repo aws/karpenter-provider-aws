@@ -46,7 +46,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			}})
 
 			// MaxPods needs to account for the daemonsets that will run on the nodes
-			provisioner = test.Provisioner(test.ProvisionerOptions{
+			provisioner = awstest.Provisioner(test.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
 				Kubelet: &v1alpha5.KubeletConfiguration{
 					ContainerRuntime: ptr.String("containerd"),
@@ -103,13 +103,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					Key:      v1.LabelOSStable,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{string(v1.Linux)},
-				},
-					// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-					v1.NodeSelectorRequirement{
-						Key:      v1alpha1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a"},
-					})
+				})
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
 						v1.LabelOSStable:   string(v1.Linux),
@@ -139,13 +133,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					Key:      v1.LabelOSStable,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{string(v1.Windows)},
-				},
-					// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-					v1.NodeSelectorRequirement{
-						Key:      v1alpha1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a"},
-					})
+				})
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
 					NodeSelector: map[string]string{
@@ -168,7 +156,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		}})
 
 		// MaxPods needs to account for the daemonsets that will run on the nodes
-		provisioner := test.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -211,7 +199,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		}})
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
-		provisioner := test.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -266,7 +254,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		}})
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
-		provisioner := test.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Kubelet: &v1alpha5.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(1),

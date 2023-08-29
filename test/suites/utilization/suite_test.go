@@ -53,7 +53,7 @@ var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), fun
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}, Requirements: []v1.NodeSelectorRequirement{{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}, Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1.LabelInstanceTypeStable,
 			Operator: v1.NodeSelectorOpIn,
 			Values:   []string{"t3a.small"},

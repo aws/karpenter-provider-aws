@@ -23,11 +23,12 @@ import (
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("BackwardsCompatability", func() {
 	It("should succeed to launch a node by specifying a provider in the Provisioner", func() {
-		provisioner := test.Provisioner(
+		provisioner := awstest.Provisioner(
 			test.ProvisionerOptions{
 				Provider: &v1alpha1.AWS{
 					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},

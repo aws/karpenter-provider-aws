@@ -114,7 +114,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			// https://tenor.com/view/chaos-gif-22919457
 			Limits: v1.ResourceList{},
 		}
-		provisioner = test.Provisioner(provisionerOptions)
+		provisioner = awstest.Provisioner(provisionerOptions)
 		deploymentOptions = test.DeploymentOptions{
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
@@ -188,7 +188,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				provisionerOptions.Kubelet = &v1alpha5.KubeletConfiguration{
 					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 				}
-				provisionerMap[v] = test.Provisioner(provisionerOptions)
+				provisionerMap[v] = awstest.Provisioner(provisionerOptions)
 			}
 
 			By("waiting for the deployment to deploy all of its pods")
@@ -253,7 +253,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			}
 
 			// Create a provisioner for expiration so that expiration can do replacement
-			provisionerMap[noExpirationValue] = test.Provisioner()
+			provisionerMap[noExpirationValue] = awstest.Provisioner()
 			provisionerMap[noExpirationValue].Spec = provisionerMap[expirationValue].Spec
 
 			// Enable consolidation, emptiness, and expiration
@@ -617,7 +617,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				// Enable Expiration
 				provisioner.Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
 
-				noExpireProvisioner := test.Provisioner(provisionerOptions)
+				noExpireProvisioner := awstest.Provisioner(provisionerOptions)
 				noExpireProvisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 				}

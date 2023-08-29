@@ -49,7 +49,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner = test.Provisioner(test.ProvisionerOptions{
+		provisioner = awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{
 				Name: nodeTemplate.Name,
 			},

@@ -47,7 +47,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner = test.Provisioner(test.ProvisionerOptions{
+		provisioner = awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{Key: v1alpha1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists},
@@ -355,7 +355,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		env.ExpectCreatedNodeCount("==", 3)
 	})
 	It("should provision a node using a provisioner with higher priority", func() {
-		provisionerLowPri := test.Provisioner(test.ProvisionerOptions{
+		provisionerLowPri := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Weight:      ptr.Int32(10),
 			Requirements: []v1.NodeSelectorRequirement{
@@ -366,7 +366,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				},
 			},
 		})
-		provisionerHighPri := test.Provisioner(test.ProvisionerOptions{
+		provisionerHighPri := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Weight:      ptr.Int32(100),
 			Requirements: []v1.NodeSelectorRequirement{

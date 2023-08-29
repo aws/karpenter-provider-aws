@@ -73,7 +73,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner = test.Provisioner(test.ProvisionerOptions{
+		provisioner = awstest.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeOnDemand}}},
 			ProviderRef:  &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
 		})
@@ -245,7 +245,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 	})
 	DescribeTable("Provisioner Drift", func(fieldName string, provisionerOption test.ProvisionerOptions) {
 		provisionerOption.ObjectMeta = provisioner.ObjectMeta
-		updatedProvisioner := test.Provisioner(
+		updatedProvisioner := awstest.Provisioner(
 			test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}},
 			provisionerOption,
 		)

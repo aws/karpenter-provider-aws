@@ -44,7 +44,7 @@ var _ = Describe("Extended Resources", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -83,7 +83,7 @@ var _ = Describe("Extended Resources", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -127,7 +127,7 @@ var _ = Describe("Extended Resources", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -180,7 +180,7 @@ var _ = Describe("Extended Resources", func() {
 			},
 		},
 		)
-		provisioner := test.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -230,7 +230,7 @@ var _ = Describe("Extended Resources", func() {
 			},
 			AMISelector: map[string]string{"aws-ids": "ami-0fae925f94979981f"},
 		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
