@@ -26,6 +26,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 
+// ProvisionerE2ETests are used for E2E tests to enforce test-wide requirements on provisioners
 func ProvisionerE2ETests(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
 	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
 	provisioner.SetDefaults(context.Background())
@@ -37,7 +38,7 @@ func ProvisionerE2ETests(options ...test.ProvisionerOptions) *corev1alpha5.Provi
 	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))
 }
 
-// Only use this for unit tests. Provisioner() will add in provisioner requirements for the e2etests.
+// Provisioner is used for unit tests
 func Provisioner(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
 	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
 	provisioner.SetDefaults(context.Background())
