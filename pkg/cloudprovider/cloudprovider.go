@@ -25,6 +25,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -40,6 +41,7 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	cloudproviderevents "github.com/aws/karpenter/pkg/cloudprovider/events"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
@@ -65,9 +67,10 @@ type CloudProvider struct {
 	amiProvider           *amifamily.Provider
 	securityGroupProvider *securitygroup.Provider
 	subnetProvider        *subnet.Provider
+	recorder              events.Recorder
 }
 
-func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider,
+func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider, recorder events.Recorder,
 	kubeClient client.Client, amiProvider *amifamily.Provider, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider:  instanceTypeProvider,
@@ -76,6 +79,7 @@ func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
 		subnetProvider:        subnetProvider,
+		recorder:              recorder,
 	}
 }
 
@@ -85,6 +89,9 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 		Annotations[v1alpha5.ProviderCompatabilityAnnotationKey]), machine.
 		Spec.MachineTemplateRef)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			c.recorder.Publish(cloudproviderevents.MachineFailedToResolveNodeTemplate(machine))
+		}
 		return nil, fmt.Errorf("resolving node template, %w", err)
 	}
 	instanceTypes, err := c.resolveInstanceTypes(ctx, machine, nodeTemplate)
@@ -167,6 +174,9 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	}
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, rawProvider, provisioner.Spec.ProviderRef)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			c.recorder.Publish(cloudproviderevents.ProvisionerFailedToResolveNodeTemplate(provisioner))
+		}
 		return nil, client.IgnoreNotFound(err)
 	}
 	// TODO, break this coupling
@@ -200,6 +210,9 @@ func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.
 	}
 	nodeTemplate, err := c.resolveNodeTemplate(ctx, nil, provisioner.Spec.ProviderRef)
 	if err != nil {
+		if errors.IsNotFound(err) {
+			c.recorder.Publish(cloudproviderevents.ProvisionerFailedToResolveNodeTemplate(provisioner))
+		}
 		return "", client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
 	}
 	driftReason, err := c.isNodeTemplateDrifted(ctx, machine, provisioner, nodeTemplate)
