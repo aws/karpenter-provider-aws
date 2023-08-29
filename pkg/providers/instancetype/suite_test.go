@@ -91,7 +91,8 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = &clock.FakeClock{}
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
@@ -1135,6 +1136,42 @@ var _ = Describe("Instance Types", func() {
 			}
 		})
 		It("shouldn't report more resources than are actually available on instances", func() {
+			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{
+				Subnets: []*ec2.Subnet{
+					{
+						AvailabilityZone: aws.String("us-west-2a"),
+						SubnetId:         aws.String("subnet-12345"),
+					},
+				},
+			})
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+				InstanceTypeOfferings: []*ec2.InstanceTypeOffering{
+					{
+						InstanceType: aws.String("t4g.small"),
+						Location:     aws.String("us-west-2a"),
+					},
+					{
+						InstanceType: aws.String("t4g.medium"),
+						Location:     aws.String("us-west-2a"),
+					},
+					{
+						InstanceType: aws.String("t4g.xlarge"),
+						Location:     aws.String("us-west-2a"),
+					},
+					{
+						InstanceType: aws.String("m5.large"),
+						Location:     aws.String("us-west-2a"),
+					},
+				},
+			})
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+				InstanceTypes: []*ec2.InstanceTypeInfo{
+					{InstanceType: aws.String("t4g.small")},
+					{InstanceType: aws.String("t4g.medium")},
+					{InstanceType: aws.String("t4g.xlarge")},
+					{InstanceType: aws.String("m5.large")},
+				},
+			})
 
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
