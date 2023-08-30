@@ -102,8 +102,11 @@ func (p *Provider) List(ctx context.Context, kc *v1alpha5.KubeletConfiguration, 
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
 	}
-	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+	// Reject any instance types that don't have any offerings due to zone
+	result := lo.Reject(lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		return NewInstanceType(ctx, i, kc, p.region, nodeTemplate, p.createOfferings(ctx, i, instanceTypeZones[aws.StringValue(i.InstanceType)]))
+	}), func(i *cloudprovider.InstanceType, _ int) bool {
+		return len(i.Offerings) == 0
 	})
 	for _, instanceType := range instanceTypes {
 		InstanceTypeVCPU.With(prometheus.Labels{

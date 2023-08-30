@@ -19,7 +19,7 @@ runs:
   using: "composite"
   steps:
   - name: configure aws credentials
-    uses: aws-actions/configure-aws-credentials@v2
+    uses: aws-actions/configure-aws-credentials@v3
     with:
       role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
       aws-region: ${{ inputs.region }}
@@ -33,6 +33,7 @@ runs:
     run: |
       kubectl create ns karpenter || true
       kubectl label ns karpenter scrape=enabled --overwrite=true
+      kubectl label ns karpenter pod-security.kubernetes.io/enforce=restricted --overwrite=true
   - name: install-karpenter
     shell: bash
     run: |

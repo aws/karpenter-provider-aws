@@ -18,16 +18,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"time"
 
-	"github.com/go-playground/validator/v10"
-	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/apis"
 	"knative.dev/pkg/configmap"
-
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 type settingsKeyType struct{}
@@ -53,18 +47,18 @@ var defaultSettings = &Settings{
 // +k8s:deepcopy-gen=true
 type Settings struct {
 	AssumeRoleARN              string
-	AssumeRoleDuration         time.Duration `validate:"min=15m"`
+	AssumeRoleDuration         time.Duration
 	ClusterCABundle            string
-	ClusterName                string `validate:"required"`
+	ClusterName                string
 	ClusterEndpoint            string
 	DefaultInstanceProfile     string
 	EnablePodENI               bool
 	EnableENILimitedPodDensity bool
 	IsolatedVPC                bool
-	VMMemoryOverheadPercent    float64 `validate:"min=0"`
+	VMMemoryOverheadPercent    float64
 	InterruptionQueueName      string
 	Tags                       map[string]string
-	ReservedENIs               int `validate:"min=0"`
+	ReservedENIs               int
 }
 
 func (*Settings) ConfigMap() string {
@@ -96,44 +90,6 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		return ctx, fmt.Errorf("validating settings, %w", err)
 	}
 	return ToContext(ctx, s), nil
-}
-
-// Validate leverages struct tags with go-playground/validator so you can define a struct with custom
-// validation on fields i.e.
-//
-//	type ExampleStruct struct {
-//	    Example  metav1.Duration `json:"example" validate:"required,min=10m"`
-//	}
-func (s Settings) Validate() error {
-	return multierr.Combine(
-		s.validateEndpoint(),
-		s.validateTags(),
-		validator.New().Struct(s),
-	)
-}
-
-func (s Settings) validateEndpoint() error {
-	if s.ClusterEndpoint == "" {
-		return nil
-	}
-	endpoint, err := url.Parse(s.ClusterEndpoint)
-	// url.Parse() will accept a lot of input without error; make
-	// sure it's a real URL
-	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
-		return fmt.Errorf("\"%s\" not a valid clusterEndpoint URL", s.ClusterEndpoint)
-	}
-	return nil
-}
-
-func (s Settings) validateTags() (err error) {
-	for k := range s.Tags {
-		for _, pattern := range v1alpha1.RestrictedTagPatterns {
-			if pattern.MatchString(k) {
-				err = multierr.Append(err, apis.ErrInvalidKeyName(k, "tags", fmt.Sprintf("tag contains a restricted tag %q", pattern.String())))
-			}
-		}
-	}
-	return err
 }
 
 func ToContext(ctx context.Context, s *Settings) context.Context {

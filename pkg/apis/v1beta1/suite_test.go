@@ -138,7 +138,7 @@ var _ = Describe("Validation", func() {
 		It("should succeed with a valid subnet selector on id", func() {
 			nc.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 				{
-					ID: "sg-12345749",
+					ID: "subnet-12345749",
 				},
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
@@ -205,6 +205,17 @@ var _ = Describe("Validation", func() {
 				{
 					Tags: map[string]string{
 						"": "testvalue4",
+					},
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with tags", func() {
+			nc.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+				{
+					ID: "subnet-12345749",
+					Tags: map[string]string{
+						"test": "testvalue",
 					},
 				},
 			}
@@ -305,6 +316,37 @@ var _ = Describe("Validation", func() {
 			}
 			Expect(nc.Validate(ctx)).ToNot(Succeed())
 		})
+		It("should fail when specifying id with tags", func() {
+			nc.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+				{
+					ID: "sg-12345749",
+					Tags: map[string]string{
+						"test": "testvalue",
+					},
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with name", func() {
+			nc.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+				{
+					ID:   "sg-12345749",
+					Name: "my-security-group",
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail when specifying name with tags", func() {
+			nc.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+				{
+					Name: "my-security-group",
+					Tags: map[string]string{
+						"test": "testvalue",
+					},
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
 	})
 	Context("AMISelectorTerms", func() {
 		It("should succeed with a valid ami selector on tags", func() {
@@ -396,6 +438,44 @@ var _ = Describe("Validation", func() {
 					Tags: map[string]string{
 						"": "testvalue4",
 					},
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with tags", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					ID: "ami-12345749",
+					Tags: map[string]string{
+						"test": "testvalue",
+					},
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with name", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					ID:   "ami-12345749",
+					Name: "my-custom-ami",
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with owner", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					ID:    "ami-12345749",
+					Owner: "123456789",
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail when specifying id with ssm", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					ID:  "ami-12345749",
+					SSM: "/test/ssm/path",
 				},
 			}
 			Expect(nc.Validate(ctx)).ToNot(Succeed())
