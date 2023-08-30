@@ -35,7 +35,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1392Mi|
+ |memory|1287Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|10|
 ### `a1.large`
@@ -60,7 +60,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3055Mi|
+ |memory|2998Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `a1.xlarge`
@@ -85,7 +85,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6525Mi|
+ |memory|6561Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `a1.2xlarge`
@@ -110,34 +110,9 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14325Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
-### `a1.4xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|a|
- |karpenter.k8s.aws/instance-cpu|16|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
- |karpenter.k8s.aws/instance-family|a1|
- |karpenter.k8s.aws/instance-generation|1|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|32768|
- |karpenter.k8s.aws/instance-network-bandwidth|5000|
- |karpenter.k8s.aws/instance-pods|234|
- |karpenter.k8s.aws/instance-size|4xlarge|
- |kubernetes.io/arch|arm64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|a1.4xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|15890m|
- |ephemeral-storage|17Gi|
- |memory|27322Mi|
- |pods|234|
- |vpc.amazonaws.com/pod-eni|54|
 ### `a1.metal`
 #### Labels
  | Label | Value |
@@ -163,6 +138,31 @@ below are the resources available with some assumptions and after the instance o
  |memory|27322Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
+### `a1.4xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|a|
+ |karpenter.k8s.aws/instance-cpu|16|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
+ |karpenter.k8s.aws/instance-family|a1|
+ |karpenter.k8s.aws/instance-generation|1|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|5000|
+ |karpenter.k8s.aws/instance-pods|234|
+ |karpenter.k8s.aws/instance-size|4xlarge|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|a1.4xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|15890m|
+ |ephemeral-storage|17Gi|
+ |memory|27916Mi|
+ |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ## c1 Family
 ### `c1.medium`
 #### Labels
@@ -185,7 +185,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|1122Mi|
+ |memory|1156Mi|
  |pods|12|
 ### `c1.xlarge`
 #### Labels
@@ -208,7 +208,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|5637Mi|
+ |memory|5912Mi|
  |pods|58|
 ## c3 Family
 ### `c3.large`
@@ -232,7 +232,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|2878Mi|
+ |memory|3032Mi|
  |pods|29|
 ### `c3.xlarge`
 #### Labels
@@ -255,7 +255,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6111Mi|
+ |memory|6416Mi|
  |pods|58|
 ### `c3.2xlarge`
 #### Labels
@@ -278,7 +278,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|13215Mi|
+ |memory|13957Mi|
  |pods|58|
 ### `c3.4xlarge`
 #### Labels
@@ -301,7 +301,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|25487Mi|
+ |memory|27077Mi|
  |pods|234|
 ### `c3.8xlarge`
 #### Labels
@@ -325,7 +325,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|53903Mi|
+ |memory|57342Mi|
  |pods|234|
 ## c4 Family
 ### `c4.large`
@@ -349,7 +349,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|2878Mi|
+ |memory|3032Mi|
  |pods|29|
 ### `c4.xlarge`
 #### Labels
@@ -372,7 +372,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6111Mi|
+ |memory|6416Mi|
  |pods|58|
 ### `c4.2xlarge`
 #### Labels
@@ -395,7 +395,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|13215Mi|
+ |memory|13957Mi|
  |pods|58|
 ### `c4.4xlarge`
 #### Labels
@@ -442,7 +442,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|35840m|
  |ephemeral-storage|17Gi|
- |memory|53903Mi|
+ |memory|57343Mi|
  |pods|234|
 ## c5 Family
 ### `c5.large`
@@ -467,7 +467,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3114Mi|
+ |memory|2996Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5.xlarge`
@@ -492,7 +492,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6584Mi|
+ |memory|6611Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5.2xlarge`
@@ -517,7 +517,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14478Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5.4xlarge`
@@ -542,7 +542,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27381Mi|
+ |memory|28043Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5.9xlarge`
@@ -567,7 +567,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|35840m|
  |ephemeral-storage|17Gi|
- |memory|65269Mi|
+ |memory|67101Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5.12xlarge`
@@ -592,7 +592,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|91271Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5.18xlarge`
@@ -617,7 +617,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|71750m|
  |ephemeral-storage|17Gi|
- |memory|127934Mi|
+ |memory|131929Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5.24xlarge`
@@ -642,7 +642,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|180269Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5.metal`
@@ -667,7 +667,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|184387Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c5a Family
@@ -693,7 +693,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3114Mi|
+ |memory|3156Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5a.xlarge`
@@ -718,7 +718,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6584Mi|
+ |memory|6814Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5a.2xlarge`
@@ -743,7 +743,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14770Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5a.4xlarge`
@@ -768,7 +768,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27381Mi|
+ |memory|28747Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5a.8xlarge`
@@ -793,7 +793,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60570Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5a.12xlarge`
@@ -818,7 +818,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|92445Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5a.16xlarge`
@@ -843,7 +843,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112779Mi|
+ |memory|118783Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5a.24xlarge`
@@ -868,7 +868,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|182432Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c5ad Family
@@ -895,7 +895,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3114Mi|
+ |memory|3156Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5ad.xlarge`
@@ -921,7 +921,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6584Mi|
+ |memory|6814Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5ad.2xlarge`
@@ -947,7 +947,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14770Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5ad.4xlarge`
@@ -973,7 +973,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27381Mi|
+ |memory|28747Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5ad.8xlarge`
@@ -999,7 +999,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60570Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5ad.12xlarge`
@@ -1025,7 +1025,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|92445Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5ad.16xlarge`
@@ -1051,7 +1051,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112779Mi|
+ |memory|118773Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5ad.24xlarge`
@@ -1077,7 +1077,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|182416Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c5d Family
@@ -1104,7 +1104,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3114Mi|
+ |memory|2996Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5d.xlarge`
@@ -1130,7 +1130,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6584Mi|
+ |memory|6611Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5d.2xlarge`
@@ -1156,7 +1156,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14478Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5d.4xlarge`
@@ -1182,7 +1182,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27381Mi|
+ |memory|28278Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5d.9xlarge`
@@ -1208,7 +1208,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|35840m|
  |ephemeral-storage|17Gi|
- |memory|65269Mi|
+ |memory|67101Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5d.12xlarge`
@@ -1234,7 +1234,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|91271Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5d.18xlarge`
@@ -1260,7 +1260,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|71750m|
  |ephemeral-storage|17Gi|
- |memory|127934Mi|
+ |memory|131929Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5d.24xlarge`
@@ -1286,7 +1286,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|180269Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5d.metal`
@@ -1312,7 +1312,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|184387Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c5n Family
@@ -1338,7 +1338,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|4298Mi|
+ |memory|4222Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5n.xlarge`
@@ -1363,7 +1363,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|8952Mi|
+ |memory|9061Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5n.2xlarge`
@@ -1388,7 +1388,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|18898Mi|
+ |memory|19380Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5n.4xlarge`
@@ -1413,7 +1413,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|36853Mi|
+ |memory|38081Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5n.9xlarge`
@@ -1438,7 +1438,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|35840m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|91274Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5n.18xlarge`
@@ -1463,7 +1463,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|71750m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|180275Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5n.metal`
@@ -1488,7 +1488,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|71750m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|184393Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6a Family
@@ -1514,7 +1514,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3114Mi|
+ |memory|3112Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6a.xlarge`
@@ -1539,7 +1539,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6584Mi|
+ |memory|6726Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6a.2xlarge`
@@ -1564,7 +1564,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14594Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6a.4xlarge`
@@ -1589,7 +1589,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27381Mi|
+ |memory|28394Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6a.8xlarge`
@@ -1614,7 +1614,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|59946Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `c6a.12xlarge`
@@ -1639,7 +1639,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|91387Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `c6a.16xlarge`
@@ -1664,7 +1664,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112779Mi|
+ |memory|117454Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.24xlarge`
@@ -1689,7 +1689,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|180500Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.32xlarge`
@@ -1714,7 +1714,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|243500Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.48xlarge`
@@ -1739,7 +1739,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|369592Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.metal`
@@ -1764,7 +1764,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|376259Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6g Family
@@ -1790,7 +1790,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1392Mi|
+ |memory|1321Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c6g.large`
@@ -1815,7 +1815,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3055Mi|
+ |memory|3064Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6g.xlarge`
@@ -1840,7 +1840,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6525Mi|
+ |memory|6694Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6g.2xlarge`
@@ -1865,7 +1865,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6g.4xlarge`
@@ -1890,7 +1890,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27322Mi|
+ |memory|28444Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6g.8xlarge`
@@ -1915,7 +1915,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60027Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6g.12xlarge`
@@ -1940,7 +1940,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|87943Mi|
+ |memory|91660Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6g.16xlarge`
@@ -1965,7 +1965,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|115Gi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6g.metal`
@@ -1990,7 +1990,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|119902Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6gd Family
@@ -2017,7 +2017,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1392Mi|
+ |memory|1321Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c6gd.large`
@@ -2043,7 +2043,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3055Mi|
+ |memory|3064Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6gd.xlarge`
@@ -2069,7 +2069,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6525Mi|
+ |memory|6694Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6gd.2xlarge`
@@ -2095,7 +2095,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6gd.4xlarge`
@@ -2121,7 +2121,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27322Mi|
+ |memory|28444Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gd.8xlarge`
@@ -2147,7 +2147,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60027Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gd.12xlarge`
@@ -2173,7 +2173,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|87943Mi|
+ |memory|91660Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gd.16xlarge`
@@ -2199,7 +2199,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|115Gi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6gd.metal`
@@ -2225,7 +2225,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|119902Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6gn Family
@@ -2251,7 +2251,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1392Mi|
+ |memory|1321Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c6gn.large`
@@ -2276,7 +2276,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3055Mi|
+ |memory|3064Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6gn.xlarge`
@@ -2301,7 +2301,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6525Mi|
+ |memory|6694Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6gn.2xlarge`
@@ -2326,7 +2326,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6gn.4xlarge`
@@ -2351,7 +2351,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27322Mi|
+ |memory|28444Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gn.8xlarge`
@@ -2376,7 +2376,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60027Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gn.12xlarge`
@@ -2401,7 +2401,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|87943Mi|
+ |memory|91660Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gn.16xlarge`
@@ -2426,7 +2426,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|115Gi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6i Family
@@ -2452,7 +2452,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3114Mi|
+ |memory|3135Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6i.xlarge`
@@ -2477,7 +2477,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6584Mi|
+ |memory|6772Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6i.2xlarge`
@@ -2502,7 +2502,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14684Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6i.4xlarge`
@@ -2527,7 +2527,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27381Mi|
+ |memory|28572Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6i.8xlarge`
@@ -2552,7 +2552,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60219Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `c6i.12xlarge`
@@ -2577,7 +2577,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|91916Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `c6i.16xlarge`
@@ -2602,7 +2602,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112779Mi|
+ |memory|118080Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6i.24xlarge`
@@ -2627,7 +2627,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|181559Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6i.32xlarge`
@@ -2652,7 +2652,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244953Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6i.metal`
@@ -2677,7 +2677,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|249047Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6id Family
@@ -2704,7 +2704,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3114Mi|
+ |memory|3135Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6id.xlarge`
@@ -2730,7 +2730,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6584Mi|
+ |memory|6772Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6id.2xlarge`
@@ -2756,7 +2756,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14684Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6id.4xlarge`
@@ -2782,7 +2782,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27381Mi|
+ |memory|28572Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6id.8xlarge`
@@ -2808,7 +2808,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60219Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `c6id.12xlarge`
@@ -2834,7 +2834,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|91916Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `c6id.16xlarge`
@@ -2860,7 +2860,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112779Mi|
+ |memory|118080Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6id.24xlarge`
@@ -2886,7 +2886,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|181559Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6id.32xlarge`
@@ -2912,7 +2912,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244953Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6id.metal`
@@ -2938,7 +2938,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|249047Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6in Family
@@ -2964,7 +2964,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3114Mi|
+ |memory|3135Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6in.xlarge`
@@ -2989,7 +2989,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6584Mi|
+ |memory|6772Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6in.2xlarge`
@@ -3014,7 +3014,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14684Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6in.4xlarge`
@@ -3039,7 +3039,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27381Mi|
+ |memory|28572Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6in.8xlarge`
@@ -3064,7 +3064,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60219Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `c6in.12xlarge`
@@ -3089,7 +3089,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|91916Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `c6in.16xlarge`
@@ -3114,7 +3114,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112779Mi|
+ |memory|118080Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6in.24xlarge`
@@ -3139,7 +3139,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|181559Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6in.32xlarge`
@@ -3164,7 +3164,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|238333Mi|
+ |memory|249265Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
 ### `c6in.metal`
@@ -3189,7 +3189,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|238333Mi|
+ |memory|253359Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
 ## c7g Family
@@ -3215,7 +3215,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1392Mi|
+ |memory|1321Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c7g.large`
@@ -3240,7 +3240,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3055Mi|
+ |memory|3064Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c7g.xlarge`
@@ -3265,7 +3265,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6525Mi|
+ |memory|6694Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c7g.2xlarge`
@@ -3290,7 +3290,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c7g.4xlarge`
@@ -3315,7 +3315,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27322Mi|
+ |memory|28444Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7g.8xlarge`
@@ -3340,7 +3340,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60027Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7g.12xlarge`
@@ -3365,7 +3365,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|87943Mi|
+ |memory|91660Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7g.16xlarge`
@@ -3390,7 +3390,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|115Gi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c7g.metal`
@@ -3415,7 +3415,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|119898Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c7gd Family
@@ -3442,7 +3442,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1392Mi|
+ |memory|1321Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c7gd.large`
@@ -3468,7 +3468,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3055Mi|
+ |memory|3064Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c7gd.xlarge`
@@ -3494,7 +3494,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6525Mi|
+ |memory|6694Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c7gd.2xlarge`
@@ -3520,7 +3520,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c7gd.4xlarge`
@@ -3546,7 +3546,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27322Mi|
+ |memory|28444Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gd.8xlarge`
@@ -3572,7 +3572,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60027Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gd.12xlarge`
@@ -3598,7 +3598,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|87943Mi|
+ |memory|91660Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gd.16xlarge`
@@ -3624,7 +3624,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|115Gi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## c7gn Family
@@ -3650,7 +3650,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1392Mi|
+ |memory|1321Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c7gn.large`
@@ -3675,7 +3675,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3055Mi|
+ |memory|3064Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c7gn.xlarge`
@@ -3700,7 +3700,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6525Mi|
+ |memory|6694Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c7gn.2xlarge`
@@ -3725,7 +3725,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c7gn.4xlarge`
@@ -3750,7 +3750,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27322Mi|
+ |memory|28444Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gn.8xlarge`
@@ -3775,7 +3775,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60027Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gn.12xlarge`
@@ -3800,7 +3800,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|87943Mi|
+ |memory|91660Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gn.16xlarge`
@@ -3825,7 +3825,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|115Gi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## d2 Family
@@ -3850,7 +3850,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|27896Mi|
+ |memory|29543Mi|
  |pods|58|
 ### `d2.2xlarge`
 #### Labels
@@ -3873,7 +3873,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|56786Mi|
+ |memory|60213Mi|
  |pods|58|
 ### `d2.4xlarge`
 #### Labels
@@ -3896,7 +3896,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|112629Mi|
+ |memory|119689Mi|
  |pods|234|
 ### `d2.8xlarge`
 #### Labels
@@ -3920,7 +3920,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|35840m|
  |ephemeral-storage|17Gi|
- |memory|228187Mi|
+ |memory|242668Mi|
  |pods|234|
 ## d3 Family
 ### `d3.xlarge`
@@ -3946,7 +3946,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29845Mi|
+ |memory|31097Mi|
  |pods|10|
  |vpc.amazonaws.com/pod-eni|42|
 ### `d3.2xlarge`
@@ -3972,7 +3972,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|60067Mi|
+ |memory|62835Mi|
  |pods|18|
  |vpc.amazonaws.com/pod-eni|92|
 ### `d3.4xlarge`
@@ -3998,7 +3998,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|120468Mi|
+ |memory|126369Mi|
  |pods|38|
  |vpc.amazonaws.com/pod-eni|118|
 ### `d3.8xlarge`
@@ -4024,7 +4024,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|241479Mi|
+ |memory|253544Mi|
  |pods|59|
  |vpc.amazonaws.com/pod-eni|119|
 ## d3en Family
@@ -4051,7 +4051,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14690Mi|
+ |memory|15184Mi|
  |pods|10|
  |vpc.amazonaws.com/pod-eni|24|
 ### `d3en.2xlarge`
@@ -4077,7 +4077,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29757Mi|
+ |memory|31008Mi|
  |pods|18|
  |vpc.amazonaws.com/pod-eni|58|
 ### `d3en.4xlarge`
@@ -4103,7 +4103,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|59847Mi|
+ |memory|62614Mi|
  |pods|38|
  |vpc.amazonaws.com/pod-eni|118|
 ### `d3en.6xlarge`
@@ -4129,7 +4129,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|23870m|
  |ephemeral-storage|17Gi|
- |memory|89938Mi|
+ |memory|94272Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|118|
 ### `d3en.8xlarge`
@@ -4155,7 +4155,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|120028Mi|
+ |memory|125925Mi|
  |pods|78|
  |vpc.amazonaws.com/pod-eni|118|
 ### `d3en.12xlarge`
@@ -4181,7 +4181,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|180528Mi|
+ |memory|189457Mi|
  |pods|89|
  |vpc.amazonaws.com/pod-eni|119|
 ## dl1 Family
@@ -4240,7 +4240,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|114565Mi|
+ |memory|121652Mi|
  |pods|58|
 ### `f1.4xlarge`
 #### Labels
@@ -4265,7 +4265,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|228187Mi|
+ |memory|242466Mi|
  |pods|234|
 ### `f1.16xlarge`
 #### Labels
@@ -4290,7 +4290,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|919778Mi|
+ |memory|978177Mi|
  |pods|394|
 ## g2 Family
 ### `g2.2xlarge`
@@ -4318,7 +4318,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|13215Mi|
+ |memory|-1761Mi|
  |nvidia.com/gpu|1|
  |pods|58|
 ### `g2.8xlarge`
@@ -4346,7 +4346,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|53903Mi|
+ |memory|-6001Mi|
  |nvidia.com/gpu|4|
  |pods|234|
 ## g3 Family
@@ -4376,7 +4376,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|112629Mi|
+ |memory|119689Mi|
  |nvidia.com/gpu|1|
  |pods|234|
 ### `g3.8xlarge`
@@ -4405,7 +4405,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|228187Mi|
+ |memory|242466Mi|
  |nvidia.com/gpu|2|
  |pods|234|
 ### `g3.16xlarge`
@@ -4434,7 +4434,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|453771Mi|
+ |memory|482890Mi|
  |nvidia.com/gpu|4|
  |pods|737|
 ## g3s Family
@@ -4463,7 +4463,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|27896Mi|
+ |memory|29543Mi|
  |nvidia.com/gpu|1|
  |pods|58|
 ## g4ad Family
@@ -4650,7 +4650,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14975Mi|
  |nvidia.com/gpu|1|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|39|
@@ -4681,7 +4681,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29636Mi|
+ |memory|30887Mi|
  |nvidia.com/gpu|1|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|39|
@@ -4712,7 +4712,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|59946Mi|
+ |memory|62713Mi|
  |nvidia.com/gpu|1|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|59|
@@ -4743,7 +4743,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|120248Mi|
+ |memory|126145Mi|
  |nvidia.com/gpu|1|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|58|
@@ -4774,7 +4774,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|187862Mi|
  |nvidia.com/gpu|4|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
@@ -4805,7 +4805,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|241490Mi|
+ |memory|253614Mi|
  |nvidia.com/gpu|1|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|118|
@@ -4836,7 +4836,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|377769Mi|
  |nvidia.com/gpu|8|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
@@ -4868,7 +4868,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14771Mi|
  |nvidia.com/gpu|1|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|4|
@@ -4899,7 +4899,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30684Mi|
  |nvidia.com/gpu|1|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|17|
@@ -4930,7 +4930,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60574Mi|
  |nvidia.com/gpu|1|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|34|
@@ -4961,7 +4961,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124325Mi|
  |nvidia.com/gpu|1|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
@@ -4992,7 +4992,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|182444Mi|
  |nvidia.com/gpu|4|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
@@ -5023,7 +5023,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|251726Mi|
  |nvidia.com/gpu|1|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
@@ -5054,7 +5054,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|373698Mi|
  |nvidia.com/gpu|4|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
@@ -5085,7 +5085,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|723299Mi|
+ |memory|760702Mi|
  |nvidia.com/gpu|8|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|115|
@@ -5116,7 +5116,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|6525Mi|
+ |memory|6694Mi|
  |nvidia.com/gpu|1|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
@@ -5146,7 +5146,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |nvidia.com/gpu|1|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
@@ -5176,7 +5176,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|27322Mi|
+ |memory|28444Mi|
  |nvidia.com/gpu|1|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
@@ -5206,7 +5206,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60027Mi|
  |nvidia.com/gpu|1|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
@@ -5236,7 +5236,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|115Gi|
  |nvidia.com/gpu|2|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
@@ -5266,7 +5266,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|112720Mi|
+ |memory|119902Mi|
  |nvidia.com/gpu|2|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
@@ -5293,7 +5293,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|31054Mi|
  |pods|58|
 ### `h1.4xlarge`
 #### Labels
@@ -5317,7 +5317,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|61271Mi|
  |pods|234|
 ### `h1.8xlarge`
 #### Labels
@@ -5341,7 +5341,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|125732Mi|
  |pods|234|
 ### `h1.16xlarge`
 #### Labels
@@ -5365,7 +5365,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|249221Mi|
  |pods|737|
 ## hpc7g Family
 ### `hpc7g.4xlarge`
@@ -5462,7 +5462,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|27896Mi|
+ |memory|29560Mi|
  |pods|58|
 ### `i2.2xlarge`
 #### Labels
@@ -5485,7 +5485,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|56786Mi|
+ |memory|60248Mi|
  |pods|58|
 ### `i2.4xlarge`
 #### Labels
@@ -5508,7 +5508,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|112629Mi|
+ |memory|119761Mi|
  |pods|234|
 ### `i2.8xlarge`
 #### Labels
@@ -5558,7 +5558,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|13770Mi|
+ |memory|14528Mi|
  |pods|29|
 ### `i3.xlarge`
 #### Labels
@@ -5583,7 +5583,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|27896Mi|
+ |memory|29543Mi|
  |pods|58|
 ### `i3.2xlarge`
 #### Labels
@@ -5608,7 +5608,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|56786Mi|
+ |memory|60213Mi|
  |pods|58|
 ### `i3.4xlarge`
 #### Labels
@@ -5633,7 +5633,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|112629Mi|
+ |memory|119689Mi|
  |pods|234|
 ### `i3.8xlarge`
 #### Labels
@@ -5658,7 +5658,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|228187Mi|
+ |memory|242466Mi|
  |pods|234|
 ### `i3.16xlarge`
 #### Labels
@@ -5683,7 +5683,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|453771Mi|
+ |memory|482890Mi|
  |pods|737|
 ### `i3.metal`
 #### Labels
@@ -5708,7 +5708,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|71750m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|506943Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|120|
 ## i3en Family
@@ -5735,7 +5735,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14976Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|5|
 ### `i3en.xlarge`
@@ -5761,7 +5761,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|12|
 ### `i3en.2xlarge`
@@ -5787,7 +5787,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62395Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|28|
 ### `i3en.3xlarge`
@@ -5813,7 +5813,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|11900m|
  |ephemeral-storage|17Gi|
- |memory|89938Mi|
+ |memory|94274Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `i3en.6xlarge`
@@ -5839,7 +5839,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|23870m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|187868Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i3en.12xlarge`
@@ -5865,7 +5865,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|379127Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i3en.24xlarge`
@@ -5891,7 +5891,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|756183Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `i3en.metal`
@@ -5917,7 +5917,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|764534Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## i4g Family
@@ -5944,7 +5944,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14422Mi|
+ |memory|15007Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `i4g.xlarge`
@@ -5970,7 +5970,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30579Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `i4g.2xlarge`
@@ -5996,7 +5996,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59568Mi|
+ |memory|62362Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `i4g.4xlarge`
@@ -6022,7 +6022,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|124091Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i4g.8xlarge`
@@ -6048,7 +6048,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239495Mi|
+ |memory|251320Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i4g.16xlarge`
@@ -6074,7 +6074,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476445Mi|
+ |memory|500447Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## i4i Family
@@ -6101,7 +6101,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|15005Mi|
  |pods|29|
 ### `i4i.xlarge`
 #### Labels
@@ -6126,7 +6126,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30510Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|6|
 ### `i4i.2xlarge`
@@ -6152,7 +6152,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62160Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|26|
 ### `i4i.4xlarge`
@@ -6178,7 +6178,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123625Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|52|
 ### `i4i.8xlarge`
@@ -6204,7 +6204,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|250325Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|112|
 ### `i4i.16xlarge`
@@ -6230,7 +6230,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|498393Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|120|
 ### `i4i.32xlarge`
@@ -6256,7 +6256,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|961470Mi|
+ |memory|1005782Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|120|
 ### `i4i.metal`
@@ -6282,7 +6282,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|961470Mi|
+ |memory|1022575Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|120|
 ## im4gn Family
@@ -6309,7 +6309,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6844Mi|
+ |memory|7013Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `im4gn.xlarge`
@@ -6335,7 +6335,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `im4gn.2xlarge`
@@ -6361,7 +6361,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30381Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `im4gn.4xlarge`
@@ -6387,7 +6387,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60029Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `im4gn.8xlarge`
@@ -6413,7 +6413,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|123297Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `im4gn.16xlarge`
@@ -6439,7 +6439,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|233962Mi|
+ |memory|244199Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## inf1 Family
@@ -6696,7 +6696,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|5181Mi|
+ |memory|5267Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `is4gen.large`
@@ -6722,7 +6722,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|10633Mi|
+ |memory|10953Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `is4gen.xlarge`
@@ -6748,7 +6748,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|21680Mi|
+ |memory|22473Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `is4gen.2xlarge`
@@ -6774,7 +6774,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|44413Mi|
+ |memory|46148Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `is4gen.4xlarge`
@@ -6800,7 +6800,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|87943Mi|
+ |memory|91664Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `is4gen.8xlarge`
@@ -6826,7 +6826,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|178874Mi|
+ |memory|186466Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ## m1 Family
@@ -6851,7 +6851,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1166Mi|
+ |memory|1200Mi|
  |pods|8|
 ### `m1.medium`
 #### Labels
@@ -6874,7 +6874,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|3016Mi|
+ |memory|3222Mi|
  |pods|12|
 ### `m1.large`
 #### Labels
@@ -6897,7 +6897,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6430Mi|
+ |memory|6735Mi|
  |pods|29|
 ### `m1.xlarge`
 #### Labels
@@ -6920,7 +6920,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|13215Mi|
+ |memory|13957Mi|
  |pods|58|
 ## m2 Family
 ### `m2.xlarge`
@@ -6944,7 +6944,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|15203Mi|
+ |memory|16036Mi|
  |pods|58|
 ### `m2.2xlarge`
 #### Labels
@@ -6967,7 +6967,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|30740Mi|
+ |memory|32537Mi|
  |pods|118|
 ### `m2.4xlarge`
 #### Labels
@@ -6990,7 +6990,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|61858Mi|
+ |memory|65687Mi|
  |pods|234|
 ## m3 Family
 ### `m3.medium`
@@ -7014,7 +7014,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|3065Mi|
+ |memory|3219Mi|
  |pods|12|
 ### `m3.large`
 #### Labels
@@ -7037,7 +7037,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6430Mi|
+ |memory|6735Mi|
  |pods|29|
 ### `m3.xlarge`
 #### Labels
@@ -7060,7 +7060,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|13215Mi|
+ |memory|13957Mi|
  |pods|58|
 ### `m3.2xlarge`
 #### Labels
@@ -7083,7 +7083,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|26763Mi|
+ |memory|28380Mi|
  |pods|118|
 ## m4 Family
 ### `m4.large`
@@ -7107,7 +7107,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|7002Mi|
+ |memory|7337Mi|
  |pods|20|
 ### `m4.xlarge`
 #### Labels
@@ -7130,7 +7130,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14964Mi|
  |pods|58|
 ### `m4.2xlarge`
 #### Labels
@@ -7153,7 +7153,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|31054Mi|
  |pods|58|
 ### `m4.4xlarge`
 #### Labels
@@ -7176,7 +7176,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|61271Mi|
  |pods|234|
 ### `m4.10xlarge`
 #### Labels
@@ -7200,7 +7200,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|39830m|
  |ephemeral-storage|17Gi|
- |memory|148623Mi|
+ |memory|158063Mi|
  |pods|234|
 ### `m4.16xlarge`
 #### Labels
@@ -7249,7 +7249,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|6931Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5.xlarge`
@@ -7274,7 +7274,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14479Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5.2xlarge`
@@ -7299,7 +7299,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30568Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5.4xlarge`
@@ -7324,7 +7324,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|59753Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5.8xlarge`
@@ -7349,7 +7349,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124209Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5.12xlarge`
@@ -7374,7 +7374,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|185745Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5.16xlarge`
@@ -7399,7 +7399,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|246145Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5.24xlarge`
@@ -7424,7 +7424,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|373652Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5.metal`
@@ -7449,7 +7449,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|377769Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|120|
 ## m5a Family
@@ -7475,7 +7475,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|6977Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5a.xlarge`
@@ -7500,7 +7500,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5a.2xlarge`
@@ -7525,7 +7525,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30394Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5a.4xlarge`
@@ -7550,7 +7550,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60108Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5a.8xlarge`
@@ -7575,7 +7575,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123474Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5a.12xlarge`
@@ -7600,7 +7600,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|186740Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5a.16xlarge`
@@ -7625,7 +7625,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244473Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5a.24xlarge`
@@ -7650,7 +7650,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|371005Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5ad Family
@@ -7677,7 +7677,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|6977Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5ad.xlarge`
@@ -7703,7 +7703,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5ad.2xlarge`
@@ -7729,7 +7729,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30394Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5ad.4xlarge`
@@ -7755,7 +7755,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60108Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5ad.8xlarge`
@@ -7781,7 +7781,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123474Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5ad.12xlarge`
@@ -7807,7 +7807,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|186740Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5ad.16xlarge`
@@ -7833,7 +7833,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244473Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5ad.24xlarge`
@@ -7859,7 +7859,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|371005Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5d Family
@@ -7886,7 +7886,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|6931Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5d.xlarge`
@@ -7912,7 +7912,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14479Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5d.2xlarge`
@@ -7938,7 +7938,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30568Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5d.4xlarge`
@@ -7964,7 +7964,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60458Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5d.8xlarge`
@@ -7990,7 +7990,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124209Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5d.12xlarge`
@@ -8016,7 +8016,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|185745Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5d.16xlarge`
@@ -8042,7 +8042,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|246145Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5d.24xlarge`
@@ -8068,7 +8068,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|369418Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5d.metal`
@@ -8094,7 +8094,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|377769Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5dn Family
@@ -8121,7 +8121,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7019Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5dn.xlarge`
@@ -8147,7 +8147,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14656Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5dn.2xlarge`
@@ -8173,7 +8173,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30568Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5dn.4xlarge`
@@ -8199,7 +8199,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60458Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5dn.8xlarge`
@@ -8225,7 +8225,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124209Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5dn.12xlarge`
@@ -8251,7 +8251,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|187862Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5dn.16xlarge`
@@ -8277,33 +8277,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
- |pods|737|
- |vpc.amazonaws.com/pod-eni|107|
-### `m5dn.24xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|96|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m5dn|
- |karpenter.k8s.aws/instance-generation|5|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-local-nvme|3600|
- |karpenter.k8s.aws/instance-memory|393216|
- |karpenter.k8s.aws/instance-network-bandwidth|100000|
- |karpenter.k8s.aws/instance-pods|737|
- |karpenter.k8s.aws/instance-size|24xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m5dn.24xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|95690m|
- |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|246145Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5dn.metal`
@@ -8332,6 +8306,32 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
+### `m5dn.24xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|96|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m5dn|
+ |karpenter.k8s.aws/instance-generation|5|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|3600|
+ |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|24xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m5dn.24xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|95690m|
+ |ephemeral-storage|17Gi|
+ |memory|373652Mi|
+ |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ## m5n Family
 ### `m5n.large`
 #### Labels
@@ -8355,7 +8355,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7019Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5n.xlarge`
@@ -8380,7 +8380,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14656Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5n.2xlarge`
@@ -8405,7 +8405,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30568Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5n.4xlarge`
@@ -8430,7 +8430,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60458Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5n.8xlarge`
@@ -8455,7 +8455,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124209Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5n.12xlarge`
@@ -8480,7 +8480,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|187862Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5n.16xlarge`
@@ -8505,7 +8505,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|246145Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5n.24xlarge`
@@ -8530,7 +8530,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|373652Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5n.metal`
@@ -8555,7 +8555,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|377769Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5zn Family
@@ -8581,7 +8581,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|6931Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|13|
 ### `m5zn.xlarge`
@@ -8606,7 +8606,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14479Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|29|
 ### `m5zn.2xlarge`
@@ -8631,7 +8631,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30215Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|62|
 ### `m5zn.3xlarge`
@@ -8656,7 +8656,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|11900m|
  |ephemeral-storage|17Gi|
- |memory|42536Mi|
+ |memory|43993Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|92|
 ### `m5zn.6xlarge`
@@ -8681,7 +8681,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|23870m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|91277Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m5zn.12xlarge`
@@ -8706,7 +8706,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|180281Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5zn.metal`
@@ -8731,7 +8731,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|184399Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6a Family
@@ -8757,7 +8757,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7046Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6a.xlarge`
@@ -8782,7 +8782,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14595Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6a.2xlarge`
@@ -8807,7 +8807,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30331Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6a.4xlarge`
@@ -8832,7 +8832,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|59868Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6a.8xlarge`
@@ -8857,7 +8857,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|122995Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6a.12xlarge`
@@ -8882,7 +8882,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|185860Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6a.16xlarge`
@@ -8907,7 +8907,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|243553Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.24xlarge`
@@ -8932,7 +8932,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|369649Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.32xlarge`
@@ -8957,7 +8957,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|495698Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.48xlarge`
@@ -8982,7 +8982,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|747889Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.metal`
@@ -9007,7 +9007,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|761436Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6g Family
@@ -9033,7 +9033,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|3286Mi|
+ |memory|3278Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m6g.large`
@@ -9058,7 +9058,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6844Mi|
+ |memory|6979Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6g.xlarge`
@@ -9083,7 +9083,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14522Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6g.2xlarge`
@@ -9108,7 +9108,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30249Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6g.4xlarge`
@@ -9133,7 +9133,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|59764Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6g.8xlarge`
@@ -9158,7 +9158,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|122769Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6g.12xlarge`
@@ -9183,7 +9183,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178874Mi|
+ |memory|185671Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6g.16xlarge`
@@ -9208,7 +9208,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|233962Mi|
+ |memory|243143Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6g.metal`
@@ -9233,7 +9233,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|233962Mi|
+ |memory|248453Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6gd Family
@@ -9260,7 +9260,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|3286Mi|
+ |memory|3278Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m6gd.large`
@@ -9286,7 +9286,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6844Mi|
+ |memory|6979Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6gd.xlarge`
@@ -9312,7 +9312,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14522Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6gd.2xlarge`
@@ -9338,7 +9338,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30249Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6gd.4xlarge`
@@ -9364,7 +9364,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|59764Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6gd.8xlarge`
@@ -9390,7 +9390,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|122769Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6gd.12xlarge`
@@ -9416,7 +9416,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178874Mi|
+ |memory|185671Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6gd.16xlarge`
@@ -9442,7 +9442,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|233962Mi|
+ |memory|243143Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6gd.metal`
@@ -9468,7 +9468,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|233962Mi|
+ |memory|248453Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6i Family
@@ -9494,7 +9494,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7092Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6i.xlarge`
@@ -9519,7 +9519,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14685Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6i.2xlarge`
@@ -9544,7 +9544,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30509Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6i.4xlarge`
@@ -9569,7 +9569,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60223Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6i.8xlarge`
@@ -9594,7 +9594,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123621Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6i.12xlarge`
@@ -9619,7 +9619,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|186919Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6i.16xlarge`
@@ -9644,7 +9644,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244784Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6i.24xlarge`
@@ -9669,32 +9669,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
- |pods|737|
- |vpc.amazonaws.com/pod-eni|107|
-### `m6i.32xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|128|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m6i|
- |karpenter.k8s.aws/instance-generation|6|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-memory|524288|
- |karpenter.k8s.aws/instance-network-bandwidth|50000|
- |karpenter.k8s.aws/instance-pods|737|
- |karpenter.k8s.aws/instance-size|32xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m6i.32xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|127610m|
- |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|371766Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6i.metal`
@@ -9722,6 +9697,31 @@ below are the resources available with some assumptions and after the instance o
  |memory|476504Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
+### `m6i.32xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m6i|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|32xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m6i.32xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|498562Mi|
+ |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ## m6id Family
 ### `m6id.large`
 #### Labels
@@ -9746,7 +9746,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7092Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6id.xlarge`
@@ -9772,7 +9772,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14685Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6id.2xlarge`
@@ -9798,7 +9798,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30509Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6id.4xlarge`
@@ -9824,7 +9824,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60223Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6id.8xlarge`
@@ -9850,7 +9850,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123621Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6id.12xlarge`
@@ -9876,7 +9876,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|186919Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6id.16xlarge`
@@ -9902,7 +9902,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244784Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6id.24xlarge`
@@ -9928,7 +9928,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|371766Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6id.32xlarge`
@@ -9954,7 +9954,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|498562Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6id.metal`
@@ -9980,7 +9980,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|506890Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6idn Family
@@ -10007,7 +10007,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7092Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6idn.xlarge`
@@ -10033,7 +10033,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14685Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6idn.2xlarge`
@@ -10059,7 +10059,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30509Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6idn.4xlarge`
@@ -10085,7 +10085,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60223Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6idn.8xlarge`
@@ -10111,7 +10111,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123621Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6idn.12xlarge`
@@ -10137,7 +10137,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|186919Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6idn.16xlarge`
@@ -10163,7 +10163,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244784Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6idn.24xlarge`
@@ -10189,35 +10189,9 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|371766Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
-### `m6idn.32xlarge`
-#### Labels
- | Label | Value |
- |--|--|
- |karpenter.k8s.aws/instance-category|m|
- |karpenter.k8s.aws/instance-cpu|128|
- |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
- |karpenter.k8s.aws/instance-family|m6idn|
- |karpenter.k8s.aws/instance-generation|6|
- |karpenter.k8s.aws/instance-hypervisor|nitro|
- |karpenter.k8s.aws/instance-local-nvme|7600|
- |karpenter.k8s.aws/instance-memory|524288|
- |karpenter.k8s.aws/instance-network-bandwidth|200000|
- |karpenter.k8s.aws/instance-pods|345|
- |karpenter.k8s.aws/instance-size|32xlarge|
- |kubernetes.io/arch|amd64|
- |kubernetes.io/os|linux|
- |node.kubernetes.io/instance-type|m6idn.32xlarge|
-#### Resources
- | Resource | Quantity |
- |--|--|
- |cpu|127610m|
- |ephemeral-storage|17Gi|
- |memory|480816Mi|
- |pods|345|
- |vpc.amazonaws.com/pod-eni|108|
 ### `m6idn.metal`
 #### Labels
  | Label | Value |
@@ -10244,6 +10218,32 @@ below are the resources available with some assumptions and after the instance o
  |memory|480816Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
+### `m6idn.32xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|128|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m6idn|
+ |karpenter.k8s.aws/instance-generation|6|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-local-nvme|7600|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|200000|
+ |karpenter.k8s.aws/instance-pods|345|
+ |karpenter.k8s.aws/instance-size|32xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m6idn.32xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|127610m|
+ |ephemeral-storage|17Gi|
+ |memory|502874Mi|
+ |pods|345|
+ |vpc.amazonaws.com/pod-eni|108|
 ## m6in Family
 ### `m6in.large`
 #### Labels
@@ -10267,7 +10267,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7092Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6in.xlarge`
@@ -10292,7 +10292,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14685Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6in.2xlarge`
@@ -10317,7 +10317,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30509Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6in.4xlarge`
@@ -10342,7 +10342,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60223Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6in.8xlarge`
@@ -10367,7 +10367,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123621Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6in.12xlarge`
@@ -10392,7 +10392,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|186919Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6in.16xlarge`
@@ -10417,7 +10417,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244784Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6in.24xlarge`
@@ -10442,7 +10442,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|371766Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6in.32xlarge`
@@ -10467,7 +10467,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|480816Mi|
+ |memory|502874Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
 ### `m6in.metal`
@@ -10492,7 +10492,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|480816Mi|
+ |memory|511202Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
 ## m7a Family
@@ -10518,7 +10518,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|3345Mi|
+ |memory|3326Mi|
  |pods|8|
 ### `m7a.large`
 #### Labels
@@ -10542,7 +10542,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7029Mi|
  |pods|29|
 ### `m7a.xlarge`
 #### Labels
@@ -10566,7 +10566,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14578Mi|
  |pods|58|
 ### `m7a.2xlarge`
 #### Labels
@@ -10590,7 +10590,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30314Mi|
  |pods|58|
 ### `m7a.4xlarge`
 #### Labels
@@ -10614,7 +10614,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|59851Mi|
  |pods|234|
 ### `m7a.8xlarge`
 #### Labels
@@ -10638,7 +10638,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|122897Mi|
  |pods|234|
 ### `m7a.12xlarge`
 #### Labels
@@ -10662,7 +10662,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|185843Mi|
  |pods|234|
 ### `m7a.16xlarge`
 #### Labels
@@ -10686,7 +10686,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|243354Mi|
  |pods|737|
 ### `m7a.24xlarge`
 #### Labels
@@ -10710,7 +10710,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|369448Mi|
  |pods|737|
 ### `m7a.32xlarge`
 #### Labels
@@ -10734,7 +10734,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|495702Mi|
  |pods|737|
 ### `m7a.48xlarge`
 #### Labels
@@ -10758,7 +10758,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|747889Mi|
  |pods|737|
 ### `m7a.metal-48xl`
 #### Labels
@@ -10782,7 +10782,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|761381Mi|
  |pods|737|
 ## m7g Family
 ### `m7g.medium`
@@ -10807,7 +10807,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|3286Mi|
+ |memory|3295Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m7g.large`
@@ -10832,7 +10832,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6844Mi|
+ |memory|7013Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m7g.xlarge`
@@ -10857,7 +10857,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m7g.2xlarge`
@@ -10882,7 +10882,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30381Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m7g.4xlarge`
@@ -10907,7 +10907,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60029Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7g.8xlarge`
@@ -10932,7 +10932,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|123297Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7g.12xlarge`
@@ -10957,7 +10957,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178874Mi|
+ |memory|186464Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7g.16xlarge`
@@ -10982,7 +10982,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|233962Mi|
+ |memory|244199Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7g.metal`
@@ -11007,7 +11007,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|233962Mi|
+ |memory|248449Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7gd Family
@@ -11034,7 +11034,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|3286Mi|
+ |memory|3295Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m7gd.large`
@@ -11060,7 +11060,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6844Mi|
+ |memory|7013Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m7gd.xlarge`
@@ -11086,7 +11086,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14589Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m7gd.2xlarge`
@@ -11112,7 +11112,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30381Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m7gd.4xlarge`
@@ -11138,7 +11138,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57632Mi|
+ |memory|60029Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7gd.8xlarge`
@@ -11164,7 +11164,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|123297Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7gd.12xlarge`
@@ -11190,7 +11190,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178874Mi|
+ |memory|186464Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7gd.16xlarge`
@@ -11216,7 +11216,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|233962Mi|
+ |memory|244199Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7i Family
@@ -11242,7 +11242,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7075Mi|
  |pods|29|
 ### `m7i.xlarge`
 #### Labels
@@ -11266,7 +11266,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14668Mi|
  |pods|58|
 ### `m7i.2xlarge`
 #### Labels
@@ -11290,7 +11290,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30492Mi|
  |pods|58|
 ### `m7i.4xlarge`
 #### Labels
@@ -11314,7 +11314,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60206Mi|
  |pods|234|
 ### `m7i.8xlarge`
 #### Labels
@@ -11338,7 +11338,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123604Mi|
  |pods|234|
 ### `m7i.12xlarge`
 #### Labels
@@ -11362,7 +11362,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|186902Mi|
  |pods|234|
 ### `m7i.16xlarge`
 #### Labels
@@ -11386,7 +11386,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
+ |memory|244767Mi|
  |pods|737|
 ### `m7i.24xlarge`
 #### Labels
@@ -11410,7 +11410,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|371564Mi|
  |pods|737|
 ### `m7i.48xlarge`
 #### Labels
@@ -11434,7 +11434,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|752123Mi|
  |pods|737|
 ## m7i-flex Family
 ### `m7i-flex.large`
@@ -11459,7 +11459,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6903Mi|
+ |memory|7075Mi|
  |pods|29|
 ### `m7i-flex.xlarge`
 #### Labels
@@ -11483,7 +11483,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14668Mi|
  |pods|58|
 ### `m7i-flex.2xlarge`
 #### Labels
@@ -11507,7 +11507,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30492Mi|
  |pods|58|
 ### `m7i-flex.4xlarge`
 #### Labels
@@ -11531,7 +11531,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|57691Mi|
+ |memory|60206Mi|
  |pods|234|
 ### `m7i-flex.8xlarge`
 #### Labels
@@ -11555,7 +11555,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123604Mi|
  |pods|234|
 ## p2 Family
 ### `p2.xlarge`
@@ -11670,7 +11670,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|56786Mi|
+ |memory|60213Mi|
  |nvidia.com/gpu|1|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
@@ -11700,7 +11700,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|228187Mi|
+ |memory|242466Mi|
  |nvidia.com/gpu|4|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
@@ -11826,7 +11826,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|1938410Mi|
+ |memory|2044045Mi|
  |nvidia.com/gpu|8|
  |pods|100|
  |vpc.amazonaws.com/pod-eni|120|
@@ -11852,7 +11852,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|13534Mi|
+ |memory|14548Mi|
  |pods|29|
 ### `r3.xlarge`
 #### Labels
@@ -11875,7 +11875,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|27896Mi|
+ |memory|29560Mi|
  |pods|58|
 ### `r3.2xlarge`
 #### Labels
@@ -11898,7 +11898,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|56786Mi|
+ |memory|60248Mi|
  |pods|58|
 ### `r3.4xlarge`
 #### Labels
@@ -11921,7 +11921,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|112629Mi|
+ |memory|119761Mi|
  |pods|234|
 ### `r3.8xlarge`
 #### Labels
@@ -11945,7 +11945,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|228187Mi|
+ |memory|242814Mi|
  |pods|234|
 ## r4 Family
 ### `r4.large`
@@ -11970,7 +11970,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|13770Mi|
+ |memory|14528Mi|
  |pods|29|
 ### `r4.xlarge`
 #### Labels
@@ -11994,7 +11994,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|27896Mi|
+ |memory|29543Mi|
  |pods|58|
 ### `r4.2xlarge`
 #### Labels
@@ -12018,7 +12018,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|56786Mi|
+ |memory|60213Mi|
  |pods|58|
 ### `r4.4xlarge`
 #### Labels
@@ -12042,7 +12042,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|112629Mi|
+ |memory|119689Mi|
  |pods|234|
 ### `r4.8xlarge`
 #### Labels
@@ -12066,7 +12066,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|228187Mi|
+ |memory|242466Mi|
  |pods|234|
 ### `r4.16xlarge`
 #### Labels
@@ -12090,7 +12090,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|453771Mi|
+ |memory|482890Mi|
  |pods|737|
 ## r5 Family
 ### `r5.large`
@@ -12115,7 +12115,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14976Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5.xlarge`
@@ -12140,7 +12140,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5.2xlarge`
@@ -12165,7 +12165,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62395Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5.4xlarge`
@@ -12190,7 +12190,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124213Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5.8xlarge`
@@ -12215,7 +12215,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|251619Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5.12xlarge`
@@ -12240,7 +12240,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|379127Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5.16xlarge`
@@ -12265,7 +12265,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|501165Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5.24xlarge`
@@ -12290,7 +12290,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|756183Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5.metal`
@@ -12315,7 +12315,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|764534Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|120|
 ## r5a Family
@@ -12341,7 +12341,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|15022Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5a.xlarge`
@@ -12366,7 +12366,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30659Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5a.2xlarge`
@@ -12391,7 +12391,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62574Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5a.4xlarge`
@@ -12416,7 +12416,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124568Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5a.8xlarge`
@@ -12441,7 +12441,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|252396Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5a.12xlarge`
@@ -12466,7 +12466,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|380123Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5a.16xlarge`
@@ -12491,7 +12491,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|502316Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5a.24xlarge`
@@ -12516,7 +12516,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|757770Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5ad Family
@@ -12543,7 +12543,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|15022Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5ad.xlarge`
@@ -12569,7 +12569,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30659Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5ad.2xlarge`
@@ -12595,7 +12595,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62574Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5ad.4xlarge`
@@ -12621,7 +12621,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124568Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5ad.8xlarge`
@@ -12647,7 +12647,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|252396Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5ad.12xlarge`
@@ -12673,7 +12673,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|380123Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5ad.16xlarge`
@@ -12699,7 +12699,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|502316Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5ad.24xlarge`
@@ -12725,7 +12725,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|757770Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5b Family
@@ -12751,7 +12751,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14976Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5b.xlarge`
@@ -12776,7 +12776,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5b.2xlarge`
@@ -12801,7 +12801,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62395Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5b.4xlarge`
@@ -12826,7 +12826,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124213Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5b.8xlarge`
@@ -12851,7 +12851,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|251619Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5b.12xlarge`
@@ -12876,7 +12876,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|379127Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5b.16xlarge`
@@ -12901,7 +12901,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|501165Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5b.24xlarge`
@@ -12926,7 +12926,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|756183Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5b.metal`
@@ -12951,7 +12951,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|764534Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5d Family
@@ -12978,7 +12978,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14976Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5d.xlarge`
@@ -13004,7 +13004,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5d.2xlarge`
@@ -13030,7 +13030,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62395Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5d.4xlarge`
@@ -13056,7 +13056,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124213Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5d.8xlarge`
@@ -13082,7 +13082,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|251619Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5d.12xlarge`
@@ -13108,7 +13108,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|379127Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5d.16xlarge`
@@ -13134,7 +13134,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|501165Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5d.24xlarge`
@@ -13160,7 +13160,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|756183Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5d.metal`
@@ -13186,7 +13186,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|764534Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5dn Family
@@ -13213,7 +13213,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14976Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5dn.xlarge`
@@ -13239,7 +13239,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5dn.2xlarge`
@@ -13265,7 +13265,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62395Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5dn.4xlarge`
@@ -13291,7 +13291,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124213Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5dn.8xlarge`
@@ -13317,7 +13317,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|251619Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5dn.12xlarge`
@@ -13343,7 +13343,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|379127Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5dn.16xlarge`
@@ -13369,7 +13369,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|501165Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5dn.24xlarge`
@@ -13395,7 +13395,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|756183Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5dn.metal`
@@ -13421,7 +13421,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|764534Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5n Family
@@ -13447,7 +13447,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14976Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5n.xlarge`
@@ -13472,7 +13472,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5n.2xlarge`
@@ -13497,7 +13497,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62395Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5n.4xlarge`
@@ -13522,7 +13522,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|124213Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5n.8xlarge`
@@ -13547,7 +13547,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|251619Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5n.12xlarge`
@@ -13572,7 +13572,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|379127Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5n.16xlarge`
@@ -13597,7 +13597,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|501165Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5n.24xlarge`
@@ -13622,7 +13622,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|756183Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5n.metal`
@@ -13647,7 +13647,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|764534Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6a Family
@@ -13673,7 +13673,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14915Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6a.xlarge`
@@ -13698,7 +13698,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30332Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6a.2xlarge`
@@ -13723,7 +13723,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|61805Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6a.4xlarge`
@@ -13748,7 +13748,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|122918Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6a.8xlarge`
@@ -13773,7 +13773,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|249095Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6a.12xlarge`
@@ -13798,7 +13798,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|375007Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6a.16xlarge`
@@ -13823,7 +13823,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|495752Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.24xlarge`
@@ -13848,7 +13848,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|747943Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.32xlarge`
@@ -13873,7 +13873,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|961470Mi|
+ |memory|1000095Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.48xlarge`
@@ -13898,7 +13898,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|1446437Mi|
+ |memory|1504476Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.metal`
@@ -13923,7 +13923,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|191450m|
  |ephemeral-storage|17Gi|
- |memory|1446437Mi|
+ |memory|1527556Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6g Family
@@ -13949,7 +13949,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|7075Mi|
+ |memory|7292Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `r6g.large`
@@ -13974,7 +13974,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14422Mi|
+ |memory|15007Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6g.xlarge`
@@ -13999,7 +13999,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30579Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6g.2xlarge`
@@ -14024,7 +14024,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59568Mi|
+ |memory|62362Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6g.4xlarge`
@@ -14049,7 +14049,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|124091Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6g.8xlarge`
@@ -14074,7 +14074,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239495Mi|
+ |memory|251320Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6g.12xlarge`
@@ -14099,7 +14099,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360736Mi|
+ |memory|378649Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6g.16xlarge`
@@ -14124,7 +14124,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476445Mi|
+ |memory|500447Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6g.metal`
@@ -14149,7 +14149,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476445Mi|
+ |memory|505757Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6gd Family
@@ -14176,7 +14176,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|7075Mi|
+ |memory|7292Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `r6gd.large`
@@ -14202,7 +14202,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14422Mi|
+ |memory|15007Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6gd.xlarge`
@@ -14228,7 +14228,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30579Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6gd.2xlarge`
@@ -14254,7 +14254,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59568Mi|
+ |memory|62362Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6gd.4xlarge`
@@ -14280,7 +14280,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|124091Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6gd.8xlarge`
@@ -14306,7 +14306,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239495Mi|
+ |memory|251320Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6gd.12xlarge`
@@ -14332,7 +14332,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360736Mi|
+ |memory|378649Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6gd.16xlarge`
@@ -14358,7 +14358,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476445Mi|
+ |memory|500447Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6gd.metal`
@@ -14384,7 +14384,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476445Mi|
+ |memory|505757Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6i Family
@@ -14410,7 +14410,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|15005Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6i.xlarge`
@@ -14435,7 +14435,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30510Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6i.2xlarge`
@@ -14460,7 +14460,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62160Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6i.4xlarge`
@@ -14485,7 +14485,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123625Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6i.8xlarge`
@@ -14510,7 +14510,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|250325Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6i.12xlarge`
@@ -14535,7 +14535,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|377126Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6i.16xlarge`
@@ -14560,7 +14560,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|498393Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6i.24xlarge`
@@ -14585,7 +14585,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|752180Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6i.32xlarge`
@@ -14610,7 +14610,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|961470Mi|
+ |memory|1005782Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6i.metal`
@@ -14635,7 +14635,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|961470Mi|
+ |memory|1022575Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6id Family
@@ -14662,7 +14662,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|15005Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6id.xlarge`
@@ -14688,7 +14688,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30510Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6id.2xlarge`
@@ -14714,7 +14714,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62160Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6id.4xlarge`
@@ -14740,7 +14740,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123625Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6id.8xlarge`
@@ -14766,7 +14766,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|250325Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6id.12xlarge`
@@ -14792,7 +14792,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|377126Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6id.16xlarge`
@@ -14818,7 +14818,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|498393Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6id.24xlarge`
@@ -14844,7 +14844,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|752180Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6id.32xlarge`
@@ -14870,7 +14870,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|961470Mi|
+ |memory|1005782Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6id.metal`
@@ -14896,7 +14896,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|961470Mi|
+ |memory|1022575Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6idn Family
@@ -14923,7 +14923,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|15005Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6idn.xlarge`
@@ -14949,7 +14949,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30510Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6idn.2xlarge`
@@ -14975,7 +14975,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62160Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6idn.4xlarge`
@@ -15001,7 +15001,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123625Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6idn.8xlarge`
@@ -15027,7 +15027,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|250325Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6idn.12xlarge`
@@ -15053,7 +15053,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|377126Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6idn.16xlarge`
@@ -15079,7 +15079,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|498393Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6idn.24xlarge`
@@ -15105,7 +15105,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|752180Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6idn.32xlarge`
@@ -15131,7 +15131,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|965782Mi|
+ |memory|1010094Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
 ### `r6idn.metal`
@@ -15157,7 +15157,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|965782Mi|
+ |memory|1026887Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
 ## r6in Family
@@ -15183,7 +15183,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|15005Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6in.xlarge`
@@ -15208,7 +15208,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30510Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6in.2xlarge`
@@ -15233,7 +15233,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62160Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6in.4xlarge`
@@ -15258,7 +15258,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118312Mi|
+ |memory|123625Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6in.8xlarge`
@@ -15283,7 +15283,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239554Mi|
+ |memory|250325Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6in.12xlarge`
@@ -15308,7 +15308,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360795Mi|
+ |memory|377126Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6in.16xlarge`
@@ -15333,7 +15333,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476504Mi|
+ |memory|498393Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6in.24xlarge`
@@ -15358,7 +15358,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|718987Mi|
+ |memory|752180Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6in.32xlarge`
@@ -15383,7 +15383,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|965782Mi|
+ |memory|1010094Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
 ### `r6in.metal`
@@ -15408,7 +15408,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|965782Mi|
+ |memory|1026887Mi|
  |pods|345|
  |vpc.amazonaws.com/pod-eni|108|
 ## r7g Family
@@ -15434,7 +15434,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|7075Mi|
+ |memory|7244Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `r7g.large`
@@ -15459,7 +15459,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14422Mi|
+ |memory|14908Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r7g.xlarge`
@@ -15484,7 +15484,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30381Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r7g.2xlarge`
@@ -15509,7 +15509,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59568Mi|
+ |memory|61966Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r7g.4xlarge`
@@ -15534,7 +15534,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|123299Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7g.8xlarge`
@@ -15559,7 +15559,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|239495Mi|
+ |memory|249735Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7g.12xlarge`
@@ -15584,7 +15584,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|360736Mi|
+ |memory|376273Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7g.16xlarge`
@@ -15609,7 +15609,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476445Mi|
+ |memory|497278Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r7g.metal`
@@ -15634,7 +15634,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476445Mi|
+ |memory|505754Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## r7gd Family
@@ -15661,7 +15661,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|7075Mi|
+ |memory|7244Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|4|
 ### `r7gd.large`
@@ -15687,7 +15687,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14422Mi|
+ |memory|14908Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r7gd.xlarge`
@@ -15713,7 +15713,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30381Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r7gd.2xlarge`
@@ -15739,7 +15739,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59568Mi|
+ |memory|61966Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r7gd.4xlarge`
@@ -15765,7 +15765,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|118253Mi|
+ |memory|123299Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.8xlarge`
@@ -15843,7 +15843,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|476445Mi|
+ |memory|497278Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## t1 Family
@@ -15868,7 +15868,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|180Mi|
+ |memory|138Mi|
  |pods|4|
 ## t2 Family
 ### `t2.nano`
@@ -15892,7 +15892,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|74Mi|
+ |memory|39Mi|
  |pods|4|
 ### `t2.micro`
 #### Labels
@@ -15915,7 +15915,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|548Mi|
+ |memory|542Mi|
  |pods|4|
 ### `t2.small`
 #### Labels
@@ -15938,7 +15938,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|1418Mi|
+ |memory|1471Mi|
  |pods|11|
 ### `t2.medium`
 #### Labels
@@ -15961,7 +15961,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3246Mi|
+ |memory|3348Mi|
  |pods|17|
 ### `t2.large`
 #### Labels
@@ -15984,7 +15984,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6837Mi|
+ |memory|7172Mi|
  |pods|35|
 ### `t2.xlarge`
 #### Labels
@@ -16007,7 +16007,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14316Mi|
+ |memory|15118Mi|
  |pods|44|
 ### `t2.2xlarge`
 #### Labels
@@ -16030,7 +16030,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29471Mi|
+ |memory|31208Mi|
  |pods|44|
 ## t3 Family
 ### `t3.nano`
@@ -16055,7 +16055,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|74Mi|
+ |memory|19Mi|
  |pods|4|
 ### `t3.micro`
 #### Labels
@@ -16079,7 +16079,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|548Mi|
+ |memory|515Mi|
  |pods|4|
 ### `t3.small`
 #### Labels
@@ -16103,7 +16103,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|1418Mi|
+ |memory|1434Mi|
  |pods|11|
 ### `t3.medium`
 #### Labels
@@ -16127,7 +16127,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3246Mi|
+ |memory|3288Mi|
  |pods|17|
 ### `t3.large`
 #### Labels
@@ -16151,7 +16151,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6837Mi|
+ |memory|7068Mi|
  |pods|35|
 ### `t3.xlarge`
 #### Labels
@@ -16175,7 +16175,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14771Mi|
  |pods|58|
 ### `t3.2xlarge`
 #### Labels
@@ -16199,7 +16199,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30684Mi|
  |pods|58|
 ## t3a Family
 ### `t3a.nano`
@@ -16224,7 +16224,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|74Mi|
+ |memory|21Mi|
  |pods|4|
 ### `t3a.micro`
 #### Labels
@@ -16248,7 +16248,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|548Mi|
+ |memory|520Mi|
  |pods|4|
 ### `t3a.small`
 #### Labels
@@ -16272,7 +16272,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|1451Mi|
+ |memory|1473Mi|
  |pods|8|
 ### `t3a.medium`
 #### Labels
@@ -16296,7 +16296,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3246Mi|
+ |memory|3300Mi|
  |pods|17|
 ### `t3a.large`
 #### Labels
@@ -16320,7 +16320,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6837Mi|
+ |memory|7091Mi|
  |pods|35|
 ### `t3a.xlarge`
 #### Labels
@@ -16344,7 +16344,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14162Mi|
+ |memory|14817Mi|
  |pods|58|
 ### `t3a.2xlarge`
 #### Labels
@@ -16368,7 +16368,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30774Mi|
  |pods|58|
 ## t4g Family
 ### `t4g.nano`
@@ -16393,7 +16393,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|15Mi|
+ |memory|-45Mi|
  |pods|4|
 ### `t4g.micro`
 #### Labels
@@ -16417,7 +16417,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|489Mi|
+ |memory|452Mi|
  |pods|4|
 ### `t4g.small`
 #### Labels
@@ -16441,7 +16441,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|1359Mi|
+ |memory|1301Mi|
  |pods|11|
 ### `t4g.medium`
 #### Labels
@@ -16465,7 +16465,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|3187Mi|
+ |memory|3221Mi|
  |pods|17|
 ### `t4g.large`
 #### Labels
@@ -16489,7 +16489,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|6778Mi|
+ |memory|6995Mi|
  |pods|35|
 ### `t4g.xlarge`
 #### Labels
@@ -16513,7 +16513,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|14103Mi|
+ |memory|14688Mi|
  |pods|58|
 ### `t4g.2xlarge`
 #### Labels
@@ -16537,7 +16537,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|29258Mi|
+ |memory|30579Mi|
  |pods|58|
 ## trn1 Family
 ### `trn1.2xlarge`
@@ -16829,7 +16829,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|11900m|
  |ephemeral-storage|17Gi|
- |memory|21739Mi|
+ |memory|21410Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `vt1.6xlarge`
@@ -16854,7 +16854,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|23870m|
  |ephemeral-storage|17Gi|
- |memory|42536Mi|
+ |memory|43064Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `vt1.24xlarge`
@@ -16879,7 +16879,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|173400Mi|
+ |memory|178417Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## x1 Family
@@ -16905,7 +16905,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|921538Mi|
+ |memory|979937Mi|
  |pods|234|
 ### `x1.32xlarge`
 #### Labels
@@ -16929,7 +16929,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|1846005Mi|
+ |memory|1962963Mi|
  |pods|234|
 ## x1e Family
 ### `x1e.xlarge`
@@ -16954,7 +16954,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|114884Mi|
+ |memory|121971Mi|
  |pods|29|
 ### `x1e.2xlarge`
 #### Labels
@@ -16978,7 +16978,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|230123Mi|
+ |memory|244429Mi|
  |pods|58|
 ### `x1e.4xlarge`
 #### Labels
@@ -17002,7 +17002,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|461240Mi|
+ |memory|490159Mi|
  |pods|58|
 ### `x1e.8xlarge`
 #### Labels
@@ -17026,7 +17026,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|923474Mi|
+ |memory|981470Mi|
  |pods|58|
 ### `x1e.16xlarge`
 #### Labels
@@ -17050,7 +17050,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|1846005Mi|
+ |memory|1962964Mi|
  |pods|234|
 ### `x1e.32xlarge`
 #### Labels
@@ -17074,7 +17074,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|3694939Mi|
+ |memory|3929018Mi|
  |pods|234|
 ## x2gd Family
 ### `x2gd.medium`
@@ -17100,7 +17100,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|940m|
  |ephemeral-storage|17Gi|
- |memory|14653Mi|
+ |memory|15238Mi|
  |pods|8|
  |vpc.amazonaws.com/pod-eni|10|
 ### `x2gd.large`
@@ -17126,7 +17126,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|29577Mi|
+ |memory|30898Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|9|
 ### `x2gd.xlarge`
@@ -17152,7 +17152,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|59568Mi|
+ |memory|62363Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|18|
 ### `x2gd.2xlarge`
@@ -17178,7 +17178,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|120189Mi|
+ |memory|126028Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|38|
 ### `x2gd.4xlarge`
@@ -17204,7 +17204,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|239495Mi|
+ |memory|251322Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `x2gd.8xlarge`
@@ -17230,7 +17230,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|481978Mi|
+ |memory|505983Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `x2gd.12xlarge`
@@ -17256,7 +17256,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|724461Mi|
+ |memory|760444Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `x2gd.16xlarge`
@@ -17282,7 +17282,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|961411Mi|
+ |memory|1009539Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2gd.metal`
@@ -17308,7 +17308,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|961411Mi|
+ |memory|1020165Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## x2idn Family
@@ -17335,7 +17335,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|961470Mi|
+ |memory|1013878Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2idn.24xlarge`
@@ -17361,7 +17361,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|1446437Mi|
+ |memory|1525709Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2idn.32xlarge`
@@ -17387,7 +17387,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|1931403Mi|
+ |memory|2037154Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2idn.metal`
@@ -17413,7 +17413,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|1931403Mi|
+ |memory|2053948Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## x2iedn Family
@@ -17440,7 +17440,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|120248Mi|
+ |memory|126622Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|11|
 ### `x2iedn.2xlarge`
@@ -17466,7 +17466,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|241490Mi|
+ |memory|255442Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|27|
 ### `x2iedn.4xlarge`
@@ -17492,7 +17492,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|482037Mi|
+ |memory|510288Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `x2iedn.8xlarge`
@@ -17518,7 +17518,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|967003Mi|
+ |memory|1023652Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `x2iedn.16xlarge`
@@ -17544,7 +17544,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|1931403Mi|
+ |memory|2045251Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iedn.24xlarge`
@@ -17570,7 +17570,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|95690m|
  |ephemeral-storage|17Gi|
- |memory|2901336Mi|
+ |memory|3072767Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iedn.32xlarge`
@@ -17596,7 +17596,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|3871269Mi|
+ |memory|4099899Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iedn.metal`
@@ -17622,7 +17622,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|3871269Mi|
+ |memory|4116693Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## x2iezn Family
@@ -17648,7 +17648,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|241490Mi|
+ |memory|253676Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|62|
 ### `x2iezn.4xlarge`
@@ -17673,7 +17673,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|15890m|
  |ephemeral-storage|17Gi|
- |memory|482037Mi|
+ |memory|506758Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `x2iezn.6xlarge`
@@ -17698,7 +17698,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|23870m|
  |ephemeral-storage|17Gi|
- |memory|724520Mi|
+ |memory|761577Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `x2iezn.8xlarge`
@@ -17723,7 +17723,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|967003Mi|
+ |memory|1016978Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|114|
 ### `x2iezn.12xlarge`
@@ -17748,7 +17748,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|1446437Mi|
+ |memory|1521487Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iezn.metal`
@@ -17773,7 +17773,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|1446437Mi|
+ |memory|1538075Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ## z1d Family
@@ -17800,7 +17800,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|1930m|
  |ephemeral-storage|17Gi|
- |memory|14481Mi|
+ |memory|14976Mi|
  |pods|29|
  |vpc.amazonaws.com/pod-eni|13|
 ### `z1d.xlarge`
@@ -17826,7 +17826,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|3920m|
  |ephemeral-storage|17Gi|
- |memory|29317Mi|
+ |memory|30569Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|28|
 ### `z1d.2xlarge`
@@ -17852,7 +17852,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|7910m|
  |ephemeral-storage|17Gi|
- |memory|59627Mi|
+ |memory|62395Mi|
  |pods|58|
  |vpc.amazonaws.com/pod-eni|58|
 ### `z1d.3xlarge`
@@ -17878,7 +17878,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|11900m|
  |ephemeral-storage|17Gi|
- |memory|88002Mi|
+ |memory|92338Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `z1d.6xlarge`
@@ -17904,7 +17904,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|23870m|
  |ephemeral-storage|17Gi|
- |memory|178933Mi|
+ |memory|187868Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `z1d.12xlarge`
@@ -17930,7 +17930,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|373663Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
 ### `z1d.metal`
@@ -17956,6 +17956,6 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|355262Mi|
+ |memory|377782Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|

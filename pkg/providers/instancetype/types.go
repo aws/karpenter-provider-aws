@@ -62,7 +62,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeClass.Spec.BlockDeviceMappings), amiFamily, kc),
+			EvictionThreshold: evictionThreshold(memory(info), ephemeralStorage(amiFamily, nodeClass.Spec.BlockDeviceMappings), amiFamily, kc),
 		},
 	}
 }
@@ -175,7 +175,7 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 
 	resourceList := v1.ResourceList{
 		v1.ResourceCPU:               *cpu(info),
-		v1.ResourceMemory:            *memory(ctx, info),
+		v1.ResourceMemory:            *memory(info),
 		v1.ResourceEphemeralStorage:  *ephemeralStorage(amiFamily, blockDeviceMappings),
 		v1.ResourcePods:              *pods(ctx, info, amiFamily, kc),
 		v1alpha1.ResourceAWSPodENI:   *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
@@ -195,7 +195,7 @@ func cpu(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(*info.VCpuInfo.DefaultVCpus))
 }
 
-func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
+func memory(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	sizeInMib := *info.MemoryInfo.SizeInMiB
 	// Gravitons have an extra 64 MiB of cma reserved memory that we can't use
 	if len(info.ProcessorInfo.SupportedArchitectures) > 0 && *info.ProcessorInfo.SupportedArchitectures[0] == "arm64" {
