@@ -48,7 +48,7 @@ var _ = Describe("Subnets", func() {
 				SubnetSelector:        map[string]string{"aws-ids": firstSubnet},
 			},
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -74,7 +74,7 @@ var _ = Describe("Subnets", func() {
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -96,7 +96,7 @@ var _ = Describe("Subnets", func() {
 				SubnetSelector:        map[string]string{"Name": fmt.Sprintf("%s,%s", firstSubnet.Name, lastSubnet.Name)},
 			},
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -117,7 +117,7 @@ var _ = Describe("Subnets", func() {
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			},
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{

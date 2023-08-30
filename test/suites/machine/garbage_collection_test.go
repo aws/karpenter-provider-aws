@@ -42,7 +42,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 	var provisioner *v1alpha5.Provisioner
 
 	BeforeEach(func() {
-		provisioner = awstest.ProvisionerE2ETests()
+		provisioner = awstest.Provisioner(true)
 		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
 		Expect(securityGroups).ToNot(HaveLen(0))
@@ -142,7 +142,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 

@@ -68,7 +68,7 @@ var _ = Describe("Webhooks", func() {
 				}))
 			})
 			It("shouldn't default if requirements are set", func() {
-				provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
@@ -131,7 +131,7 @@ var _ = Describe("Webhooks", func() {
 		})
 		Context("Validation", func() {
 			It("should error when provider and providerRef are combined", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					Provider: v1alpha1.AWS{
 						SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 						SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
@@ -140,7 +140,7 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should error when a restricted label is used in labels (karpenter.sh/provisioner-name)", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Labels: map[string]string{
 						v1alpha5.ProvisionerNameLabelKey: "my-custom-provisioner",
@@ -148,7 +148,7 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should error when a restricted label is used in labels (kubernetes.io/custom-label)", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Labels: map[string]string{
 						"kubernetes.io/custom-label": "custom-value",
@@ -156,7 +156,7 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should allow a restricted label exception to be used in labels (node-restriction.kubernetes.io/custom-label)", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Labels: map[string]string{
 						v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
@@ -164,7 +164,7 @@ var _ = Describe("Webhooks", func() {
 				}))).To(Succeed())
 			})
 			It("should error when a requirement references a restricted label (karpenter.sh/provisioner-name)", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
@@ -176,7 +176,7 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should error when a requirement uses In but has no values", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
@@ -188,7 +188,7 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should error when a requirement uses an unknown operator", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
@@ -200,7 +200,7 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should error when Gt is used with multiple integer values", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
@@ -212,7 +212,7 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should error when Lt is used with multiple integer values", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Requirements: []v1.NodeSelectorRequirement{
 						{
@@ -224,20 +224,20 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should error when ttlSecondAfterEmpty is negative", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef:          &v1alpha5.MachineTemplateRef{Name: "test"},
 					TTLSecondsAfterEmpty: ptr.Int64(-5),
 				}))).ToNot(Succeed())
 			})
 			It("should error when consolidation and ttlSecondAfterEmpty are combined", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef:          &v1alpha5.MachineTemplateRef{Name: "test"},
 					Consolidation:        &v1alpha5.Consolidation{Enabled: ptr.Bool(true)},
 					TTLSecondsAfterEmpty: ptr.Int64(60),
 				}))).ToNot(Succeed())
 			})
 			It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						ImageGCHighThresholdPercent: ptr.Int32(10),
@@ -246,13 +246,13 @@ var _ = Describe("Webhooks", func() {
 				}))).ToNot(Succeed())
 			})
 			It("should error if imageGCHighThresholdPercent or imageGCLowThresholdPercent is negative", func() {
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						ImageGCHighThresholdPercent: ptr.Int32(-10),
 					},
 				}))).ToNot(Succeed())
-				Expect(env.Client.Create(env, awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+				Expect(env.Client.Create(env, awstest.Provisioner(true, test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
 					Kubelet: &v1alpha5.KubeletConfiguration{
 						ImageGCLowThresholdPercent: ptr.Int32(-10),

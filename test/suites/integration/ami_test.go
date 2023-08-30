@@ -54,7 +54,7 @@ var _ = Describe("AMI", func() {
 			},
 			AMISelector: map[string]string{"aws-ids": customAMI},
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -78,7 +78,7 @@ var _ = Describe("AMI", func() {
 			AMISelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", customAMI, oldCustomAMI)},
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -103,7 +103,7 @@ var _ = Describe("AMI", func() {
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
 
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -126,7 +126,7 @@ var _ = Describe("AMI", func() {
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
 
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -144,7 +144,7 @@ var _ = Describe("AMI", func() {
 			AMISelector: map[string]string{"aws::ids": customAMI},
 			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, provider, provisioner)
@@ -160,7 +160,7 @@ var _ = Describe("AMI", func() {
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			})
 			pod := test.Pod()
@@ -174,7 +174,7 @@ var _ = Describe("AMI", func() {
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
 			}})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			})
 			pod := test.Pod()
@@ -188,7 +188,7 @@ var _ = Describe("AMI", func() {
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				AMIFamily:             &v1alpha1.AMIFamilyUbuntu,
 			}})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
 				// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter/issues/4472)
@@ -219,7 +219,7 @@ var _ = Describe("AMI", func() {
 				AMISelector: map[string]string{"aws-ids": customAMI},
 				UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
 			})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 			pod := test.Pod()
 
 			env.ExpectCreated(pod, provider, provisioner)
@@ -269,7 +269,7 @@ var _ = Describe("AMI", func() {
 			},
 				UserData: aws.String(string(content)),
 			})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
 				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
@@ -298,7 +298,7 @@ var _ = Describe("AMI", func() {
 			},
 				UserData: aws.String(string(content)),
 			})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
 				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
@@ -327,7 +327,7 @@ var _ = Describe("AMI", func() {
 			},
 				UserData: aws.String(string(content)),
 			})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
 				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
@@ -359,7 +359,7 @@ var _ = Describe("AMI", func() {
 			},
 				UserData: aws.String(string(content)),
 			})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
 				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
 				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},

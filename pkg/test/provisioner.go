@@ -26,21 +26,18 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 
-// ProvisionerE2ETests are used for E2E tests to enforce test-wide requirements on provisioners
-func ProvisionerE2ETests(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
+func Provisioner(isE2E bool, options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
 	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
 	provisioner.SetDefaults(context.Background())
-	provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
-		Key:      v1alpha1.LabelInstanceFamily,
-		Operator: v1.NodeSelectorOpNotIn,
-		Values:   []string{"m7a"},
-	})
-	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))
-}
+	// ProvisionerE2ETests are used for E2E tests to enforce test-wide requirements on provisioners
+	// TODO: Remove this when we know that the m7a instance family does not have any issues.
+	if isE2E {
+		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
+			Key:      v1alpha1.LabelInstanceFamily,
+			Operator: v1.NodeSelectorOpNotIn,
+			Values:   []string{"m7a"},
+		})
+	}
 
-// Provisioner is used for unit tests
-func Provisioner(options ...test.ProvisionerOptions) *corev1alpha5.Provisioner {
-	provisioner := v1alpha5.Provisioner(lo.FromPtr(test.Provisioner(options...)))
-	provisioner.SetDefaults(context.Background())
 	return lo.ToPtr(corev1alpha5.Provisioner(provisioner))
 }

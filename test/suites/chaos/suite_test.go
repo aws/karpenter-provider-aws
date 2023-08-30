@@ -69,7 +69,7 @@ var _ = Describe("Chaos", func() {
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				Requirements: []v1.NodeSelectorRequirement{
 					{
 						Key:      v1alpha5.LabelCapacityType,
@@ -114,7 +114,7 @@ var _ = Describe("Chaos", func() {
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			}})
-			provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 				Requirements: []v1.NodeSelectorRequirement{
 					{
 						Key:      v1alpha5.LabelCapacityType,

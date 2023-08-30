@@ -44,7 +44,7 @@ var _ = Describe("CNITests", func() {
 				AMIFamily:             &v1alpha1.AMIFamilyAL2,
 			},
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 		env.ExpectCreated(pod, provider, provisioner)
 		env.EventuallyExpectHealthy(pod)
@@ -63,7 +63,7 @@ var _ = Describe("CNITests", func() {
 				AMIFamily:             &v1alpha1.AMIFamilyAL2,
 			},
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 		env.ExpectCreated(pod, provider, provisioner)
 		env.EventuallyExpectHealthy(pod)
@@ -84,7 +84,7 @@ var _ = Describe("CNITests", func() {
 				AMIFamily:             &v1alpha1.AMIFamilyAL2,
 			},
 		})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 		pod := test.Pod()
 		env.ExpectCreated(pod, provider, provisioner)
 		env.EventuallyExpectHealthy(pod)

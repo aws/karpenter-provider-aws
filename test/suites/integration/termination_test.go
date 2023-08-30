@@ -34,7 +34,7 @@ var _ = Describe("Termination", func() {
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 		}})
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 

@@ -46,7 +46,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			}})
 
 			// MaxPods needs to account for the daemonsets that will run on the nodes
-			provisioner = awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+			provisioner = awstest.Provisioner(true, test.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
 				Kubelet: &v1alpha5.KubeletConfiguration{
 					ContainerRuntime: ptr.String("containerd"),
@@ -156,7 +156,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		}})
 
 		// MaxPods needs to account for the daemonsets that will run on the nodes
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -199,7 +199,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		}})
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Requirements: []v1.NodeSelectorRequirement{
 				{
@@ -254,7 +254,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		}})
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
-		provisioner := awstest.ProvisionerE2ETests(test.ProvisionerOptions{
+		provisioner := awstest.Provisioner(true, test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 			Kubelet: &v1alpha5.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(1),
