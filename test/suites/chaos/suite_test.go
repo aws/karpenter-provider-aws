@@ -52,6 +52,9 @@ func TestChaos(t *testing.T) {
 	BeforeSuite(func() {
 		env = common.NewEnvironment(t)
 	})
+	AfterSuite(func() {
+		env.Stop()
+	})
 	RunSpecs(t, "Chaos")
 }
 
