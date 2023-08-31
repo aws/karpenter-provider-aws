@@ -1,0 +1,87 @@
+{{ if .Values.flowSchema.leaderElection.create }}
+---
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: FlowSchema
+metadata:
+  name: karpenter-leader-election
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  distinguisherMethod:
+    type: ByUser
+  matchingPrecedence: {{ .Values.flowSchema.leaderElection.matchingPrecedence }}
+  priorityLevelConfiguration:
+    name: leader-election
+  rules:
+    - resourceRules:
+        - apiGroups:
+            - ""
+          namespaces:
+            - '*'
+          resources:
+            - endpoints
+            - configmaps
+          verbs:
+            - get
+            - create
+            - update
+        - apiGroups:
+            - coordination.k8s.io
+          namespaces:
+            - '*'
+          resources:
+            - leases
+          verbs:
+            - get
+            - create
+            - update
+      subjects:
+        - kind: ServiceAccount
+          serviceAccount:
+            name: {{ include "karpenter.serviceAccountName" . }}
+            namespace: {{ .Release.Namespace }}
+{{- end -}}
+{{ if .Values.flowSchema.workload.create }}
+---
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: FlowSchema
+metadata:
+  name: karpenter-workload
+  labels:
+    {{- include "karpenter.labels" . | nindent 4 }}
+  {{- with .Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  distinguisherMethod:
+    type: ByUser
+  matchingPrecedence: {{ .Values.flowSchema.workload.matchingPrecedence }}
+  priorityLevelConfiguration:
+    name: workload-high
+  rules:
+    - nonResourceRules:
+        - nonResourceURLs:
+            - '*'
+          verbs:
+            - '*'
+      resourceRules:
+        - apiGroups:
+            - '*'
+          clusterScope: true
+          namespaces:
+            - '*'
+          resources:
+            - '*'
+          verbs:
+            - '*'
+      subjects:
+        - kind: ServiceAccount
+          serviceAccount:
+            name: {{ include "karpenter.serviceAccountName" . }}
+            namespace: {{ .Release.Namespace }}
+{{- end -}}
