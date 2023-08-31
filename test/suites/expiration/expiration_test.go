@@ -49,6 +49,9 @@ func TestExpiration(t *testing.T) {
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
 	})
+	AfterSuite(func() {
+		env.Stop()
+	})
 	RunSpecs(t, "Expiration")
 }
 
