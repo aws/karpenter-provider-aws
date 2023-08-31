@@ -78,6 +78,7 @@ func main() {
 	cloudProvider := cloudprovider.New(
 		op.InstanceTypesProvider,
 		op.InstanceProvider,
+		op.EventRecorder,
 		op.GetClient(),
 		op.AMIProvider,
 		op.SecurityGroupProvider,
