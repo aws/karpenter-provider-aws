@@ -104,11 +104,10 @@ spec:
         cpuCFSQuota: true
         podsPerCore: 2
         maxPods: 20
-  deprovisioning:
-    consolidationTTL: 10m
+  disruption:
+    consolidateAfter: 10m
     consolidationPolicy: WhenEmpty | WhenUnderutilized
-    expirationTTL: 30d
-    uninitializedTTL: 20m
+    expireAfter: 30d
   weight: 10
   limits:
     cpu: "1000"

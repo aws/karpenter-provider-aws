@@ -33,7 +33,7 @@ Karpenter v1beta1 will introduce CEL into the CRD OpenAPISpec while maintaining 
 
 ### `karpenter.sh/do-not-evict` →  `karpenter.sh/do-not-disrupt`
 
-Karpenter validates disruption across NodeClaims and determines which NodeClaims/Nodes it is allowed to disrupt as part of the deprovisioning flow. While eviction is part of the termination process, it’s more accurate to say that the `karpenter.sh/do-not-evict` annotation actually prevents Karpenter’s disruption of the NodeClaim/Node rather than the eviction of it.
+Karpenter validates disruption across NodeClaims and determines which NodeClaims/Nodes it is allowed to disrupt as part of the disruption flow. While eviction is part of the termination process, it’s more accurate to say that the `karpenter.sh/do-not-evict` annotation actually prevents Karpenter’s disruption of the NodeClaim/Node rather than the eviction of it.
 
 ###  `karpenter.sh/do-not-consolidate`  → `karpenter.sh/do-not-disrupt`
 
@@ -67,31 +67,37 @@ spec:
       startupTaints: ...
       requirements: ...
       providerRef: ...
-  deprovisioning:
-    ttlUntilExpired: ...
-    ttlAfterUnderutilized: ...
+  disruption:
+    expireAfter: ...
+    consolidateAfter: ...
+    consolidationPolicy: ...
 ```
 
-#### `provisioner.spec.ttl...` → `nodePool.spec.deprovisioning.ttl...`
+#### `provisioner.spec.ttl...` → `nodePool.spec.disruption...`
 
-Karpenter plans to expand the amount of control that it gives users over both the aggressiveness of deprovisioning and when deprovisioning can take place. As part of these upcoming changes, more fields within the `NodePool` API will begint to pertain to deprovisioning configuration.
+Karpenter plans to expand the amount of control that it gives users over both the aggressiveness of disruption and when disruption can take place. As part of these upcoming changes, more fields within the `NodePool` API will begin to pertain to the disruption configuration.
 
-We can better delineate the fields that specifically pertain to this configuration from the other fields in the `spec` (global behavior-based fields, provisioning-specific fields, node static configuration fields) by moving these fields inside a `deprovisioning` block. This will make it clearer to users which configuration options specifically pertain to scale-down when they are configuring their `NodePool` CRs.
+We can better delineate the fields that specifically pertain to this configuration from the other fields in the `spec` (global behavior-based fields, provisioning-specific fields, node static configuration fields) by moving these fields inside a `disruption` block. This will make it clearer to users which configuration options specifically pertain to scale-down when they are configuring their `NodePool` CRs.
 
-#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.spec.deprovisioning.consolidationPolicy`
+#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.spec.disruption.consolidationPolicy`
 
 Currently, Karpenter has two mutually exclusive ways to deprovision nodes based on emptiness: `ttlSecondsAfterEmpty` and `consolidation`. If users are using `ttlSecondsAfterEmpty`, we have generally seen that users are configuring this field in one of two ways:
 
 1. `ttlSecondsAfterEmpty=0` → Users want to delete nodes as soon as they go empty and Karpenter sees that they are empty
 2. `ttlSecondsAfterEmpty >> 0` → Users want to delete nodes that are empty but want to reduce the amount of node churn as a result of high pod churn on a larger cluster
 
-We anticipate that both of these scenarios can be captured through the consolidation deprovisioning mechanism; however, we understand that there are use-cases where a user may want to reduce the aggressiveness of Karpenter deprovisioning and only deprovision empty nodes. In this case, a user can configure the `consolidationPolicy` to be `WhenEmpty` which will tell the consolidation deprovisioning mechanism to only deprovision empty nodes through consolidation. Alternatively, you can specify a `consolidationPolicy` of `WhenUnderutilized` which will allow consolidation to deprovision both empty and underutilized nodes.
+We anticipate that both of these scenarios can be captured through the consolidation disruption mechanism; however, we understand that there are use-cases where a user may want to reduce the aggressiveness of Karpenter disruption and only disrupt empty nodes. In this case, a user can configure the `consolidationPolicy` to be `WhenEmpty` which will tell the consolidation disruption mechanism to only deprovision empty nodes through consolidation. Alternatively, you can specify a `consolidationPolicy` of `WhenUnderutilized` which will allow consolidation to deprovision both empty and underutilized nodes.
 
 If `consolidationPolicy` is not set, Karpenter will implicitly default to `WhenUnderutilized`.
 
-#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.spec.deprovisioning.consolidationTTL`
+#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.spec.disruption.consolidateAfter`
 
-While the `consolidationPolicy` offers one mechanism for users to control the aggressiveness of deprovisioning, users that enable a `consolidationPolicy` of `WhenEmpty` or `WhenUnderutilized` may still want to dictate the speed at which nodes are deemed underutilized. This is particularly true on clusters that are large in size and have a large amount of churn. To support this, Karpenter will surface a `consolidationTTL` which will allow you to define a per-node TTL to define the time that Karpenter can begin deprovisioning the node after first seeing that the node is eligible for consolidation.
+While the `consolidationPolicy` offers one mechanism for users to control the aggressiveness of disruption, users that enable a `consolidationPolicy` of `WhenEmpty` or `WhenUnderutilized` may still want to dictate the speed at which nodes are deemed underutilized. This is particularly true on clusters that are large and have a large amount of pod churn. To support this, Karpenter will surface a `consolidateAfter` field which will allow you to define a per-node TTL to define the time that Karpenter can begin disrupting the node after first seeing that the node is eligible for consolidation.
+
+
+#### `provisioner.Spec.ttlSecondsUntilExpired` → `nodePool.spec.disruption.expireAfter`
+
+Karpenter will change the `ttlSecondsUntilExipred` field to `expireAfter` to align with the `consolidateAfter` field in the `disruption` block.
 
 #### Remove `nodePool.spec.provider`
 
