@@ -47,6 +47,9 @@ func TestConsolidation(t *testing.T) {
 	BeforeSuite(func() {
 		env = environmentaws.NewEnvironment(t)
 	})
+	AfterSuite(func() {
+		env.Stop()
+	})
 	RunSpecs(t, "Consolidation")
 }
 

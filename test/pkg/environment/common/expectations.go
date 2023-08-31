@@ -196,7 +196,10 @@ func (env *Environment) ExpectPrefixDelegationDisabled() {
 }
 
 func (env *Environment) ExpectExists(obj client.Object) {
-	ExpectWithOffset(1, env.Client.Get(env, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
+	}).WithTimeout(time.Second * 5).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {

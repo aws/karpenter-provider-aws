@@ -32,6 +32,9 @@ func TestScale(t *testing.T) {
 		env = aws.NewEnvironment(t)
 		SetDefaultEventuallyTimeout(time.Hour)
 	})
+	AfterSuite(func() {
+		env.Stop()
+	})
 	RunSpecs(t, "Scale")
 }
 
