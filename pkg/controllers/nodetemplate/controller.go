@@ -36,13 +36,12 @@ import (
 
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 )
-
-var _ corecontroller.TypedController[*v1alpha1.AWSNodeTemplate] = (*Controller)(nil)
 
 type Controller struct {
 	kubeClient            client.Client
@@ -51,43 +50,146 @@ type Controller struct {
 	amiProvider           *amifamily.Provider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroups *securitygroup.Provider, amiprovider *amifamily.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &Controller{
+func NewController(kubeClient client.Client, subnetProvider *subnet.Provider,
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider) *Controller {
+	return &Controller{
 		kubeClient:            kubeClient,
 		subnetProvider:        subnetProvider,
-		securityGroupProvider: securityGroups,
-		amiProvider:           amiprovider,
-	})
+		securityGroupProvider: securityGroupProvider,
+		amiProvider:           amiProvider,
+	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	stored := nodeTemplate.DeepCopy()
-
-	nodeTemplate.Annotations = lo.Assign(nodeTemplate.ObjectMeta.Annotations, map[string]string{v1alpha1.AnnotationNodeTemplateHash: nodeTemplate.Hash()})
+func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.NodeClass) (reconcile.Result, error) {
+	stored := nodeClass.DeepCopy()
+	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, nodeclassutil.HashAnnotation(nodeClass))
 	err := multierr.Combine(
-		c.resolveSubnets(ctx, nodeTemplate),
-		c.resolveSecurityGroups(ctx, nodeTemplate),
-		c.resolveAMIs(ctx, nodeTemplate),
+		c.resolveSubnets(ctx, nodeClass),
+		c.resolveSecurityGroups(ctx, nodeClass),
+		c.resolveAMIs(ctx, nodeClass),
 	)
-
-	if !equality.Semantic.DeepEqual(stored, nodeTemplate) {
-		statusCopy := nodeTemplate.DeepCopy()
-		if patchErr := c.kubeClient.Patch(ctx, nodeTemplate, client.MergeFrom(stored)); patchErr != nil {
+	if !equality.Semantic.DeepEqual(stored, nodeClass) {
+		statusCopy := nodeClass.DeepCopy()
+		if patchErr := nodeclassutil.Patch(ctx, c.kubeClient, stored, nodeClass); patchErr != nil {
 			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
 		}
-		if patchErr := c.kubeClient.Status().Patch(ctx, statusCopy, client.MergeFrom(stored)); patchErr != nil {
+		if patchErr := nodeclassutil.PatchStatus(ctx, c.kubeClient, stored, statusCopy); patchErr != nil {
 			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
 		}
 	}
-
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
 }
 
-func (c *Controller) Name() string {
+func (c *Controller) resolveSubnets(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
+	subnetList, err := c.subnetProvider.List(ctx, nodeClass)
+	if err != nil {
+		return err
+	}
+	if len(subnetList) == 0 {
+		nodeClass.Status.Subnets = nil
+		return fmt.Errorf("no subnets exist given constraints %v", nodeClass.Spec.SubnetSelectorTerms)
+	}
+	sort.Slice(subnetList, func(i, j int) bool {
+		return int(*subnetList[i].AvailableIpAddressCount) > int(*subnetList[j].AvailableIpAddressCount)
+	})
+	nodeClass.Status.Subnets = lo.Map(subnetList, func(ec2subnet *ec2.Subnet, _ int) v1beta1.Subnet {
+		return v1beta1.Subnet{
+			ID:   *ec2subnet.SubnetId,
+			Zone: *ec2subnet.AvailabilityZone,
+		}
+	})
+	return nil
+}
+
+func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
+	securityGroups, err := c.securityGroupProvider.List(ctx, nodeClass)
+	if err != nil {
+		return err
+	}
+	if len(securityGroups) == 0 && len(nodeClass.Spec.SecurityGroupSelectorTerms) > 0 {
+		nodeClass.Status.SecurityGroups = nil
+		return fmt.Errorf("no security groups exist given constraints")
+	}
+	nodeClass.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
+		return v1beta1.SecurityGroup{
+			ID:   *securityGroup.GroupId,
+			Name: *securityGroup.GroupName,
+		}
+	})
+	return nil
+}
+
+func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
+	amis, err := c.amiProvider.Get(ctx, nodeClass, &amifamily.Options{})
+	if err != nil {
+		return err
+	}
+	if len(amis) == 0 {
+		nodeClass.Status.AMIs = nil
+		return fmt.Errorf("no amis exist given constraints")
+	}
+	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1beta1.AMI {
+		return v1beta1.AMI{
+			Name:         ami.Name,
+			ID:           ami.AmiID,
+			Requirements: ami.Requirements.NodeSelectorRequirements(),
+		}
+	})
+
+	return nil
+}
+
+type NodeClassController struct {
+	*Controller
+}
+
+func NewNodeClassController(kubeClient client.Client, subnetProvider *subnet.Provider,
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider) corecontroller.Controller {
+	return corecontroller.Typed[*v1beta1.NodeClass](kubeClient, &NodeClassController{
+		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
+	})
+}
+
+func (c *NodeClassController) Name() string {
+	return "nodeclass"
+}
+
+func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
+	return corecontroller.Adapt(controllerruntime.
+		NewControllerManagedBy(m).
+		For(&v1beta1.NodeClass{}).
+		WithEventFilter(predicate.GenerationChangedPredicate{}).
+		WithOptions(controller.Options{
+			RateLimiter: workqueue.NewMaxOfRateLimiter(
+				workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 1*time.Minute),
+				// 10 qps, 100 bucket size
+				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
+			),
+			MaxConcurrentReconciles: 10,
+		}))
+}
+
+//nolint:revive
+type NodeTemplateController struct {
+	*Controller
+}
+
+func NewNodeTemplateController(kubeClient client.Client, subnetProvider *subnet.Provider,
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider) corecontroller.Controller {
+	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &NodeTemplateController{
+		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
+	})
+}
+
+func (c *NodeTemplateController) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
+	return c.Controller.Reconcile(ctx, nodeclassutil.New(nodeTemplate))
+}
+
+func (c *NodeTemplateController) Name() string {
 	return "awsnodetemplate"
 }
 
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
+func (c *NodeTemplateController) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
 	return corecontroller.Adapt(controllerruntime.
 		NewControllerManagedBy(m).
 		For(&v1alpha1.AWSNodeTemplate{}).
@@ -100,69 +202,4 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 			),
 			MaxConcurrentReconciles: 10,
 		}))
-}
-
-func (c *Controller) resolveSubnets(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	subnetList, err := c.subnetProvider.List(ctx, nodeclassutil.New(nodeTemplate))
-	if err != nil {
-		return err
-	}
-	if len(subnetList) == 0 {
-		nodeTemplate.Status.Subnets = nil
-		return fmt.Errorf("no subnets exist given constraints %v", nodeTemplate.Spec.SubnetSelector)
-	}
-
-	sort.Slice(subnetList, func(i, j int) bool {
-		return int(*subnetList[i].AvailableIpAddressCount) > int(*subnetList[j].AvailableIpAddressCount)
-	})
-
-	nodeTemplate.Status.Subnets = lo.Map(subnetList, func(ec2subnet *ec2.Subnet, _ int) v1alpha1.Subnet {
-		return v1alpha1.Subnet{
-			ID:   *ec2subnet.SubnetId,
-			Zone: *ec2subnet.AvailabilityZone,
-		}
-	})
-
-	return nil
-}
-
-func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	securityGroups, err := c.securityGroupProvider.List(ctx, nodeclassutil.New(nodeTemplate))
-	if err != nil {
-		return err
-	}
-	if len(securityGroups) == 0 && nodeTemplate.Spec.SecurityGroupSelector != nil {
-		nodeTemplate.Status.SecurityGroups = nil
-		return fmt.Errorf("no security groups exist given constraints")
-	}
-
-	nodeTemplate.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup *ec2.SecurityGroup, _ int) v1alpha1.SecurityGroup {
-		return v1alpha1.SecurityGroup{
-			ID:   *securityGroup.GroupId,
-			Name: *securityGroup.GroupName,
-		}
-	})
-
-	return nil
-}
-
-func (c *Controller) resolveAMIs(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) error {
-	amis, err := c.amiProvider.Get(ctx, nodeclassutil.New(nodeTemplate), &amifamily.Options{})
-	if err != nil {
-		return err
-	}
-	if len(amis) == 0 {
-		nodeTemplate.Status.AMIs = nil
-		return fmt.Errorf("no amis exist given constraints")
-	}
-
-	nodeTemplate.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1alpha1.AMI {
-		return v1alpha1.AMI{
-			Name:         ami.Name,
-			ID:           ami.AmiID,
-			Requirements: ami.Requirements.NodeSelectorRequirements(),
-		}
-	})
-
-	return nil
 }
