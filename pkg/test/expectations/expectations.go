@@ -15,8 +15,6 @@ limitations under the License.
 package expectations
 
 import (
-	"sort"
-
 	. "github.com/onsi/gomega" //nolint:revive,stylecheck
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -29,12 +27,6 @@ func ExpectBlockDeviceMappingsEqual(bdm1 []*v1alpha1.BlockDeviceMapping, bdm2 []
 	// Expect that all BlockDeviceMappings are present and the same
 	// Ensure that they are the same by ensuring a consistent ordering
 	Expect(bdm1).To(HaveLen(len(bdm2)))
-	sort.Slice(bdm1, func(i, j int) bool {
-		return lo.FromPtr(bdm1[i].DeviceName) < lo.FromPtr(bdm1[j].DeviceName)
-	})
-	sort.Slice(bdm2, func(i, j int) bool {
-		return lo.FromPtr(bdm2[i].DeviceName) < lo.FromPtr(bdm2[j].DeviceName)
-	})
 	for i := range bdm1 {
 		Expect(lo.FromPtr(bdm1[i].DeviceName)).To(Equal(lo.FromPtr(bdm2[i].DeviceName)))
 		ExpectBlockDevicesEqual(bdm1[i].EBS, bdm2[i].EBS)
@@ -69,12 +61,6 @@ func ExpectSubnetStatusEqual(subnets1 []v1alpha1.Subnet, subnets2 []v1beta1.Subn
 	// Expect that all Subnet Status entries are present and the same
 	// Ensure that they are the same by ensuring a consistent ordering
 	Expect(subnets1).To(HaveLen(len(subnets2)))
-	sort.Slice(subnets1, func(i, j int) bool {
-		return subnets1[i].ID < subnets1[j].ID
-	})
-	sort.Slice(subnets2, func(i, j int) bool {
-		return subnets2[i].ID < subnets2[j].ID
-	})
 	for i := range subnets1 {
 		Expect(subnets1[i].ID).To(Equal(subnets2[i].ID))
 		Expect(subnets1[i].Zone).To(Equal(subnets2[i].Zone))
@@ -85,12 +71,6 @@ func ExpectSecurityGroupStatusEqual(securityGroups1 []v1alpha1.SecurityGroup, se
 	// Expect that all SecurityGroup Status entries are present and the same
 	// Ensure that they are the same by ensuring a consistent ordering
 	Expect(securityGroups1).To(HaveLen(len(securityGroups2)))
-	sort.Slice(securityGroups1, func(i, j int) bool {
-		return securityGroups1[i].ID < securityGroups1[j].ID
-	})
-	sort.Slice(securityGroups2, func(i, j int) bool {
-		return securityGroups2[i].ID < securityGroups2[j].ID
-	})
 	for i := range securityGroups1 {
 		Expect(securityGroups1[i].ID).To(Equal(securityGroups2[i].ID))
 		Expect(securityGroups1[i].Name).To(Equal(securityGroups2[i].Name))
@@ -99,14 +79,7 @@ func ExpectSecurityGroupStatusEqual(securityGroups1 []v1alpha1.SecurityGroup, se
 
 func ExpectAMIStatusEqual(amis1 []v1alpha1.AMI, amis2 []v1beta1.AMI) {
 	// Expect that all AMI Status entries are present and the same
-	// Ensure that they are the same by ensuring a consistent ordering
 	Expect(amis1).To(HaveLen(len(amis2)))
-	sort.Slice(amis1, func(i, j int) bool {
-		return amis1[i].ID < amis1[j].ID
-	})
-	sort.Slice(amis2, func(i, j int) bool {
-		return amis2[i].ID < amis2[j].ID
-	})
 	for i := range amis1 {
 		Expect(amis1[i].ID).To(Equal(amis2[i].ID))
 		Expect(amis1[i].Name).To(Equal(amis2[i].Name))
