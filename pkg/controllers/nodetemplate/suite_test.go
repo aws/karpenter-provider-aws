@@ -40,6 +40,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
@@ -767,6 +768,12 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 
 			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHash))
+		})
+		It("should maintain the same hash, before and after the NodeClass conversion", func() {
+			hash := nodeTemplate.Hash()
+			nodeClass := nodeclassutil.New(nodeTemplate)
+			convertedHash := nodeclassutil.HashAnnotation(nodeClass)
+			Expect(convertedHash).To(HaveKeyWithValue(v1alpha1.AnnotationNodeTemplateHash, hash))
 		})
 	})
 })
