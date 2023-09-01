@@ -16,12 +16,12 @@ package nodeclass_test
 
 import (
 	"context"
-	"sort"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	. "knative.dev/pkg/logging/testing"
@@ -31,10 +31,12 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	. "github.com/aws/karpenter/pkg/test/expectations"
 
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/test"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
+	nodetemplateutil "github.com/aws/karpenter/pkg/utils/nodetemplate"
 )
 
 func init() {
@@ -408,6 +410,30 @@ var _ = Describe("NodeClassUtils", func() {
 		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
 		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
 	})
+	It("should convert a AWSNodeTemplate to a NodeClass and back and still retain all original data", func() {
+		convertedNodeTemplate := nodetemplateutil.New(nodeclassutil.New(nodeTemplate))
+
+		Expect(convertedNodeTemplate.Name).To(Equal(nodeTemplate.Name))
+		Expect(convertedNodeTemplate.Annotations).To(Equal(nodeTemplate.Annotations))
+		Expect(convertedNodeTemplate.Labels).To(Equal(nodeTemplate.Labels))
+
+		Expect(convertedNodeTemplate.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
+		Expect(convertedNodeTemplate.Spec.AMISelector).To(Equal(nodeTemplate.Spec.AMISelector))
+		Expect(convertedNodeTemplate.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
+		Expect(convertedNodeTemplate.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
+		Expect(convertedNodeTemplate.Spec.Context).To(Equal(nodeTemplate.Spec.Context))
+		Expect(convertedNodeTemplate.Spec.InstanceProfile).To(Equal(nodeTemplate.Spec.InstanceProfile))
+		Expect(convertedNodeTemplate.Spec.SubnetSelector).To(Equal(nodeTemplate.Spec.SubnetSelector))
+		Expect(convertedNodeTemplate.Spec.SecurityGroupSelector).To(Equal(nodeTemplate.Spec.SecurityGroupSelector))
+		Expect(convertedNodeTemplate.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
+		Expect(convertedNodeTemplate.Spec.LaunchTemplateName).To(Equal(nodeTemplate.Spec.LaunchTemplateName))
+		Expect(convertedNodeTemplate.Spec.MetadataOptions).To(Equal(nodeTemplate.Spec.MetadataOptions))
+		Expect(convertedNodeTemplate.Spec.BlockDeviceMappings).To(Equal(nodeTemplate.Spec.BlockDeviceMappings))
+
+		Expect(convertedNodeTemplate.Status.SecurityGroups).To(Equal(nodeTemplate.Status.SecurityGroups))
+		Expect(convertedNodeTemplate.Status.Subnets).To(Equal(nodeTemplate.Status.Subnets))
+		Expect(convertedNodeTemplate.Status.AMIs).To(Equal(nodeTemplate.Status.AMIs))
+	})
 	It("should retrieve a NodeClass with a get call", func() {
 		nodeClass := test.NodeClass()
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -425,92 +451,3 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(retrieved.Name).To(Equal(nodeTemplate.Name))
 	})
 })
-
-func ExpectBlockDeviceMappingsEqual(bdm1 []*v1alpha1.BlockDeviceMapping, bdm2 []*v1beta1.BlockDeviceMapping) {
-	// Expect that all BlockDeviceMappings are present and the same
-	// Ensure that they are the same by ensuring a consistent ordering
-	Expect(bdm1).To(HaveLen(len(bdm2)))
-	sort.Slice(bdm1, func(i, j int) bool {
-		return lo.FromPtr(bdm1[i].DeviceName) < lo.FromPtr(bdm1[j].DeviceName)
-	})
-	sort.Slice(bdm2, func(i, j int) bool {
-		return lo.FromPtr(bdm2[i].DeviceName) < lo.FromPtr(bdm2[j].DeviceName)
-	})
-	for i := range bdm1 {
-		Expect(lo.FromPtr(bdm1[i].DeviceName)).To(Equal(lo.FromPtr(bdm2[i].DeviceName)))
-		ExpectBlockDevicesEqual(bdm1[i].EBS, bdm2[i].EBS)
-	}
-}
-
-func ExpectBlockDevicesEqual(bd1 *v1alpha1.BlockDevice, bd2 *v1beta1.BlockDevice) {
-	Expect(bd1 == nil).To(Equal(bd2 == nil))
-	if bd1 != nil {
-		Expect(lo.FromPtr(bd1.DeleteOnTermination)).To(Equal(lo.FromPtr(bd2.VolumeType)))
-		Expect(lo.FromPtr(bd1.Encrypted)).To(Equal(lo.FromPtr(bd2.Encrypted)))
-		Expect(lo.FromPtr(bd1.IOPS)).To(Equal(lo.FromPtr(bd2.IOPS)))
-		Expect(lo.FromPtr(bd1.KMSKeyID)).To(Equal(lo.FromPtr(bd2.KMSKeyID)))
-		Expect(lo.FromPtr(bd1.SnapshotID)).To(Equal(lo.FromPtr(bd2.SnapshotID)))
-		Expect(lo.FromPtr(bd1.Throughput)).To(Equal(lo.FromPtr(bd2.Throughput)))
-		Expect(lo.FromPtr(bd1.VolumeSize)).To(Equal(lo.FromPtr(bd2.VolumeSize)))
-		Expect(lo.FromPtr(bd1.VolumeType)).To(Equal(lo.FromPtr(bd2.VolumeType)))
-	}
-}
-
-func ExpectMetadataOptionsEqual(mo1 *v1alpha1.MetadataOptions, mo2 *v1beta1.MetadataOptions) {
-	Expect(mo1 == nil).To(Equal(mo2 == nil))
-	if mo1 != nil {
-		Expect(lo.FromPtr(mo1.HTTPEndpoint)).To(Equal(lo.FromPtr(mo2.HTTPEndpoint)))
-		Expect(lo.FromPtr(mo1.HTTPProtocolIPv6)).To(Equal(lo.FromPtr(mo2.HTTPProtocolIPv6)))
-		Expect(lo.FromPtr(mo1.HTTPPutResponseHopLimit)).To(Equal(lo.FromPtr(mo2.HTTPPutResponseHopLimit)))
-		Expect(lo.FromPtr(mo1.HTTPTokens)).To(Equal(lo.FromPtr(mo2.HTTPTokens)))
-	}
-}
-
-func ExpectSubnetStatusEqual(subnets1 []v1alpha1.Subnet, subnets2 []v1beta1.Subnet) {
-	// Expect that all Subnet Status entries are present and the same
-	// Ensure that they are the same by ensuring a consistent ordering
-	Expect(subnets1).To(HaveLen(len(subnets2)))
-	sort.Slice(subnets1, func(i, j int) bool {
-		return subnets1[i].ID < subnets1[j].ID
-	})
-	sort.Slice(subnets2, func(i, j int) bool {
-		return subnets2[i].ID < subnets2[j].ID
-	})
-	for i := range subnets1 {
-		Expect(subnets1[i].ID).To(Equal(subnets2[i].ID))
-		Expect(subnets1[i].Zone).To(Equal(subnets2[i].Zone))
-	}
-}
-
-func ExpectSecurityGroupStatusEqual(securityGroups1 []v1alpha1.SecurityGroup, securityGroups2 []v1beta1.SecurityGroup) {
-	// Expect that all SecurityGroup Status entries are present and the same
-	// Ensure that they are the same by ensuring a consistent ordering
-	Expect(securityGroups1).To(HaveLen(len(securityGroups2)))
-	sort.Slice(securityGroups1, func(i, j int) bool {
-		return securityGroups1[i].ID < securityGroups1[j].ID
-	})
-	sort.Slice(securityGroups2, func(i, j int) bool {
-		return securityGroups2[i].ID < securityGroups2[j].ID
-	})
-	for i := range securityGroups1 {
-		Expect(securityGroups1[i].ID).To(Equal(securityGroups2[i].ID))
-		Expect(securityGroups1[i].Name).To(Equal(securityGroups2[i].Name))
-	}
-}
-
-func ExpectAMIStatusEqual(amis1 []v1alpha1.AMI, amis2 []v1beta1.AMI) {
-	// Expect that all AMI Status entries are present and the same
-	// Ensure that they are the same by ensuring a consistent ordering
-	Expect(amis1).To(HaveLen(len(amis2)))
-	sort.Slice(amis1, func(i, j int) bool {
-		return amis1[i].ID < amis1[j].ID
-	})
-	sort.Slice(amis2, func(i, j int) bool {
-		return amis2[i].ID < amis2[j].ID
-	})
-	for i := range amis1 {
-		Expect(amis1[i].ID).To(Equal(amis2[i].ID))
-		Expect(amis1[i].Name).To(Equal(amis2[i].Name))
-		Expect(amis1[i].Requirements).To(ConsistOf(lo.Map(amis2[i].Requirements, func(r v1.NodeSelectorRequirement, _ int) interface{} { return BeEquivalentTo(r) })...))
-	}
-}

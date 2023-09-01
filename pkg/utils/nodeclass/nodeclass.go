@@ -24,6 +24,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	nodetemplateutil "github.com/aws/karpenter/pkg/utils/nodetemplate"
 )
 
 type Key struct {
@@ -36,66 +37,79 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.NodeClass {
 		TypeMeta:   nodeTemplate.TypeMeta,
 		ObjectMeta: nodeTemplate.ObjectMeta,
 		Spec: v1beta1.NodeClassSpec{
-			SubnetSelectorTerms:        NewSubnetSelectorTerms(nodeTemplate.Spec.SubnetSelector),
-			SecurityGroupSelectorTerms: NewSecurityGroupSelectorTerms(nodeTemplate.Spec.SecurityGroupSelector),
-			AMISelectorTerms:           NewAMISelectorTerms(nodeTemplate.Spec.AMISelector),
-			AMIFamily:                  nodeTemplate.Spec.AMIFamily,
-			UserData:                   nodeTemplate.Spec.UserData,
-			Tags:                       nodeTemplate.Spec.Tags,
-			BlockDeviceMappings: lo.Map(nodeTemplate.Spec.BlockDeviceMappings, func(bdm *v1alpha1.BlockDeviceMapping, _ int) *v1beta1.BlockDeviceMapping {
-				return NewBlockDeviceMapping(bdm)
-			}),
-			DetailedMonitoring: nodeTemplate.Spec.DetailedMonitoring,
-			MetadataOptions:    NewMetadataOptions(nodeTemplate.Spec.MetadataOptions),
-			Context:            nodeTemplate.Spec.Context,
-			LaunchTemplateName: nodeTemplate.Spec.LaunchTemplateName,
-			InstanceProfile:    nodeTemplate.Spec.InstanceProfile,
+			SubnetSelectorTerms:           NewSubnetSelectorTerms(nodeTemplate.Spec.SubnetSelector),
+			OriginalSubnetSelector:        nodeTemplate.Spec.SubnetSelector,
+			SecurityGroupSelectorTerms:    NewSecurityGroupSelectorTerms(nodeTemplate.Spec.SecurityGroupSelector),
+			OriginalSecurityGroupSelector: nodeTemplate.Spec.SecurityGroupSelector,
+			AMISelectorTerms:              NewAMISelectorTerms(nodeTemplate.Spec.AMISelector),
+			OriginalAMISelector:           nodeTemplate.Spec.AMISelector,
+			AMIFamily:                     nodeTemplate.Spec.AMIFamily,
+			UserData:                      nodeTemplate.Spec.UserData,
+			Tags:                          nodeTemplate.Spec.Tags,
+			BlockDeviceMappings:           NewBlockDeviceMappings(nodeTemplate.Spec.BlockDeviceMappings),
+			DetailedMonitoring:            nodeTemplate.Spec.DetailedMonitoring,
+			MetadataOptions:               NewMetadataOptions(nodeTemplate.Spec.MetadataOptions),
+			Context:                       nodeTemplate.Spec.Context,
+			LaunchTemplateName:            nodeTemplate.Spec.LaunchTemplateName,
+			InstanceProfile:               nodeTemplate.Spec.InstanceProfile,
 		},
 		Status: v1beta1.NodeClassStatus{
-			Subnets: lo.Map(nodeTemplate.Status.Subnets, func(s v1alpha1.Subnet, _ int) v1beta1.Subnet {
-				return v1beta1.Subnet{
-					ID:   s.ID,
-					Zone: s.Zone,
-				}
-			}),
-			SecurityGroups: lo.Map(nodeTemplate.Status.SecurityGroups, func(s v1alpha1.SecurityGroup, _ int) v1beta1.SecurityGroup {
-				return v1beta1.SecurityGroup{
-					ID:   s.ID,
-					Name: s.Name,
-				}
-			}),
-			AMIs: lo.Map(nodeTemplate.Status.AMIs, func(a v1alpha1.AMI, _ int) v1beta1.AMI {
-				return v1beta1.AMI{
-					ID:           a.ID,
-					Name:         a.Name,
-					Requirements: a.Requirements,
-				}
-			}),
+			Subnets:        NewSubnets(nodeTemplate.Status.Subnets),
+			SecurityGroups: NewSecurityGroups(nodeTemplate.Status.SecurityGroups),
+			AMIs:           NewAMIs(nodeTemplate.Status.AMIs),
 		},
 		IsNodeTemplate: true,
 	}
 }
 
-func NewSubnetSelectorTerms(subnetSelector map[string]string) []v1beta1.SubnetSelectorTerm {
+func NewSubnetSelectorTerms(subnetSelector map[string]string) (terms []v1beta1.SubnetSelectorTerm) {
 	if len(subnetSelector) == 0 {
 		return nil
 	}
-	return []v1beta1.SubnetSelectorTerm{
-		{
-			Tags: subnetSelector,
-		},
+	// Each of these slices needs to be pre-populated with the "0" element so that we can properly generate permutations
+	ids := []string{""}
+	tags := map[string]string{}
+	for k, v := range subnetSelector {
+		switch k {
+		case "aws-ids", "aws::ids":
+			ids = strings.Split(strings.Trim(v, " "), ",")
+		default:
+			tags[k] = v
+		}
 	}
+	// If there are some "special" keys used, we have to represent the old selector as multiple terms
+	for _, id := range ids {
+		terms = append(terms, v1beta1.SubnetSelectorTerm{
+			Tags: tags,
+			ID:   id,
+		})
+	}
+	return terms
 }
 
-func NewSecurityGroupSelectorTerms(securityGroupSelector map[string]string) []v1beta1.SecurityGroupSelectorTerm {
+func NewSecurityGroupSelectorTerms(securityGroupSelector map[string]string) (terms []v1beta1.SecurityGroupSelectorTerm) {
 	if len(securityGroupSelector) == 0 {
 		return nil
 	}
-	return []v1beta1.SecurityGroupSelectorTerm{
-		{
-			Tags: securityGroupSelector,
-		},
+	// Each of these slices needs to be pre-populated with the "0" element so that we can properly generate permutations
+	ids := []string{""}
+	tags := map[string]string{}
+	for k, v := range securityGroupSelector {
+		switch k {
+		case "aws-ids", "aws::ids":
+			ids = strings.Split(strings.Trim(v, " "), ",")
+		default:
+			tags[k] = v
+		}
 	}
+	// If there are some "special" keys used, we have to represent the old selector as multiple terms
+	for _, id := range ids {
+		terms = append(terms, v1beta1.SecurityGroupSelectorTerm{
+			Tags: tags,
+			ID:   id,
+		})
+	}
+	return terms
 }
 
 func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISelectorTerm) {
@@ -133,6 +147,15 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 		}
 	}
 	return terms
+}
+
+func NewBlockDeviceMappings(bdms []*v1alpha1.BlockDeviceMapping) []*v1beta1.BlockDeviceMapping {
+	if bdms == nil {
+		return nil
+	}
+	return lo.Map(bdms, func(bdm *v1alpha1.BlockDeviceMapping, _ int) *v1beta1.BlockDeviceMapping {
+		return NewBlockDeviceMapping(bdm)
+	})
 }
 
 func NewBlockDeviceMapping(bdm *v1alpha1.BlockDeviceMapping) *v1beta1.BlockDeviceMapping {
@@ -173,6 +196,43 @@ func NewMetadataOptions(mo *v1alpha1.MetadataOptions) *v1beta1.MetadataOptions {
 	}
 }
 
+func NewSubnets(subnets []v1alpha1.Subnet) []v1beta1.Subnet {
+	if subnets == nil {
+		return nil
+	}
+	return lo.Map(subnets, func(s v1alpha1.Subnet, _ int) v1beta1.Subnet {
+		return v1beta1.Subnet{
+			ID:   s.ID,
+			Zone: s.Zone,
+		}
+	})
+}
+
+func NewSecurityGroups(securityGroups []v1alpha1.SecurityGroup) []v1beta1.SecurityGroup {
+	if securityGroups == nil {
+		return nil
+	}
+	return lo.Map(securityGroups, func(s v1alpha1.SecurityGroup, _ int) v1beta1.SecurityGroup {
+		return v1beta1.SecurityGroup{
+			ID:   s.ID,
+			Name: s.Name,
+		}
+	})
+}
+
+func NewAMIs(amis []v1alpha1.AMI) []v1beta1.AMI {
+	if amis == nil {
+		return nil
+	}
+	return lo.Map(amis, func(a v1alpha1.AMI, _ int) v1beta1.AMI {
+		return v1beta1.AMI{
+			ID:           a.ID,
+			Name:         a.Name,
+			Requirements: a.Requirements,
+		}
+	})
+}
+
 func Get(ctx context.Context, c client.Client, key Key) (*v1beta1.NodeClass, error) {
 	if key.IsNodeTemplate {
 		nodeTemplate := &v1alpha1.AWSNodeTemplate{}
@@ -186,4 +246,12 @@ func Get(ctx context.Context, c client.Client, key Key) (*v1beta1.NodeClass, err
 		return nil, err
 	}
 	return nodeClass, nil
+}
+
+func HashAnnotation(nodeClass *v1beta1.NodeClass) map[string]string {
+	if nodeClass.IsNodeTemplate {
+		nodeTemplate := nodetemplateutil.New(nodeClass)
+		return map[string]string{v1alpha1.AnnotationNodeTemplateHash: nodeTemplate.Hash()}
+	}
+	return map[string]string{v1beta1.AnnotationNodeClassHash: nodeClass.Hash()}
 }
