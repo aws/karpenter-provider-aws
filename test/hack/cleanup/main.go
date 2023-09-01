@@ -355,6 +355,7 @@ func (o *oidc) Get(ctx context.Context, expirationTime time.Time) (names []strin
 		})
 		if err != nil {
 			errs[i] = err
+			continue
 		}
 
 		for _, t := range oicd.Tags {
@@ -406,6 +407,7 @@ func (ip *instanceProfile) Get(ctx context.Context, expirationTime time.Time) (n
 		})
 		if err != nil {
 			errs[i] = err
+			continue
 		}
 
 		for _, t := range profiles.Tags {
