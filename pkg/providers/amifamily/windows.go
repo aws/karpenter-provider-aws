@@ -17,7 +17,9 @@ package amifamily
 import (
 	"fmt"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -55,7 +57,7 @@ func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:     w.Options.ClusterName,
@@ -70,10 +72,10 @@ func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints [
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (w Windows) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
+func (w Windows) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
 	sda1EBS := DefaultEBS
 	sda1EBS.VolumeSize = lo.ToPtr(resource.MustParse("50Gi"))
-	return []*v1alpha1.BlockDeviceMapping{{
+	return []*v1beta1.BlockDeviceMapping{{
 		DeviceName: w.EphemeralBlockDevice(),
 		EBS:        &sda1EBS,
 	}}

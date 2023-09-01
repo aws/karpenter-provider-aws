@@ -21,10 +21,12 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	provisionerutil "github.com/aws/karpenter-core/pkg/utils/provisioner"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/utils"
@@ -37,45 +39,45 @@ const (
 	NodeTemplateDrift  cloudprovider.DriftReason = "NodeTemplateDrift"
 )
 
-func (c *CloudProvider) isNodeTemplateDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner, nodeTemplate *v1alpha1.AWSNodeTemplate) (cloudprovider.DriftReason, error) {
-	instance, err := c.getInstance(ctx, machine.Status.ProviderID)
+func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodePool *corev1beta1.NodePool, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
+	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID)
 	if err != nil {
 		return "", err
 	}
-	amiDrifted, err := c.isAMIDrifted(ctx, machine, provisioner, instance, nodeTemplate)
+	amiDrifted, err := c.isAMIDrifted(ctx, nodeClaim, nodePool, instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating ami drift, %w", err)
 	}
-	securitygroupDrifted, err := c.areSecurityGroupsDrifted(instance, nodeTemplate)
+	securitygroupDrifted, err := c.areSecurityGroupsDrifted(instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating securitygroup drift, %w", err)
 	}
-	subnetDrifted, err := c.isSubnetDrifted(instance, nodeTemplate)
+	subnetDrifted, err := c.isSubnetDrifted(instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
-	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted, c.areStaticFieldsDrifted(machine, nodeTemplate)}, "", func(i cloudprovider.DriftReason) bool {
+	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted, c.areStaticFieldsDrifted(nodeClaim, nodeClass)}, "", func(i cloudprovider.DriftReason) bool {
 		return string(i) != ""
 	})
 	return drifted, nil
 }
 
-func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Machine, provisioner *v1alpha5.Provisioner,
-	instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (cloudprovider.DriftReason, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
+func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodePool *corev1beta1.NodePool,
+	instance *instance.Instance, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
+	instanceTypes, err := c.GetInstanceTypes(ctx, provisionerutil.New(nodePool))
 	if err != nil {
 		return "", fmt.Errorf("getting instanceTypes, %w", err)
 	}
 	nodeInstanceType, found := lo.Find(instanceTypes, func(instType *cloudprovider.InstanceType) bool {
-		return instType.Name == machine.Labels[v1.LabelInstanceTypeStable]
+		return instType.Name == nodeClaim.Labels[v1.LabelInstanceTypeStable]
 	})
 	if !found {
-		return "", fmt.Errorf(`finding node instance type "%s"`, machine.Labels[v1.LabelInstanceTypeStable])
+		return "", fmt.Errorf(`finding node instance type "%s"`, nodeClaim.Labels[v1.LabelInstanceTypeStable])
 	}
-	if nodeTemplate.Spec.LaunchTemplateName != nil {
+	if nodeClass.Spec.LaunchTemplateName != nil {
 		return "", nil
 	}
-	amis, err := c.amiProvider.Get(ctx, nodeTemplate, &amifamily.Options{})
+	amis, err := c.amiProvider.Get(ctx, nodeClass, &amifamily.Options{})
 	if err != nil {
 		return "", fmt.Errorf("getting amis, %w", err)
 	}
@@ -92,12 +94,12 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, machine *v1alpha5.Mach
 	return "", nil
 }
 
-func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (cloudprovider.DriftReason, error) {
+func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
 	// If the node template status does not have subnets, wait for the subnets to be populated before continuing
-	if nodeTemplate.Status.Subnets == nil {
+	if len(nodeClass.Status.Subnets) == 0 {
 		return "", fmt.Errorf("AWSNodeTemplate has no subnets")
 	}
-	_, found := lo.Find(nodeTemplate.Status.Subnets, func(subnet v1alpha1.Subnet) bool {
+	_, found := lo.Find(nodeClass.Status.Subnets, func(subnet v1beta1.Subnet) bool {
 		return subnet.ID == instance.SubnetID
 	})
 	if !found {
@@ -108,13 +110,13 @@ func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeTemplat
 
 // Checks if the security groups are drifted, by comparing the AWSNodeTemplate.Status.SecurityGroups
 // to the ec2 instance security groups
-func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeTemplate *v1alpha1.AWSNodeTemplate) (cloudprovider.DriftReason, error) {
-	// nodeTemplate.Spec.SecurityGroupSelector can be nil if the user is using a launchTemplateName to define SecurityGroups
+func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
+	// nodeClass.Spec.SecurityGroupSelector can be nil if the user is using a launchTemplateName to define SecurityGroups
 	// Karpenter will not drift on changes to securitygroup in the launchTemplateName
-	if nodeTemplate.Spec.LaunchTemplateName != nil {
+	if nodeClass.Spec.LaunchTemplateName != nil {
 		return "", nil
 	}
-	securityGroupIds := sets.New(lo.Map(nodeTemplate.Status.SecurityGroups, func(sg v1alpha1.SecurityGroup, _ int) string { return sg.ID })...)
+	securityGroupIds := sets.New(lo.Map(nodeClass.Status.SecurityGroups, func(sg v1beta1.SecurityGroup, _ int) string { return sg.ID })...)
 	if len(securityGroupIds) == 0 {
 		return "", fmt.Errorf("no security groups exist in the AWSNodeTemplate Status")
 	}
@@ -125,13 +127,19 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 	return "", nil
 }
 
-func (c *CloudProvider) areStaticFieldsDrifted(machine *v1alpha5.Machine, nodeTemplate *v1alpha1.AWSNodeTemplate) cloudprovider.DriftReason {
-	nodeTemplateHash, foundHashNodeTemplate := nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]
-	machineHash, foundHashMachine := machine.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]
-	if !foundHashNodeTemplate || !foundHashMachine {
+func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.NodeClass) cloudprovider.DriftReason {
+	var ownerHashKey string
+	if nodeClaim.IsMachine {
+		ownerHashKey = v1alpha1.AnnotationNodeTemplateHash
+	} else {
+		ownerHashKey = v1beta1.AnnotationNodeClassHash
+	}
+	nodeClassHash, foundHashNodeClass := nodeClass.Annotations[ownerHashKey]
+	nodeClaimHash, foundHashNodeClaim := nodeClaim.Annotations[ownerHashKey]
+	if !foundHashNodeClass || !foundHashNodeClaim {
 		return ""
 	}
-	if nodeTemplateHash != machineHash {
+	if nodeClassHash != nodeClaimHash {
 		return NodeTemplateDrift
 	}
 	return ""

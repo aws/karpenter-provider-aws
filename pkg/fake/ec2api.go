@@ -324,7 +324,9 @@ func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.Describ
 	}
 	e.CalledWithDescribeImagesInput.Add(input)
 	if !e.DescribeImagesOutput.IsNil() {
-		return e.DescribeImagesOutput.Clone(), nil
+		describeImagesOutput := e.DescribeImagesOutput.Clone()
+		describeImagesOutput.Images = FilterDescribeImages(describeImagesOutput.Images, input.Filters)
+		return describeImagesOutput, nil
 	}
 	if aws.StringValue(input.Filters[0].Values[0]) == "invalid" {
 		return &ec2.DescribeImagesOutput{}, nil

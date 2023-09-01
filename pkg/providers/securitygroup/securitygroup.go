@@ -30,7 +30,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 type Provider struct {
@@ -51,21 +51,21 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) ([]*ec2.SecurityGroup, error) {
+func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*ec2.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups
 	// TODO: When removing custom launchTemplates for v1beta1, security groups will be required.
 	// The check will not be necessary
-	filters := p.getFilters(nodeTemplate)
-	if len(filters) == 0 {
+	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms)
+	if len(filterSets) == 0 {
 		return []*ec2.SecurityGroup{}, nil
 	}
-	securityGroups, err := p.getSecurityGroups(ctx, filters)
+	securityGroups, err := p.getSecurityGroups(ctx, filterSets)
 	if err != nil {
 		return nil, err
 	}
-	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeTemplate.Name), securityGroups) {
+	if p.cm.HasChanged(fmt.Sprintf("security-groups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), securityGroups) {
 		logging.FromContext(ctx).
 			With("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
 				return aws.StringValue(s.GroupId)
@@ -75,45 +75,60 @@ func (p *Provider) List(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTempl
 	return securityGroups, nil
 }
 
-func (p *Provider) getFilters(nodeTemplate *v1alpha1.AWSNodeTemplate) []*ec2.Filter {
-	var filters []*ec2.Filter
-	for key, value := range nodeTemplate.Spec.SecurityGroupSelector {
-		switch key {
-		case "aws-ids", "aws::ids":
-			filters = append(filters, &ec2.Filter{
-				Name:   aws.String("group-id"),
-				Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
-			})
-		default:
-			switch value {
-			case "*":
-				filters = append(filters, &ec2.Filter{
-					Name:   aws.String("tag-key"),
-					Values: []*string{aws.String(key)},
-				})
-			default:
-				filters = append(filters, &ec2.Filter{
-					Name:   aws.String(fmt.Sprintf("tag:%s", key)),
-					Values: aws.StringSlice(functional.SplitCommaSeparatedString(value)),
-				})
-			}
-		}
-	}
-	return filters
-}
-
-func (p *Provider) getSecurityGroups(ctx context.Context, filters []*ec2.Filter) ([]*ec2.SecurityGroup, error) {
-	hash, err := hashstructure.Hash(filters, hashstructure.FormatV2, nil)
+func (p *Provider) getSecurityGroups(ctx context.Context, filterSets [][]*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
 	}
-	if securityGroups, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return securityGroups.([]*ec2.SecurityGroup), nil
+	if sg, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+		return sg.([]*ec2.SecurityGroup), nil
 	}
-	output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
-	if err != nil {
-		return nil, fmt.Errorf("describing security groups %+v, %w", filters, err)
+	securityGroups := map[string]*ec2.SecurityGroup{}
+	for _, filters := range filterSets {
+		output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+		if err != nil {
+			return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
+		}
+		for i := range output.SecurityGroups {
+			securityGroups[lo.FromPtr(output.SecurityGroups[i].GroupId)] = output.SecurityGroups[i]
+		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), output.SecurityGroups)
-	return output.SecurityGroups, nil
+	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(securityGroups))
+	return lo.Values(securityGroups), nil
+}
+
+func getFilterSets(terms []v1beta1.SecurityGroupSelectorTerm) (res [][]*ec2.Filter) {
+	idFilter := &ec2.Filter{Name: aws.String("group-id")}
+	nameFilter := &ec2.Filter{Name: aws.String("group-name")}
+	for _, term := range terms {
+		switch {
+		case term.ID != "":
+			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
+		case term.Name != "":
+			nameFilter.Values = append(nameFilter.Values, aws.String(term.Name))
+		default:
+			var filters []*ec2.Filter
+			for k, v := range term.Tags {
+				if v == "*" {
+					filters = append(filters, &ec2.Filter{
+						Name:   aws.String("tag-key"),
+						Values: []*string{aws.String(k)},
+					})
+				} else {
+					filters = append(filters, &ec2.Filter{
+						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
+						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+					})
+				}
+			}
+			res = append(res, filters)
+		}
+	}
+	if len(idFilter.Values) > 0 {
+		res = append(res, []*ec2.Filter{idFilter})
+	}
+	if len(nameFilter.Values) > 0 {
+		res = append(res, []*ec2.Filter{nameFilter})
+	}
+	return res
 }

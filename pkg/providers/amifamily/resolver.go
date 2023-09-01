@@ -26,15 +26,16 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 )
 
-var DefaultEBS = v1alpha1.BlockDevice{
+var DefaultEBS = v1beta1.BlockDevice{
 	Encrypted:  aws.Bool(true),
 	VolumeType: aws.String(ec2.VolumeTypeGp3),
 	VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
@@ -64,8 +65,8 @@ type Options struct {
 type LaunchTemplate struct {
 	*Options
 	UserData            bootstrap.Bootstrapper
-	BlockDeviceMappings []*v1alpha1.BlockDeviceMapping
-	MetadataOptions     *v1alpha1.MetadataOptions
+	BlockDeviceMappings []*v1beta1.BlockDeviceMapping
+	MetadataOptions     *v1beta1.MetadataOptions
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
@@ -74,9 +75,9 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DefaultAMIs(version string) []DefaultAMIOutput
-	UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
-	DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping
-	DefaultMetadataOptions() *v1alpha1.MetadataOptions
+	UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
+	DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping
+	DefaultMetadataOptions() *v1beta1.MetadataOptions
 	EphemeralBlockDevice() *string
 	FeatureFlags() FeatureFlags
 }
@@ -115,9 +116,9 @@ func New(amiProvider *Provider) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
-	amiFamily := GetAMIFamily(nodeTemplate.Spec.AMIFamily, options)
-	amis, err := r.amiProvider.Get(ctx, nodeTemplate, options)
+func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
+	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
+	amis, err := r.amiProvider.Get(ctx, nodeClass, options)
 	if err != nil {
 		return nil, err
 	}
@@ -137,9 +138,9 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 		// we need to pass down the max-pods calculation to the kubelet.
 		// This requires that we resolve a unique launch template per max-pods value.
 		for maxPods, instanceTypes := range maxPodsToInstanceTypes {
-			kubeletConfig := &v1alpha5.KubeletConfiguration{}
-			if machine.Spec.Kubelet != nil {
-				if err := mergo.Merge(kubeletConfig, machine.Spec.Kubelet); err != nil {
+			kubeletConfig := &corev1beta1.KubeletConfiguration{}
+			if nodeClaim.Spec.KubeletConfiguration != nil {
+				if err := mergo.Merge(kubeletConfig, nodeClaim.Spec.KubeletConfiguration); err != nil {
 					return nil, err
 				}
 			}
@@ -150,19 +151,19 @@ func (r Resolver) Resolve(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTem
 				Options: options,
 				UserData: amiFamily.UserData(
 					r.defaultClusterDNS(options, kubeletConfig),
-					append(machine.Spec.Taints, machine.Spec.StartupTaints...),
+					append(nodeClaim.Spec.Taints, nodeClaim.Spec.StartupTaints...),
 					options.Labels,
 					options.CABundle,
 					instanceTypes,
-					nodeTemplate.Spec.UserData,
+					nodeClass.Spec.UserData,
 				),
-				BlockDeviceMappings: nodeTemplate.Spec.BlockDeviceMappings,
-				MetadataOptions:     nodeTemplate.Spec.MetadataOptions,
-				DetailedMonitoring:  aws.BoolValue(nodeTemplate.Spec.DetailedMonitoring),
+				BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
+				MetadataOptions:     nodeClass.Spec.MetadataOptions,
+				DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
 			}
-			if resolved.BlockDeviceMappings == nil {
+			if len(resolved.BlockDeviceMappings) == 0 {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
 			}
 			if resolved.MetadataOptions == nil {
@@ -191,8 +192,8 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	}
 }
 
-func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
-	return &v1alpha1.MetadataOptions{
+func (o Options) DefaultMetadataOptions() *v1beta1.MetadataOptions {
+	return &v1beta1.MetadataOptions{
 		HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
 		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP == nil || o.KubeDNSIP.To4() != nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled)),
 		HTTPPutResponseHopLimit: aws.Int64(2),
@@ -200,7 +201,7 @@ func (o Options) DefaultMetadataOptions() *v1alpha1.MetadataOptions {
 	}
 }
 
-func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1alpha5.KubeletConfiguration) *v1alpha5.KubeletConfiguration {
+func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.KubeletConfiguration) *corev1beta1.KubeletConfiguration {
 	if opts.KubeDNSIP == nil {
 		return kubeletConfig
 	}
@@ -208,7 +209,7 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1alpha5.Kubel
 		return kubeletConfig
 	}
 	if kubeletConfig == nil {
-		return &v1alpha5.KubeletConfiguration{
+		return &corev1beta1.KubeletConfiguration{
 			ClusterDNS: []string{opts.KubeDNSIP.String()},
 		}
 	}

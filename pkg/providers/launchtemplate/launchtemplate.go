@@ -35,15 +35,15 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -92,20 +92,20 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 	return l
 }
 
-func (p *Provider) EnsureAll(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, machine *v1alpha5.Machine,
+func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string, tags map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
 
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
-	if nodeTemplate.Spec.LaunchTemplateName != nil {
-		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeTemplate.Spec.LaunchTemplateName): instanceTypes}, nil
+	if nodeClass.Spec.LaunchTemplateName != nil {
+		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeClass.Spec.LaunchTemplateName): instanceTypes}, nil
 	}
-	options, err := p.createAMIOptions(ctx, nodeTemplate, lo.Assign(machine.Labels, additionalLabels), tags)
+	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, additionalLabels), tags)
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeTemplate, machine, instanceTypes, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, options)
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash))
 }
 
-func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate, labels, tags map[string]string) (*amifamily.Options, error) {
+func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
 	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" since the kubelet can't
 	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
 	for k := range labels {
@@ -148,12 +148,12 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 			delete(labels, k)
 		}
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, nodeTemplate)
+	instanceProfile, err := p.getInstanceProfile(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
 	// Get constrained security groups
-	securityGroups, err := p.securityGroupProvider.List(ctx, nodeTemplate)
+	securityGroups, err := p.securityGroupProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeTemplate *v1alpha1.
 		CABundle:  p.caBundle,
 		KubeDNSIP: p.KubeDNSIP,
 	}
-	if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeTemplate); err != nil {
+	if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass); err != nil {
 		return nil, err
 	} else if !ok {
 		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
@@ -281,7 +281,7 @@ func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) [
 	return nil
 }
 
-func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1alpha1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1beta1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
 	if len(blockDeviceMappings) == 0 {
 		// The EC2 API fails with empty slices and expects nil.
 		return nil
@@ -352,9 +352,9 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 	}
 }
 
-func (p *Provider) getInstanceProfile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (string, error) {
-	if nodeTemplate.Spec.InstanceProfile != nil {
-		return aws.StringValue(nodeTemplate.Spec.InstanceProfile), nil
+func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.NodeClass) (string, error) {
+	if nodeClass.Spec.InstanceProfile != nil {
+		return aws.StringValue(nodeClass.Spec.InstanceProfile), nil
 	}
 	defaultProfile := settings.FromContext(ctx).DefaultInstanceProfile
 	if defaultProfile == "" {

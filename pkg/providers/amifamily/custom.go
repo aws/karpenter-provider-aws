@@ -17,10 +17,10 @@ package amifamily
 import (
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 )
 
@@ -30,7 +30,7 @@ type Custom struct {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (c Custom) UserData(_ *v1alpha5.KubeletConfiguration, _ []v1.Taint, _ map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (c Custom) UserData(_ *corev1beta1.KubeletConfiguration, _ []v1.Taint, _ map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Custom{
 		Options: bootstrap.Options{
 			CustomUserData: customUserData,
@@ -42,7 +42,7 @@ func (c Custom) DefaultAMIs(_ string) []DefaultAMIOutput {
 	return nil
 }
 
-func (c Custom) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
+func (c Custom) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
 	// By returning nil, we ensure that EC2 will automatically choose the volumes defined by the AMI
 	// and we don't need to describe the AMI ourselves.
 	return nil

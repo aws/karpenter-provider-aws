@@ -36,12 +36,14 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
+	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 )
 
 var ctx context.Context
@@ -129,7 +131,7 @@ var _ = Describe("InstanceProvider", func() {
 		instanceTypes = lo.Filter(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) bool { return i.Name == "m5.xlarge" })
 
 		// Since all the capacity pools are ICEd. This should return back an ICE error
-		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeTemplate, machine, instanceTypes)
+		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeclassutil.New(nodeTemplate), nodeclaimutil.New(machine), instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
 	})
