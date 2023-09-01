@@ -46,54 +46,52 @@ import (
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 )
 
-func (env *Environment) ExpectCreatedWithOffset(offset int, objects ...client.Object) {
-	for _, object := range objects {
-		object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{
-			test.DiscoveryLabel: "unspecified",
-		}))
-		ExpectWithOffset(offset+1, env.Client.Create(env, object)).To(Succeed())
-	}
-}
-
 func (env *Environment) ExpectCreated(objects ...client.Object) {
-	env.ExpectCreatedWithOffset(1, objects...)
-}
-
-func (env *Environment) ExpectDeletedWithOffset(offset int, objects ...client.Object) {
+	GinkgoHelper()
 	for _, object := range objects {
-		ExpectWithOffset(offset+1, env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)})).To(Succeed())
+		Eventually(func(g Gomega) {
+			object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{
+				test.DiscoveryLabel: "unspecified",
+			}))
+			g.Expect(env.Client.Create(env, object)).To(Succeed())
+		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
 
 func (env *Environment) ExpectDeleted(objects ...client.Object) {
-	env.ExpectDeletedWithOffset(1, objects...)
-}
-
-func (env *Environment) ExpectUpdatedWithOffset(offset int, objects ...client.Object) {
-	for _, o := range objects {
-		current := o.DeepCopyObject().(client.Object)
-		ExpectWithOffset(offset+1, env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
-		o.SetResourceVersion(current.GetResourceVersion())
-		ExpectWithOffset(offset+1, env.Client.Update(env.Context, o)).To(Succeed())
+	GinkgoHelper()
+	for _, object := range objects {
+		Eventually(func(g Gomega) {
+			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}))).To(Succeed())
+		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
 
 func (env *Environment) ExpectUpdated(objects ...client.Object) {
-	env.ExpectUpdatedWithOffset(1, objects...)
+	GinkgoHelper()
+	for _, o := range objects {
+		Eventually(func(g Gomega) {
+			current := o.DeepCopyObject().(client.Object)
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+			o.SetResourceVersion(current.GetResourceVersion())
+			g.Expect(env.Client.Update(env.Context, o)).To(Succeed())
+		}).WithTimeout(time.Second * 10).Should(Succeed())
+	}
 }
 
 func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
+	GinkgoHelper()
 	for _, o := range objects {
 		current := o.DeepCopyObject().(client.Object)
 		err := env.Client.Get(env, client.ObjectKeyFromObject(current), current)
 		if err != nil {
 			if errors.IsNotFound(err) {
-				env.ExpectCreatedWithOffset(1, o)
+				env.ExpectCreated(o)
 			} else {
 				Fail(fmt.Sprintf("Getting object %s, %v", client.ObjectKeyFromObject(o), err))
 			}
 		} else {
-			env.ExpectUpdatedWithOffset(1, o)
+			env.ExpectUpdated(objects...)
 		}
 	}
 }

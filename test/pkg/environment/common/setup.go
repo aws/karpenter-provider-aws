@@ -17,6 +17,7 @@ package common
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
@@ -101,6 +102,7 @@ func (env *Environment) AfterEach() {
 }
 
 func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
+	time.Sleep(time.Second) // wait one second to let the caches get up-to-date for deletion
 	wg := sync.WaitGroup{}
 	for _, obj := range cleanableObjects {
 		wg.Add(1)
@@ -119,7 +121,7 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 					g.Expect(client.IgnoreNotFound(env.Client.Delete(env, &metaList.Items[i], client.PropagationPolicy(metav1.DeletePropagationForeground)))).To(Succeed())
 				})
 				// If the deletes eventually succeed, we should have no elements here at the end of the test
-				g.Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
+				g.Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}), client.Limit(1))).To(Succeed())
 				g.Expect(metaList.Items).To(HaveLen(0))
 			}).Should(Succeed())
 		}(obj)
