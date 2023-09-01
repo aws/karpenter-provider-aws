@@ -149,7 +149,9 @@ func groupAMIsByRequirements(amis []AMI) []AMI {
 	return result
 }
 
-func (p *Provider) getDefaultAMIsFromSSM(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) (res []AMI, err error) {
+func (p *Provider) getDefaultAMIsFromSSM(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) ([]AMI, error) {
+	var res []AMI
+
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	kubernetesVersion, err := p.KubeServerVersion(ctx)
 	if err != nil {
@@ -202,18 +204,15 @@ func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm)
 	if err != nil {
 		return nil, err
 	}
-	amis := lo.Map(ec2AMIs, func(i *ec2.Image, _ int) AMI {
+	return lo.FilterMap(ec2AMIs, func(i *ec2.Image, _ int) (AMI, bool) {
+		reqs := p.getRequirementsFromImage(i)
 		return AMI{
 			Name:         lo.FromPtr(i.Name),
 			AmiID:        lo.FromPtr(i.ImageId),
 			CreationDate: lo.FromPtr(i.CreationDate),
-			Requirements: p.getRequirementsFromImage(i),
-		}
-	})
-	amis = lo.Filter(amis, func(a AMI, _ int) bool {
-		return v1beta1.WellKnownArchitectures.Has(a.Requirements.Get(v1.LabelArchStable).Any())
-	})
-	return amis, nil
+			Requirements: reqs,
+		}, v1beta1.WellKnownArchitectures.Has(reqs.Get(v1.LabelArchStable).Any())
+	}), nil
 }
 
 func (p *Provider) getAMIsFromEC2(ctx context.Context, terms []v1beta1.AMISelectorTerm) ([]*ec2.Image, error) {

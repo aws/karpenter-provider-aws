@@ -274,27 +274,15 @@ var _ = Describe("LaunchTemplates", func() {
 					ImageId:      aws.String("ami-123"),
 					Architecture: aws.String("x86_64"),
 					CreationDate: aws.String("2022-08-15T12:00:00Z"),
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String("karpenter.sh/discovery"),
-							Value: aws.String("my-cluster"),
-						},
-					},
 				},
 				{
 					Name:         aws.String(coretest.RandomName()),
 					ImageId:      aws.String("ami-456"),
 					Architecture: aws.String("arm64"),
 					CreationDate: aws.String("2022-08-10T12:00:00Z"),
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String("karpenter.sh/discovery"),
-							Value: aws.String("my-cluster"),
-						},
-					},
 				},
 			}})
-			nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+			nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 			ExpectApplied(ctx, env.Client, newProvisioner)
@@ -1468,19 +1456,13 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in AWSNodeTemplate", func() {
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String("karpenter.sh/discovery"),
-								Value: aws.String("my-cluster"),
-							},
-						},
 					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
@@ -1496,7 +1478,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				nodeTemplate.Spec.UserData = aws.String("special user data")
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
@@ -1504,12 +1486,6 @@ var _ = Describe("LaunchTemplates", func() {
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String("karpenter.sh/discovery"),
-								Value: aws.String("my-cluster"),
-							},
-						},
 					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
@@ -1565,10 +1541,6 @@ var _ = Describe("LaunchTemplates", func() {
 								Key:   aws.String(v1.LabelInstanceTypeStable),
 								Value: aws.String("m5.large"),
 							},
-							{
-								Key:   aws.String("karpenter.sh/discovery"),
-								Value: aws.String("my-cluster"),
-							},
 						},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
@@ -1581,15 +1553,11 @@ var _ = Describe("LaunchTemplates", func() {
 								Key:   aws.String(v1.LabelInstanceTypeStable),
 								Value: aws.String("m5.xlarge"),
 							},
-							{
-								Key:   aws.String("karpenter.sh/discovery"),
-								Value: aws.String("my-cluster"),
-							},
 						},
 						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
@@ -1611,24 +1579,12 @@ var _ = Describe("LaunchTemplates", func() {
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2020-01-01T12:00:00Z"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String("karpenter.sh/discovery"),
-								Value: aws.String("my-cluster"),
-							},
-						},
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2021-01-01T12:00:00Z"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String("karpenter.sh/discovery"),
-								Value: aws.String("my-cluster"),
-							},
-						},
 					},
 					{
 						// Incompatible because required ARM64
@@ -1636,15 +1592,9 @@ var _ = Describe("LaunchTemplates", func() {
 						ImageId:      aws.String("ami-789"),
 						Architecture: aws.String("arm64"),
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String("karpenter.sh/discovery"),
-								Value: aws.String("my-cluster"),
-							},
-						},
 					},
 				}})
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
@@ -1668,7 +1618,7 @@ var _ = Describe("LaunchTemplates", func() {
 
 			It("should fail if no amis match selector.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
@@ -1680,7 +1630,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should fail if no instanceType matches ami requirements.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)

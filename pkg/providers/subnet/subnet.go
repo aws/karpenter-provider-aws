@@ -113,7 +113,6 @@ func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1
 		return nil, err
 	}
 	if len(subnets) == 0 {
-		// TODO @joinnis: Come back here and make sure that this prints in a nice format
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeClass.Spec.SubnetSelectorTerms)
 	}
 	p.Lock()

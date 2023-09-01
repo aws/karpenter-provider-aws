@@ -114,9 +114,7 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 		return i.Name == instance.Type
 	})
 	m := c.instanceToMachine(instance, instanceType)
-	m.Annotations = lo.Assign(m.Annotations, map[string]string{
-		v1alpha1.AnnotationNodeTemplateHash: nodeClass.Hash(),
-	})
+	m.Annotations = lo.Assign(m.Annotations, nodeclassutil.HashAnnotation(nodeClass))
 	return m, nil
 }
 
@@ -231,6 +229,7 @@ func (c *CloudProvider) Name() string {
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*v1beta1.NodeClass, error) {
+	// TODO @joinnis: Remove this handling for Machine resolution when we remove v1alpha5
 	if nodeClaim.IsMachine {
 		nodeTemplate, err := c.resolveNodeTemplate(ctx,
 			[]byte(nodeClaim.Annotations[v1alpha5.ProviderCompatabilityAnnotationKey]),
@@ -248,6 +247,7 @@ func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeC
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePool *corev1beta1.NodePool) (*v1beta1.NodeClass, error) {
+	// TODO @joinnis: Remove this handling for Provisioner resolution when we remove v1alpha5
 	if nodePool.IsProvisioner {
 		var rawProvider []byte
 		if nodePool.Spec.Template.Spec.Provider != nil {
@@ -266,6 +266,7 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 	return nodeClass, nil
 }
 
+// TODO @joinnis: Remove this handling for NodeTemplate resolution when we remove v1alpha5
 func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, objRef *v1alpha5.MachineTemplateRef) (*v1alpha1.AWSNodeTemplate, error) {
 	nodeTemplate := &v1alpha1.AWSNodeTemplate{}
 	if objRef != nil {
