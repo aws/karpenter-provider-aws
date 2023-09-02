@@ -248,6 +248,24 @@ func Get(ctx context.Context, c client.Client, key Key) (*v1beta1.NodeClass, err
 	return nodeClass, nil
 }
 
+func Patch(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.NodeClass) error {
+	if nodeClass.IsNodeTemplate {
+		storedNodeTemplate := nodetemplateutil.New(stored)
+		nodeTemplate := nodetemplateutil.New(nodeClass)
+		return c.Patch(ctx, nodeTemplate, client.MergeFrom(storedNodeTemplate))
+	}
+	return c.Patch(ctx, nodeClass, client.MergeFrom(stored))
+}
+
+func PatchStatus(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.NodeClass) error {
+	if nodeClass.IsNodeTemplate {
+		storedNodeTemplate := nodetemplateutil.New(stored)
+		nodeTemplate := nodetemplateutil.New(nodeClass)
+		return c.Status().Patch(ctx, nodeTemplate, client.MergeFrom(storedNodeTemplate))
+	}
+	return c.Status().Patch(ctx, nodeClass, client.MergeFrom(stored))
+}
+
 func HashAnnotation(nodeClass *v1beta1.NodeClass) map[string]string {
 	if nodeClass.IsNodeTemplate {
 		nodeTemplate := nodetemplateutil.New(nodeClass)

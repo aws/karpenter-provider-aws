@@ -48,7 +48,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 
 	linkController := machinelink.NewController(kubeClient, cloudProvider)
 	controllers := []controller.Controller{
-		nodetemplate.NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
+		nodetemplate.NewNodeTemplateController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
 		linkController,
 		machinegarbagecollection.NewController(kubeClient, cloudProvider, linkController),
 	}
