@@ -221,7 +221,8 @@ spec:
                     type: string
                 type: object
               role:
-                description: Role is the AWS identity that nodes use.
+                description: Role is the AWS identity that nodes use. This field is
+                  immutable.
                 type: string
               securityGroupSelectorTerms:
                 description: SecurityGroupSelectorTerms is a list of or security group

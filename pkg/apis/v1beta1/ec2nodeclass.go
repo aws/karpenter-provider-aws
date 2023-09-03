@@ -45,6 +45,7 @@ type EC2NodeClassSpec struct {
 	// +optional
 	UserData *string `json:"userData,omitempty"`
 	// Role is the AWS identity that nodes use.
+	// This field is immutable.
 	// +required
 	Role string `json:"role"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
@@ -288,8 +289,8 @@ type EC2NodeClass struct {
 	IsNodeTemplate bool `json:"-" hash:"ignore"`
 }
 
-func (a *EC2NodeClass) Hash() string {
-	return fmt.Sprint(lo.Must(hashstructure.Hash(a.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
+func (in *EC2NodeClass) Hash() string {
+	return fmt.Sprint(lo.Must(hashstructure.Hash(in.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
 		ZeroNil:         true,

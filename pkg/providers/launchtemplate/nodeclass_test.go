@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -43,6 +44,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -1653,6 +1655,50 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.BoolValue(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
 			})
+		})
+	})
+	Context("Instance Profile Generation", func() {
+		var profileName string
+		BeforeEach(func() {
+			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+		})
+		It("should create the instance profile when it doesn't exist", func() {
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.IamInstanceProfile).ToNot(BeNil())
+				Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal(profileName))
+			})
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
+		})
+		It("should add the role to the instance profile when it exists without a role", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+					InstanceProfileName: aws.String(profileName),
+				},
+			}
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.IamInstanceProfile).ToNot(BeNil())
+				Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal(profileName))
+			})
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
 		})
 	})
 })

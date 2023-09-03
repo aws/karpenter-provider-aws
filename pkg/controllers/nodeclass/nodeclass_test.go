@@ -20,6 +20,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -31,6 +32,8 @@ import (
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -788,6 +791,108 @@ var _ = Describe("NodeClassController", func() {
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+		})
+	})
+	Context("NodeClass Termination", func() {
+		var profileName string
+		BeforeEach(func() {
+			nodeClass.Spec.Role = "test-role"
+			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+		})
+		It("should succeed to delete the instance profile with no associated instances", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileName: aws.String(profileName),
+					Roles: []*iam.Role{
+						{
+							RoleId:   aws.String(fake.RoleID()),
+							RoleName: aws.String(nodeClass.Spec.Role),
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+		It("should succeed to delete the instance profile when no roles exist with no associated instances", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileName: aws.String(profileName),
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+		It("should succeed to delete the instance profile when it doesn't exist", func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+		It("should not delete the instance profile until all associated instances are terminated", func() {
+			var ids []string
+			for i := 0; i < 10; i++ {
+				id := fake.InstanceID()
+				awsEnv.EC2API.Instances.Store(id, &ec2.Instance{
+					InstanceId: aws.String(id),
+					State: &ec2.InstanceState{
+						Name: aws.String(ec2.InstanceStateNameRunning),
+					},
+					IamInstanceProfile: &ec2.IamInstanceProfile{Arn: aws.String(fmt.Sprintf("arn:aws:iam::%s:instance-profile/%s", fake.DefaultAccount, profileName))},
+				})
+				ids = append(ids, id)
+			}
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileName: aws.String(profileName),
+					Roles: []*iam.Role{
+						{
+							RoleId:   aws.String(fake.RoleID()),
+							RoleName: aws.String(nodeClass.Spec.Role),
+						},
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			ExpectExists(ctx, env.Client, nodeClass)
+
+			// Delete all instances except for one
+			// The NodeClass should still not delete
+			for i := 0; i < len(ids)-1; i++ {
+				awsEnv.EC2API.Instances.Delete(ids[i])
+			}
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			ExpectExists(ctx, env.Client, nodeClass)
+
+			// Delete the last instance
+			// The NodeClass should now delete
+			awsEnv.EC2API.Instances.Delete(ids[len(ids)-1])
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectNotFound(ctx, env.Client, nodeClass)
 		})
 	})
 })

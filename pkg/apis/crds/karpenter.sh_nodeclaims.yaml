@@ -13,9 +13,6 @@ spec:
     kind: NodeClaim
     listKind: NodeClaimList
     plural: nodeclaims
-    shortNames:
-    - nc
-    - ncs
     singular: nodeclaim
   scope: Cluster
   versions:
@@ -79,10 +76,6 @@ spec:
                     items:
                       type: string
                     type: array
-                  containerRuntime:
-                    description: ContainerRuntime is the container runtime to be used
-                      with your worker nodes.
-                    type: string
                   cpuCFSQuota:
                     description: CPUCFSQuota enables CPU CFS quota enforcement for
                       containers that specify CPU limits.

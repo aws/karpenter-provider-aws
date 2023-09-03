@@ -24,9 +24,11 @@ import (
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/client-go/util/workqueue"
+	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -38,30 +40,36 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 )
 
 type Controller struct {
-	kubeClient            client.Client
-	subnetProvider        *subnet.Provider
-	securityGroupProvider *securitygroup.Provider
-	amiProvider           *amifamily.Provider
+	kubeClient              client.Client
+	subnetProvider          *subnet.Provider
+	securityGroupProvider   *securitygroup.Provider
+	amiProvider             *amifamily.Provider
+	instanceProfileProvider *instanceprofile.Provider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider) *Controller {
+func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) *Controller {
 	return &Controller{
-		kubeClient:            kubeClient,
-		subnetProvider:        subnetProvider,
-		securityGroupProvider: securityGroupProvider,
-		amiProvider:           amiProvider,
+		kubeClient:              kubeClient,
+		subnetProvider:          subnetProvider,
+		securityGroupProvider:   securityGroupProvider,
+		amiProvider:             amiProvider,
+		instanceProfileProvider: instanceProfileProvider,
 	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
+	if !nodeClass.IsNodeTemplate {
+		controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
+	}
 	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, nodeclassutil.HashAnnotation(nodeClass))
 	err := multierr.Combine(
 		c.resolveSubnets(ctx, nodeClass),
@@ -78,6 +86,33 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		}
 	}
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
+}
+
+func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+	stored := nodeClass.DeepCopy()
+	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
+		return reconcile.Result{}, nil
+	}
+	ids, err := c.instanceProfileProvider.AssociatedInstances(ctx, nodeClass)
+	if err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
+	}
+	if len(ids) > 0 {
+		if time.Since(nodeClass.DeletionTimestamp.Time) > time.Minute*5 {
+			logging.FromContext(ctx).With("ids", ids).Debugf("waiting to terminate instance profile until all associated instances are terminated")
+		}
+		return reconcile.Result{Requeue: true}, nil
+	}
+	if err = c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
+	}
+	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
+	if !equality.Semantic.DeepEqual(stored, nodeClass) {
+		if err = nodeclassutil.Patch(ctx, c.kubeClient, stored, nodeClass); err != nil {
+			return reconcile.Result{}, client.IgnoreNotFound(fmt.Errorf("removing termination finalizer, %w", err))
+		}
+	}
+	return reconcile.Result{}, nil
 }
 
 func (c *Controller) resolveSubnets(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
@@ -152,15 +187,17 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 	return nil
 }
 
+var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*NodeClassController)(nil)
+
 //nolint:revive
 type NodeClassController struct {
 	*Controller
 }
 
-func NewNodeClassController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider) corecontroller.Controller {
+func NewNodeClassController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
+		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
 	})
 }
 
@@ -187,10 +224,10 @@ type NodeTemplateController struct {
 	*Controller
 }
 
-func NewNodeTemplateController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider) corecontroller.Controller {
+func NewNodeTemplateController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &NodeTemplateController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
+		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
 	})
 }
 

@@ -51,6 +51,10 @@ func init() {
 	)
 }
 
+const (
+	TerminationFinalizer = Group + "/termination"
+)
+
 var (
 	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
 	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
@@ -99,6 +103,8 @@ var (
 	ResourceHabanaGaudi        v1.ResourceName = "habana.ai/gaudi"
 	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
+
+	LabelNodeClass = Group + "/nodeclass"
 
 	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"
