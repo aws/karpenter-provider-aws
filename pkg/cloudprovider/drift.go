@@ -84,9 +84,9 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1
 	if len(amis) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amifamily.MapInstanceTypes(amis, []*cloudprovider.InstanceType{nodeInstanceType})
+	mappedAMIs := amis.MapToInstanceTypes([]*cloudprovider.InstanceType{nodeInstanceType})
 	if len(mappedAMIs) == 0 {
-		return "", fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
+		return "", fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}
 	if !lo.Contains(lo.Keys(mappedAMIs), instance.ImageID) {
 		return AMIDrift, nil

@@ -44,7 +44,6 @@ type Environment struct {
 	PricingAPI *fake.PricingAPI
 
 	// Cache
-	SSMCache                  *cache.Cache
 	EC2Cache                  *cache.Cache
 	KubernetesVersionCache    *cache.Cache
 	InstanceTypeCache         *cache.Cache
@@ -70,7 +69,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ssmapi := &fake.SSMAPI{}
 
 	// cache
-	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	kubernetesVersionCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -84,7 +82,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	pricingProvider := pricing.NewProvider(ctx, fakePricingAPI, ec2api, "")
 	subnetProvider := subnet.NewProvider(ec2api, subnetCache)
 	securityGroupProvider := securitygroup.NewProvider(ec2api, securityGroupCache)
-	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, ssmapi, ec2api, ssmCache, ec2Cache, kubernetesVersionCache)
+	amiProvider := amifamily.NewProvider(env.Client, env.KubernetesInterface, ssmapi, ec2api, ec2Cache, kubernetesVersionCache)
 	amiResolver := amifamily.New(amiProvider)
 	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
@@ -115,7 +113,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		SSMAPI:     ssmapi,
 		PricingAPI: fakePricingAPI,
 
-		SSMCache:                  ssmCache,
 		EC2Cache:                  ec2Cache,
 		KubernetesVersionCache:    kubernetesVersionCache,
 		InstanceTypeCache:         instanceTypeCache,
@@ -141,7 +138,6 @@ func (env *Environment) Reset() {
 	env.PricingAPI.Reset()
 	env.PricingProvider.Reset()
 
-	env.SSMCache.Flush()
 	env.EC2Cache.Flush()
 	env.KubernetesVersionCache.Flush()
 	env.InstanceTypeCache.Flush()
