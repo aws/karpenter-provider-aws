@@ -5,7 +5,7 @@
     "ansi-regex": ">=5.0.1",
     "autoprefixer": "^10.4.15",
     "lunr": "^2.3.9",
-    "postcss": "^8.4.28",
+    "postcss": "^8.4.29",
     "postcss-cli": "^10.1.0"
   }
 }
