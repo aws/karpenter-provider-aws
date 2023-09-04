@@ -84,7 +84,7 @@ jobs:
           role-duration-seconds: 21600
       - name: add jitter on cluster creation
         run: |
-          # Creating jitter so that we can stagger cluster creation to avoid throttling
+          # Creating jitter so that we can stagger cluster creation to avoid throttling 
           sleep $(( $RANDOM % 60 + 1 ))
       - name: generate cluster name
         run: |
@@ -104,7 +104,12 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
       - name: cloudformation describe stack events
         if: ${{ failure() && steps.create-eks-cluster.outcome != 'success' }}
-        run: aws cloudformation describe-stack-events --stack-name=iam-${{ env.CLUSTER_NAME }}
+        run: |
+          stack_names=$(aws cloudformation describe-stacks --query 'Stacks[?Tags[?Key == `karpenter.sh/discovery` && Value == `${{ env.CLUSTER_NAME }}`]].{StackName: StackName}' --output text)
+          for stack_name in $stack_names; do
+            echo "Stack Events for $stack_name:"
+            aws cloudformation describe-stack-events --stack-name $stack_name
+          done
       - name: install prometheus
         uses: ./.github/actions/e2e/install-prometheus
         with:
