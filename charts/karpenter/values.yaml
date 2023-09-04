@@ -26,7 +26,7 @@ flowSchema:
     # -- Specifies if a the leaderElection flowSchema should be created.
     create: true
     # -- Specifies the precedence of the leaderElection flowSchema.
-    matchingPrecedence: 300
+    matchingPrecedence: 200
   # -- Specifies the flowSchema configuration for all other calls.
   workload:
     # -- Specifies if a the workload flowSchema should be created.

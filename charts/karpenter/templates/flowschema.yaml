@@ -3,7 +3,7 @@
 apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
 kind: FlowSchema
 metadata:
-  name: karpenter-leader-election
+  name: {{ include "karpenter.fullname" . }}-leader-election
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
   {{- with .Values.additionalAnnotations }}
@@ -18,17 +18,6 @@ spec:
     name: leader-election
   rules:
     - resourceRules:
-        - apiGroups:
-            - ""
-          namespaces:
-            - '*'
-          resources:
-            - endpoints
-            - configmaps
-          verbs:
-            - get
-            - create
-            - update
         - apiGroups:
             - coordination.k8s.io
           namespaces:
@@ -50,7 +39,7 @@ spec:
 apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
 kind: FlowSchema
 metadata:
-  name: karpenter-workload
+  name: {{ include "karpenter.fullname" . }}-workload
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
   {{- with .Values.additionalAnnotations }}

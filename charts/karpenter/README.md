@@ -45,9 +45,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | dnsConfig | object | `{}` | Configure DNS Config for the pod |
 | dnsPolicy | string | `"Default"` | Configure the DNS Policy for the pod |
 | extraVolumes | list | `[]` | Additional volumes for the pod. |
-| flowSchema.leaderElection | object | `{"create":true,"matchingPrecedence":300}` | Specifies the flowSchema configuration for leader-election calls. |
+| flowSchema.leaderElection | object | `{"create":true,"matchingPrecedence":200}` | Specifies the flowSchema configuration for leader-election calls. |
 | flowSchema.leaderElection.create | bool | `true` | Specifies if a the leaderElection flowSchema should be created. |
-| flowSchema.leaderElection.matchingPrecedence | int | `300` | Specifies the precedence of the leaderElection flowSchema. |
+| flowSchema.leaderElection.matchingPrecedence | int | `200` | Specifies the precedence of the leaderElection flowSchema. |
 | flowSchema.workload | object | `{"create":true,"matchingPrecedence":1000}` | Specifies the flowSchema configuration for all other calls. |
 | flowSchema.workload.create | bool | `true` | Specifies if a the workload flowSchema should be created. |
 | flowSchema.workload.matchingPrecedence | int | `1000` | Specifies the precedence of the workload flowSchema. |
