@@ -95,7 +95,7 @@ func (o Options) nodeLabelArg() string {
 	keys := lo.Keys(o.Labels)
 	sort.Strings(keys) // ensures this list is deterministic, for easy testing.
 	for _, key := range keys {
-		if v1alpha5.LabelDomainExceptions.Has(key) {
+		if v1alpha5.LabelDomainExceptions.Has(key) || corev1beta1.LabelDomainExceptions.Has(key) {
 			continue
 		}
 		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", key, o.Labels[key]))
