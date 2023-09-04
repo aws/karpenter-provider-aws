@@ -93,11 +93,11 @@ func (a AMIs) String() string {
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
+func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, isMachine bool) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range a {
-			if err := instanceType.Requirements.Compatible(ami.Requirements); err == nil {
+			if err := instanceType.Requirements.Compatible(ami.Requirements, lo.Ternary(isMachine, scheduling.AllowUndefinedWellKnownLabelsV1Alpha5, scheduling.AllowUndefinedWellKnownLabelsV1Beta1)); err == nil {
 				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
 				break
 			}

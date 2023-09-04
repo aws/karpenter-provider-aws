@@ -632,7 +632,7 @@ func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
 		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
 			return false
 		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p)); err != nil {
+		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabelsV1Alpha5); err != nil {
 			return false
 		}
 		return true

@@ -51,37 +51,37 @@ spec:
               Node properties are determined from a combination of provisioner and
               pod scheduling constraints.
             properties:
-              deprovisioning:
+              disruption:
                 default:
+                  consolidateAfter: 15s
                   consolidationPolicy: WhenUnderutilized
-                  consolidationTTL: 15s
-                  expirationTTL: 90d
-                description: Deprovisioning contains the parameters that relate to
-                  Karpenter's deprovisioning logic
+                  expireAfter: 720h
+                description: Disruption contains the parameters that relate to Karpenter's
+                  disruption logic
                 properties:
+                  consolidateAfter:
+                    default: 15s
+                    description: ConsolidateAfter is the duration the controller will
+                      wait before attempting to terminate nodes that are underutilized.
+                      Refer to ConsolidationPolicy for how underutilization is considered.
+                    pattern: ^(([0-9]+(s|m|h))+)|(Never)$
+                    type: string
                   consolidationPolicy:
                     default: WhenUnderutilized
                     description: ConsolidationPolicy describes which nodes Karpenter
-                      can deprovision through its consolidation algorithm. This policy
+                      can disrupt through its consolidation algorithm. This policy
                       defaults to "WhenUnderutilized" if not specified
                     enum:
-                    - Never
                     - WhenEmpty
                     - WhenUnderutilized
                     type: string
-                  consolidationTTL:
-                    default: 15s
-                    description: ConsolidationTTL is the duration the controller will
-                      wait before attempting to terminate nodes that are underutilized.
-                      Refer to ConsolidationPolicy for how underutilization is considered.
-                    type: string
-                  expirationTTL:
-                    default: 90d
-                    description: ExpirationTTL is the duration the controller will
-                      wait before terminating a node, measured from when the node
-                      is created. This is useful to implement features like eventually
-                      consistent node upgrade, memory leak protection, and disruption
-                      testing.
+                  expireAfter:
+                    default: 720h
+                    description: ExpireAfter is the duration the controller will wait
+                      before terminating a node, measured from when the node is created.
+                      This is useful to implement features like eventually consistent
+                      node upgrade, memory leak protection, and disruption testing.
+                    pattern: ^(([0-9]+(s|m|h))+)|(Never)$
                     type: string
                 type: object
               limits:

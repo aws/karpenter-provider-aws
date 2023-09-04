@@ -37,6 +37,7 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -124,7 +125,7 @@ var _ = Describe("InstanceProvider", func() {
 			{CapacityType: v1alpha5.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 			{CapacityType: v1alpha5.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
 		})
-		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(provisioner))
 		Expect(err).ToNot(HaveOccurred())
 
 		// Filter down to a single instance type

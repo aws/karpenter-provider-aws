@@ -581,7 +581,7 @@ Final merged UserData -
 <powershell>
 Write-Host "Running custom user data script"
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/provisioner-name=windows2022,testing.karpenter.sh/test-id=unspecified" --max-pods=110' -DNSClusterIP '10.0.100.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/provisioner-name=windows2022" --max-pods=110' -DNSClusterIP '10.0.100.10'
 </powershell>
 ```
 

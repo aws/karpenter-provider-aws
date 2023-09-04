@@ -39,6 +39,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coreoperator "github.com/aws/karpenter-core/pkg/operator"
 	coretest "github.com/aws/karpenter-core/pkg/test"
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator"
@@ -111,7 +112,7 @@ func main() {
 			},
 		},
 	}
-	instanceTypes, err := cp.GetInstanceTypes(ctx, prov)
+	instanceTypes, err := cp.GetInstanceTypes(ctx, nodepoolutil.New(prov))
 	if err != nil {
 		log.Fatalf("listing instance types, %s", err)
 	}

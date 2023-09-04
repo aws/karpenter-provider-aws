@@ -37,7 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/utils/project"
@@ -92,7 +91,7 @@ func (env *Environment) Stop() {
 
 func NewConfig() *rest.Config {
 	config := controllerruntime.GetConfigOrDie()
-	config.UserAgent = fmt.Sprintf("%s-%s", v1alpha5.TestingGroup, project.Version)
+	config.UserAgent = fmt.Sprintf("testing-%s", project.Version)
 	config.QPS = 1e6
 	config.Burst = 1e6
 	return config

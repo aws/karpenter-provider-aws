@@ -351,7 +351,7 @@ var _ = Describe("Instance Types", func() {
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
-		its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+		its, err := cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(provisioner))
 		Expect(err).To(BeNil())
 		// Order all the instances by their price
 		// We need some way to deterministically order them if their prices match
@@ -409,7 +409,7 @@ var _ = Describe("Instance Types", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 
-		its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+		its, err := cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(provisioner))
 		Expect(err).To(BeNil())
 		// Order all the instances by their price
 		// We need some way to deterministically order them if their prices match
@@ -1177,7 +1177,7 @@ var _ = Describe("Instance Types", func() {
 			})
 
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-			its, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+			its, err := cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(provisioner))
 			Expect(err).To(BeNil())
 
 			instanceTypes := map[string]*corecloudprovider.InstanceType{}
@@ -1423,7 +1423,7 @@ var _ = Describe("Instance Types", func() {
 			}
 
 			awsEnv.InstanceTypeCache.Flush()
-			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, provisioner)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(provisioner))
 			Expect(err).To(BeNil())
 			instanceTypeNames := sets.NewString()
 			for _, it := range instanceTypes {
@@ -1622,7 +1622,7 @@ var _ = Describe("Instance Types", func() {
 // vs the on-demand offering.
 func generateSpotPricing(cp *cloudprovider.CloudProvider, prov *v1alpha5.Provisioner) *ec2.DescribeSpotPriceHistoryOutput {
 	rsp := &ec2.DescribeSpotPriceHistoryOutput{}
-	instanceTypes, err := cp.GetInstanceTypes(ctx, prov)
+	instanceTypes, err := cp.GetInstanceTypes(ctx, nodepoolutil.New(prov))
 	awsEnv.InstanceTypeCache.Flush()
 	Expect(err).To(Succeed())
 	t := fakeClock.Now()
