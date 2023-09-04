@@ -41,6 +41,15 @@ type AWS struct {
 	// SecurityGroups specify the names of the security groups.
 	// +optional
 	SecurityGroupSelector map[string]string `json:"securityGroupSelector,omitempty" hash:"ignore"`
+	// LicenseConfiguration specifies the license configuration specifications to launch instances with
+	// +optional
+	LicenseSelector map[string]string `json:"licenseSelector,omitempty" hash:"ignore"`
+	// HostResourceGroups specific the hostResourceGroupArns to use for ec2 placement
+	// +optional
+	HostResourceGroupSelector map[string]string `json:"hostResourceGroup,omitempty" hash:"ignore"`
+	// PlacementGroup specifies the placement group to use for ec2 placement
+	// +optional
+	PlacementGroupSelector map[string]string `json:"placementGroup,omitempty" hash:"ignore"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`

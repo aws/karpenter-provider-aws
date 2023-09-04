@@ -620,8 +620,6 @@ spec:
   ```
     licenseSelector:
       name: myLicense
-      tags:
-        key: value
   ```
 
 ## spec.hostResourceGroupSelector
