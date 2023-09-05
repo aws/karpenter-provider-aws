@@ -125,9 +125,9 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.NodeClass, nod
 	if len(amis) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := MapInstanceTypes(amis, instanceTypes)
+	mappedAMIs := amis.MapToInstanceTypes(instanceTypes)
 	if len(mappedAMIs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v,", amis)
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
