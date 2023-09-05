@@ -59,7 +59,8 @@ spec:
 
   # Requirements that constrain the parameters of provisioned nodes.
   # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
-  # Operators { In, NotIn } are supported to enable including or excluding values
+  # Operators { In, NotIn, Exists, DoesNotExist, Gt, and Lt } are supported.
+  # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#operators
   requirements:
     - key: "karpenter.k8s.aws/instance-category"
       operator: In
