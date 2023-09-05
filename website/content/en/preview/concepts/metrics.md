@@ -35,6 +35,9 @@ Number of consistency checks that have failed.
 ### `karpenter_deprovisioning_actions_performed`
 Number of deprovisioning actions performed. Labeled by deprovisioner.
 
+### `karpenter_deprovisioning_consolidation_timeouts`
+Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
+
 ### `karpenter_deprovisioning_eligible_machines`
 Number of machines eligible for deprovisioning by Karpenter. Labeled by deprovisioner
 
@@ -43,6 +46,9 @@ Duration of the deprovisioning evaluation process in seconds.
 
 ### `karpenter_deprovisioning_replacement_machine_initialized_seconds`
 Amount of time required for a replacement machine to become initialized.
+
+### `karpenter_deprovisioning_replacement_machine_launch_failure_counter`
+The number of times that Karpenter failed to launch a replacement node for deprovisioning. Labeled by deprovisioner.
 
 ## Interruption Metrics
 
@@ -87,7 +93,10 @@ Number of machines terminated in total by Karpenter. Labeled by reason the machi
 The Provisioner Limits are the limits specified on the provisioner that restrict the quantity of resources provisioned. Labeled by provisioner name and resource type.
 
 ### `karpenter_provisioner_scheduling_duration_seconds`
-Duration of scheduling process in seconds. Broken down by provisioner and error.
+Duration of scheduling process in seconds.
+
+### `karpenter_provisioner_scheduling_simulation_duration_seconds`
+Duration of scheduling simulations used for deprovisioning and provisioning in seconds.
 
 ### `karpenter_provisioner_usage`
 The Provisioner Usage is the amount of resources that have been provisioned by a particular provisioner. Labeled by provisioner name and resource type.
@@ -102,6 +111,9 @@ Node allocatable are the resources allocatable by nodes.
 
 ### `karpenter_nodes_created`
 Number of nodes created in total by Karpenter. Labeled by owning provisioner.
+
+### `karpenter_nodes_leases_deleted`
+Number of deleted leaked leases.
 
 ### `karpenter_nodes_system_overhead`
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.

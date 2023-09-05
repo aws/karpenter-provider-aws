@@ -85,6 +85,21 @@ type NodeClassSpec struct {
 	// InstanceProfile is the AWS identity that instances use.
 	// +optional
 	InstanceProfile *string `json:"-" hash:"ignore"`
+	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
+	// OriginalSubnetSelector is the original subnet selector that was used by the v1alpha5 representation of this API.
+	// DO NOT USE THIS VALUE when performing business logic in code
+	// +optional
+	OriginalSubnetSelector map[string]string `json:"-" hash:"ignore"`
+	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
+	// OriginalSecurityGroupSelector is the original security group selector that was used by the v1alpha5 representation of this API.
+	// DO NOT USE THIS VALUE when performing business logic in code
+	// +optional
+	OriginalSecurityGroupSelector map[string]string `json:"-" hash:"ignore"`
+	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
+	// OriginalAMISelector is the original ami selector that was used by the v1alpha5 representation of this API.
+	// DO NOT USE THIS VALUE when performing business logic in code
+	// +optional
+	OriginalAMISelector map[string]string `json:"-" hash:"ignore"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -128,13 +143,15 @@ type AMISelectorTerm struct {
 	// +optional
 	ID string `json:"id,omitempty"`
 	// Name is the ami name in EC2.
-	// This value is thename field, which is different from the name tag.
+	// This value is the name field, which is different from the name tag.
 	// +optional
 	Name string `json:"name,omitempty"`
 	// Owner is the owner for the ami.
-	// You can specify a combination of AWS account IDs, "self", "amazon",and "aws-marketplace"
+	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
+	// +optional
 	Owner string `json:"owner,omitempty"`
 	// SSM is the ssm alias for an ami.
+	// +optional
 	SSM string `json:"ssm,omitempty"`
 }
 

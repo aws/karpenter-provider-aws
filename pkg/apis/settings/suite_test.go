@@ -47,7 +47,8 @@ var _ = Describe("Validation", func() {
 		Expect(err).ToNot(HaveOccurred())
 		s := settings.FromContext(ctx)
 		Expect(s.AssumeRoleARN).To(Equal(""))
-		Expect(s.AssumeRoleDuration.Duration).To(Equal(time.Duration(15) * time.Minute))
+		Expect(s.AssumeRoleDuration).To(Equal(time.Duration(15) * time.Minute))
+		Expect(s.ClusterCABundle).To(Equal(""))
 		Expect(s.DefaultInstanceProfile).To(Equal(""))
 		Expect(s.EnablePodENI).To(BeFalse())
 		Expect(s.EnableENILimitedPodDensity).To(BeTrue())
@@ -61,6 +62,7 @@ var _ = Describe("Validation", func() {
 			Data: map[string]string{
 				"aws.assumeRoleARN":              "arn:aws:iam::111222333444:role/testrole",
 				"aws.assumeRoleDuration":         "27m",
+				"aws.clusterCABundle":            "ca-bundle",
 				"aws.clusterEndpoint":            "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
 				"aws.clusterName":                "my-cluster",
 				"aws.defaultInstanceProfile":     "karpenter",
@@ -76,7 +78,8 @@ var _ = Describe("Validation", func() {
 		Expect(err).ToNot(HaveOccurred())
 		s := settings.FromContext(ctx)
 		Expect(s.AssumeRoleARN).To(Equal("arn:aws:iam::111222333444:role/testrole"))
-		Expect(s.AssumeRoleDuration.Duration).To(Equal(time.Duration(27) * time.Minute))
+		Expect(s.AssumeRoleDuration).To(Equal(time.Duration(27) * time.Minute))
+		Expect(s.ClusterCABundle).To(Equal("ca-bundle"))
 		Expect(s.DefaultInstanceProfile).To(Equal("karpenter"))
 		Expect(s.EnablePodENI).To(BeTrue())
 		Expect(s.EnableENILimitedPodDensity).To(BeFalse())
@@ -198,6 +201,17 @@ var _ = Describe("Validation", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{
 				"aws.reservedENIs": "-1",
+				"aws.clusterName":  "my-cluster",
+			},
+		}
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
+	})
+	It("should fail validation with assumeDurationRole is less then 15m", func() {
+		cm := &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.assumeRoleDuration": "2m",
+				"aws.clusterName":        "my-cluster",
 			},
 		}
 		_, err := (&settings.Settings{}).Inject(ctx, cm)

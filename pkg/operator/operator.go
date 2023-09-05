@@ -127,7 +127,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		*sess.Config.Region,
 	)
 	amiProvider := amifamily.NewProvider(operator.GetClient(), operator.KubernetesInterface, ssm.New(sess), ec2api,
-		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
@@ -136,7 +136,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
-		lo.Must(getCABundle(operator.GetConfig())),
+		lo.Must(getCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
 		clusterEndpoint,
@@ -207,11 +207,14 @@ func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string
 	return *out.Cluster.Endpoint, nil
 }
 
-func getCABundle(restConfig *rest.Config) (*string, error) {
+func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
 	// within the same cluster it's managing.
+	if caBundle := settings.FromContext(ctx).ClusterCABundle; caBundle != "" {
+		return lo.ToPtr(caBundle), nil
+	}
 	transportConfig, err := restConfig.TransportConfig()
 	if err != nil {
 		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
@@ -239,6 +242,6 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 }
 
 func setDurationAndExpiry(ctx context.Context, provider *stscreds.AssumeRoleProvider) {
-	provider.Duration = settings.FromContext(ctx).AssumeRoleDuration.Duration
+	provider.Duration = settings.FromContext(ctx).AssumeRoleDuration
 	provider.ExpiryWindow = time.Duration(10) * time.Second
 }

@@ -155,6 +155,14 @@ var _ = Describe("Webhooks", func() {
 					},
 				}))).ToNot(Succeed())
 			})
+			It("should allow a restricted label exception to be used in labels (node-restriction.kubernetes.io/custom-label)", func() {
+				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
+					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
+					Labels: map[string]string{
+						v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+					},
+				}))).To(Succeed())
+			})
 			It("should error when a requirement references a restricted label (karpenter.sh/provisioner-name)", func() {
 				Expect(env.Client.Create(env, test.Provisioner(test.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: "test"},
@@ -271,24 +279,6 @@ var _ = Describe("Webhooks", func() {
 					UserData: ptr.String("data"),
 				}))).ToNot(Succeed())
 			})
-			It("should fail if both userdata and Windows2019 AMIFamily are set", func() {
-				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-					AMIFamily:             &v1alpha1.AMIFamilyWindows2019,
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				},
-					UserData: ptr.String("data"),
-				}))).ToNot(Succeed())
-			})
-			It("should fail if both userdata and Windows2022 AMIFamily are set", func() {
-				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-					AMIFamily:             &v1alpha1.AMIFamilyWindows2022,
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				},
-					UserData: ptr.String("data"),
-				}))).ToNot(Succeed())
-			})
 			It("should fail if both amiSelector and launchTemplate are set", func() {
 				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 					LaunchTemplate:        v1alpha1.LaunchTemplate{LaunchTemplateName: ptr.String("lt")},
@@ -334,6 +324,84 @@ var _ = Describe("Webhooks", func() {
 					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
 					Tags:                  map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(env.Context).ClusterName): "owned"},
 				},
+				}))).ToNot(Succeed())
+			})
+			It("should fail when securityGroupSelector has id and other filters", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					AWS: v1alpha1.AWS{
+						SecurityGroupSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+							"aws-ids":                "sg-12345",
+						},
+						SubnetSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+						},
+					},
+				}))).ToNot(Succeed())
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					AWS: v1alpha1.AWS{
+						SecurityGroupSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+							"aws-ids":                "sg-12345",
+						},
+						SubnetSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+						},
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should fail when subnetSelector has id and other filters", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					AWS: v1alpha1.AWS{
+						SecurityGroupSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+						},
+						SubnetSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+							"aws-ids":                "subnet-12345",
+						},
+					},
+				}))).ToNot(Succeed())
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					AWS: v1alpha1.AWS{
+						SecurityGroupSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+						},
+						SubnetSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+							"aws-ids":                "subnet-12345",
+						},
+					},
+				}))).ToNot(Succeed())
+			})
+			It("should fail when amiSelector has id and other filters", func() {
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					AWS: v1alpha1.AWS{
+						SecurityGroupSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+						},
+						SubnetSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+						},
+					},
+					AMISelector: map[string]string{
+						"foo":     "bar",
+						"aws-ids": "ami-12345",
+					},
+				}))).ToNot(Succeed())
+				Expect(env.Client.Create(env, awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+					AWS: v1alpha1.AWS{
+						SecurityGroupSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+						},
+						SubnetSelector: map[string]string{
+							"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName,
+						},
+					},
+					AMISelector: map[string]string{
+						"foo":      "bar",
+						"aws::ids": "ami-12345",
+					},
 				}))).ToNot(Succeed())
 			})
 		})

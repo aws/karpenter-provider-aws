@@ -271,7 +271,8 @@ var _ = Describe("Extended Resources", func() {
 })
 
 func ExpectNvidiaDevicePluginCreated() {
-	env.ExpectCreatedWithOffset(1, &appsv1.DaemonSet{
+	GinkgoHelper()
+	env.ExpectCreated(&appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "nvidia-device-plugin-daemonset",
 			Namespace: "kube-system",
@@ -341,7 +342,8 @@ func ExpectNvidiaDevicePluginCreated() {
 }
 
 func ExpectAMDDevicePluginCreated() {
-	env.ExpectCreatedWithOffset(1, &appsv1.DaemonSet{
+	GinkgoHelper()
+	env.ExpectCreated(&appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "amdgpu-device-plugin-daemonset",
 			Namespace: "kube-system",
@@ -414,13 +416,13 @@ func ExpectAMDDevicePluginCreated() {
 }
 
 func ExpectHabanaDevicePluginCreated() {
-	env.ExpectCreatedWithOffset(1, &v1.Namespace{
+	GinkgoHelper()
+	env.ExpectCreated(&v1.Namespace{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "habana-system",
 		},
 	})
-
-	env.ExpectCreatedWithOffset(1, &appsv1.DaemonSet{
+	env.ExpectCreated(&appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "habanalabs-device-plugin-daemonset",
 			Namespace: "habana-system",

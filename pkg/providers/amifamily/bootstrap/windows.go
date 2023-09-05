@@ -19,6 +19,8 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strings"
+
+	"github.com/samber/lo"
 )
 
 type Windows struct {
@@ -29,6 +31,12 @@ type Windows struct {
 func (w Windows) Script() (string, error) {
 	var userData bytes.Buffer
 	userData.WriteString("<powershell>\n")
+
+	customUserData := lo.FromPtr(w.CustomUserData)
+	if customUserData != "" {
+		userData.WriteString(customUserData + "\n")
+	}
+
 	userData.WriteString("[string]$EKSBootstrapScriptFile = \"$env:ProgramFiles\\Amazon\\EKS\\Start-EKSBootstrap.ps1\"\n")
 	userData.WriteString(fmt.Sprintf(`& $EKSBootstrapScriptFile -EKSClusterName '%s' -APIServerEndpoint '%s'`, w.ClusterName, w.ClusterEndpoint))
 	if w.CABundle != nil {

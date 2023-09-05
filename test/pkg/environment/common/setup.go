@@ -102,31 +102,28 @@ func (env *Environment) AfterEach() {
 }
 
 func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
+	time.Sleep(time.Second) // wait one second to let the caches get up-to-date for deletion
 	wg := sync.WaitGroup{}
 	for _, obj := range cleanableObjects {
 		wg.Add(1)
 		go func(obj client.Object) {
 			defer wg.Done()
 			defer GinkgoRecover()
-
-			// This only gets the metadata for the objects since we don't need all the details of the objects
-			metaList := &metav1.PartialObjectMetadataList{}
-			metaList.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
-			Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
-			// Limit the concurrency of these calls to 50 workers per object so that we try to limit how aggressively we
-			// are deleting so that we avoid getting client-side throttled
-			workqueue.ParallelizeUntil(env, 50, len(metaList.Items), func(i int) {
-				defer GinkgoRecover()
-				Eventually(func(g Gomega) {
-					g.Expect(client.IgnoreNotFound(env.Client.Delete(env, &metaList.Items[i], client.PropagationPolicy(metav1.DeletePropagationForeground)))).To(Succeed())
-				}).WithPolling(time.Second).Should(Succeed())
-			})
 			Eventually(func(g Gomega) {
-				metaList = &metav1.PartialObjectMetadataList{}
+				// This only gets the metadata for the objects since we don't need all the details of the objects
+				metaList := &metav1.PartialObjectMetadataList{}
 				metaList.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
 				g.Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}))).To(Succeed())
-				g.Expect(len(metaList.Items)).To(BeZero())
-			}).WithPolling(time.Second * 10).Should(Succeed())
+				// Limit the concurrency of these calls to 50 workers per object so that we try to limit how aggressively we
+				// are deleting so that we avoid getting client-side throttled
+				workqueue.ParallelizeUntil(env, 50, len(metaList.Items), func(i int) {
+					defer GinkgoRecover()
+					g.Expect(client.IgnoreNotFound(env.Client.Delete(env, &metaList.Items[i], client.PropagationPolicy(metav1.DeletePropagationForeground)))).To(Succeed())
+				})
+				// If the deletes eventually succeed, we should have no elements here at the end of the test
+				g.Expect(env.Client.List(env, metaList, client.HasLabels([]string{test.DiscoveryLabel}), client.Limit(1))).To(Succeed())
+				g.Expect(metaList.Items).To(HaveLen(0))
+			}).Should(Succeed())
 		}(obj)
 	}
 	wg.Wait()

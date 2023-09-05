@@ -20,7 +20,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -52,7 +53,7 @@ func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (u Ubuntu) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (u Ubuntu) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
 			ClusterName:             u.Options.ClusterName,
@@ -68,8 +69,8 @@ func (u Ubuntu) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (u Ubuntu) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
-	return []*v1alpha1.BlockDeviceMapping{{
+func (u Ubuntu) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
+	return []*v1beta1.BlockDeviceMapping{{
 		DeviceName: u.EphemeralBlockDevice(),
 		EBS:        &DefaultEBS,
 	}}

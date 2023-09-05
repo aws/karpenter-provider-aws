@@ -34,13 +34,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -49,6 +49,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/test"
+	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -88,7 +89,8 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	fakeClock = &clock.FakeClock{}
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
@@ -114,11 +116,6 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
-	nodeTemplate.SetGroupVersionKind(schema.GroupVersionKind{
-		Group:   v1alpha1.SchemeGroupVersion.Group,
-		Version: v1alpha1.SchemeGroupVersion.Version,
-		Kind:    "AWSNodeTemplate",
-	})
 	provisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
@@ -285,7 +282,7 @@ var _ = Describe("LaunchTemplates", func() {
 					CreationDate: aws.String("2022-08-10T12:00:00Z"),
 				},
 			}})
-			nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+			nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
 			newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 			ExpectApplied(ctx, env.Client, newProvisioner)
@@ -776,7 +773,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetype.NewInstanceType(ctx, info, nodepoolutil.NewKubeletConfiguration(provisioner.Spec.KubeletConfiguration), "", nodeclassutil.New(nodeTemplate), nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -787,7 +784,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
-			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetype.NewInstanceType(ctx, info, nodepoolutil.NewKubeletConfiguration(provisioner.Spec.KubeletConfiguration), "", nodeclassutil.New(nodeTemplate), nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -826,7 +823,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetype.NewInstanceType(ctx, info, nodepoolutil.NewKubeletConfiguration(provisioner.Spec.KubeletConfiguration), "", nodeclassutil.New(nodeTemplate), nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -837,7 +834,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-			it := instancetype.NewInstanceType(ctx, info, provisioner.Spec.KubeletConfiguration, "", nodeTemplate, nil)
+			it := instancetype.NewInstanceType(ctx, info, nodepoolutil.NewKubeletConfiguration(provisioner.Spec.KubeletConfiguration), "", nodeclassutil.New(nodeTemplate), nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1565Mi"))
 		})
@@ -1131,6 +1128,17 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--cpu-cfs-quota=false")
+		})
+		It("should not pass any labels prefixed with the node-restriction.kubernetes.io domain", func() {
+			provisioner.Spec.Labels = lo.Assign(provisioner.Spec.Labels, map[string]string{
+				v1.LabelNamespaceNodeRestriction + "/team":         "team-1",
+				v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+			})
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(v1.LabelNamespaceNodeRestriction)
 		})
 		Context("Bottlerocket", func() {
 			It("should merge in custom user data", func() {
@@ -1448,13 +1456,14 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in AWSNodeTemplate", func() {
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						CreationDate: aws.String("2022-08-15T12:00:00Z")},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
@@ -1469,14 +1478,15 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				nodeTemplate.Spec.UserData = aws.String("special user data")
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						CreationDate: aws.String("2022-08-15T12:00:00Z")},
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					},
 				}})
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
@@ -1526,18 +1536,28 @@ var _ = Describe("LaunchTemplates", func() {
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String(v1.LabelInstanceTypeStable),
+								Value: aws.String("m5.large"),
+							},
+						},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String(v1.LabelInstanceTypeStable),
+								Value: aws.String("m5.xlarge"),
+							},
+						},
 						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
@@ -1574,7 +1594,7 @@ var _ = Describe("LaunchTemplates", func() {
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
 					},
 				}})
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{
 					ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
@@ -1598,7 +1618,7 @@ var _ = Describe("LaunchTemplates", func() {
 
 			It("should fail if no amis match selector.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
@@ -1610,7 +1630,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should fail if no instanceType matches ami requirements.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
-				nodeTemplate.Spec.AMISelector = map[string]string{"karpenter.sh/discovery": "my-cluster"}
+				nodeTemplate.Spec.AMISelector = map[string]string{"*": "*"}
 				ExpectApplied(ctx, env.Client, nodeTemplate)
 				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
 				ExpectApplied(ctx, env.Client, newProvisioner)
@@ -1696,6 +1716,48 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 		})
+		Context("Windows Custom UserData", func() {
+			BeforeEach(func() {
+				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+				}))
+				provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}
+				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2022
+			})
+			It("should merge and bootstrap with custom user data", func() {
+				content, err := os.ReadFile("testdata/windows_userdata_input.golden")
+				Expect(err).To(BeNil())
+				nodeTemplate.Spec.UserData = aws.String(string(content))
+				ExpectApplied(ctx, env.Client, nodeTemplate, provisioner)
+				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelOSStable:     string(v1.Windows),
+						v1.LabelWindowsBuild: "10.0.20348",
+					},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				content, err = os.ReadFile("testdata/windows_userdata_merged.golden")
+				Expect(err).To(BeNil())
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), provisioner.Name))
+			})
+			It("should bootstrap when custom user data is empty", func() {
+				ExpectApplied(ctx, env.Client, nodeTemplate, provisioner)
+				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(provisioner), provisioner)).To(Succeed())
+				pod := coretest.UnschedulablePod(coretest.PodOptions{
+					NodeSelector: map[string]string{
+						v1.LabelOSStable:     string(v1.Windows),
+						v1.LabelWindowsBuild: "10.0.20348",
+					},
+				})
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				content, err := os.ReadFile("testdata/windows_userdata_unmerged.golden")
+				Expect(err).To(BeNil())
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), provisioner.Name))
+			})
+		})
 	})
 	Context("Detailed Monitoring", func() {
 		It("should default detailed monitoring to off", func() {
@@ -1749,6 +1811,17 @@ func ExpectLaunchTemplatesCreatedWithUserDataContaining(substrings ...string) {
 		Expect(err).To(BeNil())
 		for _, substring := range substrings {
 			Expect(string(userData)).To(ContainSubstring(substring))
+		}
+	})
+}
+
+func ExpectLaunchTemplatesCreatedWithUserDataNotContaining(substrings ...string) {
+	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
+		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+		Expect(err).To(BeNil())
+		for _, substring := range substrings {
+			Expect(string(userData)).ToNot(ContainSubstring(substring))
 		}
 	})
 }

@@ -49,9 +49,11 @@ data:
   aws.assumeRoleARN: arn:aws:iam::111222333444:role/examplerole
   # Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRole set.
   aws.assumeRoleDuration: 15m
+  # Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.
+  aws.clusterCABundle: "LS0tLS1..."
   # [REQUIRED] The kubernetes cluster name for resource discovery
   aws.clusterName: karpenter-cluster
-  # [REQUIRED] The external kubernetes cluster endpoint for new nodes to connect with
+  # The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API
   aws.clusterEndpoint: https://00000000000000000000000000000000.gr7.us-west-2.eks.amazonaws.com
   # The default instance profile to use when provisioning nodes
   aws.defaultInstanceProfile: karpenter-instance-profile

@@ -6,7 +6,10 @@ Parameters:
     Description: "Timestream database to forward test metrics to"
   TableName:
     Type: String
-    Description: "Timestream table to forward test metrics to"
+    Description: "Timestream table to forward scale test metrics to "
+  SweeperTableName:
+    Type: String
+    Description: "Timestream table to forward leaked resources to"
   BackupDisasterRecoveryRegion:
     Type: String
     Default: "us-east-1"
@@ -26,11 +29,21 @@ Resources:
       RetentionProperties:
         MemoryStoreRetentionPeriodInHours: "2160" # Three months of memory store retention
         MagneticStoreRetentionPeriodInDays: "1825" # 5 years of magnetic store retention
+  SweeperTimestreamTable:
+    Type: "AWS::Timestream::Table"
+    Properties:
+      DatabaseName: !Ref "TimestreamDatabase"
+      TableName: !Sub "${SweeperTableName}"
+      MagneticStoreWriteProperties:
+        EnableMagneticStoreWrites: true
+      RetentionProperties:
+        MemoryStoreRetentionPeriodInHours: "2160" # Three months of memory store retention
+        MagneticStoreRetentionPeriodInDays: "1825" # 5 years of magnetic store retention
   TimestreamBackupPlan:
     Type: "AWS::Backup::BackupPlan"
     Properties:
       BackupPlan:
-        BackupPlanName: !Sub "timestream-${DatabaseName}-${TableName}-backup"
+        BackupPlanName: !Sub "timestream-${DatabaseName}-backup"
         BackupPlanRule:
           - RuleName: "DailyBackups"
             TargetBackupVault: "Default"
@@ -47,12 +60,16 @@ Resources:
     Type: "AWS::Backup::BackupSelection"
     Properties:
       BackupSelection:
-        SelectionName: !Sub "timestream_${DatabaseName}_${TableName}_selection"
+        SelectionName: !Sub "timestream_${DatabaseName}_selection"
         IamRoleArn: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/service-role/AWSBackupDefaultServiceRole"
         Resources:
           - !GetAtt "TimestreamTable.Arn"
+          - !GetAtt "SweeperTimestreamTable.Arn"
       BackupPlanId: !Ref "TimestreamBackupPlan"
 Outputs:
-  TimestreamTableARN:
-    Description: "Timestream Table ARN"
+  ScaleTimestreamTable:
+    Description: "Scale Test Timestream Table ARN"
     Value: !GetAtt TimestreamTable.Arn
+  SweeperTimestreamTable:
+    Description: "Account Resource Timestream Table ARN"
+    Value: !GetAtt SweeperTimestreamTable.Arn

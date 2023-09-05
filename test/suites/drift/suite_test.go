@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package drift
+package drift_test
 
 import (
 	"fmt"
@@ -27,6 +27,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	awssdk "github.com/aws/aws-sdk-go/aws"
@@ -50,6 +52,9 @@ func TestDrift(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
+	})
+	AfterSuite(func() {
+		env.Stop()
 	})
 	RunSpecs(t, "Drift")
 }
@@ -272,12 +277,12 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				return nodes[i].CreationTimestamp.Before(&nodes[j].CreationTimestamp)
 			})
 			nodeTwo := nodes[1]
+			// Remove the startup taints from the new nodes to initialize them
 			Eventually(func(g Gomega) {
-				n := &v1.Node{}
-				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeTwo), n)).To(Succeed())
-				stored := n.DeepCopy()
-				n.Spec.Taints = []v1.Taint{}
-				g.Expect(env.Client.Patch(env.Context, n, client.MergeFrom(stored))).To(Succeed())
+				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeTwo), nodeTwo)).To(Succeed())
+				stored := nodeTwo.DeepCopy()
+				nodeTwo.Spec.Taints = lo.Reject(nodeTwo.Spec.Taints, func(t v1.Taint, _ int) bool { return t.Key == "example.com/another-taint-2" })
+				g.Expect(env.Client.Patch(env.Context, nodeTwo, client.MergeFrom(stored))).To(Succeed())
 			}).Should(Succeed())
 		}
 
@@ -337,6 +342,131 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		Entry("DetailedMonitoring Drift", "DetailedMonitoring", v1alpha1.AWSNodeTemplateSpec{DetailedMonitoring: awssdk.Bool(true)}),
 		Entry("AMIFamily Drift", "AMIFamily", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{AMIFamily: awssdk.String(v1alpha1.AMIFamilyBottlerocket)}}),
 	)
+	Context("Drift Failure", func() {
+		It("should not continue to drift if a node never registers", func() {
+			// launch a new machine
+			var numPods int32 = 2
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: 2,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "inflate"}},
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"app": "inflate"},
+						}},
+					},
+				},
+			})
+			env.ExpectCreated(dep, nodeTemplate, provisioner)
+
+			startingMachineState := env.EventuallyExpectCreatedMachineCount("==", int(numPods))
+			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
+
+			// Drift the machine with bad configuration
+			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
+				Name: awssdk.String("/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-ebs"),
+			})
+			Expect(err).ToNot(HaveOccurred())
+			nodeTemplate.Spec.AMISelector = map[string]string{"aws::ids": *parameter.Parameter.Value}
+			env.ExpectCreatedOrUpdated(nodeTemplate)
+
+			// Should see the machine has drifted
+			Eventually(func(g Gomega) {
+				for _, machine := range startingMachineState {
+					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+					g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
+				}
+			}).Should(Succeed())
+
+			// Expect nodes To get cordoned
+			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
+
+			// Drift should fail and the original node should be uncordoned
+			// TODO: reduce timeouts when deprovisioning waits are factored out
+			Eventually(func(g Gomega) {
+				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
+				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
+			}).WithTimeout(11 * time.Minute).Should(Succeed())
+
+			Eventually(func(g Gomega) {
+				machines := &v1alpha5.MachineList{}
+				g.Expect(env.Client.List(env, machines, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+				g.Expect(machines.Items).To(HaveLen(int(numPods)))
+			}).WithTimeout(6 * time.Minute).Should(Succeed())
+
+			// Expect all the Machines that existed on the initial provisioning loop are not removed
+			Consistently(func(g Gomega) {
+				machines := &v1alpha5.MachineList{}
+				g.Expect(env.Client.List(env, machines, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+
+				startingMachineUIDs := lo.Map(startingMachineState, func(m *v1alpha5.Machine, _ int) types.UID { return m.UID })
+				machineUIDs := lo.Map(machines.Items, func(m v1alpha5.Machine, _ int) types.UID { return m.UID })
+				g.Expect(sets.New(machineUIDs...).IsSuperset(sets.New(startingMachineUIDs...))).To(BeTrue())
+			}, "2m").Should(Succeed())
+		})
+		It("should not continue to drift if a node registers but never becomes initialized", func() {
+			// launch a new machine
+			var numPods int32 = 2
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: 2,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "inflate"}},
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"app": "inflate"},
+						}},
+					},
+				},
+			})
+			env.ExpectCreated(dep, nodeTemplate, provisioner)
+
+			startingMachineState := env.EventuallyExpectCreatedMachineCount("==", int(numPods))
+			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
+
+			// Drift the machine with bad configuration that never initializes
+			provisioner.Spec.StartupTaints = []v1.Taint{{Key: "example.com/taint", Effect: v1.TaintEffectPreferNoSchedule}}
+			env.ExpectCreatedOrUpdated(provisioner)
+
+			// Should see the machine has drifted
+			Eventually(func(g Gomega) {
+				for _, machine := range startingMachineState {
+					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
+					g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
+				}
+			}).Should(Succeed())
+
+			// Expect nodes To be cordoned
+			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
+
+			// Drift should fail and original node should be uncordoned
+			// TODO: reduce timeouts when deprovisioning waits are factored outr
+			Eventually(func(g Gomega) {
+				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
+				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
+			}).WithTimeout(12 * time.Minute).Should(Succeed())
+
+			// Expect that the new machine/node is kept around after the un-cordon
+			nodeList := &v1.NodeList{}
+			Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+			Expect(nodeList.Items).To(HaveLen(int(numPods) + 1))
+
+			machineList := &v1alpha5.MachineList{}
+			Expect(env.Client.List(env, machineList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+			Expect(machineList.Items).To(HaveLen(int(numPods) + 1))
+
+			// Expect all the Machines that existed on the initial provisioning loop are not removed
+			Consistently(func(g Gomega) {
+				machines := &v1alpha5.MachineList{}
+				g.Expect(env.Client.List(env, machines, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+
+				startingMachineUIDs := lo.Map(startingMachineState, func(m *v1alpha5.Machine, _ int) types.UID { return m.UID })
+				machineUIDs := lo.Map(machines.Items, func(m v1alpha5.Machine, _ int) types.UID { return m.UID })
+				g.Expect(sets.New(machineUIDs...).IsSuperset(sets.New(startingMachineUIDs...))).To(BeTrue())
+			}, "2m").Should(Succeed())
+		})
+	})
 })
 
 func ExpectInstanceProfileCreated(instanceProfileName *string) {

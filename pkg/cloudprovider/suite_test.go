@@ -71,6 +71,7 @@ var fakeClock *clock.FakeClock
 var provisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
 var machine *v1alpha5.Machine
+var recorder events.Recorder
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -85,9 +86,11 @@ var _ = BeforeSuite(func() {
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = clock.NewFakeClock(time.Now())
-	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
+	recorder = events.NewRecorder(&record.FakeRecorder{})
+	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
-	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
+	prov = provisioning.NewProvisioner(env.Client, env.KubernetesInterface.CoreV1(), recorder, cloudProvider, cluster)
 })
 
 var _ = AfterSuite(func() {
@@ -452,7 +455,7 @@ var _ = Describe("CloudProvider", func() {
 				Entry("DetailedMonitoring Drift", v1alpha1.AWSNodeTemplateSpec{DetailedMonitoring: aws.Bool(true)}),
 				Entry("AMIFamily Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
 			)
-			DescribeTable("should not return drifted if dynamic felids are updated",
+			DescribeTable("should not return drifted if dynamic fields are updated",
 				func(awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec) {
 					ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 					isDrifted, err := cloudProvider.IsMachineDrifted(ctx, machine)

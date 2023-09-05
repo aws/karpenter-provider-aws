@@ -58,22 +58,114 @@ var _ = Describe("Validation", func() {
 		}
 	})
 
+	Context("SubnetSelector", func() {
+		It("should succeed with a valid subnet selector", func() {
+			ant.Spec.SubnetSelector = map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should succeed with a valid id subnet selector", func() {
+			ant.Spec.SubnetSelector = map[string]string{
+				"aws-ids": "subnet-123,subnet-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+
+			ant.Spec.SubnetSelector = map[string]string{
+				"aws::ids": "subnet-123,subnet-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should fail when a id subnet selector is used in combination with tags", func() {
+			ant.Spec.SubnetSelector = map[string]string{
+				"aws-ids": "subnet-123",
+				"foo":     "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+
+			ant.Spec.SubnetSelector = map[string]string{
+				"aws::ids": "subnet-123",
+				"foo":      "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+		})
+	})
+	Context("SecurityGroupSelector", func() {
+		It("should succeed with a valid security group selector", func() {
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should succeed with a valid id security group selector", func() {
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"aws-ids": "sg-123,sg-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"aws::ids": "sg-123,sg-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should fail when a id security group selector is used in combination with tags", func() {
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"aws-ids": "sg-123",
+				"foo":     "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+
+			ant.Spec.SecurityGroupSelector = map[string]string{
+				"aws::ids": "sg-123",
+				"foo":      "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+		})
+	})
+	Context("AMISelector", func() {
+		It("should succeed with a valid ami selector", func() {
+			ant.Spec.AMISelector = map[string]string{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": "value3",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should succeed with a valid id ami selector", func() {
+			ant.Spec.AMISelector = map[string]string{
+				"aws-ids": "ami-123,ami-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+
+			ant.Spec.AMISelector = map[string]string{
+				"aws::ids": "ami-123,ami-456",
+			}
+			Expect(ant.Validate(ctx)).To(Succeed())
+		})
+		It("should fail when a id ami selector is used in combination with tags", func() {
+			ant.Spec.AMISelector = map[string]string{
+				"aws-ids": "ami-123",
+				"foo":     "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+
+			ant.Spec.AMISelector = map[string]string{
+				"aws::ids": "ami-123",
+				"foo":      "bar",
+			}
+			Expect(ant.Validate(ctx)).ToNot(Succeed())
+		})
+	})
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
 			Expect(ant.Validate(ctx)).To(Succeed())
 		})
 		It("should fail if launch template is also specified", func() {
 			ant.Spec.LaunchTemplateName = ptr.String("someLaunchTemplate")
-			ant.Spec.UserData = ptr.String("someUserData")
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should fail if Windows2019 AMIFamily is specified", func() {
-			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2019
-			ant.Spec.UserData = ptr.String("someUserData")
-			Expect(ant.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should fail if Windows2022 AMIFamily is specified", func() {
-			ant.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2022
 			ant.Spec.UserData = ptr.String("someUserData")
 			Expect(ant.Validate(ctx)).To(Not(Succeed()))
 		})
@@ -123,6 +215,8 @@ var _ = Describe("Validation", func() {
 	var _ = Describe("AWSNodeTemplate Hash", func() {
 		var awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec
 		var awsnodetemplate *v1alpha1.AWSNodeTemplate
+		const awsnodetemplateStaticHash = "8218109239399812816"
+
 		BeforeEach(func() {
 			awsnodetemplatespec = v1alpha1.AWSNodeTemplateSpec{
 				AWS: v1alpha1.AWS{
@@ -152,6 +246,33 @@ var _ = Describe("Validation", func() {
 			}
 			awsnodetemplate = test.AWSNodeTemplate(awsnodetemplatespec)
 		})
+		DescribeTable(
+			"should match static hash",
+			func(hash string, specs ...v1alpha1.AWSNodeTemplateSpec) {
+				specs = append([]v1alpha1.AWSNodeTemplateSpec{awsnodetemplatespec}, specs...)
+				nodeTemplate := test.AWSNodeTemplate(specs...)
+				Expect(nodeTemplate.Hash()).To(Equal(hash))
+			},
+			Entry("Base AWSNodeTemplate", awsnodetemplateStaticHash),
+
+			// Static fields, expect changed hash from base
+			Entry("InstanceProfile Drift", "7151640568926200147", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{InstanceProfile: aws.String("profile-2")}}),
+			Entry("UserData Drift", "7125936663475632400", v1alpha1.AWSNodeTemplateSpec{UserData: aws.String("userdata-test-2")}),
+			Entry("Tags Drift", "7008297732848636107", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+			Entry("MetadataOptions Drift", "3771503890852427396", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{MetadataOptions: &v1alpha1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}}),
+			Entry("BlockDeviceMappings Drift", "13540813918064174930", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}}),
+			Entry("Context Drift", "14848954101731282288", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Context: aws.String("context-2")}}),
+			Entry("DetailedMonitoring Drift", "1327478230553204075", v1alpha1.AWSNodeTemplateSpec{DetailedMonitoring: aws.Bool(true)}),
+			Entry("AMIFamily Drift", "11757951095500780022", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
+			Entry("Reorder Tags", "8218109239399812816", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{Tags: map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}}}),
+			Entry("Reorder BlockDeviceMapping", "8218109239399812816", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}}}),
+
+			// Behavior / Dynamic fields, expect same hash as base
+			Entry("Modified AMISelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AMISelector: map[string]string{"subnet-test-key": "subnet-test-value"}}),
+			Entry("Modified SubnetSelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SecurityGroupSelector: map[string]string{"subnet-test-key": "subnet-test-value"}}}),
+			Entry("Modified SecurityGroupSelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SecurityGroupSelector: map[string]string{"subnet-test-key": "subnet-test-value"}}}),
+			Entry("Modified LaunchTemplateName", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{LaunchTemplateName: aws.String("foobar")}}}),
+		)
 		DescribeTable("should change hash when static fields are updated", func(awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec) {
 			expectedHash := awsnodetemplate.Hash()
 			updatedAWSNodeTemplate := test.AWSNodeTemplate(*awsnodetemplatespec.DeepCopy(), awsnodetemplatespec)
