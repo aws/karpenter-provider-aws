@@ -78,7 +78,7 @@ jobs:
         # Revert back to local action if either occurs:
         # 1) Get a Dockerfile that reduces the number of local steps that we run 
         # 2) Github fixes the issue that is causing this failure
-        uses: aws/karpenter/.github/actions/e2e/create-cluster@v0.27.1
+        uses: aws/karpenter/.github/actions/e2e/create-cluster@v0.29.1
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
