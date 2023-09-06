@@ -44,6 +44,7 @@ const (
 	karpenterLaunchTemplateTag  = "karpenter.k8s.aws/cluster"
 	karpenterSecurityGroupTag   = "karpenter.sh/discovery"
 	karpenterTestingTag         = "testing.karpenter.sh/cluster"
+	k8sClusterTag               = "cluster.k8s.amazonaws.com/name"
 	githubRunURLTag             = "github.com/run-url"
 )
 
@@ -74,6 +75,7 @@ func main() {
 	metricsClient := MetricsClient(&timestream{timestreamClient: timestreamwrite.NewFromConfig(cfg, WithRegion(karpenterMetricRegion))})
 
 	resources := []CleanableResourceType{
+		&eni{ec2Client: ec2Client},
 		&instance{ec2Client: ec2Client},
 		&securitygroup{ec2Client: ec2Client},
 		&stack{cloudFormationClient: cloudFormationClient},
@@ -438,6 +440,71 @@ func (ip *instanceProfile) Cleanup(ctx context.Context, names []string) ([]strin
 			errs = multierr.Append(errs, err)
 		}
 	}
+	return deleted, errs
+}
+
+type eni struct {
+	ec2Client *ec2.Client
+}
+
+func (e *eni) Type() string {
+	return "ElasticNetworkInterface"
+}
+
+func (e *eni) Get(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+	var nextToken *string
+	for {
+		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   lo.ToPtr("tag-key"),
+					Values: []string{k8sClusterTag},
+				},
+			},
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return ids, err
+		}
+
+		for _, ni := range out.NetworkInterfaces {
+			creationDate, found := lo.Find(ni.TagSet, func(tag ec2types.Tag) bool {
+				return *tag.Key == "node.k8s.amazonaws.com/createdAt"
+			})
+			if !found {
+				continue
+			}
+			time, err := time.Parse(time.RFC3339, *creationDate.Value)
+			if err != nil {
+				continue
+			}
+			if ni.Status == ec2types.NetworkInterfaceStatusAvailable && time.Before(expirationTime) {
+				ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
+			}
+		}
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return ids, err
+}
+
+func (e *eni) Cleanup(ctx context.Context, ids []string) ([]string, error) {
+	deleted := []string{}
+	var errs error
+	for i := range ids {
+		_, err := e.ec2Client.DeleteNetworkInterface(ctx, &ec2.DeleteNetworkInterfaceInput{
+			NetworkInterfaceId: aws.String(ids[i]),
+		})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		deleted = append(deleted, ids[i])
+	}
+
 	return deleted, errs
 }
 

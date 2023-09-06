@@ -42,6 +42,22 @@ runs:
               break
           fi
         done
+    - name: delete-cluster
+      shell: bash
+      run: |
+        eksctl delete cluster --name ${{ inputs.cluster_name }} --timeout 60m --wait || true
+    - name: delete-network-interfaces
+      shell: bash
+      run: |
+        aws ec2 describe-network-interfaces \
+          --filter Name=tag:cluster.k8s.amazonaws.com/name,Values=${{ inputs.cluster_name }} \
+          --query "NetworkInterfaces[*].NetworkInterfaceId" \
+          --output text |
+        xargs \
+          -n 1 \
+          -r \
+          aws ec2 delete-network-interface \
+            --network-interface-id
     - name: delete-security-group
       shell: bash
       # For drift testing, we create a security group and need to clean it up here 
@@ -56,10 +72,6 @@ runs:
           -r \
           aws ec2 delete-security-group \
             --group-id
-    - name: delete-cluster
-      shell: bash
-      run: |
-        eksctl delete cluster --name ${{ inputs.cluster_name }} --timeout 60m --wait || true
     - name: delete-iam-policies-stack
       shell: bash
       run: |
