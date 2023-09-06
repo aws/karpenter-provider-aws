@@ -406,7 +406,9 @@ spec:
     karpenter.sh/discovery: my-cluster
   userData:  |
     [settings.kubernetes]
-    kube-api-qps = 30
+    "kube-api-qps" = 30
+    "shutdown-grace-period" = "30s"
+    "shutdown-grace-period-for-critical-pods" = "30s"
     [settings.kubernetes.eviction-hard]
     "memory.available" = "20%"
   amiSelector:
