@@ -166,7 +166,8 @@ var _ = Describe("NetworkInterfaces", func() {
 func ExpectAssociatePublicIPAddressToBe(enabled bool, subnetIDs ...string) func() {
 	var subnetIDsToModify []string
 	// check if the subnet matches the desired "enabled" state
-	for _, subnetID := range subnetIDs {
+	for _, id := range subnetIDs {
+		subnetID := id
 		subnetsOut, err := env.EC2API.DescribeSubnets(&ec2.DescribeSubnetsInput{
 			SubnetIds: []*string{&subnetID},
 		})
