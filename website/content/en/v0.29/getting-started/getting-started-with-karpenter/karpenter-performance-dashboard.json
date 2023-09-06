@@ -517,6 +517,24 @@
             {
                 "current": {
                     "selected": false,
+                    "text": "Prometheus",
+                    "value": "Prometheus"
+                },
+                "hide": 0,
+                "includeAll": false,
+                "label": "Data Source",
+                "multi": false,
+                "name": "datasource",
+                "options": [],
+                "query": "prometheus",
+                "refresh": 1,
+                "regex": "",
+                "skipUrlSync": false,
+                "type": "datasource"
+            },
+            {
+                "current": {
+                    "selected": false,
                     "text": "provisioning",
                     "value": "provisioning"
                 },
@@ -539,24 +557,6 @@
                 "skipUrlSync": false,
                 "sort": 0,
                 "type": "query"
-            },
-            {
-                "current": {
-                    "selected": false,
-                    "text": "Prometheus",
-                    "value": "Prometheus"
-                },
-                "hide": 2,
-                "includeAll": false,
-                "label": "Data Source",
-                "multi": false,
-                "name": "datasource",
-                "options": [],
-                "query": "prometheus",
-                "refresh": 1,
-                "regex": "",
-                "skipUrlSync": false,
-                "type": "datasource"
             }
         ]
     },

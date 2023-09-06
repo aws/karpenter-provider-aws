@@ -332,6 +332,20 @@
   "templating": {
     "list": [
       {
+        "current": {},
+        "hide": 0,
+        "includeAll": false,
+        "label": "Data Source",
+        "multi": false,
+        "name": "datasource",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "datasource"
+      },
+      {
         "allValue": "",
         "current": {},
         "datasource": {
@@ -409,20 +423,6 @@
         "queryValue": "",
         "skipUrlSync": false,
         "type": "custom"
-      },
-      {
-        "current": {},
-        "hide": 2,
-        "includeAll": false,
-        "label": "Data Source",
-        "multi": false,
-        "name": "datasource",
-        "options": [],
-        "query": "prometheus",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "type": "datasource"
       }
     ]
   },
