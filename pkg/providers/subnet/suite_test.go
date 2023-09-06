@@ -27,7 +27,6 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/test"
 
@@ -71,7 +70,7 @@ var _ = BeforeEach(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	nodeClass = test.NodeClass(v1beta1.NodeClass{
 		Spec: v1beta1.NodeClassSpec{
-			AMIFamily: aws.String(v1alpha1.AMIFamilyAL2),
+			AMIFamily: aws.String(v1beta1.AMIFamilyAL2),
 			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{
