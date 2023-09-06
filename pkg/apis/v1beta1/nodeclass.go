@@ -71,6 +71,9 @@ type NodeClassSpec struct {
 	// required.
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// NetworkInterfaces to be applied to provisioned nodes.
+	// +optional
+	NetworkInterfaces []*NetworkInterface `json:"networkInterfaces,omitempty"`
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
@@ -263,6 +266,18 @@ type BlockDevice struct {
 	// in the Amazon Elastic Compute Cloud User Guide.
 	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
+}
+
+type NetworkInterface struct {
+
+	// Associates a public IPv4 address with eth0 for a new network interface.
+	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
+
+	// A description for the network interface.
+	Description *string `json:"description,omitempty"`
+
+	// The device index for the network interface attachment.
+	DeviceIndex *int64 `json:"deviceIndex,omitempty"`
 }
 
 // NodeClass is the Schema for the NodeClass API

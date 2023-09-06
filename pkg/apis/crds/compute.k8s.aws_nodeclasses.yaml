@@ -199,6 +199,23 @@ spec:
                       credentials are not available."
                     type: string
                 type: object
+              networkInterfaces:
+                description: NetworkInterfaces to be applied to provisioned nodes.
+                items:
+                  properties:
+                    associatePublicIPAddress:
+                      description: Associates a public IPv4 address with eth0 for
+                        a new network interface.
+                      type: boolean
+                    description:
+                      description: A description for the network interface.
+                      type: string
+                    deviceIndex:
+                      description: The device index for the network interface attachment.
+                      format: int64
+                      type: integer
+                  type: object
+                type: array
               role:
                 description: Role is the AWS identity that nodes use.
                 type: string
