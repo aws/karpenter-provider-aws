@@ -36,6 +36,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
@@ -169,7 +170,7 @@ func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.NodeCl
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion)
+	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion, nodeClass.IsNodeTemplate)
 	for _, ami := range defaultAMIs {
 		if id, err := p.resolveSSMParameter(ctx, ami.Query); err != nil {
 			logging.FromContext(ctx).With("query", ami.Query).Errorf("discovering amis from ssm, %s", err)
@@ -303,7 +304,7 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
 	requirements := scheduling.NewRequirements()
 	for _, tag := range ec2Image.Tags {
-		if v1alpha5.WellKnownLabels.Has(*tag.Key) {
+		if v1alpha5.WellKnownLabels.Has(*tag.Key) || corev1beta1.WellKnownLabels.Has(*tag.Key) {
 			requirements.Add(scheduling.NewRequirement(*tag.Key, v1.NodeSelectorOpIn, *tag.Value))
 		}
 	}
