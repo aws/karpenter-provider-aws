@@ -134,6 +134,12 @@ var _ = Describe("Extended Resources", func() {
 					Key:      v1alpha1.LabelInstanceCategory,
 					Operator: v1.NodeSelectorOpExists,
 				},
+				// TODO: Remove this once m7a instances are supported by the vpc resource controller
+				{
+					Key:      v1alpha1.LabelInstanceFamily,
+					Operator: v1.NodeSelectorOpNotIn,
+					Values:   []string{"m7a"},
+				},
 			},
 		})
 		numPods := 1
