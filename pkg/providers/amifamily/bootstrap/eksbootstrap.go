@@ -123,7 +123,8 @@ func (e EKS) isIPv6() bool {
 // mimeify returns userData in a mime format
 // if the userData passed in is already in a mime format, then the input is returned without modification
 func (e EKS) mimeify(customUserData string) (string, error) {
-	if strings.HasPrefix(strings.TrimSpace(customUserData), "MIME-Version:") {
+	if strings.HasPrefix(strings.TrimSpace(customUserData), "MIME-Version:") ||
+		strings.HasPrefix(strings.TrimSpace(customUserData), "Content-Type:") {
 		return customUserData, nil
 	}
 	var outputBuffer bytes.Buffer

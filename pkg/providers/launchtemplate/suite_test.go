@@ -1418,6 +1418,25 @@ var _ = Describe("LaunchTemplates", func() {
 				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
+			It("should merge in custom user data when Content-Type is before MIME-Version", func() {
+				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+					EnableENILimitedPodDensity: lo.ToPtr(false),
+				}))
+
+				content, err := os.ReadFile("testdata/al2_userdata_content_type_first_input.golden")
+				Expect(err).To(BeNil())
+				nodeTemplate.Spec.UserData = aws.String(string(content))
+				ExpectApplied(ctx, env.Client, nodeTemplate)
+				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name}})
+				ExpectApplied(ctx, env.Client, newProvisioner)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
+				Expect(err).To(BeNil())
+				expectedUserData := fmt.Sprintf(string(content), newProvisioner.Name)
+				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+			})
 			It("should merge in custom user data not in multi-part mime format", func() {
 				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 					EnableENILimitedPodDensity: lo.ToPtr(false),
