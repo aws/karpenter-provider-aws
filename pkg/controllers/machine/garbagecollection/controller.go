@@ -29,8 +29,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
+	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/machine/link"
@@ -68,22 +70,22 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	managedRetrieved := lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
 		return m.Annotations[v1alpha5.MachineManagedByAnnotationKey] != "" && m.DeletionTimestamp.IsZero()
 	})
-	machineList := &v1alpha5.MachineList{}
-	if err := c.kubeClient.List(ctx, machineList); err != nil {
+	nodeClaimList, err := nodeclaimutil.List(ctx, c.kubeClient)
+	if err != nil {
 		return reconcile.Result{}, err
 	}
 	nodeList := &v1.NodeList{}
 	if err := c.kubeClient.List(ctx, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
-	resolvedMachines := lo.Filter(machineList.Items, func(m v1alpha5.Machine, _ int) bool {
-		return m.Status.ProviderID != "" || m.Annotations[v1alpha5.MachineLinkedAnnotationKey] != ""
+	resolvedNodeClaims := lo.Filter(nodeClaimList.Items, func(n v1beta1.NodeClaim, _ int) bool {
+		return n.Status.ProviderID != "" || n.Annotations[v1alpha5.MachineLinkedAnnotationKey] != ""
 	})
-	resolvedProviderIDs := sets.New[string](lo.Map(resolvedMachines, func(m v1alpha5.Machine, _ int) string {
-		if m.Status.ProviderID != "" {
-			return m.Status.ProviderID
+	resolvedProviderIDs := sets.New[string](lo.Map(resolvedNodeClaims, func(n v1beta1.NodeClaim, _ int) string {
+		if n.Status.ProviderID != "" {
+			return n.Status.ProviderID
 		}
-		return m.Annotations[v1alpha5.MachineLinkedAnnotationKey]
+		return n.Annotations[v1alpha5.MachineLinkedAnnotationKey]
 	})...)
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 100, len(managedRetrieved), func(i int) {
@@ -104,7 +106,7 @@ func (c *Controller) garbageCollect(ctx context.Context, machine *v1alpha5.Machi
 	if err := c.cloudProvider.Delete(ctx, machine); err != nil {
 		return corecloudprovider.IgnoreMachineNotFoundError(err)
 	}
-	logging.FromContext(ctx).Debugf("garbage collected cloudprovider machine")
+	logging.FromContext(ctx).Debugf("garbage collected cloudprovider instance")
 
 	// Go ahead and cleanup the node if we know that it exists to make scheduling go quicker
 	if node, ok := lo.Find(nodeList.Items, func(n v1.Node) bool {

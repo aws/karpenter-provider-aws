@@ -30,7 +30,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -43,12 +42,12 @@ type Windows struct {
 	Build   string
 }
 
-func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
+func (w Windows) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
 			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1alpha1.WindowsCore, version),
 			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
 				scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
 				scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpIn, w.Build),
 			),

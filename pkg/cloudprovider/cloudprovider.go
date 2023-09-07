@@ -61,6 +61,7 @@ import (
 
 func init() {
 	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
+	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
 	coreapis.Settings = append(coreapis.Settings, apis.Settings...)
 }
 
@@ -340,12 +341,15 @@ func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cl
 		machine.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
-	labels[v1alpha5.LabelCapacityType] = i.CapacityType
+	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType
 	if v, ok := i.Tags[v1alpha5.ProvisionerNameLabelKey]; ok {
 		labels[v1alpha5.ProvisionerNameLabelKey] = v
 	}
-	if v, ok := i.Tags[v1alpha5.MachineManagedByAnnotationKey]; ok {
-		annotations[v1alpha5.MachineManagedByAnnotationKey] = v
+	if v, ok := i.Tags[corev1beta1.NodePoolLabelKey]; ok {
+		labels[corev1beta1.NodePoolLabelKey] = v
+	}
+	if v, ok := i.Tags[corev1beta1.ManagedByAnnotationKey]; ok {
+		annotations[corev1beta1.ManagedByAnnotationKey] = v
 	}
 	machine.Labels = labels
 	machine.Annotations = annotations

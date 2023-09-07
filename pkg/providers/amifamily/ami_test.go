@@ -341,7 +341,7 @@ var _ = Describe("AMIProvider", func() {
 			}, filterAndOwnersSets)
 		})
 		It("should sort amis by creationDate", func() {
-			amis := []amifamily.AMI{
+			amis := amifamily.AMIs{
 				{
 					Name:         "test-ami-1",
 					AmiID:        "test-ami-1-id",
@@ -367,9 +367,9 @@ var _ = Describe("AMIProvider", func() {
 					Requirements: scheduling.NewRequirements(),
 				},
 			}
-			amifamily.SortAMIsByCreationDate(amis)
+			amis.Sort()
 			Expect(amis).To(Equal(
-				[]amifamily.AMI{
+				amifamily.AMIs{
 					{
 						Name:         "test-ami-2",
 						AmiID:        "test-ami-2-id",
