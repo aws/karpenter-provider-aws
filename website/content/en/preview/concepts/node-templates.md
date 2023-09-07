@@ -590,7 +590,7 @@ Currently, Karpenter does not specify `-ServiceCIDR` to [EKS Windows AMI Bootstr
 Windows worker nodes will use `172.20.0.0/16` or `10.100.0.0/16` for Kubernetes service IP address ranges based on the IP address of the primary interface.
 The effective ServiceCIDR can be verified at `$env:ProgramData\Amazon\EKS\cni\config\vpc-bridge.conf` on the worker node.
 
-Before [Karpenter ServiceCIDR support](https://github.com/aws/karpenter/issues/4088) is added, if the effective ServiceCIDR is incorrect for your windows worker nodes, you can add below userData as workaround.
+Support for the Windows ServiceCIDR argument can be tracked in a [Karpenter Github Issue](https://github.com/aws/karpenter/issues/4088). Currently, if the effective ServiceCIDR is incorrect for your windows worker nodes, you can add the following userData as workaround.
 
 ```yaml
 spec:
