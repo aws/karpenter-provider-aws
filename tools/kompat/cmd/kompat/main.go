@@ -26,6 +26,8 @@ import (
 	"github.com/olekukonko/tablewriter"
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
+
+	"github.com/aws/karpenter/tools/kompat/pkg/kompat"
 )
 
 const (
@@ -60,14 +62,14 @@ var (
 		Args:    cobra.ArbitraryArgs,
 		Run: func(cmd *cobra.Command, args []string) {
 			if rootOpts.Branch != "" {
-				DefaultGithubBranch = rootOpts.Branch
+				kompat.DefaultGithubBranch = rootOpts.Branch
 			}
-			kompatList, err := Parse(args...)
+			kompatList, err := kompat.Parse(args...)
 			if err != nil {
 				fmt.Printf("Unable to parse kompat file: %v\n", err)
 				os.Exit(1)
 			}
-			opts := Options{
+			opts := kompat.Options{
 				LastN:   rootOpts.LastNVersions,
 				Version: rootOpts.K8sVersion,
 			}
