@@ -92,7 +92,6 @@ jobs:
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_ENV
       - name: create eks cluster '${{ env.CLUSTER_NAME }}'
-        id: create-eks-cluster
         uses: ./.github/actions/e2e/create-cluster
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
@@ -102,14 +101,6 @@ jobs:
           k8s_version: ${{ inputs.k8s_version }}
           ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.git_ref }}
-      - name: cloudformation describe stack events
-        if: ${{ failure() && steps.create-eks-cluster.outcome != 'success' }}
-        run: |
-          stack_names=$(aws cloudformation describe-stacks --query 'Stacks[?Tags[?Key == `karpenter.sh/discovery` && Value == `${{ env.CLUSTER_NAME }}`]].{StackName: StackName}' --output text)
-          for stack_name in $stack_names; do
-            echo "Stack Events for $stack_name:"
-            aws cloudformation describe-stack-events --stack-name $stack_name
-          done
       - name: install prometheus
         uses: ./.github/actions/e2e/install-prometheus
         with:

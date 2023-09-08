@@ -142,3 +142,12 @@ runs:
       --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
       --group system:bootstrappers \
       --group system:nodes
+  - name: cloudformation describe stack events
+    shell: bash
+    if: failure()
+    run: |
+      stack_names=$(aws cloudformation describe-stacks --query 'Stacks[?Tags[?Key == `karpenter.sh/discovery` && Value == `${{ inputs.CLUSTER_NAME }}`]].{StackName: StackName}' --output text)
+      for stack_name in $stack_names; do
+        echo "Stack Events for $stack_name:"
+        aws cloudformation describe-stack-events --stack-name $stack_name
+      done
