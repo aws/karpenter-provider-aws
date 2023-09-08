@@ -3,8 +3,8 @@ module github.com/aws/karpenter/tools/allocatable-diff
 go 1.21
 
 require (
-	github.com/aws/karpenter v0.30.0-rc.0.0.20230829235933-2aed0077ddea
-	github.com/aws/karpenter-core v0.30.0-rc.0.0.20230829200135-ddddec3ca110
+	github.com/aws/karpenter v0.30.1-0.20230908220553-f39c1d0c2d4e
+	github.com/aws/karpenter-core v0.30.1-0.20230908181031-cbc03e98ef14
 	github.com/samber/lo v1.38.1
 	k8s.io/api v0.26.6
 	k8s.io/apimachinery v0.26.6

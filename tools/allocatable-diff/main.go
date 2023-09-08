@@ -35,6 +35,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	coreoperator "github.com/aws/karpenter-core/pkg/operator"
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -89,11 +90,11 @@ func main() {
 			"karpenter.sh/discovery": clusterName,
 		},
 	}))))
-	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, &v1alpha5.Provisioner{
+	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(&v1alpha5.Provisioner{
 		Spec: v1alpha5.ProvisionerSpec{
 			Provider: raw,
 		},
-	}))
+	})))
 
 	// Write the header information into the CSV
 	lo.Must0(w.Write([]string{"Instance Type", "Expected Capacity", "", "", "Expected Allocatable", "", "", "Actual Capacity", "", "", "Actual Allocatable", ""}))
