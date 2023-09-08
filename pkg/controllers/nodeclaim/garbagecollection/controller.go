@@ -35,7 +35,7 @@ import (
 	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/machine/link"
+	"github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
 )
 
 type Controller struct {

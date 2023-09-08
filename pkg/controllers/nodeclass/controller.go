@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodetemplate
+package nodeclass
 
 import (
 	"context"
@@ -139,6 +139,7 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.NodeCla
 	return nil
 }
 
+//nolint:revive
 type NodeClassController struct {
 	*Controller
 }
@@ -169,7 +170,6 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 		}))
 }
 
-//nolint:revive
 type NodeTemplateController struct {
 	*Controller
 }

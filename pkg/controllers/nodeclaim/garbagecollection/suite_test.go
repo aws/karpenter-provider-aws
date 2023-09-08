@@ -45,8 +45,8 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/machine/garbagecollection"
-	"github.com/aws/karpenter/pkg/controllers/machine/link"
+	"github.com/aws/karpenter/pkg/controllers/nodeclaim/garbagecollection"
+	"github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -86,7 +86,7 @@ var _ = BeforeEach(func() {
 	awsEnv.Reset()
 })
 
-var _ = Describe("MachineGarbageCollection", func() {
+var _ = Describe("NodeClaimGarbageCollection", func() {
 	var instance *ec2.Instance
 	var providerID string
 
