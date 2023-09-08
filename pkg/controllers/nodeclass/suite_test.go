@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodetemplate_test
+package nodeclass_test
 
 import (
 	"context"
@@ -45,7 +45,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
+	"github.com/aws/karpenter/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -68,7 +68,7 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	controller = nodetemplate.NewNodeTemplateController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
+	controller = nodeclass.NewNodeTemplateController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
 })
 
 var _ = AfterSuite(func() {

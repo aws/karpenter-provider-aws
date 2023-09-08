@@ -45,7 +45,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/machine/link"
+	"github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
