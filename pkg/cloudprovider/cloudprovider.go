@@ -91,8 +91,7 @@ func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance
 }
 
 // Create a machine given the constraints.
-func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (*v1alpha5.Machine, error) {
-	nodeClaim := nodeclaimutil.New(machine)
+func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*corev1beta1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -114,39 +113,39 @@ func (c *CloudProvider) Create(ctx context.Context, machine *v1alpha5.Machine) (
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == instance.Type
 	})
-	m := c.instanceToMachine(instance, instanceType)
-	m.Annotations = lo.Assign(m.Annotations, nodeclassutil.HashAnnotation(nodeClass))
-	return m, nil
+	nc := c.instanceToNodeClaim(instance, instanceType)
+	nc.Annotations = lo.Assign(nc.Annotations, nodeclassutil.HashAnnotation(nodeClass))
+	return nc, nil
 }
 
 // Link adds a tag to the cloudprovider machine to tell the cloudprovider that it's now owned by a Machine
-func (c *CloudProvider) Link(ctx context.Context, machine *v1alpha5.Machine) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
-	id, err := utils.ParseInstanceID(machine.Status.ProviderID)
+func (c *CloudProvider) Link(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(lo.Ternary(nodeClaim.IsMachine, "machine", "nodeclaim"), nodeClaim.Name))
+	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		return fmt.Errorf("getting instance ID, %w", err)
 	}
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
-	return c.instanceProvider.Link(ctx, id, machine.Labels[v1alpha5.ProvisionerNameLabelKey])
+	return c.instanceProvider.Link(ctx, id, nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey])
 }
 
-func (c *CloudProvider) List(ctx context.Context) ([]*v1alpha5.Machine, error) {
+func (c *CloudProvider) List(ctx context.Context) ([]*corev1beta1.NodeClaim, error) {
 	instances, err := c.instanceProvider.List(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing instances, %w", err)
 	}
-	var machines []*v1alpha5.Machine
+	var nodeClaims []*corev1beta1.NodeClaim
 	for _, instance := range instances {
 		instanceType, err := c.resolveInstanceTypeFromInstance(ctx, instance)
 		if err != nil {
 			return nil, fmt.Errorf("resolving instance type, %w", err)
 		}
-		machines = append(machines, c.instanceToMachine(instance, instanceType))
+		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(instance, instanceType))
 	}
-	return machines, nil
+	return nodeClaims, nil
 }
 
-func (c *CloudProvider) Get(ctx context.Context, providerID string) (*v1alpha5.Machine, error) {
+func (c *CloudProvider) Get(ctx context.Context, providerID string) (*corev1beta1.NodeClaim, error) {
 	id, err := utils.ParseInstanceID(providerID)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance ID, %w", err)
@@ -160,7 +159,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*v1alpha5.M
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance type, %w", err)
 	}
-	return c.instanceToMachine(instance, instanceType), nil
+	return c.instanceToNodeClaim(instance, instanceType), nil
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
@@ -168,11 +167,10 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 }
 
 // GetInstanceTypes returns all available InstanceTypes
-func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alpha5.Provisioner) ([]*cloudprovider.InstanceType, error) {
-	if provisioner == nil {
+func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1beta1.NodePool) ([]*cloudprovider.InstanceType, error) {
+	if nodePool == nil {
 		return c.instanceTypeProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.NodeClass{})
 	}
-	nodePool := nodepoolutil.New(provisioner)
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -188,10 +186,10 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, provisioner *v1alp
 	return instanceTypes, nil
 }
 
-func (c *CloudProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("machine", machine.Name))
+func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(lo.Ternary(nodeClaim.IsMachine, "machine", "nodeclaim"), nodeClaim.Name))
 
-	providerID := lo.Ternary(machine.Status.ProviderID != "", machine.Status.ProviderID, machine.Annotations[v1alpha5.MachineLinkedAnnotationKey])
+	providerID := lo.Ternary(nodeClaim.Status.ProviderID != "", nodeClaim.Status.ProviderID, nodeClaim.Annotations[v1alpha5.MachineLinkedAnnotationKey])
 	id, err := utils.ParseInstanceID(providerID)
 	if err != nil {
 		return fmt.Errorf("getting instance ID, %w", err)
@@ -200,8 +198,7 @@ func (c *CloudProvider) Delete(ctx context.Context, machine *v1alpha5.Machine) e
 	return c.instanceProvider.Delete(ctx, id)
 }
 
-func (c *CloudProvider) IsMachineDrifted(ctx context.Context, machine *v1alpha5.Machine) (cloudprovider.DriftReason, error) {
-	nodeClaim := nodeclaimutil.New(machine)
+func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (cloudprovider.DriftReason, error) {
 	// Not needed when GetInstanceTypes removes nodepool dependency
 	nodePool, err := nodeclaimutil.Owner(ctx, c.kubeClient, nodeClaim)
 	if err != nil {
@@ -291,14 +288,14 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *cor
 	}
 	reqs := scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...)
 	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
-		return reqs.Compatible(i.Requirements) == nil &&
+		return reqs.Compatible(i.Requirements, lo.Ternary(nodeClaim.IsMachine, scheduling.AllowUndefinedWellKnownLabelsV1Alpha5, scheduling.AllowUndefinedWellKnownLabelsV1Beta1)) == nil &&
 			len(i.Offerings.Requirements(reqs).Available()) > 0 &&
 			resources.Fits(nodeClaim.Spec.Resources.Requests, i.Allocatable())
 	}), nil
 }
 
 func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, instance *instance.Instance) (*cloudprovider.InstanceType, error) {
-	provisioner, err := c.resolveProvisionerFromInstance(ctx, instance)
+	provisioner, err := c.resolveNodePoolFromInstance(ctx, instance)
 	if err != nil {
 		// If we can't resolve the provisioner, we fall back to not getting instance type info
 		return nil, client.IgnoreNotFound(fmt.Errorf("resolving provisioner, %w", err))
@@ -314,20 +311,30 @@ func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, ins
 	return instanceType, nil
 }
 
-func (c *CloudProvider) resolveProvisionerFromInstance(ctx context.Context, instance *instance.Instance) (*v1alpha5.Provisioner, error) {
-	provisioner := &v1alpha5.Provisioner{}
-	provisionerName, ok := instance.Tags[v1alpha5.ProvisionerNameLabelKey]
-	if !ok {
-		return nil, errors.NewNotFound(schema.GroupResource{Group: v1alpha5.Group, Resource: "Provisioner"}, "")
+func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instance *instance.Instance) (*corev1beta1.NodePool, error) {
+	provisionerName := instance.Tags[v1alpha5.ProvisionerNameLabelKey]
+	nodePoolName := instance.Tags[corev1beta1.NodePoolLabelKey]
+
+	switch {
+	case nodePoolName != "":
+		nodePool := &corev1beta1.NodePool{}
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool); err != nil {
+			return nil, err
+		}
+		return nodePool, nil
+	case provisionerName != "":
+		provisioner := &v1alpha5.Provisioner{}
+		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
+			return nil, err
+		}
+		return nodepoolutil.New(provisioner), nil
+	default:
+		return nil, errors.NewNotFound(schema.GroupResource{Group: corev1beta1.Group, Resource: "NodePool"}, "")
 	}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
-		return nil, err
-	}
-	return provisioner, nil
 }
 
-func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cloudprovider.InstanceType) *v1alpha5.Machine {
-	machine := &v1alpha5.Machine{}
+func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *cloudprovider.InstanceType) *corev1beta1.NodeClaim {
+	nodeClaim := &corev1beta1.NodeClaim{}
 	labels := map[string]string{}
 	annotations := map[string]string{}
 
@@ -337,27 +344,25 @@ func (c *CloudProvider) instanceToMachine(i *instance.Instance, instanceType *cl
 				labels[key] = req.Values()[0]
 			}
 		}
-		machine.Status.Capacity = functional.FilterMap(instanceType.Capacity, func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
-		machine.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
+		nodeClaim.Status.Capacity = functional.FilterMap(instanceType.Capacity, func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
+		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
 	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType
 	if v, ok := i.Tags[v1alpha5.ProvisionerNameLabelKey]; ok {
 		labels[v1alpha5.ProvisionerNameLabelKey] = v
-	}
-	if v, ok := i.Tags[corev1beta1.NodePoolLabelKey]; ok {
-		labels[corev1beta1.NodePoolLabelKey] = v
+		nodeClaim.IsMachine = true
 	}
 	if v, ok := i.Tags[corev1beta1.ManagedByAnnotationKey]; ok {
 		annotations[corev1beta1.ManagedByAnnotationKey] = v
 	}
-	machine.Labels = labels
-	machine.Annotations = annotations
-	machine.CreationTimestamp = metav1.Time{Time: i.LaunchTime}
+	nodeClaim.Labels = labels
+	nodeClaim.Annotations = annotations
+	nodeClaim.CreationTimestamp = metav1.Time{Time: i.LaunchTime}
 	// Set the deletionTimestamp to be the current time if the instance is currently terminating
 	if i.State == ec2.InstanceStateNameShuttingDown || i.State == ec2.InstanceStateNameTerminated {
-		machine.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		nodeClaim.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 	}
-	machine.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", i.Zone, i.ID)
-	return machine
+	nodeClaim.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", i.Zone, i.ID)
+	return nodeClaim
 }

@@ -23,7 +23,6 @@ import (
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	provisionerutil "github.com/aws/karpenter-core/pkg/utils/provisioner"
 	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
@@ -64,7 +63,7 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodePool *corev1beta1.NodePool,
 	instance *instance.Instance, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
-	instanceTypes, err := c.GetInstanceTypes(ctx, provisionerutil.New(nodePool))
+	instanceTypes, err := c.GetInstanceTypes(ctx, nodePool)
 	if err != nil {
 		return "", fmt.Errorf("getting instanceTypes, %w", err)
 	}
@@ -84,7 +83,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1
 	if len(amis) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amis.MapToInstanceTypes([]*cloudprovider.InstanceType{nodeInstanceType})
+	mappedAMIs := amis.MapToInstanceTypes([]*cloudprovider.InstanceType{nodeInstanceType}, nodeClaim.IsMachine)
 	if len(mappedAMIs) == 0 {
 		return "", fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}

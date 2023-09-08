@@ -105,7 +105,7 @@ var _ = Describe("DaemonSet", func() {
 		// Eventually expect a single node to exist and both the deployment pod and the daemonset pod to schedule to it
 		Eventually(func(g Gomega) {
 			nodeList := &v1.NodeList{}
-			g.Expect(env.Client.List(env, nodeList, client.HasLabels{"testing.karpenter.sh/cluster"})).To(Succeed())
+			g.Expect(env.Client.List(env, nodeList, client.HasLabels{"testing/cluster"})).To(Succeed())
 			g.Expect(nodeList.Items).To(HaveLen(1))
 
 			deploymentPods := env.Monitor.RunningPods(podSelector)
@@ -136,7 +136,7 @@ var _ = Describe("DaemonSet", func() {
 		// Eventually expect a single node to exist and both the deployment pod and the daemonset pod to schedule to it
 		Eventually(func(g Gomega) {
 			nodeList := &v1.NodeList{}
-			g.Expect(env.Client.List(env, nodeList, client.HasLabels{"testing.karpenter.sh/cluster"})).To(Succeed())
+			g.Expect(env.Client.List(env, nodeList, client.HasLabels{"testing/cluster"})).To(Succeed())
 			g.Expect(nodeList.Items).To(HaveLen(1))
 
 			deploymentPods := env.Monitor.RunningPods(podSelector)

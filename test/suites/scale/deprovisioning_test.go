@@ -43,7 +43,7 @@ import (
 )
 
 const (
-	deprovisioningTypeKey = v1alpha5.TestingGroup + "/deprovisioning-type"
+	deprovisioningTypeKey = "testing/deprovisioning-type"
 	consolidationValue    = "consolidation"
 	emptinessValue        = "emptiness"
 	expirationValue       = "expiration"

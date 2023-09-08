@@ -125,7 +125,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.NodeClass, nod
 	if len(amis) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amis.MapToInstanceTypes(instanceTypes)
+	mappedAMIs := amis.MapToInstanceTypes(instanceTypes, nodeClaim.IsMachine)
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}

@@ -92,7 +92,7 @@ var _ = Describe("MachineLink", func() {
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
 		provisioner = test.Provisioner(coretest.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{
-				APIVersion: v1alpha5.TestingGroup + "v1alpha1",
+				APIVersion: "testing/v1alpha1",
 				Kind:       "NodeTemplate",
 				Name:       nodeTemplate.Name,
 			},

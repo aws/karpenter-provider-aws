@@ -118,7 +118,7 @@ func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
 	})
 	if err != nil {
 		if awserrors.IsNotFound(err) {
-			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("linking tags, %w", err))
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("linking tags, %w", err))
 		}
 		return fmt.Errorf("linking tags, %w", err)
 	}
@@ -131,7 +131,7 @@ func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
 		Filters:     []*ec2.Filter{instanceStateFilter},
 	})
 	if awserrors.IsNotFound(err) {
-		return nil, cloudprovider.NewMachineNotFoundError(err)
+		return nil, cloudprovider.NewNodeClaimNotFoundError(err)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to describe ec2 instances, %w", err)
@@ -168,7 +168,7 @@ func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
 		return nil, fmt.Errorf("describing ec2 instances, %w", err)
 	}
 	instances, err := instancesFromOutput(out)
-	return instances, cloudprovider.IgnoreMachineNotFoundError(err)
+	return instances, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 }
 
 func (p *Provider) Delete(ctx context.Context, id string) error {
@@ -176,10 +176,10 @@ func (p *Provider) Delete(ctx context.Context, id string) error {
 		InstanceIds: []*string{aws.String(id)},
 	}); err != nil {
 		if awserrors.IsNotFound(err) {
-			return cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance already terminated"))
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance already terminated"))
 		}
 		if _, e := p.Get(ctx, id); err != nil {
-			if cloudprovider.IsMachineNotFoundError(e) {
+			if cloudprovider.IsNodeClaimNotFoundError(e) {
 				return e
 			}
 			err = multierr.Append(err, e)
@@ -500,13 +500,13 @@ func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType, isMa
 
 func instancesFromOutput(out *ec2.DescribeInstancesOutput) ([]*Instance, error) {
 	if len(out.Reservations) == 0 {
-		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
+		return nil, cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance not found"))
 	}
 	instances := lo.Flatten(lo.Map(out.Reservations, func(r *ec2.Reservation, _ int) []*ec2.Instance {
 		return r.Instances
 	}))
 	if len(instances) == 0 {
-		return nil, cloudprovider.NewMachineNotFoundError(fmt.Errorf("instance not found"))
+		return nil, cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance not found"))
 	}
 	// Get a consistent ordering for instances
 	sort.Slice(instances, func(i, j int) bool {

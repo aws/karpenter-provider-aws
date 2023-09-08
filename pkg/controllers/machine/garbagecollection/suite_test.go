@@ -96,7 +96,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
 		provisioner := test.Provisioner(coretest.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{
-				APIVersion: v1alpha5.TestingGroup + "v1alpha1",
+				APIVersion: "testing/v1alpha1",
 				Kind:       "NodeTemplate",
 				Name:       nodeTemplate.Name,
 			},
@@ -140,7 +140,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
-		Expect(corecloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
+		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 	})
 	It("should delete an instance along with the node if there is no machine owner (to quicken scheduling)", func() {
 		// Launch time was 10m ago
@@ -155,7 +155,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
-		Expect(corecloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
+		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 
 		ExpectNotFound(ctx, env.Client, node)
 	})
@@ -207,7 +207,7 @@ var _ = Describe("MachineGarbageCollection", func() {
 
 				_, err := cloudProvider.Get(ctx, fmt.Sprintf("aws:///test-zone-1a/%s", id))
 				Expect(err).To(HaveOccurred())
-				Expect(corecloudprovider.IsMachineNotFoundError(err)).To(BeTrue())
+				Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 			}(id)
 		}
 		wg.Wait()
