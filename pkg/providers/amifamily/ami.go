@@ -21,9 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -39,6 +36,7 @@ import (
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/providers/version"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
@@ -47,13 +45,11 @@ import (
 )
 
 type Provider struct {
-	cache                  *cache.Cache
-	kubernetesVersionCache *cache.Cache
-	ssm                    ssmiface.SSMAPI
-	kubeClient             client.Client
-	ec2api                 ec2iface.EC2API
-	cm                     *pretty.ChangeMonitor
-	kubernetesInterface    kubernetes.Interface
+	cache           *cache.Cache
+	ssm             ssmiface.SSMAPI
+	ec2api          ec2iface.EC2API
+	cm              *pretty.ChangeMonitor
+	versionProvider *version.Provider
 }
 
 type AMI struct {
@@ -106,37 +102,14 @@ func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, is
 	return amiIDs
 }
 
-const (
-	kubernetesVersionCacheKey = "kubernetesVersion"
-)
-
-func NewProvider(kubeClient client.Client, kubernetesInterface kubernetes.Interface, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API,
-	cache, kubernetesVersionCache *cache.Cache) *Provider {
+func NewProvider(versionProvider *version.Provider, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
-		cache:                  cache,
-		kubernetesVersionCache: kubernetesVersionCache,
-		ssm:                    ssm,
-		kubeClient:             kubeClient,
-		ec2api:                 ec2api,
-		cm:                     pretty.NewChangeMonitor(),
-		kubernetesInterface:    kubernetesInterface,
+		cache:           cache,
+		ssm:             ssm,
+		ec2api:          ec2api,
+		cm:              pretty.NewChangeMonitor(),
+		versionProvider: versionProvider,
 	}
-}
-
-func (p *Provider) KubeServerVersion(ctx context.Context) (string, error) {
-	if version, ok := p.kubernetesVersionCache.Get(kubernetesVersionCacheKey); ok {
-		return version.(string), nil
-	}
-	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
-	if err != nil {
-		return "", err
-	}
-	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
-	p.kubernetesVersionCache.SetDefault(kubernetesVersionCacheKey, version)
-	if p.cm.HasChanged("kubernetes-version", version) {
-		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
-	}
-	return version, nil
 }
 
 // Get Returning a list of AMIs with its associated requirements
@@ -166,7 +139,7 @@ func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.NodeCl
 		return images.(AMIs), nil
 	}
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
-	kubernetesVersion, err := p.KubeServerVersion(ctx)
+	kubernetesVersion, err := p.versionProvider.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}

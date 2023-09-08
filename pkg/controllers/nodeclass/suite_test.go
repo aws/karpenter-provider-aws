@@ -458,7 +458,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			})
 		})
 		It("should resolve amiSelector AMIs and requirements into status", func() {
-			version := lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
+			version := lo.Must(awsEnv.VersionProvider.Get(ctx))
 
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):                                                   "ami-id-123",
@@ -576,7 +576,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			}, nodeTemplate.Status.AMIs)
 		})
 		It("should resolve amiSelector AMis and requirements into status when all SSM aliases don't resolve", func() {
-			version := lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
+			version := lo.Must(awsEnv.VersionProvider.Get(ctx))
 			// This parameter set doesn't include any of the Nvidia AMIs
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version): "ami-id-123",
