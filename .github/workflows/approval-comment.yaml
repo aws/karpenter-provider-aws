@@ -16,6 +16,7 @@ jobs:
         run: |
           mkdir -p /tmp/artifacts
           echo ${{ github.event.review.body }} >> /tmp/artifacts/metadata.txt
+          echo ${{ github.event.pull_request.number }} >> /tmp/artifacts/metadata.txt
           echo ${{ github.event.review.commit_id }} >> /tmp/artifacts/metadata.txt
           cat /tmp/artifacts/metadata.txt
       - uses: ./.github/actions/upload-artifact
