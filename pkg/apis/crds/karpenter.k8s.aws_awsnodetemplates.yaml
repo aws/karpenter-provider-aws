@@ -46,6 +46,9 @@ spec:
                   type: string
                 description: AMISelector discovers AMIs to be used by Amazon EC2 tags.
                 type: object
+                x-kubernetes-validations:
+                - message: Only one of UserData and AMISelector can be provided
+                  rule: '!has(self.AMISelector) || has(self.AMISelector) != has(self.UserData)'
               apiVersion:
                 description: 'APIVersion defines the versioned schema of this representation
                   of an object. Servers should convert recognized schemas to the latest
@@ -215,7 +218,27 @@ spec:
                   will merge certain fields into this UserData to ensure nodes are
                   being provisioned with the correct configuration.
                 type: string
+                x-kubernetes-validations:
+                - message: Only one of UserData and AMISelector can be provided
+                  rule: '!has(self.AMISelector) || has(self.AMISelector) != has(self.UserData)'
             type: object
+            x-kubernetes-validations:
+            - message: If AMIFamily is Custom then AMI Selector must be set
+              rule: '!has(self.AMIFamily) || !self.AMIFamily == "Custom" || has(self.AMISelector)'
+            - message: Only one of AMISelector and LaunchTemplate can be provided
+              rule: '!has(self.AMISelector) || has(self.AMISelector) != has(self.LaunchTemplateName)'
+            - message: AMI ID must be a valid ami-id
+              rule: '!has(self.AMISelector) || !has(self.AMISelector["aws-ids"]) ||
+                self.AMISelector["aws-ids"].matches("^ami-[a-f0-9]{8,17}$")'
+            - message: AMI ID must be a valid ami-id
+              rule: '!has(self.AMISelector) || !has(self.AMISelector["aws::ids"])
+                || self.AMISelector["aws::ids"].matches("^ami-[a-f0-9]{8,17}$")'
+            - message: Tags must not match kubernetes patterns
+              rule: '!has(self.Tags) || !self.Tags.all(e, e.key.matches(''^kubernetes.io/cluster/[0-9A-Za-z][A-Za-z0-9\-_]*$''))'
+            - message: Tags must not match karpenter provisioner label
+              rule: '!has(self.Tags) || !self.Tags.all(e, e.key.matches(^karpenter.k8s.aws/provisioner-name$))'
+            - message: Tags must not match karpenter managed by tag
+              rule: '!has(self.Tags) || !self.Tags.all(e, e.key.matches(^karpenter.k8s.aws/machine-managed-by$))'
           status:
             description: AWSNodeTemplateStatus contains the resolved state of the
               AWSNodeTemplate

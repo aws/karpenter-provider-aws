@@ -78,10 +78,12 @@ type AWSNodeTemplateSpec struct {
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
+	// +kubebuilder:validation:XValidation:message=Only one of UserData and AMISelector can be provided,rule=!has(self.AMISelector) || has(self.AMISelector) != has(self.UserData)
 	UserData *string `json:"userData,omitempty"`
 	AWS      `json:",inline"`
 	// AMISelector discovers AMIs to be used by Amazon EC2 tags.
 	// +optional
+	// +kubebuilder:validation:XValidation:message=Only one of UserData and AMISelector can be provided,rule=!has(self.AMISelector) || has(self.AMISelector) != has(self.UserData)
 	AMISelector map[string]string `json:"amiSelector,omitempty" hash:"ignore"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
@@ -96,6 +98,13 @@ type AWSNodeTemplate struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:XValidation:message=If AMIFamily is Custom then AMI Selector must be set,rule=!has(self.AMIFamily) || !self.AMIFamily == "Custom" || has(self.AMISelector)
+	// +kubebuilder:validation:XValidation:message=Only one of AMISelector and LaunchTemplate can be provided,rule=!has(self.AMISelector) || has(self.AMISelector) != has(self.LaunchTemplateName)
+	// +kubebuilder:validation:XValidation:message=AMI ID must be a valid ami-id,rule=!has(self.AMISelector) || !has(self.AMISelector["aws-ids"]) || self.AMISelector["aws-ids"].matches("^ami-[a-f0-9]{8,17}$")
+	// +kubebuilder:validation:XValidation:message=AMI ID must be a valid ami-id,rule=!has(self.AMISelector) || !has(self.AMISelector["aws::ids"]) || self.AMISelector["aws::ids"].matches("^ami-[a-f0-9]{8,17}$")
+	// +kubebuilder:validation:XValidation:message=Tags must not match kubernetes patterns,rule="!has(self.Tags) || !self.Tags.all(e, e.key.matches('^kubernetes.io/cluster/[0-9A-Za-z][A-Za-z0-9\\-_]*$'))"
+	// +kubebuilder:validation:XValidation:message=Tags must not match karpenter provisioner label,rule="!has(self.Tags) || !self.Tags.all(e, e.key.matches(^karpenter.k8s.aws/provisioner-name$))"
+	// +kubebuilder:validation:XValidation:message=Tags must not match karpenter managed by tag,rule="!has(self.Tags) || !self.Tags.all(e, e.key.matches(^karpenter.k8s.aws/machine-managed-by$))"
 	Spec   AWSNodeTemplateSpec   `json:"spec,omitempty"`
 	Status AWSNodeTemplateStatus `json:"status,omitempty"`
 }
