@@ -41,6 +41,7 @@ var (
 		"VcpuLimitExceeded",
 		"UnfulfillableCapacity",
 		"Unsupported",
+		"InsufficientFreeAddressesInSubnet",
 	)
 )
 
