@@ -135,17 +135,30 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				// Need to enable provisioner-level OS-scoping for now since DS evaluation is done off of the provisioner
 				// requirements, not off of the instance type options so scheduling can fail if provisioners aren't
 				// properly scoped
-				provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
-					Key:      v1.LabelOSStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{string(v1.Windows)},
-				},
+				provisioner.Spec.Requirements = append(
+					provisioner.Spec.Requirements,
+					v1.NodeSelectorRequirement{
+						Key:      v1.LabelOSStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{string(v1.Windows)},
+					},
 					// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
 					v1.NodeSelectorRequirement{
 						Key:      v1alpha1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
 						Values:   []string{"m7a"},
-					})
+					},
+					v1.NodeSelectorRequirement{
+						Key:      v1alpha1.LabelInstanceCategory,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"c", "m", "r"},
+					},
+					v1.NodeSelectorRequirement{
+						Key:      v1alpha1.LabelInstanceGeneration,
+						Operator: v1.NodeSelectorOpGt,
+						Values:   []string{"2"},
+					},
+				)
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
 					NodeSelector: map[string]string{
