@@ -48,21 +48,21 @@ import (
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
 	GinkgoHelper()
-	for _, object := range objects {
+	for _, o := range objects {
 		Eventually(func(g Gomega) {
-			object.SetLabels(lo.Assign(object.GetLabels(), map[string]string{
+			o.SetLabels(lo.Assign(o.GetLabels(), map[string]string{
 				test.DiscoveryLabel: "unspecified",
 			}))
-			g.Expect(env.Client.Create(env, object)).To(Succeed())
+			g.Expect(env.Client.Create(env, o)).To(Succeed())
 		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
 
 func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	GinkgoHelper()
-	for _, object := range objects {
+	for _, o := range objects {
 		Eventually(func(g Gomega) {
-			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}))).To(Succeed())
+			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, o, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}))).To(Succeed())
 		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
@@ -91,7 +91,7 @@ func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
 				Fail(fmt.Sprintf("Getting object %s, %v", client.ObjectKeyFromObject(o), err))
 			}
 		} else {
-			env.ExpectUpdated(objects...)
+			env.ExpectUpdated(o)
 		}
 	}
 }
@@ -207,10 +207,10 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 
 func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration, pods ...*v1.Pod) {
 	GinkgoHelper()
-	for _, pod := range pods {
+	for _, p := range pods {
 		Eventually(func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
-			g.Expect(pod.Status.Conditions).To(ContainElement(And(
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(p), p)).To(Succeed())
+			g.Expect(p.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
 			)))
@@ -254,12 +254,12 @@ func (env *Environment) EventuallyExpectRollout(name, namespace string) {
 			return p.Annotations["kubectl.kubernetes.io/restartedAt"] == restartedAtAnnotation["kubectl.kubernetes.io/restartedAt"]
 		})
 		g.Expect(len(pods)).To(BeNumerically("==", lo.FromPtr(deploy.Spec.Replicas)))
-		for _, pod := range pods {
-			g.Expect(pod.Status.Conditions).To(ContainElement(And(
+		for _, p := range pods {
+			g.Expect(p.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
 			)))
-			g.Expect(pod.Status.Phase).To(Equal(v1.PodRunning))
+			g.Expect(p.Status.Phase).To(Equal(v1.PodRunning))
 		}
 	}).Should(Succeed())
 }
@@ -322,37 +322,30 @@ func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*
 }
 
 func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
+	GinkgoHelper()
 	pods := env.Monitor.RunningPods(selector)
-	nodeNames := sets.NewString()
-	for _, pod := range pods {
-		nodeNames.Insert(pod.Spec.NodeName)
-	}
-	ExpectWithOffset(1, len(nodeNames)).To(BeNumerically("==", uniqueNames))
+	nodeNames := sets.New(lo.Map(pods, func(p *v1.Pod, _ int) string { return p.Spec.NodeName })...)
+	Expect(len(nodeNames)).To(BeNumerically("==", uniqueNames))
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.StartingNodeCount))
 	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.StartingNodeCount, env.Monitor.NodeCount()))
 }
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
-	env.EventuallyExpectNotFoundWithOffset(1, objects...)
-}
-
-func (env *Environment) EventuallyExpectNotFoundWithOffset(offset int, objects ...client.Object) {
-	env.EventuallyExpectNotFoundAssertionWithOffset(offset+1, objects...).Should(Succeed())
+	GinkgoHelper()
+	env.EventuallyExpectNotFoundAssertion(objects...).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Object) AsyncAssertion {
-	return env.EventuallyExpectNotFoundAssertionWithOffset(1, objects...)
-}
-
-func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, objects ...client.Object) AsyncAssertion {
-	return EventuallyWithOffset(offset, func(g Gomega) {
-		for _, object := range objects {
-			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
+	GinkgoHelper()
+	return Eventually(func(g Gomega) {
+		for _, o := range objects {
+			err := env.Client.Get(env, client.ObjectKeyFromObject(o), o)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
 		}
 	})
@@ -514,9 +507,9 @@ func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, c
 
 func (env *Environment) EventuallyExpectMachinesReady(machines ...*v1alpha5.Machine) {
 	Eventually(func(g Gomega) {
-		for _, machine := range machines {
+		for _, m := range machines {
 			temp := &v1alpha5.Machine{}
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).Should(Succeed())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(m), temp)).Should(Succeed())
 			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
 		}
 	}).Should(Succeed())
@@ -548,15 +541,15 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 		lastLogged = metav1.Now()
 	}
 	pods := env.ExpectKarpenterPods()
-	for _, pod := range pods {
+	for _, p := range pods {
 		temp := options.DeepCopy() // local version of the log options
 
-		fmt.Printf("------- pod/%s -------\n", pod.Name)
-		if pod.Status.ContainerStatuses[0].RestartCount > 0 {
+		fmt.Printf("------- pod/%s -------\n", p.Name)
+		if p.Status.ContainerStatuses[0].RestartCount > 0 {
 			fmt.Printf("[PREVIOUS CONTAINER LOGS]\n")
 			temp.Previous = true
 		}
-		stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(pod.Name, temp).Stream(env.Context)
+		stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(p.Name, temp).Stream(env.Context)
 		if err != nil {
 			logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
 			return
