@@ -19,7 +19,7 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -36,19 +36,19 @@ type CloudProvider struct {
 	ValidAMIs     []string
 }
 
-func (c *CloudProvider) Create(_ context.Context, _ *v1alpha5.Machine) (*v1alpha5.Machine, error) {
+func (c *CloudProvider) Create(_ context.Context, _ *v1beta1.NodeClaim) (*v1beta1.NodeClaim, error) {
 	name := test.RandomName()
-	return &v1alpha5.Machine{
+	return &v1beta1.NodeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Status: v1alpha5.MachineStatus{
+		Status: v1beta1.NodeClaimStatus{
 			ProviderID: RandomProviderID(),
 		},
 	}, nil
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provisioner) ([]*corecloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1beta1.NodePool) ([]*corecloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}
@@ -57,8 +57,8 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1alpha5.Provisio
 	}, nil
 }
 
-func (c *CloudProvider) IsMachineDrifted(_ context.Context, machine *v1alpha5.Machine) (corecloudprovider.DriftReason, error) {
-	nodeAMI := machine.Labels[v1alpha1.LabelInstanceAMIID]
+func (c *CloudProvider) IsDrifted(_ context.Context, nodeClaim *v1beta1.NodeClaim) (corecloudprovider.DriftReason, error) {
+	nodeAMI := nodeClaim.Labels[v1alpha1.LabelInstanceAMIID]
 	for _, ami := range c.ValidAMIs {
 		if nodeAMI == ami {
 			return "", nil
@@ -67,15 +67,15 @@ func (c *CloudProvider) IsMachineDrifted(_ context.Context, machine *v1alpha5.Ma
 	return "drifted", nil
 }
 
-func (c *CloudProvider) Get(context.Context, string) (*v1alpha5.Machine, error) {
+func (c *CloudProvider) Get(context.Context, string) (*v1beta1.NodeClaim, error) {
 	return nil, nil
 }
 
-func (c *CloudProvider) List(context.Context) ([]*v1alpha5.Machine, error) {
+func (c *CloudProvider) List(context.Context) ([]*v1beta1.NodeClaim, error) {
 	return nil, nil
 }
 
-func (c *CloudProvider) Delete(context.Context, *v1alpha5.Machine) error {
+func (c *CloudProvider) Delete(context.Context, *v1beta1.NodeClaim) error {
 	return nil
 }
 

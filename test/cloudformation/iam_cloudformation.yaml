@@ -19,6 +19,9 @@ Parameters:
   TableName:
     Type: String
     Description: "Timestream table to forward test metrics to"
+  SweeperTableName:
+    Type: String
+    Description: "Timestream table to forward leaked resources to"
 Resources:
   GithubOIDCProvider:
     Type: AWS::IAM::OIDCProvider
@@ -239,7 +242,9 @@ Resources:
                   Ref: Regions
           - Effect: Allow
             Action: timestream:WriteRecords
-            Resource: !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
+            Resource:
+              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
+              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${SweeperTableName}"
           - Effect: Allow
             Action: timestream:DescribeEndpoints
             Resource: "*"

@@ -324,7 +324,9 @@ func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.Describ
 	}
 	e.CalledWithDescribeImagesInput.Add(input)
 	if !e.DescribeImagesOutput.IsNil() {
-		return e.DescribeImagesOutput.Clone(), nil
+		describeImagesOutput := e.DescribeImagesOutput.Clone()
+		describeImagesOutput.Images = FilterDescribeImages(describeImagesOutput.Images, input.Filters)
+		return describeImagesOutput, nil
 	}
 	if aws.StringValue(input.Filters[0].Values[0]) == "invalid" {
 		return &ec2.DescribeImagesOutput{}, nil
@@ -339,6 +341,15 @@ func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.Describ
 			},
 		},
 	}, nil
+}
+
+func (e *EC2API) DescribeImagesPagesWithContext(ctx context.Context, input *ec2.DescribeImagesInput, fn func(*ec2.DescribeImagesOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeImagesWithContext(ctx, input)
+	if err != nil {
+		return err
+	}
+	fn(out, false)
+	return nil
 }
 
 func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
@@ -469,29 +480,35 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 	}}, nil
 }
 
-func (e *EC2API) DescribeInstanceTypesPagesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, _ ...request.Option) error {
+func (e *EC2API) DescribeInstanceTypesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypesInput, _ ...request.Option) (*ec2.DescribeInstanceTypesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
-		return e.NextError.Get()
+		return nil, e.NextError.Get()
 	}
 	if !e.DescribeInstanceTypesOutput.IsNil() {
-		fn(e.DescribeInstanceTypesOutput.Clone(), false)
-		return nil
+		return e.DescribeInstanceTypesOutput.Clone(), nil
 	}
-	fn(defaultDescribeInstanceTypesOutput, false)
+	return defaultDescribeInstanceTypesOutput, nil
+}
+
+func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeInstanceTypesWithContext(ctx, input)
+	if err != nil {
+		return err
+	}
+	fn(out, false)
 	return nil
 }
 
-func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, _ ...request.Option) error {
+func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *ec2.DescribeInstanceTypeOfferingsInput, _ ...request.Option) (*ec2.DescribeInstanceTypeOfferingsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
-		return e.NextError.Get()
+		return nil, e.NextError.Get()
 	}
 	if !e.DescribeInstanceTypeOfferingsOutput.IsNil() {
-		fn(e.DescribeInstanceTypeOfferingsOutput.Clone(), false)
-		return nil
+		return e.DescribeInstanceTypeOfferingsOutput.Clone(), nil
 	}
-	fn(&ec2.DescribeInstanceTypeOfferingsOutput{
+	return &ec2.DescribeInstanceTypeOfferingsOutput{
 		InstanceTypeOfferings: []*ec2.InstanceTypeOffering{
 			{
 				InstanceType: aws.String("m5.large"),
@@ -586,20 +603,36 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(_ context.Context
 				Location:     aws.String("test-zone-1c"),
 			},
 		},
-	}, false)
+	}, nil
+}
+
+func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeInstanceTypeOfferingsWithContext(ctx, input)
+	if err != nil {
+		return err
+	}
+	fn(out, false)
 	return nil
 }
 
-func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(_ aws.Context, in *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, _ ...request.Option) error {
-	e.DescribeSpotPriceHistoryInput.Set(in)
+func (e *EC2API) DescribeSpotPriceHistoryWithContext(_ aws.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...request.Option) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+	e.DescribeSpotPriceHistoryInput.Set(input)
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
-		return e.NextError.Get()
+		return nil, e.NextError.Get()
 	}
 	if !e.DescribeSpotPriceHistoryOutput.IsNil() {
-		fn(e.DescribeSpotPriceHistoryOutput.Clone(), false)
-		return nil
+		return e.DescribeSpotPriceHistoryOutput.Clone(), nil
 	}
 	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return errors.New("no pricing data provided")
+	return nil, errors.New("no pricing data provided")
+}
+
+func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(ctx aws.Context, input *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeSpotPriceHistoryWithContext(ctx, input)
+	if err != nil {
+		return err
+	}
+	fn(out, false)
+	return nil
 }

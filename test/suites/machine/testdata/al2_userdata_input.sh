@@ -9,6 +9,6 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 /etc/eks/bootstrap.sh '%s' --apiserver-endpoint '%s' --b64-cluster-ca '%s' \
 --use-max-pods false \
 --container-runtime containerd \
---kubelet-extra-args '--node-labels=karpenter.sh/provisioner-name=%s,testing.karpenter.sh/cluster=unspecified'
+--kubelet-extra-args '--node-labels=karpenter.sh/provisioner-name=%s,testing/cluster=unspecified'
 
 --BOUNDARY--

@@ -28,9 +28,9 @@ import (
 	"github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
-	machinegarbagecollection "github.com/aws/karpenter/pkg/controllers/machine/garbagecollection"
-	machinelink "github.com/aws/karpenter/pkg/controllers/machine/link"
-	"github.com/aws/karpenter/pkg/controllers/nodetemplate"
+	nodeclaimgarbagecollection "github.com/aws/karpenter/pkg/controllers/nodeclaim/garbagecollection"
+	nodeclaimlink "github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
+	"github.com/aws/karpenter/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -46,11 +46,11 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 
-	linkController := machinelink.NewController(kubeClient, cloudProvider)
+	linkController := nodeclaimlink.NewController(kubeClient, cloudProvider)
 	controllers := []controller.Controller{
-		nodetemplate.NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
+		nodeclass.NewNodeTemplateController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
 		linkController,
-		machinegarbagecollection.NewController(kubeClient, cloudProvider, linkController),
+		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider, linkController),
 	}
 	if settings.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, interruption.NewSQSProvider(sqs.New(sess)), unavailableOfferings))

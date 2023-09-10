@@ -68,7 +68,7 @@ func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
 // Filters are chained with a logical "AND"
 func FilterDescribeSecurtyGroups(sgs []*ec2.SecurityGroup, filters []*ec2.Filter) []*ec2.SecurityGroup {
 	return lo.Filter(sgs, func(group *ec2.SecurityGroup, _ int) bool {
-		return Filter(filters, *group.GroupId, group.Tags)
+		return Filter(filters, *group.GroupId, *group.GroupName, group.Tags)
 	})
 }
 
@@ -76,16 +76,29 @@ func FilterDescribeSecurtyGroups(sgs []*ec2.SecurityGroup, filters []*ec2.Filter
 // Filters are chained with a logical "AND"
 func FilterDescribeSubnets(subnets []*ec2.Subnet, filters []*ec2.Filter) []*ec2.Subnet {
 	return lo.Filter(subnets, func(subnet *ec2.Subnet, _ int) bool {
-		return Filter(filters, *subnet.SubnetId, subnet.Tags)
+		return Filter(filters, *subnet.SubnetId, "", subnet.Tags)
 	})
 }
 
-func Filter(filters []*ec2.Filter, id string, tags []*ec2.Tag) bool {
+func FilterDescribeImages(images []*ec2.Image, filters []*ec2.Filter) []*ec2.Image {
+	return lo.Filter(images, func(image *ec2.Image, _ int) bool {
+		return Filter(filters, *image.ImageId, *image.Name, image.Tags)
+	})
+}
+
+//nolint:gocyclo
+func Filter(filters []*ec2.Filter, id, name string, tags []*ec2.Tag) bool {
 	return lo.EveryBy(filters, func(filter *ec2.Filter) bool {
 		switch filterName := aws.StringValue(filter.Name); {
-		case filterName == "subnet-id" || filterName == "group-id":
+		case filterName == "subnet-id" || filterName == "group-id" || filterName == "image-id":
 			for _, val := range filter.Values {
 				if id == aws.StringValue(val) {
+					return true
+				}
+			}
+		case filterName == "group-name" || filterName == "name":
+			for _, val := range filter.Values {
+				if name == aws.StringValue(val) {
 					return true
 				}
 			}
@@ -94,7 +107,7 @@ func Filter(filters []*ec2.Filter, id string, tags []*ec2.Tag) bool {
 				return true
 			}
 		default:
-			panic("Unsupported mock filter")
+			panic(fmt.Sprintf("Unsupported mock filter %q", filter))
 		}
 		return false
 	})

@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package consolidation
+package consolidation_test
 
 import (
 	"fmt"
@@ -46,6 +46,9 @@ func TestConsolidation(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = environmentaws.NewEnvironment(t)
+	})
+	AfterSuite(func() {
+		env.Stop()
 	})
 	RunSpecs(t, "Consolidation")
 }

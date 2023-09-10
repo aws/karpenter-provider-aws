@@ -17,7 +17,9 @@ package amifamily
 import (
 	"fmt"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -28,7 +30,6 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -41,12 +42,12 @@ type Windows struct {
 	Build   string
 }
 
-func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
+func (w Windows) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
 			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1alpha1.WindowsCore, version),
 			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
 				scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
 				scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpIn, w.Build),
 			),
@@ -55,7 +56,7 @@ func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:     w.Options.ClusterName,
@@ -70,10 +71,10 @@ func (w Windows) UserData(kubeletConfig *v1alpha5.KubeletConfiguration, taints [
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (w Windows) DefaultBlockDeviceMappings() []*v1alpha1.BlockDeviceMapping {
+func (w Windows) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
 	sda1EBS := DefaultEBS
 	sda1EBS.VolumeSize = lo.ToPtr(resource.MustParse("50Gi"))
-	return []*v1alpha1.BlockDeviceMapping{{
+	return []*v1beta1.BlockDeviceMapping{{
 		DeviceName: w.EphemeralBlockDevice(),
 		EBS:        &sda1EBS,
 	}}

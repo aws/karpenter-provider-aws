@@ -36,7 +36,7 @@ Number of consistency checks that have failed.
 Number of deprovisioning actions performed. Labeled by deprovisioner.
 
 ### `karpenter_deprovisioning_consolidation_timeouts`
-Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidationType.
+Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
 
 ### `karpenter_deprovisioning_eligible_machines`
 Number of machines eligible for deprovisioning by Karpenter. Labeled by deprovisioner

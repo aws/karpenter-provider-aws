@@ -57,7 +57,7 @@ runs:
         --template-file $CLOUDFORMATION_PATH \
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides "ClusterName=${{ inputs.cluster_name }}" \
-        --tags "testing.karpenter.sh/type=e2e" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+        --tags "testing/type=e2e" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
   - name: create or upgrade cluster
     shell: bash
     run: |
@@ -76,7 +76,7 @@ runs:
         tags:
           karpenter.sh/discovery: ${{ inputs.cluster_name }}
           github.com/run-url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          testing.karpenter.sh/type: "e2e"
+          testing/type: "e2e"
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:
@@ -132,7 +132,7 @@ runs:
       oidc_id=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
       arn="arn:aws:iam::${{ inputs.account_id }}:oidc-provider/${oidc_id}"
       aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
-         --tags Key=testing.karpenter.sh/type,Value=e2e  Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+         --tags Key=testing/type,Value=e2e  Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - name: give KarpenterNodeRole permission to bootstrap
     shell: bash
     run: |
@@ -142,3 +142,12 @@ runs:
       --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
       --group system:bootstrappers \
       --group system:nodes
+  - name: cloudformation describe stack events
+    shell: bash
+    if: failure()
+    run: |
+      stack_names=$(aws cloudformation describe-stacks --query 'Stacks[?Tags[?Key == `karpenter.sh/discovery` && Value == `${{ inputs.CLUSTER_NAME }}`]].{StackName: StackName}' --output text)
+      for stack_name in $stack_names; do
+        echo "Stack Events for $stack_name:"
+        aws cloudformation describe-stack-events --stack-name $stack_name
+      done

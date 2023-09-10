@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package interruption
+package interruption_test
 
 import (
 	"fmt"
@@ -45,6 +45,9 @@ func TestInterruption(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
+	})
+	AfterSuite(func() {
+		env.Stop()
 	})
 	RunSpecs(t, "Interruption")
 }

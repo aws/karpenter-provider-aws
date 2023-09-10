@@ -22,11 +22,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
 	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatch"
-	cloudwatchtypes "github.com/aws/aws-sdk-go-v2/service/cloudwatch/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
+	timestreamtypes "github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -36,19 +36,28 @@ import (
 
 const (
 	expirationTTL            = time.Hour * 12
-	karpenterMetricNamespace = "testing.karpenter.sh/cleanup"
+	karpenterMetricRegion    = "us-east-2"
+	karpenterMetricDatabase  = "karpenterTesting"
+	karpenterMetricTableName = "sweeperCleanedResources"
 
 	karpenterProvisionerNameTag = "karpenter.sh/provisioner-name"
 	karpenterLaunchTemplateTag  = "karpenter.k8s.aws/cluster"
 	karpenterSecurityGroupTag   = "karpenter.sh/discovery"
-	karpenterTestingTag         = "testing.karpenter.sh/cluster"
-	githubRunURLTag             = "github.com/run-url"
+	// TODO @joinnis: Remove this karpenterTestingTagLegacy field after running this cleanup script for a few days
+	karpenterTestingTagLegacy = "testing.karpenter.sh/cluster"
+	karpenterTestingTag       = "testing/cluster"
+	k8sClusterTag             = "cluster.k8s.amazonaws.com/name"
+	githubRunURLTag           = "github.com/run-url"
 )
 
 type CleanableResourceType interface {
 	Type() string
 	Get(context.Context, time.Time) ([]string, error)
 	Cleanup(context.Context, []string) ([]string, error)
+}
+
+type MetricsClient interface {
+	FireMetric(context.Context, string, float64, string) error
 }
 
 func main() {
@@ -63,10 +72,12 @@ func main() {
 
 	ec2Client := ec2.NewFromConfig(cfg)
 	cloudFormationClient := cloudformation.NewFromConfig(cfg)
-	cloudWatchClient := cloudwatch.NewFromConfig(cfg)
 	iamClient := iam.NewFromConfig(cfg)
 
+	metricsClient := MetricsClient(&timestream{timestreamClient: timestreamwrite.NewFromConfig(cfg, WithRegion(karpenterMetricRegion))})
+
 	resources := []CleanableResourceType{
+		&eni{ec2Client: ec2Client},
 		&instance{ec2Client: ec2Client},
 		&securitygroup{ec2Client: ec2Client},
 		&stack{cloudFormationClient: cloudFormationClient},
@@ -85,7 +96,7 @@ func main() {
 			if err != nil {
 				logger.With("type", resources[i].Type()).Errorf("%v", err)
 			}
-			if err = fireMetric(ctx, cloudWatchClient, fmt.Sprintf("%sDeleted", resources[i].Type()), float64(len(cleaned))); err != nil {
+			if err = metricsClient.FireMetric(ctx, fmt.Sprintf("%sDeleted", resources[i].Type()), float64(len(cleaned)), cfg.Region); err != nil {
 				logger.With("type", resources[i].Type()).Errorf("%v", err)
 			}
 			logger.With("type", resources[i].Type(), "ids", cleaned, "count", len(cleaned)).Infof("deleted resources")
@@ -207,6 +218,7 @@ func (sg *securitygroup) Cleanup(ctx context.Context, ids []string) ([]string, e
 		})
 		if err != nil {
 			errs = multierr.Append(errs, err)
+			continue
 		}
 		deleted = append(deleted, ids[i])
 	}
@@ -263,6 +275,7 @@ func (s *stack) Cleanup(ctx context.Context, names []string) ([]string, error) {
 		})
 		if err != nil {
 			errs = multierr.Append(errs, err)
+			continue
 		}
 		deleted = append(deleted, names[i])
 	}
@@ -318,6 +331,7 @@ func (lt *launchtemplate) Cleanup(ctx context.Context, names []string) ([]string
 		})
 		if err != nil {
 			errs = multierr.Append(errs, err)
+			continue
 		}
 		deleted = append(deleted, names[i])
 	}
@@ -345,6 +359,7 @@ func (o *oidc) Get(ctx context.Context, expirationTime time.Time) (names []strin
 		})
 		if err != nil {
 			errs[i] = err
+			continue
 		}
 
 		for _, t := range oicd.Tags {
@@ -368,7 +383,9 @@ func (o *oidc) Cleanup(ctx context.Context, arns []string) ([]string, error) {
 		})
 		if err != nil {
 			errs = multierr.Append(errs, err)
+			continue
 		}
+		deleted = append(deleted, arns[i])
 	}
 	return deleted, errs
 }
@@ -394,10 +411,11 @@ func (ip *instanceProfile) Get(ctx context.Context, expirationTime time.Time) (n
 		})
 		if err != nil {
 			errs[i] = err
+			continue
 		}
 
 		for _, t := range profiles.Tags {
-			if lo.FromPtr(t.Key) == karpenterTestingTag && out.InstanceProfiles[i].CreateDate.Before(expirationTime) {
+			if lo.FromPtr(t.Key) == karpenterTestingTag || lo.FromPtr(t.Key) == karpenterTestingTagLegacy && out.InstanceProfiles[i].CreateDate.Before(expirationTime) {
 				names = append(names, lo.FromPtr(out.InstanceProfiles[i].InstanceProfileName))
 			}
 		}
@@ -427,15 +445,98 @@ func (ip *instanceProfile) Cleanup(ctx context.Context, names []string) ([]strin
 	return deleted, errs
 }
 
-func fireMetric(ctx context.Context, cloudWatchClient *cloudwatch.Client, name string, value float64) error {
-	_, err := cloudWatchClient.PutMetricData(ctx, &cloudwatch.PutMetricDataInput{
-		Namespace: lo.ToPtr(karpenterMetricNamespace),
-		MetricData: []cloudwatchtypes.MetricDatum{
+type eni struct {
+	ec2Client *ec2.Client
+}
+
+func (e *eni) Type() string {
+	return "ElasticNetworkInterface"
+}
+
+func (e *eni) Get(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+	var nextToken *string
+	for {
+		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   lo.ToPtr("tag-key"),
+					Values: []string{k8sClusterTag},
+				},
+			},
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return ids, err
+		}
+
+		for _, ni := range out.NetworkInterfaces {
+			creationDate, found := lo.Find(ni.TagSet, func(tag ec2types.Tag) bool {
+				return *tag.Key == "node.k8s.amazonaws.com/createdAt"
+			})
+			if !found {
+				continue
+			}
+			time, err := time.Parse(time.RFC3339, *creationDate.Value)
+			if err != nil {
+				continue
+			}
+			if ni.Status == ec2types.NetworkInterfaceStatusAvailable && time.Before(expirationTime) {
+				ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
+			}
+		}
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return ids, err
+}
+
+func (e *eni) Cleanup(ctx context.Context, ids []string) ([]string, error) {
+	deleted := []string{}
+	var errs error
+	for i := range ids {
+		_, err := e.ec2Client.DeleteNetworkInterface(ctx, &ec2.DeleteNetworkInterfaceInput{
+			NetworkInterfaceId: aws.String(ids[i]),
+		})
+		if err != nil {
+			errs = multierr.Append(errs, err)
+			continue
+		}
+		deleted = append(deleted, ids[i])
+	}
+
+	return deleted, errs
+}
+
+type timestream struct {
+	timestreamClient *timestreamwrite.Client
+}
+
+func (t *timestream) FireMetric(ctx context.Context, name string, value float64, region string) error {
+	_, err := t.timestreamClient.WriteRecords(ctx, &timestreamwrite.WriteRecordsInput{
+		DatabaseName: aws.String(karpenterMetricDatabase),
+		TableName:    aws.String(karpenterMetricTableName),
+		Records: []timestreamtypes.Record{
 			{
-				MetricName: lo.ToPtr(name),
-				Value:      lo.ToPtr(value),
+				MeasureName:  aws.String(name),
+				MeasureValue: aws.String(fmt.Sprintf("%f", value)),
+				Time:         aws.String(fmt.Sprintf("%d", time.Now().UnixMilli())),
+				Dimensions: []timestreamtypes.Dimension{
+					{
+						Name:  aws.String("region"),
+						Value: aws.String(region),
+					},
+				},
 			},
 		},
 	})
 	return err
+}
+
+func WithRegion(region string) func(*timestreamwrite.Options) {
+	return func(o *timestreamwrite.Options) {
+		o.Region = region
+	}
 }

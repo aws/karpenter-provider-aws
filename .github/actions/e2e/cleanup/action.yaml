@@ -35,13 +35,29 @@ runs:
       run: |
         for name in $(aws iam list-instance-profiles --query "InstanceProfiles[*].{Name:InstanceProfileName}" --output text); do
           tags=$(aws iam list-instance-profile-tags --instance-profile-name $name --output json || true)
-          if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "testing.karpenter.sh/cluster") | .Value') == "${{ inputs.cluster_name }}" ]]; then 
+          if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "testing/cluster") | .Value') == "${{ inputs.cluster_name }}" ]]; then 
               roleName=$(aws iam get-instance-profile --instance-profile-name $name --query "InstanceProfile.Roles[*].{Name:RoleName}" --output text)
               aws iam remove-role-from-instance-profile --instance-profile-name $name --role-name $roleName
               aws iam delete-instance-profile --instance-profile-name $name
               break
           fi
         done
+    - name: delete-cluster
+      shell: bash
+      run: |
+        eksctl delete cluster --name ${{ inputs.cluster_name }} --timeout 60m --wait || true
+    - name: delete-network-interfaces
+      shell: bash
+      run: |
+        aws ec2 describe-network-interfaces \
+          --filter Name=tag:cluster.k8s.amazonaws.com/name,Values=${{ inputs.cluster_name }} \
+          --query "NetworkInterfaces[*].NetworkInterfaceId" \
+          --output text |
+        xargs \
+          -n 1 \
+          -r \
+          aws ec2 delete-network-interface \
+            --network-interface-id
     - name: delete-security-group
       shell: bash
       # For drift testing, we create a security group and need to clean it up here 
@@ -56,10 +72,6 @@ runs:
           -r \
           aws ec2 delete-security-group \
             --group-id
-    - name: delete-cluster
-      shell: bash
-      run: |
-        eksctl delete cluster --name ${{ inputs.cluster_name }} --timeout 60m --wait || true
     - name: delete-iam-policies-stack
       shell: bash
       run: |

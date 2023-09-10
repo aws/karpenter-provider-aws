@@ -5,7 +5,7 @@ on:
 
 jobs:
   approval-comment:
-    if: startsWith(github.event.review.body ,'/karpenter snapshot')
+    if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale')
     permissions: write-all
     runs-on: ubuntu-latest
     steps:
@@ -15,6 +15,7 @@ jobs:
       - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
         run: |
           mkdir -p /tmp/artifacts
+          echo ${{ github.event.review.body }} >> /tmp/artifacts/metadata.txt
           echo ${{ github.event.pull_request.number }} >> /tmp/artifacts/metadata.txt
           echo ${{ github.event.review.commit_id }} >> /tmp/artifacts/metadata.txt
           cat /tmp/artifacts/metadata.txt

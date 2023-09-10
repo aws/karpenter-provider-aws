@@ -78,6 +78,7 @@ func (a *AWSNodeTemplateSpec) validateAMIFamily() (errs *apis.FieldError) {
 	return errs
 }
 
+//nolint:gocyclo
 func (a *AWSNodeTemplateSpec) validateAMISelector() (errs *apis.FieldError) {
 	if a.AMISelector == nil {
 		return nil
@@ -85,11 +86,13 @@ func (a *AWSNodeTemplateSpec) validateAMISelector() (errs *apis.FieldError) {
 	if a.LaunchTemplateName != nil {
 		errs = errs.Also(apis.ErrMultipleOneOf(amiSelectorPath, launchTemplatePath))
 	}
+	var idFilterKeyUsed string
 	for key, value := range a.AMISelector {
 		if key == "" || value == "" {
 			errs = errs.Also(apis.ErrInvalidValue("\"\"", fmt.Sprintf("%s['%s']", amiSelectorPath, key)))
 		}
-		if key == "aws-ids" {
+		if key == "aws-ids" || key == "aws::ids" {
+			idFilterKeyUsed = key
 			for _, amiID := range functional.SplitCommaSeparatedString(value) {
 				if !amiRegex.MatchString(amiID) {
 					fieldValue := fmt.Sprintf("\"%s\"", amiID)
@@ -98,6 +101,9 @@ func (a *AWSNodeTemplateSpec) validateAMISelector() (errs *apis.FieldError) {
 				}
 			}
 		}
+	}
+	if idFilterKeyUsed != "" && len(a.AMISelector) > 1 {
+		errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%q filter is mutually exclusive, cannot be set with a combination of other filters in", idFilterKeyUsed), amiSelectorPath))
 	}
 	return errs
 }

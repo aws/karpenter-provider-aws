@@ -406,7 +406,9 @@ spec:
     karpenter.sh/discovery: my-cluster
   userData:  |
     [settings.kubernetes]
-    kube-api-qps = 30
+    "kube-api-qps" = 30
+    "shutdown-grace-period" = "30s"
+    "shutdown-grace-period-for-critical-pods" = "30s"
     [settings.kubernetes.eviction-hard]
     "memory.available" = "20%"
   amiSelector:
@@ -579,9 +581,23 @@ Final merged UserData -
 <powershell>
 Write-Host "Running custom user data script"
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/provisioner-name=windows2022,testing.karpenter.sh/test-id=unspecified" --max-pods=110' -DNSClusterIP '10.0.100.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/provisioner-name=windows2022" --max-pods=110' -DNSClusterIP '10.0.100.10'
 </powershell>
 ```
+
+{{% alert title="Windows Support Notice" color="warning" %}}
+Currently, Karpenter does not specify `-ServiceCIDR` to [EKS Windows AMI Bootstrap script](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-windows-ami.html#bootstrap-script-configuration-parameters).
+Windows worker nodes will use `172.20.0.0/16` or `10.100.0.0/16` for Kubernetes service IP address ranges based on the IP address of the primary interface.
+The effective ServiceCIDR can be verified at `$env:ProgramData\Amazon\EKS\cni\config\vpc-bridge.conf` on the worker node.
+
+Support for the Windows ServiceCIDR argument can be tracked in a [Karpenter Github Issue](https://github.com/aws/karpenter/issues/4088). Currently, if the effective ServiceCIDR is incorrect for your windows worker nodes, you can add the following userData as a workaround.
+
+```yaml
+spec:
+  userData: |
+    $global:EKSCluster = Get-EKSCluster -Name my-cluster
+```
+{{% /alert %}}
 
 ## spec.detailedMonitoring
 
