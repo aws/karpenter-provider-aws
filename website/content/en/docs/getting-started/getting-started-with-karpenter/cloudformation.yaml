@@ -157,7 +157,7 @@ Resources:
                 "ec2:DescribeInstances",
                 "ec2:DescribeInstanceTypeOfferings",
                 "ec2:DescribeInstanceTypes",
-                "ec2:DescribeLaunchTemplates",
+                "ec2:DescribeLaunchTemplate*",
                 "ec2:DescribeSecurityGroups",
                 "ec2:DescribeSpotPriceHistory",
                 "ec2:DescribeSubnets"
