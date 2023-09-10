@@ -153,11 +153,11 @@ spec:
       owner: amazon
   subnetSelectorTerms:
     - tags:
-        compute.k8s.aws/discovery: cluster-name
+        karpenter.sh/discovery: cluster-name
     - id: subnet-1234
   securityGroupSelectorTerms:
     - tags:
-        compute.k8s.aws/discovery: cluster-name
+        karpenter.sh/discovery: cluster-name
     - name: default-security-group
   role: karpenter-node-role
   userData: |
@@ -253,7 +253,7 @@ spec:
   nodeClass:
     name: default
     kind: EC2NodeClass
-    apiVersion: compute.k8s.aws/v1beta1
+    apiVersion: karpenter.k8s.aws/v1beta1
   taints:
     - key: example.com/special-taint
       effect: NoSchedule

@@ -30,8 +30,10 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	nodeclaimgarbagecollection "github.com/aws/karpenter/pkg/controllers/nodeclaim/garbagecollection"
 	nodeclaimlink "github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
+	nodeclaimtagging "github.com/aws/karpenter/pkg/controllers/nodeclaim/tagging"
 	"github.com/aws/karpenter/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -43,8 +45,8 @@ import (
 
 func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
 	unavailableOfferings *cache.UnavailableOfferings, cloudProvider *cloudprovider.CloudProvider, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, instanceProfileProvider *instanceprofile.Provider, pricingProvider *pricing.Provider,
-	amiProvider *amifamily.Provider) []controller.Controller {
+	securityGroupProvider *securitygroup.Provider, instanceProfileProvider *instanceprofile.Provider, instanceProvider *instance.Provider,
+	pricingProvider *pricing.Provider, amiProvider *amifamily.Provider) []controller.Controller {
 
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 
@@ -54,6 +56,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		nodeclass.NewNodeClassController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
 		linkController,
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider, linkController),
+		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 	}
 	if settings.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, interruption.NewSQSProvider(sqs.New(sess)), unavailableOfferings))
