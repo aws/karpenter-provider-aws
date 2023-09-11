@@ -126,13 +126,13 @@ func (b Bottlerocket) EphemeralBlockDevice() *string {
 
 // PodsPerCoreEnabled is currently disabled for Bottlerocket AMIFamily because it does
 // not currently support the podsPerCore parameter passed through the kubernetes settings TOML userData
-// If a Provisioner sets the podsPerCore value when using the Bottlerocket AMIFamily in the provider,
+// If a NodePool sets the podsPerCore value when using the Bottlerocket AMIFamily in the provider,
 // podsPerCore will be ignored
 // https://github.com/bottlerocket-os/bottlerocket/issues/1721
 
 // EvictionSoftEnabled is currently disabled for Bottlerocket AMIFamily because it does
 // not currently support the evictionSoft parameter passed through the kubernetes settings TOML userData
-// If a Provisioner sets the evictionSoft value when using the Bottlerocket AMIFamily in the provider,
+// If a NodePool sets the evictionSoft value when using the Bottlerocket AMIFamily in the provider,
 // evictionSoft will be ignored
 // https://github.com/bottlerocket-os/bottlerocket/issues/1445
 
