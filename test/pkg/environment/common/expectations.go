@@ -91,7 +91,7 @@ func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
 				Fail(fmt.Sprintf("Getting object %s, %v", client.ObjectKeyFromObject(o), err))
 			}
 		} else {
-			env.ExpectUpdated(objects...)
+			env.ExpectUpdated(o)
 		}
 	}
 }
