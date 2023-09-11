@@ -22,7 +22,7 @@ jobs:
     steps:
       # Download the artifact and resolve the commit if initiated by PR snapshot
       # Otherwise, use the currently checked-out branch to run the E2E tests against
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - if: inputs.event_name == 'workflow_run'
         uses: ./.github/actions/download-artifact
       - id: resolve-step
