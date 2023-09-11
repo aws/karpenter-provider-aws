@@ -58,31 +58,19 @@ Resources:
               ]
             },
             {
-              "Sid": "AllowScopedEC2LaunchTemplateActions",
-              "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
-              "Action": "ec2:CreateLaunchTemplate",
-              "Condition": {
-                "StringEquals": {
-                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
-                },
-                "StringLike": {
-                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
-                }
-              }
-            },
-            {
               "Sid": "AllowScopedEC2InstanceActionsWithTags",
               "Effect": "Allow",
               "Resource": [
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:fleet/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
               ],
               "Action": [
                 "ec2:RunInstances",
-                "ec2:CreateFleet"
+                "ec2:CreateFleet",
+                "ec2:CreateLaunchTemplate"
               ],
               "Condition": {
                 "StringEquals": {
@@ -181,13 +169,16 @@ Resources:
               }
             },
             {
-              "Sid": "AllowGlobalReadActions",
+              "Sid": "AllowSSMReadActions",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
+              "Action": "ssm:GetParameter"
+            },
+            {
+              "Sid": "AllowPricingReadActions",
               "Effect": "Allow",
               "Resource": "*",
-              "Action": [
-                "pricing:GetProducts",
-                "ssm:GetParameter"
-              ]
+              "Action": "pricing:GetProducts"
             },
             {
               "Sid": "AllowInterruptionQueueActions",
