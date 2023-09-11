@@ -4,7 +4,6 @@ import (
 	"context"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/patrickmn/go-cache"
 
@@ -15,9 +14,9 @@ import (
 
 type Provider struct {
 	sync.RWMutex
-	ec2api      ec2iface.EC2API
-	cache       *cache.Cache
-	cm          *pretty.ChangeMonitor
+	ec2api ec2iface.EC2API
+	cache  *cache.Cache
+	cm     *pretty.ChangeMonitor
 }
 
 func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
@@ -30,6 +29,6 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*ec2.LicenseConfiguration, error) {
-    return nil, nil
+func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]string, error) {
+	return []string{"beep", "boop", "bop"}, nil
 }

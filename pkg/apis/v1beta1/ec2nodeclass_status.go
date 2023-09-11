@@ -63,4 +63,7 @@ type EC2NodeClassStatus struct {
 	// cluster under the AMI selectors.
 	// +optional
 	AMIs []AMI `json:"amis,omitempty"`
+    // License contains the discovered license configurations
+    // +optional
+    Licenses []string `json:"licenses,omitempty"`
 }
