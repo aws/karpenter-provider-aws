@@ -111,7 +111,7 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		requirements.Get(lo.Ternary(nodeClass.IsNodeTemplate, v1alpha1.LabelInstanceSize, v1beta1.LabelInstanceSize)).Insert(instanceTypeParts[1])
 	}
 	if info.InstanceStorageInfo != nil && aws.StringValue(info.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
-		requirements[v1alpha1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(info.InstanceStorageInfo.TotalSizeInGB)))
+		requirements[lo.Ternary(nodeClass.IsNodeTemplate, v1alpha1.LabelInstanceLocalNVME, v1beta1.LabelInstanceLocalNVME)].Insert(fmt.Sprint(aws.Int64Value(info.InstanceStorageInfo.TotalSizeInGB)))
 	}
 	// Network bandwidth
 	if bandwidth, ok := InstanceTypeBandwidthMegabits[aws.StringValue(info.InstanceType)]; ok {
