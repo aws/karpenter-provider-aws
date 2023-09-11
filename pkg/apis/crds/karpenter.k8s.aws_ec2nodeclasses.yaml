@@ -340,6 +340,11 @@ spec:
                   - requirements
                   type: object
                 type: array
+              licenses:
+                description: License contains the discovered license configurations
+                items:
+                  type: string
+                type: array
               securityGroups:
                 description: SecurityGroups contains the current Security Groups values
                   that are available to the cluster under the SecurityGroups selectors.
