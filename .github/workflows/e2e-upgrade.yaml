@@ -83,7 +83,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
-          git_ref: ${{ inputs.from_git_ref }}
+          git_ref: ${{ inputs.to_git_ref }} # Should revert back to inputs.from_git_ref once GHA cache bug is fixed
       - name: install prometheus
         uses: ./.github/actions/e2e/install-prometheus
         with:
