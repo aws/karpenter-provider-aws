@@ -369,11 +369,11 @@ var _ = Describe("AMI", func() {
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{string(v1.Windows)},
 					},
-					// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+					// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
 					{
 						Key:      v1alpha1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a"},
+						Values:   []string{"m7a", "r7a"},
 					},
 					{
 						Key:      v1alpha1.LabelInstanceCategory,

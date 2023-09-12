@@ -134,11 +134,11 @@ var _ = Describe("Extended Resources", func() {
 					Key:      v1alpha1.LabelInstanceCategory,
 					Operator: v1.NodeSelectorOpExists,
 				},
-				// TODO: Remove this once m7a instances are supported by the vpc resource controller
+				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
 				{
 					Key:      v1alpha1.LabelInstanceFamily,
 					Operator: v1.NodeSelectorOpNotIn,
-					Values:   []string{"m7a"},
+					Values:   []string{"m7a", "r7a"},
 				},
 			},
 		})
