@@ -163,6 +163,19 @@ spec:
                 description: DetailedMonitoring controls if detailed monitoring is
                   enabled for instances that are launched
                 type: boolean
+              licenseSelectorTerms:
+                description: LicenseSelectorTerms is a list of LicenseSelectors. The
+                  terms are ORed.
+                items:
+                  description: LicenseSelectorTerm defines selection logic for a licenseConfigurationSpecification
+                    used to launch nodes If multiple fields are used for selection,
+                    the requirements are ANDed.
+                  properties:
+                    name:
+                      description: Name of the license to be selected.
+                      type: string
+                  type: object
+                type: array
               metadataOptions:
                 default:
                   httpEndpoint: enabled
@@ -341,7 +354,7 @@ spec:
                   type: object
                 type: array
               licenses:
-                description: License contains the discovered license configurations
+                description: Licenses contains the license arns
                 items:
                   type: string
                 type: array

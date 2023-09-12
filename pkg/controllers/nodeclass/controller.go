@@ -70,6 +70,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		c.resolveSubnets(ctx, nodeClass),
 		c.resolveSecurityGroups(ctx, nodeClass),
 		c.resolveAMIs(ctx, nodeClass),
+		c.resolveLicenses(ctx, nodeClass),
 	)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
@@ -156,17 +157,13 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 }
 
 func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
-    licenses, err := c.licenseProvider.List(ctx, nodeClass)
-    if err != nil {
-        return err
-    }
-    if len(licenses) == 0 {
-        nodeClass.Status.Licenses = nil
-        return fmt.Errorf("no licenses match selector")
-    }
-    nodeClass.Status.Licenses = licenses
+	licenses, err := c.licenseProvider.List(ctx, nodeClass)
+	if err != nil {
+		return err
+	}
+	nodeClass.Status.Licenses = licenses
 
-    return nil
+	return nil
 
 }
 

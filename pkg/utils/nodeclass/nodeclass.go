@@ -44,6 +44,8 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 			AMISelectorTerms:              NewAMISelectorTerms(nodeTemplate.Spec.AMISelector),
 			OriginalAMISelector:           nodeTemplate.Spec.AMISelector,
 			AMIFamily:                     nodeTemplate.Spec.AMIFamily,
+			LicenseSelectorTerms:          NewLicenseSelectorTerms(nodeTemplate.Spec.LicenseSelector),
+			OriginalLicenseSelector:       nodeTemplate.Spec.LicenseSelector,
 			UserData:                      nodeTemplate.Spec.UserData,
 			Tags:                          nodeTemplate.Spec.Tags,
 			BlockDeviceMappings:           NewBlockDeviceMappings(nodeTemplate.Spec.BlockDeviceMappings),
@@ -147,6 +149,15 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 		}
 	}
 	return terms
+}
+func NewLicenseSelectorTerms(selectors map[string]string) (terms []v1beta1.LicenseSelectorTerm) {
+	if len(selectors) == 0 {
+		return nil
+	}
+
+	return []v1beta1.LicenseSelectorTerm{
+		{Name: selectors["name"]},
+	}
 }
 
 func NewBlockDeviceMappings(bdms []*v1alpha1.BlockDeviceMapping) []*v1beta1.BlockDeviceMapping {

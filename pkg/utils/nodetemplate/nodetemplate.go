@@ -33,6 +33,7 @@ func New(nodeClass *v1beta1.EC2NodeClass) *v1alpha1.AWSNodeTemplate {
 				InstanceProfile:       nodeClass.Spec.InstanceProfile,
 				SubnetSelector:        nodeClass.Spec.OriginalSubnetSelector,
 				SecurityGroupSelector: nodeClass.Spec.OriginalSecurityGroupSelector,
+				LicenseSelector:       nodeClass.Spec.OriginalLicenseSelector,
 				Tags:                  nodeClass.Spec.Tags,
 				LaunchTemplate: v1alpha1.LaunchTemplate{
 					LaunchTemplateName:  nodeClass.Spec.LaunchTemplateName,
@@ -47,6 +48,7 @@ func New(nodeClass *v1beta1.EC2NodeClass) *v1alpha1.AWSNodeTemplate {
 			Subnets:        NewSubnets(nodeClass.Status.Subnets),
 			SecurityGroups: NewSecurityGroups(nodeClass.Status.SecurityGroups),
 			AMIs:           NewAMIs(nodeClass.Status.AMIs),
+			Licenses:       NewLicenses(nodeClass.Status.Licenses),
 		},
 	}
 }
@@ -133,4 +135,8 @@ func NewAMIs(amis []v1beta1.AMI) []v1alpha1.AMI {
 			Requirements: a.Requirements,
 		}
 	})
+}
+
+func NewLicenses(licenses []string) []string {
+	return licenses
 }

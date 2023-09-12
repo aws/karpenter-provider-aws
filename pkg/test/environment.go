@@ -28,6 +28,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter/pkg/providers/license"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -63,6 +64,7 @@ type Environment struct {
 	AMIResolver            *amifamily.Resolver
 	VersionProvider        *version.Provider
 	LaunchTemplateProvider *launchtemplate.Provider
+	LicenseProvider        *license.Provider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
@@ -78,6 +80,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	licenseCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
@@ -110,6 +113,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			subnetProvider,
 			launchTemplateProvider,
 		)
+	licenseProvider := license.NewProvider(ec2api, licenseCache)
 
 	return &Environment{
 		EC2API:     ec2api,
@@ -133,6 +137,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AMIResolver:            amiResolver,
 		VersionProvider:        versionProvider,
 		LaunchTemplateProvider: launchTemplateProvider,
+		LicenseProvider:        licenseProvider,
 	}
 }
 
