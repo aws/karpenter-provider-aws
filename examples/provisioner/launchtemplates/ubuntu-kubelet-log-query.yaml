@@ -12,7 +12,7 @@ spec:
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
-  name: default
+  name: ubuntu
 spec:
   amiFamily: Ubuntu
   subnetSelector:
