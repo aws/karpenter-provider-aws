@@ -86,6 +86,16 @@ type AWSNodeTemplateSpec struct {
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
+	// An optional map of instance names to priorities. These priorities correspond to the priority field used
+	// when allocating new instances using AWS Fleet (<https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplateOverrides.html>).
+	//
+	// For the on-demand capacity type, Karpenter defaults to the "lowest-price" allocation strategy UNLESS at least one
+	// available instance in the request has a priority in this field. In that case, it uses the "prioritized" strategy, with
+	// other instance types defaulting to the lowest priority. For the spot capacity type, this field is ignored.
+	//
+	// Priority values must be string representations of double's that are > 0.0.
+	// +optional
+	Priorities map[string]string `json:"priorities,omitempty" hash:"ignore"`
 }
 
 // AWSNodeTemplate is the Schema for the AWSNodeTemplate API

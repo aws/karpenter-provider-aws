@@ -74,8 +74,10 @@ var awsEnv *test.Environment
 var fakeClock *clock.FakeClock
 var prov *provisioning.Provisioner
 var provisioner *v1alpha5.Provisioner
+var priorityProvisioner *v1alpha5.Provisioner
 var windowsProvisioner *v1alpha5.Provisioner
 var nodeTemplate *v1alpha1.AWSNodeTemplate
+var priorityNodeTemplate *v1alpha1.AWSNodeTemplate
 var windowsNodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var cloudProvider *cloudprovider.CloudProvider
@@ -121,6 +123,19 @@ var _ = BeforeEach(func() {
 			},
 		},
 	}
+	priorityNodeTemplate = &v1alpha1.AWSNodeTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: coretest.RandomName(),
+		},
+		Spec: v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
+				SubnetSelector:        map[string]string{"*": "*"},
+				SecurityGroupSelector: map[string]string{"*": "*"},
+			},
+			Priorities: map[string]string{"r6id.16xlarge": "1.1"},
+		},
+	}
 	provisioner = test.Provisioner(coretest.ProvisionerOptions{
 		Requirements: []v1.NodeSelectorRequirement{{
 			Key:      v1alpha1.LabelInstanceCategory,
@@ -130,6 +145,24 @@ var _ = BeforeEach(func() {
 			APIVersion: nodeTemplate.APIVersion,
 			Kind:       nodeTemplate.Kind,
 			Name:       nodeTemplate.Name,
+		},
+	})
+	priorityProvisioner = test.Provisioner(coretest.ProvisionerOptions{
+		Requirements: []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpExists,
+			},
+			{
+				Key:      v1alpha1.LabelInstanceFamily,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"r6id"},
+			},
+		},
+		ProviderRef: &v1alpha5.MachineTemplateRef{
+			APIVersion: priorityNodeTemplate.APIVersion,
+			Kind:       priorityNodeTemplate.Kind,
+			Name:       priorityNodeTemplate.Name,
 		},
 	})
 	windowsNodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
@@ -499,6 +532,38 @@ var _ = Describe("Instance Types", func() {
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
+	})
+	It("should support priority", func() {
+		instances := makeFakeInstances()
+		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: makeFakeInstances(),
+		})
+		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: makeFakeInstanceOfferings(instances),
+		})
+		ExpectApplied(ctx, env.Client, priorityProvisioner, priorityNodeTemplate)
+
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
+
+		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
+
+			if *override.InstanceType == "r6id.16xlarge" {
+				Expect(override.Priority).To(HaveValue(Equal(1.1)), fmt.Sprintf("expected %f to be the correct priority", aws.Float64Value(override.Priority)))
+			} else {
+				Expect(override.Priority).To(BeNil(), fmt.Sprintf("expected %f to be nil", aws.Float64Value(override.Priority)))
+			}
+		}
 	})
 	It("should fail to launch AWS Pod ENI if the setting enabling it isn't set", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{

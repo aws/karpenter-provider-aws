@@ -199,6 +199,20 @@ spec:
                       credentials are not available."
                     type: string
                 type: object
+              priorities:
+                additionalProperties:
+                  type: string
+                description: "An optional map of instance names to priorities. These
+                  priorities correspond to the priority field used when allocating
+                  new instances using AWS Fleet (<https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_LaunchTemplateOverrides.html>).
+                  \n For the on-demand capacity type, Karpenter defaults to the \"lowest-price\"
+                  allocation strategy UNLESS at least one available instance in the
+                  request has a priority in this field. In that case, it uses the
+                  \"prioritized\" strategy, with other instance types defaulting to
+                  the lowest priority. For the spot capacity type, this field is ignored.
+                  \n Priority values must be string representations of double's that
+                  are > 0.0."
+                type: object
               role:
                 description: Role is the AWS identity that nodes use.
                 type: string

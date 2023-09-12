@@ -47,6 +47,7 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 			UserData:                      nodeTemplate.Spec.UserData,
 			Tags:                          nodeTemplate.Spec.Tags,
 			BlockDeviceMappings:           NewBlockDeviceMappings(nodeTemplate.Spec.BlockDeviceMappings),
+			Priorities:                    nodeTemplate.Spec.Priorities,
 			DetailedMonitoring:            nodeTemplate.Spec.DetailedMonitoring,
 			MetadataOptions:               NewMetadataOptions(nodeTemplate.Spec.MetadataOptions),
 			Context:                       nodeTemplate.Spec.Context,

@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -189,6 +190,21 @@ func (p *Provider) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
+func chooseAllocationStrategy(launchTemplateConfigs *[]*ec2.FleetLaunchTemplateConfigRequest) string {
+	var hasPriority = false
+	for _, config := range *launchTemplateConfigs {
+		for _, override := range config.Overrides {
+			hasPriority = hasPriority || override.Priority != nil
+		}
+	}
+
+	if hasPriority {
+		return ec2.FleetOnDemandAllocationStrategyPrioritized
+	}
+
+	return ec2.FleetOnDemandAllocationStrategyLowestPrice
+}
+
 func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, tags map[string]string) (*ec2.CreateFleetInstance, error) {
 	capacityType := p.getCapacityType(nodeClaim, instanceTypes)
 	zonalSubnets, err := p.subnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, instanceTypes, capacityType)
@@ -222,7 +238,7 @@ func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.EC2Nod
 	if capacityType == corev1beta1.CapacityTypeSpot {
 		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyPriceCapacityOptimized)}
 	} else {
-		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
+		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(chooseAllocationStrategy(&launchTemplateConfigs))}
 	}
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
@@ -303,7 +319,8 @@ func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1be
 	}
 	for launchTemplateName, instanceTypes := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType),
+			Overrides: p.getOverrides(instanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType,
+				nodeClass.Spec.Priorities),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplateName),
 				Version:            aws.String("$Latest"),
@@ -321,7 +338,10 @@ func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1be
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *Provider) getOverrides(
+	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, zones *scheduling.Requirement, capacityType string,
+	priorities map[string]string,
+) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
@@ -351,12 +371,22 @@ func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zon
 		if !ok {
 			continue
 		}
+
+		var priority *float64
+		val, ok := priorities[offering.parentInstanceTypeName]
+		// If the key exists
+		if ok {
+
+			var parsed, _ = strconv.ParseFloat(val, 64)
+			priority = &parsed
+		}
 		overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
 			InstanceType: aws.String(offering.parentInstanceTypeName),
 			SubnetId:     subnet.SubnetId,
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
 			AvailabilityZone: subnet.AvailabilityZone,
+			Priority:         priority,
 		})
 	}
 	return overrides

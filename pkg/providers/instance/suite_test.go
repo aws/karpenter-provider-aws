@@ -89,6 +89,7 @@ var _ = BeforeEach(func() {
 				SubnetSelector:        map[string]string{"*": "*"},
 				SecurityGroupSelector: map[string]string{"*": "*"},
 			},
+			Priorities: map[string]string{"thing": "1.0"},
 		},
 	}
 	provisioner = test.Provisioner(coretest.ProvisionerOptions{

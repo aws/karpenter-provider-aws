@@ -269,6 +269,13 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 		*out = new(bool)
 		**out = **in
 	}
+	if in.Priorities != nil {
+		in, out := &in.Priorities, &out.Priorities
+		*out = make(map[string]string, len(*in))
+		for key, val := range *in {
+			(*out)[key] = val
+		}
+	}
 	if in.MetadataOptions != nil {
 		in, out := &in.MetadataOptions, &out.MetadataOptions
 		*out = new(MetadataOptions)
