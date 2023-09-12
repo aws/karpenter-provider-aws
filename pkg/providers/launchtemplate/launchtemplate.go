@@ -111,7 +111,7 @@ func (p *Provider) lookupLaunchTemplateData(ctx context.Context, launchTemplateN
 	if awserrors.IsNotFound(err) {
 		return nil, fmt.Errorf("expected to retrieve one launch template version, but none exist")
 	} else if err != nil {
-		return nil, fmt.Errorf("saw error when retrieving launch template version: %s",err)
+		return nil, fmt.Errorf("saw error when retrieving launch template version: %w",err)
 	} else if len(output.LaunchTemplateVersions) != 1 {
 		return nil, fmt.Errorf("expected to find one launch template version, but found %d", len(output.LaunchTemplateVersions))
 	} else {
@@ -141,8 +141,8 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.NodeClass, 
 		if err != nil {
 			return nil,nil, err
 		}
-		imageId := ptr.StringValue(templateData.ImageId)
-		return map[string][]*cloudprovider.InstanceType{templateName : instanceTypes}, map[string]string{templateName : imageId}, nil
+		imageID := ptr.StringValue(templateData.ImageId)
+		return map[string][]*cloudprovider.InstanceType{templateName : instanceTypes}, map[string]string{templateName : imageID}, nil
 	}
 
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, additionalLabels), tags)
