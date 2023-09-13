@@ -5,7 +5,7 @@ weight: 5
 description: >
   Descriptions of how Karpenter uses CloudFormation to set up permissions
 ---
-When you create a cluster to use with Karpenter in the [Getting Started with Karpenter]({{< relref "../getting-started-with-karpenter/" >}}) guide, the procedure uses CloudFormation to prepare the cluster for Karpenter to be able to create and manage nodes, as well as gather and respond to interruption events.
+When you create a cluster to use with Karpenter in the [Getting Started with Karpenter]({{< relref "../getting-started/" >}}) guide, the procedure uses CloudFormation to prepare the cluster for Karpenter to be able to create and manage nodes, as well as gather and respond to interruption events.
 This document describes the `cloudformation.yaml` file used in that guide.
 These descriptions will be useful to understand:
 
