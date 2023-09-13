@@ -134,7 +134,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	versionProvider := version.NewProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiProvider := amifamily.NewProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.New(amiProvider)
+	licenseProvider := license.NewProvider(licensemanager.New(sess) , cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiResolver := amifamily.New(amiProvider, licenseProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -142,6 +143,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
+        licenseProvider,
 		lo.Must(getCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
@@ -164,7 +166,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 	)
-	licenseProvider := license.NewProvider(licensemanager.New(sess) , cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 		
 
 	return ctx, &Operator{

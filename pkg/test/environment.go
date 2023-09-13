@@ -89,7 +89,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	securityGroupProvider := securitygroup.NewProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewProvider(env.KubernetesInterface, kubernetesVersionCache)
 	amiProvider := amifamily.NewProvider(versionProvider, ssmapi, ec2api, ec2Cache)
-	amiResolver := amifamily.New(amiProvider)
+	licenseProvider := license.NewProvider(ec2api, licenseCache)
+	amiResolver := amifamily.New(amiProvider, licenseProvider)
 	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
 		launchtemplate.NewProvider(
@@ -113,7 +114,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			subnetProvider,
 			launchTemplateProvider,
 		)
-	licenseProvider := license.NewProvider(ec2api, licenseCache)
 
 	return &Environment{
 		EC2API:     ec2api,

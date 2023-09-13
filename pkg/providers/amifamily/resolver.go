@@ -29,6 +29,7 @@ import (
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter/pkg/providers/license"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
@@ -42,7 +43,8 @@ var DefaultEBS = v1beta1.BlockDevice{
 
 // Resolver is able to fill-in dynamic launch template parameters
 type Resolver struct {
-	amiProvider *Provider
+	amiProvider     *Provider
+	licenseProvider *license.Provider
 }
 
 // Options define the static launch template parameters
@@ -69,6 +71,7 @@ type LaunchTemplate struct {
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
+	Licenses            []string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -107,9 +110,10 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(amiProvider *Provider) *Resolver {
+func New(amiProvider *Provider, licenseProvider *license.Provider) *Resolver {
 	return &Resolver{
-		amiProvider: amiProvider,
+		amiProvider:     amiProvider,
+		licenseProvider: licenseProvider,
 	}
 }
 
@@ -127,6 +131,10 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	mappedAMIs := amis.MapToInstanceTypes(instanceTypes, nodeClaim.IsMachine)
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
+	}
+	licenses, err := r.licenseProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, err
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
@@ -161,6 +169,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 				DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
+                Licenses: licenses,
 			}
 			if len(resolved.BlockDeviceMappings) == 0 {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

@@ -40,6 +40,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/license"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
@@ -59,6 +60,7 @@ type Provider struct {
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider *securitygroup.Provider
 	subnetProvider        *subnet.Provider
+    licenseProvider       *license.Provider
 	cache                 *cache.Cache
 	caBundle              *string
 	cm                    *pretty.ChangeMonitor
@@ -66,12 +68,13 @@ type Provider struct {
 	ClusterEndpoint       string
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, licenseProvider *license.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
 		ec2api:                ec2api,
 		amiFamily:             amiFamily,
 		securityGroupProvider: securityGroupProvider,
 		subnetProvider:        subnetProvider,
+        licenseProvider:       licenseProvider,
 		cache:                 cache,
 		caBundle:              caBundle,
 		cm:                    pretty.NewChangeMonitor(),
@@ -247,6 +250,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},
+            LicenseSpecifications: generateLicenseSpecification(options.Licenses),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -260,6 +264,19 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 	}
 	logging.FromContext(ctx).With("id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).Debugf("created launch template")
 	return output.LaunchTemplate, nil
+}
+
+func generateLicenseSpecification(licenses []string) []*ec2.LaunchTemplateLicenseConfigurationRequest {
+    result := []*ec2.LaunchTemplateLicenseConfigurationRequest{}
+    if len(licenses) == 0 {
+        return nil
+    }
+    for i := range licenses {
+        result = append(result, &ec2.LaunchTemplateLicenseConfigurationRequest{ LicenseConfigurationArn: aws.String(licenses[i])})
+
+    }
+    return result
+
 }
 
 // generateNetworkInterface generates a network interface for the launch template.
