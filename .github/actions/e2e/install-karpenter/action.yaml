@@ -45,9 +45,9 @@ runs:
         --set settings.aws.clusterName="${{ inputs.cluster_name }}" \
         --set settings.aws.defaultInstanceProfile="KarpenterNodeInstanceProfile-${{ inputs.cluster_name }}" \
         --set settings.aws.interruptionQueueName="${{ inputs.cluster_name }}" \
-        --set controller.resources.requests.cpu=3 \
+        --set controller.resources.requests.cpu=4 \
         --set controller.resources.requests.memory=3Gi \
-        --set controller.resources.limits.cpu=3 \
+        --set controller.resources.limits.cpu=4 \
         --set controller.resources.limits.memory=3Gi \
         --set serviceMonitor.enabled=true \
         --set serviceMonitor.additionalLabels.scrape=enabled \
