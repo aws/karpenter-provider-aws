@@ -27,7 +27,7 @@ func NewHTTPClient() *HTTPClient {
 }
 
 func (f *HTTPClient) Get(_ string) (*http.Response, error) {
-	json := `{"gitVersion": v0.1.2, "message": "success"}`
+	json := `{"gitVersion": "v0.1.2", "message": "success"}`
 	recorder := httptest.NewRecorder()
 	recorder.Header().Add("Content-Type", "application/json")
 	_, _ = recorder.WriteString(json)
