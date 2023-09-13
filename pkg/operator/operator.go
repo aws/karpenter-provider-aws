@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"net/http"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -127,7 +128,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		ec2api,
 		*sess.Config.Region,
 	)
-	versionProvider := version.NewProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	versionProvider := version.NewProvider(cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
+		operator.GetClient(), lo.Must(getHTTPClient(operator.GetConfig())))
 	amiProvider := amifamily.NewProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
@@ -225,6 +227,19 @@ func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
 	}
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
+}
+
+func getHTTPClient(restConfig *rest.Config) (*http.Client, error) {
+	transportConfig, err := restConfig.TransportConfig()
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
+	}
+	tlsConfig, err := transport.TLSConfigFor(transportConfig) // fills in CAData!
+	if err != nil {
+		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
+	}
+	transport := &http.Transport{TLSClientConfig: tlsConfig}
+	return &http.Client{Transport: transport}, nil
 }
 
 func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {

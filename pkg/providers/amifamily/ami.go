@@ -144,7 +144,7 @@ func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2Nod
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	kubernetesVersion, err := p.versionProvider.Get(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("getting kubernetes version %w", err)
+		return nil, fmt.Errorf("getting kubernetes version, %w", err)
 	}
 	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion, nodeClass.IsNodeTemplate)
 	for _, ami := range defaultAMIs {
