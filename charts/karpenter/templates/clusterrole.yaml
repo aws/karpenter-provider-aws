@@ -29,9 +29,6 @@ metadata:
   {{- end }}
 rules:
   # Read
-  - apiGroups: ["discovery.k8s.io"]
-    resources: ["endpointslices"]
-    verbs: ["get", "list", "watch"]
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["awsnodetemplates"]
     verbs: ["get", "list", "watch"]

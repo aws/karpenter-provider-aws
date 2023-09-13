@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/version"
@@ -81,11 +82,7 @@ func (p *Provider) GetMinKubernetesVersion(ctx context.Context) (string, error) 
 	if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: "kubernetes", Namespace: "default"}, &endpointSlice); err != nil {
 		return "", fmt.Errorf("getting endpoints, %w", err)
 	}
-	// This error should never occur
-	minVersion, err := version.ParseGeneric("v99.99.99")
-	if err != nil {
-		return "", fmt.Errorf("parsing version, %w", err)
-	}
+	var minVersion *version.Version
 	for _, address := range getAddresses(endpointSlice) {
 		resp, err := p.httpClient.Get(address)
 		if err != nil {
@@ -100,24 +97,23 @@ func (p *Provider) GetMinKubernetesVersion(ctx context.Context) (string, error) 
 		if err != nil {
 			return "", fmt.Errorf("parsing kubernetes version, %w", err)
 		}
-		if v.LessThan(minVersion) {
+		if minVersion == nil || v.LessThan(minVersion) {
 			minVersion = v
 		}
 	}
-	// Return only the first two version numbers
+	if minVersion == nil {
+		return "", fmt.Errorf("failed to get a kubernetes version")
+	}
+	// Only return the major and minor versions.
 	return strings.Join(strings.Split(minVersion.String(), ".")[0:2], "."), nil
 }
 func getAddresses(endpoints v1.EndpointSlice) []string {
-	ports := []string{}
 	// If there are no ports, it's the same as defining all ports.
-	if len(endpoints.Ports) == 0 {
-		ports = []string{""}
-	} else {
-		for _, port := range endpoints.Ports {
-			ports = append(ports, fmt.Sprintf(":%s", strconv.Itoa(int(*port.Port))))
-		}
+	ports := []string{""}
+	if len(endpoints.Ports) > 0 {
+		ports = lo.Map(endpoints.Ports, func(p v1.EndpointPort, _ int) string { return fmt.Sprintf(":%s", strconv.Itoa(int(*p.Port))) })
 	}
-	ret := []string{}
+	var ret []string
 	for _, endpoint := range endpoints.Endpoints {
 		for _, address := range endpoint.Addresses {
 			for _, port := range ports {

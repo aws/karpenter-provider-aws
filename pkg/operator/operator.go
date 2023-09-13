@@ -232,14 +232,13 @@ func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 func getHTTPClient(restConfig *rest.Config) (*http.Client, error) {
 	transportConfig, err := restConfig.TransportConfig()
 	if err != nil {
-		return nil, fmt.Errorf("discovering caBundle, loading transport config, %w", err)
+		return nil, fmt.Errorf("discovering httpClient, loading transport config, %w", err)
 	}
-	tlsConfig, err := transport.TLSConfigFor(transportConfig) // fills in CAData!
+	tlsConfig, err := transport.TLSConfigFor(transportConfig)
 	if err != nil {
-		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
+		return nil, fmt.Errorf("discovering httpClient, loading TLS config, %w", err)
 	}
-	transport := &http.Transport{TLSClientConfig: tlsConfig}
-	return &http.Client{Transport: transport}, nil
+	return &http.Client{Transport: &http.Transport{TLSClientConfig: tlsConfig}}, nil
 }
 
 func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
