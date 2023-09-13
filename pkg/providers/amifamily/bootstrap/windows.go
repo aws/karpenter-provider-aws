@@ -38,7 +38,7 @@ func (w Windows) Script() (string, error) {
 	}
 
 	userData.WriteString("[string]$EKSBootstrapScriptFile = \"$env:ProgramFiles\\Amazon\\EKS\\Start-EKSBootstrap.ps1\"\n")
-	userData.WriteString(fmt.Sprintf(`& $EKSBootstrapScriptFile -EKSClusterName '%s' -APIServerEndpoint '%s'`, w.ClusterName, w.ClusterEndpoint))
+	userData.WriteString(fmt.Sprintf(`& $EKSBootstrapScriptFile -EKSClusterName '%s' -APIServerEndpoint '%s' -ServiceCIDR '%s'`, w.ClusterName, w.ClusterEndpoint, w.ClusterServiceIpv4Cidr))
 	if w.CABundle != nil {
 		userData.WriteString(fmt.Sprintf(` -Base64ClusterCA '%s'`, *w.CABundle))
 	}

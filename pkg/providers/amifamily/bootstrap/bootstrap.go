@@ -33,6 +33,7 @@ import (
 type Options struct {
 	ClusterName             string
 	ClusterEndpoint         string
+	ClusterServiceIpv4Cidr  string
 	KubeletConfig           *corev1beta1.KubeletConfiguration
 	Taints                  []core.Taint      `hash:"set"`
 	Labels                  map[string]string `hash:"set"`

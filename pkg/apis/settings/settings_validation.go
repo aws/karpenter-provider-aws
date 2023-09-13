@@ -16,6 +16,7 @@ package settings
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"time"
 
@@ -58,6 +59,18 @@ func (s Settings) validateEndpoint() (errs *apis.FieldError) {
 	// sure it's a real URL
 	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
 		return errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%q not a valid clusterEndpoint URL", s.ClusterEndpoint), "clusterEndpoint"))
+	}
+	return nil
+}
+
+// TODO: Write test for this?
+func (s Settings) validateClusterServiceIPV4Cidr() (errs *apis.FieldError) {
+	if s.ClusterServiceIpv4Cidr == "" {
+		return nil
+	}
+	_, _, err := net.ParseCIDR(s.ClusterServiceIpv4Cidr)
+	if err != nil {
+		return errs.Also(apis.ErrInvalidValue(fmt.Sprintf("%q not a valid IPV4 CIDR", s.ClusterServiceIpv4Cidr), "clusterServiceIpv4Cidr"))
 	}
 	return nil
 }

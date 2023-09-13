@@ -102,11 +102,18 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
-	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.New(sess))
+	describeCluster := DescribeClusterClosure(ctx, eks.New(sess))
+	clusterEndpoint, err := ResolveClusterEndpoint(ctx, describeCluster)
 	if err != nil {
 		logging.FromContext(ctx).Fatalf("unable to detect the cluster endpoint, %s", err)
 	} else {
 		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
+	}
+	clusterServiceIpv4Cidr, err := ResolveClusterServiceIpv4Cidr(ctx, describeCluster)
+	if err != nil {
+		logging.FromContext(ctx).Fatalf("unable to detect the cluster service ipv4 cidr, %s", err)
+	} else {
+		logging.FromContext(ctx).With("cluster-service-ipv4-cidr", clusterServiceIpv4Cidr).Debugf("discovered cluster service ipv4 cidr")
 	}
 	// We perform best-effort on resolving the kube-dns IP
 	kubeDNSIP, err := kubeDNSIP(ctx, operator.KubernetesInterface)
@@ -141,6 +148,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		operator.Elected(),
 		kubeDNSIP,
 		clusterEndpoint,
+		clusterServiceIpv4Cidr,
 	)
 	instanceTypeProvider := instancetype.NewProvider(
 		*sess.Config.Region,
@@ -194,14 +202,43 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 	return err
 }
 
-func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
+// TODO: Write tests to ensure describe cluster is called only once if invoked > 1
+func DescribeClusterClosure(ctx context.Context, eksAPI eksiface.EKSAPI) func() (*eks.DescribeClusterOutput, error) {
+	var cachedResult *eks.DescribeClusterOutput
+	return func() (*eks.DescribeClusterOutput, error) {
+		if cachedResult != nil {
+			return cachedResult, nil
+		}
+
+		out, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
+			Name: aws.String(settings.FromContext(ctx).ClusterName),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve cluster information, %w", err)
+		}
+		return out, nil
+	}
+}
+
+// TODO: Determine way to only run this for Windows?
+func ResolveClusterServiceIpv4Cidr(ctx context.Context, describeCluster func() (*eks.DescribeClusterOutput, error)) (string, error) {
+	clusterEndpointFromSettings := settings.FromContext(ctx).ClusterServiceIpv4Cidr
+	if clusterEndpointFromSettings != "" {
+		return clusterEndpointFromSettings, nil // cluster service ipv4 cidr is explicitly set
+	}
+	out, err := describeCluster()
+	if err != nil {
+		return "", fmt.Errorf("failed to resolve cluster service ipv4 cidr, %w", err)
+	}
+	return *out.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr, nil
+}
+
+func ResolveClusterEndpoint(ctx context.Context, describeCluster func() (*eks.DescribeClusterOutput, error)) (string, error) {
 	clusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
 	if clusterEndpointFromSettings != "" {
 		return clusterEndpointFromSettings, nil // cluster endpoint is explicitly set
 	}
-	out, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
-		Name: aws.String(settings.FromContext(ctx).ClusterName),
-	})
+	out, err := describeCluster()
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
 	}

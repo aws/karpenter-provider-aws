@@ -100,7 +100,10 @@ We release a snapshot release for every commit that gets merged into the main re
 Snapshot releases are suitable for testing, and troubleshooting but users should exercise great care if they decide to use them in production environments.
 Snapshot releases are tagged with the git commit hash prefixed by the Karpenter major version. For example `v0-fc17bfc89ebb30a3b102a86012b3e3992ec08adf`. For more detailed examples on how to use snapshot releases look under "Usage" in [Karpenter Helm Chart](https://gallery.ecr.aws/karpenter/karpenter).
 
-## Released Upgrade Notes
+## Upgrading to v0.x.x
+
+### Upgrading to v0.30.0+
+* If you are using Windows and you were using x workaround you can now specify a ServiceCIDR...
 
 ### Upgrading to v0.30.0+
 

@@ -55,28 +55,30 @@ const (
 
 type Provider struct {
 	sync.Mutex
-	ec2api                ec2iface.EC2API
-	amiFamily             *amifamily.Resolver
-	securityGroupProvider *securitygroup.Provider
-	subnetProvider        *subnet.Provider
-	cache                 *cache.Cache
-	caBundle              *string
-	cm                    *pretty.ChangeMonitor
-	KubeDNSIP             net.IP
-	ClusterEndpoint       string
+	ec2api                 ec2iface.EC2API
+	amiFamily              *amifamily.Resolver
+	securityGroupProvider  *securitygroup.Provider
+	subnetProvider         *subnet.Provider
+	cache                  *cache.Cache
+	caBundle               *string
+	cm                     *pretty.ChangeMonitor
+	KubeDNSIP              net.IP
+	ClusterEndpoint        string
+	ClusterServiceIpv4Cidr string
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string, clusterServiceIpv4Cidr string) *Provider {
 	l := &Provider{
-		ec2api:                ec2api,
-		amiFamily:             amiFamily,
-		securityGroupProvider: securityGroupProvider,
-		subnetProvider:        subnetProvider,
-		cache:                 cache,
-		caBundle:              caBundle,
-		cm:                    pretty.NewChangeMonitor(),
-		KubeDNSIP:             kubeDNSIP,
-		ClusterEndpoint:       clusterEndpoint,
+		ec2api:                 ec2api,
+		amiFamily:              amiFamily,
+		securityGroupProvider:  securityGroupProvider,
+		subnetProvider:         subnetProvider,
+		cache:                  cache,
+		caBundle:               caBundle,
+		cm:                     pretty.NewChangeMonitor(),
+		KubeDNSIP:              kubeDNSIP,
+		ClusterEndpoint:        clusterEndpoint,
+		ClusterServiceIpv4Cidr: clusterServiceIpv4Cidr,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -162,6 +164,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.Node
 	options := &amifamily.Options{
 		ClusterName:             settings.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
+		ClusterServiceIpv4Cidr: p.ClusterServiceIpv4Cidr,
 		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {

@@ -172,6 +172,8 @@ settings:
     # -- Cluster endpoint. If not set, will be discovered during startup (EKS only)
     clusterEndpoint: ""
     # -- The default instance profile to use when launching nodes
+    clusterServiceIpv4Cidr: ""
+    # -- The CIDR block to assign Kubernetes service IP addresses from for ipv4
     defaultInstanceProfile: ""
     # -- If true then instances that support pod ENI will report a vpc.amazonaws.com/pod-eni resource
     enablePodENI: false

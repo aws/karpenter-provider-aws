@@ -50,6 +50,7 @@ type Resolver struct {
 type Options struct {
 	ClusterName             string
 	ClusterEndpoint         string
+	ClusterServiceIpv4Cidr  string
 	AWSENILimitedPodDensity bool
 	InstanceProfile         string
 	CABundle                *string `hash:"ignore"`

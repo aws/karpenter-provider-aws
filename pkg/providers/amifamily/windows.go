@@ -59,13 +59,14 @@ func (w Windows) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
 func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
-			ClusterName:     w.Options.ClusterName,
-			ClusterEndpoint: w.Options.ClusterEndpoint,
-			KubeletConfig:   kubeletConfig,
-			Taints:          taints,
-			Labels:          labels,
-			CABundle:        caBundle,
-			CustomUserData:  customUserData,
+			ClusterName:            w.Options.ClusterName,
+			ClusterEndpoint:        w.Options.ClusterEndpoint,
+			ClusterServiceIpv4Cidr: w.Options.ClusterServiceIpv4Cidr,
+			KubeletConfig:          kubeletConfig,
+			Taints:                 taints,
+			Labels:                 labels,
+			CABundle:               caBundle,
+			CustomUserData:         customUserData,
 		},
 	}
 }

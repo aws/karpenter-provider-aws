@@ -34,6 +34,7 @@ var defaultSettings = &Settings{
 	ClusterCABundle:            "",
 	ClusterName:                "",
 	ClusterEndpoint:            "",
+	ClusterServiceIpv4Cidr:     "",
 	DefaultInstanceProfile:     "",
 	EnablePodENI:               false,
 	EnableENILimitedPodDensity: true,
@@ -51,6 +52,7 @@ type Settings struct {
 	ClusterCABundle            string
 	ClusterName                string
 	ClusterEndpoint            string
+	ClusterServiceIpv4Cidr     string //TODO: Test this in integration/unit tests and update docs.
 	DefaultInstanceProfile     string
 	EnablePodENI               bool
 	EnableENILimitedPodDensity bool
@@ -75,6 +77,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		configmap.AsString("aws.clusterCABundle", &s.ClusterCABundle),
 		configmap.AsString("aws.clusterName", &s.ClusterName),
 		configmap.AsString("aws.clusterEndpoint", &s.ClusterEndpoint),
+		configmap.AsString("aws.clusterServiceIpv4Cidr", &s.ClusterServiceIpv4Cidr),
 		configmap.AsString("aws.defaultInstanceProfile", &s.DefaultInstanceProfile),
 		configmap.AsBool("aws.enablePodENI", &s.EnablePodENI),
 		configmap.AsBool("aws.enableENILimitedPodDensity", &s.EnableENILimitedPodDensity),

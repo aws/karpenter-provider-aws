@@ -26,6 +26,7 @@ import (
 type SettingOptions struct {
 	ClusterName                *string
 	ClusterEndpoint            *string
+	ClusterServiceIpv4Cidr     *string
 	DefaultInstanceProfile     *string
 	EnablePodENI               *bool
 	EnableENILimitedPodDensity *bool
