@@ -42,6 +42,9 @@ type EC2NodeClassSpec struct {
 	// LicenseSelectorTerms is a list of LicenseSelectors. The terms are ORed.
 	// +optional
 	LicenseSelectorTerms []LicenseSelectorTerm `json:"licenseSelectorTerms,omitempty" hash:"ignore"`
+    // HostResourceGroupSelectorTerms is a list of HostResourceGroupSelectors. The terms are ORed.
+    // +optional
+    HostResourceGroupSelectorTerms []HostResourceGroupSelectorTerm `json:"hostResourceGroupSelectorTerms,omitempty" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -168,6 +171,14 @@ type LicenseSelectorTerm struct {
 	// Name of the license to be selected.
 	// +optional
 	Name string `json:"name,omitempty"`
+}
+
+// HostResourceGroupSelectorTerm defines the selection logic for host Resource groups
+// that are used to launch nodes. If multiple fields are used for selection, the requirements are ANDed
+type HostResourceGroupSelectorTerm struct {
+    // Name of the hrg to be selected
+    // +optional
+    Name string `json:"name,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the

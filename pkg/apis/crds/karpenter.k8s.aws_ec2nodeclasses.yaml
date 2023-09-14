@@ -163,6 +163,20 @@ spec:
                 description: DetailedMonitoring controls if detailed monitoring is
                   enabled for instances that are launched
                 type: boolean
+              hostResourceGroupSelectorTerms:
+                description: HostResourceGroupSelectorTerms is a list of HostResourceGroupSelectors.
+                  The terms are ORed.
+                items:
+                  description: HostResourceGroupSelectorTerm defines the selection
+                    logic for host Resource groups that are used to launch nodes.
+                    If multiple fields are used for selection, the requirements are
+                    ANDed
+                  properties:
+                    name:
+                      description: Name of the hrg to be selected
+                      type: string
+                  type: object
+                type: array
               licenseSelectorTerms:
                 description: LicenseSelectorTerms is a list of LicenseSelectors. The
                   terms are ORed.
@@ -353,6 +367,16 @@ spec:
                   - requirements
                   type: object
                 type: array
+              hostResourceGroup:
+                description: HostResourceGroups contains the HRG arns
+                properties:
+                  arn:
+                    description: Arn of the HRG
+                    type: string
+                  name:
+                    description: Name of the HRG
+                    type: string
+                type: object
               licenses:
                 description: Licenses contains the license arns
                 items:
