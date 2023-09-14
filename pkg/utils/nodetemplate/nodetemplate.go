@@ -56,6 +56,9 @@ func New(nodeClass *v1beta1.EC2NodeClass) *v1alpha1.AWSNodeTemplate {
 }
 
 func NewHostResourceGroups(hrg *v1beta1.HostResourceGroup) []string {
+    if hrg == nil {
+        return nil
+    }
 	return []string{hrg.ARN}
 }
 
