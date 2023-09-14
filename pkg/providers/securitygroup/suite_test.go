@@ -43,7 +43,7 @@ var stop context.CancelFunc
 var opts options.Options
 var env *coretest.Environment
 var awsEnv *test.Environment
-var nodeClass *v1beta1.NodeClass
+var nodeClass *v1beta1.EC2NodeClass
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -68,8 +68,8 @@ var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
-	nodeClass = test.NodeClass(v1beta1.NodeClass{
-		Spec: v1beta1.NodeClassSpec{
+	nodeClass = test.NodeClass(v1beta1.EC2NodeClass{
+		Spec: v1beta1.EC2NodeClassSpec{
 			AMIFamily: aws.String(v1beta1.AMIFamilyAL2),
 			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
 				{
