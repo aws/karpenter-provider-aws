@@ -11,7 +11,7 @@ As part of the bump to v1beta1, to allow the v1alpha5 APIs to exist alongside th
 2. Kind Renames
     1. `Provisioner` → `NodePool`
     2. `Machine` -> `NodeClaim`
-    3. `AWSNodeTemplate` → `NodeClass`
+    3. `AWSNodeTemplate` → `EC2NodeClass`
 
 We see the renames as opportunities to better align our API groups and kinds with upstream concepts as well as reducing confusion between other Kubernetes API concepts. Specifically, the word `Provisioner` (on its own) has become overloaded in Kubernetes, [particularly in the area of storage provisioning](https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource). We want to get completely away from this naming, while also prefixing all of our kinds that apply to nodes with `Node` for better alignment and clarity across the project. 
 
@@ -19,7 +19,7 @@ This gives the following naming to API types within the Karpenter project
 
 1. `karpenter.sh/NodePool`
 2. `karpenter.sh/NodeClaim`
-3. `compute.k8s.aws/NodeClass`
+3. `compute.k8s.aws/EC2NodeClass`
 
 ### Remove Validation/Mutating Webhooks in favor of CEL (Common Expression Language)
 
@@ -45,7 +45,7 @@ While this feature is useful for consolidation, it should be expanded out to all
 
 ####  `nodePool.spec` → `nodePool.spec.template`
 
-Currently fields that control node properties, such as `Labels`, `Taints`, `StartupTaints`, `Requirements`, `Kubelet`, `ProviderRef,` are top level members of `provisioner.spec`. We can draw a nice line between:
+Currently fields that control node properties, such as `Labels`, `Taints`, `StartupTaints`, `Requirements`, `KubeletConfiguration`, `ProviderRef,` are top level members of `provisioner.spec`. We can draw a nice line between:
 
 1. Behavior-based fields that dictate how Karpenter should act on nodes
 2. Configuration-based fields that dictate how NodeClaims/Nodes should look
@@ -103,7 +103,7 @@ Karpenter will change the `ttlSecondsUntilExipred` field to `expireAfter` to ali
 
 We’ve recommended that customers leverage spec.providerRef in favor of spec.provider since Q2 2022. Documentation for this feature has been removed since Q3 2022. We will take the opportunity to remove the feature entirely to minimize code bugs/complexity and user confusion.
 
-### `NodeClass` Changes
+### `EC2NodeClass` Changes
 
 #### Update `nodeClass.spec.amiSelector`
 
@@ -118,14 +118,12 @@ amiSelectorTerms:
 - name: foo
   id: abc-123
   owner: amazon
-  ssm: "/al2/alias"
   tags: 
     key: value
 # Selector Terms are ORed
 - name: foo
   id: abc-123
   owner: self
-  ssm: "/al2/alias"
   tags: 
     key: value
 ```
@@ -169,7 +167,7 @@ Direct launch template support is problematic for many reasons, outlined in the 
 
 #### `nodeTemplate.spec.instanceProfile` → `nodeClass.spec.role`
 
-Currently, Karpenter uses an `instanceProfile` in the `AWSNodeTemplate` that is referenced to determine the profile that the EC2 node should launch with. Instance profiles are IAM entities that are specific to EC2 and do not have a lot of detail built around them (including console support); users are generally more familiar with the concept of IAM roles. As a result, we can support a `role` in the new `NodeClass` and allow Karpenter to provision the instance profile `ad-hoc` with the `role`  specified attached to it.
+Currently, Karpenter uses an `instanceProfile` in the `AWSNodeTemplate` that is referenced to determine the profile that the EC2 node should launch with. Instance profiles are IAM entities that are specific to EC2 and do not have a lot of detail built around them (including console support); users are generally more familiar with the concept of IAM roles. As a result, we can support a `role` in the new `EC2NodeClass` and allow Karpenter to provision the instance profile `ad-hoc` with the `role`  specified attached to it.
 
 #### Remove tag-based AMI Requirements
 
@@ -192,11 +190,11 @@ This functionality of Karpenter hasn’t been surfaced widely at this point in t
 
 #### Deprecate `defaultInstanceProfile` in `karpenter-global-settings`
 
-InstanceProfile, SubnetSelector, and SecurityGroup are all required information to launch nodes. Currently InstanceProfile is set in default settings, but subnetSelector and securityGroupSelector aren't. This is awkward and [doesn't provide a consistent experience for users](https://github.com/aws/karpenter/issues/2973). We should align all of our configuration at the `NodeClass` and `Provisioner` -level for users to streamline their experience.
+InstanceProfile, SubnetSelector, and SecurityGroup are all required information to launch nodes. Currently InstanceProfile is set in default settings, but subnetSelector and securityGroupSelector aren't. This is awkward and [doesn't provide a consistent experience for users](https://github.com/aws/karpenter/issues/2973). We should align all of our configuration at the `EC2NodeClass` and `Provisioner` -level for users to streamline their experience.
 
-#### Deprecate `tags` from `karpenter-global-settings` in favor of `nodeClass.tags`
+#### Deprecate `tags` from `karpenter-global-settings` in favor of `nodeClass.spec.tags`
 
-Having `tags` inside of the `karpenter-global-settings` makes it difficult to detect drift when these tag values are changed. Since the primary reason this field exists inside the `karpenter-global-settings` is for ease-of-use, and there is a simple workaround for customers (setting consistent tags inside each `NodeClass`), it makes natural sense to remove this from the `karpenter-global-settings` .
+Having `tags` inside of the `karpenter-global-settings` makes it difficult to detect drift when these tag values are changed. Since the primary reason this field exists inside the `karpenter-global-settings` is for ease-of-use, and there is a simple workaround for customers (setting consistent tags inside each `EC2NodeClass`), it makes natural sense to remove this from the `karpenter-global-settings` .
 
 #### Remove `aws.enablePodENI` from `karpenter-global-settings`
 
@@ -204,4 +202,4 @@ This value has no meaning anymore now that our initialization logic does not rel
 
 #### Deprecate `aws.enableENILimitedPodDensity`  in `karpenter-global-settings`
 
-Setting static pod density is available through the `nodeClass.kubelet.maxPods` so there is no need for this setting to be configured at a global level anymore.
+Setting static pod density is available through the `nodePool.spec.kubeletConfiguration.maxPods` so there is no need for this setting to be configured at a global level anymore.

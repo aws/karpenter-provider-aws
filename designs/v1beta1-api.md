@@ -20,12 +20,12 @@ To workaround the limitation of round-trippability, we are proposing a rename of
 
 #### Aggressive Scale-Down
 
-1. Spin up a new `v1beta1/NodePool` and `v1beta1/NodeClass` resource matching their `v1alpha5` counterparts
+1. Spin up a new `v1beta1/NodePool` and `v1beta1/EC2NodeClass` resource matching their `v1alpha5` counterparts
 2. Delete the `v1alpha5/Provisioner` and `v1alpha5/AWSNodeTemplate` with [cascading foreground deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion) to delete the nodes and have Karpenter roll the nodes to `v1beta1`
 
 #### Slow Scale-Down
 
-1. Spin up a new `v1beta1/NodePool` and `v1beta1/NodeClass` resource matching their `v1alpha5` counterparts
+1. Spin up a new `v1beta1/NodePool` and `v1beta1/EC2NodeClass` resource matching their `v1alpha5` counterparts
 2. Set the `spec.limits` on your `v1alpha5/Provisioner` resource to `cpu=0` to stop provisioning
 3. Manually delete Nodes one-by-one to have Karpenter roll the nodes over to `v1beta1`
 
@@ -36,7 +36,7 @@ To help clearly define where configuration should live within Karpenter’s API,
 1. `NodePool`
     1. Neutral Node configuration-based fields that affect the **compatibility between Nodes and Pods during scheduling** (e.g. requirements, taints, labels)
     2. Neutral behavior-based fields for configuring Karpenter’s scheduling and deprovisioning decision-making
-2. `NodeClass`
+2. `EC2NodeClass`
     1. Cloudprovider-specific Node configuration-based fields that affect launch and bootstrap process for that Node including: configuring startup scripts, volume mappings, metadata settings, etc.
     2. Cloudprovider-specific behavior-based fields for configuring Karpenter’s scheduling and deprovisioning decision-making (e.g. interruption-based disruption, allocation strategy)
 3. `NodeClaim`
@@ -59,7 +59,7 @@ spec:
     spec:
       nodeClass:
         name: default
-        kind: NodeClass
+        kind: EC2NodeClass
         apiVersion: compute.k8s.aws/v1beta1
       taints:
         - key: example.com/special-taint
@@ -119,11 +119,11 @@ status:
      ephemeral-storage: "100Gi"
 ```
 
-### `compute.k8s.aws/NodeClass`
+### `compute.k8s.aws/EC2NodeClass`
 
 ```
 apiVersion: compute.k8s.aws/v1beta1
-kind: NodeClass
+kind: EC2NodeClass
 metadata:
   name: default
 spec:
@@ -134,7 +134,6 @@ spec:
     - id: abc-123
     - name: foo
       owner: amazon
-    - ssm: "/my/custom/parameter"
   subnetSelectorTerms:
     - tags:
         compute.k8s.aws/discovery: cluster-name
@@ -236,7 +235,7 @@ metadata:
 spec:
   nodeClass:
     name: default
-    kind: NodeClass
+    kind: EC2NodeClass
     apiVersion: compute.k8s.aws/v1beta1
   taints:
     - key: example.com/special-taint
