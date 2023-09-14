@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 
@@ -27,6 +28,7 @@ import (
 	v1 "k8s.io/api/discovery/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/version"
+	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -44,18 +46,20 @@ type HTTPClient interface {
 // Provider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
 // for decision making. The version is cached to help reduce the amount of calls made to the API Server
 type Provider struct {
-	cache      *cache.Cache
-	cm         *pretty.ChangeMonitor
-	kubeClient client.Client
-	httpClient HTTPClient
+	cache               *cache.Cache
+	cm                  *pretty.ChangeMonitor
+	kubeClient          client.Client
+	httpClient          HTTPClient
+	kubernetesInterface kubernetes.Interface
 }
 
-func NewProvider(cache *cache.Cache, client client.Client, httpClient HTTPClient) *Provider {
+func NewProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, client client.Client, httpClient HTTPClient) *Provider {
 	return &Provider{
-		cm:         pretty.NewChangeMonitor(),
-		cache:      cache,
-		kubeClient: client,
-		httpClient: httpClient,
+		cm:                  pretty.NewChangeMonitor(),
+		cache:               cache,
+		kubeClient:          client,
+		httpClient:          httpClient,
+		kubernetesInterface: kubernetesInterface,
 	}
 }
 
@@ -63,9 +67,23 @@ func (p *Provider) Get(ctx context.Context) (string, error) {
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
-	version, err := p.GetMinKubernetesVersion(ctx)
-	if err != nil {
-		return "", err
+	var version string
+	var err error
+	// If we're running locally, these environment variables will be empty.
+	host, port := os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT")
+	if len(host) == 0 || len(port) == 0 {
+		// If we're running locally, we don't care which APIServer we hit
+		serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
+		if err != nil {
+			return "", err
+		}
+		version = fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
+	} else {
+		// If we're running in cluster, we'll ping each APIServer endpoint to get the minimum k8s version.
+		version, err = p.GetMinKubernetesVersion(ctx)
+		if err != nil {
+			return "", err
+		}
 	}
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
