@@ -78,5 +78,5 @@ type EC2NodeClassStatus struct {
     Licenses []string `json:"licenses,omitempty"`
     // HostResourceGroups contains the HRG arns
     // +optional
-    HostResourceGroup HostResourceGroup `json:"hostResourceGroup,omitempty"`
+    HostResourceGroup *HostResourceGroup `json:"hostResourceGroup,omitempty"`
 }

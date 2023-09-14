@@ -251,6 +251,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 			},
             LicenseSpecifications: generateLicenseSpecification(options.Licenses),
+            Placement: generatePlacement(options.Placement),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -264,6 +265,16 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 	}
 	logging.FromContext(ctx).With("id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).Debugf("created launch template")
 	return output.LaunchTemplate, nil
+}
+
+func generatePlacement(placement *amifamily.Placement) *ec2.LaunchTemplatePlacementRequest {
+    if placement == nil {
+        return nil
+    }
+    return &ec2.LaunchTemplatePlacementRequest{
+        HostResourceGroupArn: aws.String(placement.HostResourceGroup),
+    }
+
 }
 
 func generateLicenseSpecification(licenses []string) []*ec2.LaunchTemplateLicenseConfigurationRequest {

@@ -29,6 +29,7 @@ import (
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
 	"github.com/aws/karpenter/pkg/providers/license"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -43,8 +44,9 @@ var DefaultEBS = v1beta1.BlockDevice{
 
 // Resolver is able to fill-in dynamic launch template parameters
 type Resolver struct {
-	amiProvider     *Provider
-	licenseProvider *license.Provider
+	amiProvider               *Provider
+	licenseProvider           *license.Provider
+	hostResourceGroupProvider *hostresourcegroup.Provider
 }
 
 // Options define the static launch template parameters
@@ -72,6 +74,12 @@ type LaunchTemplate struct {
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
 	Licenses            []string
+	Placement           *Placement
+}
+
+// Placement holds the dynamically generated launch template placement parameters
+type Placement struct {
+	HostResourceGroup string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -110,10 +118,11 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(amiProvider *Provider, licenseProvider *license.Provider) *Resolver {
+func New(amiProvider *Provider, licenseProvider *license.Provider, hostResourceGroupProvider *hostresourcegroup.Provider) *Resolver {
 	return &Resolver{
-		amiProvider:     amiProvider,
-		licenseProvider: licenseProvider,
+		amiProvider:               amiProvider,
+		licenseProvider:           licenseProvider,
+		hostResourceGroupProvider: hostResourceGroupProvider,
 	}
 }
 
@@ -136,6 +145,16 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if err != nil {
 		return nil, err
 	}
+    var placement *Placement
+	hrg, err := r.hostResourceGroupProvider.Get(ctx, nodeClass)
+	if err != nil {
+		return nil, err
+	}
+    if hrg == nil {
+        placement = nil
+    } else {
+        placement = &Placement{HostResourceGroup: hrg.ARN}
+    }
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -169,7 +188,8 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 				DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
-                Licenses: licenses,
+				Licenses:            licenses,
+				Placement:           placement,
 			}
 			if len(resolved.BlockDeviceMappings) == 0 {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

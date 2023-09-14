@@ -28,13 +28,14 @@ func New(nodeClass *v1beta1.EC2NodeClass) *v1alpha1.AWSNodeTemplate {
 		Spec: v1alpha1.AWSNodeTemplateSpec{
 			UserData: nodeClass.Spec.UserData,
 			AWS: v1alpha1.AWS{
-				AMIFamily:             nodeClass.Spec.AMIFamily,
-				Context:               nodeClass.Spec.Context,
-				InstanceProfile:       nodeClass.Spec.InstanceProfile,
-				SubnetSelector:        nodeClass.Spec.OriginalSubnetSelector,
-				SecurityGroupSelector: nodeClass.Spec.OriginalSecurityGroupSelector,
-				LicenseSelector:       nodeClass.Spec.OriginalLicenseSelector,
-				Tags:                  nodeClass.Spec.Tags,
+				AMIFamily:                 nodeClass.Spec.AMIFamily,
+				Context:                   nodeClass.Spec.Context,
+				InstanceProfile:           nodeClass.Spec.InstanceProfile,
+				SubnetSelector:            nodeClass.Spec.OriginalSubnetSelector,
+				SecurityGroupSelector:     nodeClass.Spec.OriginalSecurityGroupSelector,
+				LicenseSelector:           nodeClass.Spec.OriginalLicenseSelector,
+				HostResourceGroupSelector: nodeClass.Spec.OriginalHostResourceGroupSelector,
+				Tags:                      nodeClass.Spec.Tags,
 				LaunchTemplate: v1alpha1.LaunchTemplate{
 					LaunchTemplateName:  nodeClass.Spec.LaunchTemplateName,
 					MetadataOptions:     NewMetadataOptions(nodeClass.Spec.MetadataOptions),
@@ -45,12 +46,17 @@ func New(nodeClass *v1beta1.EC2NodeClass) *v1alpha1.AWSNodeTemplate {
 			DetailedMonitoring: nodeClass.Spec.DetailedMonitoring,
 		},
 		Status: v1alpha1.AWSNodeTemplateStatus{
-			Subnets:        NewSubnets(nodeClass.Status.Subnets),
-			SecurityGroups: NewSecurityGroups(nodeClass.Status.SecurityGroups),
-			AMIs:           NewAMIs(nodeClass.Status.AMIs),
-			Licenses:       NewLicenses(nodeClass.Status.Licenses),
+			Subnets:            NewSubnets(nodeClass.Status.Subnets),
+			SecurityGroups:     NewSecurityGroups(nodeClass.Status.SecurityGroups),
+			AMIs:               NewAMIs(nodeClass.Status.AMIs),
+			Licenses:           NewLicenses(nodeClass.Status.Licenses),
+			HostResourceGroups: NewHostResourceGroups(nodeClass.Status.HostResourceGroup),
 		},
 	}
+}
+
+func NewHostResourceGroups(hrg *v1beta1.HostResourceGroup) []string {
+	return []string{hrg.ARN}
 }
 
 func NewBlockDeviceMappings(bdms []*v1beta1.BlockDeviceMapping) []*v1alpha1.BlockDeviceMapping {

@@ -30,11 +30,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/licensemanager"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go/service/licensemanager"
+	"github.com/aws/aws-sdk-go/service/resourcegroups"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
 
@@ -50,6 +51,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
@@ -78,6 +80,7 @@ type Operator struct {
 	InstanceTypesProvider     *instancetype.Provider
 	InstanceProvider          *instance.Provider
 	LicenseProvider           *license.Provider
+	HostResourceGroupProvider *hostresourcegroup.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -134,8 +137,9 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	versionProvider := version.NewProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiProvider := amifamily.NewProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	licenseProvider := license.NewProvider(licensemanager.New(sess) , cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.New(amiProvider, licenseProvider)
+	licenseProvider := license.NewProvider(licensemanager.New(sess), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+    hostresourcegroupProvider := hostresourcegroup.NewProvider(resourcegroups.New(sess), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiResolver := amifamily.New(amiProvider, licenseProvider, hostresourcegroupProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -143,7 +147,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
-        licenseProvider,
+		licenseProvider,
 		lo.Must(getCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
@@ -166,7 +170,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 	)
-		
 
 	return ctx, &Operator{
 		Operator:                  operator,
@@ -183,6 +186,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		InstanceTypesProvider:     instanceTypeProvider,
 		InstanceProvider:          instanceProvider,
 		LicenseProvider:           licenseProvider,
+        HostResourceGroupProvider: hostresourcegroupProvider,
 	}
 }
 

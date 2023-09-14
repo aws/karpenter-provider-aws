@@ -38,6 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
 	"github.com/aws/karpenter/pkg/providers/license"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -45,21 +46,23 @@ import (
 )
 
 type Controller struct {
-	kubeClient            client.Client
-	subnetProvider        *subnet.Provider
-	securityGroupProvider *securitygroup.Provider
-	amiProvider           *amifamily.Provider
-	licenseProvider       *license.Provider
+	kubeClient                client.Client
+	subnetProvider            *subnet.Provider
+	securityGroupProvider     *securitygroup.Provider
+	amiProvider               *amifamily.Provider
+	licenseProvider           *license.Provider
+	hostResourceGroupProvider *hostresourcegroup.Provider
 }
 
 func NewController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider) *Controller {
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider) *Controller {
 	return &Controller{
-		kubeClient:            kubeClient,
-		subnetProvider:        subnetProvider,
-		securityGroupProvider: securityGroupProvider,
-		amiProvider:           amiProvider,
-		licenseProvider:       licenseProvider,
+		kubeClient:                kubeClient,
+		subnetProvider:            subnetProvider,
+		securityGroupProvider:     securityGroupProvider,
+		amiProvider:               amiProvider,
+		licenseProvider:           licenseProvider,
+		hostResourceGroupProvider: hostresourcegroupProvider,
 	}
 }
 
@@ -71,6 +74,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		c.resolveSecurityGroups(ctx, nodeClass),
 		c.resolveAMIs(ctx, nodeClass),
 		c.resolveLicenses(ctx, nodeClass),
+		c.resolveHostResourceGroups(ctx, nodeClass),
 	)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
@@ -167,21 +171,26 @@ func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.Nod
 
 }
 
+func (c *Controller) resolveHostResourceGroups(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
+    result , err :=  c.hostResourceGroupProvider.Get(ctx, nodeClass)
+    if err != nil {
+        return err
+    }
+
+    nodeClass.Status.HostResourceGroup = result
+
+	return nil
+}
+
 //nolint:revive
 type NodeClassController struct {
 	*Controller
 }
 
 func NewNodeClassController(kubeClient client.Client, subnetProvider *subnet.Provider,
-<<<<<<< HEAD
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider) corecontroller.Controller {
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
-=======
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*v1beta1.NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider),
->>>>>>> 7b9eb759 (More license provider scaffolding)
+		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostresourcegroupProvider),
 	})
 }
 
@@ -209,9 +218,9 @@ type NodeTemplateController struct {
 }
 
 func NewNodeTemplateController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider) corecontroller.Controller {
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &NodeTemplateController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider),
+		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostresourcegroupProvider),
 	})
 }
 

@@ -46,10 +46,10 @@ type AWS struct {
 	LicenseSelector map[string]string `json:"licenseSelector,omitempty" hash:"ignore"`
 	// HostResourceGroups specific the hostResourceGroupArns to use for ec2 placement
 	// +optional
-	HostResourceGroupSelector map[string]string `json:"hostResourceGroup,omitempty" hash:"ignore"`
+	HostResourceGroupSelector map[string]string `json:"hostResourceGroupSelector,omitempty" hash:"ignore"`
 	// PlacementGroup specifies the placement group to use for ec2 placement
 	// +optional
-	PlacementGroupSelector map[string]string `json:"placementGroup,omitempty" hash:"ignore"`
+	PlacementGroupSelector map[string]string `json:"placementGroupSelector,omitempty" hash:"ignore"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`

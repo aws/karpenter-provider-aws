@@ -37,31 +37,51 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 		TypeMeta:   nodeTemplate.TypeMeta,
 		ObjectMeta: nodeTemplate.ObjectMeta,
 		Spec: v1beta1.EC2NodeClassSpec{
-			SubnetSelectorTerms:           NewSubnetSelectorTerms(nodeTemplate.Spec.SubnetSelector),
-			OriginalSubnetSelector:        nodeTemplate.Spec.SubnetSelector,
-			SecurityGroupSelectorTerms:    NewSecurityGroupSelectorTerms(nodeTemplate.Spec.SecurityGroupSelector),
-			OriginalSecurityGroupSelector: nodeTemplate.Spec.SecurityGroupSelector,
-			AMISelectorTerms:              NewAMISelectorTerms(nodeTemplate.Spec.AMISelector),
-			OriginalAMISelector:           nodeTemplate.Spec.AMISelector,
-			AMIFamily:                     nodeTemplate.Spec.AMIFamily,
-			LicenseSelectorTerms:          NewLicenseSelectorTerms(nodeTemplate.Spec.LicenseSelector),
-			OriginalLicenseSelector:       nodeTemplate.Spec.LicenseSelector,
-			UserData:                      nodeTemplate.Spec.UserData,
-			Tags:                          nodeTemplate.Spec.Tags,
-			BlockDeviceMappings:           NewBlockDeviceMappings(nodeTemplate.Spec.BlockDeviceMappings),
-			DetailedMonitoring:            nodeTemplate.Spec.DetailedMonitoring,
-			MetadataOptions:               NewMetadataOptions(nodeTemplate.Spec.MetadataOptions),
-			Context:                       nodeTemplate.Spec.Context,
-			LaunchTemplateName:            nodeTemplate.Spec.LaunchTemplateName,
-			InstanceProfile:               nodeTemplate.Spec.InstanceProfile,
+			SubnetSelectorTerms:               NewSubnetSelectorTerms(nodeTemplate.Spec.SubnetSelector),
+			OriginalSubnetSelector:            nodeTemplate.Spec.SubnetSelector,
+			SecurityGroupSelectorTerms:        NewSecurityGroupSelectorTerms(nodeTemplate.Spec.SecurityGroupSelector),
+			OriginalSecurityGroupSelector:     nodeTemplate.Spec.SecurityGroupSelector,
+			AMISelectorTerms:                  NewAMISelectorTerms(nodeTemplate.Spec.AMISelector),
+			OriginalAMISelector:               nodeTemplate.Spec.AMISelector,
+			AMIFamily:                         nodeTemplate.Spec.AMIFamily,
+			LicenseSelectorTerms:              NewLicenseSelectorTerms(nodeTemplate.Spec.LicenseSelector),
+			OriginalLicenseSelector:           nodeTemplate.Spec.LicenseSelector,
+			UserData:                          nodeTemplate.Spec.UserData,
+			Tags:                              nodeTemplate.Spec.Tags,
+			BlockDeviceMappings:               NewBlockDeviceMappings(nodeTemplate.Spec.BlockDeviceMappings),
+			DetailedMonitoring:                nodeTemplate.Spec.DetailedMonitoring,
+			MetadataOptions:                   NewMetadataOptions(nodeTemplate.Spec.MetadataOptions),
+			Context:                           nodeTemplate.Spec.Context,
+			LaunchTemplateName:                nodeTemplate.Spec.LaunchTemplateName,
+			InstanceProfile:                   nodeTemplate.Spec.InstanceProfile,
+			OriginalHostResourceGroupSelector: nodeTemplate.Spec.HostResourceGroupSelector,
+			HostResourceGroupSelectorTerms:    NewHostResourceSelectorTerms(nodeTemplate.Spec.HostResourceGroupSelector),
 		},
 		Status: v1beta1.EC2NodeClassStatus{
-			Subnets:        NewSubnets(nodeTemplate.Status.Subnets),
-			SecurityGroups: NewSecurityGroups(nodeTemplate.Status.SecurityGroups),
-			AMIs:           NewAMIs(nodeTemplate.Status.AMIs),
+			Subnets:           NewSubnets(nodeTemplate.Status.Subnets),
+			SecurityGroups:    NewSecurityGroups(nodeTemplate.Status.SecurityGroups),
+			AMIs:              NewAMIs(nodeTemplate.Status.AMIs),
+			Licenses:          nodeTemplate.Status.Licenses,
+			HostResourceGroup: NewHostResourceGroup(nodeTemplate.Status.HostResourceGroups),
 		},
 		IsNodeTemplate: true,
 	}
+}
+
+func NewHostResourceSelectorTerms(hrgSelector map[string]string) (terms []v1beta1.HostResourceGroupSelectorTerm) {
+	if len(hrgSelector) == 0 {
+		return nil
+	}
+	return []v1beta1.HostResourceGroupSelectorTerm{
+		{Name: hrgSelector["name"]},
+	}
+}
+
+func NewHostResourceGroup(hrgs []string) *v1beta1.HostResourceGroup {
+	if len(hrgs) == 0 {
+		return nil
+	}
+	return &v1beta1.HostResourceGroup{ARN: hrgs[0]}
 }
 
 func NewSubnetSelectorTerms(subnetSelector map[string]string) (terms []v1beta1.SubnetSelectorTerm) {
