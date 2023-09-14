@@ -114,8 +114,12 @@ runs:
             roleOnly: true
         withOIDC: true
       addons:
+      # For our scale testing, warm ENIs to help prevent timeouts on binding pods 
+      # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html 
       - name: vpc-cni
         permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        configurationValues: |-
+          {"env":{"WARM_ENI_TARGET":"30"}}
       - name: coredns
         permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
       - name: kube-proxy
