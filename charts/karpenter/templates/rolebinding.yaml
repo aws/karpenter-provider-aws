@@ -18,6 +18,8 @@ subjects:
     name: {{ template "karpenter.serviceAccountName" . }}
     namespace: {{ .Release.Namespace }}
 ---
+# We need this role so that Karpenter can discover the Kubernetes APIServer Endpoints
+# This is important for getting consensus on the API Version in the cluster.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:

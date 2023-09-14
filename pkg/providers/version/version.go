@@ -80,7 +80,7 @@ func (p *Provider) Get(ctx context.Context) (string, error) {
 		version = fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	} else {
 		// If we're running in cluster, we'll ping each APIServer endpoint to get the minimum k8s version.
-		version, err = p.GetMinKubernetesVersion(ctx)
+		version, err = p.getMinKubernetesVersion(ctx)
 		if err != nil {
 			return "", err
 		}
@@ -95,28 +95,36 @@ func (p *Provider) Get(ctx context.Context) (string, error) {
 // GetMinKubernetesVersion ensures that we query all known APIServers for the K8s version.
 // This to handle any scenarios where there may be multiple APIServer reporting different
 // K8s versions.
-func (p *Provider) GetMinKubernetesVersion(ctx context.Context) (string, error) {
+func (p *Provider) getMinKubernetesVersion(ctx context.Context) (string, error) {
 	var endpointSlice v1.EndpointSlice
 	if err := p.kubeClient.Get(ctx, types.NamespacedName{Name: "kubernetes", Namespace: "default"}, &endpointSlice); err != nil {
 		return "", fmt.Errorf("getting endpoints, %w", err)
 	}
 	var minVersion *version.Version
 	for _, address := range getAddresses(endpointSlice) {
-		resp, err := p.httpClient.Get(address)
-		if err != nil {
-			return "", fmt.Errorf("sending get request, %w", err)
-		}
-		defer resp.Body.Close()
-		var data map[string]string
-		if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
-			return "", fmt.Errorf("reading response body, %w", err)
-		}
-		v, err := version.ParseGeneric(data["gitVersion"])
-		if err != nil {
-			return "", fmt.Errorf("parsing kubernetes version, %w", err)
-		}
-		if minVersion == nil || v.LessThan(minVersion) {
-			minVersion = v
+		if err := func() error {
+			resp, err := p.httpClient.Get(address)
+			if err != nil {
+				return fmt.Errorf("sending get request, %w", err)
+			}
+			// Close the body to avoid leaking file descriptors
+			// Always read the body so we can re-use the connection:
+			// https://stackoverflow.com/questions/17948827/reusing-http-connections-in-go
+			defer resp.Body.Close()
+			var data map[string]string
+			if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+				return fmt.Errorf("reading response body, %w", err)
+			}
+			v, err := version.ParseGeneric(data["gitVersion"])
+			if err != nil {
+				return fmt.Errorf("parsing kubernetes version, %w", err)
+			}
+			if minVersion == nil || v.LessThan(minVersion) {
+				minVersion = v
+			}
+			return nil
+		}(); err != nil {
+			return "", err
 		}
 	}
 	if minVersion == nil {
