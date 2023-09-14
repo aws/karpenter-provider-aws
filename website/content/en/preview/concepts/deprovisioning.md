@@ -185,13 +185,13 @@ __Behavioral Fields__
 
 To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "./settings#feature-gates" >}}).
 
-Karpenter will annotate the nodes with the `karpenter.sh/voluntary-disruption: "drifted"` if the node is drifted, and does not have the annotation,
+Karpenter will add `MachineDrifted` status condition on the machines if the machine is drifted, and does not have the status condition,
 
-Karpenter will remove the  `karpenter.sh/voluntary-disruption: "drifted"` annotation for the following these scenarios:
-1. The `featureGates.driftEnabled` is not enabled but the node is drifted, karpenter will remove the annotation so another disruption controller can annotate the node.
-2. The node isn't drifted, but has the annotation, karpenter will remove it.
+Karpenter will remove the  `MachineDrifted` status condition for the following these scenarios:
+1. The `featureGates.driftEnabled` is not enabled but the machine is drifted, karpenter will remove the status condition.
+2. The machine isn't drifted, but has the status condition, karpenter will remove it.
 
-If the node is marked as voluntarily disrupted by another controller, karpenter will do nothing.
+If the node is marked as drifted by another controller, karpenter will do nothing.
 
 ## Controls
 

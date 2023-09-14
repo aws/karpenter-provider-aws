@@ -9,30 +9,18 @@ on:
     types: [completed]
   workflow_dispatch:
 jobs:
-  resolve-git-ref:
+  resolve:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    outputs:
-      GIT_REF: ${{ steps.resolve-step.outputs.GIT_REF }}
-    steps:
-      # Download the artifact and resolve the commit if initiated by PR snapshot
-      # Otherwise, use the currently checked-out branch to run the E2E tests against
-      - uses: actions/checkout@v3
-      - if: github.event_name == 'workflow_run'
-        uses: ./.github/actions/download-artifact
-      - id: resolve-step
-        run: |
-          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            echo GIT_REF=$(tail -n 1 /tmp/artifacts/metadata.txt) >> $GITHUB_OUTPUT
-          else
-            echo GIT_REF="" >> $GITHUB_OUTPUT
-          fi
+    uses: ./.github/workflows/resolve-args.yaml
+    with:
+      allowed_comment: "snapshot"
+      event_name: ${{ github.event_name }}
   e2e-matrix:
-    needs: [resolve-git-ref]
-    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
+    needs: [resolve]
+    if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e-matrix.yaml
     with:
       event_name: ${{ github.event_name }}
-      git_ref: ${{ needs.resolve-git-ref.outputs.GIT_REF }}
+      git_ref: ${{ needs.resolve.outputs.GIT_REF }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

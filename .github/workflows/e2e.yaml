@@ -67,7 +67,7 @@ jobs:
     name: suite-${{ inputs.suite }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.git_ref }}
       - if: always() && inputs.event_name == 'workflow_run'

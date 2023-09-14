@@ -123,7 +123,7 @@ var _ = AfterSuite(func() {
 var _ = Describe("AMIProvider", func() {
 	var version string
 	BeforeEach(func() {
-		version = lo.Must(awsEnv.AMIProvider.KubeServerVersion(ctx))
+		version = lo.Must(awsEnv.VersionProvider.Get(ctx))
 		nodeClass = test.NodeClass()
 	})
 	It("should succeed to resolve AMIs (AL2)", func() {

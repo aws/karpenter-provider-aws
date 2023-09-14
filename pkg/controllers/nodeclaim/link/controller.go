@@ -34,10 +34,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/metrics"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
+	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
 
@@ -76,19 +78,19 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if err := c.kubeClient.List(ctx, nodeList, client.HasLabels{v1alpha5.ProvisionerNameLabelKey}); err != nil {
 		return reconcile.Result{}, err
 	}
-	retrievedIDs := sets.NewString(lo.Map(retrieved, func(m *v1alpha5.Machine, _ int) string { return m.Status.ProviderID })...)
+	retrievedIDs := sets.NewString(lo.Map(retrieved, func(nc *v1beta1.NodeClaim, _ int) string { return nc.Status.ProviderID })...)
 	// Inject any nodes that are re-owned using karpenter.sh/provisioner-name but aren't found from the cloudprovider.List() call
 	for i := range nodeList.Items {
-		if _, ok := lo.Find(retrieved, func(r *v1alpha5.Machine) bool {
+		if _, ok := lo.Find(retrieved, func(r *v1beta1.NodeClaim) bool {
 			return retrievedIDs.Has(nodeList.Items[i].Spec.ProviderID)
 		}); !ok {
-			retrieved = append(retrieved, machineutil.NewFromNode(&nodeList.Items[i]))
+			retrieved = append(retrieved, nodeclaimutil.NewFromNode(&nodeList.Items[i]))
 		}
 	}
 	// Filter out any machines that shouldn't be linked
-	retrieved = lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
-		_, ok := m.Annotations[v1alpha5.MachineManagedByAnnotationKey]
-		return !ok && m.DeletionTimestamp.IsZero() && m.Labels[v1alpha5.ProvisionerNameLabelKey] != ""
+	retrieved = lo.Filter(retrieved, func(nc *v1beta1.NodeClaim, _ int) bool {
+		_, ok := nc.Annotations[v1alpha5.MachineManagedByAnnotationKey]
+		return !ok && nc.DeletionTimestamp.IsZero() && nc.Labels[v1alpha5.ProvisionerNameLabelKey] != ""
 	})
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 100, len(retrieved), func(i int) {
@@ -98,7 +100,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	return reconcile.Result{RequeueAfter: math.MaxInt64}, multierr.Combine(errs...)
 }
 
-func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) error {
+func (c *Controller) link(ctx context.Context, retrieved *v1beta1.NodeClaim, existingMachines []v1alpha5.Machine) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", retrieved.Status.ProviderID, "provisioner", retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]))
 	provisioner := &v1alpha5.Provisioner{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
@@ -122,10 +124,10 @@ func (c *Controller) link(ctx context.Context, retrieved *v1alpha5.Machine, exis
 		}).Inc()
 		c.Cache.SetDefault(retrieved.Status.ProviderID, nil)
 	}
-	return corecloudprovider.IgnoreMachineNotFoundError(c.cloudProvider.Link(ctx, retrieved))
+	return corecloudprovider.IgnoreNodeClaimNotFoundError(c.cloudProvider.Link(ctx, retrieved))
 }
 
-func (c *Controller) shouldCreateLinkedMachine(retrieved *v1alpha5.Machine, existingMachines []v1alpha5.Machine) bool {
+func (c *Controller) shouldCreateLinkedMachine(retrieved *v1beta1.NodeClaim, existingMachines []v1alpha5.Machine) bool {
 	// Machine was already created but controller-runtime cache didn't update
 	if _, ok := c.Cache.Get(retrieved.Status.ProviderID); ok {
 		return false

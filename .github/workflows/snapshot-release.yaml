@@ -13,16 +13,15 @@ jobs:
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: ./.github/actions/download-artifact
       - name: Parse artifacts and assign GA environment variables
         run: |
-          repo=$(head -n 1 /tmp/artifacts/metadata.txt)
-          pr_number=$(head -n 1 /tmp/artifacts/metadata.txt)
+          pr_number=$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)
           pr_commit=$(tail -n 1 /tmp/artifacts/metadata.txt)
           echo "PR_COMMIT=$pr_commit" >> $GITHUB_ENV
           echo "PR_NUMBER=$pr_number" >> $GITHUB_ENV
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ env.PR_COMMIT }}
       - uses: ./.github/actions/commit-status/start

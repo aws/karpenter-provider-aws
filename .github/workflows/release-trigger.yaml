@@ -9,7 +9,7 @@ jobs:
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - name: Save tag and SHA as an artifact for other workflows that run on workflow_run to download them

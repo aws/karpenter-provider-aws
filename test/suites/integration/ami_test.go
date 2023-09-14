@@ -365,13 +365,25 @@ var _ = Describe("AMI", func() {
 				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
 				Requirements: []v1.NodeSelectorRequirement{
 					{
-						Key:      v1alpha1.LabelInstanceCategory,
-						Operator: v1.NodeSelectorOpExists,
-					},
-					{
 						Key:      v1.LabelOSStable,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{string(v1.Windows)},
+					},
+					// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+					{
+						Key:      v1alpha1.LabelInstanceFamily,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   []string{"m7a", "r7a"},
+					},
+					{
+						Key:      v1alpha1.LabelInstanceCategory,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"c", "m", "r"},
+					},
+					{
+						Key:      v1alpha1.LabelInstanceGeneration,
+						Operator: v1.NodeSelectorOpGt,
+						Values:   []string{"2"},
 					},
 				},
 			})

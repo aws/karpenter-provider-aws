@@ -22,6 +22,7 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -33,9 +34,8 @@ import (
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
-	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/machine/link"
+	"github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
 )
 
 type Controller struct {
@@ -67,8 +67,8 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
-	managedRetrieved := lo.Filter(retrieved, func(m *v1alpha5.Machine, _ int) bool {
-		return m.Annotations[v1alpha5.MachineManagedByAnnotationKey] != "" && m.DeletionTimestamp.IsZero()
+	managedRetrieved := lo.Filter(retrieved, func(nc *v1beta1.NodeClaim, _ int) bool {
+		return nc.Annotations[v1beta1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
 	})
 	nodeClaimList, err := nodeclaimutil.List(ctx, c.kubeClient)
 	if err != nil {
@@ -101,16 +101,16 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	return reconcile.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, multierr.Combine(errs...)
 }
 
-func (c *Controller) garbageCollect(ctx context.Context, machine *v1alpha5.Machine, nodeList *v1.NodeList) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", machine.Status.ProviderID))
-	if err := c.cloudProvider.Delete(ctx, machine); err != nil {
-		return corecloudprovider.IgnoreMachineNotFoundError(err)
+func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.NodeClaim, nodeList *v1.NodeList) error {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", nodeClaim.Status.ProviderID))
+	if err := c.cloudProvider.Delete(ctx, nodeClaim); err != nil {
+		return corecloudprovider.IgnoreNodeClaimNotFoundError(err)
 	}
 	logging.FromContext(ctx).Debugf("garbage collected cloudprovider instance")
 
 	// Go ahead and cleanup the node if we know that it exists to make scheduling go quicker
 	if node, ok := lo.Find(nodeList.Items, func(n v1.Node) bool {
-		return n.Spec.ProviderID == machine.Status.ProviderID
+		return n.Spec.ProviderID == nodeClaim.Status.ProviderID
 	}); ok {
 		if err := c.kubeClient.Delete(ctx, &node); err != nil {
 			return client.IgnoreNotFound(err)

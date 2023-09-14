@@ -45,7 +45,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/machine/link"
+	"github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
@@ -92,7 +92,7 @@ var _ = Describe("MachineLink", func() {
 		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
 		provisioner = test.Provisioner(coretest.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{
-				APIVersion: v1alpha5.TestingGroup + "v1alpha1",
+				APIVersion: "testing/v1alpha1",
 				Kind:       "NodeTemplate",
 				Name:       nodeTemplate.Name,
 			},
