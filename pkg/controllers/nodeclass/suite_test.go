@@ -17,17 +17,16 @@ package nodeclass_test
 import (
 	"context"
 	"fmt"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,8 +52,7 @@ var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
 var opts options.Options
-var nodeTemplate *v1alpha1.AWSNodeTemplate
-var controller corecontroller.Controller
+var nodeTemplateController corecontroller.Controller
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -67,8 +65,7 @@ var _ = BeforeSuite(func() {
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
-
-	controller = nodeclass.NewNodeTemplateController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
+	nodeTemplateController = nodeclass.NewNodeTemplateController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -77,20 +74,6 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
-
-	nodeTemplate = &v1alpha1.AWSNodeTemplate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: coretest.RandomName(),
-		},
-		Spec: v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SubnetSelector:        map[string]string{"*": "*"},
-				SecurityGroupSelector: map[string]string{"*": "*"},
-			},
-			AMISelector: map[string]string{"*": "*"},
-		},
-	}
-
 	awsEnv.Reset()
 })
 
@@ -98,11 +81,21 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-var _ = Describe("AWSNodeTemplateController", func() {
+var _ = Describe("NodeTemplateController", func() {
+	var nodeTemplate *v1alpha1.AWSNodeTemplate
+	BeforeEach(func() {
+		nodeTemplate = test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
+			AWS: v1alpha1.AWS{
+				SubnetSelector:        map[string]string{"*": "*"},
+				SecurityGroupSelector: map[string]string{"*": "*"},
+			},
+			AMISelector: map[string]string{"*": "*"},
+		})
+	})
 	Context("Subnet Status", func() {
 		It("Should update AWSNodeTemplate status for Subnets", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(ConsistOf(
 				v1alpha1.Subnet{
@@ -126,7 +119,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				{SubnetId: aws.String("subnet-test3"), AvailabilityZone: aws.String("test-zone-1c"), AvailableIpAddressCount: aws.Int64(50)},
 			}})
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(ConsistOf(
 				v1alpha1.Subnet{
@@ -146,23 +139,23 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		It("Should resolve a valid selectors for Subnet by tags", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`Name`: `test-subnet-1,test-subnet-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.Subnets).To(ConsistOf(
-				v1alpha1.Subnet{
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
 					ID:   "subnet-test1",
 					Zone: "test-zone-1a",
 				},
-				v1alpha1.Subnet{
+				{
 					ID:   "subnet-test2",
 					Zone: "test-zone-1b",
 				},
-			))
+			}))
 		})
 		It("Should resolve a valid selectors for Subnet by ids", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`aws-ids`: `subnet-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
 				{
@@ -173,97 +166,97 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		})
 		It("Should update Subnet status when the Subnet selector gets updated by tags", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.Subnets).To(ConsistOf(
-				v1alpha1.Subnet{
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
 					ID:   "subnet-test1",
 					Zone: "test-zone-1a",
 				},
-				v1alpha1.Subnet{
+				{
 					ID:   "subnet-test2",
 					Zone: "test-zone-1b",
 				},
-				v1alpha1.Subnet{
+				{
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
 				},
-			))
+			}))
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`Name`: `test-subnet-1,test-subnet-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.Subnets).To(ConsistOf(
-				v1alpha1.Subnet{
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
 					ID:   "subnet-test1",
 					Zone: "test-zone-1a",
 				},
-				v1alpha1.Subnet{
+				{
 					ID:   "subnet-test2",
 					Zone: "test-zone-1b",
 				},
-			))
+			}))
 		})
 		It("Should update Subnet status when the Subnet selector gets updated by ids", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.Subnets).To(ConsistOf(
-				v1alpha1.Subnet{
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
 					ID:   "subnet-test1",
 					Zone: "test-zone-1a",
 				},
-				v1alpha1.Subnet{
+				{
 					ID:   "subnet-test2",
 					Zone: "test-zone-1b",
 				},
-				v1alpha1.Subnet{
+				{
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
 				},
-			))
+			}))
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`aws-ids`: `subnet-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.Subnets).To(ConsistOf(
-				v1alpha1.Subnet{
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
 					ID:   "subnet-test1",
 					Zone: "test-zone-1a",
 				},
-			))
+			}))
 		})
 		It("Should not resolve a invalid selectors for Subnet", func() {
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(BeNil())
 		})
 		It("Should not resolve a invalid selectors for an updated Subnet selectors", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.Subnets).To(ConsistOf(
-				v1alpha1.Subnet{
+			Expect(nodeTemplate.Status.Subnets).To(Equal([]v1alpha1.Subnet{
+				{
 					ID:   "subnet-test1",
 					Zone: "test-zone-1a",
 				},
-				v1alpha1.Subnet{
+				{
 					ID:   "subnet-test2",
 					Zone: "test-zone-1b",
 				},
-				v1alpha1.Subnet{
+				{
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
 				},
-			))
+			}))
 
 			nodeTemplate.Spec.SubnetSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.Subnets).To(BeNil())
 		})
@@ -273,149 +266,149 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			// TODO: Remove test for v1beta1, as security groups will be required
 			nodeTemplate.Spec.SecurityGroupSelector = nil
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
 		})
 		It("Should update AWSNodeTemplate status for Security Groups", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.SecurityGroups).To(ConsistOf(
-				v1alpha1.SecurityGroup{
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test1",
 					Name: "securityGroup-test1",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test2",
 					Name: "securityGroup-test2",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test3",
 					Name: "securityGroup-test3",
 				},
-			))
+			}))
 		})
 		It("Should resolve a valid selectors for Security Groups by tags", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-security-group-1,test-security-group-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.SecurityGroups).To(ConsistOf(
-				v1alpha1.SecurityGroup{
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test1",
 					Name: "securityGroup-test1",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test2",
 					Name: "securityGroup-test2",
 				},
-			))
+			}))
 		})
 		It("Should resolve a valid selectors for Security Groups by ids", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.SecurityGroups).To(ConsistOf(
-				v1alpha1.SecurityGroup{
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test1",
 					Name: "securityGroup-test1",
 				},
-			))
+			}))
 		})
 		It("Should update Security Groups status when the Security Groups selector gets updated by tags", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.SecurityGroups).To(ConsistOf(
-				v1alpha1.SecurityGroup{
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test1",
 					Name: "securityGroup-test1",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test2",
 					Name: "securityGroup-test2",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test3",
 					Name: "securityGroup-test3",
 				},
-			))
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`Name`: `test-security-group-1,test-security-group-2`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.SecurityGroups).To(ConsistOf(
-				v1alpha1.SecurityGroup{
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test1",
 					Name: "securityGroup-test1",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test2",
 					Name: "securityGroup-test2",
 				},
-			))
+			}))
 		})
 		It("Should update Security Groups status when the Security Groups selector gets updated by ids", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.SecurityGroups).To(ConsistOf(
-				v1alpha1.SecurityGroup{
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test1",
 					Name: "securityGroup-test1",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test2",
 					Name: "securityGroup-test2",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test3",
 					Name: "securityGroup-test3",
 				},
-			))
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`aws-ids`: `sg-test1`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.SecurityGroups).To(ConsistOf(
-				v1alpha1.SecurityGroup{
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test1",
 					Name: "securityGroup-test1",
 				},
-			))
+			}))
 		})
 		It("Should not resolve a invalid selectors for Security Groups", func() {
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
 		})
 		It("Should not resolve a invalid selectors for an updated Security Groups selector", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.SecurityGroups).To(ConsistOf(
-				v1alpha1.SecurityGroup{
+			Expect(nodeTemplate.Status.SecurityGroups).To(Equal([]v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test1",
 					Name: "securityGroup-test1",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test2",
 					Name: "securityGroup-test2",
 				},
-				v1alpha1.SecurityGroup{
+				{
 					ID:   "sg-test3",
 					Name: "securityGroup-test3",
 				},
-			))
+			}))
 
 			nodeTemplate.Spec.SecurityGroupSelector = map[string]string{`foo`: `invalid`}
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileFailed(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileFailed(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 			Expect(nodeTemplate.Status.SecurityGroups).To(BeNil())
 		})
@@ -502,28 +495,9 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			})
 			nodeTemplate.Spec.AMISelector = nil
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			ExpectConsistOfAMIs([]v1alpha1.AMI{
-				{
-					Name: "test-ami-1",
-					ID:   "ami-id-123",
-					Requirements: []v1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{v1alpha5.ArchitectureAmd64},
-						},
-						{
-							Key:      v1alpha1.LabelInstanceGPUCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
-						{
-							Key:      v1alpha1.LabelInstanceAcceleratorCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
-					},
-				},
+			Expect(nodeTemplate.Status.AMIs).To(Equal([]v1alpha1.AMI{
 				{
 					Name: "test-ami-3",
 					ID:   "ami-id-789",
@@ -573,7 +547,26 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						},
 					},
 				},
-			}, nodeTemplate.Status.AMIs)
+				{
+					Name: "test-ami-1",
+					ID:   "ami-id-123",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureAmd64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceGPUCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+					},
+				},
+			}))
 		})
 		It("should resolve amiSelector AMis and requirements into status when all SSM aliases don't resolve", func() {
 			version := lo.Must(awsEnv.VersionProvider.Get(ctx))
@@ -609,29 +602,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				},
 			})
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 
-			ExpectConsistOfAMIs([]v1alpha1.AMI{
-				{
-					Name: "test-ami-1",
-					ID:   "ami-id-123",
-					Requirements: []v1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{v1alpha5.ArchitectureAmd64},
-						},
-						{
-							Key:      v1alpha1.LabelInstanceGPUCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
-						{
-							Key:      v1alpha1.LabelInstanceAcceleratorCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
-					},
-				},
+			Expect(nodeTemplate.Status.AMIs).To(Equal([]v1alpha1.AMI{
 				{
 					Name: "test-ami-2",
 					ID:   "ami-id-456",
@@ -651,13 +625,32 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						},
 					},
 				},
-			}, nodeTemplate.Status.AMIs)
+				{
+					Name: "test-ami-1",
+					ID:   "ami-id-123",
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{v1alpha5.ArchitectureAmd64},
+						},
+						{
+							Key:      v1alpha1.LabelInstanceGPUCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+						{
+							Key:      v1alpha1.LabelInstanceAcceleratorCount,
+							Operator: v1.NodeSelectorOpDoesNotExist,
+						},
+					},
+				},
+			}))
 		})
 		It("Should resolve a valid AMI selector", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
-			Expect(nodeTemplate.Status.AMIs).To(ContainElements(
+			Expect(nodeTemplate.Status.AMIs).To(Equal(
 				[]v1alpha1.AMI{
 					{
 						Name: "test-ami-3",
@@ -692,10 +685,10 @@ var _ = Describe("AWSNodeTemplateController", func() {
 				},
 			})
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 
-			ExpectConsistOfAMIs([]v1alpha1.AMI{
+			Expect(nodeTemplate.Status.AMIs).To(Equal([]v1alpha1.AMI{
 				{
 					Name: "test-ami-4",
 					ID:   "ami-test4",
@@ -716,29 +709,27 @@ var _ = Describe("AWSNodeTemplateController", func() {
 						},
 					},
 				},
-			}, nodeTemplate.Status.AMIs)
+			}))
 		})
 	})
-	Context("AWSNodeTemplate Static Drift Hash", func() {
-		DescribeTable("should update the static drift hash when nodeTemplate static field is updated", func(awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec) {
-			updatedAWSNodeTemplate := test.AWSNodeTemplate(*nodeTemplate.Spec.DeepCopy(), awsnodetemplatespec)
-			updatedAWSNodeTemplate.ObjectMeta = nodeTemplate.ObjectMeta
-			updatedAWSNodeTemplate.Annotations = map[string]string{v1alpha1.AnnotationNodeTemplateHash: updatedAWSNodeTemplate.Hash()}
-
+	Context("Static Drift Hash", func() {
+		DescribeTable("should update the static drift hash when static field is updated", func(changes v1alpha1.AWSNodeTemplateSpec) {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 
 			expectedHash := nodeTemplate.Hash()
-			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHash))
+			Expect(nodeTemplate.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHash))
 
-			ExpectApplied(ctx, env.Client, updatedAWSNodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			Expect(mergo.Merge(&nodeTemplate.Spec, changes, mergo.WithOverride)).To(Succeed())
+
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 
 			expectedHashTwo := nodeTemplate.Hash()
+			Expect(nodeTemplate.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHashTwo))
 			Expect(expectedHash).ToNot(Equal(expectedHashTwo))
-			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHashTwo))
 		},
 			Entry("InstanceProfile Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{InstanceProfile: aws.String("profile-2")}}),
 			Entry("UserData Drift", v1alpha1.AWSNodeTemplateSpec{UserData: aws.String("userdata-test-2")}),
@@ -749,9 +740,9 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			Entry("DetailedMonitoring Drift", v1alpha1.AWSNodeTemplateSpec{DetailedMonitoring: aws.Bool(true)}),
 			Entry("AMIFamily Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
 		)
-		It("should not update the static drift hash when nodeTemplate dynamic field is updated", func() {
+		It("should not update the static drift hash when dynamic field is updated", func() {
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 
 			expectedHash := nodeTemplate.Hash()
@@ -762,7 +753,7 @@ var _ = Describe("AWSNodeTemplateController", func() {
 			nodeTemplate.Spec.AMISelector = map[string]string{"ami-test-key": "ami-test-value"}
 
 			ExpectApplied(ctx, env.Client, nodeTemplate)
-			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeTemplate))
+			ExpectReconcileSucceeded(ctx, nodeTemplateController, client.ObjectKeyFromObject(nodeTemplate))
 			nodeTemplate = ExpectExists(ctx, env.Client, nodeTemplate)
 
 			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHash))
@@ -775,17 +766,3 @@ var _ = Describe("AWSNodeTemplateController", func() {
 		})
 	})
 })
-
-func ExpectConsistOfAMIs(expected, actual []v1alpha1.AMI) {
-	GinkgoHelper()
-	Expect(actual).To(HaveLen(len(expected)))
-
-	for _, list := range [][]v1alpha1.AMI{expected, actual} {
-		for _, elem := range list {
-			sort.Slice(elem.Requirements, func(i, j int) bool {
-				return elem.Requirements[i].Key < elem.Requirements[j].Key
-			})
-		}
-	}
-	Expect(actual).To(ConsistOf(lo.Map(expected, func(a v1alpha1.AMI, _ int) interface{} { return a })...))
-}

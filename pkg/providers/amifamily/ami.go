@@ -65,14 +65,17 @@ type AMIs []AMI
 // If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by name in ascending order.
 func (a AMIs) Sort() {
 	sort.Slice(a, func(i, j int) bool {
-		if a[i].CreationDate != "" || a[j].CreationDate != "" {
-			itime, _ := time.Parse(time.RFC3339, a[i].CreationDate)
-			jtime, _ := time.Parse(time.RFC3339, a[j].CreationDate)
-			if itime.Unix() != jtime.Unix() {
-				return itime.Unix() >= jtime.Unix()
-			}
+		itime, _ := time.Parse(time.RFC3339, a[i].CreationDate)
+		jtime, _ := time.Parse(time.RFC3339, a[j].CreationDate)
+		if itime.Unix() != jtime.Unix() {
+			return itime.Unix() > jtime.Unix()
 		}
-		return a[i].Name >= a[j].Name
+		if a[i].Name != a[j].Name {
+			return a[i].Name < a[j].Name
+		}
+		iHash, _ := hashstructure.Hash(a[i].Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{})
+		jHash, _ := hashstructure.Hash(a[i].Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{})
+		return iHash < jHash
 	})
 }
 
