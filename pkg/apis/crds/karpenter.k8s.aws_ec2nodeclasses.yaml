@@ -4,22 +4,25 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.13.0
-  name: nodeclasses.compute.k8s.aws
+  name: ec2nodeclasses.karpenter.k8s.aws
 spec:
-  group: compute.k8s.aws
+  group: karpenter.k8s.aws
   names:
     categories:
     - karpenter
-    kind: NodeClass
-    listKind: NodeClassList
-    plural: nodeclasses
-    singular: nodeclass
+    kind: EC2NodeClass
+    listKind: EC2NodeClassList
+    plural: ec2nodeclasses
+    shortNames:
+    - ec2nc
+    - ec2ncs
+    singular: ec2nodeclass
   scope: Cluster
   versions:
   - name: v1beta1
     schema:
       openAPIV3Schema:
-        description: NodeClass is the Schema for the NodeClass API
+        description: EC2NodeClass is the Schema for the EC2NodeClass API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -34,7 +37,7 @@ spec:
           metadata:
             type: object
           spec:
-            description: NodeClassSpec is the top level specification for the AWS
+            description: EC2NodeClassSpec is the top level specification for the AWS
               Karpenter Provider. This will contain configuration necessary to launch
               instances in AWS.
             properties:
@@ -60,9 +63,6 @@ spec:
                     owner:
                       description: Owner is the owner for the ami. You can specify
                         a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
-                      type: string
-                    ssm:
-                      description: SSM is the ssm alias for an ami.
                       type: string
                     tags:
                       additionalProperties:
@@ -262,7 +262,7 @@ spec:
                 type: string
             type: object
           status:
-            description: NodeClassStatus contains the resolved state of the NodeClass
+            description: EC2NodeClassStatus contains the resolved state of the EC2NodeClass
             properties:
               amis:
                 description: AMI contains the current AMI values that are available

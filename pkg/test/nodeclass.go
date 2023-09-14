@@ -23,8 +23,8 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
-func NodeClass(overrides ...v1beta1.NodeClass) *v1beta1.NodeClass {
-	options := v1beta1.NodeClass{}
+func NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
+	options := v1beta1.EC2NodeClass{}
 	for _, override := range overrides {
 		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge settings: %s", err))
@@ -49,7 +49,7 @@ func NodeClass(overrides ...v1beta1.NodeClass) *v1beta1.NodeClass {
 			},
 		}
 	}
-	return &v1beta1.NodeClass{
+	return &v1beta1.EC2NodeClass{
 		ObjectMeta: test.ObjectMeta(options.ObjectMeta),
 		Spec:       options.Spec,
 	}

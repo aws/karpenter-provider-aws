@@ -56,7 +56,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*ec2.Subnet, error) {
+func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
 	filterSets := getFilterSets(nodeClass.Spec.SubnetSelectorTerms)
@@ -95,7 +95,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*e
 }
 
 // CheckAnyPublicIPAssociations returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
-func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeClass *v1beta1.NodeClass) (bool, error) {
+func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (bool, error) {
 	subnets, err := p.List(ctx, nodeClass)
 	if err != nil {
 		return false, err
@@ -107,7 +107,7 @@ func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeClass *
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
-func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1.NodeClass, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
+func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
 	subnets, err := p.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err

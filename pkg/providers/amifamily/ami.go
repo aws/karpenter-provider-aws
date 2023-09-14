@@ -116,7 +116,7 @@ func NewProvider(versionProvider *version.Provider, ssm ssmiface.SSMAPI, ec2api 
 }
 
 // Get Returning a list of AMIs with its associated requirements
-func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) (AMIs, error) {
+func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
 	var err error
 	var amis AMIs
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
@@ -137,7 +137,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.NodeClass, option
 	return amis, nil
 }
 
-func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.NodeClass, options *Options) (res AMIs, err error) {
+func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {
 	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
 		return images.(AMIs), nil
 	}

@@ -48,11 +48,11 @@ var (
 var (
 	//go:embed crds/karpenter.k8s.aws_awsnodetemplates.yaml
 	AWSNodeTemplateCRD []byte
-	//go:embed crds/compute.k8s.aws_nodeclasses.yaml
-	NodeClassCRD []byte
-	CRDs         = append(apis.CRDs,
+	//go:embed crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+	EC2NodeClassCRD []byte
+	CRDs            = append(apis.CRDs,
 		lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](AWSNodeTemplateCRD)),
-		lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](NodeClassCRD)),
+		lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](EC2NodeClassCRD)),
 	)
 )
 

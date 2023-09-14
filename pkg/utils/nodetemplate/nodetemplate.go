@@ -21,7 +21,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
-func New(nodeClass *v1beta1.NodeClass) *v1alpha1.AWSNodeTemplate {
+func New(nodeClass *v1beta1.EC2NodeClass) *v1alpha1.AWSNodeTemplate {
 	return &v1alpha1.AWSNodeTemplate{
 		TypeMeta:   nodeClass.TypeMeta,
 		ObjectMeta: nodeClass.ObjectMeta,

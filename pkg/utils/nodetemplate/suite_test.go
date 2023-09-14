@@ -62,10 +62,10 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("NodeTemplateUtils", func() {
-	var nodeClass *v1beta1.NodeClass
+	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		nodeClass = test.NodeClass(v1beta1.NodeClass{
-			Spec: v1beta1.NodeClassSpec{
+		nodeClass = test.NodeClass(v1beta1.EC2NodeClass{
+			Spec: v1beta1.EC2NodeClassSpec{
 				AMIFamily:       aws.String(v1alpha1.AMIFamilyAL2),
 				Context:         aws.String("context-1"),
 				InstanceProfile: aws.String("profile-1"),
@@ -97,7 +97,7 @@ var _ = Describe("NodeTemplateUtils", func() {
 				},
 			},
 		})
-		nodeClass.Status = v1beta1.NodeClassStatus{
+		nodeClass.Status = v1beta1.EC2NodeClassStatus{
 			Subnets: []v1beta1.Subnet{
 				{
 					ID:   "test-subnet-id",
@@ -144,7 +144,7 @@ var _ = Describe("NodeTemplateUtils", func() {
 			},
 		}
 	})
-	It("should convert a NodeClass to an AWSNodeTemplate", func() {
+	It("should convert a EC2NodeClass to an AWSNodeTemplate", func() {
 		nodeTemplate := nodetemplateutil.New(nodeClass)
 
 		for k, v := range nodeClass.Annotations {

@@ -169,7 +169,7 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1beta1.NodePool) ([]*cloudprovider.InstanceType, error) {
 	if nodePool == nil {
-		return c.instanceTypeProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.NodeClass{})
+		return c.instanceTypeProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
 	}
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
@@ -226,7 +226,7 @@ func (c *CloudProvider) Name() string {
 	return "aws"
 }
 
-func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*v1beta1.NodeClass, error) {
+func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*v1beta1.EC2NodeClass, error) {
 	// TODO @joinnis: Remove this handling for Machine resolution when we remove v1alpha5
 	if nodeClaim.IsMachine {
 		nodeTemplate, err := c.resolveNodeTemplate(ctx,
@@ -237,14 +237,14 @@ func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeC
 		}
 		return nodeclassutil.New(nodeTemplate), nil
 	}
-	nodeClass := &v1beta1.NodeClass{}
+	nodeClass := &v1beta1.EC2NodeClass{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClass.Name}, nodeClass); err != nil {
 		return nil, err
 	}
 	return nodeClass, nil
 }
 
-func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePool *corev1beta1.NodePool) (*v1beta1.NodeClass, error) {
+func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePool *corev1beta1.NodePool) (*v1beta1.EC2NodeClass, error) {
 	// TODO @joinnis: Remove this handling for Provisioner resolution when we remove v1alpha5
 	if nodePool.IsProvisioner {
 		var rawProvider []byte
@@ -257,7 +257,7 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 		}
 		return nodeclassutil.New(nodeTemplate), nil
 	}
-	nodeClass := &v1beta1.NodeClass{}
+	nodeClass := &v1beta1.EC2NodeClass{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClass.Name}, nodeClass); err != nil {
 		return nil, err
 	}
@@ -281,7 +281,7 @@ func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, obj
 	return nodeTemplate, nil
 }
 
-func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.NodeClass) ([]*cloudprovider.InstanceType, error) {
+func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClaim.Spec.KubeletConfiguration, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)

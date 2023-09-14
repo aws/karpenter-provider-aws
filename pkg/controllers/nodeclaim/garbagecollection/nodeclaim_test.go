@@ -41,7 +41,7 @@ import (
 
 var _ = Describe("NodeClaim/GarbageCollection", func() {
 	var instance *ec2.Instance
-	var nodeClass *v1beta1.NodeClass
+	var nodeClass *v1beta1.EC2NodeClass
 	var providerID string
 
 	BeforeEach(func() {

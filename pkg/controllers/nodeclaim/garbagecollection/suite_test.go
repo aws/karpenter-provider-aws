@@ -87,7 +87,7 @@ var _ = BeforeEach(func() {
 })
 
 var _ = Describe("Combined/GarbageCollection", func() {
-	var nodeClass *v1beta1.NodeClass
+	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
 		nodeClass = test.NodeClass()
 	})
