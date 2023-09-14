@@ -33,7 +33,7 @@ func RandomProviderID() string {
 }
 
 func ProviderID(id string) string {
-	return fmt.Sprintf("aws:///%s/%s", defaultRegion, id)
+	return fmt.Sprintf("aws:///%s/%s", DefaultRegion, id)
 }
 
 func ImageID() string {
@@ -48,7 +48,7 @@ func SubnetID() string {
 }
 
 func PrivateDNSName() string {
-	return fmt.Sprintf("ip-192-168-%d-%d.%s.compute.internal", randomdata.Number(0, 256), randomdata.Number(0, 256), defaultRegion)
+	return fmt.Sprintf("ip-192-168-%d-%d.%s.compute.internal", randomdata.Number(0, 256), randomdata.Number(0, 256), DefaultRegion)
 }
 
 // SubnetsFromFleetRequest returns a unique slice of subnetIDs passed as overrides from a CreateFleetInput

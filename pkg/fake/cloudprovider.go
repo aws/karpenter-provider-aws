@@ -26,7 +26,7 @@ import (
 )
 
 const (
-	defaultRegion = "us-west-2"
+	DefaultRegion = "us-west-2"
 )
 
 var _ corecloudprovider.CloudProvider = (*CloudProvider)(nil)
