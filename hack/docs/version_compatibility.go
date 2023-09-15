@@ -18,10 +18,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"sort"
 	"strings"
 
-	"github.com/aws/karpenter/tools/kompat/pkg/kompat"
+	"github.com/aws/karpenter/pkg/providers/version"
 )
 
 func main() {
@@ -33,24 +32,15 @@ func main() {
 		os.Exit(0)
 	}
 
-	chart, err := kompat.Parse(os.Args[1])
-	if err != nil {
-		log.Fatalf("unable to generate compatibility matrix")
-	}
-
-	sort.Slice(chart[0].Compatibility, func(i int, j int) bool {
-		return chart[0].Compatibility[i].AppVersion < chart[0].Compatibility[j].AppVersion
-	})
-
-	version := strings.TrimPrefix(os.Args[2], "v")
+	v := strings.TrimPrefix(os.Args[2], "v")
 	appendVersion := fmt.Sprintf(
 		`
   - appVersion: %s
     minK8sVersion: %s
     maxK8sVersion: %s`,
-		version,
-		chart[0].Compatibility[len(chart[0].Compatibility)-1].MinK8sVersion,
-		chart[0].Compatibility[len(chart[0].Compatibility)-1].MaxK8sVersion)
+		v,
+		version.MinK8sVersion,
+		version.MaxK8sVersion)
 
 	yamlFile, err := os.ReadFile(os.Args[1])
 	if err != nil {

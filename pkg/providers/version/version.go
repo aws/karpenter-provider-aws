@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/patrickmn/go-cache"
+	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 
@@ -28,6 +29,11 @@ import (
 
 const (
 	kubernetesVersionCacheKey = "kubernetesVersion"
+	// Karpenter's supported version of Kubernetes
+	// If a user runs a karpenter image on a k8s version outside the min and max,
+	// One error message will be fired to notify
+	MinK8sVersion = "1.23"
+	MaxK8sVersion = "1.27"
 )
 
 // Provider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
@@ -59,6 +65,22 @@ func (p *Provider) Get(ctx context.Context) (string, error) {
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
 		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
+		if err := validateK8sVersion(version); err != nil {
+			logging.FromContext(ctx).Error(err)
+		}
 	}
 	return version, nil
+}
+
+func validateK8sVersion(v string) error {
+	k8sVersion := version.MustParseGeneric(v)
+
+	// We will only error if the user is running karpenter on a k8s version,
+	// that is out of the range of the minK8sVersion and maxK8sVersion
+	if k8sVersion.LessThan(version.MustParseGeneric(MinK8sVersion)) ||
+		version.MustParseGeneric(MaxK8sVersion).LessThan(k8sVersion) {
+		return fmt.Errorf("karpenter version is not compatible with K8s version %s", k8sVersion)
+	}
+
+	return nil
 }
