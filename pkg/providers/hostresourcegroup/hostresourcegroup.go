@@ -30,7 +30,7 @@ func NewProvider(rgapi resourcegroupsiface.ResourceGroupsAPI, cache *cache.Cache
 	}
 }
 
-func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.NodeClass) (*v1beta1.HostResourceGroup, error) {
+func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*v1beta1.HostResourceGroup, error) {
 	p.Lock()
 	defer p.Unlock()
     var nextToken *string = nil

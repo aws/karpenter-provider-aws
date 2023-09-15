@@ -160,7 +160,7 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 	return nil
 }
 
-func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
+func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	licenses, err := c.licenseProvider.List(ctx, nodeClass)
 	if err != nil {
 		return err
@@ -171,7 +171,7 @@ func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.Nod
 
 }
 
-func (c *Controller) resolveHostResourceGroups(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
+func (c *Controller) resolveHostResourceGroups(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
     result , err :=  c.hostResourceGroupProvider.Get(ctx, nodeClass)
     if err != nil {
         return err

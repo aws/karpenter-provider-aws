@@ -48,7 +48,7 @@ func NewProvider(lmapi licensemanageriface.LicenseManagerAPI, cache *cache.Cache
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]string, error) {
+func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]string, error) {
 	p.Lock()
 	defer p.Unlock()
 
