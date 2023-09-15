@@ -23,9 +23,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// NodeClassSpec is the top level specification for the AWS Karpenter Provider.
+// EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
 // This will contain configuration necessary to launch instances in AWS.
-type NodeClassSpec struct {
+type EC2NodeClassSpec struct {
 	// SubnetSelectorTerms is a list of or subnet selector terms. The terms are ORed.
 	// +optional
 	SubnetSelectorTerms []SubnetSelectorTerm `json:"subnetSelectorTerms" hash:"ignore"`
@@ -153,9 +153,6 @@ type AMISelectorTerm struct {
 	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
 	// +optional
 	Owner string `json:"owner,omitempty"`
-	// SSM is the ssm alias for an ami.
-	// +optional
-	SSM string `json:"ssm,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the
@@ -280,16 +277,16 @@ type NetworkInterface struct {
 	DeviceIndex *int64 `json:"deviceIndex,omitempty"`
 }
 
-// NodeClass is the Schema for the NodeClass API
+// EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=nodeclasses,scope=Cluster,categories=karpenter
+// +kubebuilder:resource:path=ec2nodeclasses,scope=Cluster,categories=karpenter,shortName={ec2nc,ec2ncs}
 // +kubebuilder:subresource:status
-type NodeClass struct {
+type EC2NodeClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   NodeClassSpec   `json:"spec,omitempty"`
-	Status NodeClassStatus `json:"status,omitempty"`
+	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
+	Status EC2NodeClassStatus `json:"status,omitempty"`
 
 	// IsNodeTemplate tells Karpenter whether the in-memory representation of this object
 	// is actually referring to a AWSNodeTemplate object. This value is not actually part of the v1beta1 public-facing API
@@ -297,7 +294,7 @@ type NodeClass struct {
 	IsNodeTemplate bool `json:"-" hash:"ignore"`
 }
 
-func (a *NodeClass) Hash() string {
+func (a *EC2NodeClass) Hash() string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash(a.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
@@ -305,10 +302,10 @@ func (a *NodeClass) Hash() string {
 	})))
 }
 
-// NodeClassList contains a list of NodeClass
+// EC2NodeClassList contains a list of EC2NodeClass
 // +kubebuilder:object:root=true
-type NodeClassList struct {
+type EC2NodeClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []NodeClass `json:"items"`
+	Items           []EC2NodeClass `json:"items"`
 }

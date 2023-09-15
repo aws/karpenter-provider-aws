@@ -42,7 +42,7 @@ import (
 var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
-var nodeClass *v1beta1.NodeClass
+var nodeClass *v1beta1.EC2NodeClass
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)

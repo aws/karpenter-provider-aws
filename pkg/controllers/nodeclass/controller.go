@@ -60,7 +60,7 @@ func NewController(kubeClient client.Client, subnetProvider *subnet.Provider,
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.NodeClass) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
 	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, nodeclassutil.HashAnnotation(nodeClass))
 	err := multierr.Combine(
@@ -80,19 +80,22 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.NodeClass
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
 }
 
-func (c *Controller) resolveSubnets(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
-	subnetList, err := c.subnetProvider.List(ctx, nodeClass)
+func (c *Controller) resolveSubnets(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
+	subnets, err := c.subnetProvider.List(ctx, nodeClass)
 	if err != nil {
 		return err
 	}
-	if len(subnetList) == 0 {
+	if len(subnets) == 0 {
 		nodeClass.Status.Subnets = nil
 		return fmt.Errorf("no subnets exist given constraints %v", nodeClass.Spec.SubnetSelectorTerms)
 	}
-	sort.Slice(subnetList, func(i, j int) bool {
-		return int(*subnetList[i].AvailableIpAddressCount) > int(*subnetList[j].AvailableIpAddressCount)
+	sort.Slice(subnets, func(i, j int) bool {
+		if int(*subnets[i].AvailableIpAddressCount) != int(*subnets[j].AvailableIpAddressCount) {
+			return int(*subnets[i].AvailableIpAddressCount) > int(*subnets[j].AvailableIpAddressCount)
+		}
+		return *subnets[i].SubnetId < *subnets[j].SubnetId
 	})
-	nodeClass.Status.Subnets = lo.Map(subnetList, func(ec2subnet *ec2.Subnet, _ int) v1beta1.Subnet {
+	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1beta1.Subnet {
 		return v1beta1.Subnet{
 			ID:   *ec2subnet.SubnetId,
 			Zone: *ec2subnet.AvailabilityZone,
@@ -101,7 +104,7 @@ func (c *Controller) resolveSubnets(ctx context.Context, nodeClass *v1beta1.Node
 	return nil
 }
 
-func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
+func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	securityGroups, err := c.securityGroupProvider.List(ctx, nodeClass)
 	if err != nil {
 		return err
@@ -110,6 +113,9 @@ func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeClass *v1bet
 		nodeClass.Status.SecurityGroups = nil
 		return fmt.Errorf("no security groups exist given constraints")
 	}
+	sort.Slice(securityGroups, func(i, j int) bool {
+		return *securityGroups[i].GroupId < *securityGroups[j].GroupId
+	})
 	nodeClass.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
 		return v1beta1.SecurityGroup{
 			ID:   *securityGroup.GroupId,
@@ -119,7 +125,7 @@ func (c *Controller) resolveSecurityGroups(ctx context.Context, nodeClass *v1bet
 	return nil
 }
 
-func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.NodeClass) error {
+func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	amis, err := c.amiProvider.Get(ctx, nodeClass, &amifamily.Options{})
 	if err != nil {
 		return err
@@ -129,10 +135,17 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.NodeCla
 		return fmt.Errorf("no amis exist given constraints")
 	}
 	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1beta1.AMI {
+		reqs := ami.Requirements.NodeSelectorRequirements()
+		sort.Slice(reqs, func(i, j int) bool {
+			if len(reqs[i].Key) != len(reqs[j].Key) {
+				return len(reqs[i].Key) < len(reqs[j].Key)
+			}
+			return reqs[i].Key < reqs[j].Key
+		})
 		return v1beta1.AMI{
 			Name:         ami.Name,
 			ID:           ami.AmiID,
-			Requirements: ami.Requirements.NodeSelectorRequirements(),
+			Requirements: reqs,
 		}
 	})
 
@@ -146,7 +159,7 @@ type NodeClassController struct {
 
 func NewNodeClassController(kubeClient client.Client, subnetProvider *subnet.Provider,
 	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*v1beta1.NodeClass](kubeClient, &NodeClassController{
+	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
 		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider),
 	})
 }
@@ -158,7 +171,7 @@ func (c *NodeClassController) Name() string {
 func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
 	return corecontroller.Adapt(controllerruntime.
 		NewControllerManagedBy(m).
-		For(&v1beta1.NodeClass{}).
+		For(&v1beta1.EC2NodeClass{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewMaxOfRateLimiter(

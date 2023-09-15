@@ -49,8 +49,8 @@ type AMI struct {
 	Requirements []v1.NodeSelectorRequirement `json:"requirements"`
 }
 
-// NodeClassStatus contains the resolved state of the NodeClass
-type NodeClassStatus struct {
+// EC2NodeClassStatus contains the resolved state of the EC2NodeClass
+type EC2NodeClassStatus struct {
 	// Subnets contains the current Subnet values that are available to the
 	// cluster under the subnet selectors.
 	// +optional

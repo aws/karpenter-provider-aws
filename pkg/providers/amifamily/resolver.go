@@ -117,7 +117,7 @@ func New(amiProvider *Provider) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
+func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	amis, err := r.amiProvider.Get(ctx, nodeClass, options)
 	if err != nil {

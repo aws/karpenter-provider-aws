@@ -51,7 +51,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.NodeClass) ([]*ec2.SecurityGroup, error) {
+func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 	// Get SecurityGroups

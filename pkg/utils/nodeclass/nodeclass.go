@@ -32,11 +32,11 @@ type Key struct {
 	IsNodeTemplate bool
 }
 
-func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.NodeClass {
-	return &v1beta1.NodeClass{
+func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
+	return &v1beta1.EC2NodeClass{
 		TypeMeta:   nodeTemplate.TypeMeta,
 		ObjectMeta: nodeTemplate.ObjectMeta,
-		Spec: v1beta1.NodeClassSpec{
+		Spec: v1beta1.EC2NodeClassSpec{
 			SubnetSelectorTerms:           NewSubnetSelectorTerms(nodeTemplate.Spec.SubnetSelector),
 			OriginalSubnetSelector:        nodeTemplate.Spec.SubnetSelector,
 			SecurityGroupSelectorTerms:    NewSecurityGroupSelectorTerms(nodeTemplate.Spec.SecurityGroupSelector),
@@ -54,7 +54,7 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.NodeClass {
 			InstanceProfile:               nodeTemplate.Spec.InstanceProfile,
 			NetworkInterfaces:             NewNetworkInterfaces(nodeTemplate.Spec.NetworkInterfaces),
 		},
-		Status: v1beta1.NodeClassStatus{
+		Status: v1beta1.EC2NodeClassStatus{
 			Subnets:        NewSubnets(nodeTemplate.Status.Subnets),
 			SecurityGroups: NewSecurityGroups(nodeTemplate.Status.SecurityGroups),
 			AMIs:           NewAMIs(nodeTemplate.Status.AMIs),
@@ -254,7 +254,7 @@ func NewAMIs(amis []v1alpha1.AMI) []v1beta1.AMI {
 	})
 }
 
-func Get(ctx context.Context, c client.Client, key Key) (*v1beta1.NodeClass, error) {
+func Get(ctx context.Context, c client.Client, key Key) (*v1beta1.EC2NodeClass, error) {
 	if key.IsNodeTemplate {
 		nodeTemplate := &v1alpha1.AWSNodeTemplate{}
 		if err := c.Get(ctx, types.NamespacedName{Name: key.Name}, nodeTemplate); err != nil {
@@ -262,14 +262,14 @@ func Get(ctx context.Context, c client.Client, key Key) (*v1beta1.NodeClass, err
 		}
 		return New(nodeTemplate), nil
 	}
-	nodeClass := &v1beta1.NodeClass{}
+	nodeClass := &v1beta1.EC2NodeClass{}
 	if err := c.Get(ctx, types.NamespacedName{Name: key.Name}, nodeClass); err != nil {
 		return nil, err
 	}
 	return nodeClass, nil
 }
 
-func Patch(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.NodeClass) error {
+func Patch(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.EC2NodeClass) error {
 	if nodeClass.IsNodeTemplate {
 		storedNodeTemplate := nodetemplateutil.New(stored)
 		nodeTemplate := nodetemplateutil.New(nodeClass)
@@ -278,7 +278,7 @@ func Patch(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.Node
 	return c.Patch(ctx, nodeClass, client.MergeFrom(stored))
 }
 
-func PatchStatus(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.NodeClass) error {
+func PatchStatus(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.EC2NodeClass) error {
 	if nodeClass.IsNodeTemplate {
 		storedNodeTemplate := nodetemplateutil.New(stored)
 		nodeTemplate := nodetemplateutil.New(nodeClass)
@@ -287,7 +287,7 @@ func PatchStatus(ctx context.Context, c client.Client, stored, nodeClass *v1beta
 	return c.Status().Patch(ctx, nodeClass, client.MergeFrom(stored))
 }
 
-func HashAnnotation(nodeClass *v1beta1.NodeClass) map[string]string {
+func HashAnnotation(nodeClass *v1beta1.EC2NodeClass) map[string]string {
 	if nodeClass.IsNodeTemplate {
 		nodeTemplate := nodetemplateutil.New(nodeClass)
 		return map[string]string{v1alpha1.AnnotationNodeTemplateHash: nodeTemplate.Hash()}
