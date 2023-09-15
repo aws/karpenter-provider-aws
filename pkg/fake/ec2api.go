@@ -222,7 +222,6 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 	e.CalledWithCreateLaunchTemplateInput.Add(input)
 	launchTemplate := &ec2.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
 	e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
-
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: launchTemplate}, nil
 }
 
