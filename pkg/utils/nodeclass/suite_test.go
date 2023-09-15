@@ -435,7 +435,7 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(convertedNodeTemplate.Status.AMIs).To(Equal(nodeTemplate.Status.AMIs))
 	})
 	It("should retrieve a EC2NodeClass with a get call", func() {
-		nodeClass := test.NodeClass()
+		nodeClass := test.EC2NodeClass()
 		ExpectApplied(ctx, env.Client, nodeClass)
 
 		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeclassutil.Key{Name: nodeClass.Name, IsNodeTemplate: false})

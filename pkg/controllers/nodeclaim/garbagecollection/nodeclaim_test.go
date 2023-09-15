@@ -47,7 +47,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 	BeforeEach(func() {
 		instanceID := fake.InstanceID()
 		providerID = fake.ProviderID(instanceID)
-		nodeClass = test.NodeClass()
+		nodeClass = test.EC2NodeClass()
 		nodePool := coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{

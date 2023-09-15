@@ -68,7 +68,7 @@ var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
-	nodeClass = test.NodeClass(v1beta1.EC2NodeClass{
+	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
 		Spec: v1beta1.EC2NodeClassSpec{
 			AMIFamily: aws.String(v1beta1.AMIFamilyAL2),
 			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{

@@ -467,7 +467,7 @@ var _ = Describe("Validation", func() {
 	Context("EC2NodeClass Hash", func() {
 		var nodeClass *v1beta1.EC2NodeClass
 		BeforeEach(func() {
-			nodeClass = test.NodeClass(v1beta1.EC2NodeClass{
+			nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					AMIFamily: aws.String(v1alpha1.AMIFamilyAL2),
 					Context:   aws.String("context-1"),
@@ -532,7 +532,7 @@ var _ = Describe("Validation", func() {
 			Expect(hash).To(Equal(updatedHash))
 		})
 		It("should expect two provisioner with the same spec to have the same provisioner hash", func() {
-			otherNodeClass := test.NodeClass(v1beta1.EC2NodeClass{
+			otherNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: nodeClass.Spec,
 			})
 			Expect(nodeClass.Hash()).To(Equal(otherNodeClass.Hash()))

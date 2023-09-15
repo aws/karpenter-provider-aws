@@ -124,7 +124,7 @@ var _ = Describe("AMIProvider", func() {
 	var version string
 	BeforeEach(func() {
 		version = lo.Must(awsEnv.VersionProvider.Get(ctx))
-		nodeClass = test.NodeClass()
+		nodeClass = test.EC2NodeClass()
 	})
 	It("should succeed to resolve AMIs (AL2)", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
