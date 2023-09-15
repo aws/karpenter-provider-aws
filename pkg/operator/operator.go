@@ -36,6 +36,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
+
+	utilversion "k8s.io/apimachinery/pkg/util/version"
+
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -58,6 +61,12 @@ import (
 	"github.com/aws/karpenter/pkg/utils/project"
 )
 
+// Karpenter's supported version of Kubernetes
+// If a user runs a karpenter image on a k8s version outside the min and max,
+// One error message will be fired to notify
+const minK8sVersion = "1.23"
+const maxK8sVersion = "1.27"
+
 // Operator is injected into the AWS CloudProvider's factories
 type Operator struct {
 	*operator.Operator
@@ -71,6 +80,7 @@ type Operator struct {
 	AMIResolver               *amifamily.Resolver
 	LaunchTemplateProvider    *launchtemplate.Provider
 	PricingProvider           *pricing.Provider
+	VersionProvider           *version.Provider
 	InstanceTypesProvider     *instancetype.Provider
 	InstanceProvider          *instance.Provider
 }
@@ -169,11 +179,26 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		SecurityGroupProvider:     securityGroupProvider,
 		AMIProvider:               amiProvider,
 		AMIResolver:               amiResolver,
+		VersionProvider:           versionProvider,
 		LaunchTemplateProvider:    launchTemplateProvider,
 		PricingProvider:           pricingProvider,
 		InstanceTypesProvider:     instanceTypeProvider,
 		InstanceProvider:          instanceProvider,
 	}
+}
+
+func (op *Operator) ValidateK8sVersion(ctx context.Context) error {
+	v := lo.Must(op.VersionProvider.Get(ctx))
+	k8sVersion := utilversion.MustParseGeneric(v)
+
+	// We will only error if the user is running karpenter on a k8s version,
+	// that is out of the range of the minK8sVersion and maxK8sVersion
+	if k8sVersion.LessThan(utilversion.MustParseGeneric(minK8sVersion)) ||
+		utilversion.MustParseGeneric(maxK8sVersion).LessThan(k8sVersion) {
+		return fmt.Errorf("karpenter version is not compatible with K8s version %s", k8sVersion)
+	}
+
+	return nil
 }
 
 // withUserAgent adds a karpenter specific user-agent string to AWS session

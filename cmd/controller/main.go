@@ -16,6 +16,7 @@ package main
 
 import (
 	"github.com/samber/lo"
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers"
@@ -42,6 +43,10 @@ func main() {
 	)
 	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
+
+	if err := op.ValidateK8sVersion(ctx); err != nil {
+		logging.FromContext(ctx).Error(err)
+	}
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
