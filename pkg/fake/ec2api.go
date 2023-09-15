@@ -48,6 +48,7 @@ type CapacityPool struct {
 type EC2Behavior struct {
 	DescribeImagesOutput                AtomicPtr[ec2.DescribeImagesOutput]
 	DescribeLaunchTemplatesOutput       AtomicPtr[ec2.DescribeLaunchTemplatesOutput]
+	DescribeLaunchTemplateVersionsOutput AtomicPtr[ec2.DescribeLaunchTemplateVersionsOutput]
 	DescribeSubnetsOutput               AtomicPtr[ec2.DescribeSubnetsOutput]
 	DescribeSecurityGroupsOutput        AtomicPtr[ec2.DescribeSecurityGroupsOutput]
 	DescribeInstanceTypesOutput         AtomicPtr[ec2.DescribeInstanceTypesOutput]
@@ -63,6 +64,7 @@ type EC2Behavior struct {
 	CalledWithDescribeImagesInput       AtomicPtrSlice[ec2.DescribeImagesInput]
 	Instances                           sync.Map
 	LaunchTemplates                     sync.Map
+	LaunchTemplateVersions              sync.Map
 	InsufficientCapacityPools           atomic.Slice[CapacityPool]
 	NextError                           AtomicError
 }
@@ -219,7 +221,15 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 	}
 	e.CalledWithCreateLaunchTemplateInput.Add(input)
 	launchTemplate := &ec2.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
+	launchTemplateVersion := &ec2.LaunchTemplateVersion{LaunchTemplateName: input.LaunchTemplateName}
 	e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
+
+	versions := []*ec2.LaunchTemplateVersion{launchTemplateVersion}
+	if existingVersions, ok := e.LaunchTemplateVersions.Load(input.LaunchTemplateName); ok{
+		previousVersions := existingVersions.([]*ec2.LaunchTemplateVersion)
+		versions = append(versions,previousVersions...)
+	}
+	e.LaunchTemplateVersions.Store(input.LaunchTemplateName, versions)
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: launchTemplate}, nil
 }
 
@@ -378,6 +388,29 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	})
 	if len(output.LaunchTemplates) == 0 {
 		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
+	}
+	return output, nil
+}
+
+
+func (e *EC2API) DescribeLaunchTemplateVersionsWithContext(_ context.Context, input *ec2.DescribeLaunchTemplateVersionsInput, _ ...request.Option) (*ec2.DescribeLaunchTemplateVersionsOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	if !e.DescribeLaunchTemplateVersionsOutput.IsNil() {
+		return e.DescribeLaunchTemplateVersionsOutput.Clone(), nil
+	}
+	output := &ec2.DescribeLaunchTemplateVersionsOutput{
+		LaunchTemplateVersions:[]*ec2.LaunchTemplateVersion{
+			{
+					DefaultVersion:     aws.Bool(true),
+					LaunchTemplateData: &ec2.ResponseLaunchTemplateData{},
+					LaunchTemplateId: aws.String("test"),
+					LaunchTemplateName: input.LaunchTemplateName,
+					VersionNumber:      aws.Int64(1),
+			},
+		},
 	}
 	return output, nil
 }
