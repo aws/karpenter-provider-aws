@@ -8,26 +8,41 @@ API changes create a user migration burden that should be weighed against the be
 
 ## Migration
 
-**Tenet:** Customers will be able to migrate from v1alpha5 to v1beta1 in a single cluster using any Karpenter version from the time that we release v1beta1 up until we release v1.
-
-Kubernetes custom resources have built in support for API version compatibility. CRDs with multiple versions must define a “storage version”, which controls the data stored in etcd. Other versions are views onto this data and converted using [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion). However, there is a fundamental limitation that [all versions must be safely round-trippable through each other](https://book.kubebuilder.io/multiversion-tutorial/api-changes.html)[.](https://book.kubebuilder.io/multiversion-tutorial/api-changes.html) This means that it must be possible to define a function that converts a v1alpha5 Provisioner into a v1beta1 Provisioner and vise versa.
+Kubernetes custom resources have built-in support for API version compatibility. CRDs with multiple versions must define a “storage version”, which controls the data stored in etcd. Other versions are views onto this data and converted using [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion). However, there is a fundamental limitation that [all versions must be safely round-trippable through each other](https://book.kubebuilder.io/multiversion-tutorial/api-changes.html)[.](https://book.kubebuilder.io/multiversion-tutorial/api-changes.html) This means that it must be possible to define a function that converts a v1alpha5 Provisioner into a v1beta1 Provisioner and vise versa.
 
 Unfortunately, multiple proposed changes in v1beta1 are not round-trippable. Below, we propose deprecations of legacy fields in favor more modern mechanisms that have seen adoption in v1alpha5. These changes remove sharp edges that regularly cause users surprises and production pain.
 
-To workaround the limitation of round-trippability, we are proposing a rename of both the API group and Kind (`NodePool`) that the CRDs exist within. This allows both CRDs to exist alongside each other simultaneously and gives users a natural migration path to move through.
+To workaround the limitation of round-trippability, we are proposing a rename of the Kinds (`NodePool`, `NodeClaim`, and `EC2NodeClass`) that the CRDs exist within. This allows both CRDs to exist alongside each other simultaneously and gives users a natural migration path to move through.
 
 ### Migration Path
 
-#### Aggressive Scale-Down
+Below describes a few migration paths at a high-level. These paths are not comprehensive, but offer good guidance through which users might migrate between the v1alpha5 APIs and the v1beta1 APIs.
 
-1. Spin up a new `v1beta1/NodePool` and `v1beta1/EC2NodeClass` resource matching their `v1alpha5` counterparts
-2. Delete the `v1alpha5/Provisioner` and `v1alpha5/AWSNodeTemplate` with [cascading foreground deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion) to delete the nodes and have Karpenter roll the nodes to `v1beta1`
+#### Periodic Rolling with Drift
 
-#### Slow Scale-Down
+For each Provisioner in your cluster, perform the following actions:
 
-1. Spin up a new `v1beta1/NodePool` and `v1beta1/EC2NodeClass` resource matching their `v1alpha5` counterparts
-2. Set the `spec.limits` on your `v1alpha5/Provisioner` resource to `cpu=0` to stop provisioning
-3. Manually delete Nodes one-by-one to have Karpenter roll the nodes over to `v1beta1`
+1. Create a NodePool/NodeClass in your cluster that is the v1beta1 equivalent of the v1alpha5 Provisioner/AWSNodeTemplate
+2. Add a taint to the old Provisioner such as `karpenter.sh/legacy=true:NoSchedule`
+3. Karpenter drift will mark all machines/nodes owned by that Provisioner as drifted
+4. Karpenter drift will launch replacements for the nodes in the new NodePool resource
+   1. Currently, Karpenter only supports rolling of one node at a time, which means that it may take some time for Karpenter to completely roll all nodes under a single Provisioner
+
+#### Forced Deletion
+
+For each Provisioner in your cluster, perform the following actions:
+
+1. Create a NodePool/NodeClass in your cluster that is the v1beta1 equivalent of the v1alpha5 Provisioner/AWSNodeTemplate
+2. Delete the old Provisioner with `kubectl delete provisioner <provisioner-name> --cascade=foreground`
+   1. Karpenter will delete each Node that is owned by the Provisioner, draining all nodes simultaneously and will launch nodes for the newly pending pods as soon as the Nodes enter a draining state
+
+#### Manual Rolling
+
+For each Provisioner in your cluster, perform the following actions:
+
+1. Create a NodePool/NodeClass in your cluster that is the v1beta1 equivalent of the v1alpha5 Provisioner/AWSNodeTemplate
+2. Add a taint to the old Provisioner such as `karpenter.sh/legacy=true:NoSchedule`
+3. Delete each node one-at-time owned by the Provisioner by running `kubectl delete node <node-name>`
 
 ## APIs
 
@@ -41,6 +56,8 @@ To help clearly define where configuration should live within Karpenter’s API,
     2. Cloudprovider-specific behavior-based fields for configuring Karpenter’s scheduling and deprovisioning decision-making (e.g. interruption-based disruption, allocation strategy)
 3. `NodeClaim`
     1. A Karpenter management object that fully manages the lifecycle of a single node including: configuring and launching the node, monitoring the node health (including disruption conditions), and handling the deprovisioning and termination of the node
+
+With these boundaries defined, below shows each API, with all fields specified, with values filled in as examples.
 
 ### `karpenter.sh/NodePool`
 
@@ -60,7 +77,7 @@ spec:
       nodeClass:
         name: default
         kind: EC2NodeClass
-        apiVersion: compute.k8s.aws/v1beta1
+        apiVersion: karpenter.k8s.aws/v1beta1
       taints:
         - key: example.com/special-taint
           effect: NoSchedule
@@ -119,10 +136,10 @@ status:
      ephemeral-storage: "100Gi"
 ```
 
-### `compute.k8s.aws/EC2NodeClass`
+### `karpenter.k8s.aws/EC2NodeClass`
 
 ```
-apiVersion: compute.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 metadata:
   name: default
@@ -292,15 +309,15 @@ status:
     memory: 942684Ki
     pods: "4"
   conditions:
-  - type: NodeDrifted
+  - type: Drifted
     status: "True"
     severity: Warning
   - status: "True"
-    type: NodeInitialized
+    type: Initialized
   - status: "True"
-    type: NodeLaunched
+    type: Lanched
   - status: "True"
-    type: NodeRegistered
+    type: Registered
   - status: "True"
     type: Ready
   nodeName: ip-192-168-62-137.us-west-2.compute.internal
@@ -317,23 +334,22 @@ status:
 4. `karpenter.sh/capacity-type`
 5. `karpenter.sh/do-not-disrupt`
 
-#### `compute.k8s.aws`
+#### `karpenter.k8s.aws`
 
-1. `compute.k8s.aws/instance-hypervisor`
-2. `compute.k8s.aws/instance-encryption-in-transit-supported`
-3. `compute.k8s.aws/instance-category`
-4. `compute.k8s.aws/instance-family`
-5. `compute.k8s.aws/instance-generation`
-6. `compute.k8s.aws/instance-local-nvme`
-7. `compute.k8s.aws/instance-size`
-8. `compute.k8s.aws/instance-cpu`
-9. `compute.k8s.aws/instance-memory`
-10. `compute.k8s.aws/instance-network-bandwidth`
-11. `compute.k8s.aws/instance-pods`
-12. `compute.k8s.aws/instance-gpu-name`
-13. `compute.k8s.aws/instance-gpu-manufacturer`
-14. `compute.k8s.aws/instance-gpu-count`
-15. `compute.k8s.aws/instance-gpu-memory`
-16. `compute.k8s.aws/instance-accelerator-name`
-17. `compute.k8s.aws/instance-accelerator-manufacturer`
-18. `compute.k8s.aws/instance-accelerator-count`
+1. `karpenter.k8s.aws/instance-hypervisor`
+2. `karpenter.k8s.aws/instance-encryption-in-transit-supported`
+3. `karpenter.k8s.aws/instance-category`
+4. `karpenter.k8s.aws/instance-family`
+5. `karpenter.k8s.aws/instance-generation`
+6. `karpenter.k8s.aws/instance-local-nvme`
+7. `karpenter.k8s.aws/instance-size`
+8. `karpenter.k8s.aws/instance-cpu`
+9. `karpenter.k8s.aws/instance-memory`
+10. `karpenter.k8s.aws/instance-network-bandwidth`
+11. `karpenter.k8s.aws/instance-gpu-name`
+12. `karpenter.k8s.aws/instance-gpu-manufacturer`
+13. `karpenter.k8s.aws/instance-gpu-count`
+14. `karpenter.k8s.aws/instance-gpu-memory`
+15. `karpenter.k8s.aws/instance-accelerator-name`
+16. `karpenter.k8s.aws/instance-accelerator-manufacturer`
+17. `karpenter.k8s.aws/instance-accelerator-count`

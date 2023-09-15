@@ -4,14 +4,11 @@ This document formalizes the [v1beta1 laundry list](https://github.com/aws/karpe
 
 ### Update Kind/Group Naming
 
-As part of the bump to v1beta1, to allow the v1alpha5 APIs to exist alongside the v1beta1 APIs while users go through a migration process, the following renames are being proposed:
+As part of the bump to v1beta1, to allow the v1alpha5 APIs to exist alongside the v1beta1 APIs while users go through a migration process, the following kind names are being proposed:
 
-1. API Group Renames
-    1. `karpenter.k8s.aws` → `compute.k8s.aws`
-2. Kind Renames
-    1. `Provisioner` → `NodePool`
-    2. `Machine` -> `NodeClaim`
-    3. `AWSNodeTemplate` → `EC2NodeClass`
+ 1. `Provisioner` → `NodePool`
+ 2. `Machine` -> `NodeClaim`
+ 3. `AWSNodeTemplate` → `EC2NodeClass`
 
 We see the renames as opportunities to better align our API groups and kinds with upstream concepts as well as reducing confusion between other Kubernetes API concepts. Specifically, the word `Provisioner` (on its own) has become overloaded in Kubernetes, [particularly in the area of storage provisioning](https://kubernetes.io/docs/concepts/storage/storage-classes/#the-storageclass-resource). We want to get completely away from this naming, while also prefixing all of our kinds that apply to nodes with `Node` for better alignment and clarity across the project. 
 
@@ -19,7 +16,7 @@ This gives the following naming to API types within the Karpenter project
 
 1. `karpenter.sh/NodePool`
 2. `karpenter.sh/NodeClaim`
-3. `compute.k8s.aws/EC2NodeClass`
+3. `karpenter.k8s.aws/EC2NodeClass`
 
 ### Remove Validation/Mutating Webhooks in favor of CEL (Common Expression Language)
 
@@ -43,7 +40,7 @@ While this feature is useful for consolidation, it should be expanded out to all
 
 ### `NodePool` Changes
 
-####  `nodePool.spec` → `nodePool.spec.template`
+####  `spec` → `spec.template`
 
 Currently fields that control node properties, such as `Labels`, `Taints`, `StartupTaints`, `Requirements`, `KubeletConfiguration`, `ProviderRef,` are top level members of `provisioner.spec`. We can draw a nice line between:
 
@@ -73,13 +70,13 @@ spec:
     consolidationPolicy: ...
 ```
 
-#### `provisioner.spec.ttl...` → `nodePool.spec.disruption...`
+#### `spec.ttl...` → `spec.disruption...`
 
 Karpenter plans to expand the amount of control that it gives users over both the aggressiveness of disruption and when disruption can take place. As part of these upcoming changes, more fields within the `NodePool` API will begin to pertain to the disruption configuration.
 
 We can better delineate the fields that specifically pertain to this configuration from the other fields in the `spec` (global behavior-based fields, provisioning-specific fields, node static configuration fields) by moving these fields inside a `disruption` block. This will make it clearer to users which configuration options specifically pertain to scale-down when they are configuring their `NodePool` CRs.
 
-#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.spec.disruption.consolidationPolicy`
+#### `spec.ttlSecondsAfterEmpty` → `spec.disruption.consolidationPolicy`
 
 Currently, Karpenter has two mutually exclusive ways to deprovision nodes based on emptiness: `ttlSecondsAfterEmpty` and `consolidation`. If users are using `ttlSecondsAfterEmpty`, we have generally seen that users are configuring this field in one of two ways:
 
@@ -90,22 +87,21 @@ We anticipate that both of these scenarios can be captured through the consolida
 
 If `consolidationPolicy` is not set, Karpenter will implicitly default to `WhenUnderutilized`.
 
-#### `provisioner.Spec.ttlSecondsAfterEmpty` → `nodePool.spec.disruption.consolidateAfter`
+#### `spec.ttlSecondsAfterEmpty` → `spec.disruption.consolidateAfter`
 
-While the `consolidationPolicy` offers one mechanism for users to control the aggressiveness of disruption, users that enable a `consolidationPolicy` of `WhenEmpty` or `WhenUnderutilized` may still want to dictate the speed at which nodes are deemed underutilized. This is particularly true on clusters that are large and have a large amount of pod churn. To support this, Karpenter will surface a `consolidateAfter` field which will allow you to define a per-node TTL to define the time that Karpenter can begin disrupting the node after first seeing that the node is eligible for consolidation.
+While the `consolidationPolicy` offers one mechanism for users to control the aggressiveness of disruption, users that enable a `consolidationPolicy` of `WhenEmpty` or `WhenUnderutilized` may still want to dictate the speed at which nodes are deemed underutilized. This is particularly true on clusters that are large and have a large amount of pod churn. To support this, Karpenter will surface a `consolidateAfter` field which will allow users to define a per-node TTL to define the time that Karpenter can begin disrupting the node after first seeing that the node is eligible for consolidation.
 
-
-#### `provisioner.Spec.ttlSecondsUntilExpired` → `nodePool.spec.disruption.expireAfter`
+#### `spec.ttlSecondsUntilExpired` → `spec.disruption.expireAfter`
 
 Karpenter will change the `ttlSecondsUntilExipred` field to `expireAfter` to align with the `consolidateAfter` field in the `disruption` block.
 
-#### Remove `nodePool.spec.provider`
+#### Remove `spec.provider`
 
-We’ve recommended that customers leverage spec.providerRef in favor of spec.provider since Q2 2022. Documentation for this feature has been removed since Q3 2022. We will take the opportunity to remove the feature entirely to minimize code bugs/complexity and user confusion.
+We’ve recommended that customers leverage `spec.providerRef` in favor of `spec.provider` since Q2 2022. Documentation for this feature has been removed since Q3 2022. We will take the opportunity to remove the feature entirely to minimize code bugs/complexity and user confusion.
 
 ### `EC2NodeClass` Changes
 
-#### Update `nodeClass.spec.amiSelector`
+#### Update `spec.amiSelector`
 
 The alpha API `amiSelector` has two primary limitations that restrict user’s ability to specify the AMIs that they want Karpenter to use:
 
@@ -128,7 +124,7 @@ amiSelectorTerms:
     key: value
 ```
 
-#### Update `nodeClass.spec.subnetSelector`
+#### Update `spec.subnetSelector`
 
 `subnetSelectorTerms` should have a similar parity to the `amiSelectorTerms` in its design to improve the ease-of-use for users. As a result, we should design the `subnetSelectorTerms` in the same spirit as the `amiSelectorTerms` such that you can also specify multiple selectors through `tags` and `ids` that can be ORed together to produce the ultimate set of items that you want to use.
 
@@ -143,7 +139,7 @@ subnetSelectorTerms:
     key: value
 ```
 
-#### Update `nodeClass.spec.securityGroupSelector`
+#### Update `spec.securityGroupSelector`
 
 The same logic for `subnetSelectorTerms` applies to `securityGroupSelectorTerms`. We should have a similar parity to the `amiSelectorTerms` to improve the ease-of-use around this selector.
 
@@ -161,11 +157,11 @@ securityGroupSelectorTerms:
     Name: custom-security-group-c # not the same as the "name" field
 ```
 
-#### Remove `nodeClass.spec.launchTemplate`
+#### Remove `spec.launchTemplate`
 
 Direct launch template support is problematic for many reasons, outlined in the design [Unmanaged LaunchTemplate Support for Karpenter](./unmanaged-launch-template-removal.md). Customers continue to run into issues when directly using launch templates. Rather than continue to maintain these sharp edges and give users a half-baked experience of Karpenter, we should remove this field, considering that we can always add it back later if there is enough ask from users to do so.
 
-#### `nodeTemplate.spec.instanceProfile` → `nodeClass.spec.role`
+#### `spec.instanceProfile` → `spec.role`
 
 Currently, Karpenter uses an `instanceProfile` in the `AWSNodeTemplate` that is referenced to determine the profile that the EC2 node should launch with. Instance profiles are IAM entities that are specific to EC2 and do not have a lot of detail built around them (including console support); users are generally more familiar with the concept of IAM roles. As a result, we can support a `role` in the new `EC2NodeClass` and allow Karpenter to provision the instance profile `ad-hoc` with the `role`  specified attached to it.
 
