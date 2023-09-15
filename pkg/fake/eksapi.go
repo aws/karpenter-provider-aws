@@ -48,10 +48,6 @@ func (s *EKSAPI) DescribeCluster(input *eks.DescribeClusterInput) (*eks.Describe
 		return describeClusterBehavior, nil
 	}
 	return s.DescribeClusterBehaviour.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
-		return &eks.DescribeClusterOutput{
-			Cluster: &eks.Cluster{
-				Version: aws.String("1.27"),
-			},
-		}, nil
+		return nil, nil
 	})
 }

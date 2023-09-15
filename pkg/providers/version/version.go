@@ -97,7 +97,6 @@ func (p *Provider) getKubernetesVersion(ctx context.Context) (string, error) {
 	// If we're running locally, these environment variables will be empty.
 	host, port := os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT")
 	if len(host) != 0 && len(port) != 0 {
-		logging.FromContext(ctx).Infof("DEBUGGING: We got into in-cluster")
 		version, err = p.getMinKubernetesVersion(ctx)
 		if err != nil {
 			return "", err
@@ -106,7 +105,6 @@ func (p *Provider) getKubernetesVersion(ctx context.Context) (string, error) {
 	}
 	version, err = p.getClusterVersion(ctx)
 	if err == nil {
-		logging.FromContext(ctx).Infof("DEBUGGING: We got into describe cluster")
 		return version, nil
 	}
 	logging.FromContext(ctx).Infof("failed to get kubernetes version from EKS cluster %w", err)
@@ -166,7 +164,7 @@ func (p *Provider) getClusterVersion(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("describing cluster, %w", err)
 	}
-	if out.Cluster.Version == nil {
+	if out == nil || out.Cluster == nil || out.Cluster.Version == nil {
 		return "", fmt.Errorf("failed to retrieve an eks cluster version")
 	}
 	return *out.Cluster.Version, nil
