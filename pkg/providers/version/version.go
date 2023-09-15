@@ -166,6 +166,9 @@ func (p *Provider) getClusterVersion(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("describing cluster, %w", err)
 	}
+	if out.Cluster.Version == nil {
+		return "", fmt.Errorf("failed to retrieve an eks cluster version")
+	}
 	return *out.Cluster.Version, nil
 }
 

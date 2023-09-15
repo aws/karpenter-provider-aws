@@ -40,6 +40,13 @@ func (s *EKSAPI) Reset() {
 }
 
 func (s *EKSAPI) DescribeCluster(input *eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
+	if !s.DescribeClusterBehaviour.Output.IsNil() {
+		describeClusterBehavior := s.DescribeClusterBehaviour.Output.Clone()
+		if describeClusterBehavior.Cluster.Version == nil {
+			describeClusterBehavior.Cluster.Version = aws.String("1.27")
+		}
+		return describeClusterBehavior, nil
+	}
 	return s.DescribeClusterBehaviour.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
 		return &eks.DescribeClusterOutput{
 			Cluster: &eks.Cluster{

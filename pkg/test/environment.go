@@ -143,6 +143,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 func (env *Environment) Reset() {
 	env.EC2API.Reset()
 	env.SSMAPI.Reset()
+	env.EKSAPI.Reset()
 	env.PricingAPI.Reset()
 	env.PricingProvider.Reset()
 
