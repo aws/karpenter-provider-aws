@@ -752,7 +752,7 @@ var _ = Describe("Instance Types", func() {
 		})
 		Context("System Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
-				it := instancetype.NewInstanceType(ctx, info, &v1beta1.KubeletConfiguration{}, "", nodeclassutil.New(nodeTemplate), nil)
+				it := instancetype.NewInstanceType(ctx, info, &v1beta1.Kubelet{}, "", nodeclassutil.New(nodeTemplate), nil)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("0"))
 				Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("0"))
 				Expect(it.Overhead.SystemReserved.StorageEphemeral().String()).To(Equal("0"))
@@ -775,7 +775,7 @@ var _ = Describe("Instance Types", func() {
 		})
 		Context("Kube Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
-				it := instancetype.NewInstanceType(ctx, info, &v1beta1.KubeletConfiguration{}, "", nodeclassutil.New(nodeTemplate), nil)
+				it := instancetype.NewInstanceType(ctx, info, &v1beta1.Kubelet{}, "", nodeclassutil.New(nodeTemplate), nil)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("80m"))
 				Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("893Mi"))
 				Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("1Gi"))
@@ -952,7 +952,7 @@ var _ = Describe("Instance Types", func() {
 				})
 			})
 			It("should take the default eviction threshold when none is specified", func() {
-				it := instancetype.NewInstanceType(ctx, info, &v1beta1.KubeletConfiguration{}, "", nodeclassutil.New(nodeTemplate), nil)
+				it := instancetype.NewInstanceType(ctx, info, &v1beta1.Kubelet{}, "", nodeclassutil.New(nodeTemplate), nil)
 				Expect(it.Overhead.EvictionThreshold.Cpu().String()).To(Equal("0"))
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				Expect(it.Overhead.EvictionThreshold.StorageEphemeral().AsApproximateFloat64()).To(BeNumerically("~", resources.Quantity("2Gi").AsApproximateFloat64()))

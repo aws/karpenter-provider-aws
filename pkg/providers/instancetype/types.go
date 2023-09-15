@@ -49,7 +49,7 @@ var (
 	instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
 )
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1beta1.KubeletConfiguration,
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1beta1.Kubelet,
 	region string, nodeClass *v1beta1.EC2NodeClass, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
 	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -68,7 +68,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1
 
 //nolint:gocyclo
 func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offerings cloudprovider.Offerings, region string,
-	amiFamily amifamily.AMIFamily, kc *corev1beta1.KubeletConfiguration, nodeClass *v1beta1.EC2NodeClass) scheduling.Requirements {
+	amiFamily amifamily.AMIFamily, kc *corev1beta1.Kubelet, nodeClass *v1beta1.EC2NodeClass) scheduling.Requirements {
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
@@ -169,7 +169,7 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 }
 
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
-	blockDeviceMappings []*v1beta1.BlockDeviceMapping, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+	blockDeviceMappings []*v1beta1.BlockDeviceMapping, kc *corev1beta1.Kubelet) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
 		v1.ResourceCPU:              *cpu(info),
@@ -317,14 +317,14 @@ func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(capacity))
 }
 
-func systemReservedResources(kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+func systemReservedResources(kc *corev1beta1.Kubelet) v1.ResourceList {
 	if kc != nil && kc.SystemReserved != nil {
 		return kc.SystemReserved
 	}
 	return v1.ResourceList{}
 }
 
-func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kc *corev1beta1.Kubelet) v1.ResourceList {
 	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
 		pods = eniLimitedPods
 	}
@@ -360,7 +360,7 @@ func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFam
 	return resources
 }
 
-func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, kc *corev1beta1.Kubelet) v1.ResourceList {
 	overhead := v1.ResourceList{
 		v1.ResourceMemory:           resource.MustParse("100Mi"),
 		v1.ResourceEphemeralStorage: resource.MustParse(fmt.Sprint(math.Ceil(float64(storage.Value()) / 100 * 10))),
@@ -392,7 +392,7 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 	return lo.Assign(overhead, override)
 }
 
-func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, kc *corev1beta1.KubeletConfiguration) *resource.Quantity {
+func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, kc *corev1beta1.Kubelet) *resource.Quantity {
 	var count int64
 	switch {
 	case kc != nil && kc.MaxPods != nil:

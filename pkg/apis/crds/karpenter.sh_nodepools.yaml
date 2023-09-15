@@ -53,14 +53,12 @@ spec:
             properties:
               disruption:
                 default:
-                  consolidateAfter: 15s
                   consolidationPolicy: WhenUnderutilized
                   expireAfter: 720h
                 description: Disruption contains the parameters that relate to Karpenter's
                   disruption logic
                 properties:
                   consolidateAfter:
-                    default: 15s
                     description: ConsolidateAfter is the duration the controller will
                       wait before attempting to terminate nodes that are underutilized.
                       Refer to ConsolidationPolicy for how underutilization is considered.
@@ -122,7 +120,7 @@ spec:
                     description: NodeClaimSpec describes the desired state of the
                       NodeClaim
                     properties:
-                      kubeletConfiguration:
+                      kubelet:
                         description: KubeletConfiguration are options passed to the
                           kubelet when provisioning nodes
                         properties:

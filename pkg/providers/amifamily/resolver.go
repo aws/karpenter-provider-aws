@@ -75,7 +75,7 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DefaultAMIs(version string, isNodeTemplate bool) []DefaultAMIOutput
-	UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
+	UserData(kubeletConfig *corev1beta1.Kubelet, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1beta1.MetadataOptions
 	EphemeralBlockDevice() *string
@@ -138,7 +138,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 		// we need to pass down the max-pods calculation to the kubelet.
 		// This requires that we resolve a unique launch template per max-pods value.
 		for maxPods, instanceTypes := range maxPodsToInstanceTypes {
-			kubeletConfig := &corev1beta1.KubeletConfiguration{}
+			kubeletConfig := &corev1beta1.Kubelet{}
 			if nodeClaim.Spec.KubeletConfiguration != nil {
 				if err := mergo.Merge(kubeletConfig, nodeClaim.Spec.KubeletConfiguration); err != nil {
 					return nil, err
@@ -201,7 +201,7 @@ func (o Options) DefaultMetadataOptions() *v1beta1.MetadataOptions {
 	}
 }
 
-func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.KubeletConfiguration) *corev1beta1.KubeletConfiguration {
+func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.Kubelet) *corev1beta1.Kubelet {
 	if opts.KubeDNSIP == nil {
 		return kubeletConfig
 	}
@@ -209,7 +209,7 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.Ku
 		return kubeletConfig
 	}
 	if kubeletConfig == nil {
-		return &corev1beta1.KubeletConfiguration{
+		return &corev1beta1.Kubelet{
 			ClusterDNS: []string{opts.KubeDNSIP.String()},
 		}
 	}
