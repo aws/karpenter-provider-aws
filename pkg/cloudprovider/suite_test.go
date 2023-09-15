@@ -334,6 +334,20 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
 		})
+		It("should return node template drifted if there are multiple drift reasons", func() {
+			// Instance is a reference to what we return in the GetInstances call
+			instance.ImageId = aws.String(fake.ImageID())
+			instance.SubnetId = aws.String(fake.SubnetID())
+			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
+			// Assign a fake hash
+			nodeTemplate.Annotations = lo.Assign(nodeTemplate.Annotations, map[string]string{
+				v1alpha1.AnnotationNodeTemplateHash: "abcdefghijkl",
+			})
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeclaimutil.New(machine))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(cloudprovider.NodeTemplateDrift))
+		})
 		It("should return drifted if the subnet is not valid", func() {
 			instance.SubnetId = aws.String(fake.SubnetID())
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeclaimutil.New(machine))
