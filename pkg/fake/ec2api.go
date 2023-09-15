@@ -221,15 +221,8 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 	}
 	e.CalledWithCreateLaunchTemplateInput.Add(input)
 	launchTemplate := &ec2.LaunchTemplate{LaunchTemplateName: input.LaunchTemplateName}
-	launchTemplateVersion := &ec2.LaunchTemplateVersion{LaunchTemplateName: input.LaunchTemplateName}
 	e.LaunchTemplates.Store(input.LaunchTemplateName, launchTemplate)
 
-	versions := []*ec2.LaunchTemplateVersion{launchTemplateVersion}
-	if existingVersions, ok := e.LaunchTemplateVersions.Load(input.LaunchTemplateName); ok {
-		previousVersions := existingVersions.([]*ec2.LaunchTemplateVersion)
-		versions = append(versions, previousVersions...)
-	}
-	e.LaunchTemplateVersions.Store(input.LaunchTemplateName, versions)
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: launchTemplate}, nil
 }
 
