@@ -20,7 +20,6 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/samber/lo"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
@@ -64,7 +63,6 @@ func (in *EC2NodeClassSpec) validate(_ context.Context) (errs *apis.FieldError) 
 		in.validateMetadataOptions().ViaField(metadataOptionsPath),
 		in.validateAMIFamily().ViaField(amiFamilyPath),
 		in.validateBlockDeviceMappings().ViaField(blockDeviceMappingsPath),
-		in.validateUserData().ViaField(userDataPath),
 		in.validateTags().ViaField(tagsPath),
 	)
 }
@@ -249,16 +247,6 @@ func (in *EC2NodeClassSpec) validateVolumeSize(blockDeviceMapping *BlockDeviceMa
 	return nil
 }
 
-func (in *EC2NodeClassSpec) validateUserData() (errs *apis.FieldError) {
-	if in.UserData == nil {
-		return nil
-	}
-	if lo.FromPtr(in.AMIFamily) == AMIFamilyWindows2019 || lo.FromPtr(in.AMIFamily) == AMIFamilyWindows2022 {
-		errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%s AMIFamily is not currently supported with custom userData", lo.FromPtr(in.AMIFamily)), userDataPath))
-	}
-	return errs
-}
-
 func (in *EC2NodeClassSpec) validateAMIFamily() (errs *apis.FieldError) {
 	if in.AMIFamily == nil {
 		return nil
@@ -266,7 +254,7 @@ func (in *EC2NodeClassSpec) validateAMIFamily() (errs *apis.FieldError) {
 	if *in.AMIFamily == AMIFamilyCustom && len(in.AMISelectorTerms) == 0 {
 		errs = errs.Also(apis.ErrMissingField(amiSelectorTermsPath))
 	}
-	return errs.Also(in.validateStringEnum(*in.AMIFamily, amiFamilyPath, SupportedAMIFamilies))
+	return errs
 }
 
 func (in *EC2NodeClassSpec) validateTags() (errs *apis.FieldError) {

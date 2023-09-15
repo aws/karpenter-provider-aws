@@ -241,11 +241,6 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 		*out = new(string)
 		**out = **in
 	}
-	if in.Role != nil {
-		in, out := &in.Role, &out.Role
-		*out = new(string)
-		**out = **in
-	}
 	if in.Tags != nil {
 		in, out := &in.Tags, &out.Tags
 		*out = make(map[string]string, len(*in))

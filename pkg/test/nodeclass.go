@@ -30,6 +30,12 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 			panic(fmt.Sprintf("Failed to merge settings: %s", err))
 		}
 	}
+	if options.Spec.AMIFamily == nil {
+		options.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+	}
+	if options.Spec.Role == "" {
+		options.Spec.Role = "test-role"
+	}
 	if len(options.Spec.SecurityGroupSelectorTerms) == 0 {
 		options.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
 			{
@@ -39,7 +45,6 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 			},
 		}
 	}
-
 	if len(options.Spec.SubnetSelectorTerms) == 0 {
 		options.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 			{

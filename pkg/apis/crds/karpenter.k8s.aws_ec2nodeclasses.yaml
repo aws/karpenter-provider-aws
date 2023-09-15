@@ -43,6 +43,13 @@ spec:
             properties:
               amiFamily:
                 description: AMIFamily is the AMI family that instances use.
+                enum:
+                - AL2
+                - Bottlerocket
+                - Ubuntu
+                - Custom
+                - Windows2019
+                - Windows2022
                 type: string
               amiSelectorTerms:
                 description: AMISelectorTerms is a list of or ami selector terms.
@@ -152,6 +159,11 @@ spec:
                   enabled for instances that are launched
                 type: boolean
               metadataOptions:
+                default:
+                  httpEndpoint: enabled
+                  httpProtocolIPv6: disabled
+                  httpPutResponseHopLimit: 2
+                  httpTokens: required
                 description: "MetadataOptions for the generated launch template of
                   provisioned nodes. \n This specifies the exposure of the Instance
                   Metadata Service to provisioned EC2 nodes. For more information,
@@ -163,6 +175,7 @@ spec:
                   disabled, with httpPutResponseLimit of 2, and with httpTokens required."
                 properties:
                   httpEndpoint:
+                    default: enabled
                     description: "HTTPEndpoint enables or disables the HTTP metadata
                       endpoint on provisioned nodes. If metadata options is non-nil,
                       but this parameter is not specified, the default state is \"enabled\".
@@ -170,23 +183,26 @@ spec:
                       will not be accessible on the node."
                     type: string
                   httpProtocolIPv6:
+                    default: disabled
                     description: HTTPProtocolIPv6 enables or disables the IPv6 endpoint
                       for the instance metadata service on provisioned nodes. If metadata
                       options is non-nil, but this parameter is not specified, the
                       default state is "disabled".
                     type: string
                   httpPutResponseHopLimit:
+                    default: 2
                     description: HTTPPutResponseHopLimit is the desired HTTP PUT response
                       hop limit for instance metadata requests. The larger the number,
                       the further instance metadata requests can travel. Possible
                       values are integers from 1 to 64. If metadata options is non-nil,
-                      but this parameter is not specified, the default value is 1.
+                      but this parameter is not specified, the default value is 2.
                     format: int64
                     type: integer
                   httpTokens:
+                    default: required
                     description: "HTTPTokens determines the state of token usage for
                       instance metadata requests. If metadata options is non-nil,
-                      but this parameter is not specified, the default state is \"optional\".
+                      but this parameter is not specified, the default state is \"required\".
                       \n If the state is optional, one can choose to retrieve instance
                       metadata with or without a signed token header on the request.
                       If one retrieves the IAM role credentials without a token, the
@@ -260,6 +276,11 @@ spec:
                   will merge certain fields into this UserData to ensure nodes are
                   being provisioned with the correct configuration.
                 type: string
+            required:
+            - amiFamily
+            - role
+            - securityGroupSelectorTerms
+            - subnetSelectorTerms
             type: object
           status:
             description: EC2NodeClassStatus contains the resolved state of the EC2NodeClass
