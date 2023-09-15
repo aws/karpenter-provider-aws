@@ -15,6 +15,7 @@ limitations under the License.
 package fake
 
 import (
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 )
@@ -40,6 +41,10 @@ func (s *EKSAPI) Reset() {
 
 func (s *EKSAPI) DescribeCluster(input *eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
 	return s.DescribeClusterBehaviour.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
-		return nil, nil
+		return &eks.DescribeClusterOutput{
+			Cluster: &eks.Cluster{
+				Version: aws.String("1.27"),
+			},
+		}, nil
 	})
 }

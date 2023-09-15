@@ -42,6 +42,7 @@ type Environment struct {
 	// API
 	EC2API     *fake.EC2API
 	SSMAPI     *fake.SSMAPI
+	EKSAPI     *fake.EKSAPI
 	PricingAPI *fake.PricingAPI
 
 	// Cache
@@ -69,6 +70,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	// API
 	ec2api := &fake.EC2API{}
 	ssmapi := &fake.SSMAPI{}
+	eksapi := &fake.EKSAPI{}
 
 	// cache
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -85,7 +87,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	subnetProvider := subnet.NewProvider(ec2api, subnetCache)
 	securityGroupProvider := securitygroup.NewProvider(ec2api, securityGroupCache)
 
-	versionProvider := version.NewProvider(env.KubernetesInterface, kubernetesVersionCache, env.Client, fake.NewHTTPClient())
+	versionProvider := version.NewProvider(env.KubernetesInterface, kubernetesVersionCache, env.Client, fake.NewHTTPClient(), eksapi)
 	amiProvider := amifamily.NewProvider(versionProvider, ssmapi, ec2api, ec2Cache)
 	amiResolver := amifamily.New(amiProvider)
 	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
@@ -115,6 +117,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	return &Environment{
 		EC2API:     ec2api,
 		SSMAPI:     ssmapi,
+		EKSAPI:     eksapi,
 		PricingAPI: fakePricingAPI,
 
 		EC2Cache:                  ec2Cache,

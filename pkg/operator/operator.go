@@ -129,7 +129,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		*sess.Config.Region,
 	)
 	versionProvider := version.NewProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
-		operator.GetClient(), lo.Must(getHTTPClient(operator.GetConfig())))
+		operator.GetClient(), lo.Must(getHTTPClient(operator.GetConfig())), eks.New(sess))
 	amiProvider := amifamily.NewProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.New(amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(

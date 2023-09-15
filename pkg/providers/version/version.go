@@ -32,7 +32,12 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/apis/settings"
 )
 
 const (
@@ -51,15 +56,18 @@ type Provider struct {
 	kubeClient          client.Client
 	httpClient          HTTPClient
 	kubernetesInterface kubernetes.Interface
+	eks                 eksiface.EKSAPI
 }
 
-func NewProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, client client.Client, httpClient HTTPClient) *Provider {
+func NewProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache, client client.Client,
+	httpClient HTTPClient, eks eksiface.EKSAPI) *Provider {
 	return &Provider{
 		cm:                  pretty.NewChangeMonitor(),
 		cache:               cache,
 		kubeClient:          client,
 		httpClient:          httpClient,
 		kubernetesInterface: kubernetesInterface,
+		eks:                 eks,
 	}
 }
 
@@ -67,29 +75,46 @@ func (p *Provider) Get(ctx context.Context) (string, error) {
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}
-	var version string
-	var err error
-	// If we're running locally, these environment variables will be empty.
-	host, port := os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT")
-	if len(host) == 0 || len(port) == 0 {
-		// If we're running locally, we don't care which APIServer we hit
-		serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
-		if err != nil {
-			return "", err
-		}
-		version = fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
-	} else {
-		// If we're running in cluster, we'll ping each APIServer endpoint to get the minimum k8s version.
-		version, err = p.getMinKubernetesVersion(ctx)
-		if err != nil {
-			return "", err
-		}
+	version, err := p.getKubernetesVersion(ctx)
+	if err != nil {
+		return "", fmt.Errorf("getting kubernetes version, %w", err)
 	}
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
 		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
 	}
 	return version, nil
+}
+
+// getKubernetesVersion will try to get the Kubernetes version from three sources of truth.
+// This is done since it's possible for the APIServers to disagree on K8s version.
+// 1. If Karpenter is running inside the cluster, it'll ping the private APIServer IPs.
+// 2. If Karpneter is running in EKS, it'll call the EKS.DescribeCluster API
+// 3. Fallback to the Kubernetes clientset to get a kubernetes version.
+func (p *Provider) getKubernetesVersion(ctx context.Context) (string, error) {
+	var version string
+	var err error
+	// If we're running locally, these environment variables will be empty.
+	host, port := os.Getenv("KUBERNETES_SERVICE_HOST"), os.Getenv("KUBERNETES_SERVICE_PORT")
+	if len(host) != 0 && len(port) != 0 {
+		logging.FromContext(ctx).Infof("DEBUGGING: We got into in-cluster")
+		version, err = p.getMinKubernetesVersion(ctx)
+		if err != nil {
+			return "", err
+		}
+		return version, nil
+	}
+	version, err = p.getClusterVersion(ctx)
+	if err == nil {
+		logging.FromContext(ctx).Infof("DEBUGGING: We got into describe cluster")
+		return version, nil
+	}
+	logging.FromContext(ctx).Infof("failed to get kubernetes version from EKS cluster %w", err)
+	serverVersion, err := p.kubernetesInterface.Discovery().ServerVersion()
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+")), nil
 }
 
 // GetMinKubernetesVersion ensures that we query all known APIServers for the K8s version.
@@ -133,6 +158,17 @@ func (p *Provider) getMinKubernetesVersion(ctx context.Context) (string, error) 
 	// Only return the major and minor versions.
 	return strings.Join(strings.Split(minVersion.String(), ".")[0:2], "."), nil
 }
+
+func (p *Provider) getClusterVersion(ctx context.Context) (string, error) {
+	out, err := p.eks.DescribeCluster(&eks.DescribeClusterInput{
+		Name: aws.String(settings.FromContext(ctx).ClusterName),
+	})
+	if err != nil {
+		return "", fmt.Errorf("describing cluster, %w", err)
+	}
+	return *out.Cluster.Version, nil
+}
+
 func getAddresses(endpoints v1.EndpointSlice) []string {
 	// If there are no ports, it's the same as defining all ports.
 	ports := []string{""}
