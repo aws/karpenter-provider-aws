@@ -266,6 +266,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(node.Labels).To(HaveKey(v1.LabelOSStable))
 			Expect(node.Labels).To(HaveKey(v1.LabelArchStable))
 			Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+			Expect(node.Labels).To(HaveKey(v1alpha1.LabelInstanceAMIID))
 		})
 		It("should apply provider labels to the node", func() {
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
