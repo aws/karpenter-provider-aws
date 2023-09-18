@@ -134,7 +134,6 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.NodeClass, 
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
 	if nodeClass.Spec.LaunchTemplateName != nil {
-		// TODO GW HAVE to lookup the specified launch template, in order to get the actual ami id used in this case - expensive  call
 		templateName := ptr.StringValue(nodeClass.Spec.LaunchTemplateName)
 
 		templateData, err := p.lookupLaunchTemplateData(ctx, templateName)
