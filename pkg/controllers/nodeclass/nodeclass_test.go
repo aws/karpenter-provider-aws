@@ -37,7 +37,7 @@ import (
 var _ = Describe("NodeClassController", func() {
 	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		nodeClass = test.NodeClass(v1beta1.EC2NodeClass{
+		nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: v1beta1.EC2NodeClassSpec{
 				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
 					{

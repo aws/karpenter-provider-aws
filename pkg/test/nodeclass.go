@@ -23,7 +23,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
-func NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
+func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 	options := v1beta1.EC2NodeClass{}
 	for _, override := range overrides {
 		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
