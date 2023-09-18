@@ -36,6 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
+
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -71,6 +72,7 @@ type Operator struct {
 	AMIResolver               *amifamily.Resolver
 	LaunchTemplateProvider    *launchtemplate.Provider
 	PricingProvider           *pricing.Provider
+	VersionProvider           *version.Provider
 	InstanceTypesProvider     *instancetype.Provider
 	InstanceProvider          *instance.Provider
 }
@@ -169,6 +171,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		SecurityGroupProvider:     securityGroupProvider,
 		AMIProvider:               amiProvider,
 		AMIResolver:               amiResolver,
+		VersionProvider:           versionProvider,
 		LaunchTemplateProvider:    launchTemplateProvider,
 		PricingProvider:           pricingProvider,
 		InstanceTypesProvider:     instanceTypeProvider,
