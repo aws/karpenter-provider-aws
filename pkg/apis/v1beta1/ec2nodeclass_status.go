@@ -79,4 +79,7 @@ type EC2NodeClassStatus struct {
     // HostResourceGroups contains the HRG arns
     // +optional
     HostResourceGroup *HostResourceGroup `json:"hostResourceGroup,omitempty"`
+    // PlacementGroups contains the ec2 placement group arns
+    // +optional
+    PlacementGroups []string `json:"placementGroups,omitempty"`
 }

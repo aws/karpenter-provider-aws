@@ -247,6 +247,19 @@ spec:
                       credentials are not available."
                     type: string
                 type: object
+              placementGroupSelectorTerms:
+                description: PlacementGroupSelectorTerms is a list of PlacementGroupSelector.
+                  The terms are ORed.
+                items:
+                  description: PlacementGroupSelectorTerm defines the selection logic
+                    for ec2 placement groups that are used to launch nodes. If multiple
+                    fields are used for selection, the requirements are ANDed
+                  properties:
+                    name:
+                      description: Name of the placement group to be selected
+                      type: string
+                  type: object
+                type: array
               role:
                 description: Role is the AWS identity that nodes use.
                 type: string
@@ -379,6 +392,11 @@ spec:
                 type: object
               licenses:
                 description: Licenses contains the license arns
+                items:
+                  type: string
+                type: array
+              placementGroups:
+                description: PlacementGroups contains the ec2 placement group arns
                 items:
                   type: string
                 type: array

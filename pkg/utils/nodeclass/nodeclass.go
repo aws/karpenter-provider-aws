@@ -46,6 +46,8 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 			AMIFamily:                         nodeTemplate.Spec.AMIFamily,
 			LicenseSelectorTerms:              NewLicenseSelectorTerms(nodeTemplate.Spec.LicenseSelector),
 			OriginalLicenseSelector:           nodeTemplate.Spec.LicenseSelector,
+			OriginalPlacementGroupSelector:    nodeTemplate.Spec.PlacementGroupSelector,
+			PlacementGroupSelectorTerms:       NewPlacementGroupSelectorTerms(nodeTemplate.Spec.PlacementGroupSelector),
 			UserData:                          nodeTemplate.Spec.UserData,
 			Tags:                              nodeTemplate.Spec.Tags,
 			BlockDeviceMappings:               NewBlockDeviceMappings(nodeTemplate.Spec.BlockDeviceMappings),
@@ -65,6 +67,15 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 			HostResourceGroup: NewHostResourceGroup(nodeTemplate.Status.HostResourceGroups),
 		},
 		IsNodeTemplate: true,
+	}
+}
+
+func NewPlacementGroupSelectorTerms(placementGroupSelector map[string]string) (terms []v1beta1.PlacementGroupSelectorTerm) {
+	if len(placementGroupSelector) == 0 {
+		return nil
+	}
+	return []v1beta1.PlacementGroupSelectorTerm{
+		{Name: placementGroupSelector["name"]},
 	}
 }
 

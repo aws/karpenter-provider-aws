@@ -40,6 +40,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
 	"github.com/aws/karpenter/pkg/providers/license"
+	"github.com/aws/karpenter/pkg/providers/placementgroup"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
@@ -52,10 +53,13 @@ type Controller struct {
 	amiProvider               *amifamily.Provider
 	licenseProvider           *license.Provider
 	hostResourceGroupProvider *hostresourcegroup.Provider
+	placementGroupProvider    *placementgroup.Provider
 }
 
 func NewController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider) *Controller {
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider,
+	licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider,
+	placementGroupProvider *placementgroup.Provider) *Controller {
 	return &Controller{
 		kubeClient:                kubeClient,
 		subnetProvider:            subnetProvider,
@@ -63,6 +67,7 @@ func NewController(kubeClient client.Client, subnetProvider *subnet.Provider,
 		amiProvider:               amiProvider,
 		licenseProvider:           licenseProvider,
 		hostResourceGroupProvider: hostresourcegroupProvider,
+		placementGroupProvider:    placementGroupProvider,
 	}
 }
 
@@ -75,6 +80,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		c.resolveAMIs(ctx, nodeClass),
 		c.resolveLicenses(ctx, nodeClass),
 		c.resolveHostResourceGroups(ctx, nodeClass),
+		c.resolvePlacementGroups(ctx, nodeClass),
 	)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
@@ -161,9 +167,10 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 }
 
 func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-	licenses, err := c.licenseProvider.List(ctx, nodeClass)
+	licenses, err := c.licenseProvider.Get(ctx, nodeClass)
 	if err != nil {
-		return err
+        // Errors from license  provider should not interrupt the process
+		return nil
 	}
 	nodeClass.Status.Licenses = licenses
 
@@ -172,13 +179,26 @@ func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.EC2
 }
 
 func (c *Controller) resolveHostResourceGroups(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-    result , err :=  c.hostResourceGroupProvider.Get(ctx, nodeClass)
-    if err != nil {
-        return err
-    }
+	result, err := c.hostResourceGroupProvider.Get(ctx, nodeClass)
+	if err != nil {
+        // Errors from host resource group provider should not interrupt the process
+		return nil
+	}
 
-    nodeClass.Status.HostResourceGroup = result
+	nodeClass.Status.HostResourceGroup = result
 
+	return nil
+}
+
+func (c *Controller) resolvePlacementGroups(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
+	result, err := c.placementGroupProvider.Get(ctx, nodeClass)
+	if err != nil {
+        // Errors from placement group provider should not interrupt the process
+		return nil
+	}
+	if result != nil {
+		nodeClass.Status.PlacementGroups = append(nodeClass.Status.PlacementGroups, *result.GroupArn)
+	}
 	return nil
 }
 
@@ -188,9 +208,11 @@ type NodeClassController struct {
 }
 
 func NewNodeClassController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider) corecontroller.Controller {
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider,
+	licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider,
+	placementProvider *placementgroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostresourcegroupProvider),
+		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostresourcegroupProvider, placementProvider),
 	})
 }
 
@@ -218,9 +240,11 @@ type NodeTemplateController struct {
 }
 
 func NewNodeTemplateController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider, licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider) corecontroller.Controller {
+	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider,
+	licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider,
+	placementProvider *placementgroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &NodeTemplateController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostresourcegroupProvider),
+		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostresourcegroupProvider, placementProvider),
 	})
 }
 

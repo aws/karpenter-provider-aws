@@ -56,6 +56,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/license"
+	"github.com/aws/karpenter/pkg/providers/placementgroup"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -81,6 +82,7 @@ type Operator struct {
 	InstanceProvider          *instance.Provider
 	LicenseProvider           *license.Provider
 	HostResourceGroupProvider *hostresourcegroup.Provider
+	PlacementGroupProvider    *placementgroup.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -138,8 +140,9 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	versionProvider := version.NewProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiProvider := amifamily.NewProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	licenseProvider := license.NewProvider(licensemanager.New(sess), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-    hostresourcegroupProvider := hostresourcegroup.NewProvider(resourcegroups.New(sess), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.New(amiProvider, licenseProvider, hostresourcegroupProvider)
+	hostresourcegroupProvider := hostresourcegroup.NewProvider(resourcegroups.New(sess), cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	placementGroupProvider := placementgroup.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiResolver := amifamily.New(amiProvider, licenseProvider, hostresourcegroupProvider, placementGroupProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
@@ -186,7 +189,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		InstanceTypesProvider:     instanceTypeProvider,
 		InstanceProvider:          instanceProvider,
 		LicenseProvider:           licenseProvider,
-        HostResourceGroupProvider: hostresourcegroupProvider,
+		HostResourceGroupProvider: hostresourcegroupProvider,
+		PlacementGroupProvider:    placementGroupProvider,
 	}
 }
 

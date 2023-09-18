@@ -12,15 +12,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package license
+package placementgroup
 
 import (
 	"context"
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/service/licensemanager"
-	"github.com/aws/aws-sdk-go/service/licensemanager/licensemanageriface"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 
@@ -33,22 +33,22 @@ import (
 
 type Provider struct {
 	sync.RWMutex
-	licensemanager licensemanageriface.LicenseManagerAPI
-	cache          *cache.Cache
-	cm             *pretty.ChangeMonitor
+	ec2api ec2iface.EC2API
+	cache  *cache.Cache
+	cm     *pretty.ChangeMonitor
 }
 
-func NewProvider(lmapi licensemanageriface.LicenseManagerAPI, cache *cache.Cache) *Provider {
+func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
-		licensemanager: lmapi,
-		cm:             pretty.NewChangeMonitor(),
+		ec2api: ec2api,
+		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
 		cache: cache,
 	}
 }
 
-func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]string, error) {
+func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*ec2.PlacementGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -64,31 +64,31 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]
 		return nil, err
 	}
 	if cached, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return cached.([]string), nil
+		return cached.(*ec2.PlacementGroup), nil
 	}
 
-	licenses := []string{}
+	groups := []*ec2.PlacementGroup{}
 	// Look up all License Configurations
-	output, err := p.licensemanager.ListLicenseConfigurationsWithContext(ctx, &licensemanager.ListLicenseConfigurationsInput{})
+	output, err := p.ec2api.DescribePlacementGroupsWithContext(ctx, &ec2.DescribePlacementGroupsInput{})
 	if err != nil {
 		logging.FromContext(ctx).
-            With("api error", err).
-            Debugf("Error from licensemanager:ListLicenseConfigurations")
+            With("aws error", err).
+            Debugf("Error from ec2:describeplacementgroups")
 		return nil, err
 	}
-	for i := range output.LicenseConfigurations {
-        // filter results to only include those that match at least 1 selector
+	for i := range output.PlacementGroups {
+		// filter results to only include those that match at least 1 selector
 		for x := range selectors {
-			if *output.LicenseConfigurations[i].Name == selectors[x].Name {
-				licenses = append(licenses, *output.LicenseConfigurations[i].LicenseConfigurationArn)
+			if *output.PlacementGroups[i].GroupName == selectors[x].Name {
+				groups = append(groups, output.PlacementGroups[i])
 			}
 		}
 	}
 
-	if p.cm.HasChanged(fmt.Sprintf("license/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), licenses) {
+	if p.cm.HasChanged(fmt.Sprintf("placementGroups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), groups) {
 		logging.FromContext(ctx).
-			With("licenseProvider", lo.Map(licenses, func(s string, _ int) string { return s })).
-			Debugf("discovered license configuration")
+			With("placementGroups", lo.Map(groups, func(g *ec2.PlacementGroup, _ int) string { return *g.GroupArn })).
+			Debugf("discovered placement groups")
 	}
-	return licenses, nil
+	return groups[0], nil
 }

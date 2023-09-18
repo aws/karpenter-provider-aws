@@ -31,6 +31,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
 	"github.com/aws/karpenter/pkg/providers/license"
+	"github.com/aws/karpenter/pkg/providers/placementgroup"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/scheduling"
@@ -47,6 +48,7 @@ type Resolver struct {
 	amiProvider               *Provider
 	licenseProvider           *license.Provider
 	hostResourceGroupProvider *hostresourcegroup.Provider
+	placementGroupProvider    *placementgroup.Provider
 }
 
 // Options define the static launch template parameters
@@ -80,6 +82,7 @@ type LaunchTemplate struct {
 // Placement holds the dynamically generated launch template placement parameters
 type Placement struct {
 	HostResourceGroup string
+	PlacementGroup    string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -118,11 +121,12 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(amiProvider *Provider, licenseProvider *license.Provider, hostResourceGroupProvider *hostresourcegroup.Provider) *Resolver {
+func New(amiProvider *Provider, licenseProvider *license.Provider, hostResourceGroupProvider *hostresourcegroup.Provider, placementGroupProvider *placementgroup.Provider) *Resolver {
 	return &Resolver{
 		amiProvider:               amiProvider,
 		licenseProvider:           licenseProvider,
 		hostResourceGroupProvider: hostResourceGroupProvider,
+		placementGroupProvider:    placementGroupProvider,
 	}
 }
 
@@ -141,19 +145,13 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}
-	licenses, err := r.licenseProvider.List(ctx, nodeClass)
+	licenses, err := r.licenseProvider.Get(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
-    var placement *Placement
-	hrg, err := r.hostResourceGroupProvider.Get(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
-    if hrg == nil {
-        placement = nil
-    } else {
-        placement = &Placement{HostResourceGroup: hrg.ARN}
+    placement, err := r.resolvePlacement(ctx, nodeClass)
+    if err != nil {
+        return nil, err
     }
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
@@ -201,6 +199,26 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 		}
 	}
 	return resolvedTemplates, nil
+}
+
+func (r Resolver) resolvePlacement(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*Placement, error) {
+	placement := &Placement{}
+	hrg, err := r.hostResourceGroupProvider.Get(ctx, nodeClass)
+	if err != nil {
+		return nil, err
+	}
+	pg, err := r.placementGroupProvider.Get(ctx, nodeClass)
+	if err != nil {
+		return nil, err
+	}
+	if pg == nil && hrg == nil {
+		return nil, nil
+	} else {
+		placement.HostResourceGroup = hrg.Name
+		placement.PlacementGroup = *pg.GroupName
+
+	}
+	return placement, nil
 }
 
 func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
