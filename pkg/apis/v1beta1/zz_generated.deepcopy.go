@@ -443,7 +443,7 @@ func (in *NodeClaimSpec) DeepCopyInto(out *NodeClaimSpec) {
 	in.Resources.DeepCopyInto(&out.Resources)
 	if in.KubeletConfiguration != nil {
 		in, out := &in.KubeletConfiguration, &out.KubeletConfiguration
-		*out = new(apisv1beta1.KubeletConfiguration)
+		*out = new(apisv1beta1.Kubelet)
 		(*in).DeepCopyInto(*out)
 	}
 	if in.NodeClass != nil {

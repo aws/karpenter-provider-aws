@@ -67,7 +67,7 @@ spec:
           spec:
             description: NodeClaimSpec describes the desired state of the NodeClaim
             properties:
-              kubeletConfiguration:
+              kubelet:
                 description: KubeletConfiguration are options passed to the kubelet
                   when provisioning nodes
                 properties:
