@@ -3,10 +3,20 @@ on:
   schedule:
     # The test will run every Monday at 12:07 AM UTC
     - cron: '7 0 * * 1'
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
   workflow_dispatch:
 jobs:
+  resolve:
+    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/resolve-args.yaml
+    with:
+      allowed_comment: "conformance"
+      event_name: ${{ github.event_name }}
   conformance:
-    if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'
+    needs: [resolve]
+    if: needs.resolve.outputs.SHOULD_RUN == 'true'
     strategy:
       max-parallel: 1
       fail-fast: false
