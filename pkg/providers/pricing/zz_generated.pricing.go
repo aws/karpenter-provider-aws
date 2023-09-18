@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-09-11T13:06:38Z for us-east-1
+// generated at 2023-09-18T13:06:44Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-09-11T13:06:38Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
@@ -91,6 +91,10 @@ func init() {
 		// c7gn family
 		"c7gn.12xlarge": 2.995200, "c7gn.16xlarge": 3.993600, "c7gn.2xlarge": 0.499200, "c7gn.4xlarge": 0.998400,
 		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.xlarge": 0.249600,
+		// c7i family
+		"c7i.12xlarge": 2.142000, "c7i.16xlarge": 2.856000, "c7i.24xlarge": 4.284000, "c7i.2xlarge": 0.357000,
+		"c7i.48xlarge": 8.568000, "c7i.4xlarge": 0.714000, "c7i.8xlarge": 1.428000, "c7i.large": 0.089250,
+		"c7i.xlarge": 0.178500,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
@@ -302,6 +306,10 @@ func init() {
 		"r6in.12xlarge": 4.183920, "r6in.16xlarge": 5.578560, "r6in.24xlarge": 8.367840, "r6in.2xlarge": 0.697320,
 		"r6in.32xlarge": 11.157120, "r6in.4xlarge": 1.394640, "r6in.8xlarge": 2.789280, "r6in.large": 0.174330,
 		"r6in.metal": 11.157120, "r6in.xlarge": 0.348660,
+		// r7a family
+		"r7a.12xlarge": 3.651600, "r7a.16xlarge": 4.868800, "r7a.24xlarge": 7.303200, "r7a.2xlarge": 0.608600,
+		"r7a.32xlarge": 9.737600, "r7a.48xlarge": 14.606400, "r7a.4xlarge": 1.217200, "r7a.8xlarge": 2.434400,
+		"r7a.large": 0.152150, "r7a.medium": 0.076080, "r7a.xlarge": 0.304300,
 		// r7g family
 		"r7g.12xlarge": 2.570400, "r7g.16xlarge": 3.427200, "r7g.2xlarge": 0.428400, "r7g.4xlarge": 0.856800,
 		"r7g.8xlarge": 1.713600, "r7g.large": 0.107100, "r7g.medium": 0.053600, "r7g.metal": 3.427200,
