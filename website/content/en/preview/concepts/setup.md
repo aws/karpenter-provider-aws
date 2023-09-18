@@ -42,12 +42,12 @@ The sections of that file can be grouped together under the following general he
 
 A lot of the object naming that is done by `cloudformation.yaml` is based on the following:
 
-* Cluster name: With a user name of `joe` the Getting Started Guide would name your cluster `joe-karpenter-demo`
+* Cluster name: With a user name of `bob` the Getting Started Guide would name your cluster `bob-karpenter-demo`
 That name would then be appended to any name below where `${ClusterName}` is included.
 
 * Partition: Any time an ARN is used, it includes the partition name to identify where the object is found. In most cases, that partition name is `aws`. However, it could also be `aws-cn` (for China Regions) or `aws-us-gov` (for AWS GovCloud US Regions).
 
-# Node Authorization in cloudformation.yaml
+# Node Authorization 
 
 The following sections of the `cloudformation.yaml` file set up permissions related to what Kubernetes nodes created by Karpenter can do with EC2 and other AWS features.
 In particular, this involves setting up an instance profile and attaching a node role to that profile with the following objects:
@@ -57,9 +57,9 @@ In particular, this involves setting up an instance profile and attaching a node
 
 ## KarpenterNodeInstanceProfile
 This section creates an [EC2 Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html) that includes the node role named `KarpenterNodeRole`, with the cluster name appended.
-For example, with a cluster name of `joe-karpenter-demo`, the instance profile name would look like:
+For example, with a cluster name of `bob-karpenter-demo`, the instance profile name would look like:
 
-`KarpenterNodeInstanceProfile-joe-karpenter-demo`
+`KarpenterNodeInstanceProfile-bob-karpenter-demo`
 
 
 ```
@@ -94,7 +94,7 @@ PRINCIPAL       ec2.amazonaws.com
 ## KarpenterNodeRole
 
 This section creates the node role that is attached to the `KarpenterNodeInstanceProfile` instance profile created earlier.
-Given a cluster name of `joe-karpenter-demo`, this role would end up being named `"KarpenterNodeRole-joe-karpenter-demo`.
+Given a cluster name of `bob-karpenter-demo`, this role would end up being named `"KarpenterNodeRole-bob-karpenter-demo`.
 
 ```
   KarpenterNodeRole:
@@ -125,21 +125,15 @@ The role created here includes several AWS managed policies, which are designed 
 * [AmazonEC2ContainerRegistryReadOnly](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonEC2ContainerRegistryReadOnly.html): Allows read-only access to repositories in the Amazon EC2 Container Registry.
 * [AmazonSSMManagedInstanceCore](https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonSSMManagedInstanceCore.html): Adds AWS Systems Manager service core functions for Amazon EC2.
 
-# Karpenter Controller Authorization in cloudformation.yaml
+# Karpenter Controller Authorization 
 
 This section sets the permissions that the Karpenter Controller has to create and manage EC2 and other AWS resources.
 In particular, the section creates a service account (karpenter) that is combined with the KarpenterControllerPolicy.
 The permissions here go beyond the permissions assigned to Karpenter nodes in the previous section.
 
-The resources defined in this section include:
+The resources defined in this section are associated with:
 
 * KarpenterControllerPolicy
-* KarpenterInterruptionQueue
-* KarpenterInterruptionQueuePolicy
-* ScheduledChangeRule
-* SpotInterruptionRule
-* RebalanceRule
-* InstanceStateChangeRule
 
 Because the scope of the KarpenterControllerPolicy is an AWS region, the cluster's AWS region is included in the `AllowScopedEC2InstanceActions`.
 
@@ -147,7 +141,7 @@ Because the scope of the KarpenterControllerPolicy is an AWS region, the cluster
 
 A `KarpenterControllerPolicy` object sets the name of the policy, then defines a set of resources and actions allowed for those resources.
 The policy creates authorization for the Karpenter Controller to AWS resources, instead of using the NodeInstanceProfile which probably has less permissions to AWS resources.
-For our example, the KarpenterControllerPolicy would be named: `KarpenterControllerPolicy-joe-karpenter-demo`
+For our example, the KarpenterControllerPolicy would be named: `KarpenterControllerPolicy-bob-karpenter-demo`
 
 ```
   KarpenterControllerPolicy:
@@ -428,7 +422,7 @@ The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get t
 
 
 
-# Interruption Handling in cloudformation.yaml
+# Interruption Handling 
 Settings in this section allow the Karpenter controller to interact with interruption queues.
 So, for example, if Spot instances are being reclaimed or a node crashes, seeing messages from these queues allows Karpenter to be proactive in moving workloads or adding new nodes.
 Defining the `KarpenterInterruptionQueuePolicy` allows Karpenter to see and respond to the following:
@@ -437,6 +431,15 @@ Defining the `KarpenterInterruptionQueuePolicy` allows Karpenter to see and resp
 * Spot interruptions
 * Spot rebalance recommendations
 * Instance state changes
+
+The resources defined in this section include:
+
+* KarpenterInterruptionQueue
+* KarpenterInterruptionQueuePolicy
+* ScheduledChangeRule
+* SpotInterruptionRule
+* RebalanceRule
+* InstanceStateChangeRule
 
 ## KarpenterInterruptionQueue
 The [AWS::SQS::Queue](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queue.html) resource is used to create an Amazon SQS standard queue.
