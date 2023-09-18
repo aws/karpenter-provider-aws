@@ -154,7 +154,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			Expect(lts1.Equal(lts2)).To(BeTrue())
 		})
 		It("should recover from an out-of-sync launch template cache", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(1)}
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{MaxPods: aws.Int32(1)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -755,7 +755,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=110")
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(10)}
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{MaxPods: aws.Int32(10)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -763,7 +763,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=10")
 		})
 		It("should specify --system-reserved when overriding system reserved values", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				SystemReserved: v1.ResourceList{
 					v1.ResourceCPU:              resource.MustParse("500m"),
 					v1.ResourceMemory:           resource.MustParse("1Gi"),
@@ -790,7 +790,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 		})
 		It("should specify --kube-reserved when overriding system reserved values", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				KubeReserved: v1.ResourceList{
 					v1.ResourceCPU:              resource.MustParse("500m"),
 					v1.ResourceMemory:           resource.MustParse("1Gi"),
@@ -817,7 +817,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 		})
 		It("should pass eviction hard threshold values when specified", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				EvictionHard: map[string]string{
 					"memory.available":  "10%",
 					"nodefs.available":  "15%",
@@ -844,7 +844,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 		})
 		It("should pass eviction soft threshold values when specified", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				EvictionSoft: map[string]string{
 					"memory.available":  "10%",
 					"nodefs.available":  "15%",
@@ -871,7 +871,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 		})
 		It("should pass eviction soft grace period values when specified", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				EvictionSoftGracePeriod: map[string]metav1.Duration{
 					"memory.available":  {Duration: time.Minute},
 					"nodefs.available":  {Duration: time.Second * 180},
@@ -898,7 +898,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 		})
 		It("should pass eviction max pod grace period when specified", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				EvictionMaxPodGracePeriod: aws.Int32(300),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -908,7 +908,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--eviction-max-pod-grace-period=%d", 300))
 		})
 		It("should specify --pods-per-core", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				PodsPerCore: aws.Int32(2),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -918,7 +918,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2))
 		})
 		It("should specify --pods-per-core with --max-pods enabled", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				PodsPerCore: aws.Int32(2),
 				MaxPods:     aws.Int32(100),
 			}
@@ -936,7 +936,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
 		})
 		It("should specify dockerd if specified in the provisionerSpec", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")}
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{ContainerRuntime: aws.String("dockerd")}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -996,7 +996,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.100.10'")
 		})
 		It("should pass ImageGCHighThresholdPercent when specified", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				ImageGCHighThresholdPercent: aws.Int32(50),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1006,7 +1006,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-high-threshold=50")
 		})
 		It("should pass ImageGCLowThresholdPercent when specified", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				ImageGCLowThresholdPercent: aws.Int32(50),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1016,7 +1016,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-low-threshold=50")
 		})
 		It("should pass --cpu-fs-quota when specified", func() {
-			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 				CPUCFSQuota: aws.Bool(false),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1101,7 +1101,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			It("should override system reserved values in user data", func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeClass)
-				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 					SystemReserved: v1.ResourceList{
 						v1.ResourceCPU:              resource.MustParse("2"),
 						v1.ResourceMemory:           resource.MustParse("3Gi"),
@@ -1127,7 +1127,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			It("should override kube reserved values in user data", func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeClass)
-				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 					KubeReserved: v1.ResourceList{
 						v1.ResourceCPU:              resource.MustParse("2"),
 						v1.ResourceMemory:           resource.MustParse("3Gi"),
@@ -1153,7 +1153,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			It("should override kube reserved values in user data", func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeClass)
-				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 					EvictionHard: map[string]string{
 						"memory.available":  "10%",
 						"nodefs.available":  "15%",
@@ -1178,7 +1178,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 					MaxPods: aws.Int32(10),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1197,7 +1197,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 			It("should pass ImageGCHighThresholdPercent when specified", func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 					ImageGCHighThresholdPercent: aws.Int32(50),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1218,7 +1218,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 			It("should pass ImageGCLowThresholdPercent when specified", func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 					ImageGCLowThresholdPercent: aws.Int32(50),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1255,7 +1255,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			})
 			It("should pass CPUCFSQuota when specified", func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{
+				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{
 					CPUCFSQuota: aws.Bool(false),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1559,7 +1559,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		})
 		Context("Kubelet Args", func() {
 			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
-				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
+				nodePool.Spec.Template.Spec.KubeletConfiguration = &corev1beta1.Kubelet{ClusterDNS: []string{"10.0.10.100"}}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
