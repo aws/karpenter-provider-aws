@@ -27,7 +27,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 )
 
@@ -67,28 +66,30 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*e
 		return cached.(*ec2.PlacementGroup), nil
 	}
 
-	groups := []*ec2.PlacementGroup{}
+	var group *ec2.PlacementGroup
 	// Look up all License Configurations
 	output, err := p.ec2api.DescribePlacementGroupsWithContext(ctx, &ec2.DescribePlacementGroupsInput{})
 	if err != nil {
 		logging.FromContext(ctx).
-            With("aws error", err).
-            Debugf("Error from ec2:describeplacementgroups")
+			With("aws error", err).
+			Debugf("Error from ec2:describeplacementgroups")
 		return nil, err
 	}
 	for i := range output.PlacementGroups {
 		// filter results to only include those that match at least 1 selector
 		for x := range selectors {
 			if *output.PlacementGroups[i].GroupName == selectors[x].Name {
-				groups = append(groups, output.PlacementGroups[i])
+				group = output.PlacementGroups[i]
+				break
 			}
 		}
 	}
 
-	if p.cm.HasChanged(fmt.Sprintf("placementGroups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), groups) {
+	if p.cm.HasChanged(fmt.Sprintf("placementGroups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), group) {
 		logging.FromContext(ctx).
-			With("placementGroups", lo.Map(groups, func(g *ec2.PlacementGroup, _ int) string { return *g.GroupArn })).
+			With("placementGroup", group).
 			Debugf("discovered placement groups")
 	}
-	return groups[0], nil
+
+	return group, nil
 }

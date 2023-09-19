@@ -132,7 +132,7 @@ spec:
               hostResourceGroupSelector:
                 additionalProperties:
                   type: string
-                description: HostResourceGroups specific the hostResourceGroupArns
+                description: HostResourceGroups specifies the hostResourceGroup names
                   to use for ec2 placement
                 type: object
               instanceProfile:
@@ -153,8 +153,8 @@ spec:
               licenseSelector:
                 additionalProperties:
                   type: string
-                description: LicenseConfiguration specifies the license configuration
-                  specifications to launch instances with
+                description: LicenseSelector specifies the license configuration specifications
+                  to launch instances with
                 type: object
               metadataOptions:
                 description: "MetadataOptions for the generated launch template of
@@ -207,8 +207,8 @@ spec:
               placementGroupSelector:
                 additionalProperties:
                   type: string
-                description: PlacementGroup specifies the placement group to use for
-                  ec2 placement
+                description: PlacementGroup specifies the placement group names to
+                  use for ec2 placement
                 type: object
               securityGroupSelector:
                 additionalProperties:
@@ -301,8 +301,8 @@ spec:
                   type: string
                 type: array
               placementGroups:
-                description: Licenses contains the current License Configuration Specifications
-                  that currently apply given the LicenseConfiguration selectors.
+                description: PlacementGroups contains the current placement groups
+                  that currently apply given the PlacementGroup selectors.
                 items:
                   type: string
                 type: array

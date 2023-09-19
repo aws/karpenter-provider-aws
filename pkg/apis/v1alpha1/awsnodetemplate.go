@@ -77,8 +77,8 @@ type AWSNodeTemplateStatus struct {
 	// that currently apply given the HostResourceGroup selectors.
 	// +optional
 	HostResourceGroups []string `json:"hostResourceGroups,omitempty"`
-	// Licenses contains the current License Configuration Specifications
-	// that currently apply given the LicenseConfiguration selectors.
+	// PlacementGroups contains the current placement groups
+	// that currently apply given the PlacementGroup selectors.
 	// +optional
 	PlacementGroups []string `json:"placementGroups,omitempty"`
 }
