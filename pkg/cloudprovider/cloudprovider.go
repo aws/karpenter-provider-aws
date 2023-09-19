@@ -169,7 +169,7 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1beta1.NodePool) ([]*cloudprovider.InstanceType, error) {
 	if nodePool == nil {
-		return c.instanceTypeProvider.List(ctx, &corev1beta1.Kubelet{}, &v1beta1.EC2NodeClass{})
+		return c.instanceTypeProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
 	}
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
@@ -179,7 +179,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 		return nil, client.IgnoreNotFound(fmt.Errorf("resolving node class, %w", err))
 	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodePool.Spec.Template.Spec.KubeletConfiguration, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodePool.Spec.Template.Spec.Kubelet, nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +282,7 @@ func (c *CloudProvider) resolveNodeTemplate(ctx context.Context, raw []byte, obj
 }
 
 func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClaim.Spec.KubeletConfiguration, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClaim.Spec.Kubelet, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}

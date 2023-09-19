@@ -82,7 +82,7 @@ func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subn
 	}
 }
 
-func (p *Provider) List(ctx context.Context, kc *corev1beta1.Kubelet, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
+func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguration, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.GetInstanceTypes(ctx)
 	if err != nil {
