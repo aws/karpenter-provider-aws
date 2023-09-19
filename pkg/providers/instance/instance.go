@@ -297,15 +297,15 @@ func (p *Provider) checkODFallback(nodeClaim *corev1beta1.NodeClaim, instanceTyp
 func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, capacityType string, tags map[string]string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
-	launchTemplates, launchImages, err := p.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}, tags)
+	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}, tags)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
-	for launchTemplateName, instanceTypes := range launchTemplates {
+	for _, launchTemplate := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType, launchImages[launchTemplateName]),
+			Overrides: p.getOverrides(instanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType, launchTemplate.ImageID),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: aws.String(launchTemplateName),
+				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
 			},
 		}
