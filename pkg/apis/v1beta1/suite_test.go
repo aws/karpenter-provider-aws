@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -480,22 +481,29 @@ var _ = Describe("Validation", func() {
 				},
 			})
 		})
-		DescribeTable("should change hash when static fields are updated", func(nodeClassSpec v1beta1.EC2NodeClassSpec) {
+		DescribeTable("should change hash when static fields are updated", func(changes v1beta1.EC2NodeClass) {
 			hash := nodeClass.Hash()
-			nodeClass.Spec = nodeClassSpec
+			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
 			updatedHash := nodeClass.Hash()
 			Expect(hash).ToNot(Equal(updatedHash))
 		},
-			Entry("InstanceProfile Drift", v1beta1.EC2NodeClassSpec{Role: "role-2"}),
-			Entry("UserData Drift", v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}),
-			Entry("Tags Drift", v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}),
-			Entry("MetadataOptions Drift", v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}),
-			Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}),
-			Entry("Context Drift", v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}),
-			Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}),
-			Entry("AMIFamily Drift", v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}),
-			Entry("Reorder Tags", v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}}),
-			Entry("Reorder BlockDeviceMapping", v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}),
+			Entry("InstanceProfile Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Role: "role-2"}}),
+			Entry("UserData Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
+			Entry("Tags Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+			Entry("MetadataOptions Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}),
+			Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
+			Entry("Context Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
+			Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
+			Entry("AMIFamily Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
+		)
+		DescribeTable("should not change hash when slices are re-ordered", func(changes v1beta1.EC2NodeClass) {
+			hash := nodeClass.Hash()
+			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
+			updatedHash := nodeClass.Hash()
+			Expect(hash).To(Equal(updatedHash))
+		},
+			Entry("Reorder Tags", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}}}),
+			Entry("Reorder BlockDeviceMapping", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}}),
 		)
 		It("should not change hash when behavior/dynamic fields are updated", func() {
 			hash := nodeClass.Hash()

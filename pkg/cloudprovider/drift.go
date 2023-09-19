@@ -36,6 +36,7 @@ const (
 	SubnetDrift        cloudprovider.DriftReason = "SubnetDrift"
 	SecurityGroupDrift cloudprovider.DriftReason = "SecurityGroupDrift"
 	NodeTemplateDrift  cloudprovider.DriftReason = "NodeTemplateDrift"
+	NodeClassDrift     cloudprovider.DriftReason = "NodeClassDrift"
 )
 
 func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodePool *corev1beta1.NodePool, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
@@ -145,7 +146,7 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim,
 		return ""
 	}
 	if nodeClassHash != nodeClaimHash {
-		return NodeTemplateDrift
+		return lo.Ternary(nodeClaim.IsMachine, NodeTemplateDrift, NodeClassDrift)
 	}
 	return ""
 }

@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
@@ -177,15 +176,15 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 
 func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	switch aws.StringValue(amiFamily) {
-	case v1alpha1.AMIFamilyBottlerocket:
+	case v1beta1.AMIFamilyBottlerocket:
 		return &Bottlerocket{Options: options}
-	case v1alpha1.AMIFamilyUbuntu:
+	case v1beta1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
-	case v1alpha1.AMIFamilyWindows2019:
-		return &Windows{Options: options, Version: v1alpha1.Windows2019, Build: v1alpha1.Windows2019Build}
-	case v1alpha1.AMIFamilyWindows2022:
-		return &Windows{Options: options, Version: v1alpha1.Windows2022, Build: v1alpha1.Windows2022Build}
-	case v1alpha1.AMIFamilyCustom:
+	case v1beta1.AMIFamilyWindows2019:
+		return &Windows{Options: options, Version: v1beta1.Windows2019, Build: v1beta1.Windows2019Build}
+	case v1beta1.AMIFamilyWindows2022:
+		return &Windows{Options: options, Version: v1beta1.Windows2022, Build: v1beta1.Windows2022Build}
+	case v1beta1.AMIFamilyCustom:
 		return &Custom{Options: options}
 	default:
 		return &AL2{Options: options}
