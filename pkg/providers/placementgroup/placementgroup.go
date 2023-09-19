@@ -52,7 +52,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*e
 	defer p.Unlock()
 
 	// Get selectors from the nodeClass, exit if no selectors defined
-	selectors := nodeClass.Spec.LicenseSelectorTerms
+	selectors := nodeClass.Spec.PlacementGroupSelectorTerms
 	if selectors == nil {
 		return nil, nil
 	}
@@ -66,30 +66,28 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*e
 		return cached.(*ec2.PlacementGroup), nil
 	}
 
-	var group *ec2.PlacementGroup
-	// Look up all License Configurations
+	var match *ec2.PlacementGroup
+	// Look up all ec2 placement groups
 	output, err := p.ec2api.DescribePlacementGroupsWithContext(ctx, &ec2.DescribePlacementGroupsInput{})
 	if err != nil {
-		logging.FromContext(ctx).
-			With("aws error", err).
-			Debugf("Error from ec2:describeplacementgroups")
+		logging.FromContext(ctx).Errorf("discovering placement groups, %w", err)
 		return nil, err
 	}
 	for i := range output.PlacementGroups {
 		// filter results to only include those that match at least 1 selector
 		for x := range selectors {
 			if *output.PlacementGroups[i].GroupName == selectors[x].Name {
-				group = output.PlacementGroups[i]
+				match = output.PlacementGroups[i]
+                p.cache.SetDefault(fmt.Sprint(hash), match)
 				break
 			}
 		}
 	}
-
-	if p.cm.HasChanged(fmt.Sprintf("placementGroups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), group) {
+	if p.cm.HasChanged(fmt.Sprintf("placementgroup/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), match) {
 		logging.FromContext(ctx).
-			With("placementGroup", group).
-			Debugf("discovered placement groups")
+            With("placement group", match).
+			Debugf("discovered placement group")
 	}
 
-	return group, nil
+	return match, nil
 }

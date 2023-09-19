@@ -67,7 +67,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]
 		return cached.([]string), nil
 	}
 
-	licenses := []string{}
+	var licenses []string
 	// Look up all License Configurations
 	output, err := p.licensemanager.ListLicenseConfigurationsWithContext(ctx, &licensemanager.ListLicenseConfigurationsInput{})
 	if err != nil {
@@ -75,17 +75,18 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]
 		return nil, err
 	}
 	for i := range output.LicenseConfigurations {
-        // filter results to only include those that match at least 1 selector
+		// filter results to only include those that match at least 1 selector
 		for x := range selectors {
 			if *output.LicenseConfigurations[i].Name == selectors[x].Name {
 				licenses = append(licenses, *output.LicenseConfigurations[i].LicenseConfigurationArn)
 			}
 		}
 	}
+	p.cache.SetDefault(fmt.Sprint(hash), licenses)
 
 	if p.cm.HasChanged(fmt.Sprintf("license/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), licenses) {
 		logging.FromContext(ctx).
-			With("licenseProvider", lo.Map(licenses, func(s string, _ int) string { return s })).
+			With("licenseProvider", licenses).
 			Debugf("discovered license configuration")
 	}
 	return licenses, nil
