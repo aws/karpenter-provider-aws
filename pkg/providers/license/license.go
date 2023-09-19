@@ -27,7 +27,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 )
 

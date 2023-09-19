@@ -145,10 +145,10 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}
-    placement, err := r.resolvePlacement(ctx, nodeClass)
-    if err != nil {
-        return nil, err
-    }
+	placement, err := r.resolvePlacement(ctx, nodeClass)
+	if err != nil {
+		return nil, err
+	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -182,7 +182,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 				DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
-                Licenses:            nodeClass.Status.Licenses,
+				Licenses:            nodeClass.Status.Licenses,
 				Placement:           placement,
 			}
 			if len(resolved.BlockDeviceMappings) == 0 {
@@ -199,13 +199,15 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 
 func (r Resolver) resolvePlacement(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*Placement, error) {
 	var placement *Placement
-    hrg := nodeClass.Status.HostResourceGroup
-    pg := nodeClass.Status.PlacementGroups
+	hrg := nodeClass.Status.HostResourceGroup
+	pg := nodeClass.Status.PlacementGroups
 
 	if pg != nil {
-		placement.PlacementGroup = pg.GroupName
-    }
-    if hrg != nil {
+		if len(pg) > 0 {
+			placement.PlacementGroup = pg[0]
+		}
+	}
+	if hrg != nil {
 		placement.HostResourceGroup = hrg.Name
 	}
 
