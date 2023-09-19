@@ -277,7 +277,7 @@ func generatePlacement(placement *amifamily.Placement) *ec2.LaunchTemplatePlacem
 }
 
 func generateLicenseSpecification(licenses []string) []*ec2.LaunchTemplateLicenseConfigurationRequest {
-	result := []*ec2.LaunchTemplateLicenseConfigurationRequest{}
+	var result []*ec2.LaunchTemplateLicenseConfigurationRequest
 	if len(licenses) == 0 {
 		return nil
 	}

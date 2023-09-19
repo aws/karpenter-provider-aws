@@ -47,48 +47,24 @@ func NewProvider(rgapi resourcegroupsiface.ResourceGroupsAPI, cache *cache.Cache
 func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*v1beta1.HostResourceGroup, error) {
 	p.Lock()
 	defer p.Unlock()
-    var nextToken *string = nil
-	var groups []*resourcegroups.GroupIdentifier
-	for {
-		resp, err := p.resourcegroups.ListGroupsWithContext(ctx, &resourcegroups.ListGroupsInput{ NextToken: nextToken})
-		if err != nil {
-            logging.FromContext(ctx).
-                With("aws error", err).
-                Debugf("Error from resourcegroup:listgroups")
-			return nil, err
-		}
-        nextToken = resp.NextToken
-        for i := range resp.GroupIdentifiers {
-            groups = append(groups, resp.GroupIdentifiers[i])
-        }
-		if nextToken == nil {
-			break
-		}
-	}
-
-	// filter resp to only include those that match the hostResourceGroupSelector Name
-	for i := range groups {
-		group := groups[i]
-		for x := range nodeClass.Spec.HostResourceGroupSelectorTerms {
-			selector := nodeClass.Spec.HostResourceGroupSelectorTerms[x]
-				logging.FromContext(ctx).
-					With("group", group).
-					With("selector", selector).
-					Debugf("checking for host resource group match")
-			if *group.GroupName == selector.Name {
-				match := &v1beta1.HostResourceGroup{ARN: *group.GroupArn, Name: *group.GroupName}
-				logging.FromContext(ctx).
-					With("Matched hrg", match).
-					Debugf("discovered host resource group configuration")
-
-				return match, nil
+    var match *v1beta1.HostResourceGroup
+	err := p.resourcegroups.ListGroupsPagesWithContext(ctx, &resourcegroups.ListGroupsInput{}, func(page *resourcegroups.ListGroupsOutput, lastPage bool) bool {
+		for i := range page.GroupIdentifiers {
+			for x := range nodeClass.Spec.HostResourceGroupSelectorTerms {
+				selector := nodeClass.Spec.HostResourceGroupSelectorTerms[x]
+				if *page.GroupIdentifiers[i].GroupName == selector.Name {
+                    match = &v1beta1.HostResourceGroup{ ARN: *page.GroupIdentifiers[i].GroupArn, Name: *page.GroupIdentifiers[i].GroupName }
+                    return false
+				}
 			}
 		}
-	}
-	logging.FromContext(ctx).
-		With("groups", groups).
-		Debugf("No hrg matched")
+		return lastPage
+	})
 
-	// No matching groups
-	return nil, nil
+	if err != nil {
+		logging.FromContext(ctx).Errorf("discovery resource groups, %w", err)
+		return nil, err
+	}
+
+	return match, nil
 }

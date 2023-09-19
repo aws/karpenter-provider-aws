@@ -71,9 +71,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]
 	// Look up all License Configurations
 	output, err := p.licensemanager.ListLicenseConfigurationsWithContext(ctx, &licensemanager.ListLicenseConfigurationsInput{})
 	if err != nil {
-		logging.FromContext(ctx).
-            With("api error", err).
-            Debugf("Error from licensemanager:ListLicenseConfigurations")
+		logging.FromContext(ctx).Errorf("listing license configurations %w", err)
 		return nil, err
 	}
 	for i := range output.LicenseConfigurations {
