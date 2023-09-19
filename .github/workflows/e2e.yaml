@@ -154,5 +154,5 @@ jobs:
       - if: always() && inputs.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
-          name: "${{ github.workflow }} / e2e (${{ inputs.suite }}) / ${{ github.job }} (snapshot)"
+          name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (${{ inputs.suite }})
           git_ref: ${{ inputs.git_ref }}
