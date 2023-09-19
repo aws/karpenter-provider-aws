@@ -145,10 +145,6 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}
-	licenses, err := r.licenseProvider.Get(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
     placement, err := r.resolvePlacement(ctx, nodeClass)
     if err != nil {
         return nil, err
@@ -186,7 +182,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 				DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
-				Licenses:            licenses,
+                Licenses:            nodeClass.Status.Licenses,
 				Placement:           placement,
 			}
 			if len(resolved.BlockDeviceMappings) == 0 {
@@ -202,22 +198,17 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 }
 
 func (r Resolver) resolvePlacement(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*Placement, error) {
-	placement := &Placement{}
-	hrg, err := r.hostResourceGroupProvider.Get(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
-	pg, err := r.placementGroupProvider.Get(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
-	if pg == nil && hrg == nil {
-		return nil, nil
-	} else {
-		placement.HostResourceGroup = hrg.Name
-		placement.PlacementGroup = *pg.GroupName
+	var placement *Placement
+    hrg := nodeClass.Status.HostResourceGroup
+    pg := nodeClass.Status.PlacementGroups
 
+	if pg != nil {
+		placement.PlacementGroup = pg.GroupName
+    }
+    if hrg != nil {
+		placement.HostResourceGroup = hrg.Name
 	}
+
 	return placement, nil
 }
 
