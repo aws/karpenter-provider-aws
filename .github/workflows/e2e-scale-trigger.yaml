@@ -23,5 +23,6 @@ jobs:
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
       region: "us-west-2"
       enable_metrics: true
+      workflow_trigger: "scale"
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

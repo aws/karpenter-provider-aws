@@ -22,5 +22,6 @@ jobs:
     with:
       event_name: ${{ github.event_name }}
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
+      workflow_trigger: "matrix"
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
