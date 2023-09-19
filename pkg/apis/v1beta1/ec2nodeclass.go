@@ -27,25 +27,26 @@ import (
 // This will contain configuration necessary to launch instances in AWS.
 type EC2NodeClassSpec struct {
 	// SubnetSelectorTerms is a list of or subnet selector terms. The terms are ORed.
-	// +optional
+	// +required
 	SubnetSelectorTerms []SubnetSelectorTerm `json:"subnetSelectorTerms" hash:"ignore"`
 	// SecurityGroupSelectorTerms is a list of or security group selector terms. The terms are ORed.
-	// +optional
+	// +required
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
 	// +optional
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms,omitempty" hash:"ignore"`
 	// AMIFamily is the AMI family that instances use.
-	// +optional
-	AMIFamily *string `json:"amiFamily,omitempty"`
+	// +kubebuilder:validation:Enum:={AL2,Bottlerocket,Ubuntu,Custom,Windows2019,Windows2022}
+	// +required
+	AMIFamily *string `json:"amiFamily"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
 	UserData *string `json:"userData,omitempty"`
 	// Role is the AWS identity that nodes use.
-	// +optional
-	Role *string `json:"role,omitempty"`
+	// +required
+	Role string `json:"role"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -69,6 +70,7 @@ type EC2NodeClassSpec struct {
 	// If omitted, defaults to httpEndpoint enabled, with httpProtocolIPv6
 	// disabled, with httpPutResponseLimit of 2, and with httpTokens
 	// required.
+	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":2,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 	// Context is a Reserved field in EC2 APIs
@@ -161,23 +163,26 @@ type MetadataOptions struct {
 	//
 	// If you specify a value of "disabled", instance metadata will not be accessible
 	// on the node.
+	// +kubebuilder:default=enabled
 	// +optional
 	HTTPEndpoint *string `json:"httpEndpoint,omitempty"`
 	// HTTPProtocolIPv6 enables or disables the IPv6 endpoint for the instance metadata
 	// service on provisioned nodes. If metadata options is non-nil, but this parameter
 	// is not specified, the default state is "disabled".
+	// +kubebuilder:default=disabled
 	// +optional
 	HTTPProtocolIPv6 *string `json:"httpProtocolIPv6,omitempty"`
 	// HTTPPutResponseHopLimit is the desired HTTP PUT response hop limit for
 	// instance metadata requests. The larger the number, the further instance
 	// metadata requests can travel. Possible values are integers from 1 to 64.
 	// If metadata options is non-nil, but this parameter is not specified, the
-	// default value is 1.
+	// default value is 2.
+	// +kubebuilder:default=2
 	// +optional
 	HTTPPutResponseHopLimit *int64 `json:"httpPutResponseHopLimit,omitempty"`
 	// HTTPTokens determines the state of token usage for instance metadata
 	// requests. If metadata options is non-nil, but this parameter is not
-	// specified, the default state is "optional".
+	// specified, the default state is "required".
 	//
 	// If the state is optional, one can choose to retrieve instance metadata with
 	// or without a signed token header on the request. If one retrieves the IAM
@@ -189,6 +194,7 @@ type MetadataOptions struct {
 	// instance metadata retrieval requests. In this state, retrieving the IAM
 	// role credentials always returns the version 2.0 credentials; the version
 	// 1.0 credentials are not available.
+	// +kubebuilder:default=required
 	// +optional
 	HTTPTokens *string `json:"httpTokens,omitempty"`
 }
