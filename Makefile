@@ -91,6 +91,15 @@ e2etests: ## Run the e2e suite against your local cluster
 		--ginkgo.grace-period=3m \
 		--ginkgo.vv
 
+e2etests-deflake: ## Run the e2e suite against your local cluster
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
+		--focus="${FOCUS}" \
+		--timeout=${TEST_TIMEOUT} \
+		--grace-period=3m \
+		--until-it-fails \
+		--vv \
+		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z) \
+
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
