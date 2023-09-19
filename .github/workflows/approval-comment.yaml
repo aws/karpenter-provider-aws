@@ -13,9 +13,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
+        env:
+          REVIEW_BODY: ${{ github.event.review.body }}
         run: |
           mkdir -p /tmp/artifacts
-          echo ${{ github.event.review.body }} >> /tmp/artifacts/metadata.txt
+          echo $REVIEW_BODY >> /tmp/artifacts/metadata.txt
           echo ${{ github.event.pull_request.number }} >> /tmp/artifacts/metadata.txt
           echo ${{ github.event.review.commit_id }} >> /tmp/artifacts/metadata.txt
           cat /tmp/artifacts/metadata.txt
