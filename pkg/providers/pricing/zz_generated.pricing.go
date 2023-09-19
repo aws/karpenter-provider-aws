@@ -18,9 +18,9 @@ package pricing
 
 import "time"
 
-// generated at 2023-09-18T13:06:44Z for us-east-1
+// generated at 2023-09-19T22:00:25Z for us-east-1
 
-var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
+var initialPriceUpdate, _ = time.Parse(time.RFC3339, "2023-09-19T22:00:25Z")
 var initialOnDemandPrices = map[string]map[string]float64{}
 
 func init() {
