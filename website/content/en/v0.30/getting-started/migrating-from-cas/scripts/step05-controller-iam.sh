@@ -32,7 +32,7 @@ cat << EOF > controller-policy.json
                 "ec2:RunInstances",
                 "ec2:DescribeSubnets",
                 "ec2:DescribeSecurityGroups",
-                "ec2:DescribeLaunchTemplate*",
+                "ec2:DescribeLaunchTemplates",
                 "ec2:DescribeInstances",
                 "ec2:DescribeInstanceTypes",
                 "ec2:DescribeInstanceTypeOfferings",

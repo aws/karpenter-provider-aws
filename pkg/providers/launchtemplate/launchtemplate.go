@@ -54,9 +54,9 @@ const (
 )
 
 type LaunchTemplate struct {
-  Name string
-  InstanceTypes []*cloudprovider.InstanceType
-  ImageID string
+	Name          string
+	InstanceTypes []*cloudprovider.InstanceType
+	ImageID       string
 }
 
 type Provider struct {
@@ -105,7 +105,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.NodeClass, 
 	// If Launch Template is directly specified then just use it
 	if nodeClass.Spec.LaunchTemplateName != nil {
 		templateName := ptr.StringValue(nodeClass.Spec.LaunchTemplateName)
-		return []*LaunchTemplate{{ Name:templateName, InstanceTypes: instanceTypes}}, nil
+		return []*LaunchTemplate{{Name: templateName, InstanceTypes: instanceTypes}}, nil
 	}
 
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, additionalLabels), tags)
@@ -128,7 +128,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.NodeClass, 
 			InstanceTypes: resolvedLaunchTemplate.InstanceTypes,
 			ImageID:       resolvedLaunchTemplate.AMIID,
 		}
-		launchTemplates = append(launchTemplates,launchTemplate)
+		launchTemplates = append(launchTemplates, launchTemplate)
 	}
 	return launchTemplates, nil
 }
