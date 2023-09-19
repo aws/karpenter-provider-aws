@@ -54,6 +54,12 @@ const (
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
+type LaunchTemplate struct {
+	Name          string
+	InstanceTypes []*cloudprovider.InstanceType
+	ImageID       string
+}
+
 type Provider struct {
 	sync.Mutex
 	ec2api                  ec2iface.EC2API
@@ -140,35 +146,32 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 	// If Launch Template is directly specified then just use it
 	if nodeClass.Spec.LaunchTemplateName != nil {
 		templateName := ptr.StringValue(nodeClass.Spec.LaunchTemplateName)
-
-		templateData, err := p.lookupLaunchTemplateData(ctx, templateName)
-		if err != nil {
-			return nil, nil, err
-		}
-		imageID := ptr.StringValue(templateData.ImageId)
-		return map[string][]*cloudprovider.InstanceType{templateName: instanceTypes}, map[string]string{templateName: imageID}, nil
+		return []*LaunchTemplate{{Name: templateName, InstanceTypes: instanceTypes}}, nil
 	}
 
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, additionalLabels), tags)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, options)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	launchTemplates := map[string][]*cloudprovider.InstanceType{}
-	launchImages := map[string]string{}
+	launchTemplates := []*LaunchTemplate{}
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
 		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
 		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
-		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
-		launchImages[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.AMIID
+		launchTemplate := &LaunchTemplate{
+			Name:          *ec2LaunchTemplate.LaunchTemplateName,
+			InstanceTypes: resolvedLaunchTemplate.InstanceTypes,
+			ImageID:       resolvedLaunchTemplate.AMIID,
+		}
+		launchTemplates = append(launchTemplates, launchTemplate)
 	}
-	return launchTemplates, launchImages, nil
+	return launchTemplates, nil
 }
 
 // Invalidate deletes a launch template from cache if it exists
