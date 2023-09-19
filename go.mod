@@ -6,7 +6,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/aws-sdk-go v1.44.328
+	github.com/aws/aws-sdk-go v1.45.12
 	github.com/aws/karpenter-core v0.30.1-0.20230919163305-847fa5b2e74e
 	github.com/aws/karpenter/tools/kompat v0.0.0-20230915222222-abfbf5fa3644
 	github.com/imdario/mergo v0.3.16
@@ -14,7 +14,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.12.0
 	github.com/onsi/gomega v1.27.10
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pelletier/go-toml/v2 v2.0.9
+	github.com/pelletier/go-toml/v2 v2.1.0
 	github.com/prometheus/client_golang v1.16.0
 	github.com/samber/lo v1.38.1
 	go.uber.org/multierr v1.11.0
