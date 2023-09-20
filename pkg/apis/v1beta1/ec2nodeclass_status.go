@@ -51,12 +51,12 @@ type AMI struct {
 
 // HostResourceGroup contains the resolved host resource group name and arn for node launch
 type HostResourceGroup struct {
-    // Name of the HRG
-    // +optional
-    Name string `json:"name,omitempty"`
-    // Arn of the HRG
-    // +optional
-    ARN string `json:"arn,omitempty"`
+	// Name of the HRG
+	// +optional
+	Name string `json:"name,omitempty"`
+	// Arn of the HRG
+	// +optional
+	ARN string `json:"arn,omitempty"`
 }
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
@@ -73,13 +73,13 @@ type EC2NodeClassStatus struct {
 	// cluster under the AMI selectors.
 	// +optional
 	AMIs []AMI `json:"amis,omitempty"`
-    // Licenses contains the license arns
-    // +optional
-    Licenses []string `json:"licenses,omitempty"`
-    // HostResourceGroups contains the HRG arns
-    // +optional
-    HostResourceGroup *HostResourceGroup `json:"hostResourceGroup,omitempty"`
-    // PlacementGroups contains the ec2 placement group arns
-    // +optional
-    PlacementGroups []string `json:"placementGroups,omitempty"`
+	// Licenses contains the license arns
+	// +optional
+	Licenses []string `json:"licenses,omitempty"`
+	// HostResourceGroups contains the HRG arns
+	// +optional
+	HostResourceGroup *HostResourceGroup `json:"hostResourceGroup,omitempty"`
+	// PlacementGroups contains the ec2 placement group arns
+	// +optional
+	PlacementGroups []string `json:"placementGroups,omitempty"`
 }

@@ -26,8 +26,9 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type Provider struct {
@@ -78,14 +79,14 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*e
 		for x := range selectors {
 			if *output.PlacementGroups[i].GroupName == selectors[x].Name {
 				match = output.PlacementGroups[i]
-                p.cache.SetDefault(fmt.Sprint(hash), match)
+				p.cache.SetDefault(fmt.Sprint(hash), match)
 				break
 			}
 		}
 	}
 	if p.cm.HasChanged(fmt.Sprintf("placementgroup/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), match) {
 		logging.FromContext(ctx).
-            With("placement group", match).
+			With("placement group", match).
 			Debugf("discovered placement group")
 	}
 

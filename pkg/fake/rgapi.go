@@ -23,6 +23,11 @@ import (
 	"github.com/aws/aws-sdk-go/service/resourcegroups/resourcegroupsiface"
 )
 
+var (
+	TEST_LICENSE_ARN  = "arn:aws:license-manager:us-west-2:11111111111:license-configuration:lic-94ba36399bd98eaad808b0ffb1d1604b"
+	TEST_LICENSE_NAME = "test-license"
+)
+
 type ResourceGroupsAPI struct {
 	resourcegroupsiface.ResourceGroupsAPI
 	ResourceGroupsBehaviour
@@ -42,7 +47,7 @@ func (r *ResourceGroupsAPI) ListGroupsWithContext(_ aws.Context, input *resource
 	return r.ListGroupsBehavior.Invoke(input, func(input *resourcegroups.ListGroupsInput) (*resourcegroups.ListGroupsOutput, error) {
 		return &resourcegroups.ListGroupsOutput{
 			GroupIdentifiers: []*resourcegroups.GroupIdentifier{
-				{GroupArn: aws.String("arn:aws:license-manager:us-west-2:11111111111:license-configuration:lic-94ba36399bd98eaad808b0ffb1d1604b"), GroupName: aws.String("test-license")},
+				{GroupArn: aws.String(TEST_LICENSE_ARN), GroupName: aws.String(TEST_LICENSE_NAME)},
 			},
 		}, nil
 	})

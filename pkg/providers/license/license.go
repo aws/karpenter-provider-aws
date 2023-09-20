@@ -26,8 +26,9 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
 type Provider struct {

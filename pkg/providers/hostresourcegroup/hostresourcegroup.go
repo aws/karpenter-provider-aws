@@ -16,17 +16,18 @@ package hostresourcegroup
 
 import (
 	"context"
+	"fmt"
 	"sync"
-    "fmt"
 
 	//"github.com/aws/aws-sdk-go/service/resourcegroups"
 	"github.com/aws/aws-sdk-go/service/resourcegroups"
 	"github.com/aws/aws-sdk-go/service/resourcegroups/resourcegroupsiface"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 type Provider struct {
@@ -50,10 +51,10 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*v
 	p.Lock()
 	defer p.Unlock()
 
-    selectors := nodeClass.Spec.HostResourceGroupSelectorTerms
-    if selectors == nil {
-        return nil, nil
-    }
+	selectors := nodeClass.Spec.HostResourceGroupSelectorTerms
+	if selectors == nil {
+		return nil, nil
+	}
 
 	// Look for a cached result
 	hash, err := hashstructure.Hash(selectors, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
@@ -64,14 +65,14 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*v
 		return cached.(*v1beta1.HostResourceGroup), nil
 	}
 
-    var match *v1beta1.HostResourceGroup
+	var match *v1beta1.HostResourceGroup
 	err = p.resourcegroups.ListGroupsPagesWithContext(ctx, &resourcegroups.ListGroupsInput{}, func(page *resourcegroups.ListGroupsOutput, lastPage bool) bool {
 		for i := range page.GroupIdentifiers {
 			for x := range selectors {
 				if *page.GroupIdentifiers[i].GroupName == selectors[x].Name {
-                    match = &v1beta1.HostResourceGroup{ ARN: *page.GroupIdentifiers[i].GroupArn, Name: *page.GroupIdentifiers[i].GroupName }
-                    p.cache.SetDefault(fmt.Sprint(hash), match)
-                    return false
+					match = &v1beta1.HostResourceGroup{ARN: *page.GroupIdentifiers[i].GroupArn, Name: *page.GroupIdentifiers[i].GroupName}
+					p.cache.SetDefault(fmt.Sprint(hash), match)
+					return false
 				}
 			}
 		}
@@ -84,7 +85,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*v
 	}
 	if p.cm.HasChanged(fmt.Sprintf("hostresourcegroups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), match) {
 		logging.FromContext(ctx).
-            With("host resource group", match).
+			With("host resource group", match).
 			Debugf("discovered host resource group")
 	}
 

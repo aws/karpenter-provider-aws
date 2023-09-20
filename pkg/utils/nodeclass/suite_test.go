@@ -434,6 +434,13 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(convertedNodeTemplate.Status.Subnets).To(Equal(nodeTemplate.Status.Subnets))
 		Expect(convertedNodeTemplate.Status.AMIs).To(Equal(nodeTemplate.Status.AMIs))
 	})
+    It("should convert a AWSNodeTemplate with LicenseSelectors to a EC2NodeClass and back", func() {
+        nodeTemplate.Status.Licenses = []string{"test-license"}
+        nodeTemplate.Spec.LicenseSelector = map[string]string{"name": "test-license"}
+		convertedNodeTemplate := nodetemplateutil.New(nodeclassutil.New(nodeTemplate))
+        Expect(convertedNodeTemplate.Status.Licenses).To(Equal(nodeTemplate.Status.Licenses))
+        Expect(convertedNodeTemplate.Spec.LicenseSelector).To(Equal(nodeTemplate.Spec.LicenseSelector))
+    })
 	It("should retrieve a EC2NodeClass with a get call", func() {
 		nodeClass := test.EC2NodeClass()
 		ExpectApplied(ctx, env.Client, nodeClass)
