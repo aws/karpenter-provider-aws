@@ -149,6 +149,11 @@ spec:
                             in the Amazon Elastic Compute Cloud User Guide.
                           type: string
                       type: object
+                    rootVolume:
+                      description: RootVolume is a flag indicating if this device
+                        is mounted as kubelet root dir. You can configure at most
+                        one root volume in BlockDeviceMappings.
+                      type: boolean
                   type: object
                 type: array
               context:

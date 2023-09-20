@@ -206,6 +206,9 @@ type BlockDeviceMapping struct {
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
+	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
+	// configure at most one root volume in BlockDeviceMappings.
+	RootVolume bool `json:"rootVolume,omitempty"`
 }
 
 type BlockDevice struct {
