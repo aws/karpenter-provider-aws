@@ -71,28 +71,28 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 }
 
 func NewPlacementGroupSelectorTerms(placementGroupSelector map[string]string) (terms []v1beta1.PlacementGroupSelectorTerm) {
-	if len(placementGroupSelector) == 0 {
-		return nil
+	if name, ok := placementGroupSelector["name"]; ok {
+		return []v1beta1.PlacementGroupSelectorTerm{
+			{Name: name},
+		}
 	}
-	return []v1beta1.PlacementGroupSelectorTerm{
-		{Name: placementGroupSelector["name"]},
-	}
+	return nil
 }
 
 func NewHostResourceSelectorTerms(hrgSelector map[string]string) (terms []v1beta1.HostResourceGroupSelectorTerm) {
-	if len(hrgSelector) == 0 {
-		return nil
+	if name, ok := hrgSelector["name"]; ok {
+		return []v1beta1.HostResourceGroupSelectorTerm{
+			{Name: name},
+		}
 	}
-	return []v1beta1.HostResourceGroupSelectorTerm{
-		{Name: hrgSelector["name"]},
-	}
+	return nil
 }
 
 func NewHostResourceGroup(hrgs []string) *v1beta1.HostResourceGroup {
-	if len(hrgs) == 0 {
-		return nil
+	for i := range hrgs {
+		return &v1beta1.HostResourceGroup{ARN: hrgs[i]}
 	}
-	return &v1beta1.HostResourceGroup{ARN: hrgs[0]}
+	return nil
 }
 
 func NewSubnetSelectorTerms(subnetSelector map[string]string) (terms []v1beta1.SubnetSelectorTerm) {
@@ -182,13 +182,13 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 	return terms
 }
 func NewLicenseSelectorTerms(selectors map[string]string) (terms []v1beta1.LicenseSelectorTerm) {
-	if len(selectors) == 0 {
-		return nil
+	if name, ok := selectors["name"]; ok {
+		return []v1beta1.LicenseSelectorTerm{
+			{Name: name},
+		}
 	}
 
-	return []v1beta1.LicenseSelectorTerm{
-		{Name: selectors["name"]},
-	}
+	return nil
 }
 
 func NewBlockDeviceMappings(bdms []*v1alpha1.BlockDeviceMapping) []*v1beta1.BlockDeviceMapping {
