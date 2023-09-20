@@ -44,7 +44,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -1660,7 +1659,8 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 	Context("Instance Profile Generation", func() {
 		var profileName string
 		BeforeEach(func() {
-			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+			ExpectApplied(ctx, env.Client, nodeClass)
+			profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, nodeClass)
 		})
 		It("should create the instance profile when it doesn't exist", func() {
 			nodeClass.Spec.Role = "test-role"

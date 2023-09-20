@@ -56,6 +56,10 @@ func NewIAMAPI() *IAMAPI {
 // each other.
 func (s *IAMAPI) Reset() {
 	s.GetInstanceProfileBehavior.Reset()
+	s.CreateInstanceProfileBehavior.Reset()
+	s.DeleteInstanceProfileBehavior.Reset()
+	s.AddRoleToInstanceProfileBehavior.Reset()
+	s.RemoveRoleFromInstanceProfileBehavior.Reset()
 	s.InstanceProfiles = map[string]*iam.InstanceProfile{}
 }
 

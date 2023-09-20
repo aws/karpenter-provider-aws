@@ -24,7 +24,6 @@ import (
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/client-go/util/workqueue"
-	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -36,6 +35,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-core/pkg/events"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
@@ -48,16 +48,18 @@ import (
 
 type Controller struct {
 	kubeClient              client.Client
+	recorder                events.Recorder
 	subnetProvider          *subnet.Provider
 	securityGroupProvider   *securitygroup.Provider
 	amiProvider             *amifamily.Provider
 	instanceProfileProvider *instanceprofile.Provider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
 	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) *Controller {
 	return &Controller{
 		kubeClient:              kubeClient,
+		recorder:                recorder,
 		subnetProvider:          subnetProvider,
 		securityGroupProvider:   securityGroupProvider,
 		amiProvider:             amiProvider,
@@ -98,9 +100,7 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
 	}
 	if len(ids) > 0 {
-		if time.Since(nodeClass.DeletionTimestamp.Time) > time.Minute*5 {
-			logging.FromContext(ctx).With("ids", ids).Debugf("waiting to terminate instance profile until all associated instances are terminated")
-		}
+		c.recorder.Publish(WaitingOnInstanceTerminationEvent(nodeClass, c.instanceProfileProvider.GetProfileName(ctx, nodeClass), ids))
 		return reconcile.Result{Requeue: true}, nil
 	}
 	if err = c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
@@ -194,10 +194,10 @@ type NodeClassController struct {
 	*Controller
 }
 
-func NewNodeClassController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+func NewNodeClassController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
 	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
+		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
 	})
 }
 
@@ -224,10 +224,10 @@ type NodeTemplateController struct {
 	*Controller
 }
 
-func NewNodeTemplateController(kubeClient client.Client, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+func NewNodeTemplateController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
 	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &NodeTemplateController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
+		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
 	})
 }
 

@@ -33,7 +33,6 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -797,7 +796,8 @@ var _ = Describe("NodeClassController", func() {
 		var profileName string
 		BeforeEach(func() {
 			nodeClass.Spec.Role = "test-role"
-			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+			ExpectApplied(ctx, env.Client, nodeClass)
+			profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, nodeClass)
 		})
 		It("should succeed to delete the instance profile with no associated instances", func() {
 			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
@@ -811,7 +811,6 @@ var _ = Describe("NodeClassController", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
@@ -826,7 +825,6 @@ var _ = Describe("NodeClassController", func() {
 					InstanceProfileName: aws.String(profileName),
 				},
 			}
-			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
@@ -836,7 +834,6 @@ var _ = Describe("NodeClassController", func() {
 			ExpectNotFound(ctx, env.Client, nodeClass)
 		})
 		It("should succeed to delete the instance profile when it doesn't exist", func() {
-			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 
@@ -847,7 +844,7 @@ var _ = Describe("NodeClassController", func() {
 		})
 		It("should not delete the instance profile until all associated instances are terminated", func() {
 			var ids []string
-			for i := 0; i < 10; i++ {
+			for i := 0; i < 2; i++ {
 				id := fake.InstanceID()
 				awsEnv.EC2API.Instances.Store(id, &ec2.Instance{
 					InstanceId: aws.String(id),
@@ -869,7 +866,6 @@ var _ = Describe("NodeClassController", func() {
 					},
 				},
 			}
-			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
@@ -878,18 +874,16 @@ var _ = Describe("NodeClassController", func() {
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 			ExpectExists(ctx, env.Client, nodeClass)
 
-			// Delete all instances except for one
+			// Delete one of the instances
 			// The NodeClass should still not delete
-			for i := 0; i < len(ids)-1; i++ {
-				awsEnv.EC2API.Instances.Delete(ids[i])
-			}
+			awsEnv.EC2API.Instances.Delete(ids[0])
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 			ExpectExists(ctx, env.Client, nodeClass)
 
 			// Delete the last instance
 			// The NodeClass should now delete
-			awsEnv.EC2API.Instances.Delete(ids[len(ids)-1])
+			awsEnv.EC2API.Instances.Delete(ids[1])
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 			ExpectNotFound(ctx, env.Client, nodeClass)

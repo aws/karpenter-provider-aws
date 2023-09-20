@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -32,6 +31,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/utils"
 )
 
 var (
@@ -59,7 +59,7 @@ func NewProvider(region string, iamapi iamiface.IAMAPI, ec2api ec2iface.EC2API, 
 
 func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, tags map[string]string) (string, error) {
 	localTags := lo.Assign(tags, map[string]string{v1beta1.LabelNodeClass: nodeClass.Name, v1.LabelTopologyRegion: p.region})
-	profileName := GetProfileName(ctx, p.region, nodeClass)
+	profileName := p.GetProfileName(ctx, nodeClass)
 	delete(localTags, corev1beta1.NodePoolLabelKey)
 
 	// An instance profile exists for this NodeClass
@@ -98,7 +98,7 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 }
 
 func (p *Provider) AssociatedInstances(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]string, error) {
-	profileName := GetProfileName(ctx, p.region, nodeClass)
+	profileName := p.GetProfileName(ctx, nodeClass)
 
 	// Get all instances that are using our instance profile name and are not yet terminated
 	var ids []string
@@ -124,7 +124,7 @@ func (p *Provider) AssociatedInstances(ctx context.Context, nodeClass *v1beta1.E
 }
 
 func (p *Provider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-	profileName := GetProfileName(ctx, p.region, nodeClass)
+	profileName := p.GetProfileName(ctx, nodeClass)
 	out, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
 	})
@@ -149,6 +149,8 @@ func (p *Provider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 	return nil
 }
 
-func GetProfileName(ctx context.Context, region string, nodeClass *v1beta1.EC2NodeClass) string {
-	return fmt.Sprintf("%s/%d", settings.FromContext(ctx).ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s/%s", nodeClass.Name, region), hashstructure.FormatV2, &hashstructure.HashOptions{})))
+// GetProfileName gets the string for the profile name based on the cluster name and the NodeClass UUID.
+// The length of this string can never exceed the maximum instance profile name limit of 128 characters.
+func (p *Provider) GetProfileName(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) string {
+	return fmt.Sprintf("%s/%s", utils.Truncate(settings.FromContext(ctx).ClusterName, 91), string(nodeClass.UID))
 }
