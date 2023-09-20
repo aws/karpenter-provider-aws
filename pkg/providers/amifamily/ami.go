@@ -34,7 +34,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/version"
 
@@ -286,7 +285,7 @@ func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requ
 	}
 	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
 	architecture := *ec2Image.Architecture
-	if value, ok := v1alpha1.AWSToKubeArchitectures[architecture]; ok {
+	if value, ok := v1beta1.AWSToKubeArchitectures[architecture]; ok {
 		architecture = value
 	}
 	requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, architecture))
