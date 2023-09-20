@@ -15,7 +15,7 @@ limitations under the License.
 package fake
 
 import (
-	"errors"
+	"context"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
@@ -28,23 +28,31 @@ type ResourceGroupsAPI struct {
 	ResourceGroupsBehaviour
 }
 type ResourceGroupsBehaviour struct {
-	NextError        AtomicError
-	ListGroupsOutput AtomicPtr[resourcegroups.ListGroupsOutput]
+	NextError          AtomicError
+	ListGroupsOutput   AtomicPtr[resourcegroups.ListGroupsOutput]
+	ListGroupsBehavior MockedFunction[resourcegroups.ListGroupsInput, resourcegroups.ListGroupsOutput]
 }
 
 func (r *ResourceGroupsAPI) Reset() {
 	r.NextError.Reset()
-    r.ListGroupsOutput.Reset()
+	r.ListGroupsOutput.Reset()
 }
 
-func (r *ResourceGroupsAPI) ListGroups(_ aws.Context, _ *resourcegroups.ListGroupsInput, fn func(*resourcegroups.ListGroupsOutput, bool) bool, _ ...request.Option) error {
-	if !r.NextError.IsNil() {
-		return r.NextError.Get()
+func (r *ResourceGroupsAPI) ListGroupsWithContext(_ aws.Context, input *resourcegroups.ListGroupsInput, opts ...request.Option) (*resourcegroups.ListGroupsOutput, error) {
+	return r.ListGroupsBehavior.Invoke(input, func(input *resourcegroups.ListGroupsInput) (*resourcegroups.ListGroupsOutput, error) {
+		return &resourcegroups.ListGroupsOutput{
+			GroupIdentifiers: []*resourcegroups.GroupIdentifier{
+				{GroupArn: aws.String("arn:aws:license-manager:us-west-2:11111111111:license-configuration:lic-94ba36399bd98eaad808b0ffb1d1604b"), GroupName: aws.String("test-license")},
+			},
+		}, nil
+	})
+}
+
+func (r *ResourceGroupsAPI) ListGroupsPagesWithContext(ctx context.Context, input *resourcegroups.ListGroupsInput, fn func(*resourcegroups.ListGroupsOutput, bool) bool, opts ...request.Option) error {
+	output, err := r.ListGroupsWithContext(ctx, input, opts...)
+	if err != nil {
+		return err
 	}
-	if !r.ListGroupsOutput.IsNil() {
-		fn(r.ListGroupsOutput.Clone(), false)
-		return nil
-	}
-	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return errors.New("no resource groups provided")
+	fn(output, false)
+	return nil
 }

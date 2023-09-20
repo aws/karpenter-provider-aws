@@ -55,8 +55,8 @@ var _ = BeforeSuite(func() {
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	nodeTemplateController = nodeclass.NewNodeTemplateController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
-	nodeClassController = nodeclass.NewNodeClassController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider)
+	nodeTemplateController = nodeclass.NewNodeTemplateController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.LicenseProvider, awsEnv.HostResourceGroupProvider, awsEnv.PlacementGroupProvider)
+	nodeClassController = nodeclass.NewNodeClassController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.LicenseProvider, awsEnv.HostResourceGroupProvider, awsEnv.PlacementGroupProvider)
 })
 
 var _ = AfterSuite(func() {
