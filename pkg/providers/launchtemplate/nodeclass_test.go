@@ -26,7 +26,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -94,6 +93,13 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
 			Expect(*launchTemplate.LaunchTemplateSpecification.Version).To(Equal("$Latest"))
 		})
+	})
+	It("should fail to provision if the instance profile isn't defined", func() {
+		nodeClass.Status.InstanceProfile = ""
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod()
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	Context("Cache", func() {
 		It("should use same launch template for equivalent constraints", func() {
@@ -956,14 +962,6 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
 		})
-		It("should specify dockerd if specified in the provisionerSpec", func() {
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime dockerd")
-		})
 		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
 			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1beta1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1654,51 +1652,6 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 				Expect(aws.BoolValue(ltInput.LaunchTemplateData.Monitoring.Enabled)).To(BeTrue())
 			})
-		})
-	})
-	Context("Instance Profile Generation", func() {
-		var profileName string
-		BeforeEach(func() {
-			ExpectApplied(ctx, env.Client, nodeClass)
-			profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, nodeClass)
-		})
-		It("should create the instance profile when it doesn't exist", func() {
-			nodeClass.Spec.Role = "test-role"
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-
-			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(ltInput.LaunchTemplateData.IamInstanceProfile).ToNot(BeNil())
-				Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal(profileName))
-			})
-			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
-			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
-			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
-		})
-		It("should add the role to the instance profile when it exists without a role", func() {
-			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
-				profileName: {
-					InstanceProfileId:   aws.String(fake.InstanceProfileID()),
-					InstanceProfileName: aws.String(profileName),
-				},
-			}
-			nodeClass.Spec.Role = "test-role"
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
-
-			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(ltInput.LaunchTemplateData.IamInstanceProfile).ToNot(BeNil())
-				Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal(profileName))
-			})
-			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
-			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
-			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
 		})
 	})
 })

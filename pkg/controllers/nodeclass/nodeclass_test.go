@@ -33,6 +33,7 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -797,7 +798,7 @@ var _ = Describe("NodeClassController", func() {
 		BeforeEach(func() {
 			nodeClass.Spec.Role = "test-role"
 			ExpectApplied(ctx, env.Client, nodeClass)
-			profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, nodeClass)
+			profileName = instanceprofile.GetProfileName(ctx, nodeClass)
 		})
 		It("should succeed to delete the instance profile with no associated instances", func() {
 			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
@@ -834,7 +835,6 @@ var _ = Describe("NodeClassController", func() {
 			ExpectNotFound(ctx, env.Client, nodeClass)
 		})
 		It("should succeed to delete the instance profile when it doesn't exist", func() {
-			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 
 			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
@@ -887,6 +887,44 @@ var _ = Describe("NodeClassController", func() {
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
 			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+	})
+	Context("Instance Profile Status", func() {
+		var profileName string
+		BeforeEach(func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			profileName = instanceprofile.GetProfileName(ctx, nodeClass)
+		})
+		It("should create the instance profile when it doesn't exist", func() {
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
+
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+		})
+		It("should add the role to the instance profile when it exists without a role", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+					InstanceProfileName: aws.String(profileName),
+				},
+			}
+
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
+
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
 		})
 	})
 })

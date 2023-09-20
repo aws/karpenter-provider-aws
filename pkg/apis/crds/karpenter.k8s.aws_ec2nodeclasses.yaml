@@ -341,6 +341,10 @@ spec:
                   - requirements
                   type: object
                 type: array
+              instanceProfile:
+                description: InstanceProfile contains the resolved instance profile
+                  for the role
+                type: string
               securityGroups:
                 description: SecurityGroups contains the current Security Groups values
                   that are available to the cluster under the SecurityGroups selectors.

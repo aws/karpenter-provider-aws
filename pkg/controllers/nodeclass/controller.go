@@ -77,6 +77,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		c.resolveSubnets(ctx, nodeClass),
 		c.resolveSecurityGroups(ctx, nodeClass),
 		c.resolveAMIs(ctx, nodeClass),
+		c.resolveInstanceProfile(ctx, nodeClass),
 	)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
@@ -100,7 +101,7 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
 	}
 	if len(ids) > 0 {
-		c.recorder.Publish(WaitingOnInstanceTerminationEvent(nodeClass, c.instanceProfileProvider.GetProfileName(ctx, nodeClass), ids))
+		c.recorder.Publish(WaitingOnInstanceTerminationEvent(nodeClass, instanceprofile.GetProfileName(ctx, nodeClass), ids))
 		return reconcile.Result{Requeue: true}, nil
 	}
 	if err = c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
@@ -184,6 +185,18 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 		}
 	})
 
+	return nil
+}
+
+func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
+	if nodeClass.IsNodeTemplate {
+		return nil
+	}
+	name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
+	if err != nil {
+		return fmt.Errorf("resolving instance profile, %w", err)
+	}
+	nodeClass.Status.InstanceProfile = name
 	return nil
 }
 

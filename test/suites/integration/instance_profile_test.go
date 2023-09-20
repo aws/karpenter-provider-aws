@@ -15,12 +15,10 @@ limitations under the License.
 package integration_test
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/mitchellh/hashstructure/v2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -30,6 +28,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -64,7 +63,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
 		Expect(instance.IamInstanceProfile.Arn).To(ContainSubstring(nodeClass.Spec.Role))
 
-		instanceProfile := env.ExpectInstanceProfileExists(GetInstanceProfileName(env.Context, nodeClass))
+		instanceProfile := env.ExpectInstanceProfileExists(instanceprofile.GetProfileName(env.Context, nodeClass))
 		Expect(instanceProfile.Roles).To(HaveLen(1))
 		Expect(lo.FromPtr(instanceProfile.Roles[0].RoleName)).To(Equal(nodeClass.Spec.Role))
 	})
@@ -77,13 +76,9 @@ var _ = Describe("InstanceProfile Generation", func() {
 		env.ExpectDeleted(nodePool, nodeClass)
 		Eventually(func(g Gomega) {
 			_, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
-				InstanceProfileName: aws.String(GetInstanceProfileName(env.Context, nodeClass)),
+				InstanceProfileName: aws.String(instanceprofile.GetProfileName(env.Context, nodeClass)),
 			})
 			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
 		}).Should(Succeed())
 	})
 })
-
-func GetInstanceProfileName(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) string {
-	return fmt.Sprintf("%s/%d", settings.FromContext(ctx).ClusterName, lo.Must(hashstructure.Hash(nodeClass.Name, hashstructure.FormatV2, &hashstructure.HashOptions{})))
-}

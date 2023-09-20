@@ -152,7 +152,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 			delete(labels, k)
 		}
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, nodeClass, tags)
+	instanceProfile, err := p.getInstanceProfile(ctx, nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -356,16 +356,15 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 	}
 }
 
-func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, tags map[string]string) (string, error) {
+func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
 	if nodeClass.Spec.InstanceProfile != nil {
 		return aws.StringValue(nodeClass.Spec.InstanceProfile), nil
 	}
 	if nodeClass.Spec.Role != "" {
-		instanceProfile, err := p.instanceProfileProvider.Create(ctx, nodeClass, tags)
-		if err != nil {
-			return "", fmt.Errorf("discovering instance profile, %w", err)
+		if nodeClass.Status.InstanceProfile == "" {
+			return "", cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("instance profile hasn't resolved for role"))
 		}
-		return instanceProfile, nil
+		return nodeClass.Status.InstanceProfile, nil
 	}
 	defaultProfile := settings.FromContext(ctx).DefaultInstanceProfile
 	if defaultProfile == "" {

@@ -7,7 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.45.12
-	github.com/aws/karpenter-core v0.30.1-0.20230919163305-847fa5b2e74e
+	github.com/aws/karpenter-core v0.30.1-0.20230921014718-c6fb5c1c5322
 	github.com/aws/karpenter/tools/kompat v0.0.0-20230915222222-abfbf5fa3644
 	github.com/imdario/mergo v0.3.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2

@@ -35,6 +35,7 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 	}
 	if options.Spec.Role == "" {
 		options.Spec.Role = "test-role"
+		options.Status.InstanceProfile = "test-profile"
 	}
 	if len(options.Spec.SecurityGroupSelectorTerms) == 0 {
 		options.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
@@ -57,5 +58,6 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 	return &v1beta1.EC2NodeClass{
 		ObjectMeta: test.ObjectMeta(options.ObjectMeta),
 		Spec:       options.Spec,
+		Status:     options.Status,
 	}
 }
