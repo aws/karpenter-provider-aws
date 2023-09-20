@@ -16,7 +16,7 @@ runs:
       id: cache-toolchain
       with:
         path: |
-          ~/.kubebuilder/bin
+          /usr/local/kubebuilder/bin
           ~/go/bin
         key: ${{ runner.os }}-${{ inputs.k8sVersion }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
     - if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
