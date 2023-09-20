@@ -65,6 +65,7 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 			AMIs:              NewAMIs(nodeTemplate.Status.AMIs),
 			Licenses:          nodeTemplate.Status.Licenses,
 			HostResourceGroup: NewHostResourceGroup(nodeTemplate.Status.HostResourceGroups),
+			PlacementGroups:   nodeTemplate.Status.PlacementGroups,
 		},
 		IsNodeTemplate: true,
 	}

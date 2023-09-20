@@ -49,16 +49,17 @@ func New(nodeClass *v1beta1.EC2NodeClass) *v1alpha1.AWSNodeTemplate {
 			Subnets:            NewSubnets(nodeClass.Status.Subnets),
 			SecurityGroups:     NewSecurityGroups(nodeClass.Status.SecurityGroups),
 			AMIs:               NewAMIs(nodeClass.Status.AMIs),
-			Licenses:           NewLicenses(nodeClass.Status.Licenses),
+			Licenses:           nodeClass.Status.Licenses,
 			HostResourceGroups: NewHostResourceGroups(nodeClass.Status.HostResourceGroup),
+			PlacementGroups:    nodeClass.Status.PlacementGroups,
 		},
 	}
 }
 
 func NewHostResourceGroups(hrg *v1beta1.HostResourceGroup) []string {
-    if hrg == nil {
-        return nil
-    }
+	if hrg == nil {
+		return nil
+	}
 	return []string{hrg.ARN}
 }
 
@@ -144,8 +145,4 @@ func NewAMIs(amis []v1beta1.AMI) []v1alpha1.AMI {
 			Requirements: a.Requirements,
 		}
 	})
-}
-
-func NewLicenses(licenses []string) []string {
-	return licenses
 }
