@@ -55,6 +55,7 @@ type EC2Behavior struct {
 	DescribeAvailabilityZonesOutput     AtomicPtr[ec2.DescribeAvailabilityZonesOutput]
 	DescribeSpotPriceHistoryInput       AtomicPtr[ec2.DescribeSpotPriceHistoryInput]
 	DescribeSpotPriceHistoryOutput      AtomicPtr[ec2.DescribeSpotPriceHistoryOutput]
+	DescribePlacementGroupsOutput       AtomicPtr[ec2.DescribePlacementGroupsOutput]
 	CreateFleetBehavior                 MockedFunction[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 	TerminateInstancesBehavior          MockedFunction[ec2.TerminateInstancesInput, ec2.TerminateInstancesOutput]
 	DescribeInstancesBehavior           MockedFunction[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
@@ -85,6 +86,7 @@ func (e *EC2API) Reset() {
 	e.DescribeInstanceTypesOutput.Reset()
 	e.DescribeInstanceTypeOfferingsOutput.Reset()
 	e.DescribeAvailabilityZonesOutput.Reset()
+	e.DescribePlacementGroupsOutput.Reset()
 	e.CreateFleetBehavior.Reset()
 	e.TerminateInstancesBehavior.Reset()
 	e.DescribeInstancesBehavior.Reset()
@@ -639,4 +641,16 @@ func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(ctx aws.Context, input
 	}
 	fn(out, false)
 	return nil
+}
+
+func (e *EC2API) DescribePlacementGroupsWithContext(ctx aws.Context, input *ec2.DescribePlacementGroupsInput, _ ...request.Option) (*ec2.DescribePlacementGroupsOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	if !e.DescribePlacementGroupsOutput.IsNil() {
+		return e.DescribePlacementGroupsOutput.Clone(), nil
+	}
+	return nil, errors.New("no placement groups data provided")
+
 }
