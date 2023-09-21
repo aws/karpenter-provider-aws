@@ -12,11 +12,14 @@ runs:
         go-version-file: go.mod
         check-latest: true
         cache-dependency-path: "**/go.sum"
+    # Root path permission workaround for caching https://github.com/actions/cache/issues/845#issuecomment-1252594999
+    - run: sudo chown "$USER" /usr/local
+      shell: bash
     - uses: actions/cache@v3
       id: cache-toolchain
       with:
         path: |
-          ~/.kubebuilder/bin
+          /usr/local/kubebuilder/bin
           ~/go/bin
         key: ${{ runner.os }}-${{ inputs.k8sVersion }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
     - if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}

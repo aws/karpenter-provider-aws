@@ -23,29 +23,30 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// NodeClassSpec is the top level specification for the AWS Karpenter Provider.
+// EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
 // This will contain configuration necessary to launch instances in AWS.
-type NodeClassSpec struct {
+type EC2NodeClassSpec struct {
 	// SubnetSelectorTerms is a list of or subnet selector terms. The terms are ORed.
-	// +optional
+	// +required
 	SubnetSelectorTerms []SubnetSelectorTerm `json:"subnetSelectorTerms" hash:"ignore"`
 	// SecurityGroupSelectorTerms is a list of or security group selector terms. The terms are ORed.
-	// +optional
+	// +required
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
 	// +optional
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms,omitempty" hash:"ignore"`
 	// AMIFamily is the AMI family that instances use.
-	// +optional
-	AMIFamily *string `json:"amiFamily,omitempty"`
+	// +kubebuilder:validation:Enum:={AL2,Bottlerocket,Ubuntu,Custom,Windows2019,Windows2022}
+	// +required
+	AMIFamily *string `json:"amiFamily"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
 	UserData *string `json:"userData,omitempty"`
 	// Role is the AWS identity that nodes use.
-	// +optional
-	Role *string `json:"role,omitempty"`
+	// +required
+	Role string `json:"role"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
@@ -69,6 +70,7 @@ type NodeClassSpec struct {
 	// If omitted, defaults to httpEndpoint enabled, with httpProtocolIPv6
 	// disabled, with httpPutResponseLimit of 2, and with httpTokens
 	// required.
+	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":2,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 	// Context is a Reserved field in EC2 APIs
@@ -150,9 +152,6 @@ type AMISelectorTerm struct {
 	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
 	// +optional
 	Owner string `json:"owner,omitempty"`
-	// SSM is the ssm alias for an ami.
-	// +optional
-	SSM string `json:"ssm,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the
@@ -164,23 +163,26 @@ type MetadataOptions struct {
 	//
 	// If you specify a value of "disabled", instance metadata will not be accessible
 	// on the node.
+	// +kubebuilder:default=enabled
 	// +optional
 	HTTPEndpoint *string `json:"httpEndpoint,omitempty"`
 	// HTTPProtocolIPv6 enables or disables the IPv6 endpoint for the instance metadata
 	// service on provisioned nodes. If metadata options is non-nil, but this parameter
 	// is not specified, the default state is "disabled".
+	// +kubebuilder:default=disabled
 	// +optional
 	HTTPProtocolIPv6 *string `json:"httpProtocolIPv6,omitempty"`
 	// HTTPPutResponseHopLimit is the desired HTTP PUT response hop limit for
 	// instance metadata requests. The larger the number, the further instance
 	// metadata requests can travel. Possible values are integers from 1 to 64.
 	// If metadata options is non-nil, but this parameter is not specified, the
-	// default value is 1.
+	// default value is 2.
+	// +kubebuilder:default=2
 	// +optional
 	HTTPPutResponseHopLimit *int64 `json:"httpPutResponseHopLimit,omitempty"`
 	// HTTPTokens determines the state of token usage for instance metadata
 	// requests. If metadata options is non-nil, but this parameter is not
-	// specified, the default state is "optional".
+	// specified, the default state is "required".
 	//
 	// If the state is optional, one can choose to retrieve instance metadata with
 	// or without a signed token header on the request. If one retrieves the IAM
@@ -192,6 +194,7 @@ type MetadataOptions struct {
 	// instance metadata retrieval requests. In this state, retrieving the IAM
 	// role credentials always returns the version 2.0 credentials; the version
 	// 1.0 credentials are not available.
+	// +kubebuilder:default=required
 	// +optional
 	HTTPTokens *string `json:"httpTokens,omitempty"`
 }
@@ -203,6 +206,9 @@ type BlockDeviceMapping struct {
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
+	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
+	// configure at most one root volume in BlockDeviceMappings.
+	RootVolume bool `json:"rootVolume,omitempty"`
 }
 
 type BlockDevice struct {
@@ -265,16 +271,16 @@ type BlockDevice struct {
 	VolumeType *string `json:"volumeType,omitempty"`
 }
 
-// NodeClass is the Schema for the NodeClass API
+// EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
-// +kubebuilder:resource:path=nodeclasses,scope=Cluster,categories=karpenter
+// +kubebuilder:resource:path=ec2nodeclasses,scope=Cluster,categories=karpenter,shortName={ec2nc,ec2ncs}
 // +kubebuilder:subresource:status
-type NodeClass struct {
+type EC2NodeClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   NodeClassSpec   `json:"spec,omitempty"`
-	Status NodeClassStatus `json:"status,omitempty"`
+	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
+	Status EC2NodeClassStatus `json:"status,omitempty"`
 
 	// IsNodeTemplate tells Karpenter whether the in-memory representation of this object
 	// is actually referring to a AWSNodeTemplate object. This value is not actually part of the v1beta1 public-facing API
@@ -282,7 +288,7 @@ type NodeClass struct {
 	IsNodeTemplate bool `json:"-" hash:"ignore"`
 }
 
-func (a *NodeClass) Hash() string {
+func (a *EC2NodeClass) Hash() string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash(a.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
@@ -290,10 +296,10 @@ func (a *NodeClass) Hash() string {
 	})))
 }
 
-// NodeClassList contains a list of NodeClass
+// EC2NodeClassList contains a list of EC2NodeClass
 // +kubebuilder:object:root=true
-type NodeClassList struct {
+type EC2NodeClassList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []NodeClass `json:"items"`
+	Items           []EC2NodeClass `json:"items"`
 }

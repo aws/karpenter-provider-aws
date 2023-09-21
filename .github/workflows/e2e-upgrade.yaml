@@ -51,7 +51,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # This additional checkout can be removed when the commit status action is added to the from_git_ref version of Karpenter
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.to_git_ref }}
       - if: always() && inputs.event_name == 'workflow_run'
@@ -60,11 +60,11 @@ jobs:
           name: "${{ github.workflow }} / e2e (Upgrade) / ${{ github.job }} (snapshot)"
           git_ref: ${{ inputs.to_git_ref }}
       - uses: ./.github/actions/install-deps
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.from_git_ref }}
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
           aws-region: ${{ inputs.region }}
@@ -101,7 +101,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.from_git_ref }}
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.to_git_ref }}
       - name: upgrade eks cluster '${{ env.CLUSTER_NAME }}'

@@ -42,7 +42,7 @@ import (
 var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
-var nodeClass *v1beta1.NodeClass
+var nodeClass *v1beta1.EC2NodeClass
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -124,7 +124,7 @@ var _ = Describe("AMIProvider", func() {
 	var version string
 	BeforeEach(func() {
 		version = lo.Must(awsEnv.VersionProvider.Get(ctx))
-		nodeClass = test.NodeClass()
+		nodeClass = test.EC2NodeClass()
 	})
 	It("should succeed to resolve AMIs (AL2)", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2

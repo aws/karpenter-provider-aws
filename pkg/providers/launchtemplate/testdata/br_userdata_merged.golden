@@ -10,7 +10,7 @@ max-pods = 110
 [settings.kubernetes.node-labels]
 custom-node-label = 'custom'
 'karpenter.sh/capacity-type' = 'on-demand'
-'karpenter.sh/provisioner-name' = '%s'
+'%s' = '%s'
 'testing/cluster' = 'unspecified'
 
 [settings.kubernetes.node-taints]

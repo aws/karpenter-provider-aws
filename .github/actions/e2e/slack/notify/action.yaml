@@ -17,14 +17,12 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         ref: ${{ inputs.git_ref }}
     - shell: bash
       run: |
-        if [[ ${{ inputs.event_name }} == "conformance" ]]; then
-          RUN_NAME="conformance-periodic-${{ inputs.k8s_version }}-${{ inputs.suite }}"
-        elif [[ ${{ inputs.event_name }} == "schedule" ]]; then
+        if [[ ${{ inputs.event_name }} == "schedule" ]]; then
           RUN_NAME="${{ inputs.suite }}-periodic"
         else
           RUN_NAME="${{ inputs.suite }}-${GITHUB_SHA::7}"

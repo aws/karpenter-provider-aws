@@ -23,12 +23,18 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
-func NodeClass(overrides ...v1beta1.NodeClass) *v1beta1.NodeClass {
-	options := v1beta1.NodeClass{}
+func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
+	options := v1beta1.EC2NodeClass{}
 	for _, override := range overrides {
 		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge settings: %s", err))
 		}
+	}
+	if options.Spec.AMIFamily == nil {
+		options.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+	}
+	if options.Spec.Role == "" {
+		options.Spec.Role = "test-role"
 	}
 	if len(options.Spec.SecurityGroupSelectorTerms) == 0 {
 		options.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
@@ -39,7 +45,6 @@ func NodeClass(overrides ...v1beta1.NodeClass) *v1beta1.NodeClass {
 			},
 		}
 	}
-
 	if len(options.Spec.SubnetSelectorTerms) == 0 {
 		options.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 			{
@@ -49,7 +54,7 @@ func NodeClass(overrides ...v1beta1.NodeClass) *v1beta1.NodeClass {
 			},
 		}
 	}
-	return &v1beta1.NodeClass{
+	return &v1beta1.EC2NodeClass{
 		ObjectMeta: test.ObjectMeta(options.ObjectMeta),
 		Spec:       options.Spec,
 	}

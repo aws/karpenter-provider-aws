@@ -29,9 +29,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/utils/sets"
 
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/atomic"
@@ -230,9 +230,13 @@ func (e *EC2API) CreateTagsWithContext(_ context.Context, input *ec2.CreateTagsI
 			instance := raw.(*ec2.Instance)
 
 			// Upsert any tags that have the same key
-			newTagKeys := sets.New(lo.Map(input.Tags, func(t *ec2.Tag, _ int) string { return aws.StringValue(t.Key) })...)
-			instance.Tags = lo.Filter(input.Tags, func(t *ec2.Tag, _ int) bool { return newTagKeys.Has(aws.StringValue(t.Key)) })
-			instance.Tags = append(instance.Tags, input.Tags...)
+			tagsToMap := func(tag *ec2.Tag) (string, string) {
+				return *tag.Key, *tag.Value
+			}
+			tags := lo.Assign(lo.SliceToMap(instance.Tags, tagsToMap), lo.SliceToMap(input.Tags, tagsToMap))
+			instance.Tags = lo.MapToSlice(tags, func(key, value string) *ec2.Tag {
+				return &ec2.Tag{Key: aws.String(key), Value: aws.String(value)}
+			})
 		}
 		return nil, nil
 	})

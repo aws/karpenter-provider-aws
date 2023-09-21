@@ -21,36 +21,34 @@ import (
 	"testing"
 	"time"
 
-	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
-	v1 "k8s.io/api/core/v1"
-	clock "k8s.io/utils/clock/testing"
-
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	clock "k8s.io/utils/clock/testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
+	corecloudproivder "github.com/aws/karpenter-core/pkg/cloudprovider"
 	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
-	"github.com/aws/karpenter/pkg/fake"
-
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudproivder "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
@@ -104,41 +102,6 @@ var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
-	nodeTemplate = &v1alpha1.AWSNodeTemplate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: coretest.RandomName(),
-		},
-		Spec: v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
-				SubnetSelector:        map[string]string{"*": "*"},
-				SecurityGroupSelector: map[string]string{"*": "*"},
-			},
-		},
-	}
-	provisioner = test.Provisioner(coretest.ProvisionerOptions{
-		Requirements: []v1.NodeSelectorRequirement{{
-			Key:      v1alpha1.LabelInstanceCategory,
-			Operator: v1.NodeSelectorOpExists,
-		}},
-		ProviderRef: &v1alpha5.MachineTemplateRef{
-			APIVersion: nodeTemplate.APIVersion,
-			Kind:       nodeTemplate.Kind,
-			Name:       nodeTemplate.Name,
-		},
-	})
-	machine = coretest.Machine(v1alpha5.Machine{
-		ObjectMeta: metav1.ObjectMeta{
-			Labels: map[string]string{
-				v1alpha5.ProvisionerNameLabelKey: provisioner.Name,
-			},
-		},
-		Spec: v1alpha5.MachineSpec{
-			MachineTemplateRef: &v1alpha5.MachineTemplateRef{
-				Name: nodeTemplate.Name,
-			},
-		},
-	})
 
 	cluster.Reset()
 	awsEnv.Reset()

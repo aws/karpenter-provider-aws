@@ -1,5 +1,4 @@
 export K8S_VERSION ?= 1.27.x
-export KUBEBUILDER_ASSETS ?= ${HOME}/.kubebuilder/bin
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
 ## Inject the app version into project.Version
@@ -91,6 +90,15 @@ e2etests: ## Run the e2e suite against your local cluster
 		--ginkgo.grace-period=3m \
 		--ginkgo.vv
 
+e2etests-deflake: ## Run the e2e suite against your local cluster
+	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
+		--focus="${FOCUS}" \
+		--timeout=${TEST_TIMEOUT} \
+		--grace-period=3m \
+		--until-it-fails \
+		--vv \
+		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z) \
+
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
@@ -153,10 +161,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
 docgen: ## Generate docs
-	go run hack/docs/metrics_gen_docs.go pkg/ $(KARPENTER_CORE_DIR)/pkg website/content/en/preview/concepts/metrics.md
-	go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/concepts/instance-types.md
-	go run hack/docs/configuration_gen_docs.go website/content/en/preview/concepts/settings.md
-	cd charts/karpenter && helm-docs
+	$(WITH_GOFLAGS) ./hack/docgen.sh
 
 codegen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/codegen.sh

@@ -9,6 +9,7 @@ on:
         options:
           - "us-east-2"
           - "us-west-2"
+          - "eu-west-1"
         default: "us-east-2"
       suite:
         type: choice
@@ -55,6 +56,8 @@ on:
       enable_metrics:
         type: boolean
         default: false
+      workflow_trigger:
+        type: string
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -67,17 +70,17 @@ jobs:
     name: suite-${{ inputs.suite }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.git_ref }}
       - if: always() && inputs.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/start
         with:
-          name: "${{ github.workflow }} / e2e (${{ inputs.suite }}) / ${{ github.job }} (snapshot)"
+          name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (${{ inputs.suite }})
           git_ref: ${{ inputs.git_ref }}
       - uses: ./.github/actions/install-deps
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v3
+        uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
           aws-region: ${{ inputs.region }}
@@ -85,7 +88,7 @@ jobs:
       - name: add jitter on cluster creation
         run: |
           # Creating jitter so that we can stagger cluster creation to avoid throttling 
-          sleep $(( $RANDOM % 60 + 1 ))
+          sleep $(( $RANDOM % 300 + 1 ))
       - name: generate cluster name
         run: |
           CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}')
@@ -124,7 +127,7 @@ jobs:
           TEST_SUITE="${{ inputs.suite }}" ENABLE_METRICS=${{ inputs.enable_metrics }} METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: (success() || failure()) && inputs.event_name != 'workflow_run' && inputs.event_name != 'conformance'
+        if: (success() || failure()) && inputs.event_name != 'workflow_run' && inputs.workflow_trigger != 'conformance'
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: ${{ inputs.suite }}
@@ -151,5 +154,5 @@ jobs:
       - if: always() && inputs.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
-          name: "${{ github.workflow }} / e2e (${{ inputs.suite }}) / ${{ github.job }} (snapshot)"
+          name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (${{ inputs.suite }})
           git_ref: ${{ inputs.git_ref }}

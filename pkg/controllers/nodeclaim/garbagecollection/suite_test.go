@@ -22,28 +22,28 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/patrickmn/go-cache"
-	"github.com/samber/lo"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	. "knative.dev/pkg/logging/testing"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/nodeclaim/garbagecollection"
 	"github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
@@ -86,82 +86,49 @@ var _ = BeforeEach(func() {
 	awsEnv.Reset()
 })
 
-var _ = Describe("NodeClaimGarbageCollection", func() {
-	var instance *ec2.Instance
-	var providerID string
-
+var _ = Describe("Combined/GarbageCollection", func() {
+	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		instanceID := fake.InstanceID()
-		providerID = fmt.Sprintf("aws:///test-zone-1a/%s", instanceID)
-		nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{})
-		provisioner := test.Provisioner(coretest.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{
-				APIVersion: "testing/v1alpha1",
-				Kind:       "NodeTemplate",
-				Name:       nodeTemplate.Name,
-			},
-		})
-		instance = &ec2.Instance{
-			State: &ec2.InstanceState{
-				Name: aws.String(ec2.InstanceStateNameRunning),
-			},
-			Tags: []*ec2.Tag{
-				{
-					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
-					Value: aws.String("owned"),
-				},
-				{
-					Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
-					Value: aws.String(provisioner.Name),
-				},
-				{
-					Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
-					Value: aws.String(settings.FromContext(ctx).ClusterName),
-				},
-			},
-			PrivateDnsName: aws.String(fake.PrivateDNSName()),
-			Placement: &ec2.Placement{
-				AvailabilityZone: aws.String("test-zone-1a"),
-			},
-			InstanceId:   aws.String(instanceID),
-			InstanceType: aws.String("m5.large"),
-		}
+		nodeClass = test.EC2NodeClass()
 	})
-	AfterEach(func() {
-		ExpectCleanedUp(ctx, env.Client)
-		linkedMachineCache.Flush()
-	})
-
-	It("should delete an instance if there is no machine owner", func() {
-		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
-		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
-
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).To(HaveOccurred())
-		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
-	})
-	It("should delete an instance along with the node if there is no machine owner (to quicken scheduling)", func() {
-		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
-		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
-
-		node := coretest.Node(coretest.NodeOptions{
-			ProviderID: providerID,
-		})
-		ExpectApplied(ctx, env.Client, node)
-
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).To(HaveOccurred())
-		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
-
-		ExpectNotFound(ctx, env.Client, node)
-	})
-	It("should delete many instances if they all don't have machine owners", func() {
-		// Generate 100 instances that have different instanceIDs
+	It("should delete many instances if they all don't have NodeClaim or Machine owners", func() {
+		// Generate 100 instances that have different instanceIDs that should have NodeClaims
 		var ids []string
+		for i := 0; i < 100; i++ {
+			instanceID := fake.InstanceID()
+			awsEnv.EC2API.Instances.Store(
+				instanceID,
+				&ec2.Instance{
+					State: &ec2.InstanceState{
+						Name: aws.String(ec2.InstanceStateNameRunning),
+					},
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Value: aws.String("owned"),
+						},
+						{
+							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Value: aws.String("default"),
+						},
+						{
+							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+							Value: aws.String(settings.FromContext(ctx).ClusterName),
+						},
+					},
+					PrivateDnsName: aws.String(fake.PrivateDNSName()),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String(fake.DefaultRegion),
+					},
+					// Launch time was 1m ago
+					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
+					InstanceId:   aws.String(instanceID),
+					InstanceType: aws.String("m5.large"),
+				},
+			)
+			ids = append(ids, instanceID)
+		}
+		// Generate 100 instances that have different instanceIDs that should have Machines
 		for i := 0; i < 100; i++ {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
@@ -186,7 +153,7 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
 					Placement: &ec2.Placement{
-						AvailabilityZone: aws.String("test-zone-1a"),
+						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
 					// Launch time was 1m ago
 					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
@@ -205,17 +172,17 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 				defer GinkgoRecover()
 				defer wg.Done()
 
-				_, err := cloudProvider.Get(ctx, fmt.Sprintf("aws:///test-zone-1a/%s", id))
+				_, err := cloudProvider.Get(ctx, fake.ProviderID(id))
 				Expect(err).To(HaveOccurred())
 				Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 			}(id)
 		}
 		wg.Wait()
 	})
-	It("should not delete all instances if they all have machine owners", func() {
-		// Generate 100 instances that have different instanceIDs
+	It("should not delete any instance or node if it already has a NodeClaim or Machine owners that matches it", func() {
+		// Generate 100 instances that have different instanceIDs that have NodeClaims
 		var ids []string
-		var machines []*v1alpha5.Machine
+		var nodes []*v1.Node
 		for i := 0; i < 100; i++ {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
@@ -230,19 +197,69 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 							Value: aws.String("owned"),
 						},
 						{
-							Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
+							Key:   aws.String(corev1beta1.NodePoolLabelKey),
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
+							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
 							Value: aws.String(settings.FromContext(ctx).ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
 					Placement: &ec2.Placement{
-						AvailabilityZone: aws.String("test-zone-1a"),
+						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
-					// Launch time was 10m ago
+					// Launch time was 1m ago
+					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
+					InstanceId:   aws.String(instanceID),
+					InstanceType: aws.String("m5.large"),
+				},
+			)
+			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
+				Spec: corev1beta1.NodeClaimSpec{
+					NodeClass: &corev1beta1.NodeClassReference{
+						Name: nodeClass.Name,
+					},
+				},
+				Status: corev1beta1.NodeClaimStatus{
+					ProviderID: fake.ProviderID(instanceID),
+				},
+			})
+			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: fake.ProviderID(instanceID),
+			})
+			ExpectApplied(ctx, env.Client, nodeClaim, node)
+			ids = append(ids, instanceID)
+			nodes = append(nodes, node)
+		}
+		// Generate 100 instances that have different instanceIDs that have Machines
+		for i := 0; i < 100; i++ {
+			instanceID := fake.InstanceID()
+			awsEnv.EC2API.Instances.Store(
+				instanceID,
+				&ec2.Instance{
+					State: &ec2.InstanceState{
+						Name: aws.String(ec2.InstanceStateNameRunning),
+					},
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Value: aws.String("owned"),
+						},
+						{
+							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Value: aws.String("default"),
+						},
+						{
+							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+							Value: aws.String(settings.FromContext(ctx).ClusterName),
+						},
+					},
+					PrivateDnsName: aws.String(fake.PrivateDNSName()),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String(fake.DefaultRegion),
+					},
+					// Launch time was 1m ago
 					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
 					InstanceId:   aws.String(instanceID),
 					InstanceType: aws.String("m5.large"),
@@ -250,105 +267,30 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 			)
 			machine := coretest.Machine(v1alpha5.Machine{
 				Status: v1alpha5.MachineStatus{
-					ProviderID: fmt.Sprintf("aws:///test-zone-1a/%s", instanceID),
+					ProviderID: fake.ProviderID(instanceID),
 				},
 			})
-			ExpectApplied(ctx, env.Client, machine)
-			machines = append(machines, machine)
+			node := coretest.Node(coretest.NodeOptions{
+				ProviderID: fake.ProviderID(instanceID),
+			})
+			ExpectApplied(ctx, env.Client, machine, node)
 			ids = append(ids, instanceID)
+			nodes = append(nodes, node)
 		}
 		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
 
 		wg := sync.WaitGroup{}
-		for _, id := range ids {
+		for i := range ids {
 			wg.Add(1)
-			go func(id string) {
+			go func(id string, node *v1.Node) {
 				defer GinkgoRecover()
 				defer wg.Done()
 
-				_, err := cloudProvider.Get(ctx, fmt.Sprintf("aws:///test-zone-1a/%s", id))
+				_, err := cloudProvider.Get(ctx, fake.ProviderID(id))
 				Expect(err).ToNot(HaveOccurred())
-			}(id)
+				ExpectExists(ctx, env.Client, node)
+			}(ids[i], nodes[i])
 		}
 		wg.Wait()
-
-		for _, machine := range machines {
-			ExpectExists(ctx, env.Client, machine)
-		}
-	})
-	It("should not delete an instance if it is within the machine resolution window (1m)", func() {
-		// Launch time just happened
-		instance.LaunchTime = aws.Time(time.Now())
-		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
-
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).NotTo(HaveOccurred())
-	})
-	It("should not delete an instance if it was not launched by a machine", func() {
-		// Remove the "karpenter.sh/managed-by" tag (this isn't launched by a machine)
-		instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
-			return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
-		})
-
-		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
-		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
-
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).NotTo(HaveOccurred())
-	})
-	It("should not delete the instance or node if it already has a machine that matches it", func() {
-		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
-		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
-
-		machine := coretest.Machine(v1alpha5.Machine{
-			Status: v1alpha5.MachineStatus{
-				ProviderID: providerID,
-			},
-		})
-		node := coretest.Node(coretest.NodeOptions{
-			ProviderID: providerID,
-		})
-		ExpectApplied(ctx, env.Client, machine, node)
-
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).ToNot(HaveOccurred())
-		ExpectExists(ctx, env.Client, node)
-	})
-	It("should not delete an instance if it is linked", func() {
-		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
-		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
-
-		// Create a machine that is actively linking
-		machine := coretest.Machine(v1alpha5.Machine{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					v1alpha5.MachineLinkedAnnotationKey: providerID,
-				},
-			},
-		})
-		machine.Status.ProviderID = ""
-		ExpectApplied(ctx, env.Client, machine)
-
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).NotTo(HaveOccurred())
-	})
-	It("should not delete an instance if it is recently linked but the machine doesn't exist", func() {
-		// Launch time was 10m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
-		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
-
-		// Add a provider id to the recently linked cache
-		linkedMachineCache.SetDefault(providerID, nil)
-
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).NotTo(HaveOccurred())
 	})
 })

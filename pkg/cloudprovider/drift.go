@@ -20,10 +20,10 @@ import (
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/sets"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
@@ -36,9 +36,14 @@ const (
 	SubnetDrift        cloudprovider.DriftReason = "SubnetDrift"
 	SecurityGroupDrift cloudprovider.DriftReason = "SecurityGroupDrift"
 	NodeTemplateDrift  cloudprovider.DriftReason = "NodeTemplateDrift"
+	NodeClassDrift     cloudprovider.DriftReason = "NodeClassDrift"
 )
 
-func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodePool *corev1beta1.NodePool, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
+func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodePool *corev1beta1.NodePool, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	// First check if the node class is statically drifted to save on API calls.
+	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
+		return drifted, nil
+	}
 	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID)
 	if err != nil {
 		return "", err
@@ -55,14 +60,14 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
-	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted, c.areStaticFieldsDrifted(nodeClaim, nodeClass)}, "", func(i cloudprovider.DriftReason) bool {
+	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted}, "", func(i cloudprovider.DriftReason) bool {
 		return string(i) != ""
 	})
 	return drifted, nil
 }
 
 func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodePool *corev1beta1.NodePool,
-	instance *instance.Instance, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
+	instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	instanceTypes, err := c.GetInstanceTypes(ctx, nodePool)
 	if err != nil {
 		return "", fmt.Errorf("getting instanceTypes, %w", err)
@@ -93,10 +98,12 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1
 	return "", nil
 }
 
-func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
+// Checks if the security groups are drifted, by comparing the EC2NodeClass.Status.Subnets
+// to the ec2 instance subnets
+func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	// If the node template status does not have subnets, wait for the subnets to be populated before continuing
 	if len(nodeClass.Status.Subnets) == 0 {
-		return "", fmt.Errorf("AWSNodeTemplate has no subnets")
+		return "", fmt.Errorf("no subnets exist in status")
 	}
 	_, found := lo.Find(nodeClass.Status.Subnets, func(subnet v1beta1.Subnet) bool {
 		return subnet.ID == instance.SubnetID
@@ -107,9 +114,9 @@ func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *
 	return "", nil
 }
 
-// Checks if the security groups are drifted, by comparing the AWSNodeTemplate.Status.SecurityGroups
+// Checks if the security groups are drifted, by comparing the EC2NodeClass.Status.SecurityGroups
 // to the ec2 instance security groups
-func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeClass *v1beta1.NodeClass) (cloudprovider.DriftReason, error) {
+func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
 	// nodeClass.Spec.SecurityGroupSelector can be nil if the user is using a launchTemplateName to define SecurityGroups
 	// Karpenter will not drift on changes to securitygroup in the launchTemplateName
 	if nodeClass.Spec.LaunchTemplateName != nil {
@@ -117,7 +124,7 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 	}
 	securityGroupIds := sets.New(lo.Map(nodeClass.Status.SecurityGroups, func(sg v1beta1.SecurityGroup, _ int) string { return sg.ID })...)
 	if len(securityGroupIds) == 0 {
-		return "", fmt.Errorf("no security groups exist in the AWSNodeTemplate Status")
+		return "", fmt.Errorf("no security groups exist in status")
 	}
 
 	if !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)) {
@@ -126,7 +133,7 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 	return "", nil
 }
 
-func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.NodeClass) cloudprovider.DriftReason {
+func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) cloudprovider.DriftReason {
 	var ownerHashKey string
 	if nodeClaim.IsMachine {
 		ownerHashKey = v1alpha1.AnnotationNodeTemplateHash
@@ -139,7 +146,7 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim,
 		return ""
 	}
 	if nodeClassHash != nodeClaimHash {
-		return NodeTemplateDrift
+		return lo.Ternary(nodeClaim.IsMachine, NodeTemplateDrift, NodeClassDrift)
 	}
 	return ""
 }

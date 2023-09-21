@@ -149,7 +149,7 @@ var _ = Describe("NodeClassUtils", func() {
 			},
 		}
 	})
-	It("should convert a AWSNodeTemplate to a NodeClass", func() {
+	It("should convert a AWSNodeTemplate to a EC2NodeClass", func() {
 		nodeClass := nodeclassutil.New(nodeTemplate)
 
 		for k, v := range nodeTemplate.Annotations {
@@ -166,7 +166,7 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(nodeClass.Spec.AMISelectorTerms[0].Tags).To(Equal(nodeTemplate.Spec.AMISelector))
 		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
 		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
-		Expect(nodeClass.Spec.Role).To(BeNil())
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
 		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
 		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
 		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
@@ -179,7 +179,7 @@ var _ = Describe("NodeClassUtils", func() {
 		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
 		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
 	})
-	It("should convert a AWSNodeTemplate to a NodeClass (with AMISelector name and owner values set)", func() {
+	It("should convert a AWSNodeTemplate to a EC2NodeClass (with AMISelector name and owner values set)", func() {
 		nodeTemplate.Spec.AMISelector = map[string]string{
 			"aws::name":   "ami-name1,ami-name2",
 			"aws::owners": "self,amazon,123456789",
@@ -234,7 +234,7 @@ var _ = Describe("NodeClassUtils", func() {
 
 		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
 		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
-		Expect(nodeClass.Spec.Role).To(BeNil())
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
 		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
 		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
 		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
@@ -247,7 +247,7 @@ var _ = Describe("NodeClassUtils", func() {
 		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
 		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
 	})
-	It("should convert a AWSNodeTemplate to a NodeClass (with AMISelector id set)", func() {
+	It("should convert a AWSNodeTemplate to a EC2NodeClass (with AMISelector id set)", func() {
 		nodeTemplate.Spec.AMISelector = map[string]string{
 			"aws::ids": "ami-1234,ami-5678,ami-custom-id",
 		}
@@ -283,7 +283,7 @@ var _ = Describe("NodeClassUtils", func() {
 
 		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
 		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
-		Expect(nodeClass.Spec.Role).To(BeNil())
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
 		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
 		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
 		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
@@ -296,7 +296,7 @@ var _ = Describe("NodeClassUtils", func() {
 		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
 		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
 	})
-	It("should convert a AWSNodeTemplate to a NodeClass (with AMISelector name, owner, id, and tags set)", func() {
+	It("should convert a AWSNodeTemplate to a EC2NodeClass (with AMISelector name, owner, id, and tags set)", func() {
 		nodeTemplate.Spec.AMISelector = map[string]string{
 			"aws::name":   "ami-name1,ami-name2",
 			"aws::owners": "self,amazon",
@@ -397,7 +397,7 @@ var _ = Describe("NodeClassUtils", func() {
 
 		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
 		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
-		Expect(nodeClass.Spec.Role).To(BeNil())
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
 		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
 		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
 		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
@@ -410,7 +410,7 @@ var _ = Describe("NodeClassUtils", func() {
 		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
 		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
 	})
-	It("should convert a AWSNodeTemplate to a NodeClass and back and still retain all original data", func() {
+	It("should convert a AWSNodeTemplate to a EC2NodeClass and back and still retain all original data", func() {
 		convertedNodeTemplate := nodetemplateutil.New(nodeclassutil.New(nodeTemplate))
 
 		Expect(convertedNodeTemplate.Name).To(Equal(nodeTemplate.Name))
@@ -434,8 +434,8 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(convertedNodeTemplate.Status.Subnets).To(Equal(nodeTemplate.Status.Subnets))
 		Expect(convertedNodeTemplate.Status.AMIs).To(Equal(nodeTemplate.Status.AMIs))
 	})
-	It("should retrieve a NodeClass with a get call", func() {
-		nodeClass := test.NodeClass()
+	It("should retrieve a EC2NodeClass with a get call", func() {
+		nodeClass := test.EC2NodeClass()
 		ExpectApplied(ctx, env.Client, nodeClass)
 
 		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeclassutil.Key{Name: nodeClass.Name, IsNodeTemplate: false})

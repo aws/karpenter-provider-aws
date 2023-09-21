@@ -27,7 +27,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
@@ -116,7 +115,7 @@ func New(amiProvider *Provider) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
+func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	amis, err := r.amiProvider.Get(ctx, nodeClass, options)
 	if err != nil {
@@ -139,8 +138,8 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.NodeClass, nod
 		// This requires that we resolve a unique launch template per max-pods value.
 		for maxPods, instanceTypes := range maxPodsToInstanceTypes {
 			kubeletConfig := &corev1beta1.KubeletConfiguration{}
-			if nodeClaim.Spec.KubeletConfiguration != nil {
-				if err := mergo.Merge(kubeletConfig, nodeClaim.Spec.KubeletConfiguration); err != nil {
+			if nodeClaim.Spec.Kubelet != nil {
+				if err := mergo.Merge(kubeletConfig, nodeClaim.Spec.Kubelet); err != nil {
 					return nil, err
 				}
 			}
@@ -177,15 +176,15 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.NodeClass, nod
 
 func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	switch aws.StringValue(amiFamily) {
-	case v1alpha1.AMIFamilyBottlerocket:
+	case v1beta1.AMIFamilyBottlerocket:
 		return &Bottlerocket{Options: options}
-	case v1alpha1.AMIFamilyUbuntu:
+	case v1beta1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
-	case v1alpha1.AMIFamilyWindows2019:
-		return &Windows{Options: options, Version: v1alpha1.Windows2019, Build: v1alpha1.Windows2019Build}
-	case v1alpha1.AMIFamilyWindows2022:
-		return &Windows{Options: options, Version: v1alpha1.Windows2022, Build: v1alpha1.Windows2022Build}
-	case v1alpha1.AMIFamilyCustom:
+	case v1beta1.AMIFamilyWindows2019:
+		return &Windows{Options: options, Version: v1beta1.Windows2019, Build: v1beta1.Windows2019Build}
+	case v1beta1.AMIFamilyWindows2022:
+		return &Windows{Options: options, Version: v1beta1.Windows2022, Build: v1beta1.Windows2022Build}
+	case v1beta1.AMIFamilyCustom:
 		return &Custom{Options: options}
 	default:
 		return &AL2{Options: options}

@@ -83,7 +83,7 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 	}
 }
 
-func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
+func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
 	instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
 	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...))
 	if len(instanceTypes) > MaxInstanceTypes {
@@ -103,23 +103,10 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.NodeClass, nod
 }
 
 func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
-	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
-		Resources: aws.StringSlice([]string{id}),
-		Tags: []*ec2.Tag{
-			{
-				Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
-				Value: aws.String(settings.FromContext(ctx).ClusterName),
-			},
-			{
-				Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
-				Value: aws.String(provisionerName),
-			},
-		},
-	})
-	if err != nil {
-		if awserrors.IsNotFound(err) {
-			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("linking tags, %w", err))
-		}
+	if err := p.CreateTags(ctx, id, map[string]string{
+		v1alpha5.MachineManagedByAnnotationKey: settings.FromContext(ctx).ClusterName,
+		v1alpha5.ProvisionerNameLabelKey:       provisionerName,
+	}); err != nil {
 		return fmt.Errorf("linking tags, %w", err)
 	}
 	return nil
@@ -189,7 +176,23 @@ func (p *Provider) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, tags map[string]string) (*ec2.CreateFleetInstance, error) {
+func (p *Provider) CreateTags(ctx context.Context, id string, tags map[string]string) error {
+	ec2Tags := lo.MapToSlice(tags, func(key, value string) *ec2.Tag {
+		return &ec2.Tag{Key: aws.String(key), Value: aws.String(value)}
+	})
+	if _, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
+		Resources: aws.StringSlice([]string{id}),
+		Tags:      ec2Tags,
+	}); err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("tagging instance, %w", err))
+		}
+		return fmt.Errorf("tagging instance, %w", err)
+	}
+	return nil
+}
+
+func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, tags map[string]string) (*ec2.CreateFleetInstance, error) {
 	capacityType := p.getCapacityType(nodeClaim, instanceTypes)
 	zonalSubnets, err := p.subnetProvider.ZonalSubnetsForLaunch(ctx, nodeClass, instanceTypes, capacityType)
 	if err != nil {
@@ -247,7 +250,7 @@ func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.NodeCl
 	return createFleetOutput.Instances[0], nil
 }
 
-func getTags(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim) map[string]string {
+func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim) map[string]string {
 	var overridableTags, staticTags map[string]string
 	if nodeClaim.IsMachine {
 		overridableTags = map[string]string{
@@ -259,9 +262,6 @@ func getTags(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev
 			v1alpha5.MachineManagedByAnnotationKey:                                         settings.FromContext(ctx).ClusterName,
 		}
 	} else {
-		overridableTags = map[string]string{
-			"Name": fmt.Sprintf("%s/%s", corev1beta1.NodePoolLabelKey, nodeClaim.Labels[corev1beta1.NodePoolLabelKey]),
-		}
 		staticTags = map[string]string{
 			fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
 			corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
@@ -294,7 +294,7 @@ func (p *Provider) checkODFallback(nodeClaim *corev1beta1.NodeClaim, instanceTyp
 	return nil
 }
 
-func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1beta1.NodeClass, nodeClaim *corev1beta1.NodeClaim,
+func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim,
 	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, capacityType string, tags map[string]string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
 	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
 	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}, tags)

@@ -13,6 +13,8 @@ on:
       event_name:
         type: string
         required: true
+      workflow_trigger:
+        type: string
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -50,6 +52,7 @@ jobs:
       event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
+      workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
