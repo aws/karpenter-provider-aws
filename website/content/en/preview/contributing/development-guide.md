@@ -21,42 +21,64 @@ The following tools are required for contributing to the Karpenter project.
 
 ### Setup / Teardown
 
-Based on how you are running your Kubernetes cluster, follow the [Environment specific setup](#environment-specific-setup) to configure your environment before you continue. You can choose to either run the Karpenter controller locally on your machine, pointing to the Kubernetes cluster specified in your `~/.kube/config` or inside the Kubernetes cluster specified in your `~/.kube/config` deployed with [Helm](https://helm.sh/).
+#### Container Repository
 
-#### Locally
-
-Once you have your environment set up, run the following commands to run the Karpenter Go binary against the Kubernetes cluster specified in your `~/.kube/config`
-
-```bash
-make run
-```
-
-#### Inside a Kubernetes Cluster
-
-Once you have your environment set up, to install Karpenter in the Kubernetes cluster specified in your `~/.kube/config`  run the following commands.
+For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
+You can use the following command to provision an ECR repository. We recommend using a single "dev" repository for
+development across multiple projects, and to use specific image hashes instead of image tags.
 
 ```bash
-make apply # Install Karpenter
-make delete # Uninstall Karpenter
+aws ecr create-repository \
+    --repository-name dev \
+    --image-scanning-configuration scanOnPush=true \
+    --region "${AWS_DEFAULT_REGION}"
 ```
 
-### Developer Loop
+Once you have your ECR repository provisioned, configure your Docker daemon to authenticate with your newly created repository.
 
-* Make sure dependencies are installed
-    * Run `make codegen` to make sure yaml manifests are generated
-    * Run `make toolchain` to install cli tools for building and testing the project
-* You will need a personal development image repository (e.g. ECR)
-    * Make sure you have valid credentials to your development repository.
-    * `$KO_DOCKER_REPO` must point to your development repository
-    * Your cluster must have permissions to read from the repository
+```bash
+export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/dev"
+aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${KO_DOCKER_REPO}"
+```
+
+#### Kubernetes Cluster
+
+You can refer to the [Getting Started Guide]({{<ref "../getting-started/getting-started-with-karpenter#create-a-cluster" >}}) for details on how to setup a cluster and IAM permissions to deploy Karpenter.
+
+#### Test Dependencies
+
+Karpenter requires [Kubebuilder's `envtest` dependencies](https://book.kubebuilder.io/reference/envtest.html) to run functional testing. Run the following command to install the test dependencies.
+
+```bash
+make toolchain # install test dependencies
+```
+
+#### Environment Variables
+
+Karpenter requires certain environment variables be set to use the `Makefile`. Ensure you've set the following values.
+
+```bash
+export AWS_ACCOUNT_ID=<account-id>
+export AWS_DEFAULT_REGION=<region>
+export AWS_SDK_LOAD_CONFIG=true # allows global config to be passed through on local runs
+```
 
 ### Build and Deploy
 
-*Note: these commands do not rely on each other and may be executed independently*
+You can choose to either run the Karpenter controller locally on your machine, pointing to the Kubernetes cluster specified in your `~/.kube/config` or inside the Kubernetes cluster specified in your `~/.kube/config` deployed with [Helm](https://helm.sh/).
+
+#### Locally
+
+This command will run the Go binary locally pointing against the cluster in `~/.kube/config`. Running this command is useful when you need to attach a debugger locally.
+
+```bash
+make run # quickly run changes against your cluster
+```
+
+#### In a Cluster
 
 ```bash
 make apply # quickly deploy changes to your cluster
-make presubmit # run codegen, lint, and tests
 ```
 
 If you are only interested in building the Karpenter images and not deploying the updated release to your cluster immediately with Helm, you can run
@@ -65,11 +87,16 @@ If you are only interested in building the Karpenter images and not deploying th
 make image # build and push the karpenter images
 ```
 
-### Testing
+### Testing and Formatting
+
+Karpenter CI runs `make presubmit` against the code changes to ensure the changes pass testing and certain formatting, licensing, and security standards.
 
 ```bash
-make test       # E2E correctness tests
-make battletest # More rigorous tests run in CI environment
+make presubmit # run functional testing, add licenses, and format changes
+```
+
+```bash
+make e2etests # run e2e testing against a live cluster 
 ```
 
 ### Change Log Level
@@ -101,28 +128,6 @@ While you can tail Karpenter's logs with kubectl, there's a number of tools out 
 stern -n karpenter -l app.kubernetes.io/name=karpenter
 ```
 
-## Environment specific setup
-
-### AWS
-
-For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
-You can use the following command to provision an ECR repository. We recommend using a single "dev" repository for 
-development across multiple projects, and to use specific image hashes instead of image tags. 
-
-```bash
-aws ecr create-repository \
-    --repository-name dev \
-    --image-scanning-configuration scanOnPush=true \
-    --region "${AWS_DEFAULT_REGION}"
-```
-
-Once you have your ECR repository provisioned, configure your Docker daemon to authenticate with your newly created repository.
-
-```bash
-export KO_DOCKER_REPO="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/dev"
-aws ecr get-login-password --region "${AWS_DEFAULT_REGION}" | docker login --username AWS --password-stdin "${KO_DOCKER_REPO}"
-```
-
 Finally, to deploy the correct IAM permissions, including the instance profile for provisioned nodes, run
 
 ```bash
@@ -130,18 +135,21 @@ make setup
 ```
 
 ## Profiling memory
+
 Karpenter exposes a pprof endpoint on its metrics port.
 
 Learn about profiling with pprof: https://jvns.ca/blog/2017/09/24/profiling-go-with-pprof/
 
 ### Prerequisites
-```
+
+```bash
 brew install graphviz
 go install github.com/google/pprof@latest
 ```
 
 ### Get a profile
-```
+
+```bash
 # Connect to the metrics endpoint
 kubectl port-forward service/karpenter -n karpenter 8000
 open http://localhost:8000/debug/pprof/
