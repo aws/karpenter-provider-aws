@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/samber/lo"
 )
 
 const ()
@@ -133,12 +134,9 @@ func (s *IAMAPI) RemoveRoleFromInstanceProfileWithContext(_ context.Context, inp
 		defer s.Unlock()
 
 		if i, ok := s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)]; ok {
-			var newRoles []*iam.Role
-			for _, role := range i.Roles {
-				if aws.StringValue(role.RoleName) != aws.StringValue(input.RoleName) {
-					newRoles = append(newRoles, role)
-				}
-			}
+			newRoles := lo.Reject(i.Roles, func(r *iam.Role, _ int) bool {
+				return aws.StringValue(r.RoleName) == aws.StringValue(input.RoleName)
+			})
 			if len(i.Roles) == len(newRoles) {
 				return nil, awserr.New(iam.ErrCodeNoSuchEntityException, fmt.Sprintf("The role with name %s cannot be found", aws.StringValue(input.RoleName)), nil)
 			}

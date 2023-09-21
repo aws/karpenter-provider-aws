@@ -61,7 +61,8 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 	tags := lo.Assign(nodeClass.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
 		corev1beta1.ManagedByAnnotationKey:                                             settings.FromContext(ctx).ClusterName,
-		v1beta1.LabelNodeClass:                                                         nodeClass.Name, v1.LabelTopologyRegion: p.region,
+		v1beta1.LabelNodeClass:                                                         nodeClass.Name,
+		v1.LabelTopologyRegion:                                                         p.region,
 	})
 	profileName := GetProfileName(ctx, nodeClass)
 
@@ -88,7 +89,15 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 		instanceProfile = out.InstanceProfile
 	}
 	if len(instanceProfile.Roles) == 1 {
-		return profileName, nil
+		if aws.StringValue(instanceProfile.Roles[0].RoleName) == nodeClass.Spec.Role {
+			return profileName, nil
+		}
+		if _, err = p.iamapi.RemoveRoleFromInstanceProfileWithContext(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+			InstanceProfileName: aws.String(profileName),
+			RoleName:            instanceProfile.Roles[0].RoleName,
+		}); err != nil {
+			return "", fmt.Errorf("removing role %q for instance profile %q, %w", aws.StringValue(instanceProfile.Roles[0].RoleName), profileName, err)
+		}
 	}
 	if _, err = p.iamapi.AddRoleToInstanceProfileWithContext(ctx, &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
@@ -96,20 +105,34 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 	}); err != nil {
 		return "", fmt.Errorf("adding role %q to instance profile %q, %w", nodeClass.Spec.Role, profileName, err)
 	}
-	p.cache.SetDefault(string(nodeClass.UID), nil)
+	p.cache.SetDefault(string(nodeClass.UID), aws.StringValue(instanceProfile.Arn))
 	return profileName, nil
 }
 
 func (p *Provider) AssociatedInstances(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]string, error) {
 	profileName := GetProfileName(ctx, nodeClass)
 
+	// We need to grab the instance profile ARN to filter out instances using it
+	var arn string
+	if v, ok := p.cache.Get(string(nodeClass.UID)); ok {
+		arn = v.(string)
+	} else {
+		out, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
+			InstanceProfileName: aws.String(profileName),
+		})
+		if err != nil {
+			return nil, awserrors.IgnoreNotFound(fmt.Errorf("retrieving instance profile %q arn", profileName))
+		}
+		arn = aws.StringValue(out.InstanceProfile.Arn)
+	}
+
 	// Get all instances that are using our instance profile name and are not yet terminated
 	var ids []string
 	if err := p.ec2api.DescribeInstancesPagesWithContext(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
-				Name:   aws.String("iam-instance-profile.name"),
-				Values: aws.StringSlice([]string{profileName}),
+				Name:   aws.String("iam-instance-profile.arn"),
+				Values: aws.StringSlice([]string{arn}),
 			},
 			instanceStateFilter,
 		},
@@ -155,5 +178,5 @@ func (p *Provider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 // GetProfileName gets the string for the profile name based on the cluster name and the NodeClass UUID.
 // The length of this string can never exceed the maximum instance profile name limit of 128 characters.
 func GetProfileName(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) string {
-	return fmt.Sprintf("%s/%s", utils.Truncate(settings.FromContext(ctx).ClusterName, 91), string(nodeClass.UID))
+	return fmt.Sprintf("%s_%s", utils.Truncate(settings.FromContext(ctx).ClusterName, 91), string(nodeClass.UID))
 }

@@ -222,7 +222,8 @@ spec:
                 type: object
               role:
                 description: Role is the AWS identity that nodes use. This field is
-                  immutable.
+                  immutable. Marking this field as immutable avoids concerns around
+                  terminating managed instance profiles from running instances.
                 type: string
               securityGroupSelectorTerms:
                 description: SecurityGroupSelectorTerms is a list of or security group

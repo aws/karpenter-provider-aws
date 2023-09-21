@@ -44,8 +44,8 @@ type EC2NodeClassSpec struct {
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
 	UserData *string `json:"userData,omitempty"`
-	// Role is the AWS identity that nodes use.
-	// This field is immutable.
+	// Role is the AWS identity that nodes use. This field is immutable.
+	// Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
 	// +required
 	Role string `json:"role"`
 	// Tags to be applied on ec2 resources like instances and launch templates.

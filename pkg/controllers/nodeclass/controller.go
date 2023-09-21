@@ -102,7 +102,7 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	}
 	if len(ids) > 0 {
 		c.recorder.Publish(WaitingOnInstanceTerminationEvent(nodeClass, instanceprofile.GetProfileName(ctx, nodeClass), ids))
-		return reconcile.Result{Requeue: true}, nil
+		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
 	}
 	if err = c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
