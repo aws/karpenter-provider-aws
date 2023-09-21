@@ -12,62 +12,105 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package nodeclass_test
+package license_test
 
 import (
 	"context"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
-	_ "knative.dev/pkg/system/testing"
+
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/controllers/nodeclass"
-	"github.com/aws/karpenter/pkg/test"
 )
 
 var ctx context.Context
+var stop context.CancelFunc
+var opts options.Options
 var env *coretest.Environment
 var awsEnv *test.Environment
-var opts options.Options
-var nodeTemplateController corecontroller.Controller
-var nodeClassController corecontroller.Controller
+var nodeClass *v1beta1.EC2NodeClass
 
-func TestAPIs(t *testing.T) {
+func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "AWSNodeTemplateController")
+	RunSpecs(t, "Provider/AWS")
 }
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
+	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
-
-	nodeTemplateController = nodeclass.NewNodeTemplateController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.LicenseProvider, awsEnv.HostResourceGroupProvider, awsEnv.PlacementGroupProvider)
-	nodeClassController = nodeclass.NewNodeClassController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.LicenseProvider, awsEnv.HostResourceGroupProvider, awsEnv.PlacementGroupProvider)
 })
 
 var _ = AfterSuite(func() {
+	stop()
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
 var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
+	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = settings.ToContext(ctx, test.Settings())
+	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
+		Spec: v1beta1.EC2NodeClassSpec{
+			AMIFamily: aws.String(v1beta1.AMIFamilyAL2),
+			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+				{
+					Tags: map[string]string{
+						"*": "*",
+					},
+				},
+			},
+			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+				{
+					Tags: map[string]string{
+						"*": "*",
+					},
+				},
+			},
+		},
+	})
 	awsEnv.Reset()
 })
 
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
+
+var _ = Describe("SubnetProvider", func() {
+	Context("List", func() {
+		It("should discover license by name", func() {
+			nodeClass.Spec.LicenseSelectorTerms = []v1beta1.LicenseSelectorTerm{
+				{
+					Name: "test-license",
+				},
+			}
+			licenses, err := awsEnv.LicenseProvider.Get(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			ExpectConsistsOfLicenses([]string{
+				fake.TestLicenseArn,
+			}, licenses)
+		})
+	})
+})
+
+func ExpectConsistsOfLicenses(expected, actual []string) {
+	GinkgoHelper()
+	Expect(actual).To(Equal(expected))
+}
