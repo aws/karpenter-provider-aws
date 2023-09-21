@@ -643,7 +643,7 @@ func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(ctx aws.Context, input
 	return nil
 }
 
-func (e *EC2API) DescribePlacementGroupsWithContext(ctx aws.Context, input *ec2.DescribePlacementGroupsInput, _ ...request.Option) (*ec2.DescribePlacementGroupsOutput, error) {
+func (e *EC2API) DescribePlacementGroupsWithContext(_ aws.Context, _ *ec2.DescribePlacementGroupsInput, _ ...request.Option) (*ec2.DescribePlacementGroupsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()

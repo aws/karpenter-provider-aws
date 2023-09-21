@@ -42,7 +42,7 @@ func (l *LicenseManagerAPI) ListLicenseConfigurationsWithContext(_ aws.Context, 
 		return nil, l.NextError.Get()
 	}
 	if !l.ListLicenseConfigurationsOutput.IsNil() {
-        return l.ListLicenseConfigurationsOutput.Clone(), nil
+		return l.ListLicenseConfigurationsOutput.Clone(), nil
 	}
 	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
 	return nil, errors.New("no license data provided")

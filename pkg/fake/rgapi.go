@@ -39,7 +39,7 @@ type ResourceGroupsBehaviour struct {
 
 func (r *ResourceGroupsAPI) Reset() {
 	r.NextError.Reset()
-    r.ListGroupsBehavior.Reset()
+	r.ListGroupsBehavior.Reset()
 }
 
 func (r *ResourceGroupsAPI) ListGroupsWithContext(_ aws.Context, input *resourcegroups.ListGroupsInput, _ ...request.Option) (*resourcegroups.ListGroupsOutput, error) {
