@@ -104,8 +104,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.NodeClass, 
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
 	if nodeClass.Spec.LaunchTemplateName != nil {
-		templateName := ptr.StringValue(nodeClass.Spec.LaunchTemplateName)
-		return []*LaunchTemplate{{Name: templateName, InstanceTypes: instanceTypes}}, nil
+		return []*LaunchTemplate{{Name: ptr.StringValue(nodeClass.Spec.LaunchTemplateName), InstanceTypes: instanceTypes}}, nil
 	}
 
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, additionalLabels), tags)
@@ -123,12 +122,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.NodeClass, 
 		if err != nil {
 			return nil, err
 		}
-		launchTemplate := &LaunchTemplate{
-			Name:          *ec2LaunchTemplate.LaunchTemplateName,
-			InstanceTypes: resolvedLaunchTemplate.InstanceTypes,
-			ImageID:       resolvedLaunchTemplate.AMIID,
-		}
-		launchTemplates = append(launchTemplates, launchTemplate)
+		launchTemplates = append(launchTemplates, &LaunchTemplate{Name:*ec2LaunchTemplate.LaunchTemplateName, InstanceTypes:resolvedLaunchTemplate.InstanceTypes, ImageID:resolvedLaunchTemplate.AMIID})
 	}
 	return launchTemplates, nil
 }
