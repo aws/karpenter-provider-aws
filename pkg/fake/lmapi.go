@@ -28,7 +28,7 @@ type LicenseManagerAPI struct {
 	LicenseManagerBehaviour
 }
 type LicenseManagerBehaviour struct {
-	NextError         AtomicError
+	NextError                       AtomicError
 	ListLicenseConfigurationsOutput AtomicPtr[licensemanager.ListLicenseConfigurationsOutput]
 }
 
@@ -48,4 +48,3 @@ func (l *LicenseManagerAPI) ListLicenseConfigurations(_ aws.Context, _ *licensem
 	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
 	return errors.New("no license data provided")
 }
-

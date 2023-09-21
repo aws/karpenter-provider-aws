@@ -145,10 +145,6 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}
-	placement, err := r.resolvePlacement(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
 		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
@@ -183,7 +179,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
 				Licenses:            nodeClass.Status.Licenses,
-				Placement:           placement,
+				Placement:           r.resolvePlacement(nodeClass),
 			}
 			if len(resolved.BlockDeviceMappings) == 0 {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
@@ -197,21 +193,23 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	return resolvedTemplates, nil
 }
 
-func (r Resolver) resolvePlacement(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*Placement, error) {
+func (r Resolver) resolvePlacement(nodeClass *v1beta1.EC2NodeClass) *Placement {
 	var placement *Placement
 	hrg := nodeClass.Status.HostResourceGroup
 	pg := nodeClass.Status.PlacementGroups
 
-	if pg != nil {
+	if pg != nil || hrg != nil {
+		placement = &Placement{}
 		if len(pg) > 0 {
 			placement.PlacementGroup = pg[0]
 		}
-	}
-	if hrg != nil {
-		placement.HostResourceGroup = hrg.Name
+
+		if hrg != nil {
+			placement.HostResourceGroup = hrg.Name
+		}
 	}
 
-	return placement, nil
+	return placement
 }
 
 func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {

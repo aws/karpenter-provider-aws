@@ -81,7 +81,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ec2api := &fake.EC2API{}
 	ssmapi := &fake.SSMAPI{}
 	lmapi := &fake.LicenseManagerAPI{}
-    rgapi := &fake.ResourceGroupsAPI{}
+	rgapi := &fake.ResourceGroupsAPI{}
 
 	// cache
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
@@ -103,8 +103,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	versionProvider := version.NewProvider(env.KubernetesInterface, kubernetesVersionCache)
 	amiProvider := amifamily.NewProvider(versionProvider, ssmapi, ec2api, ec2Cache)
 	licenseProvider := license.NewProvider(lmapi.LicenseManagerAPI, licenseCache)
-    hostResourceGroupProvider := hostresourcegroup.NewProvider(rgapi, hostResourceGroupsCache)
-    placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache)
+	hostResourceGroupProvider := hostresourcegroup.NewProvider(rgapi, hostResourceGroupsCache)
+	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache)
 
 	amiResolver := amifamily.New(amiProvider, licenseProvider, hostResourceGroupProvider, placementGroupProvider)
 	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)

@@ -24,8 +24,8 @@ import (
 )
 
 var (
-	TEST_LICENSE_ARN  = "arn:aws:license-manager:us-west-2:11111111111:license-configuration:lic-94ba36399bd98eaad808b0ffb1d1604b"
-	TEST_LICENSE_NAME = "test-license"
+	TestLicenseArn  = "arn:aws:license-manager:us-west-2:11111111111:license-configuration:lic-94ba36399bd98eaad808b0ffb1d1604b"
+	TestLicenseName = "test-license"
 )
 
 type ResourceGroupsAPI struct {
@@ -43,11 +43,11 @@ func (r *ResourceGroupsAPI) Reset() {
 	r.ListGroupsOutput.Reset()
 }
 
-func (r *ResourceGroupsAPI) ListGroupsWithContext(_ aws.Context, input *resourcegroups.ListGroupsInput, opts ...request.Option) (*resourcegroups.ListGroupsOutput, error) {
+func (r *ResourceGroupsAPI) ListGroupsWithContext(_ aws.Context, input *resourcegroups.ListGroupsInput, _ ...request.Option) (*resourcegroups.ListGroupsOutput, error) {
 	return r.ListGroupsBehavior.Invoke(input, func(input *resourcegroups.ListGroupsInput) (*resourcegroups.ListGroupsOutput, error) {
 		return &resourcegroups.ListGroupsOutput{
 			GroupIdentifiers: []*resourcegroups.GroupIdentifier{
-				{GroupArn: aws.String(TEST_LICENSE_ARN), GroupName: aws.String(TEST_LICENSE_NAME)},
+				{GroupArn: aws.String(TestLicenseArn), GroupName: aws.String(TestLicenseName)},
 			},
 		}, nil
 	})

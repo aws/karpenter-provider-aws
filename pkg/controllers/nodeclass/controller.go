@@ -169,8 +169,7 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	licenses, err := c.licenseProvider.Get(ctx, nodeClass)
 	if err != nil {
-        // Errors from license  provider should not interrupt the process
-		return nil
+		return err
 	}
 	nodeClass.Status.Licenses = licenses
 
@@ -181,8 +180,7 @@ func (c *Controller) resolveLicenses(ctx context.Context, nodeClass *v1beta1.EC2
 func (c *Controller) resolveHostResourceGroups(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	result, err := c.hostResourceGroupProvider.Get(ctx, nodeClass)
 	if err != nil {
-        // Errors from host resource group provider should not interrupt the process
-		return nil
+		return err
 	}
 
 	nodeClass.Status.HostResourceGroup = result
@@ -193,8 +191,7 @@ func (c *Controller) resolveHostResourceGroups(ctx context.Context, nodeClass *v
 func (c *Controller) resolvePlacementGroups(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	result, err := c.placementGroupProvider.Get(ctx, nodeClass)
 	if err != nil {
-        // Errors from placement group provider should not interrupt the process
-		return nil
+		return err
 	}
 	if result != nil {
 		nodeClass.Status.PlacementGroups = append(nodeClass.Status.PlacementGroups, *result.GroupArn)
