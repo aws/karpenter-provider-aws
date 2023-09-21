@@ -103,23 +103,10 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 }
 
 func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
-	_, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
-		Resources: aws.StringSlice([]string{id}),
-		Tags: []*ec2.Tag{
-			{
-				Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
-				Value: aws.String(settings.FromContext(ctx).ClusterName),
-			},
-			{
-				Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
-				Value: aws.String(provisionerName),
-			},
-		},
-	})
-	if err != nil {
-		if awserrors.IsNotFound(err) {
-			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("linking tags, %w", err))
-		}
+	if err := p.CreateTags(ctx, id, map[string]string{
+		v1alpha5.MachineManagedByAnnotationKey: settings.FromContext(ctx).ClusterName,
+		v1alpha5.ProvisionerNameLabelKey:       provisionerName,
+	}); err != nil {
 		return fmt.Errorf("linking tags, %w", err)
 	}
 	return nil
@@ -185,6 +172,22 @@ func (p *Provider) Delete(ctx context.Context, id string) error {
 			err = multierr.Append(err, e)
 		}
 		return fmt.Errorf("terminating instance, %w", err)
+	}
+	return nil
+}
+
+func (p *Provider) CreateTags(ctx context.Context, id string, tags map[string]string) error {
+	ec2Tags := lo.MapToSlice(tags, func(key, value string) *ec2.Tag {
+		return &ec2.Tag{Key: aws.String(key), Value: aws.String(value)}
+	})
+	if _, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
+		Resources: aws.StringSlice([]string{id}),
+		Tags:      ec2Tags,
+	}); err != nil {
+		if awserrors.IsNotFound(err) {
+			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("tagging instance, %w", err))
+		}
+		return fmt.Errorf("tagging instance, %w", err)
 	}
 	return nil
 }
@@ -259,9 +262,6 @@ func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *co
 			v1alpha5.MachineManagedByAnnotationKey:                                         settings.FromContext(ctx).ClusterName,
 		}
 	} else {
-		overridableTags = map[string]string{
-			"Name": fmt.Sprintf("%s/%s", corev1beta1.NodePoolLabelKey, nodeClaim.Labels[corev1beta1.NodePoolLabelKey]),
-		}
 		staticTags = map[string]string{
 			fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
 			corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],

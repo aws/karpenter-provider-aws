@@ -189,31 +189,6 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		})
 	})
 	Context("Tags", func() {
-		It("should tag with NodePool name", func() {
-			nodePoolName := "custom-nodepool"
-			nodePool.Name = nodePoolName
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
-
-			tags := map[string]string{
-				corev1beta1.NodePoolLabelKey: nodePoolName,
-				"Name":                       fmt.Sprintf("%s/%s", corev1beta1.NodePoolLabelKey, nodePoolName),
-			}
-			// tags should be included in instance, volume, and fleet tag specification
-			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
-			ExpectTags(createFleetInput.TagSpecifications[0].Tags, tags)
-
-			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
-			ExpectTags(createFleetInput.TagSpecifications[1].Tags, tags)
-
-			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
-			ExpectTags(createFleetInput.TagSpecifications[2].Tags, tags)
-		})
 		It("should request that tags be applied to both instances and volumes", func() {
 			nodeClass.Spec.Tags = map[string]string{
 				"tag1": "tag1value",
