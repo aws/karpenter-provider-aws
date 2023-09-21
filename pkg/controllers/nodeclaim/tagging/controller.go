@@ -66,7 +66,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeC
 		return reconcile.Result{}, nil
 	}
 
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("providerID", nodeClaim.Status.ProviderID))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", nodeClaim.Status.ProviderID))
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		// We don't throw an error here since we don't want to retry until the ProviderID has been updated.
