@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/licensemanager"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
@@ -93,12 +94,15 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-var _ = Describe("SubnetProvider", func() {
-	Context("List", func() {
+var _ = Describe("LicenseProvider", func() {
+	Context("Get", func() {
 		It("should discover license by name", func() {
+			awsEnv.LicenseManagerAPI.ListLicenseConfigurationsOutput.Set(&licensemanager.ListLicenseConfigurationsOutput{
+				LicenseConfigurations: []*licensemanager.LicenseConfiguration{{LicenseConfigurationArn: aws.String(fake.TestLicenseArn), Name: aws.String(fake.TestLicenseName)}},
+			})
 			nodeClass.Spec.LicenseSelectorTerms = []v1beta1.LicenseSelectorTerm{
 				{
-					Name: "test-license",
+					Name: fake.TestLicenseName,
 				},
 			}
 			licenses, err := awsEnv.LicenseProvider.Get(ctx, nodeClass)
@@ -106,6 +110,19 @@ var _ = Describe("SubnetProvider", func() {
 			ExpectConsistsOfLicenses([]string{
 				fake.TestLicenseArn,
 			}, licenses)
+		})
+		It("should only return matches", func() {
+			awsEnv.LicenseManagerAPI.ListLicenseConfigurationsOutput.Set(&licensemanager.ListLicenseConfigurationsOutput{
+				LicenseConfigurations: []*licensemanager.LicenseConfiguration{{LicenseConfigurationArn: aws.String(fake.TestLicenseArn), Name: aws.String(fake.TestLicenseName)}},
+			})
+			nodeClass.Spec.LicenseSelectorTerms = []v1beta1.LicenseSelectorTerm{
+				{
+					Name: "does-not-match",
+				},
+			}
+			licenses, err := awsEnv.LicenseProvider.Get(ctx, nodeClass)
+			Expect(err).To(BeNil())
+			Expect(licenses).To(BeNil())
 		})
 	})
 })

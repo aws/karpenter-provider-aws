@@ -34,16 +34,18 @@ type ResourceGroupsAPI struct {
 }
 type ResourceGroupsBehaviour struct {
 	NextError          AtomicError
-	ListGroupsOutput   AtomicPtr[resourcegroups.ListGroupsOutput]
 	ListGroupsBehavior MockedFunction[resourcegroups.ListGroupsInput, resourcegroups.ListGroupsOutput]
 }
 
 func (r *ResourceGroupsAPI) Reset() {
 	r.NextError.Reset()
-	r.ListGroupsOutput.Reset()
+    r.ListGroupsBehavior.Reset()
 }
 
 func (r *ResourceGroupsAPI) ListGroupsWithContext(_ aws.Context, input *resourcegroups.ListGroupsInput, _ ...request.Option) (*resourcegroups.ListGroupsOutput, error) {
+	if !r.NextError.IsNil() {
+		return nil, r.NextError.Get()
+	}
 	return r.ListGroupsBehavior.Invoke(input, func(input *resourcegroups.ListGroupsInput) (*resourcegroups.ListGroupsOutput, error) {
 		return &resourcegroups.ListGroupsOutput{
 			GroupIdentifiers: []*resourcegroups.GroupIdentifier{

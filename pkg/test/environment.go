@@ -102,7 +102,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	securityGroupProvider := securitygroup.NewProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewProvider(env.KubernetesInterface, kubernetesVersionCache)
 	amiProvider := amifamily.NewProvider(versionProvider, ssmapi, ec2api, ec2Cache)
-	licenseProvider := license.NewProvider(lmapi.LicenseManagerAPI, licenseCache)
+	licenseProvider := license.NewProvider(lmapi, licenseCache)
 	hostResourceGroupProvider := hostresourcegroup.NewProvider(rgapi, hostResourceGroupsCache)
 	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache)
 
@@ -132,9 +132,11 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		)
 
 	return &Environment{
-		EC2API:     ec2api,
-		SSMAPI:     ssmapi,
-		PricingAPI: fakePricingAPI,
+		EC2API:            ec2api,
+		SSMAPI:            ssmapi,
+		LicenseManagerAPI: lmapi,
+		PricingAPI:        fakePricingAPI,
+		ResourceGroupsAPI: rgapi,
 
 		EC2Cache:                  ec2Cache,
 		KubernetesVersionCache:    kubernetesVersionCache,
@@ -145,16 +147,18 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		LicenseCache:              licenseCache,
 
-		InstanceTypesProvider:  instanceTypesProvider,
-		InstanceProvider:       instanceProvider,
-		SubnetProvider:         subnetProvider,
-		SecurityGroupProvider:  securityGroupProvider,
-		PricingProvider:        pricingProvider,
-		AMIProvider:            amiProvider,
-		AMIResolver:            amiResolver,
-		VersionProvider:        versionProvider,
-		LaunchTemplateProvider: launchTemplateProvider,
-		LicenseProvider:        licenseProvider,
+		InstanceTypesProvider:     instanceTypesProvider,
+		InstanceProvider:          instanceProvider,
+		SubnetProvider:            subnetProvider,
+		SecurityGroupProvider:     securityGroupProvider,
+		PricingProvider:           pricingProvider,
+		AMIProvider:               amiProvider,
+		AMIResolver:               amiResolver,
+		VersionProvider:           versionProvider,
+		LaunchTemplateProvider:    launchTemplateProvider,
+		LicenseProvider:           licenseProvider,
+		HostResourceGroupProvider: hostResourceGroupProvider,
+		PlacementGroupProvider:    placementGroupProvider,
 	}
 }
 
@@ -162,6 +166,7 @@ func (env *Environment) Reset() {
 	env.EC2API.Reset()
 	env.SSMAPI.Reset()
 	env.LicenseManagerAPI.Reset()
+	env.ResourceGroupsAPI.Reset()
 	env.PricingAPI.Reset()
 	env.PricingProvider.Reset()
 

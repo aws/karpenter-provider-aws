@@ -37,14 +37,13 @@ func (l *LicenseManagerAPI) Reset() {
 	l.ListLicenseConfigurationsOutput.Reset()
 }
 
-func (l *LicenseManagerAPI) ListLicenseConfigurations(_ aws.Context, _ *licensemanager.ListLicenseConfigurationsInput, fn func(*licensemanager.ListLicenseConfigurationsOutput, bool) bool, _ ...request.Option) error {
+func (l *LicenseManagerAPI) ListLicenseConfigurationsWithContext(_ aws.Context, _ *licensemanager.ListLicenseConfigurationsInput, _ ...request.Option) (*licensemanager.ListLicenseConfigurationsOutput, error) {
 	if !l.NextError.IsNil() {
-		return l.NextError.Get()
+		return nil, l.NextError.Get()
 	}
 	if !l.ListLicenseConfigurationsOutput.IsNil() {
-		fn(l.ListLicenseConfigurationsOutput.Clone(), false)
-		return nil
+        return l.ListLicenseConfigurationsOutput.Clone(), nil
 	}
 	// fail if the test doesn't provide specific data which causes our pricing provider to use its static price list
-	return errors.New("no license data provided")
+	return nil, errors.New("no license data provided")
 }
