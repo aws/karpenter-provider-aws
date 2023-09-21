@@ -194,10 +194,17 @@ func (in *EC2NodeClassSpec) validateStringEnum(value, field string, validValues 
 }
 
 func (in *EC2NodeClassSpec) validateBlockDeviceMappings() (errs *apis.FieldError) {
+	numRootVolume := 0
 	for i, blockDeviceMapping := range in.BlockDeviceMappings {
 		if err := in.validateBlockDeviceMapping(blockDeviceMapping); err != nil {
 			errs = errs.Also(err.ViaFieldIndex(blockDeviceMappingsPath, i))
 		}
+		if blockDeviceMapping.RootVolume {
+			numRootVolume++
+		}
+	}
+	if numRootVolume > 1 {
+		errs = errs.Also(apis.ErrMultipleOneOf("more than 1 root volume configured"))
 	}
 	return errs
 }

@@ -586,12 +586,20 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using the blockdevicemappings from the provider spec when defined", func() {
-			nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{{
-				DeviceName: aws.String("/dev/xvda"),
-				EBS: &v1beta1.BlockDevice{
-					VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+			nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1beta1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+					},
 				},
-			}}
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					EBS: &v1beta1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+					},
+				},
+			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
@@ -618,6 +626,43 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					DeviceName: aws.String("/dev/xvdb"),
 					EBS: &v1beta1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(40, resource.Giga),
+					},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					// this pod can only be satisfied if `/dev/xvdb` will house all the pods.
+					v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
+				},
+			},
+			})
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+
+			// capacity isn't recorded on the node any longer, but we know the pod should schedule
+			ExpectScheduled(ctx, env.Client, pod)
+		})
+		It("should pack pods using the configured root volume in blockdevicemappings", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
+				{
+					DeviceName: aws.String("/dev/xvda"),
+					EBS: &v1beta1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+					},
+				},
+				{
+					DeviceName: aws.String("/dev/xvdb"),
+					EBS: &v1beta1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(40, resource.Giga),
+					},
+					RootVolume: true,
+				},
+				{
+					DeviceName: aws.String("/dev/xvdc"),
+					EBS: &v1beta1.BlockDevice{
+						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
 					},
 				},
 			}
