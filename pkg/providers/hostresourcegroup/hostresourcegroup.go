@@ -76,7 +76,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*v
 				}
 			}
 		}
-		return lastPage
+		return !lastPage
 	})
 
 	if err != nil {
