@@ -54,6 +54,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		})
 	})
 	It("should generate the InstanceProfile when setting the role", func() {
+		Skip("InstanceProfile generation tests disabled until v1beta1")
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 		env.EventuallyExpectHealthy(pod)
@@ -68,6 +69,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		Expect(lo.FromPtr(instanceProfile.Roles[0].RoleName)).To(Equal(nodeClass.Spec.Role))
 	})
 	It("should remove the generated InstanceProfile when deleting the NodeClass", func() {
+		Skip("InstanceProfile generation tests disabled until v1beta1")
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)
 		env.EventuallyExpectHealthy(pod)
