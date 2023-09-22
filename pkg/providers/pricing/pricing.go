@@ -87,9 +87,13 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	}
 	// pricing API doesn't have an endpoint in all regions
 	pricingAPIRegion := "us-east-1"
-	if strings.HasPrefix(region, "ap-") || strings.HasPrefix(region, "cn-") {
+	if strings.HasPrefix(region, "ap-") {
 		pricingAPIRegion = "ap-south-1"
-	} else if strings.HasPrefix(region, "eu-") {
+	} 
+	else if strings.HasPrefix(region, "cn-") {
+		pricingAPIRegion = "cn-north-1"
+	}
+	else if strings.HasPrefix(region, "eu-") {
 		pricingAPIRegion = "eu-central-1"
 	}
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
