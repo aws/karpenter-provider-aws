@@ -6,7 +6,13 @@ description: >
   Set up a Karpenter development environment
 ---
 
-## Dependencies
+## Developing
+
+### Setup
+
+Below describe the detailed setup process for getting your development environment ready to deploy and run the dev version of Karpenter.
+
+#### Package Dependencies
 
 The following tools are required for contributing to the Karpenter project.
 
@@ -17,9 +23,15 @@ The following tools are required for contributing to the Karpenter project.
 | [helm](https://helm.sh/docs/intro/install/)                        |          | `brew install helm`                            |
 | Other tools                                                        |          | `make toolchain`                               |
 
-## Developing
+#### Environment Variables
 
-### Setup / Teardown
+Karpenter requires certain environment variables be set to use the `Makefile`. Ensure you've set the following values.
+
+```bash
+export AWS_ACCOUNT_ID=<account-id>
+export AWS_DEFAULT_REGION=<region>
+export AWS_SDK_LOAD_CONFIG=true # allows global config to be passed through on local runs
+```
 
 #### Container Repository
 
@@ -51,16 +63,6 @@ Karpenter requires [Kubebuilder's `envtest` dependencies](https://book.kubebuild
 
 ```bash
 make toolchain # install test dependencies
-```
-
-#### Environment Variables
-
-Karpenter requires certain environment variables be set to use the `Makefile`. Ensure you've set the following values.
-
-```bash
-export AWS_ACCOUNT_ID=<account-id>
-export AWS_DEFAULT_REGION=<region>
-export AWS_SDK_LOAD_CONFIG=true # allows global config to be passed through on local runs
 ```
 
 ### Build and Deploy
