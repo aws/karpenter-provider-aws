@@ -77,6 +77,8 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 	} else {
 		instanceProfile = out.InstanceProfile
 	}
+	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
+	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 	if len(instanceProfile.Roles) == 1 {
 		if aws.StringValue(instanceProfile.Roles[0].RoleName) == nodeClass.Spec.Role {
 			return profileName, nil
@@ -106,12 +108,14 @@ func (p *Provider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 	if err != nil {
 		return awserrors.IgnoreNotFound(fmt.Errorf("getting instance profile %q, %w", profileName, err))
 	}
-	for _, role := range out.InstanceProfile.Roles {
+	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
+	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
+	if len(out.InstanceProfile.Roles) == 1 {
 		if _, err = p.iamapi.RemoveRoleFromInstanceProfileWithContext(ctx, &iam.RemoveRoleFromInstanceProfileInput{
 			InstanceProfileName: aws.String(profileName),
-			RoleName:            role.RoleName,
+			RoleName:            out.InstanceProfile.Roles[0].RoleName,
 		}); err != nil {
-			return fmt.Errorf("removing role %q from instance profile %q, %w", aws.StringValue(role.RoleName), profileName, err)
+			return fmt.Errorf("removing role %q from instance profile %q, %w", aws.StringValue(out.InstanceProfile.Roles[0].RoleName), profileName, err)
 		}
 	}
 	if _, err = p.iamapi.DeleteInstanceProfileWithContext(ctx, &iam.DeleteInstanceProfileInput{
