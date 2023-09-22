@@ -106,14 +106,12 @@ func (p *Provider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 	if err != nil {
 		return awserrors.IgnoreNotFound(fmt.Errorf("getting instance profile %q, %w", profileName, err))
 	}
-	if len(out.InstanceProfile.Roles) > 0 {
-		for _, role := range out.InstanceProfile.Roles {
-			if _, err = p.iamapi.RemoveRoleFromInstanceProfileWithContext(ctx, &iam.RemoveRoleFromInstanceProfileInput{
-				InstanceProfileName: aws.String(profileName),
-				RoleName:            role.RoleName,
-			}); err != nil {
-				return fmt.Errorf("removing role %q from instance profile %q, %w", aws.StringValue(role.RoleName), profileName, err)
-			}
+	for _, role := range out.InstanceProfile.Roles {
+		if _, err = p.iamapi.RemoveRoleFromInstanceProfileWithContext(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+			InstanceProfileName: aws.String(profileName),
+			RoleName:            role.RoleName,
+		}); err != nil {
+			return fmt.Errorf("removing role %q from instance profile %q, %w", aws.StringValue(role.RoleName), profileName, err)
 		}
 	}
 	if _, err = p.iamapi.DeleteInstanceProfileWithContext(ctx, &iam.DeleteInstanceProfileInput{

@@ -26,9 +26,11 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
 	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -102,7 +104,7 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	}
 	nodeClaimList := &corev1beta1.NodeClaimList{}
 	if err := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"spec.nodeClass.name": nodeClass.Name}); err != nil {
-		return reconcile.Result{}, fmt.Errorf("listing NodeClaims using NodeClass, %w", err)
+		return reconcile.Result{}, fmt.Errorf("listing nodeclaims that are using nodeclass, %w", err)
 	}
 	if len(nodeClaimList.Items) > 0 {
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) string { return nc.Name })))
@@ -234,6 +236,12 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 					return nil
 				}
 				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: nc.Spec.NodeClass.Name}}}
+			}),
+			// Watch for NodeClaim deletion events
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool { return false },
+				UpdateFunc: func(e event.UpdateEvent) bool { return false },
+				DeleteFunc: func(e event.DeleteEvent) bool { return true },
 			}),
 		).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
