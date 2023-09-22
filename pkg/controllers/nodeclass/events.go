@@ -24,12 +24,12 @@ import (
 	"github.com/aws/karpenter/pkg/utils"
 )
 
-func WaitingOnInstanceTerminationEvent(nodeClass *v1beta1.EC2NodeClass, profileName string, ids []string) events.Event {
+func WaitingOnNodeClaimTerminationEvent(nodeClass *v1beta1.EC2NodeClass, names []string) events.Event {
 	return events.Event{
 		InvolvedObject: nodeClass,
 		Type:           v1.EventTypeNormal,
-		Reason:         "WaitingOnInstanceTermination",
-		Message:        fmt.Sprintf("Waiting on instance termination for instances %s using profile %q", utils.PrettySlice(ids, 5), profileName),
+		Reason:         "WaitingOnNodeClaimTermination",
+		Message:        fmt.Sprintf("Waiting on NodeClaim termination for %s", utils.PrettySlice(names, 5)),
 		DedupeValues:   []string{string(nodeClass.UID)},
 	}
 }

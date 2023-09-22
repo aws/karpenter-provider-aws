@@ -52,7 +52,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...), coretest.WithFieldIndexers(test.EC2NodeClassFieldIndexer(ctx)))
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)

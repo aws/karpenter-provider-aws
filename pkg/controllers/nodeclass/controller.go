@@ -23,18 +23,22 @@ import (
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/events"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -96,20 +100,20 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
-	ids, err := c.instanceProfileProvider.AssociatedInstances(ctx, nodeClass)
-	if err != nil {
-		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
+	nodeClaimList := &corev1beta1.NodeClaimList{}
+	if err := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"spec.nodeClass.name": nodeClass.Name}); err != nil {
+		return reconcile.Result{}, fmt.Errorf("listing NodeClaims using NodeClass, %w", err)
 	}
-	if len(ids) > 0 {
-		c.recorder.Publish(WaitingOnInstanceTerminationEvent(nodeClass, instanceprofile.GetProfileName(ctx, nodeClass), ids))
-		return reconcile.Result{RequeueAfter: time.Second * 10}, nil
+	if len(nodeClaimList.Items) > 0 {
+		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) string { return nc.Name })))
+		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
-	if err = c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
+	if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
-		if err = nodeclassutil.Patch(ctx, c.kubeClient, stored, nodeClass); err != nil {
+		if err := nodeclassutil.Patch(ctx, c.kubeClient, stored, nodeClass); err != nil {
 			return reconcile.Result{}, client.IgnoreNotFound(fmt.Errorf("removing termination finalizer, %w", err))
 		}
 	}
@@ -222,6 +226,16 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 	return corecontroller.Adapt(controllerruntime.
 		NewControllerManagedBy(m).
 		For(&v1beta1.EC2NodeClass{}).
+		Watches(
+			&source.Kind{Type: &corev1beta1.NodeClaim{}},
+			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+				nc := o.(*corev1beta1.NodeClaim)
+				if nc.Spec.NodeClass == nil {
+					return nil
+				}
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: nc.Spec.NodeClass.Name}}}
+			}),
+		).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewMaxOfRateLimiter(

@@ -51,15 +51,6 @@ func MergeTags(tags ...map[string]string) []*ec2.Tag {
 	})
 }
 
-// Truncate truncates a string after a certain number of max chars to ensure
-// that the String isn't too long
-func Truncate(s string, maxChars int) string {
-	if len(s) < maxChars {
-		return s
-	}
-	return s[:maxChars]
-}
-
 // PrettySlice truncates a slice after a certain number of max items to ensure
 // that the Slice isn't too long
 func PrettySlice[T any](s []T, maxItems int) string {
