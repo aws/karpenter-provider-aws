@@ -72,6 +72,10 @@ type EC2API struct {
 	EC2Behavior
 }
 
+func NewEC2API() *EC2API {
+	return &EC2API{}
+}
+
 // DefaultSupportedUsageClasses is a var because []*string can't be a const
 var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"})
 

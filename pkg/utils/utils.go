@@ -17,6 +17,7 @@ package utils
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -48,4 +49,20 @@ func MergeTags(tags ...map[string]string) []*ec2.Tag {
 	return lo.MapToSlice(lo.Assign(tags...), func(k, v string) *ec2.Tag {
 		return &ec2.Tag{Key: aws.String(k), Value: aws.String(v)}
 	})
+}
+
+// PrettySlice truncates a slice after a certain number of max items to ensure
+// that the Slice isn't too long
+func PrettySlice[T any](s []T, maxItems int) string {
+	var sb strings.Builder
+	for i, elem := range s {
+		if i > maxItems-1 {
+			fmt.Fprintf(&sb, " and %d other(s)", len(s)-i)
+			break
+		} else if i > 0 {
+			fmt.Fprint(&sb, ", ")
+		}
+		fmt.Fprint(&sb, elem)
+	}
+	return sb.String()
 }

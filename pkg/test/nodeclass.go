@@ -15,10 +15,14 @@ limitations under the License.
 package test
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/imdario/mergo"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
@@ -35,6 +39,7 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 	}
 	if options.Spec.Role == "" {
 		options.Spec.Role = "test-role"
+		options.Status.InstanceProfile = "test-profile"
 	}
 	if len(options.Spec.SecurityGroupSelectorTerms) == 0 {
 		options.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
@@ -57,5 +62,18 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 	return &v1beta1.EC2NodeClass{
 		ObjectMeta: test.ObjectMeta(options.ObjectMeta),
 		Spec:       options.Spec,
+		Status:     options.Status,
+	}
+}
+
+func EC2NodeClassFieldIndexer(ctx context.Context) func(cache.Cache) error {
+	return func(c cache.Cache) error {
+		return c.IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClass.name", func(obj client.Object) []string {
+			nc := obj.(*corev1beta1.NodeClaim)
+			if nc.Spec.NodeClass == nil {
+				return []string{""}
+			}
+			return []string{nc.Spec.NodeClass.Name}
+		})
 	}
 }

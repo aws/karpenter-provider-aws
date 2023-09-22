@@ -94,6 +94,13 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			Expect(*launchTemplate.LaunchTemplateSpecification.Version).To(Equal("$Latest"))
 		})
 	})
+	It("should fail to provision if the instance profile isn't defined", func() {
+		nodeClass.Status.InstanceProfile = ""
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod()
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
 	Context("Cache", func() {
 		It("should use same launch template for equivalent constraints", func() {
 			t1 := v1.Toleration{
@@ -954,14 +961,6 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
-		})
-		It("should specify dockerd if specified in the provisionerSpec", func() {
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime dockerd")
 		})
 		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
 			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1beta1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
