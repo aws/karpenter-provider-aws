@@ -122,7 +122,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 		if err != nil {
 			return nil, err
 		}
-		launchTemplates = append(launchTemplates, &LaunchTemplate{Name:*ec2LaunchTemplate.LaunchTemplateName, InstanceTypes:resolvedLaunchTemplate.InstanceTypes, ImageID:resolvedLaunchTemplate.AMIID})
+		launchTemplates = append(launchTemplates, &LaunchTemplate{Name: *ec2LaunchTemplate.LaunchTemplateName, InstanceTypes: resolvedLaunchTemplate.InstanceTypes, ImageID: resolvedLaunchTemplate.AMIID})
 	}
 	return launchTemplates, nil
 }
