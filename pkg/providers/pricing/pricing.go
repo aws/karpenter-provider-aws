@@ -90,7 +90,7 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	if strings.HasPrefix(region, "ap-") {
 		pricingAPIRegion = "ap-south-1"
 	} else if strings.HasPrefix(region, "cn-") {
-		pricingAPIRegion = "cn-north-1"
+		pricingAPIRegion = "cn-northwest-1"
 	} else if strings.HasPrefix(region, "eu-") {
 		pricingAPIRegion = "eu-central-1"
 	}
