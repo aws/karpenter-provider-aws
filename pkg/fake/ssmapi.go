@@ -34,6 +34,10 @@ type SSMAPI struct {
 	WantErr            error
 }
 
+func NewSSMAPI() *SSMAPI {
+	return &SSMAPI{}
+}
+
 func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParameterInput, _ ...request.Option) (*ssm.GetParameterOutput, error) {
 	if a.WantErr != nil {
 		return nil, a.WantErr

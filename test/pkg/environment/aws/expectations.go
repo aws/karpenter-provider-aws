@@ -111,6 +111,16 @@ func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
 	Expect(err).ToNot(HaveOccurred())
 }
 
+func (env *Environment) ExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
+	GinkgoHelper()
+	out, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
+		InstanceProfileName: aws.String(profileName),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(out.InstanceProfile).ToNot(BeNil())
+	return lo.FromPtr(out.InstanceProfile)
+}
+
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 	node := env.Environment.GetNode(nodeName)
 	return env.GetInstanceByIDWithOffset(1, env.ExpectParsedProviderID(node.Spec.ProviderID))

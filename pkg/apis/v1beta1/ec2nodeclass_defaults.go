@@ -19,4 +19,4 @@ import (
 )
 
 // SetDefaults for the EC2NodeClass
-func (a *EC2NodeClass) SetDefaults(_ context.Context) {}
+func (in *EC2NodeClass) SetDefaults(_ context.Context) {}

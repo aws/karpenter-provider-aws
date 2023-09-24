@@ -97,7 +97,8 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 		if errors.IsNotFound(err) {
 			c.recorder.Publish(cloudproviderevents.NodeClaimFailedToResolveNodeClass(nodeClaim))
 		}
-		return nil, fmt.Errorf("resolving node class, %w", err)
+		// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
+		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
 	}
 	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
 	if err != nil {
@@ -241,6 +242,10 @@ func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeC
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClass.Name}, nodeClass); err != nil {
 		return nil, err
 	}
+	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound
+	if !nodeClass.DeletionTimestamp.IsZero() {
+		return nil, errors.NewNotFound(v1beta1.SchemeGroupVersion.WithResource("ec2nodeclasses").GroupResource(), nodeClass.Name)
+	}
 	return nodeClass, nil
 }
 
@@ -260,6 +265,10 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 	nodeClass := &v1beta1.EC2NodeClass{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClass.Name}, nodeClass); err != nil {
 		return nil, err
+	}
+	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound
+	if !nodeClass.DeletionTimestamp.IsZero() {
+		return nil, errors.NewNotFound(v1beta1.SchemeGroupVersion.WithResource("ec2nodeclasses").GroupResource(), nodeClass.Name)
 	}
 	return nodeClass, nil
 }
