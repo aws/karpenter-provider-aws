@@ -345,6 +345,7 @@ var (
 		"m5ad.12xlarge":     10000,
 		"m5d.8xlarge":       10000,
 		"m5zn.2xlarge":      10000,
+		"mac2-m2pro.metal":  10000,
 		"mac2.metal":        10000,
 		"p2.8xlarge":        10000,
 		"p3.8xlarge":        10000,
