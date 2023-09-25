@@ -23,7 +23,7 @@ There is a lot more to Green Software. If you want to learn more, I recommend yo
 
 ### Feature Gate
 
-The feature is proposed to be controlled using a [feature gate](https://github.com/aws/karpenter/blob/main/website/content/en/docs/concepts/settings.md#feature-gates).
+The feature is proposed to be controlled using a [feature gate](https://karpenter.sh/docs/concepts/settings/#feature-gates).
 
 | **Feature**  | **Default** |         **Config Key**          | **Stage** |    **Since**    | **Until** |
 | :----------: | :---------: | :-----------------------------: | :-------: | :-------------: | :-------: |
