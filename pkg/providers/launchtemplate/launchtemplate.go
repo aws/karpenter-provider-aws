@@ -102,44 +102,8 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 	return l
 }
 
-func (p *Provider) lookupLaunchTemplateData(ctx context.Context, launchTemplateName string) (*ec2.ResponseLaunchTemplateData, error) {
-	var launchTemplateData *ec2.ResponseLaunchTemplateData
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-data", launchTemplateName))
-	// ensure the cache key used for launch template data differs from the launch template (name) key
-	cacheKey := launchTemplateName + "-data"
-
-	// Read from cache
-	if launchTemplateData, ok := p.cache.Get(cacheKey); ok {
-		p.cache.SetDefault(cacheKey, launchTemplateData)
-		return launchTemplateData.(*ec2.ResponseLaunchTemplateData), nil
-	}
-	// Attempt to find the latest version of the template
-	output, err := p.ec2api.DescribeLaunchTemplateVersionsWithContext(ctx, &ec2.DescribeLaunchTemplateVersionsInput{
-		LaunchTemplateName: aws.String(launchTemplateName),
-		Versions:           aws.StringSlice([]string{"$Latest"}),
-	})
-
-	if awserrors.IsNotFound(err) {
-		return nil, fmt.Errorf("expected to retrieve one launch template version, but none exist")
-	} else if err != nil {
-		return nil, fmt.Errorf("saw error when retrieving launch template version: %w", err)
-	} else if len(output.LaunchTemplateVersions) != 1 {
-		return nil, fmt.Errorf("expected to find one launch template version, but found %d", len(output.LaunchTemplateVersions))
-	} else {
-		if output.LaunchTemplateVersions[0].LaunchTemplateData == nil {
-			return nil, fmt.Errorf("latest launch template version did not contain data")
-		}
-		if p.cm.HasChanged("launchtemplate-"+cacheKey, output.LaunchTemplateVersions[0].LaunchTemplateData) {
-			logging.FromContext(ctx).Debugf("discovered new launch template data for template %s", launchTemplateName)
-		}
-		launchTemplateData = output.LaunchTemplateVersions[0].LaunchTemplateData
-	}
-	p.cache.SetDefault(cacheKey, launchTemplateData)
-	return launchTemplateData, nil
-}
-
 func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim,
-	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string, tags map[string]string) (map[string][]*cloudprovider.InstanceType, map[string]string, error) {
+	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string, tags map[string]string) ([]*LaunchTemplate, error) {
 
 	p.Lock()
 	defer p.Unlock()
@@ -156,7 +120,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 	if err != nil {
 		return nil, err
 	}
-	var launchTemplates []*LaunchTemplate{}
+	var launchTemplates []*LaunchTemplate
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
 		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
