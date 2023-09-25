@@ -27,7 +27,7 @@ The feature is proposed to be controlled using a [feature gate](https://karpente
 
 | **Feature**  | **Default** |         **Config Key**          | **Stage** |    **Since**    | **Until** |
 | :----------: | :---------: | :-----------------------------: | :-------: | :-------------: | :-------: |
-| Carbon Aware |    false    | featureGates.carbonAwareEnabled |   Alpha   | v0.31.0/v0.32.0 |           |
+| CarbonAware |    false    | featureGates.carbonAwareEnabled |   Alpha   | v0.31.0/v0.32.0 |           |
 
 ### Carbon emissions data source
 To be determined.
