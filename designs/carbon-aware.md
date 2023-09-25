@@ -120,6 +120,20 @@ Disadvanteges:
 - Has a risk of breaking undocumented invariants
 - Adds complexity to the original consolidation methods
 
+#### Solution 3
+
+Set a price per tonne (or kg) of CO₂e.
+
+Maybe have a config option for this, defaulting to $0. A good starting value for taking environmental impact into account is $0.25 / kg. (source missing)
+
+Adjust the price algorithm to account for the pollution cost supplement.
+
+Additionally, if actual cost is no issue, we could weight them:
+- 100% weighting to the inferred pollution cost
+- 0% weighting to the billed cost from AWS
+
+Also applies to provisioning.
+
 ### Changes to Provisioning
 
 Currently, provisioning (roughly) filter instances based on requirements, sort instances by price, and launch the cheapest instance. We want to change this when Carbon Aware is enabled. It should sort instances by carbon emissions and launch the instance which has the lowest Global Warming Potential[^1].
