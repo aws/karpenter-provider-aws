@@ -106,7 +106,7 @@ var (
 
 	LabelNodeClass = Group + "/nodeclass"
 
-	LabelInstanceAMIID                   	  = Group + "/instance-ami-id"
+	LabelInstanceAMIID                        = Group + "/instance-ami-id"
 	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = Group + "/instance-category"

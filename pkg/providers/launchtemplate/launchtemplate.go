@@ -120,7 +120,7 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 	if err != nil {
 		return nil, err
 	}
-	var launchTemplates []*LaunchTemplate{}
+	var launchTemplates []*LaunchTemplate
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
 		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
