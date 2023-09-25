@@ -38,6 +38,17 @@ I don't know which one should be used yet. I am currently reviewing and comparin
 
 I assume that we only want to use "static" data so we don't have to go out and make requests over the Internet to get real time data, since that would be expensive for performance.
 
+#### Limitations
+For both options above, there is a discrepancy between the available instances known to Karpenter and instances know to the carbon emissions data source. This means that as it is right now, it is not possible to get carbon emissions data for all instances types. This is mostly the case for new instance types such as m7g. Unfurtunately this seems to extend to around 300 out of 700 instance types. See full comparison in [this Gist](https://gist.github.com/JacobValdemar/e1342013c0f5c980126f6a1feb66b4a1).
+
+I will attempt to eleminate this discrepancy, but it might not be possible. It will probably not always be possible to have an updated list of estimated carbon emissions for all instances as AWS continue to release new instance types. We should consider what to do with instance types that we do not have carbon emission estimates for.
+
+Approaches to handle this:
+1. Estimate extremely high emissions to effectively filter out instance types
+2. Estimate zero emissions
+
+I recommend option 1, as option 2 could potentially make the cluster even worse, environmentally.
+
 ### Changes to consolidation (karpenter-core)
 
 Single Machine Consolidation (`singlemachineconsolidation.go`) and Multi Machine Consolidation (`multimachineconsolidation.go`) as well as `consolidation.go` is currently consolidating nodes to reduce costs. We want to change this when Carbon Aware is enabled. They should consolidate to minimize carbon emissions. 
