@@ -42,7 +42,7 @@ I assume that we only want to use "static" data so we don't have to go out and m
 
 Single Machine Consolidation (`singlemachineconsolidation.go`) and Multi Machine Consolidation (`multimachineconsolidation.go`) as well as `consolidation.go` is currently consolidating nodes to reduce costs. We want to change this when Carbon Aware is enabled. They should consolidate to minimize carbon emissions. 
 
-I have identified two potential solutions.
+I have identified three potential solutions.
 
 Recommendation: solution 1.
 
