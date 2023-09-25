@@ -130,4 +130,4 @@ In karpenter-core, create a new method `types.go/OrderByCarbonEmissions` and use
 
 In karpenter, create a new method `CarbonAwareCreate` in `pkg/providers/instance/instance.go` that is used in `pkg/cloudprovider/cloudprovider.go/Create` when Carbon Aware is enabled.
 
-[^1]: The potential impact of greenhouse gases on global warming. Measured in terms of CO2e.
+[^1]: The potential impact of greenhouse gases on global warming. Measured in terms of CO₂e.
