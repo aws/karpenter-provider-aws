@@ -58,7 +58,9 @@ jobs:
   e2e-upgrade:
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      from_git_ref: v0.29.1
+      # This version matches the steps of the newest version of the create-cluster action
+      # which will prevent post-run of the create-cluster action not to fail
+      from_git_ref: dc0e340759a6a42f042405cf03347b6f3c328dd6
       to_git_ref: ${{ inputs.git_ref }}
       event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
