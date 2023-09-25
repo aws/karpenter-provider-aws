@@ -57,7 +57,7 @@ jobs:
       - if: always() && inputs.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/start
         with:
-          name: "${{ github.workflow }} / e2e (Upgrade) / ${{ github.job }} (snapshot)"
+          name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
           git_ref: ${{ inputs.to_git_ref }}
       - uses: ./.github/actions/install-deps
       - uses: actions/checkout@v4
@@ -172,5 +172,5 @@ jobs:
       - if: always() && inputs.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
-          name: "${{ github.workflow }} / e2e (Upgrade) / ${{ github.job }} (snapshot)"
+          name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
           git_ref: ${{ inputs.to_git_ref }}
