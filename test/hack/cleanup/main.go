@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -24,6 +25,7 @@ import (
 	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
+
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
 	timestreamtypes "github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
@@ -40,6 +42,7 @@ const (
 	karpenterMetricDatabase  = "karpenterTesting"
 	karpenterMetricTableName = "sweeperCleanedResources"
 
+	karpenterClusterNameTag     = "karpenter.sh/managed-by"
 	karpenterProvisionerNameTag = "karpenter.sh/provisioner-name"
 	karpenterNodePoolTag        = "karpenter.sh/nodepool"
 	karpenterLaunchTemplateTag  = "karpenter.k8s.aws/cluster"
@@ -53,7 +56,8 @@ const (
 
 type CleanableResourceType interface {
 	Type() string
-	Get(context.Context, time.Time) ([]string, error)
+	GetExpired(context.Context, time.Time) ([]string, error)
+	Get(context.Context, string) ([]string, error)
 	Cleanup(context.Context, []string) ([]string, error)
 }
 
@@ -62,6 +66,10 @@ type MetricsClient interface {
 }
 
 func main() {
+	var clusterName string
+	if len(os.Args) == 2 {
+		clusterName = os.Args[1]
+	}
 	ctx := context.Background()
 	cfg := lo.Must(config.LoadDefaultConfig(ctx))
 
@@ -79,15 +87,22 @@ func main() {
 
 	resources := []CleanableResourceType{
 		&eni{ec2Client: ec2Client},
-		&instance{ec2Client: ec2Client},
 		&securitygroup{ec2Client: ec2Client},
+		&instance{ec2Client: ec2Client},
 		&stack{cloudFormationClient: cloudFormationClient},
 		&launchtemplate{ec2Client: ec2Client},
 		&oidc{iamClient: iamClient},
 		&instanceProfile{iamClient: iamClient},
 	}
+
 	workqueue.ParallelizeUntil(ctx, len(resources), len(resources), func(i int) {
-		ids, err := resources[i].Get(ctx, expirationTime)
+		var ids []string
+		var err error
+		if clusterName == "" {
+			ids, err = resources[i].GetExpired(ctx, expirationTime)
+		} else {
+			ids, err = resources[i].Get(ctx, clusterName)
+		}
 		if err != nil {
 			logger.With("type", resources[i].Type()).Errorf("%v", err)
 		}
@@ -113,7 +128,7 @@ func (i *instance) Type() string {
 	return "Instances"
 }
 
-func (i *instance) Get(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+func (i *instance) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
@@ -135,11 +150,44 @@ func (i *instance) Get(ctx context.Context, expirationTime time.Time) (ids []str
 
 		for _, res := range out.Reservations {
 			for _, instance := range res.Instances {
-				if _, found := lo.Find(instance.Tags, func(t ec2types.Tag) bool {
-					return lo.FromPtr(t.Key) == "kubernetes.io/cluster/KITInfrastructure"
-				}); !found && lo.FromPtr(instance.LaunchTime).Before(expirationTime) {
+				if lo.FromPtr(instance.LaunchTime).Before(expirationTime) {
 					ids = append(ids, lo.FromPtr(instance.InstanceId))
 				}
+			}
+		}
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return ids, err
+}
+
+func (i *instance) Get(ctx context.Context, clusterName string) (ids []string, err error) {
+	var nextToken *string
+
+	for {
+		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   lo.ToPtr("instance-state-name"),
+					Values: []string{string(ec2types.InstanceStateNameRunning)},
+				},
+				{
+					Name:   lo.ToPtr("tag:" + karpenterClusterNameTag),
+					Values: []string{clusterName},
+				},
+			},
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return ids, err
+		}
+
+		for _, res := range out.Reservations {
+			for _, instance := range res.Instances {
+				ids = append(ids, lo.FromPtr(instance.InstanceId))
 			}
 		}
 
@@ -170,7 +218,7 @@ func (sg *securitygroup) Type() string {
 	return "SecurityGroup"
 }
 
-func (sg *securitygroup) Get(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+func (sg *securitygroup) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := sg.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
@@ -210,6 +258,35 @@ func (sg *securitygroup) Get(ctx context.Context, expirationTime time.Time) (ids
 	return ids, err
 }
 
+func (sg *securitygroup) Get(ctx context.Context, clusterName string) (ids []string, err error) {
+	var nextToken *string
+
+	for {
+		out, err := sg.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   lo.ToPtr("tag:" + karpenterSecurityGroupTag),
+					Values: []string{clusterName},
+				},
+			},
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return ids, err
+		}
+
+		for _, sgroup := range out.SecurityGroups {
+			ids = append(ids, lo.FromPtr(sgroup.GroupId))
+		}
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return ids, err
+}
+
 func (sg *securitygroup) Cleanup(ctx context.Context, ids []string) ([]string, error) {
 	deleted := []string{}
 	var errs error
@@ -235,7 +312,7 @@ func (s *stack) Type() string {
 	return "CloudformationStacks"
 }
 
-func (s *stack) Get(ctx context.Context, expirationTime time.Time) (names []string, err error) {
+func (s *stack) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	var nextToken *string
 	for {
 		out, err := s.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
@@ -265,6 +342,10 @@ func (s *stack) Get(ctx context.Context, expirationTime time.Time) (names []stri
 	return names, err
 }
 
+func (s *stack) Get(ctx context.Context, clusterName string) (names []string, err error) {
+	return []string{fmt.Sprintf("iam-%s", clusterName), fmt.Sprintf("eksctl-%s-cluster", clusterName)}, nil
+}
+
 // Terminate any old stacks that were provisioned as part of testing
 // We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 func (s *stack) Cleanup(ctx context.Context, names []string) ([]string, error) {
@@ -291,7 +372,7 @@ func (lt *launchtemplate) Type() string {
 	return "LaunchTemplates"
 }
 
-func (lt *launchtemplate) Get(ctx context.Context, expirationTime time.Time) (names []string, err error) {
+func (lt *launchtemplate) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	var nextToken *string
 	for {
 		out, err := lt.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
@@ -311,6 +392,34 @@ func (lt *launchtemplate) Get(ctx context.Context, expirationTime time.Time) (na
 			if lo.FromPtr(launchTemplate.CreateTime).Before(expirationTime) {
 				names = append(names, lo.FromPtr(launchTemplate.LaunchTemplateName))
 			}
+		}
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return names, err
+}
+
+func (lt *launchtemplate) Get(ctx context.Context, clusterName string) (names []string, err error) {
+	var nextToken *string
+	for {
+		out, err := lt.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   lo.ToPtr("tag:" + karpenterLaunchTemplateTag),
+					Values: []string{clusterName},
+				},
+			},
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return names, err
+		}
+
+		for _, launchTemplate := range out.LaunchTemplates {
+			names = append(names, lo.FromPtr(launchTemplate.LaunchTemplateName))
 		}
 
 		nextToken = out.NextToken
@@ -347,7 +456,7 @@ func (o *oidc) Type() string {
 	return "OpenIDConnectProvider"
 }
 
-func (o *oidc) Get(ctx context.Context, expirationTime time.Time) (names []string, err error) {
+func (o *oidc) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	out, err := o.iamClient.ListOpenIDConnectProviders(ctx, &iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
 		return names, err
@@ -371,6 +480,10 @@ func (o *oidc) Get(ctx context.Context, expirationTime time.Time) (names []strin
 	}
 
 	return names, multierr.Combine(errs...)
+}
+
+func (o *oidc) Get(ctx context.Context, clusterName string) (names []string, err error) {
+	return names, err
 }
 
 // Cleanup any old OIDC providers that were are remaining as part of testing
@@ -399,7 +512,7 @@ func (ip *instanceProfile) Type() string {
 	return "InstanceProfile"
 }
 
-func (ip *instanceProfile) Get(ctx context.Context, expirationTime time.Time) (names []string, err error) {
+func (ip *instanceProfile) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	out, err := ip.iamClient.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{})
 	if err != nil {
 		return names, err
@@ -420,6 +533,32 @@ func (ip *instanceProfile) Get(ctx context.Context, expirationTime time.Time) (n
 			// we add a day to the time that it was created to account for the worst-case of the instance profile being created
 			// at 23:59:59 and being marked with a time of 00:00:00 due to only capturing the date and not the time
 			if lo.FromPtr(t.Key) == karpenterTestingTag && out.InstanceProfiles[i].CreateDate.Add(time.Hour*24).Before(expirationTime) {
+				names = append(names, lo.FromPtr(out.InstanceProfiles[i].InstanceProfileName))
+			}
+		}
+	}
+
+	return names, multierr.Combine(errs...)
+}
+
+func (ip *instanceProfile) Get(ctx context.Context, clusterName string) (names []string, err error) {
+	out, err := ip.iamClient.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{})
+	if err != nil {
+		return names, err
+	}
+
+	errs := make([]error, len(out.InstanceProfiles))
+	for i := range out.InstanceProfiles {
+		profiles, err := ip.iamClient.ListInstanceProfileTags(ctx, &iam.ListInstanceProfileTagsInput{
+			InstanceProfileName: out.InstanceProfiles[i].InstanceProfileName,
+		})
+		if err != nil {
+			errs[i] = err
+			continue
+		}
+
+		for _, t := range profiles.Tags {
+			if lo.FromPtr(t.Key) == karpenterTestingTag && lo.FromPtr(t.Value) == clusterName {
 				names = append(names, lo.FromPtr(out.InstanceProfiles[i].InstanceProfileName))
 			}
 		}
@@ -457,7 +596,7 @@ func (e *eni) Type() string {
 	return "ElasticNetworkInterface"
 }
 
-func (e *eni) Get(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+func (e *eni) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
@@ -487,6 +626,34 @@ func (e *eni) Get(ctx context.Context, expirationTime time.Time) (ids []string, 
 			if ni.Status == ec2types.NetworkInterfaceStatusAvailable && time.Before(expirationTime) {
 				ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
 			}
+		}
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return ids, err
+}
+
+func (e *eni) Get(ctx context.Context, clusterName string) (ids []string, err error) {
+	var nextToken *string
+	for {
+		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name:   lo.ToPtr("tag:" + k8sClusterTag),
+					Values: []string{clusterName},
+				},
+			},
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return ids, err
+		}
+
+		for _, ni := range out.NetworkInterfaces {
+			ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
 		}
 
 		nextToken = out.NextToken
