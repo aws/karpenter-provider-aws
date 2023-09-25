@@ -14,7 +14,7 @@ I'll try to keep it simple. The reader should be familiar with the following.
 
 A cluster's emissions is made of two elements: embodied emissions and operational emissions. To get the total emissions, one can add them togeather.
 
-- **Embodied carbon emissions**: Manufacturing emissions (CO2e) amortized over instance lifetime (usually 4 years) divided by how long we use the instance
+- **Embodied carbon emissions**: Manufacturing emissions (CO₂e) amortized over instance lifetime (usually 4 years) divided by how long we use the instance
 - **Operational carbon emissions**: Carbon emitted by electricity grid to produce electricity for the instance in the region where it is used, multiplied by PUE
 
 There is a lot more to Green Software. If you want to learn more, I recommend you to visit [Green Software Practitioner](https://learn.greensoftware.foundation/) (a Green Software Foundation project - an affiliate of the Linux Foundation).
