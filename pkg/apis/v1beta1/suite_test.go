@@ -25,6 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/apis"
 	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -535,7 +536,7 @@ var _ = Describe("Validation", func() {
 			Expect(nodeClass.Hash()).To(Equal(otherNodeClass.Hash()))
 		})
 	})
-	Context("EC2NodeClass BlockDeviceMapping", func() {
+	Context("BlockDeviceMappings", func() {
 		It("should fail if more than one root volume is specified", func() {
 			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
@@ -560,6 +561,16 @@ var _ = Describe("Validation", func() {
 				},
 			})
 			Expect(nodeClass.Validate(ctx)).To(Not(Succeed()))
+		})
+	})
+	Context("Role Immutability", func() {
+		It("should fail when updating the role", func() {
+			nc.Spec.Role = "test-role"
+			Expect(nc.Validate(ctx)).To(Succeed())
+
+			updateCtx := apis.WithinUpdate(ctx, nc.DeepCopy())
+			nc.Spec.Role = "test-role2"
+			Expect(nc.Validate(updateCtx)).ToNot(Succeed())
 		})
 	})
 })

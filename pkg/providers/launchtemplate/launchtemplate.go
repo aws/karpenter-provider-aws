@@ -40,6 +40,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
@@ -55,28 +56,32 @@ const (
 
 type Provider struct {
 	sync.Mutex
-	ec2api                ec2iface.EC2API
-	amiFamily             *amifamily.Resolver
-	securityGroupProvider *securitygroup.Provider
-	subnetProvider        *subnet.Provider
-	cache                 *cache.Cache
-	caBundle              *string
-	cm                    *pretty.ChangeMonitor
-	KubeDNSIP             net.IP
-	ClusterEndpoint       string
+	ec2api                  ec2iface.EC2API
+	amiFamily               *amifamily.Resolver
+	securityGroupProvider   *securitygroup.Provider
+	subnetProvider          *subnet.Provider
+	instanceProfileProvider *instanceprofile.Provider
+	cache                   *cache.Cache
+	caBundle                *string
+	cm                      *pretty.ChangeMonitor
+	KubeDNSIP               net.IP
+	ClusterEndpoint         string
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver,
+	securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, instanceProfileProvider *instanceprofile.Provider,
+	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
-		ec2api:                ec2api,
-		amiFamily:             amiFamily,
-		securityGroupProvider: securityGroupProvider,
-		subnetProvider:        subnetProvider,
-		cache:                 cache,
-		caBundle:              caBundle,
-		cm:                    pretty.NewChangeMonitor(),
-		KubeDNSIP:             kubeDNSIP,
-		ClusterEndpoint:       clusterEndpoint,
+		ec2api:                  ec2api,
+		amiFamily:               amiFamily,
+		securityGroupProvider:   securityGroupProvider,
+		subnetProvider:          subnetProvider,
+		instanceProfileProvider: instanceProfileProvider,
+		cache:                   cache,
+		caBundle:                caBundle,
+		cm:                      pretty.NewChangeMonitor(),
+		KubeDNSIP:               kubeDNSIP,
+		ClusterEndpoint:         clusterEndpoint,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -354,6 +359,12 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
 	if nodeClass.Spec.InstanceProfile != nil {
 		return aws.StringValue(nodeClass.Spec.InstanceProfile), nil
+	}
+	if nodeClass.Spec.Role != "" {
+		if nodeClass.Status.InstanceProfile == "" {
+			return "", cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("instance profile hasn't resolved for role"))
+		}
+		return nodeClass.Status.InstanceProfile, nil
 	}
 	defaultProfile := settings.FromContext(ctx).DefaultInstanceProfile
 	if defaultProfile == "" {

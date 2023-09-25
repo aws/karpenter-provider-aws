@@ -99,7 +99,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		nodeSelector := map[string]string{
 			// Well known
 			corev1beta1.NodePoolLabelKey:     nodePool.Name,
-			v1.LabelTopologyRegion:           "",
+			v1.LabelTopologyRegion:           fake.DefaultRegion,
 			v1.LabelTopologyZone:             "test-zone-1a",
 			v1.LabelInstanceTypeStable:       "g4dn.8xlarge",
 			v1.LabelOSStable:                 "linux",
@@ -125,7 +125,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1beta1.LabelInstanceAcceleratorCount:             "1",
 			// Deprecated Labels
-			v1.LabelFailureDomainBetaRegion: "",
+			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
 			"beta.kubernetes.io/arch":       "amd64",
 			"beta.kubernetes.io/os":         "linux",
@@ -152,7 +152,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		nodeSelector := map[string]string{
 			// Well known
 			corev1beta1.NodePoolLabelKey:     nodePool.Name,
-			v1.LabelTopologyRegion:           "",
+			v1.LabelTopologyRegion:           fake.DefaultRegion,
 			v1.LabelTopologyZone:             "test-zone-1a",
 			v1.LabelInstanceTypeStable:       "g4dn.8xlarge",
 			v1.LabelOSStable:                 "linux",
@@ -175,7 +175,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			v1beta1.LabelInstanceGPUMemory:                    "16384",
 			v1beta1.LabelInstanceLocalNVME:                    "900",
 			// Deprecated Labels
-			v1.LabelFailureDomainBetaRegion: "",
+			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
 			"beta.kubernetes.io/arch":       "amd64",
 			"beta.kubernetes.io/os":         "linux",
@@ -203,7 +203,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		nodeSelector := map[string]string{
 			// Well known
 			corev1beta1.NodePoolLabelKey:     nodePool.Name,
-			v1.LabelTopologyRegion:           "",
+			v1.LabelTopologyRegion:           fake.DefaultRegion,
 			v1.LabelTopologyZone:             "test-zone-1a",
 			v1.LabelInstanceTypeStable:       "inf1.2xlarge",
 			v1.LabelOSStable:                 "linux",
@@ -224,7 +224,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1beta1.LabelInstanceAcceleratorCount:             "1",
 			// Deprecated Labels
-			v1.LabelFailureDomainBetaRegion: "",
+			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
 			"beta.kubernetes.io/arch":       "amd64",
 			"beta.kubernetes.io/os":         "linux",
@@ -588,7 +588,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 		}
 	})
@@ -596,7 +596,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 		for _, info := range instanceInfo {
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
@@ -608,7 +608,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			EnableENILimitedPodDensity: lo.ToPtr(true),
 		}))
 		for _, info := range instanceInfo {
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", windowsNodeClass, nil)
+			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, windowsNodeClass, nil)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 		}
 	})
@@ -667,7 +667,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		})
 		Context("System Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
-				it := instancetype.NewInstanceType(ctx, info, &corev1beta1.KubeletConfiguration{}, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, &corev1beta1.KubeletConfiguration{}, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("0"))
 				Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("0"))
 				Expect(it.Overhead.SystemReserved.StorageEphemeral().String()).To(Equal("0"))
@@ -680,7 +680,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 						v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 					},
 				}
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.SystemReserved.Cpu().String()).To(Equal("2"))
 				Expect(it.Overhead.SystemReserved.Memory().String()).To(Equal("20Gi"))
 				Expect(it.Overhead.SystemReserved.StorageEphemeral().String()).To(Equal("10Gi"))
@@ -688,7 +688,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		})
 		Context("Kube Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
-				it := instancetype.NewInstanceType(ctx, info, &corev1beta1.KubeletConfiguration{}, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, &corev1beta1.KubeletConfiguration{}, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("80m"))
 				Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("893Mi"))
 				Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("1Gi"))
@@ -705,7 +705,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 						v1.ResourceMemory:           resource.MustParse("10Gi"),
 						v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
 					},
-				}, "", nodeClass, nil)
+				}, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("2"))
 				Expect(it.Overhead.KubeReserved.Memory().String()).To(Equal("10Gi"))
 				Expect(it.Overhead.KubeReserved.StorageEphemeral().String()).To(Equal("2Gi"))
@@ -730,7 +730,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 							instancetype.MemoryAvailable: "500Mi",
 						},
 					}
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 				})
 				It("should override eviction threshold when specified as a percentage value", func() {
@@ -745,7 +745,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 							instancetype.MemoryAvailable: "10%",
 						},
 					}
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 				})
 				It("should consider the eviction threshold disabled when specified as 100%", func() {
@@ -760,7 +760,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 							instancetype.MemoryAvailable: "100%",
 						},
 					}
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
 				})
 				It("should used default eviction threshold for memory when evictionHard not specified", func() {
@@ -775,7 +775,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 							instancetype.MemoryAvailable: "50Mi",
 						},
 					}
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("50Mi"))
 				})
 			})
@@ -792,7 +792,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 							instancetype.MemoryAvailable: "500Mi",
 						},
 					}
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("500Mi"))
 				})
 				It("should override eviction threshold when specified as a percentage value", func() {
@@ -810,7 +810,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 							instancetype.MemoryAvailable: "10%",
 						},
 					}
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 				})
 				It("should consider the eviction threshold disabled when specified as 100%", func() {
@@ -825,7 +825,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 							instancetype.MemoryAvailable: "100%",
 						},
 					}
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("0"))
 				})
 				It("should ignore eviction threshold when using Bottlerocket AMI", func() {
@@ -844,12 +844,12 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 							instancetype.MemoryAvailable: "10Gi",
 						},
 					}
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("1Gi"))
 				})
 			})
 			It("should take the default eviction threshold when none is specified", func() {
-				it := instancetype.NewInstanceType(ctx, info, &corev1beta1.KubeletConfiguration{}, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, &corev1beta1.KubeletConfiguration{}, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.EvictionThreshold.Cpu().String()).To(Equal("0"))
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("100Mi"))
 				Expect(it.Overhead.EvictionThreshold.StorageEphemeral().AsApproximateFloat64()).To(BeNumerically("~", resources.Quantity("2Gi").AsApproximateFloat64()))
@@ -869,7 +869,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 						instancetype.MemoryAvailable: "1Gi",
 					},
 				}
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().String()).To(Equal("3Gi"))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
@@ -887,7 +887,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 						instancetype.MemoryAvailable: "5%",
 					},
 				}
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.05, 10))
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead with mixed percentage/value", func() {
@@ -905,7 +905,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 						instancetype.MemoryAvailable: "1Gi",
 					},
 				}
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.EvictionThreshold.Memory().Value()).To(BeNumerically("~", float64(it.Capacity.Memory().Value())*0.1, 10))
 			})
 		})
@@ -914,11 +914,11 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			Expect(err).To(BeNil())
 			for _, info := range instanceInfo {
 				if *info.InstanceType == "t3.large" {
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
 				}
 				if *info.InstanceType == "m6idn.32xlarge" {
-					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
 				}
 			}
@@ -930,7 +930,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				MaxPods: ptr.Int32(10),
 			}
 			for _, info := range instanceInfo {
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
@@ -945,7 +945,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				MaxPods: ptr.Int32(10),
 			}
 			for _, info := range instanceInfo {
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
@@ -960,7 +960,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				return *info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
-			it := instancetype.NewInstanceType(ctx, t3Large, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			it := instancetype.NewInstanceType(ctx, t3Large, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 			// t3.large
 			// maxInterfaces = 3
 			// maxIPv4PerInterface = 12
@@ -980,7 +980,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				return *info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
-			it := instancetype.NewInstanceType(ctx, t3Large, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			it := instancetype.NewInstanceType(ctx, t3Large, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 			// t3.large
 			// maxInterfaces = 3
 			// maxIPv4PerInterface = 12
@@ -997,7 +997,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				PodsPerCore: ptr.Int32(1),
 			}
 			for _, info := range instanceInfo {
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", ptr.Int64Value(info.VCpuInfo.DefaultVCpus)))
 			}
 		})
@@ -1009,7 +1009,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				MaxPods:     ptr.Int32(20),
 			}
 			for _, info := range instanceInfo {
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, ptr.Int64Value(info.VCpuInfo.DefaultVCpus) * 4})))
 			}
 		})
@@ -1021,7 +1021,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				PodsPerCore: ptr.Int32(1),
 			}
 			for _, info := range instanceInfo {
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				limitedPods := instancetype.ENILimitedPods(ctx, info)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
@@ -1037,7 +1037,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				PodsPerCore: ptr.Int32(0),
 			}
 			for _, info := range instanceInfo {
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
 			}
 		})

@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -29,13 +30,17 @@ const (
 
 var (
 	// This is not an exhaustive list, add to it as needed
-	notFoundErrorCodes = sets.NewString(
+	notFoundErrorCodes = sets.New[string](
 		"InvalidInstanceID.NotFound",
 		launchTemplateNotFoundCode,
 		sqs.ErrCodeQueueDoesNotExist,
+		iam.ErrCodeNoSuchEntityException,
+	)
+	alreadyExistsErrorCodes = sets.New[string](
+		iam.ErrCodeEntityAlreadyExistsException,
 	)
 	// unfulfillableCapacityErrorCodes signify that capacity is temporarily unable to be launched
-	unfulfillableCapacityErrorCodes = sets.NewString(
+	unfulfillableCapacityErrorCodes = sets.New[string](
 		"InsufficientInstanceCapacity",
 		"MaxSpotInstanceCountExceeded",
 		"VcpuLimitExceeded",
@@ -55,6 +60,24 @@ func IsNotFound(err error) bool {
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
 		return notFoundErrorCodes.Has(awsError.Code())
+	}
+	return false
+}
+
+func IgnoreNotFound(err error) error {
+	if IsNotFound(err) {
+		return nil
+	}
+	return err
+}
+
+func IsAlreadyExists(err error) bool {
+	if err == nil {
+		return false
+	}
+	var awsError awserr.Error
+	if errors.As(err, &awsError) {
+		return alreadyExistsErrorCodes.Has(awsError.Code())
 	}
 	return false
 }

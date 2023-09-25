@@ -221,7 +221,12 @@ spec:
                     type: string
                 type: object
               role:
-                description: Role is the AWS identity that nodes use.
+                description: Role is the AWS identity that nodes use. This field is
+                  immutable. Marking this field as immutable avoids concerns around
+                  terminating managed instance profiles from running instances. This
+                  field may be made mutable in the future, assuming the correct garbage
+                  collection and drift handling is implemented for the old instance
+                  profiles on an update.
                 type: string
               securityGroupSelectorTerms:
                 description: SecurityGroupSelectorTerms is a list of or security group
@@ -340,6 +345,10 @@ spec:
                   - requirements
                   type: object
                 type: array
+              instanceProfile:
+                description: InstanceProfile contains the resolved instance profile
+                  for the role
+                type: string
               securityGroups:
                 description: SecurityGroups contains the current Security Groups values
                   that are available to the cluster under the SecurityGroups selectors.
