@@ -362,6 +362,9 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		labels[v1alpha5.ProvisionerNameLabelKey] = v
 		nodeClaim.IsMachine = true
 	}
+	if v, ok := i.Tags[corev1beta1.NodePoolLabelKey]; ok {
+		labels[corev1beta1.NodePoolLabelKey] = v
+	}
 	if v, ok := i.Tags[corev1beta1.ManagedByAnnotationKey]; ok {
 		annotations[corev1beta1.ManagedByAnnotationKey] = v
 	}
