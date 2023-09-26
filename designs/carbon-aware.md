@@ -47,6 +47,9 @@ Approaches to handle this:
 
 I recommend option 1, as option 2 could potentially make the cluster even worse, environmentally.
 
+### Launch strategy
+To enable emission based priotization, the launch strategy should be changed from `lowest-price` to `prioritized`.
+
 ### Changes to consolidation (karpenter-core)
 Single Machine Consolidation (`singlemachineconsolidation.go`) and Multi Machine Consolidation (`multimachineconsolidation.go`) as well as `consolidation.go` is currently consolidating nodes to reduce costs. We want to change this when Carbon Aware is enabled. They should consolidate to minimize carbon emissions. 
 
