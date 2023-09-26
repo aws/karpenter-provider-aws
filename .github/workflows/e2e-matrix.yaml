@@ -66,9 +66,9 @@ jobs:
   e2e-upgrade:
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      # This version matches the steps of the newest version of the create-cluster action
-      # which will prevent post-run of the create-cluster action not to fail
-      from_git_ref: dc0e340759a6a42f042405cf03347b6f3c328dd6
+      # This version matches the steps of the newest version of the install-eksctl action
+      # which will take in the eksctl_version into the composite action
+      from_git_ref: d29fb004f959d268ecfbddaccee004c99fc8c300
       to_git_ref: ${{ inputs.git_ref }}
       event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
