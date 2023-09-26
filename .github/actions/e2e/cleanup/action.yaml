@@ -15,6 +15,9 @@ inputs:
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+  eksctl_version:
+    description: "Version of eksctl to install"
+    default: v0.159.0
 runs:
   using: "composite"
   steps:
@@ -29,7 +32,7 @@ runs:
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-eksctl
       with:
-        eksctl_version: v0.147.0
+        eksctl_version: ${{ inputs.eksctl_version }}
     - name: delete-instance-profiles
       shell:
       run: |
