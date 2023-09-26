@@ -8,7 +8,7 @@ permissions:
   contents: read  # This is required for actions/checkout
 jobs:
   sweeper:
-    if: github.repository == 'aws/karpenter' || github.event_name == 'workflow_dispatch'
+    if: vars.ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
