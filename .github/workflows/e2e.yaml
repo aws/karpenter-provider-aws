@@ -33,7 +33,11 @@ on:
           - "1.25"
           - "1.26"
           - "1.27"
+          - "1.28"
         default: "1.27"
+      eksctl_version:
+        type: string
+        default: v0.159.0
       enable_metrics:
         type: boolean
         default: false
@@ -53,6 +57,9 @@ on:
       k8s_version:
         type: string
         default: "1.27"
+      eksctl_version:
+        type: string
+        default: v0.159.0
       enable_metrics:
         type: boolean
         default: false
@@ -102,6 +109,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
+          eksctl_version: ${{ inputs.eksctl_version }}
           ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
@@ -151,6 +159,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
+          eksctl_version: ${{ inputs.eksctl_version }}
       - if: always() && inputs.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:

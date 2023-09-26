@@ -8,6 +8,9 @@ on:
       k8s_version:
         type: string
         default: "1.27"
+      eksctl_version:
+        type: string
+        default: v0.159.0
       git_ref:
         type: string
       event_name:
@@ -34,7 +37,11 @@ on:
           - "1.25"
           - "1.26"
           - "1.27"
+          - "1.28"
         default: "1.27"
+      eksctl_version:
+        type: string
+        default: v0.159.0
 # All jobs will run under the following conditions:
 #   1. Upstream Karpenter repo triggered the job by schedule, push, or dispatch
 #   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed
@@ -52,6 +59,7 @@ jobs:
       event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
+      eksctl_version: ${{ inputs.eksctl_version }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -65,5 +73,6 @@ jobs:
       event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
+      eksctl_version: ${{ inputs.eksctl_version }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
