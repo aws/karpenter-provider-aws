@@ -445,7 +445,7 @@ Karpenter allows you to order your provisioners using the `.spec.weight` field s
 
 If you have purchased a [Savings Plan](https://aws.amazon.com/savingsplans/) or [Reserved Instances](https://aws.amazon.com/ec2/pricing/reserved-instances/), you may want to tell Karpenter to prioritize this reserved capacity ahead of other instance types.
 
-To enable this, you will need to tell the Karpenter controllers which instance types to prioritize and what is the maximum amount of capacity that should be provisioned using those instance types. We can set the `.spec.limits` on the provisioner to limit the capacity that can be launched by this provisioner. Combined with the `.spec.weight` value, we can tell Karpenter to pull from instance types in the reserved provisioner before defaulting to generic instance types.
+To enable this, you will need to tell the Karpenter controllers which instance types to prioritize and what is the maximum amount of capacity that should be provisioned using those instance types. We can set the `.spec.resources.limits` on the provisioner to limit the capacity that can be launched by this provisioner. Combined with the `.spec.weight` value, we can tell Karpenter to pull from instance types in the reserved provisioner before defaulting to generic instance types.
 
 #### Reserved Instance Provisioner
 
@@ -460,8 +460,8 @@ spec:
   - key: "node.kubernetes.io/instance-type"
     operator: In
     values: ["c4.large"]
-  limits:
-    resources:
+  resources:
+    limits:
       cpu: 100
 ```
 
