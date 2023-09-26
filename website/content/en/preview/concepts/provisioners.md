@@ -119,8 +119,8 @@ spec:
 
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
-  limits:
-    resources:
+  resources:
+    limits:
       cpu: "1000"
       memory: 1000Gi
 
@@ -393,9 +393,9 @@ The value generated from `podsPerCore` cannot exceed `maxPods`, meaning, if both
 Bottlerocket AMIFamily currently does not support `podsPerCore` configuration. If a Provisioner contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `podsPerCore` value will be ignored for scheduling and for configuring the kubelet.
 {{% /alert %}}
 
-## spec.limits.resources
+## spec.resources.limits
 
-The provisioner spec includes a limits section (`spec.limits.resources`), which constrains the maximum amount of resources that the provisioner will manage.
+The provisioner spec includes a limits section (`spec.resources.limits`), which constrains the maximum amount of resources that the provisioner will manage.
 
 Karpenter supports limits of any resource type reported by your cloudprovider. It limits instance types when scheduling to those that will not exceed the specified limits.  If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
@@ -409,8 +409,8 @@ spec:
     - key: karpenter.sh/capacity-type
       operator: In
       values: ["spot"]
-  limits:
-    resources:
+  resources:
+    limits:
       cpu: 1000
       memory: 1000Gi
       nvidia.com/gpu: 2
