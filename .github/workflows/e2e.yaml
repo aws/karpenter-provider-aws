@@ -37,7 +37,7 @@ on:
         default: "1.28"
       eksctl_version:
         type: string
-        default: v0.159.0
+        default: v0.160.0-rc.0
       enable_metrics:
         type: boolean
         default: false
@@ -59,7 +59,7 @@ on:
         default: "1.28"
       eksctl_version:
         type: string
-        default: v0.159.0
+        default: v0.160.0-rc.0
       enable_metrics:
         type: boolean
         default: false
