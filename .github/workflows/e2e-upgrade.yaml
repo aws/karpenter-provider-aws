@@ -36,9 +36,6 @@ on:
       region:
         type: string
         default: "us-east-2"
-      event_name:
-        type: string
-        required: true
       k8s_version:
         type: string
         default: "1.28"
@@ -61,7 +58,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.to_git_ref }}
-      - if: always() && inputs.event_name == 'workflow_run'
+      - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/start
         with:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
@@ -154,12 +151,11 @@ jobs:
           TEST_SUITE="Integration" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: (success() || failure()) && inputs.event_name != 'workflow_run' && inputs.event_name != 'conformance'
+        if: (success() || failure()) && github.event_name != 'workflow_run' && github.event_name != 'conformance'
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: Upgrade
           k8s_version: ${{ inputs.k8s_version }}
-          event_name: ${{ inputs.event_name }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
@@ -179,7 +175,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
           eksctl_version: ${{ inputs.eksctl_version }}
-      - if: always() && inputs.event_name == 'workflow_run'
+      - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
