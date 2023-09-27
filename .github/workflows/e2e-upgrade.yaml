@@ -22,7 +22,7 @@ on:
           - "1.26"
           - "1.27"
           - "1.28"
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
         default: v0.159.0
@@ -34,14 +34,14 @@ on:
       to_git_ref:
         type: string
       region:
-        type: string 
+        type: string
         default: "us-east-2"
       event_name:
         type: string
         required: true
       k8s_version:
         type: string
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
         default: v0.159.0
