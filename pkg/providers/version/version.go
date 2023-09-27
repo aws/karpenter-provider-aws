@@ -33,7 +33,7 @@ const (
 	// If a user runs a karpenter image on a k8s version outside the min and max,
 	// One error message will be fired to notify
 	MinK8sVersion = "1.23"
-	MaxK8sVersion = "1.27"
+	MaxK8sVersion = "1.28"
 )
 
 // Provider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
