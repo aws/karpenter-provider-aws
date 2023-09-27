@@ -7,10 +7,10 @@ on:
         default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
-        default: v0.159.0
+        default: v0.160.0-rc.0
       git_ref:
         type: string
       event_name:
@@ -38,10 +38,10 @@ on:
           - "1.26"
           - "1.27"
           - "1.28"
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
-        default: v0.159.0
+        default: v0.160.0-rc.0
 # All jobs will run under the following conditions:
 #   1. Upstream Karpenter repo triggered the job by schedule, push, or dispatch
 #   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed

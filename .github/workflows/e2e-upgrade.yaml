@@ -22,10 +22,10 @@ on:
           - "1.26"
           - "1.27"
           - "1.28"
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
-        default: v0.159.0
+        default: v0.160.0-rc.0
   workflow_call:
     inputs:
       from_git_ref:
@@ -34,17 +34,17 @@ on:
       to_git_ref:
         type: string
       region:
-        type: string 
+        type: string
         default: "us-east-2"
       event_name:
         type: string
         required: true
       k8s_version:
         type: string
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
-        default: v0.159.0
+        default: v0.160.0-rc.0
     secrets:
       SLACK_WEBHOOK_URL:
         required: true

@@ -34,10 +34,10 @@ on:
           - "1.26"
           - "1.27"
           - "1.28"
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
-        default: v0.159.0
+        default: v0.160.0-rc.0
       enable_metrics:
         type: boolean
         default: false
@@ -56,10 +56,10 @@ on:
         required: true
       k8s_version:
         type: string
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
-        default: v0.159.0
+        default: v0.160.0-rc.0
       enable_metrics:
         type: boolean
         default: false
@@ -94,7 +94,7 @@ jobs:
           role-duration-seconds: 21600
       - name: add jitter on cluster creation
         run: |
-          # Creating jitter so that we can stagger cluster creation to avoid throttling 
+          # Creating jitter so that we can stagger cluster creation to avoid throttling
           sleep $(( $RANDOM % 300 + 1 ))
       - name: generate cluster name
         run: |
