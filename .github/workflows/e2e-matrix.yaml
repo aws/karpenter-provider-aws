@@ -7,7 +7,7 @@ on:
         default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
         default: v0.159.0
@@ -38,7 +38,7 @@ on:
           - "1.26"
           - "1.27"
           - "1.28"
-        default: "1.27"
+        default: "1.28"
       eksctl_version:
         type: string
         default: v0.159.0
