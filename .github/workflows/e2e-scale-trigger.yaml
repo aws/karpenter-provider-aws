@@ -12,14 +12,12 @@ jobs:
     uses: ./.github/workflows/resolve-args.yaml
     with:
       allowed_comment: "scale"
-      event_name: ${{ github.event_name }}
   scale:
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: Scale
-      event_name: ${{ github.event_name }}
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
       region: "us-west-2"
       enable_metrics: true
