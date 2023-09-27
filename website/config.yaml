@@ -3,7 +3,6 @@ theme:
 baseURL: /
 disableKinds:
   - taxonomy
-  - taxonomyTerm
 enableRobotsTXT: true
 contentDir: content/en
 defaultContentLanguage: en
@@ -15,14 +14,15 @@ services:
     languageCode: en-us
 languages:
   en:
+    params:
+      pygmentsCodeFences: true
+      pygmentsUseClasses: false
+      pygmentsUseClassic: false
+      pygmentsStyle: tango
+      description: Just-in-time Nodes for Any Kubernetes Cluster
     title: Karpenter
-    description: Just-in-time Nodes for Any Kubernetes Cluster
     languageName: English
     weight: 1
-    pygmentsCodeFences: true
-    pygmentsUseClasses: false
-    pygmentsUseClassic: false
-    pygmentsStyle: tango
 blackfriday:
   plainIDAnchors: true
   hrefTargetBlank: true
