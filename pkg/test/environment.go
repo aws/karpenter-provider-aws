@@ -20,6 +20,7 @@ import (
 
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/tools/record"
 	"knative.dev/pkg/ptr"
 
 	"github.com/patrickmn/go-cache"
@@ -41,6 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/providers/version"
 
+	"github.com/aws/karpenter-core/pkg/events"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
@@ -93,7 +95,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	ec2Cache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	kubernetesVersionCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceTypeCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
-	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
+	unavailableOfferingsCache := awscache.NewUnavailableOfferings(events.NewRecorder(&record.FakeRecorder{}))
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)

@@ -23,6 +23,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
+
+	"github.com/aws/karpenter-core/pkg/events"
 )
 
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
@@ -30,14 +32,16 @@ import (
 // GetInstanceTypes responses
 type UnavailableOfferings struct {
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
-	cache  *cache.Cache
-	SeqNum uint64
+	cache    *cache.Cache
+	SeqNum   uint64
+	recorder events.Recorder
 }
 
-func NewUnavailableOfferings() *UnavailableOfferings {
+func NewUnavailableOfferings(recorder events.Recorder) *UnavailableOfferings {
 	return &UnavailableOfferings{
-		cache:  cache.New(UnavailableOfferingsTTL, DefaultCleanupInterval),
-		SeqNum: 0,
+		cache:    cache.New(UnavailableOfferingsTTL, DefaultCleanupInterval),
+		SeqNum:   0,
+		recorder: recorder,
 	}
 }
 
@@ -58,6 +62,9 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 		"ttl", UnavailableOfferingsTTL).Debugf("removing offering from offerings")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 	atomic.AddUint64(&u.SeqNum, 1)
+
+	// Add a k8s event for the instance type and zone without the involved object which has an ICE error
+	u.recorder.Publish(UnavailableOfferingEvent(instanceType, zone, capacityType))
 }
 
 func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
