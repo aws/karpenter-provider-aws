@@ -13,11 +13,9 @@ on:
         default: v0.160.0-rc.0
       git_ref:
         type: string
-      event_name:
-        type: string
-        required: true
       workflow_trigger:
         type: string
+        required: true
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -56,7 +54,6 @@ jobs:
     with:
       suite: ${{ matrix.suite }}
       git_ref: ${{ inputs.git_ref }}
-      event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
       eksctl_version: ${{ inputs.eksctl_version }}
@@ -70,7 +67,6 @@ jobs:
       # which will take in the eksctl_version into the composite action
       from_git_ref: d29fb004f959d268ecfbddaccee004c99fc8c300
       to_git_ref: ${{ inputs.git_ref }}
-      event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
       eksctl_version: ${{ inputs.eksctl_version }}

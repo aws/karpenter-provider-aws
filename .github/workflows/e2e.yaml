@@ -51,9 +51,6 @@ on:
       suite:
         type: string
         required: true
-      event_name:
-        type: string
-        required: true
       k8s_version:
         type: string
         default: "1.28"
@@ -80,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.git_ref }}
-      - if: always() && inputs.event_name == 'workflow_run'
+      - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/start
         with:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (${{ inputs.suite }})
@@ -135,12 +132,11 @@ jobs:
           TEST_SUITE="${{ inputs.suite }}" ENABLE_METRICS=${{ inputs.enable_metrics }} METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: (success() || failure()) && inputs.event_name != 'workflow_run' && inputs.workflow_trigger != 'conformance'
+        if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'conformance'
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: ${{ inputs.suite }}
           k8s_version: ${{ inputs.k8s_version }}
-          event_name: ${{ inputs.event_name }}
           git_ref: ${{ inputs.git_ref }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
@@ -160,7 +156,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
           eksctl_version: ${{ inputs.eksctl_version }}
-      - if: always() && inputs.event_name == 'workflow_run'
+      - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (${{ inputs.suite }})

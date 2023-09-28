@@ -2,9 +2,6 @@ name: ResolveArgs
 on:
   workflow_call:
     inputs:
-      event_name:
-        type: string
-        required: true
       allowed_comment:
         type: string
         required: true
@@ -23,11 +20,11 @@ jobs:
       # Download the artifact and resolve the commit if initiated by PR snapshot
       # Otherwise, use the currently checked-out branch to run the E2E tests against
       - uses: actions/checkout@v4
-      - if: inputs.event_name == 'workflow_run'
+      - if: github.event_name == 'workflow_run'
         uses: ./.github/actions/download-artifact
       - id: resolve-step
         run: |
-          if [[ "${{ inputs.event_name }}" == "workflow_run" ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
             if [[ $(head -n 1 /tmp/artifacts/metadata.txt) == *"${{ inputs.allowed_comment }}"* ]]; then
                echo SHOULD_RUN=true >> $GITHUB_OUTPUT
             else
