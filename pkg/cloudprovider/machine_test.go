@@ -666,12 +666,12 @@ var _ = Describe("Machine/CloudProvider", func() {
 				// select nothing!
 				AMISelector: map[string]string{"Name": "nothing"},
 			})
+			misconfiguredNodeTemplate.Name = "misconfigured"
 			prov2 := test.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{
 					APIVersion: misconfiguredNodeTemplate.APIVersion,
 					Kind:       misconfiguredNodeTemplate.Kind,
-					// select nothing!
-					Name: "nothing",
+					Name:       "misconfigured",
 				},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, prov2, nodeTemplate, misconfiguredNodeTemplate)
