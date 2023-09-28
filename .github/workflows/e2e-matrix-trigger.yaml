@@ -14,13 +14,11 @@ jobs:
     uses: ./.github/workflows/resolve-args.yaml
     with:
       allowed_comment: "snapshot"
-      event_name: ${{ github.event_name }}
   e2e-matrix:
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e-matrix.yaml
     with:
-      event_name: ${{ github.event_name }}
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
       workflow_trigger: "matrix"
     secrets:
