@@ -177,7 +177,10 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 		if errors.IsNotFound(err) {
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 		}
-		return nil, client.IgnoreNotFound(fmt.Errorf("resolving node class, %w", err))
+		// We must return an error here in the event of the node class not being found. Otherwise users just get
+		// no instance types and a failure to schedule with no indicator pointing to a bad configuration
+		// as the cause.
+		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
 	// TODO, break this coupling
 	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodePool.Spec.Template.Spec.Kubelet, nodeClass)
