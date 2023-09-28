@@ -11,9 +11,6 @@ inputs:
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
-  event_name:
-    description: "Type of event that triggered this test run"
-    required: true
 runs:
   using: "composite"
   steps:
@@ -22,7 +19,7 @@ runs:
         ref: ${{ inputs.git_ref }}
     - shell: bash
       run: |
-        if [[ ${{ inputs.event_name }} == "schedule" ]]; then
+        if [[ ${{ github.event_name }} == "schedule" ]]; then
           RUN_NAME="${{ inputs.suite }}-periodic"
         else
           RUN_NAME="${{ inputs.suite }}-${GITHUB_SHA::7}"
