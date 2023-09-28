@@ -28,11 +28,7 @@ The feature is proposed to be controlled using a [feature gate](https://karpente
 | CarbonAware |    false    | featureGates.carbonAwareEnabled |   Alpha   | v0.31.0/v0.32.0 |           |
 
 ### Carbon emissions data source
-To be determined.
-
-I don't know which one should be used yet. I am currently reviewing and comparing two options:
-- [Cloud Carbon Footprint](https://github.com/cloud-carbon-footprint/ccf-coefficients). Extract data and create calculations.
-- [Boavizta](https://github.com/Boavizta/boaviztapi). Extract data and port calculations (for AWS). [Data demo](https://datavizta.boavizta.org/cloudimpact).
+Currently the best option seems to be to create estimates based on the methodology used in [Boaviztapi](https://github.com/Boavizta/boaviztapi). [Data demo](https://datavizta.boavizta.org/cloudimpact).
 
 I assume that we only want to use "static" data so we don't have to go out and make requests over the Internet to get real time data, since that would be expensive for performance.
 
