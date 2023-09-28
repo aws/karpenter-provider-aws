@@ -8,7 +8,7 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
 
 config
-release "$HEAD_HASH" #release a snapshot version
+snapshot "$HEAD_HASH" #release a snapshot version
 
 ## Reset and Clean changes if it's a snapshot since we don't need to track these changes
 ## and results in a -dirty commit hash for a stable release
