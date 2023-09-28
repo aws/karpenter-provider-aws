@@ -196,7 +196,7 @@ issues: ## Run GitHub issue analysis scripts
 	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
 website: ## Serve the docs website locally
-	cd website && npm install && git submodule update --init --recursive && hugo server
+	cd website && npm install && hugo server
 
 tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod tidy $(newline))
