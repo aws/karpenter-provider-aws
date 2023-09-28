@@ -174,22 +174,26 @@ func (env *Environment) ExpectConfigMapDataOverridden(key types.NamespacedName, 
 }
 
 func (env *Environment) ExpectPodENIEnabled() {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_POD_ENI", "true")
+	GinkgoHelper()
+	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_POD_ENI", "true", "aws-node")
 }
 
 func (env *Environment) ExpectPodENIDisabled() {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_POD_ENI", "false")
+	GinkgoHelper()
+	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+		"ENABLE_POD_ENI", "false", "aws-node")
 }
 
 func (env *Environment) ExpectPrefixDelegationEnabled() {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+	GinkgoHelper()
+	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
 		"ENABLE_PREFIX_DELEGATION", "true")
 }
 
 func (env *Environment) ExpectPrefixDelegationDisabled() {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
+	GinkgoHelper()
+	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
 		"ENABLE_PREFIX_DELEGATION", "false")
 }
 
@@ -580,31 +584,31 @@ func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName,
 	}, 10*time.Minute).Should(Succeed())
 }
 
-func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.ObjectKey, name, value string) {
-	env.ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(1, obj, name, value)
-}
-
-func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdatedWithOffset(offset int, obj client.ObjectKey, name, value string) {
+func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.ObjectKey, name, value string, containers ...string) {
+	GinkgoHelper()
 	ds := &appsv1.DaemonSet{}
-	ExpectWithOffset(offset+1, env.Client.Get(env.Context, obj, ds)).To(Succeed())
-	ExpectWithOffset(offset+1, len(ds.Spec.Template.Spec.Containers)).To(BeNumerically("==", 1))
+	Expect(env.Client.Get(env.Context, obj, ds)).To(Succeed())
+	if len(containers) == 0 {
+		Expect(len(ds.Spec.Template.Spec.Containers)).To(BeNumerically("==", 1))
+		containers = append(containers, ds.Spec.Template.Spec.Containers[0].Name)
+	}
 	patch := client.MergeFrom(ds.DeepCopy())
-
-	// If the value is found, update it. Else, create it
-	found := false
-	for i, v := range ds.Spec.Template.Spec.Containers[0].Env {
-		if v.Name == name {
-			ds.Spec.Template.Spec.Containers[0].Env[i].Value = value
-			found = true
+	containerNames := sets.New(containers...)
+	for ci := range ds.Spec.Template.Spec.Containers {
+		c := &ds.Spec.Template.Spec.Containers[ci]
+		if !containerNames.Has(c.Name) {
+			continue
+		}
+		// If the env var already exists, update its value. Otherwise, create a new var.
+		if _, i, ok := lo.FindIndexOf(c.Env, func(e v1.EnvVar) bool {
+			return e.Name == name
+		}); ok {
+			c.Env[i].Value = value
+		} else {
+			c.Env = append(c.Env, v1.EnvVar{Name: name, Value: value})
 		}
 	}
-	if !found {
-		ds.Spec.Template.Spec.Containers[0].Env = append(ds.Spec.Template.Spec.Containers[0].Env, v1.EnvVar{
-			Name:  name,
-			Value: value,
-		})
-	}
-	ExpectWithOffset(offset+1, env.Client.Patch(env.Context, ds, patch)).To(Succeed())
+	Expect(env.Client.Patch(env.Context, ds, patch)).To(Succeed())
 }
 
 func (env *Environment) ExpectCABundle() string {
