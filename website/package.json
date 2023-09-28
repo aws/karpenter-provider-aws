@@ -10,6 +10,7 @@
     "postcss-cli": "^10.1.0"
   },
   "scripts": {
-    "postinstall": "git submodule update --init --recursive && npm install themes\\docsy\\"
+    "postinstall": "git submodule update --init --recursive && npm install themes/docsy/",
+    "clean": "rm -rf node_modules && rm -rf themes/docsy/node_modules"
   }
 }
