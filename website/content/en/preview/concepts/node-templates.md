@@ -451,6 +451,10 @@ For more examples on configuring these fields for different AMI families, see th
 
 Karpenter will evaluate and merge the UserData that you specify in the AWSNodeTemplate resources depending upon the AMIFamily that you have chosen.
 
+#### Custom
+
+* No merging is performed, your UserData must perform all setup required of the node to allow it to join the cluster.
+
 #### Bottlerocket
 
 * Your UserData must be valid TOML.
