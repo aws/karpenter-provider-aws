@@ -1,4 +1,4 @@
-module github.com/aws/karpenter/tools/kubectl-karpenter
+module github.com/aws/karpenter/tools/karpenter-convert
 
 go 1.21
 

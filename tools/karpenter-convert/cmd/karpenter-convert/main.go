@@ -17,7 +17,7 @@ package main
 import (
 	"os"
 
-	kk "github.com/aws/karpenter/tools/kubectl-karpenter/pkg/kubectl-karpenter"
+	kk "github.com/aws/karpenter/tools/karpenter-convert/pkg/karpenter-convert"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -29,7 +29,7 @@ import (
 )
 
 func main() {
-	flags := pflag.NewFlagSet("kubectl-karpenter", pflag.ExitOnError)
+	flags := pflag.NewFlagSet("karpenter-convert", pflag.ExitOnError)
 	pflag.CommandLine = flags
 
 	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()

@@ -1,25 +1,25 @@
-# kubectl-karpenter
+# karpenter-converter
 
-kubectl-karpenter is a simple CLI tool to bump the API manifests from `v1alpha5` to `v1beta1`.
+karpenter-converter is a simple CLI tool to bump the API manifests from `v1alpha5` to `v1beta1`.
 It converts `Provisioner` to `NodePool` and `AWSNodeTemplate` to `EC2NodeClass`.
 
 ## Installation 
 
 ```
-go install github.com/aws/karpenter/tools/kubectl-karpenter/cmd/kubectl-karpenter
+go install github.com/aws/karpenter/tools/karpenter-converter/cmd/karpenter-converter
 ```
 
 ## Usage:
 
 ```
 # Convert a single Provisioner file to NodePool
-kubectl karpenter -f provisioner.yaml | > nodepool.yaml
+kubectl karpenter -f provisioner.yaml > nodepool.yaml
 
 # Convert a single AWSNodeTemplate file to EC2NodeClass
-kubectl karpenter -f nodetemplate.yaml | > nodeclass.yaml
+kubectl karpenter -f nodetemplate.yaml > nodeclass.yaml
 
 # Convert an entire directory (.json, .yaml, .yml files) to the equivalent new APIs
-kubectl karpenter -f . | > output.yaml
+kubectl karpenter -f . > output.yaml
 ```
 
 ## Usage notes

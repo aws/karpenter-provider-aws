@@ -58,6 +58,7 @@ func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Comm
 
 	cmdutil.AddFilenameOptionFlags(convertCmd, &o.FilenameOptions, "to need to get converted.")
 	convertCmd.MarkFlagRequired("file")
+	o.PrintFlags.AddFlags(convertCmd)
 
 	rootCmd.AddCommand(convertCmd)
 
