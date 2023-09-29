@@ -23,22 +23,13 @@ import (
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
-	"github.com/spf13/pflag"
-
 	"k8s.io/component-base/cli"
 )
 
 func main() {
-	flags := pflag.NewFlagSet("karpenter-convert", pflag.ExitOnError)
-	pflag.CommandLine = flags
-
-	kubeConfigFlags := genericclioptions.NewConfigFlags(true).WithDeprecatedPasswordFlag()
-	kubeConfigFlags.AddFlags(flags)
-	matchVersionKubeConfigFlags := cmdutil.NewMatchVersionFlags(kubeConfigFlags)
-
-	f := cmdutil.NewFactory(matchVersionKubeConfigFlags)
+	kubeConfigFlags := genericclioptions.NewConfigFlags(false).WithDeprecatedPasswordFlag()
+	f := cmdutil.NewFactory(kubeConfigFlags)
 	cmd := kk.NewCmd(f, genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
-	matchVersionKubeConfigFlags.AddFlags(cmd.PersistentFlags())
 	code := cli.Run(cmd)
 	os.Exit(code)
 }

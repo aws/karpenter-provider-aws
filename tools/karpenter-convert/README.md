@@ -13,13 +13,13 @@ go install github.com/aws/karpenter/tools/karpenter-converter/cmd/karpenter-conv
 
 ```
 # Convert a single Provisioner file to NodePool
-kubectl karpenter -f provisioner.yaml > nodepool.yaml
+karpenter-convert -f provisioner.yaml > nodepool.yaml
 
 # Convert a single AWSNodeTemplate file to EC2NodeClass
-kubectl karpenter -f nodetemplate.yaml > nodeclass.yaml
+karpenter-convert -f nodetemplate.yaml > nodeclass.yaml
 
 # Convert an entire directory (.json, .yaml, .yml files) to the equivalent new APIs
-kubectl karpenter -f . > output.yaml
+karpenter-convert -f . > output.yaml
 ```
 
 ## Usage notes

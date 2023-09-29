@@ -1,4 +1,18 @@
-package kubectlkarpenter
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package karpenterconvert
 
 import (
 	"fmt"
@@ -7,6 +21,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -22,50 +37,37 @@ import (
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
 
-type Options struct {
+type Context struct {
 	PrintFlags *genericclioptions.PrintFlags
 	Printer    printers.ResourcePrinter
 
 	builder func() *resource.Builder
-	local   bool
 
 	resource.FilenameOptions
 	genericiooptions.IOStreams
 }
 
 func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
-	o := Options{
+	o := Context{
 		PrintFlags: genericclioptions.NewPrintFlags("converted").WithDefaultOutput("yaml"),
-		local:      true,
 		IOStreams:  ioStreams,
 	}
 
 	var rootCmd = &cobra.Command{
-		Use: "kubectl karpenter",
-		Run: func(cmd *cobra.Command, args []string) {
-			cmd.Help()
-		},
-	}
-
-	var convertCmd = &cobra.Command{
-		Use:   "convert",
-		Short: "Convert a file or directory",
+		Use: "karpenter-convert",
 		Run: func(cmd *cobra.Command, args []string) {
 			cmdutil.CheckErr(o.Complete(f, cmd))
 			cmdutil.CheckErr(o.RunConvert())
 		},
 	}
 
-	cmdutil.AddFilenameOptionFlags(convertCmd, &o.FilenameOptions, "to need to get converted.")
-	convertCmd.MarkFlagRequired("file")
-	o.PrintFlags.AddFlags(convertCmd)
-
-	rootCmd.AddCommand(convertCmd)
+	cmdutil.AddFilenameOptionFlags(rootCmd, &o.FilenameOptions, "to need to get converted.")
+	o.PrintFlags.AddFlags(rootCmd)
 
 	return rootCmd
 }
 
-func (o *Options) Complete(f cmdutil.Factory, cmd *cobra.Command) (err error) {
+func (o *Context) Complete(f cmdutil.Factory, cmd *cobra.Command) (err error) {
 	err = o.FilenameOptions.RequireFilenameOrKustomize()
 	if err != nil {
 		return err
@@ -75,14 +77,14 @@ func (o *Options) Complete(f cmdutil.Factory, cmd *cobra.Command) (err error) {
 	return err
 }
 
-func (o *Options) RunConvert() error {
+func (o *Context) RunConvert() error {
 	scheme := runtime.NewScheme()
 	apis.AddToScheme(scheme)
 	v1alpha5.SchemeBuilder.AddToScheme(scheme)
 
 	b := o.builder().
 		WithScheme(scheme, v1alpha1.SchemeGroupVersion, v1alpha5.SchemeGroupVersion).
-		LocalParam(o.local)
+		LocalParam(true)
 
 	r := b.
 		ContinueOnError().
@@ -143,8 +145,7 @@ func processNodeTemplate(resource runtime.Object) runtime.Object {
 		Kind:       "EC2NodeClass",
 		APIVersion: v1beta1.SchemeGroupVersion.String(),
 	}
-	role := "<your AWS role here>"
-	nodeclass.Spec.Role = &role
+	nodeclass.Spec.Role = lo.ToPtr("<your AWS role here>")
 
 	return nodeclass
 }
