@@ -13,17 +13,15 @@ jobs:
     uses: ./.github/workflows/resolve-args.yaml
     with:
       allowed_comment: "conformance"
-      event_name: ${{ github.event_name }}
   conformance:
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     strategy:
       fail-fast: false
       matrix:
-        k8s_version: [ "1.23", "1.24", "1.25", "1.26", "1.27" ]
+        k8s_version: [ "1.23", "1.24", "1.25", "1.26", "1.27", "1.28" ]
     uses: ./.github/workflows/e2e-matrix.yaml
     with:
-      event_name: ${{ github.event_name }}
       region: "eu-west-1"
       k8s_version: ${{ matrix.k8s_version }}
       workflow_trigger: "conformance"

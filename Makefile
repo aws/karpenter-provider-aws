@@ -161,7 +161,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
 docgen: ## Generate docs
-	$(WITH_GOFLAGS) ./hack/docgen.sh
+	KARPENTER_CORE_DIR=$(KARPENTER_CORE_DIR) $(WITH_GOFLAGS) ./hack/docgen.sh
 
 codegen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/codegen.sh
