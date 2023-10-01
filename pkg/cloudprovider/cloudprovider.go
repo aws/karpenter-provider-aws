@@ -361,7 +361,6 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
 	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType
-	labels[v1beta1.LabelInstanceAMIID] = i.ImageID
 	if v, ok := i.Tags[v1alpha5.ProvisionerNameLabelKey]; ok {
 		labels[v1alpha5.ProvisionerNameLabelKey] = v
 		nodeClaim.IsMachine = true
@@ -380,5 +379,6 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		nodeClaim.DeletionTimestamp = &metav1.Time{Time: time.Now()}
 	}
 	nodeClaim.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", i.Zone, i.ID)
+	nodeClaim.Status.ImageID = i.ImageID
 	return nodeClaim
 }
