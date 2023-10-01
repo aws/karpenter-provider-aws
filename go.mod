@@ -30,6 +30,8 @@ require (
 	sigs.k8s.io/controller-runtime v0.16.2
 )
 
+replace github.com/aws/karpenter-core => github.com/jonathan-innis/karpenter-core v0.0.0-20231012191332-1e368cfd9c25
+
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2 // indirect
