@@ -162,6 +162,7 @@ priceOverrides:
     price: 0.015424
 ```
 
+<details>
 <summary>Alternative interface</summary>
 
 Alternatively, a more flexible interface could be:
@@ -170,14 +171,14 @@ Alternatively, a more flexible interface could be:
 priceModification:
   operator: Add # Add or Override
   modifications:
-	- instanceType: "m5.large"
-		region: "eu-west-1"
-		capacityType: OnDemand
-		price: 0.007712
+    - instanceType: "m5.large"
+      region: "eu-west-1"
+      capacityType: OnDemand
+      price: 0.007712
 	- instanceType: "m5.xlarge"
-		region: "eu-west-1"
-		capacityType: OnDemand
-		price: 0.015424
+      region: "eu-west-1"
+      capacityType: OnDemand
+      price: 0.015424
 ```
 </details>
 
