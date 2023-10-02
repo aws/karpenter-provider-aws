@@ -78,6 +78,9 @@ func (e EKS) eksBootstrapScript() string {
 	if args := e.kubeletExtraArgs(); len(args) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", strings.Join(args, " ")))
 	}
+	if e.InstanceStoreConfiguration != nil {
+		userData.WriteString(fmt.Sprintf(" \\\n--local-disks %s", *e.InstanceStoreConfiguration))
+	}
 	return userData.String()
 }
 

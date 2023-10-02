@@ -55,7 +55,7 @@ func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStoreConfigurationOption) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:     w.Options.ClusterName,

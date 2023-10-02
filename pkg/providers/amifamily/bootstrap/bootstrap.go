@@ -24,21 +24,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/ptr"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
 type Options struct {
-	ClusterName             string
-	ClusterEndpoint         string
-	KubeletConfig           *corev1beta1.KubeletConfiguration
-	Taints                  []core.Taint      `hash:"set"`
-	Labels                  map[string]string `hash:"set"`
-	CABundle                *string
-	AWSENILimitedPodDensity bool
-	ContainerRuntime        *string
-	CustomUserData          *string
+	ClusterName                string
+	ClusterEndpoint            string
+	KubeletConfig              *corev1beta1.KubeletConfiguration
+	Taints                     []core.Taint      `hash:"set"`
+	Labels                     map[string]string `hash:"set"`
+	CABundle                   *string
+	AWSENILimitedPodDensity    bool
+	ContainerRuntime           *string
+	CustomUserData             *string
+	InstanceStoreConfiguration *v1beta1.InstanceStoreConfigurationOption
 }
 
 func (o Options) kubeletExtraArgs() (args []string) {

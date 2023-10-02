@@ -168,9 +168,10 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	options := &amifamily.Options{
-		ClusterName:     options.FromContext(ctx).ClusterName,
-		ClusterEndpoint: p.ClusterEndpoint,
-		InstanceProfile: instanceProfile,
+		ClusterName:                options.FromContext(ctx).ClusterName,
+		ClusterEndpoint:            p.ClusterEndpoint,
+		InstanceProfile:            instanceProfile,
+		InstanceStoreConfiguration: nodeClass.Spec.InstanceStoreConfiguration,
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
 			return v1beta1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),

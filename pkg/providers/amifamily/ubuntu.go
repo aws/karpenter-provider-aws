@@ -53,7 +53,7 @@ func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (u Ubuntu) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (u Ubuntu) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStoreConfigurationOption) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
 			ClusterName:     u.Options.ClusterName,

@@ -548,6 +548,16 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
+		It("should pack pods if the sum of pod ephemeral-storage and overhead exceeds node capacity and instance storage is mounted", func() {
+			nodeClass.Spec.InstanceStoreConfiguration = lo.ToPtr(v1beta1.MountNodeEphemeralStorage)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
+				Requests: map[v1.ResourceName]resource.Quantity{
+					v1.ResourceEphemeralStorage: resource.MustParse("19Gi"),
+				}}})
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+		})
 		It("should launch multiple nodes if sum of pod ephemeral-storage requests exceeds a single nodes capacity", func() {
 			var nodes []*v1.Node
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)

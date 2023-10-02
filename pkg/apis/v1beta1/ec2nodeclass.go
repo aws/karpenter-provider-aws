@@ -85,6 +85,9 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=50
 	// +optional
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
+	// InstanceStoreConfiguration describes how to format and mount instance store disks.
+	// +optional
+	InstanceStoreConfiguration *InstanceStoreConfigurationOption `json:"instanceStoreConfiguration,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
@@ -294,6 +297,24 @@ type BlockDevice struct {
 	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
 }
+
+// InstanceStoreConfigurationOption enumerates options for configuring instance store disks.
+// See: https://github.com/awslabs/amazon-eks-ami/blob/master/doc/USER_GUIDE.md
+// +kubebuilder:validation:Enum=MountNodeEphemeralStorage;MountIndividualDisks
+type InstanceStoreConfigurationOption string
+
+const (
+	// MountNodeEphemeralStorage mounts instance store disks as node ephemeral-storage.
+	// A RAID-0 array is setup that includes all ephemeral NVMe instance storage disks.
+	// The containerd and kubelet state directories (`/var/lib/containerd` and `/var/lib/kubelet`)
+	// will then use the ephemeral storage for more and faster node ephemeral-storage. The node's ephemeral
+	// storage can be shared among pods that request ephemeral storage and container images that are downloaded to the node.
+	MountNodeEphemeralStorage InstanceStoreConfigurationOption = "MountNodeEphemeralStorage"
+	// MountIndividualDisks mounts individual disks into `/mnt/k8s-disks/`.
+	// Mounting individual disks allows the "local-static-provisioner" DaemonSet to create Persistent Volume Claims that pods can utilize.
+	// See: https://github.com/kubernetes-sigs/sig-storage-local-static-provisioner
+	MountIndividualDisks InstanceStoreConfigurationOption = "MountIndividualDisks"
+)
 
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true

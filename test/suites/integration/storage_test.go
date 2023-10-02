@@ -21,6 +21,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -28,6 +29,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/errors"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -203,6 +205,25 @@ var _ = Describe("Persistent Volumes", func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
+	})
+})
+
+var _ = Describe("Ephemeral Storage", func() {
+	It("should run a pod with mounted ephemeral storage that exceeds EBS root block device mappings on AL2", func() {
+		nodeClass.Spec.InstanceStoreConfiguration = lo.ToPtr(v1beta1.MountNodeEphemeralStorage)
+
+		pod := test.Pod(test.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{
+					v1.ResourceEphemeralStorage: resource.MustParse("100Gi"),
+				},
+			},
+		})
+
+		env.ExpectCreated(nodeClass, nodePool, pod)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+		env.ExpectDeleted(pod)
 	})
 })
 

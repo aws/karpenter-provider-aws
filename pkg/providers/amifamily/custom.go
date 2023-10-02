@@ -31,7 +31,7 @@ type Custom struct {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (c Custom) UserData(_ *corev1beta1.KubeletConfiguration, _ []v1.Taint, _ map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (c Custom) UserData(_ *corev1beta1.KubeletConfiguration, _ []v1.Taint, _ map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStoreConfigurationOption) bootstrap.Bootstrapper {
 	return bootstrap.Custom{
 		Options: bootstrap.Options{
 			CustomUserData: customUserData,

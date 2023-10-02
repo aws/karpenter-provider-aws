@@ -48,10 +48,11 @@ type Resolver struct {
 
 // Options define the static launch template parameters
 type Options struct {
-	ClusterName     string
-	ClusterEndpoint string
-	InstanceProfile string
-	CABundle        *string `hash:"ignore"`
+	ClusterName                string
+	ClusterEndpoint            string
+	InstanceProfile            string
+	CABundle                   *string `hash:"ignore"`
+	InstanceStoreConfiguration *v1beta1.InstanceStoreConfigurationOption
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups           []v1beta1.SecurityGroup
 	Tags                     map[string]string
@@ -75,7 +76,7 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DefaultAMIs(version string) []DefaultAMIOutput
-	UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
+	UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStoreConfiguration *v1beta1.InstanceStoreConfigurationOption) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1beta1.MetadataOptions
 	EphemeralBlockDevice() *string
@@ -224,6 +225,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 			options.CABundle,
 			instanceTypes,
 			nodeClass.Spec.UserData,
+			options.InstanceStoreConfiguration,
 		),
 		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
 		MetadataOptions:     nodeClass.Spec.MetadataOptions,

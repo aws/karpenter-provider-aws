@@ -57,11 +57,11 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1
 		Name:         aws.StringValue(info.InstanceType),
 		Requirements: computeRequirements(info, offerings, region, amiFamily),
 		Offerings:    offerings,
-		Capacity:     computeCapacity(ctx, info, amiFamily, nodeClass.Spec.BlockDeviceMappings, kc),
+		Capacity:     computeCapacity(ctx, info, amiFamily, nodeClass, kc),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeClass.Spec.BlockDeviceMappings), amiFamily, kc),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, nodeClass), amiFamily, kc),
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)))) == nil {
@@ -169,12 +169,12 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 }
 
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
-	blockDeviceMappings []*v1beta1.BlockDeviceMapping, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+	nodeClass *v1beta1.EC2NodeClass, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
 		v1.ResourceCPU:              *cpu(info),
 		v1.ResourceMemory:           *memory(ctx, info),
-		v1.ResourceEphemeralStorage: *ephemeralStorage(amiFamily, blockDeviceMappings),
+		v1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, nodeClass),
 		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
 		v1beta1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
 		v1beta1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
@@ -202,11 +202,17 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 	return mem
 }
 
-// Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
-func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1beta1.BlockDeviceMapping) *resource.Quantity {
-	if len(blockDeviceMappings) != 0 {
+// Setting ephemeral-storage to be either the default value, what is defined in blockDeviceMappings, or the combined size of local store volumes.
+func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, nodeClass *v1beta1.EC2NodeClass) *resource.Quantity {
+	// If local store disks have been configured for node ephemeral-storage, use the total size of the disks.
+	if lo.FromPtr(nodeClass.Spec.InstanceStoreConfiguration) == v1beta1.MountNodeEphemeralStorage {
+		if info.InstanceStorageInfo != nil && info.InstanceStorageInfo.TotalSizeInGB != nil {
+			return resources.Quantity(fmt.Sprintf("%dG", *info.InstanceStorageInfo.TotalSizeInGB))
+		}
+	}
+	if len(nodeClass.Spec.BlockDeviceMappings) != 0 {
 		// First check if there's a root volume configured in blockDeviceMappings.
-		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+		if blockDeviceMapping, ok := lo.Find(nodeClass.Spec.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
 			return bdm.RootVolume
 		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 			return blockDeviceMapping.EBS.VolumeSize
@@ -214,11 +220,11 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1be
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
 			// We can't know if a custom AMI is going to have a volume size.
-			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
+			volumeSize := nodeClass.Spec.BlockDeviceMappings[len(nodeClass.Spec.BlockDeviceMappings)-1].EBS.VolumeSize
 			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
 			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
-			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+			if blockDeviceMapping, ok := lo.Find(nodeClass.Spec.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
 				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
 			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 				return blockDeviceMapping.EBS.VolumeSize
