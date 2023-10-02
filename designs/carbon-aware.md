@@ -175,7 +175,7 @@ priceModification:
       region: "eu-west-1"
       capacityType: OnDemand
       price: 0.007712
-	- instanceType: "m5.xlarge"
+    - instanceType: "m5.xlarge"
       region: "eu-west-1"
       capacityType: OnDemand
       price: 0.015424
