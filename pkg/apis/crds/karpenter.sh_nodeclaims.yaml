@@ -341,6 +341,10 @@ spec:
                   - type
                   type: object
                 type: array
+              imageID:
+                description: ImageID is an identifier for the image that runs on the
+                  node
+                type: string
               nodeName:
                 description: NodeName is the name of the corresponding node object
                 type: string
