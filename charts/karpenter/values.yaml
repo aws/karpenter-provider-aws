@@ -146,6 +146,9 @@ webhook:
   logLevel: error
   # -- The container port to use for the webhook.
   port: 8443
+  metrics:
+    # -- The container port to use for webhook metrics.
+    port: 8001
 # -- Global log level
 logLevel: debug
 # -- Global log encoding
