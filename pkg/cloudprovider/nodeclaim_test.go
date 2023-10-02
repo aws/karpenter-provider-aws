@@ -87,6 +87,13 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 		Expect(corecloudproivder.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(cloudProviderNodeClaim).To(BeNil())
 	})
+	It("should set ImageID in the status field of the nodeClaim", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderNodeClaim).ToNot(BeNil())
+		Expect(cloudProviderNodeClaim.Status.ImageID).ToNot(BeEmpty())
+	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
