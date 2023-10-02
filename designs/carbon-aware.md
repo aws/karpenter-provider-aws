@@ -23,9 +23,9 @@ There is a lot more to Green Software. If you want to learn more, I recommend yo
 ### Feature Gate
 The feature is proposed to be controlled using a [feature gate](https://karpenter.sh/docs/concepts/settings/#feature-gates).
 
-| **Feature**  | **Default** |         **Config Key**          | **Stage** |    **Since**    | **Until** |
-| :----------: | :---------: | :-----------------------------: | :-------: | :-------------: | :-------: |
-| CarbonAware |    false    | featureGates.carbonAwareEnabled |   Alpha   | v0.31.0/v0.32.0 |           |
+| **Feature** | **Default** |         **Config Key**          | **Stage** |    **Since**    | **Until** |
+| :---------: | :---------: | :-----------------------------: | :-------: | :-------------: | :-------: |
+| CarbonAware |    false    | featureGates.carbonAwareEnabled |   Alpha   | v0.32.0/v0.33.0 |           |
 
 ### Carbon emissions data source
 Currently the best option is to create estimates based on the methodology used in [Boaviztapi](https://github.com/Boavizta/boaviztapi).
