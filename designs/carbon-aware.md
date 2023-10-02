@@ -137,7 +137,7 @@ Use same changes to provisioning as in [option 1](#option-1-use-carbon-aware-pro
 ### Option 3: Override instance price with carbon price (recommended)
 Minimize carbon emissions by defining a price per kgCO₂e and override the instance price with the carbon price (USD/kgCO₂e). Using the `prioritized` launch strategy, carbon emissions will be minimized during provisioning. Consolidation will unknowingly consolidate to minimize carbon emissions.
 
-The carbon price will depend on on `region` and `instanceType` and assume constant resource utilization (e.g. always 80% utilization). The carbon price will be generated in a "hack" and included as consts (same method as used for generating initial pricing[^3]). The carbon price / emission estimates can be updated with new versions.
+The carbon price will depend on on `region` and `instanceType` and assume constant resource utilization (e.g. always 80% utilization). The carbon price will be generated in a "hack" and included as consts (same method as used for generating initial pricing[^2]). The carbon price / emission estimates can be updated with new versions.
 
 Another feature (added later) can be to add carbon price to instance price to simulate a [carbon tax](https://en.wikipedia.org/wiki/Carbon_tax). Administrators could configure a custom carbon price or use a default.
 
@@ -195,5 +195,4 @@ A ConfigMap with price overrides for all combinations of instance types and regi
 1. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Aware is enabled.
 
 [^1]: The potential impact of greenhouse gases on global warming. Measured in terms of CO₂e.
-[^2]: https://dataviz.boavizta.org/cloudimpact
-[^3]: See [prices_gen.go](/hack/code/prices_gen.go) and [zz_generated.pricing.go](/pkg/providers/pricing/zz_generated.pricing.go)
+[^2]: See [prices_gen.go](/hack/code/prices_gen.go) and [zz_generated.pricing.go](/pkg/providers/pricing/zz_generated.pricing.go)
