@@ -2,9 +2,9 @@
 *Author: [@JacobValdemar](https://github.com/JacobValdemar)*
 
 ## Context & Problem
-There is a growing concern about environmental sustainability within the context of Kubernetes cluster autoscaling. In multiple comments on [the proposal for moving Karpenter to CNCF](https://github.com/kubernetes/org/issues/4258), the move is backed because of opportunities within environmental sustainability.
+There is a growing concern about the environmental impact of Kubernetes clusters. Karpenter's opportunities within environmental sustainability is referenced multiple times in comments that back [`karpenter-core`'s move to CNCF](https://github.com/kubernetes/org/issues/4258).
 
-I'm currently working on my master's thesis in Computer Engineering (M.Sc.Eng) at Aarhus University located in Denmark. The objective of the thesis is to enable Karpenter to minimize carbon emissions from Kubernetes clusters that run on cloud infrastructure (focus is AWS).
+I'm currently working on my master's thesis in Computer Engineering (Master of Science in Engineering) at Aarhus University located in Denmark. The objective of the thesis is to enable Karpenter to minimize carbon emissions from Kubernetes clusters that run on cloud infrastructure (scoped to AWS).
 
 RFC: https://github.com/aws/karpenter/issues/4630
 
@@ -28,22 +28,23 @@ The feature is proposed to be controlled using a [feature gate](https://karpente
 | CarbonAware |    false    | featureGates.carbonAwareEnabled |   Alpha   | v0.31.0/v0.32.0 |           |
 
 ### Carbon emissions data source
-Currently the best option seems to be to create estimates based on the methodology used in [Boaviztapi](https://github.com/Boavizta/boaviztapi). [Data demo](https://datavizta.boavizta.org/cloudimpact).
+Currently the best option is to create estimates based on the methodology used in [Boaviztapi](https://github.com/Boavizta/boaviztapi).
 
-I assume that we only want to use "static" data so we don't have to go out and make requests over the Internet to get real time data, since that would be expensive for performance.
+[Try out Boaviztapi on the Datavizta demo website](https://datavizta.boavizta.org/cloudimpact).
+
+#### Licensing
+Boaviztapi is licensed under `GNU Affero General Public License v3.0`. Therefore, as far as I know, we must license their data under the same license if used in the Karpenter repository.
 
 #### Limitations
-~~There is a discrepancy between the available instances known to Karpenter and instances know to the carbon emissions data source. This means that as it is right now, it is not possible to get carbon emissions data for all instances types. This is mostly the case for new instance types such as m7g. Unfurtunately this seems to extend to around 300 out of 700 instance types. See full comparison in [this Gist](https://gist.github.com/JacobValdemar/e1342013c0f5c980126f6a1feb66b4a1).~~
+There is a discrepancy between the available instances known to Karpenter and instances know to the carbon emissions data source. This means that as it is right now, it is not possible to get carbon emissions data for all instances types. This is mostly the case for new instance types such as m7g. Around 290 out of 700 instance types is missing data. See full comparison in [this Gist](https://gist.github.com/JacobValdemar/e1342013c0f5c980126f6a1feb66b4a1).
 
-~~I will attempt to eleminate this discrepancy, but it might not be possible. It will probably not always be possible to have an updated list of estimated carbon emissions for all instances as AWS continue to release new instance types. We should consider what to do with instance types that we do not have carbon emission estimates for.~~
+I will attempt to eleminate this discrepancy, but it might not be possible. It will probably not always be possible to have an updated list of estimated carbon emissions for all instances as AWS continue to release new instance types. We should consider what to do with instance types that we do not have carbon emission estimates for.
 
-~~Approaches to handle this:~~
-1. ~~Estimate extremely high emissions to effectively filter out unknown instance types~~
-1. ~~Estimate zero emissions~~
+Approaches to handle this:
+1. Estimate extremely high emissions to effectively filter out unknown instance types
+2. Estimate zero emissions
 
-~~I recommend option 1, as option 2 could potentially make the cluster even worse, environmentally.~~
-
-Update (Sep. 28, 2023): I have just been made aware that there is updated data available. Will have to analyze that to see how large the discrepancy is now.
+I recommend option 1, as option 2 could potentially make the cluster even worse, environmentally.
 
 ### Launch strategy
 To enable emission based priotization, the launch strategy should be changed from `lowest-price` to `prioritized`.
@@ -117,7 +118,6 @@ In karpenter, create a new method `CarbonAwareCreate` in `pkg/providers/instance
 
 #### Considerations
 1. 👍 Current consolidation methods are unaffected
-1. 👍 Following the principle *Push back on requirements that introduces concepts for all users to solve problems for a few*
 1. 👎 There might be copy-paste of code from the original consolidation methods to the carbon aware consolidators
 
 ### Option 2: Use Carbon Aware filtering/sorting methods
@@ -134,46 +134,66 @@ Use same changes to provisioning as in [option 1](#option-1-use-carbon-aware-pro
 1. 👎 Has a risk of breaking undocumented invariants
 1. 👎 Adds complexity to the original consolidation methods
 
-### Option 3: Put a price on carbon emissions and account for it
-Set a price per tonne (or kg) of CO₂e.
+### Option 3: Override instance price with carbon price (recommended)
+Minimize carbon emissions by defining a price per kgCO₂e and override the instance price with the carbon price (USD/kgCO₂e). Using the `prioritized` launch strategy, carbon emissions will be minimized during provisioning. Consolidation will unknowingly consolidate to minimize carbon emissions.
 
-Maybe have a config option for this, defaulting to $0. A good starting value for taking environmental impact into account is $0.25 / kg. (source missing)
+The carbon price will depend on on `region` and `instanceType` and assume constant resource utilization (e.g. always 80% utilization). The carbon price will be generated in a "hack" and included as consts (same method as used for generating initial pricing[^3]). The carbon price / emission estimates can be updated with new versions.
 
-Adjust the price algorithm to account for the pollution cost supplement.
-
-Additionally, if actual cost is no issue, we could weight them:
-- 100% weighting to the inferred pollution cost
-- 0% weighting to the billed cost from AWS
-
-This applies to both provisioning and consolidation.
+Another feature (added later) can be to add carbon price to instance price to simulate a [carbon tax](https://en.wikipedia.org/wiki/Carbon_tax). Administrators could configure a custom carbon price or use a default.
 
 #### Considerations
 1. 👍 Change is constrained to the pricing domain, so most of Karpenter's logic remains unaffected.
 1. 👍👍 Makes it possible to combine pricing and emission factors for a balanced solution that might have a good appeal to standard users. This could make the feature appealing for general availability using a carbon price recommended by a trusted organization like the United Nations.
-1. 👎 The operational carbon emission estimate is of highest quality if we use the instance utilization in the calculation. Depending on where and how the Carbon Aware feature is added, it might be hard to access to current and simulated instance utilization information. If the emission estimate and thus the price depends on utilization, the price will be different for different combinations of instances. This might break an undocumented invariant or be incompatible with the current architecture, requiring significant redesign if we want to use actual instance utilization in the calculation. For example, `m6g.4xlarge` could have a GWP of 1887 kgCO₂e or 2347 kgCO₂e at respectivly 10% or 100% load[^2]. One could of course just make assumptions, but that wont give the most accurate estimation. This is a trade off.
-1. 👎 Adds complexity to the *price* concept. Price is not just price, but rather becomes an optimization function.
-1. 👎 Without any adaptation, the `karpenter_cloudprovider_instance_type_price_estimate` metric will represent more than just price when Carbon Aware is enabled.
+1. 👎 Adds complexity to the *price* concept. Price is not *just* price, but rather becomes an optimization function.
+1. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Aware is enabled.
 
 ### Option 4: Enable custom instance price overrides
-A different approach could be to enable users to configure custom instance price overrides, e.g. in a ConfigMap. A configuration using emission factors (varying with region and instance type) masked as prices can be pre-generated. Users then copy-paste a Carbon Aware `priceOverride` into their environment.
+Enable administrators to configure custom instance price overrides, e.g. in a ConfigMap. A configuration using emission factors (varying with region and instance type) masked as prices can be pre-generated. Administrators then copy-paste a Carbon Aware `priceOverride` into their environment.
 
 ```yaml
 priceOverrides:
-  - name: m5.large
-    zone: us-west-2a
-    capacity-type: spot
-    price: .001
-  - name: m5.xlarge
-    zone: us-west-2a
-    capacity-type: spot
-    price: .002
+  - instanceType: "m5.large"
+    region: "eu-west-1"
+    capacityType: OnDemand
+    price: 0.007712
+  - instanceType: "m5.xlarge"
+    region: "eu-west-1"
+    capacityType: OnDemand
+    price: 0.015424
 ```
 
+<summary>Alternative interface</summary>
+
+Alternatively, a more flexible interface could be:
+
+```yaml
+priceModification:
+  operator: Add # Add or Override
+  modifications:
+	- instanceType: "m5.large"
+		region: "eu-west-1"
+		capacityType: OnDemand
+		price: 0.007712
+	- instanceType: "m5.xlarge"
+		region: "eu-west-1"
+		capacityType: OnDemand
+		price: 0.015424
+```
+</details>
+
+A ConfigMap with price overrides for all combinations of instance types and regions will be very huge. 632 instances * 29 regions = 18,328 pairs. Four lines per pair gives a file with 73,312 lines. The file/configmap will approximately have a size of 2 MB. [That exceeds the limit of ConfigMap size of 1 MiB in Kubernetes](https://kubernetes.io/docs/concepts/configuration/configmap/#motivation). 
+
 #### Considerations
+1. 👍 Simple solution
 1. 👍 Can be used for other purposes
-1. 👎 Carbon emission price can not be combined with actual price
-1. 👎 Operational carbon emissions can not use dynamic carbon intensity (possible future feature)
-1. 👎 Operational carbon emissions can not use current or simulated node utilization
+1. 👎👎 ConfigMap cannot contain all data. However, it should be possible if we only include a few regions, but which regions are relevant depends on the user. This gives a worse user experience.
+1. 👎 Hard to discover the carbon aware "feature"
+1. 👎 Carbon emission price cannot be combined with actual price
+1. 👎 Operational carbon emissions can not be calculated using dynamic carbon intensity (possible future feature)
+1. 👎 Operational carbon emissions can not be calculated using current or simulated node utilization
+1. 👎 Feature can not be enabled as a toggle
+1. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Aware is enabled.
 
 [^1]: The potential impact of greenhouse gases on global warming. Measured in terms of CO₂e.
 [^2]: https://dataviz.boavizta.org/cloudimpact
+[^3]: See [prices_gen.go](/hack/code/prices_gen.go) and [zz_generated.pricing.go](/pkg/providers/pricing/zz_generated.pricing.go)
