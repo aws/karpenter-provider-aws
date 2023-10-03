@@ -217,7 +217,7 @@ var _ = Describe("Combined/GarbageCollection", func() {
 			)
 			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
-					NodeClass: &corev1beta1.NodeClassReference{
+					NodeClassRef: &corev1beta1.NodeClassReference{
 						Name: nodeClass.Name,
 					},
 				},

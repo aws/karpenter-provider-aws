@@ -67,7 +67,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 								Values:   []string{corev1beta1.CapacityTypeOnDemand},
 							},
 						},
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},
@@ -1099,7 +1099,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 
-				nodePool.Spec.Template.Spec.NodeClass = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
+				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
 				ExpectApplied(ctx, env.Client, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1435,24 +1435,12 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String(v1.LabelInstanceTypeStable),
-								Value: aws.String("m5.large"),
-							},
-						},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
-						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String(v1.LabelInstanceTypeStable),
-								Value: aws.String("m5.xlarge"),
-							},
-						},
+						Architecture: aws.String("arm64"),
 						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})
@@ -1462,11 +1450,11 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
-				expectedImageIds := sets.NewString("ami-123", "ami-456")
-				actualImageIds := sets.NewString(
-					*awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
-					*awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
-				)
+				expectedImageIds := sets.New[string]("ami-123", "ami-456")
+				actualImageIds := sets.New[string]()
+				awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					actualImageIds.Insert(*ltInput.LaunchTemplateData.ImageId)
+				})
 				Expect(expectedImageIds.Equal(actualImageIds)).To(BeTrue())
 			})
 			It("should create a launch template with the newest compatible AMI when multiple amis are discovered", func() {

@@ -124,7 +124,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, opt
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms)
+		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms, nodeClass.IsNodeTemplate)
 		if err != nil {
 			return nil, err
 		}
@@ -183,13 +183,13 @@ func (p *Provider) resolveSSMParameter(ctx context.Context, ssmQuery string) (st
 	return ami, nil
 }
 
-func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm) (AMIs, error) {
+func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm, isNodeTemplate bool) (AMIs, error) {
 	filterAndOwnerSets := GetFilterAndOwnerSets(terms)
 	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
 	}
-	if images, ok := p.cache.Get(fmt.Sprint(hash)); ok {
+	if images, ok := p.cache.Get(fmt.Sprintf("%t/%d", isNodeTemplate, hash)); ok {
 		return images.(AMIs), nil
 	}
 	images := map[uint64]AMI{}
@@ -201,7 +201,7 @@ func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm)
 			MaxResults: aws.Int64(500),
 		}, func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for i := range page.Images {
-				reqs := p.getRequirementsFromImage(page.Images[i])
+				reqs := p.getRequirementsFromImage(page.Images[i], isNodeTemplate)
 				if !v1beta1.WellKnownArchitectures.Has(reqs.Get(v1.LabelArchStable).Any()) {
 					continue
 				}
@@ -229,7 +229,7 @@ func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm)
 			return nil, fmt.Errorf("describing images, %w", err)
 		}
 	}
-	p.cache.SetDefault(fmt.Sprint(hash), AMIs(lo.Values(images)))
+	p.cache.SetDefault(fmt.Sprintf("%t/%d", isNodeTemplate, hash), AMIs(lo.Values(images)))
 	return lo.Values(images), nil
 }
 
@@ -276,11 +276,15 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 	return res
 }
 
-func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
+func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image, isNodeTemplate bool) scheduling.Requirements {
 	requirements := scheduling.NewRequirements()
-	for _, tag := range ec2Image.Tags {
-		if v1alpha5.WellKnownLabels.Has(*tag.Key) || corev1beta1.WellKnownLabels.Has(*tag.Key) {
-			requirements.Add(scheduling.NewRequirement(*tag.Key, v1.NodeSelectorOpIn, *tag.Value))
+	// Only allow tag-based AMI requirements for NodeTemplates
+	// TODO @joinnis: Remove this section for tag-based AMI requirements when dropping v1alpha5
+	if isNodeTemplate {
+		for _, tag := range ec2Image.Tags {
+			if v1alpha5.WellKnownLabels.Has(*tag.Key) || corev1beta1.WellKnownLabels.Has(*tag.Key) {
+				requirements.Add(scheduling.NewRequirement(*tag.Key, v1.NodeSelectorOpIn, *tag.Value))
+			}
 		}
 	}
 	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.

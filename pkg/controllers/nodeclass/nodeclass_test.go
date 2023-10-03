@@ -691,49 +691,6 @@ var _ = Describe("NodeClassController", func() {
 				},
 			))
 		})
-		It("should resolve amiSelector AMIs that have well-known tags as AMI requirements into status", func() {
-			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-				Images: []*ec2.Image{
-					{
-						Name:         aws.String("test-ami-4"),
-						ImageId:      aws.String("ami-test4"),
-						CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
-						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
-							{Key: aws.String("foo"), Value: aws.String("bar")},
-							{Key: aws.String("kubernetes.io/os"), Value: aws.String("test-requirement-1")},
-						},
-					},
-				},
-			})
-			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
-			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-
-			Expect(nodeClass.Status.AMIs).To(Equal([]v1beta1.AMI{
-				{
-					Name: "test-ami-4",
-					ID:   "ami-test4",
-					Requirements: []v1.NodeSelectorRequirement{
-						{
-							Key:      "kubernetes.io/os",
-							Operator: "In",
-							Values: []string{
-								"test-requirement-1",
-							},
-						},
-						{
-							Key:      "kubernetes.io/arch",
-							Operator: "In",
-							Values: []string{
-								"amd64",
-							},
-						},
-					},
-				},
-			}))
-		})
 	})
 	Context("Static Drift Hash", func() {
 		DescribeTable("should update the static drift hash when static field is updated", func(changes *v1beta1.EC2NodeClass) {
@@ -848,7 +805,7 @@ var _ = Describe("NodeClassController", func() {
 			for i := 0; i < 2; i++ {
 				nc := coretest.NodeClaim(corev1beta1.NodeClaim{
 					Spec: corev1beta1.NodeClaimSpec{
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},

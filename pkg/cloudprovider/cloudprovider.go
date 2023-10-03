@@ -208,7 +208,7 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *corev1beta1.No
 	if err != nil {
 		return "", client.IgnoreNotFound(fmt.Errorf("resolving owner, %w", err))
 	}
-	if nodePool.Spec.Template.Spec.NodeClass == nil {
+	if nodePool.Spec.Template.Spec.NodeClassRef == nil {
 		return "", nil
 	}
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
@@ -235,14 +235,14 @@ func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeC
 	if nodeClaim.IsMachine {
 		nodeTemplate, err := c.resolveNodeTemplate(ctx,
 			[]byte(nodeClaim.Annotations[v1alpha5.ProviderCompatabilityAnnotationKey]),
-			machineutil.NewMachineTemplateRef(nodeClaim.Spec.NodeClass))
+			machineutil.NewMachineTemplateRef(nodeClaim.Spec.NodeClassRef))
 		if err != nil {
 			return nil, fmt.Errorf("resolving node template, %w", err)
 		}
 		return nodeclassutil.New(nodeTemplate), nil
 	}
 	nodeClass := &v1beta1.EC2NodeClass{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClass.Name}, nodeClass); err != nil {
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
 		return nil, err
 	}
 	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound
@@ -259,14 +259,14 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 		if nodePool.Spec.Template.Spec.Provider != nil {
 			rawProvider = nodePool.Spec.Template.Spec.Provider.Raw
 		}
-		nodeTemplate, err := c.resolveNodeTemplate(ctx, rawProvider, machineutil.NewMachineTemplateRef(nodePool.Spec.Template.Spec.NodeClass))
+		nodeTemplate, err := c.resolveNodeTemplate(ctx, rawProvider, machineutil.NewMachineTemplateRef(nodePool.Spec.Template.Spec.NodeClassRef))
 		if err != nil {
 			return nil, fmt.Errorf("resolving node template, %w", err)
 		}
 		return nodeclassutil.New(nodeTemplate), nil
 	}
 	nodeClass := &v1beta1.EC2NodeClass{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClass.Name}, nodeClass); err != nil {
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
 		return nil, err
 	}
 	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound

@@ -55,8 +55,8 @@ github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHS
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
 github.com/aws/aws-sdk-go v1.45.19 h1:+4yXWhldhCVXWFOQRF99ZTJ92t4DtoHROZIbN7Ujk/U=
 github.com/aws/aws-sdk-go v1.45.19/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
-github.com/aws/karpenter-core v0.31.1-0.20231002162436-976c1355fd93 h1:DyIyZ7RYNCLK/W6urF3AwSYEUy2K44H8szwp5Xj68JQ=
-github.com/aws/karpenter-core v0.31.1-0.20231002162436-976c1355fd93/go.mod h1:4wXCSTj97gOWkWeB4D6LjWQMoqldrI8fo4tUOAhYTDs=
+github.com/aws/karpenter-core v0.31.1-0.20231003150228-d494b7d6d54f h1:yl73U8hrilKuHnGu1dqSv3H/r+3zXA0z8iJYDGbjGxE=
+github.com/aws/karpenter-core v0.31.1-0.20231003150228-d494b7d6d54f/go.mod h1:4wXCSTj97gOWkWeB4D6LjWQMoqldrI8fo4tUOAhYTDs=
 github.com/aws/karpenter/tools/kompat v0.0.0-20230915222222-abfbf5fa3644 h1:M1fxGlOfvSqFYI01HL2zzvomy8e7LiTHk77KDuChWZQ=
 github.com/aws/karpenter/tools/kompat v0.0.0-20230915222222-abfbf5fa3644/go.mod h1:l/TIBsaCx/IrOr0Xvlj/cHLOf05QzuQKEZ1hx2XWmfU=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=

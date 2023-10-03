@@ -105,7 +105,7 @@ var _ = Describe("Tags", func() {
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							NodeClass: &corev1beta1.NodeClassReference{
+							NodeClassRef: &corev1beta1.NodeClassReference{
 								Name: nodeClass.Name,
 							},
 						},
@@ -144,7 +144,7 @@ var _ = Describe("Tags", func() {
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							NodeClass: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
 						},
 					},
 				},
