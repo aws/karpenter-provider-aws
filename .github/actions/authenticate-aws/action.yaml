@@ -5,5 +5,5 @@ runs:
   steps:
     - uses: aws-actions/configure-aws-credentials@v1-node16
       with:
-        role-to-assume: arn:aws:iam::071440425669:role/Github
+        role-to-assume: arn:aws:iam::071440425669:role/GithubRelease
         aws-region: us-east-1
