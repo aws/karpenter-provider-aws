@@ -877,6 +877,11 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					"nodefs.available":  "15%",
 					"nodefs.inodesFree": "5%",
 				},
+				EvictionSoftGracePeriod: map[string]metav1.Duration{
+					"memory.available":  {Duration: time.Minute},
+					"nodefs.available":  {Duration: time.Second * 180},
+					"nodefs.inodesFree": {Duration: time.Minute * 5},
+				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -903,6 +908,11 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					"memory.available":  {Duration: time.Minute},
 					"nodefs.available":  {Duration: time.Second * 180},
 					"nodefs.inodesFree": {Duration: time.Minute * 5},
+				},
+				EvictionSoft: map[string]string{
+					"memory.available":  "10%",
+					"nodefs.available":  "15%",
+					"nodefs.inodesFree": "5%",
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
