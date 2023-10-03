@@ -1,9 +1,9 @@
 ---
-title: "Deprovisioning"
-linkTitle: "Deprovisioning"
+title: "Disruption"
+linkTitle: "Disruption"
 weight: 4
 description: >
-  Understand different ways Karpenter deprovisions nodes
+  Understand different ways Karpenter disrupts nodes
 ---
 
 ## Control Flow
