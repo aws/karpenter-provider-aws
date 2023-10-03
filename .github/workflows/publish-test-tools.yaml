@@ -18,6 +18,9 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/install-deps
-      - uses: ./.github/actions/authenticate-aws
+      - uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: 'arn:aws:iam::071440425669:role/GithubRelease'
+          aws-region: us-east-1
       - run: ./push-docker.sh
         working-directory: ./test

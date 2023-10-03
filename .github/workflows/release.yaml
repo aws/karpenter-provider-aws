@@ -27,9 +27,10 @@ jobs:
           fetch-depth: 0
           ref: ${{ env.TAG_COMMIT }}
       - uses: ./.github/actions/install-deps
-      - uses: ./.github/actions/authenticate-aws
+      - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
-          role: GithubSnapshot
+          role-to-assume: 'arn:aws:iam::071440425669:role/GithubSnapshot'
+          aws-region: us-east-1
       - uses: ./.github/actions/authenticate-ghcr
         with:
           actor: ${{ github.actor }}
@@ -40,9 +41,10 @@ jobs:
     needs: release
     if: env.TAG != 'no tag'
     steps:
-      - uses: ./.github/actions/authenticate-aws
+      - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
-          role: GithubSnapshot
+          role-to-assume: 'arn:aws:iam::071440425669:role/GithubRelease'
+          aws-region: us-east-1
       - uses: ./.github/actions/authenticate-ghcr
         with:
           actor: ${{ github.actor }}

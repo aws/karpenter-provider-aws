@@ -14,7 +14,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/install-deps
-      - uses: ./.github/actions/authenticate-aws
+      - uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: 'arn:aws:iam::071440425669:role/GithubRelease'
+          aws-region: us-east-1
       - run: make docgen
       - run: make codegen
         env:

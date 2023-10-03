@@ -29,9 +29,10 @@ jobs:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
           git_ref: ${{ env.PR_COMMIT }}
       - uses: ./.github/actions/install-deps
-      - uses: ./.github/actions/authenticate-aws
+      - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
-          role: 'GithubSnapshot'
+          role-to-assume: 'arn:aws:iam::071440425669:role/GithubSnapshot'
+          aws-region: us-east-1
       - run: make snapshot
         env:
           GH_PR_NUMBER: ${{env.PR_NUMBER}}
