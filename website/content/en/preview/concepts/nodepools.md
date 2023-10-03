@@ -1,9 +1,9 @@
 ---
-title: "Provisioners"
-linkTitle: "Provisioners"
+title: "NodePools"
+linkTitle: "NodePools"
 weight: 1
 description: >
-  Learn about Karpenter Provisioners
+  Configure Karpenter with NodePools
 ---
 
 When you first installed Karpenter, you set up a default Provisioner.
