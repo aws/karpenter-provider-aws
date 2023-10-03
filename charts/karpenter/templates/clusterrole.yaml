@@ -32,6 +32,11 @@ rules:
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["awsnodetemplates"]
     verbs: ["get", "list", "watch"]
+  # Write
+  - apiGroups: ["karpenter.k8s.aws"]
+    resources: ["awsnodetemplates", "awsnodetemplates/status"]
+    verbs: ["patch", "update"]
+{{- if .Values.webhook.enabled }}
   - apiGroups: ["admissionregistration.k8s.io"]
     resources: ["validatingwebhookconfigurations"]
     verbs: ["update"]
@@ -40,7 +45,4 @@ rules:
     resources: ["mutatingwebhookconfigurations"]
     verbs: ["update"]
     resourceNames: ["defaulting.webhook.karpenter.k8s.aws"]
-  # Write
-  - apiGroups: ["karpenter.k8s.aws"]
-    resources: ["awsnodetemplates", "awsnodetemplates/status"]
-    verbs: ["patch", "update"]
+{{- end }}
