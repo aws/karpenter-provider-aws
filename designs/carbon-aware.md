@@ -36,7 +36,7 @@ Currently the best option is to create estimates based on the methodology used i
 Boaviztapi is licensed under [`GNU Affero General Public License v3.0`](https://github.com/Boavizta/boaviztapi/blob/main/LICENSE). Therefore, as far as I know, we must license their data under the same license if used in the Karpenter repository.
 
 #### Limitations
-There is a discrepancy between the available instances known to Karpenter and instances know to the carbon emissions data source. This means that as it is right now, it is not possible to get carbon emissions data for all instances types. This is mostly the case for new instance types such as m7g. Around 290 out of 700 instance types is missing data. See full comparison in [this Gist](https://gist.github.com/JacobValdemar/e1342013c0f5c980126f6a1feb66b4a1).
+There is a discrepancy between the available instances known to Karpenter and instances know to Boaviztapi. This means that as it is right now, it is not possible to get carbon emissions data for all instances types. This is mostly the case for new instance types such as m7g. Around 290 out of 700 instance types is missing data. See full comparison in [this Gist](https://gist.github.com/JacobValdemar/e1342013c0f5c980126f6a1feb66b4a1).
 
 I will attempt to eleminate this discrepancy, but it might not be possible. It will probably not always be possible to have an updated list of estimated carbon emissions for all instances as AWS continue to release new instance types. We should consider what to do with instance types that we do not have carbon emission estimates for.
 
@@ -110,13 +110,13 @@ Create two new consolidation methods `carbonawaresinglemachineconsolidation.go` 
 </details>
 
 #### Provisioning
-In karpenter-core, create a new method `types.go/OrderByCarbonEmissions` and use that in `nodeclaimtemplate.go/ToMachine` and `nodeclaimtemplate.go/ToNodeClaim` instead of `types.go/OrderByPriceEmissions` if Carbon Aware is enabled.
+In `karpenter-core`, create a new method `types.go/OrderByCarbonEmissions` and use that in `nodeclaimtemplate.go/ToMachine` and `nodeclaimtemplate.go/ToNodeClaim` instead of `types.go/OrderByPrice` when Carbon Aware is enabled.
 
-In karpenter, create a new method `CarbonAwareCreate` in `pkg/providers/instance/instance.go` that is used in `pkg/cloudprovider/cloudprovider.go/Create` instead of `pkg/providers/instance/instance.go/Create` when Carbon Aware is enabled.
+In `karpenter`, create a new method `CarbonAwareCreate` in `pkg/providers/instance/instance.go` that is used in `pkg/cloudprovider/cloudprovider.go/Create` instead of `pkg/providers/instance/instance.go/Create` when Carbon Aware is enabled.
 
 #### Considerations
-1. 👍 Current consolidation methods are unaffected
-1. 👎 There might be copy-paste of code from the original consolidation methods to the carbon aware consolidators
+1. 👍 Current consolidation methods are unaffected.
+1. 👎 There might be copy-paste of code from the original consolidation methods to the carbon aware consolidators.
 
 ### Option 2: Use Carbon Aware filtering/sorting methods
 
@@ -127,10 +127,10 @@ Create carbon aware implementations of low-level functions like `filterByPrice`,
 Use same changes to provisioning as in [option 1](#option-1-use-carbon-aware-provisioning-and-concolidation-methods).
 
 #### Considerations
-1. 👍 Less code copy-paste
-1. 👍 Improvements to original consolidation methods also improve the Carbon Aware feature
-1. 👎 Has a risk of breaking undocumented invariants
-1. 👎 Adds complexity to the original consolidation methods
+1. 👍 Less code copy-paste.
+1. 👍 Improvements to original consolidation methods also improve the Carbon Aware feature.
+1. 👎 Has a risk of breaking undocumented invariants.
+1. 👎 Adds complexity to the original consolidation methods.
 
 ### Option 3: Override instance price with carbon price (recommended)
 Minimize carbon emissions by defining a price per kgCO₂e and override the instance price with the carbon price (USD/kgCO₂e). Using the `prioritized` launch strategy, carbon emissions will be minimized during provisioning. Consolidation will unknowingly consolidate to minimize carbon emissions.
@@ -141,7 +141,7 @@ Another feature (added later) can be to add carbon price to instance price to si
 
 #### Considerations
 1. 👍 Change is constrained to the pricing domain, so most of Karpenter's logic remains unaffected.
-1. 👍👍 Makes it possible to combine pricing and emission factors for a balanced solution that might have a good appeal to standard users. This could make the feature appealing for general availability using a carbon price recommended by a trusted organization like the United Nations.
+1. 👍👍 A simulated carbon tax could be appealing for *Beta* or *General Availability*[^3] as it combines the real price with the carbon price.
 1. 👎 Adds complexity to the *price* concept. Price is not *just* price, but rather becomes an optimization function.
 1. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Aware is enabled.
 
@@ -180,18 +180,18 @@ priceModification:
 ```
 </details>
 
-A ConfigMap with price overrides for all combinations of instance types and regions will be very huge. 632 instances * 29 regions = 18,328 pairs. Four lines per pair gives a file with 73,312 lines. The file/configmap will approximately have a size of 2 MB. [That exceeds the limit of ConfigMap size of 1 MiB in Kubernetes](https://kubernetes.io/docs/concepts/configuration/configmap/#motivation). 
+A ConfigMap with price overrides for all combinations of instance types and regions will be very huge. 632 instances * 29 regions = 18,328 pairs. Four lines per pair gives a file with 73,312 lines. The file/configmap will approximately have a size of 2 MB. That exceeds the [`1 MiB` limit on ConfigMap size in Kubernetes](https://kubernetes.io/docs/concepts/configuration/configmap/#motivation).
 
 #### Considerations
-1. 👍 Simple solution
-1. 👍 Can be used for other purposes
-1. 👎👎 ConfigMap cannot contain all data. However, it should be possible if we only include a few regions, but which regions are relevant depends on the user. This gives a worse user experience.
-1. 👎 Hard to discover the carbon aware "feature"
-1. 👎 Carbon emission price cannot be combined with actual price
-1. 👎 Operational carbon emissions can not be calculated using dynamic carbon intensity (possible future feature)
-1. 👎 Operational carbon emissions can not be calculated using current or simulated node utilization
-1. 👎 Feature can not be enabled as a toggle
-1. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Aware is enabled.
+1. 👍 Simple solution.
+1. 👍 Can be used for other purposes.
+2. 👎👎 ConfigMap cannot contain all data.
+3. 👎 Hard to discover the carbon aware "feature".
+4. 👎 Carbon emission price cannot be combined with actual price.
+5. 👎 Carbon emissions are completely static without possibility to improve it in the future.
+7. 👎 Feature can not be enabled as a toggle.
+8. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Aware is enabled.
 
 [^1]: The potential impact of greenhouse gases on global warming. Measured in terms of CO₂e.
 [^2]: See [prices_gen.go](/hack/code/prices_gen.go) and [zz_generated.pricing.go](/pkg/providers/pricing/zz_generated.pricing.go)
+[^3]: https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-stages
