@@ -40,7 +40,7 @@ spec:
       name: NodePool
       priority: 1
       type: string
-    - jsonPath: .spec.nodeClass.name
+    - jsonPath: .spec.nodeClassRef.name
       name: NodeClass
       priority: 1
       type: string
@@ -160,9 +160,9 @@ spec:
                       system daemons and kernel memory.
                     type: object
                 type: object
-              nodeClass:
-                description: NodeClass is a reference to an object that defines provider
-                  specific configuration
+              nodeClassRef:
+                description: NodeClassRef is a reference to an object that defines
+                  provider specific configuration
                 properties:
                   apiVersion:
                     description: API version of the referent
@@ -282,7 +282,7 @@ spec:
                   type: object
                 type: array
             required:
-            - nodeClass
+            - nodeClassRef
             - requirements
             type: object
           status:
@@ -341,6 +341,10 @@ spec:
                   - type
                   type: object
                 type: array
+              imageID:
+                description: ImageID is an identifier for the image that runs on the
+                  node
+                type: string
               nodeName:
                 description: NodeName is the name of the corresponding node object
                 type: string

@@ -67,7 +67,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 								Values:   []string{corev1beta1.CapacityTypeOnDemand},
 							},
 						},
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},
@@ -1099,7 +1099,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 
-				nodePool.Spec.Template.Spec.NodeClass = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
+				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
 				ExpectApplied(ctx, env.Client, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
