@@ -11,7 +11,7 @@ go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-conver
 
 ## Usage:
 
-```
+```console
 # Convert a single Provisioner file to NodePool
 karpenter-convert -f provisioner.yaml > nodepool.yaml
 
