@@ -848,7 +848,7 @@ var _ = Describe("NodeClassController", func() {
 			for i := 0; i < 2; i++ {
 				nc := coretest.NodeClaim(corev1beta1.NodeClaim{
 					Spec: corev1beta1.NodeClaimSpec{
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},

@@ -235,10 +235,10 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 			&source.Kind{Type: &corev1beta1.NodeClaim{}},
 			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
 				nc := o.(*corev1beta1.NodeClaim)
-				if nc.Spec.NodeClass == nil {
+				if nc.Spec.NodeClassRef == nil {
 					return nil
 				}
-				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: nc.Spec.NodeClass.Name}}}
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: nc.Spec.NodeClassRef.Name}}}
 			}),
 			// Watch for NodeClaim deletion events
 			builder.WithPredicates(predicate.Funcs{

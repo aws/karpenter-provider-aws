@@ -61,7 +61,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 								Values:   []string{corev1beta1.CapacityTypeOnDemand},
 							},
 						},
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},
@@ -84,7 +84,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 								Values:   []string{corev1beta1.CapacityTypeOnDemand},
 							},
 						},
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: windowsNodeClass.Name,
 						},
 					},
