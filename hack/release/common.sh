@@ -33,7 +33,7 @@ versionData(){
 
 snapshot() {
   RELEASE_VERSION=$1
-  echo "Release Type: $(releaseType "${RELEASE_VERSION}")
+  echo "Release Type: snapshot
 Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
@@ -47,7 +47,7 @@ Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
 release() {
   RELEASE_VERSION=$1
-  echo "Release Type: $(releaseType "${RELEASE_VERSION}")
+  echo "Release Type: stable
 Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"

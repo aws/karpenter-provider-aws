@@ -28,16 +28,28 @@ jobs:
           ref: ${{ env.TAG_COMMIT }}
       - uses: ./.github/actions/install-deps
       - uses: ./.github/actions/authenticate-aws
+        with:
+          role: GithubSnapshot
+      - uses: ./.github/actions/authenticate-ghcr
+        with:
+          actor: ${{ github.actor }}
+          secret: ${{ secrets.GITHUB_TOKEN }}
+      - run: make snapshot
+      - run: make docgen
+  stableRelease:
+    needs: release
+    if: env.TAG != 'no tag'
+    steps:
+      - uses: ./.github/actions/authenticate-aws
+        with:
+          role: GithubSnapshot
       - uses: ./.github/actions/authenticate-ghcr
         with:
           actor: ${{ github.actor }}
           secret: ${{ secrets.GITHUB_TOKEN }}
       - run: make release
-      - run: make docgen
       - run: make prepare-website
-        if: env.TAG != 'no tag'
       - run: make stable-release-pr
-        if: env.TAG != 'no tag'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPO: ${{ github.repository }}

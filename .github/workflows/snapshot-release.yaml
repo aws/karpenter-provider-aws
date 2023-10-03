@@ -30,7 +30,9 @@ jobs:
           git_ref: ${{ env.PR_COMMIT }}
       - uses: ./.github/actions/install-deps
       - uses: ./.github/actions/authenticate-aws
-      - run: make release
+        with:
+          role: 'GithubSnapshot'
+      - run: make snapshot
         env:
           GH_PR_NUMBER: ${{env.PR_NUMBER}}
       - uses: actions/github-script@v6
@@ -41,7 +43,7 @@ jobs:
               issue_number: `${{env.PR_NUMBER}}`,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Snapshot successfully published to `oci://public.ecr.aws/karpenter/karpenter:v0-${{env.PR_COMMIT}}`. Find the image tag and installation instructions at https://gallery.ecr.aws/karpenter/karpenter/'
+              body: 'Snapshot successfully published to `oci://071440425669.dkr.ecr.us-east-1.amazonaws.com/karpenter/snapshot/karpenter:v0-${{env.PR_COMMIT}}`.'
             })
       - if: always()
         uses: ./.github/actions/commit-status/end

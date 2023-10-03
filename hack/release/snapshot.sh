@@ -8,5 +8,9 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
 config
 
-release "$GIT_TAG"
+# Create a snapshot release
+snapshot "$HEAD_HASH"
+
+git reset --hard
+git clean -qdxf
 
