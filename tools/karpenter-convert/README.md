@@ -20,6 +20,9 @@ karpenter-convert -f nodetemplate.yaml > nodeclass.yaml
 
 # Convert an entire directory (.json, .yaml, .yml files) to the equivalent new APIs
 karpenter-convert -f . > output.yaml
+
+# Convert a single provisioner and apply directly to the cluster
+karpenter-convert -f provisioner.yaml | kubectl apply -f -
 ```
 
 ## Usage notes

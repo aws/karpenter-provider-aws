@@ -37,13 +37,13 @@ func TestConvertObject(t *testing.T) {
 	testcases := []testcase{
 		{
 			name:       "provisioner to nodepool",
-			file:       "./test/fixtures/provisioner.yaml",
-			outputFile: "./test/fixtures/nodepool.yaml",
+			file:       "./testdata/provisioner.yaml",
+			outputFile: "./testdata/nodepool.yaml",
 		},
 		{
 			name:       "nodetemplate to nodeclass",
-			file:       "./test/fixtures/nodetemplate.yaml",
-			outputFile: "./test/fixtures/nodeclass.yaml",
+			file:       "./testdata/nodetemplate.yaml",
+			outputFile: "./testdata/nodeclass.yaml",
 		},
 	}
 
