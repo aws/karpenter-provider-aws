@@ -37,6 +37,11 @@ runs:
       kubectl create ns karpenter || true
       kubectl label ns karpenter scrape=enabled --overwrite=true
       kubectl label ns karpenter pod-security.kubernetes.io/enforce=restricted --overwrite=true
+  - name: login to ecr via docker
+    uses: docker/login-action@v3
+    with:
+      registry: 071440425669.dkr.ecr.us-east-1.amazonaws.com
+      logout: true
   - name: install-karpenter
     shell: bash
     run: |
