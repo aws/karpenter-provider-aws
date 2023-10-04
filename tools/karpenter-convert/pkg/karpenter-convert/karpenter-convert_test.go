@@ -12,66 +12,77 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package convert
+package convert_test
 
 import (
 	"bytes"
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
-	"testing"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
+	convert "github.com/aws/karpenter/tools/karpenter-convert/pkg/karpenter-convert"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest/fake"
 	cmdtesting "k8s.io/kubectl/pkg/cmd/testing"
 )
 
-type testcase struct {
-	name       string
-	file       string
-	outputFile string
-}
-
-func TestConvertObject(t *testing.T) {
-	testcases := []testcase{
-		{
-			name:       "provisioner to nodepool",
-			file:       "./testdata/provisioner.yaml",
-			outputFile: "./testdata/nodepool.yaml",
-		},
-		{
-			name:       "nodetemplate to nodeclass",
-			file:       "./testdata/nodetemplate.yaml",
-			outputFile: "./testdata/nodeclass.yaml",
-		},
+var _ = Describe("ConvertObject", func() {
+	type testcase struct {
+		name       string
+		file       string
+		outputFile string
 	}
 
-	for _, tc := range testcases {
-		t.Run(fmt.Sprintf("%s", tc.name), func(t *testing.T) {
+	DescribeTable("conversion tests",
+		func(tc testcase) {
 			tf := cmdtesting.NewTestFactory().WithNamespace("test")
 			defer tf.Cleanup()
 
 			tf.UnstructuredClient = &fake.RESTClient{
 				Client: fake.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-					t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
+					Fail(fmt.Sprintf("unexpected request: %#v\n%#v", req.URL, req))
 					return nil, nil
 				}),
 			}
 
 			buf := bytes.NewBuffer([]byte{})
-			cmd := NewCmd(tf, genericiooptions.IOStreams{Out: buf, ErrOut: buf})
-			cmd.Flags().Set("filename", tc.file)
-			cmd.Flags().Set("local", "true")
-			cmd.Flags().Set("output", "yaml")
+			cmd := convert.NewCmd(tf, genericiooptions.IOStreams{Out: buf, ErrOut: buf})
+			if err := cmd.Flags().Set("filename", tc.file); err != nil {
+				Expect(err).To(BeNil())
+			}
+			if err := cmd.Flags().Set("local", "true"); err != nil {
+				Expect(err).To(BeNil())
+			}
+			if err := cmd.Flags().Set("output", "yaml"); err != nil {
+				Expect(err).To(BeNil())
+			}
+
 			cmd.Run(cmd, []string{})
 
 			bytes, _ := os.ReadFile(tc.outputFile)
 			content := string(bytes)
 
-			if !strings.Contains(buf.String(), content) {
-				t.Errorf("unexpected output when converting %s to %q, expected: %q, but got %q", tc.file, tc.outputFile, content, buf.String())
-			}
-		})
-	}
-}
+			Expect(buf.String()).To(ContainSubstring(content), fmt.Sprintf("unexpected output when converting %s to %q, expected: %q, but got %q", tc.file, tc.outputFile, content, buf.String()))
+		},
+
+		Entry("provisioner to nodepool",
+			testcase{
+				name:       "provisioner to nodepool",
+				file:       "./testdata/provisioner.yaml",
+				outputFile: "./testdata/nodepool.yaml",
+			},
+		),
+
+		Entry("nodetemplate to nodeclass",
+			testcase{
+				name:       "nodetemplate to nodeclass",
+				file:       "./testdata/nodetemplate.yaml",
+				outputFile: "./testdata/nodeclass.yaml",
+			},
+		),
+	)
+})

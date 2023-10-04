@@ -17,22 +17,24 @@ package convert
 import (
 	"fmt"
 
+	"github.com/samber/lo"
+	"github.com/spf13/cobra"
+
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
-	"github.com/samber/lo"
-	"github.com/spf13/cobra"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/resource"
 	"k8s.io/kubernetes/pkg/printers"
+
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 )
@@ -67,7 +69,7 @@ func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Comm
 	return rootCmd
 }
 
-func (o *Context) Complete(f cmdutil.Factory, cmd *cobra.Command) (err error) {
+func (o *Context) Complete(f cmdutil.Factory, _ *cobra.Command) (err error) {
 	err = o.FilenameOptions.RequireFilenameOrKustomize()
 	if err != nil {
 		return err
@@ -79,8 +81,12 @@ func (o *Context) Complete(f cmdutil.Factory, cmd *cobra.Command) (err error) {
 
 func (o *Context) RunConvert() error {
 	scheme := runtime.NewScheme()
-	apis.AddToScheme(scheme)
-	v1alpha5.SchemeBuilder.AddToScheme(scheme)
+	if err := apis.AddToScheme(scheme); err != nil {
+		return err
+	}
+	if err := v1alpha5.SchemeBuilder.AddToScheme(scheme); err != nil {
+		return err
+	}
 
 	b := o.builder().
 		WithScheme(scheme, v1alpha1.SchemeGroupVersion, v1alpha5.SchemeGroupVersion).
