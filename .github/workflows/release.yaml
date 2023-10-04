@@ -29,8 +29,8 @@ jobs:
       - uses: ./.github/actions/install-deps
       - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
-          role-to-assume: 'arn:aws:iam::071440425669:role/GithubSnapshot'
-          aws-region: us-east-1
+          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.ECR_REGION }}
       - uses: ./.github/actions/authenticate-ghcr
         with:
           actor: ${{ github.actor }}
@@ -43,8 +43,8 @@ jobs:
     steps:
       - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
-          role-to-assume: 'arn:aws:iam::071440425669:role/GithubRelease'
-          aws-region: us-east-1
+          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_RELEASE_ROLE_NAME }}'
+          aws-region: ${{ vars.ECR_REGION }}
       - uses: ./.github/actions/authenticate-ghcr
         with:
           actor: ${{ github.actor }}

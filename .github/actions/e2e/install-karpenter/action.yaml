@@ -15,9 +15,6 @@ inputs:
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
-  ecr_repo:
-    description: "The ecr repo for the karpenter helm chart"
-    default: 'oci://071440425669.dkr.ecr.us-east-1.amazonaws.com/karpenter/snapshot/karpenter'
 runs:
   using: "composite"
   steps:
@@ -40,13 +37,13 @@ runs:
   - name: login to ecr via docker
     uses: docker/login-action@v3
     with:
-      registry: 071440425669.dkr.ecr.us-east-1.amazonaws.com
+      registry: ${{ vars.ECR_ACCOUNT_ID }}.dkr.ecr.${{ vars.ECR_REGION }}.amazonaws.com
       logout: true
   - name: install-karpenter
     shell: bash
     run: |
       aws eks update-kubeconfig --name "${{ inputs.cluster_name }}"
-        helm upgrade --install karpenter ${{ inputs.ecr_repo }} \
+        helm upgrade --install karpenter oci://${{ vars.ECR_ACCOUNT_ID }}.dkr.ecr.${{ vars.ECR_REGION }}.amazonaws.com/karpenter/snapshot/karpenter \
         -n karpenter \
         --version "v0-$(git rev-parse HEAD)" \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/karpenter-irsa-${{ inputs.cluster_name }}" \
@@ -72,6 +69,6 @@ runs:
     shell: bash
     run: |
       helm diff upgrade --namespace karpenter \
-        karpenter ${{ inputs.ecr_repo }} \
+        karpenter oci://${{ vars.ECR_ACCOUNT_ID }}.dkr.ecr.${{ vars.ECR_REGION }}.amazonaws.com/karpenter/snapshot/karpenter \
         --version v0-$(git rev-parse HEAD) \
         --reuse-values --three-way-merge --detailed-exitcode

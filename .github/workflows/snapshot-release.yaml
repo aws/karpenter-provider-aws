@@ -31,8 +31,8 @@ jobs:
       - uses: ./.github/actions/install-deps
       - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
-          role-to-assume: 'arn:aws:iam::071440425669:role/GithubSnapshot'
-          aws-region: us-east-1
+          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.ECR_REGION }}
       - run: make snapshot
         env:
           GH_PR_NUMBER: ${{env.PR_NUMBER}}
@@ -44,7 +44,7 @@ jobs:
               issue_number: `${{env.PR_NUMBER}}`,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Snapshot successfully published to `oci://071440425669.dkr.ecr.us-east-1.amazonaws.com/karpenter/snapshot/karpenter:v0-${{env.PR_COMMIT}}`.'
+              body: 'Snapshot successfully published to `oci://${{ vars.ECR_ACCOUNT_ID }}.dkr.ecr.${{ vars.ECR_REGION }}.amazonaws.com/karpenter/snapshot/karpenter:v0-${{env.PR_COMMIT}}`.'
             })
       - if: always()
         uses: ./.github/actions/commit-status/end
