@@ -72,6 +72,10 @@ type EC2API struct {
 	EC2Behavior
 }
 
+func NewEC2API() *EC2API {
+	return &EC2API{}
+}
+
 // DefaultSupportedUsageClasses is a var because []*string can't be a const
 var DefaultSupportedUsageClasses = aws.StringSlice([]string{"on-demand", "spot"})
 
@@ -230,9 +234,13 @@ func (e *EC2API) CreateTagsWithContext(_ context.Context, input *ec2.CreateTagsI
 			instance := raw.(*ec2.Instance)
 
 			// Upsert any tags that have the same key
-			newTagKeys := sets.New(lo.Map(input.Tags, func(t *ec2.Tag, _ int) string { return aws.StringValue(t.Key) })...)
-			instance.Tags = lo.Filter(input.Tags, func(t *ec2.Tag, _ int) bool { return newTagKeys.Has(aws.StringValue(t.Key)) })
-			instance.Tags = append(instance.Tags, input.Tags...)
+			tagsToMap := func(tag *ec2.Tag) (string, string) {
+				return *tag.Key, *tag.Value
+			}
+			tags := lo.Assign(lo.SliceToMap(instance.Tags, tagsToMap), lo.SliceToMap(input.Tags, tagsToMap))
+			instance.Tags = lo.MapToSlice(tags, func(key, value string) *ec2.Tag {
+				return &ec2.Tag{Key: aws.String(key), Value: aws.String(value)}
+			})
 		}
 		return nil, nil
 	})

@@ -63,4 +63,7 @@ type EC2NodeClassStatus struct {
 	// cluster under the AMI selectors.
 	// +optional
 	AMIs []AMI `json:"amis,omitempty"`
+	// InstanceProfile contains the resolved instance profile for the role
+	// +optional
+	InstanceProfile string `json:"instanceProfile,omitempty"`
 }

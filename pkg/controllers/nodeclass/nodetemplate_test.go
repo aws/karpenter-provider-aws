@@ -713,7 +713,7 @@ var _ = Describe("NodeTemplateController", func() {
 
 			Expect(nodeTemplate.ObjectMeta.Annotations[v1alpha1.AnnotationNodeTemplateHash]).To(Equal(expectedHash))
 		})
-		It("should maintain the same hash, before and after the NodeClass conversion", func() {
+		It("should maintain the same hash, before and after the EC2NodeClass conversion", func() {
 			hash := nodeTemplate.Hash()
 			nodeClass := nodeclassutil.New(nodeTemplate)
 			convertedHash := nodeclassutil.HashAnnotation(nodeClass)

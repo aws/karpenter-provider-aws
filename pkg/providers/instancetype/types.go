@@ -208,6 +208,12 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 // Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
 func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1beta1.BlockDeviceMapping) *resource.Quantity {
 	if len(blockDeviceMappings) != 0 {
+		// First check if there's a root volume configured in blockDeviceMappings.
+		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+			return bdm.RootVolume
+		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
+			return blockDeviceMapping.EBS.VolumeSize
+		}
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
 			// We can't know if a custom AMI is going to have a volume size.

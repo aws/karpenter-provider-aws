@@ -2,7 +2,7 @@
 set -euo pipefail
 
 K8S_VERSION="${K8S_VERSION:="1.27.x"}"
-KUBEBUILDER_ASSETS="${KUBEBUILDER_ASSETS:="${HOME}/.kubebuilder/bin"}"
+KUBEBUILDER_ASSETS="/usr/local/kubebuilder/bin"
 
 main() {
     tools
@@ -28,7 +28,8 @@ tools() {
 }
 
 kubebuilder() {
-    mkdir -p $KUBEBUILDER_ASSETS
+    sudo mkdir -p ${KUBEBUILDER_ASSETS}
+    sudo chown "${USER}" ${KUBEBUILDER_ASSETS}
     arch=$(go env GOARCH)
     ## Kubebuilder does not support darwin/arm64, so use amd64 through Rosetta instead
     if [[ $(go env GOOS) == "darwin" ]] && [[ $(go env GOARCH) == "arm64" ]]; then

@@ -23,6 +23,7 @@ There are two main configuration mechanisms that can be used to configure Karpen
 | LEADER_ELECT | \-\-leader-elect | Start leader election client and gain leadership before executing the main loop. Enable this when running replicated components for high availability. (default = true)|
 | MEMORY_LIMIT | \-\-memory-limit | Memory limit on the container running the controller. The GC soft memory limit is set to 90% of this value. (default = -1)|
 | METRICS_PORT | \-\-metrics-port | The port the metric endpoint binds to for operating metrics about the controller itself (default = 8000)|
+| WEBHOOK_METRICS_PORT | \-\-webhook-metrics-port | The port the webhook metric endpoing binds to for operating metrics about the webhook (default = 8001)|
 | WEBHOOK_PORT | \-\-webhook-port | The port the webhook endpoint binds to for validation and mutation of resources (default = 8443)|
 
 [comment]: <> (end docs generated content from hack/docs/configuration_gen_docs.go)

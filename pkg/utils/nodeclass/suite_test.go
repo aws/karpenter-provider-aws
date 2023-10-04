@@ -166,7 +166,7 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(nodeClass.Spec.AMISelectorTerms[0].Tags).To(Equal(nodeTemplate.Spec.AMISelector))
 		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
 		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
-		Expect(nodeClass.Spec.Role).To(BeNil())
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
 		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
 		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
 		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
@@ -234,7 +234,7 @@ var _ = Describe("NodeClassUtils", func() {
 
 		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
 		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
-		Expect(nodeClass.Spec.Role).To(BeNil())
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
 		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
 		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
 		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
@@ -283,7 +283,7 @@ var _ = Describe("NodeClassUtils", func() {
 
 		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
 		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
-		Expect(nodeClass.Spec.Role).To(BeNil())
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
 		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
 		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
 		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
@@ -397,7 +397,7 @@ var _ = Describe("NodeClassUtils", func() {
 
 		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
 		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
-		Expect(nodeClass.Spec.Role).To(BeNil())
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
 		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
 		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
 		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
@@ -435,7 +435,7 @@ var _ = Describe("NodeClassUtils", func() {
 		Expect(convertedNodeTemplate.Status.AMIs).To(Equal(nodeTemplate.Status.AMIs))
 	})
 	It("should retrieve a EC2NodeClass with a get call", func() {
-		nodeClass := test.NodeClass()
+		nodeClass := test.EC2NodeClass()
 		ExpectApplied(ctx, env.Client, nodeClass)
 
 		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeclassutil.Key{Name: nodeClass.Name, IsNodeTemplate: false})

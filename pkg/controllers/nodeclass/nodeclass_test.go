@@ -20,6 +20,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -29,15 +30,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("NodeClassController", func() {
 	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		nodeClass = test.NodeClass(v1beta1.EC2NodeClass{
+		nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: v1beta1.EC2NodeClassSpec{
 				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
 					{
@@ -687,49 +691,6 @@ var _ = Describe("NodeClassController", func() {
 				},
 			))
 		})
-		It("should resolve amiSelector AMIs that have well-known tags as AMI requirements into status", func() {
-			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
-				Images: []*ec2.Image{
-					{
-						Name:         aws.String("test-ami-4"),
-						ImageId:      aws.String("ami-test4"),
-						CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
-						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
-							{Key: aws.String("foo"), Value: aws.String("bar")},
-							{Key: aws.String("kubernetes.io/os"), Value: aws.String("test-requirement-1")},
-						},
-					},
-				},
-			})
-			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
-			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-
-			Expect(nodeClass.Status.AMIs).To(Equal([]v1beta1.AMI{
-				{
-					Name: "test-ami-4",
-					ID:   "ami-test4",
-					Requirements: []v1.NodeSelectorRequirement{
-						{
-							Key:      "kubernetes.io/os",
-							Operator: "In",
-							Values: []string{
-								"test-requirement-1",
-							},
-						},
-						{
-							Key:      "kubernetes.io/arch",
-							Operator: "In",
-							Values: []string{
-								"amd64",
-							},
-						},
-					},
-				},
-			}))
-		})
 	})
 	Context("Static Drift Hash", func() {
 		DescribeTable("should update the static drift hash when static field is updated", func(changes *v1beta1.EC2NodeClass) {
@@ -753,7 +714,7 @@ var _ = Describe("NodeClassController", func() {
 		},
 			Entry("AMIFamily Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1beta1.AMIFamilyBottlerocket)}}),
 			Entry("UserData Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
-			Entry("Role Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Role: aws.String("new-role")}}),
+			Entry("Role Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Role: "new-role"}}),
 			Entry("Tags Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
 			Entry("BlockDeviceMappings Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
 			Entry("DetailedMonitoring Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
@@ -788,6 +749,190 @@ var _ = Describe("NodeClassController", func() {
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+		})
+	})
+	Context("NodeClass Termination", func() {
+		var profileName string
+		BeforeEach(func() {
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodeClass)
+			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+		})
+		It("should succeed to delete the instance profile with no NodeClaims", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileName: aws.String(profileName),
+					Roles: []*iam.Role{
+						{
+							RoleId:   aws.String(fake.RoleID()),
+							RoleName: aws.String(nodeClass.Spec.Role),
+						},
+					},
+				},
+			}
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+		It("should succeed to delete the instance profile when no roles exist with no NodeClaims", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileName: aws.String(profileName),
+				},
+			}
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+		It("should succeed to delete the NodeClass when the instance profile doesn't exist", func() {
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+		It("should not delete the EC2NodeClass until all associated NodeClaims are terminated", func() {
+			var nodeClaims []*corev1beta1.NodeClaim
+			for i := 0; i < 2; i++ {
+				nc := coretest.NodeClaim(corev1beta1.NodeClaim{
+					Spec: corev1beta1.NodeClaimSpec{
+						NodeClassRef: &corev1beta1.NodeClassReference{
+							Name: nodeClass.Name,
+						},
+					},
+				})
+				ExpectApplied(ctx, env.Client, nc)
+				nodeClaims = append(nodeClaims, nc)
+			}
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileName: aws.String(profileName),
+					Roles: []*iam.Role{
+						{
+							RoleId:   aws.String(fake.RoleID()),
+							RoleName: aws.String(nodeClass.Spec.Role),
+						},
+					},
+				},
+			}
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			res := ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(res.RequeueAfter).To(Equal(time.Minute * 10))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			ExpectExists(ctx, env.Client, nodeClass)
+
+			// Delete one of the NodeClaims
+			// The NodeClass should still not delete
+			ExpectDeleted(ctx, env.Client, nodeClaims[0])
+			res = ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(res.RequeueAfter).To(Equal(time.Minute * 10))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			ExpectExists(ctx, env.Client, nodeClass)
+
+			// Delete the last NodeClaim
+			// The NodeClass should now delete
+			ExpectDeleted(ctx, env.Client, nodeClaims[1])
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+	})
+	Context("Instance Profile Status", func() {
+		var profileName string
+		BeforeEach(func() {
+			ExpectApplied(ctx, env.Client, nodeClass)
+			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+		})
+		It("should create the instance profile when it doesn't exist", func() {
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
+
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+		})
+		It("should add the role to the instance profile when it exists without a role", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+					InstanceProfileName: aws.String(profileName),
+				},
+			}
+
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
+
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+		})
+		It("should update the role for the instance profile when the wrong role exists", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+					InstanceProfileName: aws.String(profileName),
+					Roles: []*iam.Role{
+						{
+							RoleName: aws.String("other-role"),
+						},
+					},
+				},
+			}
+
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
+
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
+		})
+		It("should not call CreateInstanceProfile or AddRoleToInstanceProfile when instance profile exists with correct role", func() {
+			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
+				profileName: {
+					InstanceProfileId:   aws.String(fake.InstanceProfileID()),
+					InstanceProfileName: aws.String(profileName),
+					Roles: []*iam.Role{
+						{
+							RoleName: aws.String("test-role"),
+						},
+					},
+				},
+			}
+
+			nodeClass.Spec.Role = "test-role"
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
+			Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
+			Expect(*awsEnv.IAMAPI.InstanceProfiles[profileName].Roles[0].RoleName).To(Equal("test-role"))
+
+			Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
+			Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())
 		})
 	})
 })

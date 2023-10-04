@@ -15,9 +15,9 @@ To make upgrading easier we aim to minimize introduction of breaking changes wit
 
 [comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
 
-| KUBERNETES |  1.23   |  1.24   |  1.25   |  1.26   |  1.27   |
-|------------|---------|---------|---------|---------|---------|
-| karpenter  | 0.21.x+ | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ |
+| KUBERNETES |  1.23   |  1.24   |  1.25   |  1.26   |  1.27   |  1.28  |
+|------------|---------|---------|---------|---------|---------|--------|
+| karpenter  | 0.21.x+ | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ | 0.31.x |
 
 [comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
 
@@ -120,11 +120,24 @@ Snapshot releases are tagged with the git commit hash prefixed by the Karpenter 
 
 ## Released Upgrade Notes
 
+### Upgrading to v0.32.0+
+
+* Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
+* Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
+
+### Upgrading to v0.31.0+
+
+* Karpenter moved its `securityContext` constraints from pod-wide to only applying to the Karpenter container exclusively. If you were previously relying on the pod-wide `securityContext` for your sidecar containers, you will now need to set these values explicitly in your sidecar container configuration.
+
 ### Upgrading to v0.30.0+
 
 * Karpenter will now [statically drift]({{<ref "./concepts/deprovisioning.md#drift" >}}) on both Provisioner and AWSNodeTemplate Fields. For Provisioner Static Drift, the `karpenter.sh/provisioner-hash` annotation must be present on both the Provisioner and Machine. For AWSNodeTemplate drift, the `karpenter.k8s.aws/nodetemplate-hash` annotation must be present on the AWSNodeTemplate and Machine. Karpenter will not add these annotations to pre-existing nodes, so each of these nodes will need to be recycled one time for the annotations to be added.
 * Karpenter will now fail validation on AWSNodeTemplates and Provisioner `spec.provider` that have `amiSelectors`, `subnetSelectors`, or `securityGroupSelectors` set with a combination of id selectors (`aws-ids`, `aws::ids`) and other selectors. 
-* Karpenter now statically sets the `securityContext` at both the pod and container-levels and doesn't allow override values to be passed through the helm chart. This change was made to adhere to [Restricted Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted), which follows pod hardening best practices.
+* Karpenter now statically sets the `securityContext` at both the pod and container-levels and doesn't allow override values to be passed through the helm chart. This change was made to adhere to [Restricted Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted), which follows pod hardening best practices. 
+
+{{% alert title="Note" color="primary" %}}
+If you have sidecar containers configured to run alongside Karpenter that cannot tolerate the [pod-wide `securityContext` constraints](https://github.com/aws/karpenter/blob/v0.30.0/charts/karpenter/templates/deployment.yaml#L40), you will need to specify overrides to the sidecar `securityContext` in your deployment.
+{{% /alert %}}
 
 ### Upgrading to v0.29.0+
 

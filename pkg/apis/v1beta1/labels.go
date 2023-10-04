@@ -51,6 +51,10 @@ func init() {
 	)
 }
 
+const (
+	TerminationFinalizer = Group + "/termination"
+)
+
 var (
 	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
 	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
@@ -100,6 +104,8 @@ var (
 	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 
+	LabelNodeClass = Group + "/nodeclass"
+
 	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = Group + "/instance-category"
@@ -119,4 +125,5 @@ var (
 	LabelInstanceAcceleratorManufacturer      = Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = Group + "/instance-accelerator-count"
 	AnnotationNodeClassHash                   = Group + "/nodeclass-hash"
+	AnnotationInstanceTagged                  = Group + "/tagged"
 )

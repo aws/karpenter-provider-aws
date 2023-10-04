@@ -20,12 +20,13 @@ import (
 	"testing"
 
 	"github.com/Pallinder/go-randomdata"
+	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "knative.dev/pkg/logging/testing"
-	"knative.dev/pkg/ptr"
-
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"knative.dev/pkg/apis"
+	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 
@@ -70,16 +71,6 @@ var _ = Describe("Validation", func() {
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
 			Expect(nc.Validate(ctx)).To(Succeed())
-		})
-		It("should fail if Windows2019 AMIFamily is specified", func() {
-			nc.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2019
-			nc.Spec.UserData = ptr.String("someUserData")
-			Expect(nc.Validate(ctx)).To(Not(Succeed()))
-		})
-		It("should fail if Windows2022 AMIFamily is specified", func() {
-			nc.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2022
-			nc.Spec.UserData = ptr.String("someUserData")
-			Expect(nc.Validate(ctx)).To(Not(Succeed()))
 		})
 	})
 	Context("Tags", func() {
@@ -467,11 +458,11 @@ var _ = Describe("Validation", func() {
 	Context("EC2NodeClass Hash", func() {
 		var nodeClass *v1beta1.EC2NodeClass
 		BeforeEach(func() {
-			nodeClass = test.NodeClass(v1beta1.EC2NodeClass{
+			nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					AMIFamily: aws.String(v1alpha1.AMIFamilyAL2),
 					Context:   aws.String("context-1"),
-					Role:      aws.String("role-1"),
+					Role:      "role-1",
 					Tags: map[string]string{
 						"keyTag-1": "valueTag-1",
 						"keyTag-2": "valueTag-2",
@@ -492,22 +483,29 @@ var _ = Describe("Validation", func() {
 				},
 			})
 		})
-		DescribeTable("should change hash when static fields are updated", func(nodeClassSpec v1beta1.EC2NodeClassSpec) {
+		DescribeTable("should change hash when static fields are updated", func(changes v1beta1.EC2NodeClass) {
 			hash := nodeClass.Hash()
-			nodeClass.Spec = nodeClassSpec
+			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
 			updatedHash := nodeClass.Hash()
 			Expect(hash).ToNot(Equal(updatedHash))
 		},
-			Entry("InstanceProfile Drift", v1beta1.EC2NodeClassSpec{Role: aws.String("role-2")}),
-			Entry("UserData Drift", v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}),
-			Entry("Tags Drift", v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}),
-			Entry("MetadataOptions Drift", v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}),
-			Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}),
-			Entry("Context Drift", v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}),
-			Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}),
-			Entry("AMIFamily Drift", v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}),
-			Entry("Reorder Tags", v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}}),
-			Entry("Reorder BlockDeviceMapping", v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}),
+			Entry("InstanceProfile Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Role: "role-2"}}),
+			Entry("UserData Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
+			Entry("Tags Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+			Entry("MetadataOptions Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}),
+			Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
+			Entry("Context Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
+			Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
+			Entry("AMIFamily Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
+		)
+		DescribeTable("should not change hash when slices are re-ordered", func(changes v1beta1.EC2NodeClass) {
+			hash := nodeClass.Hash()
+			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
+			updatedHash := nodeClass.Hash()
+			Expect(hash).To(Equal(updatedHash))
+		},
+			Entry("Reorder Tags", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}}}),
+			Entry("Reorder BlockDeviceMapping", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}}),
 		)
 		It("should not change hash when behavior/dynamic fields are updated", func() {
 			hash := nodeClass.Hash()
@@ -532,10 +530,47 @@ var _ = Describe("Validation", func() {
 			Expect(hash).To(Equal(updatedHash))
 		})
 		It("should expect two provisioner with the same spec to have the same provisioner hash", func() {
-			otherNodeClass := test.NodeClass(v1beta1.EC2NodeClass{
+			otherNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: nodeClass.Spec,
 			})
 			Expect(nodeClass.Hash()).To(Equal(otherNodeClass.Hash()))
+		})
+	})
+	Context("BlockDeviceMappings", func() {
+		It("should fail if more than one root volume is specified", func() {
+			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+				Spec: v1beta1.EC2NodeClassSpec{
+					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
+						{
+							DeviceName: aws.String("map-device-1"),
+							EBS: &v1beta1.BlockDevice{
+								VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+							},
+
+							RootVolume: true,
+						},
+						{
+							DeviceName: aws.String("map-device-2"),
+							EBS: &v1beta1.BlockDevice{
+								VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
+							},
+
+							RootVolume: true,
+						},
+					},
+				},
+			})
+			Expect(nodeClass.Validate(ctx)).To(Not(Succeed()))
+		})
+	})
+	Context("Role Immutability", func() {
+		It("should fail when updating the role", func() {
+			nc.Spec.Role = "test-role"
+			Expect(nc.Validate(ctx)).To(Succeed())
+
+			updateCtx := apis.WithinUpdate(ctx, nc.DeepCopy())
+			nc.Spec.Role = "test-role2"
+			Expect(nc.Validate(updateCtx)).ToNot(Succeed())
 		})
 	})
 })

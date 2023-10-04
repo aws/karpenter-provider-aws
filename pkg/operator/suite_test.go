@@ -71,7 +71,6 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("Operator", func() {
-
 	It("should resolve endpoint if set via configuration", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			ClusterEndpoint: lo.ToPtr("https://api.test-cluster.k8s.local"),
@@ -80,12 +79,11 @@ var _ = Describe("Operator", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://api.test-cluster.k8s.local"))
 	})
-
 	It("should resolve endpoint if not set, via call to API", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			ClusterEndpoint: lo.ToPtr(""),
 		}))
-		fakeEKSAPI.DescribeClusterBehaviour.Output.Set(
+		fakeEKSAPI.DescribeClusterBehavior.Output.Set(
 			&eks.DescribeClusterOutput{
 				Cluster: &eks.Cluster{
 					Endpoint: lo.ToPtr("https://cluster-endpoint.test-cluster.k8s.local"),
@@ -97,12 +95,11 @@ var _ = Describe("Operator", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://cluster-endpoint.test-cluster.k8s.local"))
 	})
-
 	It("should propagate error if API fails", func() {
 		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 			ClusterEndpoint: lo.ToPtr(""),
 		}))
-		fakeEKSAPI.DescribeClusterBehaviour.Error.Set(errors.New("test error"))
+		fakeEKSAPI.DescribeClusterBehavior.Error.Set(errors.New("test error"))
 
 		_, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).To(HaveOccurred())

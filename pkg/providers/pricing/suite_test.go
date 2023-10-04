@@ -266,7 +266,7 @@ func getPricingEstimateMetricValue(instanceType string, capacityType string, zon
 	metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_price_estimate", map[string]string{
 		pricing.InstanceTypeLabel: instanceType,
 		pricing.CapacityTypeLabel: capacityType,
-		pricing.RegionLabel:       "",
+		pricing.RegionLabel:       fake.DefaultRegion,
 		pricing.TopologyLabel:     zone,
 	})
 	Expect(ok).To(BeTrue())

@@ -20,14 +20,12 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/samber/lo"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 )
 
 const (
-	userDataPath                   = "userData"
 	subnetSelectorTermsPath        = "subnetSelectorTerms"
 	securityGroupSelectorTermsPath = "securityGroupSelectorTerms"
 	amiSelectorTermsPath           = "amiSelectorTerms"
@@ -42,17 +40,27 @@ var (
 	maxVolumeSize = *resource.NewScaledQuantity(64, resource.Tera)
 )
 
-func (a *EC2NodeClass) SupportedVerbs() []admissionregistrationv1.OperationType {
+func (in *EC2NodeClass) SupportedVerbs() []admissionregistrationv1.OperationType {
 	return []admissionregistrationv1.OperationType{
 		admissionregistrationv1.Create,
 		admissionregistrationv1.Update,
 	}
 }
 
-func (a *EC2NodeClass) Validate(ctx context.Context) (errs *apis.FieldError) {
+func (in *EC2NodeClass) Validate(ctx context.Context) (errs *apis.FieldError) {
+	if apis.IsInUpdate(ctx) {
+		original := apis.GetBaseline(ctx).(*EC2NodeClass)
+		errs = in.validateImmutableFields(original)
+	}
 	return errs.Also(
-		apis.ValidateObjectMetadata(a).ViaField("metadata"),
-		a.Spec.validate(ctx).ViaField("spec"),
+		apis.ValidateObjectMetadata(in).ViaField("metadata"),
+		in.Spec.validate(ctx).ViaField("spec"),
+	)
+}
+
+func (in *EC2NodeClass) validateImmutableFields(original *EC2NodeClass) (errs *apis.FieldError) {
+	return errs.Also(
+		in.Spec.validateRoleImmutability(&original.Spec).ViaField("spec"),
 	)
 }
 
@@ -64,7 +72,6 @@ func (in *EC2NodeClassSpec) validate(_ context.Context) (errs *apis.FieldError) 
 		in.validateMetadataOptions().ViaField(metadataOptionsPath),
 		in.validateAMIFamily().ViaField(amiFamilyPath),
 		in.validateBlockDeviceMappings().ViaField(blockDeviceMappingsPath),
-		in.validateUserData().ViaField(userDataPath),
 		in.validateTags().ViaField(tagsPath),
 	)
 }
@@ -196,10 +203,17 @@ func (in *EC2NodeClassSpec) validateStringEnum(value, field string, validValues 
 }
 
 func (in *EC2NodeClassSpec) validateBlockDeviceMappings() (errs *apis.FieldError) {
+	numRootVolume := 0
 	for i, blockDeviceMapping := range in.BlockDeviceMappings {
 		if err := in.validateBlockDeviceMapping(blockDeviceMapping); err != nil {
 			errs = errs.Also(err.ViaFieldIndex(blockDeviceMappingsPath, i))
 		}
+		if blockDeviceMapping.RootVolume {
+			numRootVolume++
+		}
+	}
+	if numRootVolume > 1 {
+		errs = errs.Also(apis.ErrMultipleOneOf("more than 1 root volume configured"))
 	}
 	return errs
 }
@@ -249,16 +263,6 @@ func (in *EC2NodeClassSpec) validateVolumeSize(blockDeviceMapping *BlockDeviceMa
 	return nil
 }
 
-func (in *EC2NodeClassSpec) validateUserData() (errs *apis.FieldError) {
-	if in.UserData == nil {
-		return nil
-	}
-	if lo.FromPtr(in.AMIFamily) == AMIFamilyWindows2019 || lo.FromPtr(in.AMIFamily) == AMIFamilyWindows2022 {
-		errs = errs.Also(apis.ErrGeneric(fmt.Sprintf("%s AMIFamily is not currently supported with custom userData", lo.FromPtr(in.AMIFamily)), userDataPath))
-	}
-	return errs
-}
-
 func (in *EC2NodeClassSpec) validateAMIFamily() (errs *apis.FieldError) {
 	if in.AMIFamily == nil {
 		return nil
@@ -266,7 +270,7 @@ func (in *EC2NodeClassSpec) validateAMIFamily() (errs *apis.FieldError) {
 	if *in.AMIFamily == AMIFamilyCustom && len(in.AMISelectorTerms) == 0 {
 		errs = errs.Also(apis.ErrMissingField(amiSelectorTermsPath))
 	}
-	return errs.Also(in.validateStringEnum(*in.AMIFamily, amiFamilyPath, SupportedAMIFamilies))
+	return errs
 }
 
 func (in *EC2NodeClassSpec) validateTags() (errs *apis.FieldError) {
@@ -282,4 +286,14 @@ func (in *EC2NodeClassSpec) validateTags() (errs *apis.FieldError) {
 		}
 	}
 	return errs
+}
+
+func (in *EC2NodeClassSpec) validateRoleImmutability(originalSpec *EC2NodeClassSpec) *apis.FieldError {
+	if in.Role != originalSpec.Role {
+		return &apis.FieldError{
+			Message: "Immutable field changed",
+			Paths:   []string{"role"},
+		}
+	}
+	return nil
 }

@@ -89,7 +89,7 @@ var _ = BeforeEach(func() {
 var _ = Describe("Combined/GarbageCollection", func() {
 	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		nodeClass = test.NodeClass()
+		nodeClass = test.EC2NodeClass()
 	})
 	It("should delete many instances if they all don't have NodeClaim or Machine owners", func() {
 		// Generate 100 instances that have different instanceIDs that should have NodeClaims
@@ -217,7 +217,7 @@ var _ = Describe("Combined/GarbageCollection", func() {
 			)
 			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
-					NodeClass: &corev1beta1.NodeClassReference{
+					NodeClassRef: &corev1beta1.NodeClassReference{
 						Name: nodeClass.Name,
 					},
 				},

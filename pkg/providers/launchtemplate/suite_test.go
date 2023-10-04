@@ -19,40 +19,18 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net"
-	"os"
-	"strconv"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/test"
-	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
 	"github.com/aws/karpenter-core/pkg/events"
@@ -61,6 +39,10 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	"github.com/aws/karpenter/pkg/apis"
+	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter/pkg/test"
 )
 
 var ctx context.Context
@@ -70,8 +52,6 @@ var env *coretest.Environment
 var awsEnv *test.Environment
 var fakeClock *clock.FakeClock
 var prov *provisioning.Provisioner
-var provisioner *v1alpha5.Provisioner
-var nodeTemplate *v1alpha1.AWSNodeTemplate
 var cluster *state.Cluster
 var cloudProvider *cloudprovider.CloudProvider
 
@@ -104,29 +84,6 @@ var _ = BeforeEach(func() {
 	ctx = injection.WithOptions(ctx, opts)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
-	nodeTemplate = &v1alpha1.AWSNodeTemplate{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: coretest.RandomName(),
-		},
-		Spec: v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily:             aws.String(v1alpha1.AMIFamilyAL2),
-				SubnetSelector:        map[string]string{"*": "*"},
-				SecurityGroupSelector: map[string]string{"*": "*"},
-			},
-		},
-	}
-	provisioner = test.Provisioner(coretest.ProvisionerOptions{
-		Requirements: []v1.NodeSelectorRequirement{{
-			Key:      v1alpha1.LabelInstanceCategory,
-			Operator: v1.NodeSelectorOpExists,
-		}},
-		ProviderRef: &v1alpha5.MachineTemplateRef{
-			APIVersion: nodeTemplate.APIVersion,
-			Kind:       nodeTemplate.Kind,
-			Name:       nodeTemplate.Name,
-		},
-	})
 	cluster.Reset()
 	awsEnv.Reset()
 
@@ -1868,52 +1825,57 @@ var _ = Describe("LaunchTemplates", func() {
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
 func ExpectTags(tags []*ec2.Tag, expected map[string]string) {
+	GinkgoHelper()
 	existingTags := lo.SliceToMap(tags, func(t *ec2.Tag) (string, string) { return *t.Key, *t.Value })
 	for expKey, expValue := range expected {
 		foundValue, ok := existingTags[expKey]
-		ExpectWithOffset(1, ok).To(BeTrue(), fmt.Sprintf("expected to find tag %s in %s", expKey, existingTags))
-		ExpectWithOffset(1, foundValue).To(Equal(expValue))
+		Expect(ok).To(BeTrue(), fmt.Sprintf("expected to find tag %s in %s", expKey, existingTags))
+		Expect(foundValue).To(Equal(expValue))
 	}
 }
 
 func ExpectTagsNotFound(tags []*ec2.Tag, expectNotFound map[string]string) {
+	GinkgoHelper()
 	existingTags := lo.SliceToMap(tags, func(t *ec2.Tag) (string, string) { return *t.Key, *t.Value })
 	for k, v := range expectNotFound {
 		elem, ok := existingTags[k]
-		ExpectWithOffset(1, !ok || v != elem).To(BeTrue())
+		Expect(!ok || v != elem).To(BeTrue())
 	}
 }
 
 func ExpectLaunchTemplatesCreatedWithUserDataContaining(substrings ...string) {
+	GinkgoHelper()
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-		Expect(err).To(BeNil())
+		ExpectWithOffset(2, err).To(BeNil())
 		for _, substring := range substrings {
-			Expect(string(userData)).To(ContainSubstring(substring))
+			ExpectWithOffset(2, string(userData)).To(ContainSubstring(substring))
 		}
 	})
 }
 
 func ExpectLaunchTemplatesCreatedWithUserDataNotContaining(substrings ...string) {
+	GinkgoHelper()
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-		Expect(err).To(BeNil())
+		ExpectWithOffset(2, err).To(BeNil())
 		for _, substring := range substrings {
-			Expect(string(userData)).ToNot(ContainSubstring(substring))
+			ExpectWithOffset(2, string(userData)).ToNot(ContainSubstring(substring))
 		}
 	})
 }
 
 func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
+	GinkgoHelper()
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-		Expect(err).To(BeNil())
+		ExpectWithOffset(2, err).To(BeNil())
 		// Newlines are always added for missing TOML fields, so strip them out before comparisons.
 		actualUserData := strings.Replace(string(userData), "\n", "", -1)
 		expectedUserData := strings.Replace(expected, "\n", "", -1)
-		Expect(expectedUserData).To(Equal(actualUserData))
+		ExpectWithOffset(2, actualUserData).To(Equal(expectedUserData))
 	})
 }

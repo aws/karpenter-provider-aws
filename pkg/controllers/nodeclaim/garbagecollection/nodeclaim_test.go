@@ -47,12 +47,12 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 	BeforeEach(func() {
 		instanceID := fake.InstanceID()
 		providerID = fake.ProviderID(instanceID)
-		nodeClass = test.NodeClass()
+		nodeClass = test.EC2NodeClass()
 		nodePool := coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},
@@ -208,7 +208,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 			)
 			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
-					NodeClass: &corev1beta1.NodeClassReference{
+					NodeClassRef: &corev1beta1.NodeClassReference{
 						Name: nodeClass.Name,
 					},
 				},
@@ -269,7 +269,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 
 		nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
-				NodeClass: &corev1beta1.NodeClassReference{
+				NodeClassRef: &corev1beta1.NodeClassReference{
 					Name: nodeClass.Name,
 				},
 			},
@@ -325,7 +325,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 			)
 			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
-					NodeClass: &corev1beta1.NodeClassReference{
+					NodeClassRef: &corev1beta1.NodeClassReference{
 						Name: nodeClass.Name,
 					},
 				},

@@ -96,9 +96,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.30.0
+    tag: v0.31.0
     # -- SHA256 digest of the controller image.
-    digest: sha256:3d436ece23d17263edbaa2314281f3ac1c2b0d3fb9dfa531cb30509659d8a7c3
+    digest: sha256:d29767fa9c5c0511a3812397c932f5735234f03a7a875575422b712d15e54a77
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -143,9 +143,14 @@ controller:
     # -- The container port to use for http health probe.
     port: 8081
 webhook:
+  # -- Whether to enable the webhooks and webhook permissions.
+  enabled: true
   logLevel: error
   # -- The container port to use for the webhook.
   port: 8443
+  metrics:
+    # -- The container port to use for webhook metrics.
+    port: 8001
 # -- Global log level
 logLevel: debug
 # -- Global log encoding
