@@ -31,9 +31,9 @@ import (
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -100,7 +100,7 @@ var _ = Describe("NodeClass/InstanceProvider", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -109,7 +109,7 @@ var _ = Describe("NodeClass/InstanceProvider", func() {
 						},
 						{
 							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
+							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),

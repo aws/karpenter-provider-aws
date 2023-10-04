@@ -27,9 +27,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/operator/options"
 )
 
 type Provider struct {
@@ -48,10 +48,10 @@ func NewProvider(region string, iamapi iamiface.IAMAPI, cache *cache.Cache) *Pro
 
 func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
 	tags := lo.Assign(nodeClass.Spec.Tags, map[string]string{
-		fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
-		corev1beta1.ManagedByAnnotationKey:                                             settings.FromContext(ctx).ClusterName,
-		v1beta1.LabelNodeClass:                                                         nodeClass.Name,
-		v1.LabelTopologyRegion:                                                         p.region,
+		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
+		corev1beta1.ManagedByAnnotationKey:                                            options.FromContext(ctx).ClusterName,
+		v1beta1.LabelNodeClass:                                                        nodeClass.Name,
+		v1.LabelTopologyRegion:                                                        p.region,
 	})
 	profileName := GetProfileName(ctx, p.region, nodeClass)
 
@@ -129,5 +129,5 @@ func (p *Provider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 // GetProfileName gets the string for the profile name based on the cluster name and the NodeClass UUID.
 // The length of this string can never exceed the maximum instance profile name limit of 128 characters.
 func GetProfileName(ctx context.Context, region string, nodeClass *v1beta1.EC2NodeClass) string {
-	return fmt.Sprintf("%s_%d", settings.FromContext(ctx).ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, nodeClass.Name), hashstructure.FormatV2, nil)))
+	return fmt.Sprintf("%s_%d", options.FromContext(ctx).ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, nodeClass.Name), hashstructure.FormatV2, nil)))
 }

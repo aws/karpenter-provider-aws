@@ -34,7 +34,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -93,7 +93,7 @@ func main() {
 	os.Setenv("AWS_SDK_LOAD_CONFIG", "true")
 	os.Setenv("AWS_REGION", region)
 	ctx := context.Background()
-	ctx = settings.ToContext(ctx, test.Settings())
+	ctx = options.ToContext(ctx, test.Options())
 	sess := session.Must(session.NewSession())
 	ec2 := ec22.New(sess)
 	src := &bytes.Buffer{}

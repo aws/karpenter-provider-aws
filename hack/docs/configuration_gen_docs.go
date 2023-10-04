@@ -21,7 +21,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/karpenter-core/pkg/operator/options"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/operator/options"
 )
 
 func main() {
@@ -49,6 +50,7 @@ func main() {
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
 	fs := &options.FlagSet{FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError)}
+	(&coreoptions.Options{}).AddFlags(fs)
 	(&options.Options{}).AddFlags(fs)
 
 	envVarsBlock := "| Environment Variable | CLI Flag | Description |\n"

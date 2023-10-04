@@ -26,13 +26,13 @@ import (
 	"time"
 )
 
-type options struct {
+type Options struct {
 	sourceOutput string
 	urlInput     string
 }
 
 func main() {
-	opts := options{}
+	opts := Options{}
 	flag.StringVar(&opts.urlInput, "url", "https://raw.githubusercontent.com/aws/amazon-vpc-resource-controller-k8s/master/pkg/aws/vpc/limits.go",
 		"url of the raw vpc/limits.go file in the github.com/aws/amazon-vpc-resource-controller-k8s repo")
 	flag.StringVar(&opts.sourceOutput, "output", "pkg/providers/instancetype/zz_generated.vpclimits.go", "output location for the generated go source file")

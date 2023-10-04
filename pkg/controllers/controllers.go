@@ -25,7 +25,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
@@ -33,6 +32,7 @@ import (
 	nodeclaimlink "github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
 	nodeclaimtagging "github.com/aws/karpenter/pkg/controllers/nodeclaim/tagging"
 	"github.com/aws/karpenter/pkg/controllers/nodeclass"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instanceprofile"
@@ -54,10 +54,10 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider, linkController),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 	}
-	if settings.FromContext(ctx).InterruptionQueueName != "" {
+	if options.FromContext(ctx).InterruptionQueueName != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, interruption.NewSQSProvider(sqs.New(sess)), unavailableOfferings))
 	}
-	if settings.FromContext(ctx).IsolatedVPC {
+	if options.FromContext(ctx).IsolatedVPC {
 		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
 	} else {
 		controllers = append(controllers, pricing.NewController(pricingProvider))

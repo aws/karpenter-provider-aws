@@ -39,6 +39,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/test"
@@ -707,7 +708,10 @@ var _ = Describe("NodeTemplate/LaunchTemplates", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+			}))
+
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
@@ -718,7 +722,10 @@ var _ = Describe("NodeTemplate/LaunchTemplates", func() {
 		It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+			}))
+
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
@@ -757,7 +764,10 @@ var _ = Describe("NodeTemplate/LaunchTemplates", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(true),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+			}))
+
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
@@ -768,7 +778,10 @@ var _ = Describe("NodeTemplate/LaunchTemplates", func() {
 		It("should calculate memory overhead based on max pods when not ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+			}))
+
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket

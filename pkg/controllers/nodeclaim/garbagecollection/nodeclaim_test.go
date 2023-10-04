@@ -33,8 +33,8 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/operator/options"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -65,7 +65,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 			},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 					Value: aws.String("owned"),
 				},
 				{
@@ -74,7 +74,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 				},
 				{
 					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-					Value: aws.String(settings.FromContext(ctx).ClusterName),
+					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},
 			PrivateDnsName: aws.String(fake.PrivateDNSName()),
@@ -130,7 +130,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -139,7 +139,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 						},
 						{
 							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
+							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
@@ -184,7 +184,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -193,7 +193,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 						},
 						{
 							Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
+							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
@@ -301,7 +301,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -310,7 +310,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 						},
 						{
 							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
+							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),

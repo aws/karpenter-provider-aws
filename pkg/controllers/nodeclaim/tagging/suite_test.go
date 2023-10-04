@@ -31,7 +31,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "knative.dev/pkg/logging/testing"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis"
@@ -39,10 +38,12 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/nodeclaim/tagging"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 )
 
@@ -59,7 +60,8 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = options.ToContext(ctx, test.Options())
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 	taggingController = tagging.NewController(env.Client, awsEnv.InstanceProvider)
@@ -86,7 +88,7 @@ var _ = Describe("TaggingController", func() {
 			},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 					Value: aws.String("owned"),
 				},
 				{
@@ -95,7 +97,7 @@ var _ = Describe("TaggingController", func() {
 				},
 				{
 					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-					Value: aws.String(settings.FromContext(ctx).ClusterName),
+					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},
 			PrivateDnsName: aws.String(fake.PrivateDNSName()),
