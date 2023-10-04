@@ -1,0 +1,16 @@
+name: MergeSnapshot
+on:
+  push:
+    branches: [ main ]
+jobs:
+  release:
+    if: github.repository == 'aws/karpenter'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: ./.github/actions/install-deps
+      - uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.ECR_REGION }}
+      - run: make snapshot
+      - run: make docgen

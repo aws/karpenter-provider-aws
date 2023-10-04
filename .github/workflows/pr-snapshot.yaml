@@ -1,4 +1,4 @@
-name: SnapshotRelease
+name: PullRequestSnapshot
 on:
   workflow_run:
     workflows: [ApprovalComment]
