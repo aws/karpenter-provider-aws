@@ -16,6 +16,8 @@ A cluster's emissions is made of two elements: embodied emissions and operationa
 - **Embodied carbon emissions**: Manufacturing emissions (CO₂e) amortized over instance lifetime (usually 4 years) divided by how long we use the instance
 - **Operational carbon emissions**: Carbon emitted by electricity grid to produce electricity for the instance in the region where it is used, multiplied by PUE
 
+An instance is a share of a physical machine, so when we refer to "instance lifetime" we mean the lifetime of the physical machine that the instance partially constitutes.
+
 There is a lot more to Green Software. If you want to learn more, I recommend you to visit [Green Software Practitioner](https://learn.greensoftware.foundation/) (a Green Software Foundation project - an affiliate of the Linux Foundation).
 
 ## Solution
