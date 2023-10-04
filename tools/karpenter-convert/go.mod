@@ -14,7 +14,6 @@ require (
 	k8s.io/client-go v0.28.2
 	k8s.io/component-base v0.28.2
 	k8s.io/kubectl v0.28.2
-	k8s.io/kubernetes v1.28.2
 )
 
 require (

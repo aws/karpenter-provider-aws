@@ -359,8 +359,6 @@ k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9 h1:LyMgNKD2P8Wn1iAwQU5Ohx
 k8s.io/kube-openapi v0.0.0-20230717233707-2695361300d9/go.mod h1:wZK2AVp1uHCp4VamDVgBP2COHZjqD1T68Rf0CM3YjSM=
 k8s.io/kubectl v0.28.2 h1:fOWOtU6S0smdNjG1PB9WFbqEIMlkzU5ahyHkc7ESHgM=
 k8s.io/kubectl v0.28.2/go.mod h1:6EQWTPySF1fn7yKoQZHYf9TPwIl2AygHEcJoxFekr64=
-k8s.io/kubernetes v1.28.2 h1:GhcnYeNTukeaC0dD5BC+UWBvzQsFEpWj7XBVMQptfYc=
-k8s.io/kubernetes v1.28.2/go.mod h1:FmB1Mlp9ua0ezuwQCTGs/y6wj/fVisN2sVxhzjj0WDk=
 k8s.io/utils v0.0.0-20230406110748-d93618cff8a2 h1:qY1Ad8PODbnymg2pRbkyMT/ylpTrCM8P2RJ0yroCyIk=
 k8s.io/utils v0.0.0-20230406110748-d93618cff8a2/go.mod h1:OLgZIPagt7ERELqWJFomSt595RzquPNLL48iOWgYOg0=
 knative.dev/pkg v0.0.0-20230712131115-7051d301e7f4 h1:oO/BQJpVCFTSTMHF/S6u+nPtIvbHDTsvbPZvdCZAFjs=

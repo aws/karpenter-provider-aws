@@ -29,8 +29,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
-	"k8s.io/kubernetes/pkg/printers"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
