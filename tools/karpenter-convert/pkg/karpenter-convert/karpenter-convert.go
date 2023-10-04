@@ -17,7 +17,6 @@ package convert
 import (
 	"fmt"
 
-	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/aws/karpenter/pkg/apis"
@@ -151,7 +150,7 @@ func processNodeTemplate(resource runtime.Object) runtime.Object {
 		Kind:       "EC2NodeClass",
 		APIVersion: v1beta1.SchemeGroupVersion.String(),
 	}
-	nodeclass.Spec.Role = lo.ToPtr("<your AWS role here>")
+	nodeclass.Spec.Role = "<your AWS role here>"
 
 	return nodeclass
 }
