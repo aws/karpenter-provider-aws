@@ -4,10 +4,10 @@ metadata:
   creationTimestamp: null
   name: default
 spec:
-  deprovisioning:
+  disruption:
+    consolidateAfter: 30s
     consolidationPolicy: WhenEmpty
-    consolidationTTL: 30s
-    expirationTTL: 720h0m0s
+    expireAfter: 720h0m0s
   limits:
     cpu: 1k
     memory: 1000Gi
@@ -19,10 +19,9 @@ spec:
       labels:
         billing-team: my-team
     spec:
-      kubeletConfiguration:
+      kubelet:
         clusterDNS:
         - 10.0.1.100
-        containerRuntime: containerd
         cpuCFSQuota: true
         evictionHard:
           memory.available: 5%
@@ -49,7 +48,7 @@ spec:
           cpu: 100m
           ephemeral-storage: 1Gi
           memory: 100Mi
-      nodeClass:
+      nodeClassRef:
         name: default
       requirements:
       - key: karpenter.k8s.aws/instance-category

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -29,6 +30,11 @@ import (
 	"k8s.io/client-go/rest/fake"
 	cmdtesting "k8s.io/kubectl/pkg/cmd/testing"
 )
+
+func TestConvert(t *testing.T) {
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "Karpenter-Convert")
+}
 
 var _ = Describe("ConvertObject", func() {
 	type testcase struct {
@@ -52,9 +58,6 @@ var _ = Describe("ConvertObject", func() {
 			buf := bytes.NewBuffer([]byte{})
 			cmd := convert.NewCmd(tf, genericiooptions.IOStreams{Out: buf, ErrOut: buf})
 			if err := cmd.Flags().Set("filename", tc.file); err != nil {
-				Expect(err).To(BeNil())
-			}
-			if err := cmd.Flags().Set("local", "true"); err != nil {
 				Expect(err).To(BeNil())
 			}
 			if err := cmd.Flags().Set("output", "yaml"); err != nil {
