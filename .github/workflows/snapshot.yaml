@@ -1,26 +1,15 @@
-name: PublishTestTools
+name: Snapshot
 on:
   push:
     branches: [ main ]
-    paths:
-      - test/Dockerfile
-      - test/push-docker.sh
-  schedule:
-    - cron: '0 13 * * MON'
-permissions:
-  id-token: write
 jobs:
-  publish-tools:
+  release:
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - uses: ./.github/actions/install-deps
       - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
           aws-region: ${{ vars.ECR_REGION }}
-      - run: ./push-docker.sh
-        working-directory: ./test
+      - run: make snapshot
