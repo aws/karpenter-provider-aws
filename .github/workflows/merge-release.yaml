@@ -1,4 +1,4 @@
-name: MergeRelease
+name: Release
 on:
   push:
     tags: [ 'v*.*.*' ]
