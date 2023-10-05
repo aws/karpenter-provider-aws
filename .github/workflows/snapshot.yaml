@@ -1,4 +1,4 @@
-name: MergeSnapshot
+name: Snapshot
 on:
   push:
     branches: [ main ]
@@ -13,4 +13,3 @@ jobs:
           role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
           aws-region: ${{ vars.ECR_REGION }}
       - run: make snapshot
-      - run: make docgen
