@@ -1,4 +1,4 @@
-name: SnapshotRelease
+name: PullRequestSnapshot
 on:
   workflow_run:
     workflows: [ApprovalComment]
@@ -29,8 +29,11 @@ jobs:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
           git_ref: ${{ env.PR_COMMIT }}
       - uses: ./.github/actions/install-deps
-      - uses: ./.github/actions/authenticate-aws
-      - run: make release
+      - uses: aws-actions/configure-aws-credentials@v1-node16
+        with:
+          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.ECR_REGION }}
+      - run: make snapshot
         env:
           GH_PR_NUMBER: ${{env.PR_NUMBER}}
       - uses: actions/github-script@v6
@@ -41,7 +44,7 @@ jobs:
               issue_number: `${{env.PR_NUMBER}}`,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Snapshot successfully published to `oci://public.ecr.aws/karpenter/karpenter:v0-${{env.PR_COMMIT}}`. Find the image tag and installation instructions at https://gallery.ecr.aws/karpenter/karpenter/'
+              body: 'Snapshot successfully published to `oci://${{ vars.ECR_ACCOUNT_ID }}.dkr.ecr.${{ vars.ECR_REGION }}.amazonaws.com/karpenter/snapshot/karpenter:v0-${{env.PR_COMMIT}}`.'
             })
       - if: always()
         uses: ./.github/actions/commit-status/end
