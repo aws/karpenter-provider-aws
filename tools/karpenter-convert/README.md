@@ -1,6 +1,6 @@
 # karpenter-convert
 
-karpenter-converter is a simple CLI tool to bump the API manifests from alpha to beta.
+karpenter-convert is a simple CLI tool to bump the API manifests from alpha to beta.
 It converts `v1alpha5/Provisioner` to `v1beta1/NodePool` and `v1alpha1/AWSNodeTemplate` to `v1beta1/EC2NodeClass`.
 
 ## Installation 
