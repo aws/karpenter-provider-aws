@@ -73,8 +73,15 @@ spec:
               value: "1.19.0-0"
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
+          {{- if .Values.webhook.enabled }}
             - name: WEBHOOK_PORT
               value: "{{ .Values.webhook.port }}"
+            - name: WEBHOOK_METRICS_PORT
+              value: "{{ .Values.webhook.metrics.port }}"
+          {{- else }}
+            - name: DISABLE_WEBHOOK
+              value: "true"
+          {{- end }}
             - name: METRICS_PORT
               value: "{{ .Values.controller.metrics.port }}"
             - name: HEALTH_PROBE_PORT
@@ -99,6 +106,11 @@ spec:
           ports:
             - name: http-metrics
               containerPort: {{ .Values.controller.metrics.port }}
+              protocol: TCP
+          {{- if .Values.webhook.enabled }}
+            - name: webhook-metrics
+              containerPort: {{ .Values.webhook.metrics.port }}
+          {{- end }}
               protocol: TCP
             - name: http
               containerPort: {{ .Values.controller.healthProbe.port }}
