@@ -8,10 +8,10 @@ description: >
 
 Significant changes to the Karpenter APIs and various compatibility issues have been introduced in Karpenter v0.32.
 In this release, Karpenter APIs have advanced to v1beta1, in preparation for Karpenter v1 in the near future.
-The v1beta1 changes are meant to simplify and improve ease of use of those APIs, as well as solidify for the v1 release.
+The v1beta1 changes are meant to simplify and improve ease of use of those APIs, as well as solidify the APIs for the v1 release.
 Use this document as a reference to the changes that were introduced in the current release and as a guide to how you need to update the manifests and other Karpenter objects you created in previous Karpenter releases.
 
-The [Karpenter Upgrade Guide}(]({{< relref "upgrade-guide" >}}) steps you through the process of upgrading the Karpenter controller for the latest release.
+The [Karpenter Upgrade Guide}(]({{< relref "upgrade-guide" >}}) steps you through the process of upgrading Karpenter for the latest release.
 For a more general understanding of Karpenter compatibility issues, see the ({{< relref "#compatibility" >}}) section of this document.
 
 # Karpenter Migration Information

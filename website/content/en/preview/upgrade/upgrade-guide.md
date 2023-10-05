@@ -21,9 +21,9 @@ Here is some information you should know about upgrading the Karpenter controlle
 
 Some things that will help you with this upgrade include:
 
-* **[Karpenter Upgrade Reference]({{< relref "upgrade-ref.md" >}}): Provides a complete reference to help you transition your Provisioner, Machine, and AWSNodeTemplate manifests, as well as other components, to be able to work with the new v1beta1 names, labels, and other elements.
-* **[Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert)** Simplifies the creation of NodePool and EC2NodeClass manifests.
-* **[Compatibility]({{< relref "#compatibility" >}})** Offers details about Karpenter compatibility with different versions of Kubernetes and other components.
+* **[Karpenter Upgrade Reference]({{< relref "upgrade-ref.md" >}})**: Provides a complete reference to help you transition your Provisioner, Machine, and AWSNodeTemplate manifests, as well as other components, to be able to work with the new v1beta1 names, labels, and other elements.
+* **[Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert)**: Simplifies the creation of NodePool and EC2NodeClass manifests.
+* **[Compatibility]({{< relref "upgrade-ref/#compatibility" >}})**: Offers details about Karpenter compatibility with different versions of Kubernetes and other components.
 
 ## Procedure
 
@@ -33,7 +33,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
 ### Install Karpenter
 
-1. **Determine the current cluster version**: Run the following to make sure that your Karpenter version is v0.31:
+1. Determine the current cluster version: Run the following to make sure that your Karpenter version is v0.31:
    ```
    kubectl get pod -A | grep karpenter
    kubectl describe pod -n karpenter-xxxxxxxxxx-xxxxx | grep Image: | grep v0.....
@@ -42,7 +42,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
    ```
    Image: public.ecr.aws/karpenter/controller:v0.31.0@sha256:d29767fa9c5c0511a3812397c932f5735234f03a7a875575422b712d15e54a77
    ```
-1. **Review for breaking changes**: If you are already running Karpenter v0.31, you can skip this step. If you are runnng an earlier Karpenter version, you need to review the upgrade notes each minor release to make sure that you deal with any breaking changes that might have been introduced. See [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for details on each previous Karpenter version.
+1. Review for breaking changes: If you are already running Karpenter v0.31, you can skip this step. If you are runnng an earlier Karpenter version, you need to review the upgrade notes each minor release to make sure that you deal with any breaking changes that might have been introduced. See [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for details on each previous Karpenter version.
 
 1. Apply the new Karpenter policy and assign it to the existing Karpenter role:
    ```
