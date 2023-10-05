@@ -104,6 +104,8 @@ jobs:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          ecr_region: ${{ vars.ECR_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.from_git_ref }}
       - uses: actions/checkout@v4
@@ -143,6 +145,8 @@ jobs:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          ecr_region: ${{ vars.ECR_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: run the Upgrade test suite
