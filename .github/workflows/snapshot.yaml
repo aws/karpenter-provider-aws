@@ -2,6 +2,8 @@ name: Snapshot
 on:
   push:
     branches: [ main ]
+permissions:
+  id-token: write
 jobs:
   release:
     if: github.repository == 'aws/karpenter'
