@@ -151,7 +151,7 @@ spec:
       test-tag: test-value  
 ```
 
-**Provider example (v1beta1)**
+**Nodepool example (v1beta1)**
 
 ```
 apiVersion: karpenter.sh/v1beta1
@@ -160,6 +160,8 @@ kind: NodePool
 nodeClassRef:
   name: default
 ```
+
+**EC2NodeClass example (v1beta1)**
 ```
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
@@ -460,7 +462,7 @@ spec:
 
 **amiSelectorTerms.tags example (v1beta1)**
 ```
-apiVersion: compute.k8s.aws/v1alpha1
+apiVersion: compute.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
 spec:
