@@ -67,21 +67,61 @@ spec:
 
   # optional, configures storage devices for the instance
   blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 100Gi
+        volumeType: gp3
+        iops: 10000
+        encrypted: true
+        kmsKeyID: "arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"
+        deleteOnTermination: true
+        throughput: 125
+        snapshotID: snap-0123456789
 
   # optional, configures detailed monitoring for the instance
-  detailedMonitoring: "..."
+  detailedMonitoring: true
 status:
   # resolved subnets
-  subnets: { ... }
+  subnets:
+    - id: subnet-0a462d98193ff9fac
+      zone: us-east-2b
+    - id: subnet-0322dfafd76a609b6
+      zone: us-east-2c
+    - id: subnet-0727ef01daf4ac9fe
+      zone: us-east-2b
+    - id: subnet-00c99aeafe2a70304
+      zone: us-east-2a
+    - id: subnet-023b232fd5eb0028e
+      zone: us-east-2c
+    - id: subnet-03941e7ad6afeaa72
+      zone: us-east-2a
   
   # resolved security groups
-  securityGroups: { ... }
+  securityGroups:
+    - id: sg-041513b454818610b
+      name: ClusterSharedNodeSecurityGroup
+    - id: sg-0286715698b894bca
+      name: ControlPlaneSecurityGroup-1AQ073TSAAPW
 
   # resolved AMIs 
-  amis: { ... }
+  amis:
+    - id: ami-01234567890123456
+      name: custom-ami-amd64
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - amd64
+    - id: ami-01234567890123456
+      name: custom-ami-arm64
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+            - arm64
   
   # generated instance profile name
-  instanceProfile: { ... }      
+  instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
 ```
 Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/main/examples/nodepool/).
 
@@ -472,7 +512,7 @@ spec:
         encrypted: true
 ```
 
-### Windows2019, Windows2022
+### Windows2019/Windows2022
 ```yaml
 spec:
   blockDeviceMappings:
@@ -534,7 +574,7 @@ For more examples on configuring fields for different AMI families, see the [exa
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#spec-amifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
-### AL2 and Ubuntu
+### AL2/Ubuntu
 
 * Your UserData can be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
 * Karpenter will transform your custom user-data as a MIME part, if necessary, and then merge a final MIME part to the end of your UserData parts which will bootstrap the worker node. Karpenter will have full control over all the parameters being passed to the bootstrap script.
@@ -646,11 +686,11 @@ cluster-name = 'cluster'
 'memory.available' = '12%%'
 ```
 
-#### Custom
+### Custom
 
 * No merging is performed, your UserData must perform all setup required of the node to allow it to join the cluster.
 
-#### Windows
+### Windows2019/Windows2022
 
 * Your UserData must be specified as PowerShell commands.
 * The UserData specified will be prepended to a Karpenter managed section that will bootstrap the kubelet.

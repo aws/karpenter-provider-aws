@@ -437,7 +437,7 @@ This field points to the cloud provider-specific custom resource. Learn more abo
 
 ## spec.consolidation
 
-You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.ttlSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](../deprovisioning/) for more.
+You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.ttlSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning]({{<ref "./disruption" >}}) for more.
 
 ## Example Use-Cases
 

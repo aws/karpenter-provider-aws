@@ -21,7 +21,7 @@ Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-c
 By default, Karpenter uses Amazon Linux 2 images.
 
 ### Can I provide my own custom operating system images?
-Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/node-templates/#spec-amiselector" >}}) for your nodes.
+Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/nodeclasses/#spec-amiselector" >}}) for your nodes.
 
 ### Can Karpenter deal with workloads for mixed architecture cluster (arm vs. amd)?
 Karpenter is flexible to multi architecture configurations using [well known labels]({{< ref "./concepts/scheduling/#supported-labels">}}).
@@ -57,11 +57,11 @@ See [Scheduling]({{< ref "./concepts/scheduling" >}}) for details on how Karpent
 ## Provisioning
 
 ### What features does the Karpenter provisioner support?
-See [Provisioner API]({{< ref "./concepts/provisioners" >}}) for provisioner examples and descriptions of features.
+See [Provisioner API]({{< ref "./concepts/nodepools" >}}) for provisioner examples and descriptions of features.
 
 ### Can I create multiple (team-based) provisioners on a cluster?
 Yes, provisioners can identify multiple teams based on labels.
-See [Provisioner API]({{< ref "./concepts/provisioners" >}}) for details.
+See [Provisioner API]({{< ref "./concepts/nodepools" >}}) for details.
 
 ### If multiple provisioners are defined, which will my pod use?
 
@@ -88,14 +88,14 @@ However, you can use Session Manager (SSM) or EC2 Instance Connect to gain shell
 See [Node NotReady]({{< ref "./troubleshooting/#node-notready" >}}) troubleshooting for an example of starting an SSM session from the command line or [EC2 Instance Connect](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-connect-set-up.html) documentation to connect to nodes using SSH.
 
 Though not recommended, if you need to access Karpenter-managed nodes without AWS credentials, you can add SSH keys using AWSNodeTemplate.
-See [Custom User Data]({{< ref "./concepts/node-templates/#spec-userdata" >}}) for details.
+See [Custom User Data]({{< ref "./concepts/nodeclasses/#spec-userdata" >}}) for details.
 
 ### Can I set total limits of CPU and memory for a provisioner?
 Yes, the setting is provider-specific.
 See examples in [Accelerators, GPU]({{< ref "./concepts/scheduling/#accelerators-gpu-resources" >}}) Karpenter documentation.
 
 ### Can I mix spot and on-demand EC2 run types?
-Yes, see [Provisioning]({{< ref "./concepts/provisioners#examples" >}}) for an example.
+Yes, see [Provisioning]({{< ref "./concepts/nodepools#examples" >}}) for an example.
 
 ### Can I restrict EC2 instance types?
 
@@ -194,7 +194,7 @@ See [Application developer]({{< ref "./concepts/#application-developer" >}}) for
 Yes.  See [Persistent Volume Topology]({{< ref "./concepts/scheduling#persistent-volume-topology" >}}) for details.
 
 ### Can I set `--max-pods` on my nodes?
-Yes, see the [KubeletConfiguration Section in the Provisioners Documentation]({{<ref "./concepts/provisioners#speckubeletconfiguration" >}}) to learn more.
+Yes, see the [KubeletConfiguration Section in the Provisioners Documentation]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}}) to learn more.
 
 ### Why do the Windows2019 and Windows2022 AMI families only support Windows Server Core?
 The difference between the Core and Full variants is that Core is a minimal OS with less components and no graphic user interface (GUI) or desktop experience.
@@ -208,7 +208,7 @@ amiSelector:
 
 ## Deprovisioning
 ### How does Karpenter deprovision nodes?
-See [Deprovisioning nodes]({{< ref "./concepts/deprovisioning" >}}) for information on how Karpenter deprovisions nodes.
+See [Deprovisioning nodes]({{< ref "./concepts/disruption" >}}) for information on how Karpenter deprovisions nodes.
 
 ## Upgrading Karpenter
 
@@ -235,9 +235,9 @@ The `startupTaints` parameter was added in v0.10.0.  Helm upgrades do not upgrad
 
 ### How do I upgrade an EKS Cluster with Karpenter?
 
-When upgrading an Amazon EKS cluster, [Karpenter's Drift feature]({{<ref "./concepts/deprovisioning#drift" >}}) can automatically upgrade the Karpenter-provisioned nodes to stay in-sync with the EKS control plane. Karpenter Drift currently needs to be enabled using a [feature gate]({{<ref "./concepts/settings#feature-gates" >}}). Karpenter's default [AWSNodeTemplate `amiFamily` configuration]({{<ref "./concepts/node-templates#specamifamily" >}}) uses the latest EKS Optimized AL2 AMI for the same major and minor version as the EKS cluster's control plane. Karpenter's AWSNodeTemplate can be configured to not use the EKS optimized AL2 AMI in favor of a custom AMI by configuring the [`amiSelector`]({{<ref "./concepts/node-templates#specamiselector" >}}). If using a custom AMI, you will need to trigger the rollout of this new worker node image through the publication of a new AMI with tags matching the [`amiSelector`]({{<ref "./concepts/node-templates#specamiselector" >}}), or a change to the [`amiSelector`]({{<ref "./concepts/node-templates#specamiselector" >}}) field.
+When upgrading an Amazon EKS cluster, [Karpenter's Drift feature]({{<ref "./concepts/disruption#drift" >}}) can automatically upgrade the Karpenter-provisioned nodes to stay in-sync with the EKS control plane. Karpenter Drift currently needs to be enabled using a [feature gate]({{<ref "./concepts/settings#feature-gates" >}}). Karpenter's default [AWSNodeTemplate `amiFamily` configuration]({{<ref "./concepts/nodeclasses#specamifamily" >}}) uses the latest EKS Optimized AL2 AMI for the same major and minor version as the EKS cluster's control plane. Karpenter's AWSNodeTemplate can be configured to not use the EKS optimized AL2 AMI in favor of a custom AMI by configuring the [`amiSelector`]({{<ref "./concepts/nodeclasses#specamiselector" >}}). If using a custom AMI, you will need to trigger the rollout of this new worker node image through the publication of a new AMI with tags matching the [`amiSelector`]({{<ref "./concepts/nodeclasses#specamiselector" >}}), or a change to the [`amiSelector`]({{<ref "./concepts/nodeclasses#specamiselector" >}}) field.
 
-Start by [upgrading the EKS Cluster control plane](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html). After the EKS Cluster upgrade completes, Karpenter's Drift feature will detect that the Karpenter-provisioned nodes are using EKS Optimized AMIs for the previous cluster version, and [automatically cordon, drain, and replace those nodes]({{<ref "./concepts/deprovisioning#control-flow" >}}). To support pods moving to new nodes, follow Kubernetes best practices by setting appropriate pod [Resource Quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/), and using [Pod Disruption Budgets](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) (PDB). Karpenter's Drift feature will spin up replacement nodes based on the pod resource requests, and will respect the PDBs when deprovisioning nodes.
+Start by [upgrading the EKS Cluster control plane](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html). After the EKS Cluster upgrade completes, Karpenter's Drift feature will detect that the Karpenter-provisioned nodes are using EKS Optimized AMIs for the previous cluster version, and [automatically cordon, drain, and replace those nodes]({{<ref "./concepts/disruption#control-flow" >}}). To support pods moving to new nodes, follow Kubernetes best practices by setting appropriate pod [Resource Quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/), and using [Pod Disruption Budgets](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) (PDB). Karpenter's Drift feature will spin up replacement nodes based on the pod resource requests, and will respect the PDBs when deprovisioning nodes.
 
 ## Interruption Handling
 
@@ -252,7 +252,7 @@ Karpenter's native interruption handling offers two main benefits over the stand
 ### Why am I receiving QueueNotFound errors when I set `aws.interruptionQueueName`?
 Karpenter requires a queue to exist that receives event messages from EC2 and health services in order to handle interruption messages properly for nodes.
 
-Details on the types of events that Karpenter handles can be found in the [Interruption Handling Docs]({{< ref "./concepts/deprovisioning/#interruption" >}}).
+Details on the types of events that Karpenter handles can be found in the [Interruption Handling Docs]({{< ref "./concepts/disruption/#interruption" >}}).
 
 Details on provisioning the SQS queue and EventBridge rules can be found in the [Getting Started Guide]({{< ref "./getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles" >}}).
 
