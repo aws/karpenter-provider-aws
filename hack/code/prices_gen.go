@@ -76,7 +76,7 @@ func NewOptions() *Options {
 	flag.StringVar(&o.output, "output", "pkg/providers/pricing/zz_generated.pricing_us.go", "The destination for the generated go file.")
 	flag.Parse()
 	if !lo.Contains([]string{"aws", "aws-us-gov", "aws-cn"}, o.partition) {
-		panic("invalid region: must be us or cn")
+		panic("invalid partition: must be \"aws\", \"aws-us-gov\", or \"aws-cn\"")
 	}
 	return o
 }
