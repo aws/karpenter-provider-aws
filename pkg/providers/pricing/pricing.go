@@ -39,7 +39,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
-var initialOnDemandPrices map[string]map[string]float64
+var initialOnDemandPrices = lo.Assign(InitialOnDemandPricesAWS, InitialOnDemandPricesUSGov, InitialOnDemandPricesCN)
 
 // Provider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
 // regarding which instances to launch.  This is initialized at startup with a periodically updated static price list to
@@ -72,10 +72,6 @@ type zonal struct {
 type Err struct {
 	error
 	lastUpdateTime time.Time
-}
-
-func init() {
-	initialOnDemandPrices = lo.Assign(InitialOnDemandPricesAWS, InitialOnDemandPricesUSGov, InitialOnDemandPricesCN)
 }
 
 func newZonalPricing(defaultPrice float64) zonal {

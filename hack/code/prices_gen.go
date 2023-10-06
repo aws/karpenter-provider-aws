@@ -105,9 +105,8 @@ func main() {
 	fmt.Fprintln(src, `import "time"`)
 	now := time.Now().UTC().Format(time.RFC3339)
 	fmt.Fprintf(src, "// generated at %s for %s\n\n\n", now, region)
-	fmt.Fprintf(src, "var initialPriceUpdate%s, _ = time.Parse(time.RFC3339, \"%s\")\n", getPartitionSuffix(opts.partition), now)
-	fmt.Fprintf(src, "var initialOnDemandPrices%s = map[string]map[string]float64{}\n", getPartitionSuffix(opts.partition))
-	fmt.Fprintln(src, "func init() {")
+	fmt.Fprintf(src, "var InitialPriceUpdate%s, _ = time.Parse(time.RFC3339, \"%s\")\n", getPartitionSuffix(opts.partition), now)
+	fmt.Fprintf(src, "var InitialOnDemandPrices%s = map[string]map[string]float64{\n", getPartitionSuffix(opts.partition))
 	// record prices for each region we are interested in
 	for _, region := range getAWSRegions(opts.partition) {
 		log.Println("fetching for", region)
@@ -127,7 +126,7 @@ func main() {
 		instanceTypes := pricingProvider.InstanceTypes()
 		sort.Strings(instanceTypes)
 
-		writePricing(src, instanceTypes, region, pricingProvider.OnDemandPrice, fmt.Sprintf("initialOnDemandPrices%s", getPartitionSuffix(opts.partition)))
+		writePricing(src, instanceTypes, region, pricingProvider.OnDemandPrice)
 	}
 	fmt.Fprintln(src, "}")
 	formatted, err := format.Source(src.Bytes())
@@ -147,9 +146,9 @@ func main() {
 	}
 }
 
-func writePricing(src *bytes.Buffer, instanceNames []string, region string, getPrice func(instanceType string) (float64, bool), priceMapName string) {
+func writePricing(src *bytes.Buffer, instanceNames []string, region string, getPrice func(instanceType string) (float64, bool)) {
 	fmt.Fprintf(src, "// %s\n", region)
-	fmt.Fprintf(src, "%s[%q] = map[string]float64{\n", priceMapName, region)
+	fmt.Fprintf(src, "%q: {\n", region)
 	lineLen := 0
 	sort.Strings(instanceNames)
 	previousFamily := ""
@@ -182,7 +181,7 @@ func writePricing(src *bytes.Buffer, instanceNames []string, region string, getP
 			fmt.Fprintln(src)
 		}
 	}
-	fmt.Fprintln(src, "\n}")
+	fmt.Fprintln(src, "\n},")
 	fmt.Fprintln(src)
 }
 
