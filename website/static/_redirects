@@ -5,3 +5,6 @@
 /v0.26/getting-started/getting-started-with-karpenter/*  /v0.26/getting-started/getting-started-with-eksctl/:splat
 /v0.27/getting-started/getting-started-with-eksctl/* /v0.27/getting-started/getting-started-with-karpenter/:splat
 /v0.28/getting-started/getting-started-with-eksctl/* /v0.28/getting-started/getting-started-with-karpenter/:splat
+/preview/concepts/provisioners /preview/concepts/nodepools
+/preview/concepts/node-templates /preview/concepts/nodeclasses
+/preview/concepts/deprovisioning /preview/concepts/disruption

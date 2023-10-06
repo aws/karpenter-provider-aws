@@ -204,6 +204,10 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). In the case of the `Custom` AMIFamily, no default AMIs are defined. As a result, `amiSelectorTerms` must be specified to inform Karpenter on which custom AMIs are to be used.
 {{% /alert %}}
 
+### Custom
+
+The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. 
+
 ## spec.subnetSelectorTerms
 
 The `EC2NodeClass` discovers subnets through ids or [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). When launching nodes, a subnet is automatically chosen that matches the desired zone. If multiple subnets exist for a zone, the one with the most available IP addresses will be used.
@@ -523,6 +527,10 @@ spec:
         encrypted: true
 ```
 
+### Custom
+
+The `Custom` AMIFamily ships without any default `blockDeviceMappings`.
+
 ## spec.userData
 
 You can control the UserData that is applied to your worker nodes via this field. This allows you to run custom scripts or pass-through custom configuration to Karpenter instances on start-up.
@@ -572,7 +580,7 @@ spec:
 
 For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
 
-Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#spec-amifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
+Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
 ### AL2/Ubuntu
 
@@ -686,10 +694,6 @@ cluster-name = 'cluster'
 'memory.available' = '12%%'
 ```
 
-### Custom
-
-* No merging is performed, your UserData must perform all setup required of the node to allow it to join the cluster.
-
 ### Windows2019/Windows2022
 
 * Your UserData must be specified as PowerShell commands.
@@ -728,6 +732,10 @@ spec:
 ```
 {{% /alert %}}
 
+### Custom
+
+* No merging is performed, your UserData must perform all setup required of the node to allow it to join the cluster.
+
 ## spec.detailedMonitoring
 
 Enabling detailed monitoring controls the [EC2 detailed monitoring](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-cloudwatch-new.html) feature. If you enable this option, the Amazon EC2 console displays monitoring graphs with a 1-minute period for the instances that Karpenter launches.
@@ -738,7 +746,7 @@ spec:
 ```
 
 ## status.subnets
-`status.subnets` contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#spec-subnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
+[`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
 
 #### Examples
 
@@ -765,9 +773,7 @@ status:
 
 ## status.securityGroups
 
-`status.securityGroups` contains the `id` and `name` of the security groups utilized during node launch.
-
-`status.securityGroups` contains the resolved `id` and `name` of the security groups that were selected by the [`spec.securityGroupSelectorTerms`]({{< ref "#spec-securitygroupselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
+[`status.securityGroups`]({{< ref "#statussecuritygroups" >}}) contains the resolved `id` and `name` of the security groups that were selected by the [`spec.securityGroupSelectorTerms`]({{< ref "#specsecuritygroupselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
 
 #### Examples
 
@@ -786,7 +792,7 @@ status:
 
 ## status.amis
 
-`status.amis` contains the resolved `id`, `name`, and `requirements` of either the default AMIs for the [`spec.amiFamily`]({{< ref "#spec-amifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#spec-amiselectorterms" >}}) if this field is specified.
+[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, and `requirements` of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified.
 
 #### Examples
 
@@ -839,7 +845,7 @@ status:
       operator: DoesNotExist
 ```
 
-AMIs resolved from [`spec.amiSelectorTerms`]({{< ref "#spec-amiselectorterms" >}}):
+AMIs resolved from [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}):
 
 ```yaml
 spec:
@@ -867,7 +873,7 @@ status:
 
 ## status.instanceProfile
 
-`status.instanceProfile` contains the resolved instance profile generated by Karpenter from the [`spec.role`]({{< ref "#spec-role" >}})
+[`status.instanceProfile`]({{< ref "#statusinstanceprofile" >}}) contains the resolved instance profile generated by Karpenter from the [`spec.role`]({{< ref "#specrole" >}})
 
 ```yaml
 spec:
