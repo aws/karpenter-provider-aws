@@ -49,7 +49,7 @@ Karpenter v1beta1 introduces changes to some common labels, annotations, and sta
 
 ## Provisioner to NodePool
 
-Karpenter v1beta1 moves almost all top-level fields under the `NodePool` template field. Similar to Deployments (which template Pods that are orchestrated by the deployment controller), Karpenter NodePool template NodeClaims (that are orchestrated by the Karpenter controller). Here is an example of a `Provisioner` (v1alpha5) migrated to a `NodePool` (v1beta1):
+Karpenter v1beta1 moves almost all top-level fields under the `NodePool` template field. Similar to Deployments (which template Pods that are orchestrated by the deployment controller), Karpenter NodePool templates NodeClaims (that are orchestrated by the Karpenter controller). Here is an example of a `Provisioner` (v1alpha5) migrated to a `NodePool` (v1beta1):
 
 
 **Provisioner example (v1alpha)**

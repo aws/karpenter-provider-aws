@@ -42,7 +42,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
    ```
    Image: public.ecr.aws/karpenter/controller:v0.31.0@sha256:d29767fa9c5c0511a3812397c932f5735234f03a7a875575422b712d15e54a77
    ```
-1. Review for breaking changes: If you are already running Karpenter v0.31, you can skip this step. If you are runnng an earlier Karpenter version, you need to review the upgrade notes each minor release to make sure that you deal with any breaking changes that might have been introduced. See [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for details on each previous Karpenter version.
+1. Review for breaking changes: If you are already running Karpenter v0.31, you can skip this step. If you are running an earlier Karpenter version, you need to review the upgrade notes each minor release to make sure that you deal with any breaking changes that might have been introduced. See [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for details on each previous Karpenter version.
 
 1. Apply the new Karpenter policy and assign it to the existing Karpenter role:
    ```
@@ -83,7 +83,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
    ```
 
 1. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert/README).
-   See the [AWSNodeTemplate to EC2NodeClass]({{< relref "upgrade-ref#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update Karpenter AWSNodeTemplate objects. Here is an example of you to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
+   See the [AWSNodeTemplate to EC2NodeClass]({{< relref "upgrade-ref#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects. Here is an example of how to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
 
    ```
    karpenter-convert -f awsnodetemplate.yaml > ec2nodeclass.yaml
@@ -97,7 +97,6 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 1. When you are satisfied with your EC2NodeClass file, apply it as follows:
    ```
    kubectl apply -f ec2nodeclass.yaml
-
    ```
 1. Convert each Provisioner to a NodeClass. Again, either manually update your Provisioner manifests or use the karpenter-convert CLI tool:
    ```
@@ -107,8 +106,8 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
    * Periodic Rolling with Drift: Enable drift in your NodePool file, then do the following:
       - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
-      - Wait as Karpenter marks all machines owned by that Provisioner as having drifted
-      - Watch as replacement nodes are launched from the new NodePool resource
+      - Wait as Karpenter marks all machines owned by that Provisioner as having drifted.
+      - Watch as replacement nodes are launched from the new NodePool resource.
 
      Because Karpenter will only roll of one node at a time, it may take some time for Karpenter to completely roll all nodes under a Provisioner.
 
