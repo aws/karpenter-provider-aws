@@ -110,9 +110,9 @@ This provisioner uses `securityGroupSelector` and `subnetSelector` to discover r
 We applied the tag `karpenter.sh/discovery` in the `eksctl` command above.
 Depending how these resources are shared between clusters, you may need to use different tagging schemes.
 
-The `consolidation` value configures Karpenter to reduce cluster cost by removing and replacing nodes. As a result, consolidation will terminate any empty nodes on the cluster. This behavior can be disabled by leaving the value undefined or setting `consolidation.enabled` to `false`. Review the [provisioner CRD]({{<ref "../../concepts/provisioners" >}}) for more information.
+The `consolidation` value configures Karpenter to reduce cluster cost by removing and replacing nodes. As a result, consolidation will terminate any empty nodes on the cluster. This behavior can be disabled by leaving the value undefined or setting `consolidation.enabled` to `false`. Review the [provisioner CRD]({{<ref "../../concepts/nodepools" >}}) for more information.
 
-Review the [provisioner CRD]({{<ref "../../concepts/provisioners" >}}) for more information. For example,
+Review the [provisioner CRD]({{<ref "../../concepts/nodepools" >}}) for more information. For example,
 `ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
 
 Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
