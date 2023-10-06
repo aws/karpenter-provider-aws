@@ -55,6 +55,8 @@ github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHS
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
 github.com/aws/aws-sdk-go v1.45.19 h1:+4yXWhldhCVXWFOQRF99ZTJ92t4DtoHROZIbN7Ujk/U=
 github.com/aws/aws-sdk-go v1.45.19/go.mod h1:aVsgQcEevwlmQ7qHE9I3h+dtQgpqhFB+i8Phjh7fkwI=
+github.com/aws/karpenter-core v0.31.1-0.20231005232319-8e6687ea72b6 h1:2V3E9h5GUK7hB8setPdaUKcL/ubuDNoG0RAGQtvwfuE=
+github.com/aws/karpenter-core v0.31.1-0.20231005232319-8e6687ea72b6/go.mod h1:4wXCSTj97gOWkWeB4D6LjWQMoqldrI8fo4tUOAhYTDs=
 github.com/aws/karpenter/tools/kompat v0.0.0-20230915222222-abfbf5fa3644 h1:M1fxGlOfvSqFYI01HL2zzvomy8e7LiTHk77KDuChWZQ=
 github.com/aws/karpenter/tools/kompat v0.0.0-20230915222222-abfbf5fa3644/go.mod h1:l/TIBsaCx/IrOr0Xvlj/cHLOf05QzuQKEZ1hx2XWmfU=
 github.com/benbjohnson/clock v1.1.0/go.mod h1:J11/hYXuz8f4ySSvYwY0FKfm+ezbsZBKZxNJlLklBHA=
@@ -265,8 +267,6 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
-github.com/njtran/karpenter-core v0.0.0-20231005200924-adee7acda11d h1:hzPY2zAI8jSu7WzS2xGdwTM14zgyYR++zmHvnToy87c=
-github.com/njtran/karpenter-core v0.0.0-20231005200924-adee7acda11d/go.mod h1:4wXCSTj97gOWkWeB4D6LjWQMoqldrI8fo4tUOAhYTDs=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
 github.com/onsi/ginkgo/v2 v2.12.1 h1:uHNEO1RP2SpuZApSkel9nEh1/Mu+hmQe7Q+Pepg5OYA=
