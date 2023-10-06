@@ -20,12 +20,12 @@ import "time"
 
 // generated at 2023-09-18T13:06:44Z for cn-north-1
 
-var initialPriceUpdateCN, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
-var initialOnDemandPricesCN = map[string]map[string]float64{}
+var InitialPriceUpdateCN, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
+var InitialOnDemandPricesCN = map[string]map[string]float64{}
 
 func init() {
 	// cn-north-1
-	initialOnDemandPricesCN["cn-north-1"] = map[string]float64{
+	InitialOnDemandPricesCN["cn-north-1"] = map[string]float64{
 		// c3 family
 		"c3.2xlarge": 4.217000, "c3.4xlarge": 8.434000, "c3.8xlarge": 16.869000, "c3.large": 1.054000,
 		"c3.xlarge": 2.109000,

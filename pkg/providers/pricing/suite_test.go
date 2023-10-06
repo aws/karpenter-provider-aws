@@ -83,6 +83,23 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("Pricing", func() {
+	DescribeTable(
+		"should return correct static data for all partitions",
+		func(staticPricing map[string]map[string]float64, updateTime time.Time) {
+			for region, prices := range staticPricing {
+				provider := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, region)
+				Expect(provider.OnDemandLastUpdated()).To(Equal(updateTime))
+				for instance, price := range prices {
+					val, ok := provider.OnDemandPrice(instance)
+					Expect(ok).To(BeTrue())
+					Expect(val).To(Equal(price))
+				}
+			}
+		},
+		Entry("aws", pricing.InitialOnDemandPricesAWS, pricing.InitialPriceUpdateAWS),
+		Entry("aws-us-gov", pricing.InitialOnDemandPricesUSGov, pricing.InitialPriceUpdateUSGov),
+		Entry("aws-cn", pricing.InitialOnDemandPricesCN, pricing.InitialPriceUpdateCN),
+	)
 	It("should return static on-demand data if pricing API fails", func() {
 		awsEnv.PricingAPI.NextError.Set(fmt.Errorf("failed"))
 		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})

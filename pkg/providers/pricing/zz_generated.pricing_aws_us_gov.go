@@ -20,12 +20,12 @@ import "time"
 
 // generated at 2023-09-18T13:06:44Z for us-east-1
 
-var initialPriceUpdateUSGov, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
-var initialOnDemandPricesUSGov = map[string]map[string]float64{}
+var InitialPriceUpdateUSGov, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
+var InitialOnDemandPricesUSGov = map[string]map[string]float64{}
 
 func init() {
 	// us-gov-west-1
-	initialOnDemandPricesUSGov["us-gov-west-1"] = map[string]float64{
+	InitialOnDemandPricesUSGov["us-gov-west-1"] = map[string]float64{
 		// c1 family
 		"c1.medium": 0.157000, "c1.xlarge": 0.628000,
 		// c3 family
@@ -257,7 +257,7 @@ func init() {
 	}
 
 	// us-gov-east-1
-	initialOnDemandPricesUSGov["us-gov-east-1"] = map[string]float64{
+	InitialOnDemandPricesUSGov["us-gov-east-1"] = map[string]float64{
 		// c5 family
 		"c5.12xlarge": 2.448000, "c5.18xlarge": 3.672000, "c5.24xlarge": 4.896000, "c5.2xlarge": 0.408000,
 		"c5.4xlarge": 0.816000, "c5.9xlarge": 1.836000, "c5.large": 0.102000, "c5.metal": 4.896000,
@@ -388,4 +388,3 @@ func init() {
 		"x2iedn.metal": 32.012000, "x2iedn.xlarge": 1.000380,
 	}
 }
-

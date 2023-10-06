@@ -39,6 +39,8 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
 )
 
+var initialOnDemandPrices map[string]map[string]float64
+
 // Provider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
 // regarding which instances to launch.  This is initialized at startup with a periodically updated static price list to
 // support running in locations where pricing data is unavailable.  In those cases the static pricing data provides a
@@ -70,6 +72,10 @@ type zonal struct {
 type Err struct {
 	error
 	lastUpdateTime time.Time
+}
+
+func init() {
+	initialOnDemandPrices = lo.Assign(InitialOnDemandPricesAWS, InitialOnDemandPricesUSGov, InitialOnDemandPricesCN)
 }
 
 func newZonalPricing(defaultPrice float64) zonal {
@@ -405,7 +411,6 @@ func populateInitialSpotPricing(pricing map[string]float64) map[string]zonal {
 }
 
 func (p *Provider) Reset() {
-	initialOnDemandPrices := lo.Assign(initialOnDemandPricesAWS, initialOnDemandPricesUSGov, initialOnDemandPricesCN)
 	// see if we've got region specific pricing data
 	staticPricing, ok := initialOnDemandPrices[p.region]
 	if !ok {
@@ -421,18 +426,18 @@ func (p *Provider) Reset() {
 }
 
 func getInitialPriceUpdateByRegion(region string) time.Time {
-	for _, partition := range []struct{
+	for _, partition := range []struct {
 		initialPrices map[string]map[string]float64
-		timestamp time.Time
-	} {
-		{initialOnDemandPricesAWS, initialPriceUpdateAWS},
-		{initialOnDemandPricesUSGov, initialPriceUpdateUSGov},
-		{initialOnDemandPricesCN, initialPriceUpdateCN},
+		timestamp     time.Time
+	}{
+		{InitialOnDemandPricesAWS, InitialPriceUpdateAWS},
+		{InitialOnDemandPricesUSGov, InitialPriceUpdateUSGov},
+		{InitialOnDemandPricesCN, InitialPriceUpdateCN},
 	} {
 		if _, ok := partition.initialPrices[region]; ok {
 			return partition.timestamp
 		}
 	}
 	// default to aws partition
-	return initialPriceUpdateAWS
+	return InitialPriceUpdateAWS
 }

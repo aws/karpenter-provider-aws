@@ -20,12 +20,12 @@ import "time"
 
 // generated at 2023-09-18T13:06:44Z for us-east-1
 
-var initialPriceUpdateAWS, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
-var initialOnDemandPricesAWS = map[string]map[string]float64{}
+var InitialPriceUpdateAWS, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
+var InitialOnDemandPricesAWS = map[string]map[string]float64{}
 
 func init() {
 	// us-east-1
-	initialOnDemandPricesAWS["us-east-1"] = map[string]float64{
+	InitialOnDemandPricesAWS["us-east-1"] = map[string]float64{
 		// a1 family
 		"a1.2xlarge": 0.204000, "a1.4xlarge": 0.408000, "a1.large": 0.051000, "a1.medium": 0.025500,
 		"a1.metal": 0.408000, "a1.xlarge": 0.102000,
@@ -376,4 +376,3 @@ func init() {
 		"z1d.large": 0.186000, "z1d.metal": 4.464000, "z1d.xlarge": 0.372000,
 	}
 }
-
