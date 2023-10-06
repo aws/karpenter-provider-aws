@@ -41,7 +41,7 @@ runs:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-eksctl
     with:
-      eksctl_version: ${{ inputs.eksctl_version }}
+      version: ${{ inputs.eksctl_version }}
   - name: create iam policies
     shell: bash
     run: |
