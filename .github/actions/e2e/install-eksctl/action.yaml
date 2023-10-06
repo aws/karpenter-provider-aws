@@ -1,7 +1,7 @@
 name: InstallEKSCTL
 description: 'Installs eksctl'
 inputs:
-  eksctl_version:
+  version:
     description: "Version of EKSCTL to use for the launched cluster"
     required: true
 runs:
@@ -12,9 +12,9 @@ runs:
         # for ARM systems, set ARCH to: `arm64`, `armv6` or `armv7`
         ARCH=amd64
         PLATFORM=$(uname -s)_$ARCH
-        curl -sLO "https://github.com/weaveworks/eksctl/releases/download/${{ inputs.eksctl_version }}/eksctl_$PLATFORM.tar.gz"
+        curl -sLO "https://github.com/weaveworks/eksctl/releases/download/${{ inputs.version }}/eksctl_$PLATFORM.tar.gz"
 
         # (Optional) Verify checksum
-        curl -sL "https://github.com/weaveworks/eksctl/releases/download/${{ inputs.eksctl_version }}/eksctl_checksums.txt" | grep $PLATFORM | sha256sum --check
+        curl -sL "https://github.com/weaveworks/eksctl/releases/download/${{ inputs.version }}/eksctl_checksums.txt" | grep $PLATFORM | sha256sum --check
         tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
         sudo mv /tmp/eksctl /usr/local/bin
