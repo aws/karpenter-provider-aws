@@ -59,7 +59,7 @@ Modeling your limit via CPU and Memory constraints aligns well with customers th
 
 As a cost control mechanism, this requires a little more work from our users if they're looking for higher precision. Since some cloud providers like AWS charge differently per instance type rather than the actual resource request and consumption, a little more translation will be needed to estimate costs. There are other factors like reserved instances (varying duration / purchased up-front) which make the cost estimation even more tricky and therefore a simple aggregate limit will be more usable. The alternative of a flat count of instance types - say `spec.limits.resources.count`, doesn't help solve that problem either since the instance types of differing prices are chosen by Karpenter by default. In case overrides are defined via `kubernetes.io/instance-type`, you should be able to calculate the CPU and Memory bounds fairly trivially through some cloud provider API calls.
 
-[CPU limits](https://v1-20.docs.kubernetes.io/docs/concepts/configuration/manage-resources-containers/#meaning-of-cpu), memory limits and GPU limits will be defined similar to resource requests and will not be required by default. Karpenter will also will not default to any limits itself.
+[CPU limits](https://kubernetes.io/docs/tasks/configure-pod-container/assign-cpu-resource/#cpu-units), memory limits and GPU limits will be defined similar to resource requests and will not be required by default. Karpenter will also will not default to any limits itself.
 
 The list of supported resource types is -
 - `cpu`
