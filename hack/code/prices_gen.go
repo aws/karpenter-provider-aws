@@ -39,12 +39,35 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 )
 
-func main() {
-	flag.Parse()
-	if flag.NArg() != 1 {
-		log.Fatalf("Usage: %s pkg/providers/pricing/zz_generated.pricing.go", os.Args[0])
+func getAWSRegions(regionCode string) []string {
+	switch regionCode {
+	case "us":
+		return []string{"us-east-1", "us-gov-east-1", "us-gov-west-1"}
+	case "cn":
+		return []string{"cn-north-1"}
+	default:
+		panic("invalid region")
 	}
+}
 
+type Options struct {
+	region string
+	output string
+}
+
+func NewOptions() *Options {
+	o := &Options{}
+	flag.StringVar(&o.region, "region", "us", "The region to generate prices for. Valid options are \"us\" and \"cn\".")
+	flag.StringVar(&o.output, "output", "pkg/providers/pricing/zz_generated.pricing_us.go", "The destination for the generated go file.")
+	flag.Parse()
+	if o.region != "us" && o.region != "cn" {
+		panic("invalid region: must be us or cn")
+	}
+	return o
+}
+
+func main() {
+	opts := NewOptions()
 	f, err := os.Create("pricing.heapprofile")
 	if err != nil {
 		log.Fatal("could not create memory profile: ", err)
@@ -67,11 +90,11 @@ func main() {
 	fmt.Fprintln(src, `import "time"`)
 	now := time.Now().UTC().Format(time.RFC3339)
 	fmt.Fprintf(src, "// generated at %s for %s\n\n\n", now, region)
-	fmt.Fprintf(src, "var initialPriceUpdate, _ = time.Parse(time.RFC3339, \"%s\")\n", now)
-	fmt.Fprintln(src, "var initialOnDemandPrices = map[string]map[string]float64{}")
+	fmt.Fprintf(src, "var initialPriceUpdate%s, _ = time.Parse(time.RFC3339, \"%s\")\n", strings.ToUpper(opts.region), now)
+	fmt.Fprintf(src, "var initialOnDemandPrices%s = map[string]map[string]float64{}\n", strings.ToUpper(opts.region))
 	fmt.Fprintln(src, "func init() {")
 	// record prices for each region we are interested in
-	for _, region := range []string{"us-east-1", "us-gov-west-1", "us-gov-east-1", "cn-north-1"} {
+	for _, region := range getAWSRegions(opts.region) {
 		log.Println("fetching for", region)
 		pricingProvider := pricing.NewProvider(ctx, pricing.NewAPI(sess, region), ec2, region)
 		controller := pricing.NewController(pricingProvider)
@@ -89,18 +112,18 @@ func main() {
 		instanceTypes := pricingProvider.InstanceTypes()
 		sort.Strings(instanceTypes)
 
-		writePricing(src, instanceTypes, region, pricingProvider.OnDemandPrice)
+		writePricing(src, instanceTypes, region, pricingProvider.OnDemandPrice, fmt.Sprintf("initialOnDemandPrices%s", strings.ToUpper(opts.region)))
 	}
 	fmt.Fprintln(src, "}")
 	formatted, err := format.Source(src.Bytes())
 	if err != nil {
-		if err := os.WriteFile(flag.Arg(0), src.Bytes(), 0644); err != nil {
+		if err := os.WriteFile(opts.output, src.Bytes(), 0644); err != nil {
 			log.Fatalf("writing output, %s", err)
 		}
 		log.Fatalf("formatting generated source, %s", err)
 	}
 
-	if err := os.WriteFile(flag.Arg(0), formatted, 0644); err != nil {
+	if err := os.WriteFile(opts.output, formatted, 0644); err != nil {
 		log.Fatalf("writing output, %s", err)
 	}
 	runtime.GC()
@@ -109,9 +132,9 @@ func main() {
 	}
 }
 
-func writePricing(src *bytes.Buffer, instanceNames []string, region string, getPrice func(instanceType string) (float64, bool)) {
+func writePricing(src *bytes.Buffer, instanceNames []string, region string, getPrice func(instanceType string) (float64, bool), priceMapName string) {
 	fmt.Fprintf(src, "// %s\n", region)
-	fmt.Fprintf(src, "initialOnDemandPrices[%q] = map[string]float64{\n", region)
+	fmt.Fprintf(src, "%s[%q] = map[string]float64{\n", priceMapName, region)
 	lineLen := 0
 	sort.Strings(instanceNames)
 	previousFamily := ""

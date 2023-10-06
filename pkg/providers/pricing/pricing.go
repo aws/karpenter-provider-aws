@@ -149,7 +149,7 @@ func (p *Provider) SpotPrice(instanceType string, zone string) (float64, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	if val, ok := p.spotPrices[instanceType]; ok {
-		if p.spotUpdateTime.Equal(initialPriceUpdate) {
+		if p.spotUpdateTime.Equal(getInitialPriceUpdateByRegion(p.region)) {
 			return val.defaultPrice, true
 		}
 		if price, ok := p.spotPrices[instanceType].prices[zone]; ok {
@@ -405,6 +405,7 @@ func populateInitialSpotPricing(pricing map[string]float64) map[string]zonal {
 }
 
 func (p *Provider) Reset() {
+	initialOnDemandPrices := lo.Assign(initialOnDemandPricesUS, initialOnDemandPricesUS)
 	// see if we've got region specific pricing data
 	staticPricing, ok := initialOnDemandPrices[p.region]
 	if !ok {
@@ -415,6 +416,14 @@ func (p *Provider) Reset() {
 	p.onDemandPrices = staticPricing
 	// default our spot pricing to the same as the on-demand pricing until a price update
 	p.spotPrices = populateInitialSpotPricing(staticPricing)
-	p.onDemandUpdateTime = initialPriceUpdate
-	p.spotUpdateTime = initialPriceUpdate
+	p.onDemandUpdateTime = getInitialPriceUpdateByRegion(p.region)
+	p.spotUpdateTime = getInitialPriceUpdateByRegion(p.region)
+}
+
+func getInitialPriceUpdateByRegion(region string) time.Time {
+	if _, ok := initialOnDemandPricesCN[region]; ok {
+		return initialPriceUpdateCN
+	}
+	// Default to us
+	return initialPriceUpdateUS
 }
