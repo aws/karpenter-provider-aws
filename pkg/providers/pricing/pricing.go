@@ -405,7 +405,7 @@ func populateInitialSpotPricing(pricing map[string]float64) map[string]zonal {
 }
 
 func (p *Provider) Reset() {
-	initialOnDemandPrices := lo.Assign(initialOnDemandPricesUS, initialOnDemandPricesUS)
+	initialOnDemandPrices := lo.Assign(initialOnDemandPricesAWS, initialOnDemandPricesUSGov, initialOnDemandPricesCN)
 	// see if we've got region specific pricing data
 	staticPricing, ok := initialOnDemandPrices[p.region]
 	if !ok {
@@ -421,9 +421,18 @@ func (p *Provider) Reset() {
 }
 
 func getInitialPriceUpdateByRegion(region string) time.Time {
-	if _, ok := initialOnDemandPricesCN[region]; ok {
-		return initialPriceUpdateCN
+	for _, partition := range []struct{
+		initialPrices map[string]map[string]float64
+		timestamp time.Time
+	} {
+		{initialOnDemandPricesAWS, initialPriceUpdateAWS},
+		{initialOnDemandPricesUSGov, initialPriceUpdateUSGov},
+		{initialOnDemandPricesCN, initialPriceUpdateCN},
+	} {
+		if _, ok := partition.initialPrices[region]; ok {
+			return partition.timestamp
+		}
 	}
-	// Default to us
-	return initialPriceUpdateUS
+	// default to aws partition
+	return initialPriceUpdateAWS
 }

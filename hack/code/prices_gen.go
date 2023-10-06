@@ -39,28 +39,43 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 )
 
-func getAWSRegions(regionCode string) []string {
-	switch regionCode {
-	case "us":
-		return []string{"us-east-1", "us-gov-east-1", "us-gov-west-1"}
-	case "cn":
+func getAWSRegions(partition string) []string {
+	switch partition {
+	case "aws":
+		return []string{"us-east-1"}
+	case "aws-us-gov":
+		return []string{"us-gov-east-1", "us-gov-west-1"}
+	case "aws-cn":
 		return []string{"cn-north-1"}
 	default:
-		panic("invalid region")
+		panic("invalid partition")
+	}
+}
+
+func getPartitionSuffix(partition string) string {
+	switch partition {
+	case "aws":
+		return "AWS"
+	case "aws-us-gov":
+		return "USGov"
+	case "aws-cn":
+		return "CN"
+	default:
+		panic("invalid partition")
 	}
 }
 
 type Options struct {
-	region string
-	output string
+	partition string
+	output    string
 }
 
 func NewOptions() *Options {
 	o := &Options{}
-	flag.StringVar(&o.region, "region", "us", "The region to generate prices for. Valid options are \"us\" and \"cn\".")
+	flag.StringVar(&o.partition, "partition", "aws", "The partition to generate prices for. Valid options are \"aws\", \"aws-us-gov\", and \"aws-cn\".")
 	flag.StringVar(&o.output, "output", "pkg/providers/pricing/zz_generated.pricing_us.go", "The destination for the generated go file.")
 	flag.Parse()
-	if o.region != "us" && o.region != "cn" {
+	if !lo.Contains([]string{"aws", "aws-us-gov", "aws-cn"}, o.partition) {
 		panic("invalid region: must be us or cn")
 	}
 	return o
@@ -90,11 +105,11 @@ func main() {
 	fmt.Fprintln(src, `import "time"`)
 	now := time.Now().UTC().Format(time.RFC3339)
 	fmt.Fprintf(src, "// generated at %s for %s\n\n\n", now, region)
-	fmt.Fprintf(src, "var initialPriceUpdate%s, _ = time.Parse(time.RFC3339, \"%s\")\n", strings.ToUpper(opts.region), now)
-	fmt.Fprintf(src, "var initialOnDemandPrices%s = map[string]map[string]float64{}\n", strings.ToUpper(opts.region))
+	fmt.Fprintf(src, "var initialPriceUpdate%s, _ = time.Parse(time.RFC3339, \"%s\")\n", getPartitionSuffix(opts.partition), now)
+	fmt.Fprintf(src, "var initialOnDemandPrices%s = map[string]map[string]float64{}\n", getPartitionSuffix(opts.partition))
 	fmt.Fprintln(src, "func init() {")
 	// record prices for each region we are interested in
-	for _, region := range getAWSRegions(opts.region) {
+	for _, region := range getAWSRegions(opts.partition) {
 		log.Println("fetching for", region)
 		pricingProvider := pricing.NewProvider(ctx, pricing.NewAPI(sess, region), ec2, region)
 		controller := pricing.NewController(pricingProvider)
@@ -112,7 +127,7 @@ func main() {
 		instanceTypes := pricingProvider.InstanceTypes()
 		sort.Strings(instanceTypes)
 
-		writePricing(src, instanceTypes, region, pricingProvider.OnDemandPrice, fmt.Sprintf("initialOnDemandPrices%s", strings.ToUpper(opts.region)))
+		writePricing(src, instanceTypes, region, pricingProvider.OnDemandPrice, fmt.Sprintf("initialOnDemandPrices%s", getPartitionSuffix(opts.partition)))
 	}
 	fmt.Fprintln(src, "}")
 	formatted, err := format.Source(src.Bytes())
