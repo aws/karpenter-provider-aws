@@ -182,32 +182,10 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can acces
             },
 ```
 
-### AllowScopedEC2LaunchTemplateActions
-The AllowScopedEC2LaunchTemplateActions Sid allows the [CreateLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateLaunchTemplate.html)
-action for all Karpenter provisioners, and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and that the `karpenter.sh/provisioner-name` tag be set to any value with these actions.
-This makes sure that these Karpenter-managed resources are assigned these tags.
-
-```
-            {
-              "Sid": "AllowScopedEC2LaunchTemplateActions",
-              "Effect": "Allow",
-              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
-              "Action": "ec2:CreateLaunchTemplate",
-              "Condition": {
-                "StringEquals": {
-                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
-                },
-                "StringLike": {
-                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
-                }
-              }
-            },
-```
-
 ### AllowScopedEC2InstanceActionsWithTags
 The AllowScopedEC2InstanceActionsWithTags Sid allows the 
-[RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html) and [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html)
-actions requested by the Karpenter controller to access all `fleet`, `instance`, `volume` or `network-interface` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/provisioner-name` tag be set to any value with these actions.
+[RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html), [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html), and [CreateLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateLaunchTemplate.html)
+actions requested by the Karpenter controller to access all `fleet`, `instance`, `volume`, `network-interface`, or `launch-template` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/provisioner-name` tag be set to any value with these actions.
 This makes sure that these resources that are managed by the Karpenter controller are assigned these tags.
 
 ```
@@ -218,11 +196,13 @@ This makes sure that these resources that are managed by the Karpenter controlle
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:fleet/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
               ],
               "Action": [
                 "ec2:RunInstances",
-                "ec2:CreateFleet"
+                "ec2:CreateFleet",
+                "ec2:CreateLaunchTemplate"
               ],
               "Condition": {
                 "StringEquals": {
@@ -352,21 +332,28 @@ This allows the Karpenter controller to do any of those read-only actions across
             },
 ```
 
-### AllowGlobalReadActions
-Because pricing information does not exist in every region at the moment, the AllowGlobalReadActions Sid allows the Karpenter controller to get product pricing information (`pricing:GetProducts`) for all related resources across all regions.
-The `ssm:GetParameter" action lets the Karpenter controller read SSM parameters.
+### AllowSSMReadActions
+The AllowSSMReadActions Sid allows the Karpenter controller to read SSM parameters (`ssm:GetParameter`) from the current region.
 
 **NOTE**: If potentially sensitive information is stored in SSM parameters, you could consider restricting access to these messages further.
+```
+            {
+              "Sid": "AllowSSMReadActions",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
+              "Action": "ssm:GetParameter"
+            },
+```
+
+### AllowPricingReadActions
+Because pricing information does not exist in every region at the moment, the AllowPricingReadActions Sid allows the Karpenter controller to get product pricing information (`pricing:GetProducts`) for all related resources across all regions.
 
 ```
             {
-              "Sid": "AllowGlobalReadActions",
+              "Sid": "AllowPricingReadActions",
               "Effect": "Allow",
               "Resource": "*",
-              "Action": [
-                "pricing:GetProducts",
-                "ssm:GetParameter"
-              ]
+              "Action": "pricing:GetProducts"
             },
 ```
 
@@ -420,6 +407,7 @@ The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get t
         }
 ```
 
+[O
 
 
 # Interruption Handling 
