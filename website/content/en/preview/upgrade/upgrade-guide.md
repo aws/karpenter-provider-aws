@@ -10,7 +10,14 @@ Karpenter is a controller that runs in your cluster, but it is not tied to a spe
 Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes and keep Karpenter up to date on bug fixes and new features.
 This guide contains information needed to upgrade to the latest release of Karpenters, along with compatibility issues you need to be aware of when upgrading from earlier Karpenter versions.
 
-# Upgrading Karpenter to v0.32 (v1beta1)
+# Released Upgrade Notes
+
+## Upgrading to v0.32.0+ (v1beta1)
+
+* Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
+* Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
+
+### v1beta1 Migration
 
 Here is some information you should know about upgrading the Karpenter controller to v0.32:
 
@@ -23,15 +30,15 @@ Some things that will help you with this upgrade include:
 
 * **[Karpenter Upgrade Reference]({{< relref "upgrade-ref.md" >}})**: Provides a complete reference to help you transition your Provisioner, Machine, and AWSNodeTemplate manifests, as well as other components, to be able to work with the new v1beta1 names, labels, and other elements.
 * **[Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert)**: Simplifies the creation of NodePool and EC2NodeClass manifests.
-* **[Compatibility]({{< relref "upgrade-ref/#compatibility" >}})**: Offers details about Karpenter compatibility with different versions of Kubernetes and other components.
+* **[Compatibility]({{< relref "compat.md" >}})**: Offers details about Karpenter compatibility with different versions of Kubernetes and other components.
 
-## Procedure
+#### Procedure
 
 This procedure assumes you are running the Karpenter controller on cluster and want to upgrade that cluster to v0.32.
 
 **NOTE**: Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so you should carefully evaluate your cluster and workloads before proceeding.
 
-### Install Karpenter
+##### Install Karpenter
 
 1. Determine the current cluster version: Run the following to make sure that your Karpenter version is v0.31:
    ```
@@ -51,9 +58,9 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
 1. Apply the v0.32.0 CRDs in the crds directory of the Karpenter helm chart:
    ```
-   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.sh_provisioners.yaml
-   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.sh_machines.yaml
-   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.sh_nodepools.yaml
+   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
    ```
 
 1. Set environment variables for your cluster:
@@ -98,7 +105,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
    ```
    kubectl apply -f ec2nodeclass.yaml
    ```
-1. Convert each Provisioner to a NodeClass. Again, either manually update your Provisioner manifests or use the karpenter-convert CLI tool:
+1. Convert each Provisioner to a NodePool. Again, either manually update your Provisioner manifests or use the karpenter-convert CLI tool:
    ```
    karpenter-convert -f provisioner.yaml > nodepool.yaml
    ```
@@ -120,14 +127,11 @@ This procedure assumes you are running the Karpenter controller on cluster and w
       - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
       - For all the nodes owned by the Provisioner, delete one at a time as follows: `kubectl delete node <node-name>`
 
-1. Update workload labels: Old v1alpha labels will not be dropped until Karpenter v1. However, you can begin updating those labels at any time. See the [Karpenter Upgrade Reference]({{< relref "upgrade-ref.md" >}}) for the new Karpenter labels and annotations.
+1. Update workload labels: Old v1alpha labels (`karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict`) are deprecated, but will not be dropped until Karpenter v1. However, you can begin updating those labels at any time with `karpenter.sh/do-not-disrupt`. You should check that there are no more Provisioner, AWSNodeTemplate, or Machine resources on your cluster. at which time you can delete the old CRDs. To validate that there are no more machines, type:
 
-# Released Upgrade Notes
-
-## Upgrading to v0.32.0+
-
-* Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
-* Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
+   ```
+   kubectl get machines
+   ```
 
 ## Upgrading to v0.31.0+
 
