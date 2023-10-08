@@ -69,18 +69,6 @@ type AWSNodeTemplateStatus struct {
 	// cluster under the AMI selectors.
 	// +optional
 	AMIs []AMI `json:"amis,omitempty"`
-	// Licenses contains the current License Configuration Specifications
-	// that currently apply given the LicenseConfiguration selectors.
-	// +optional
-	Licenses []string `json:"licenses,omitempty"`
-	// HostResourceGroups contains the current Host Resource Groups
-	// that currently apply given the HostResourceGroup selectors.
-	// +optional
-	HostResourceGroups []string `json:"hostResourceGroups,omitempty"`
-	// PlacementGroups contains the current placement groups
-	// that currently apply given the PlacementGroup selectors.
-	// +optional
-	PlacementGroups []string `json:"placementGroups,omitempty"`
 }
 
 // AWSNodeTemplateSpec is the top level specification for the AWS Karpenter Provider.
