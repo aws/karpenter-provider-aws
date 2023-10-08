@@ -30,8 +30,6 @@ import (
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
-
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
@@ -40,6 +38,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
+	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/cloudprovider"

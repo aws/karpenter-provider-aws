@@ -45,7 +45,6 @@ func main() {
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
-			ctx,
 			op.Clock,
 			op.GetClient(),
 			op.KubernetesInterface,
@@ -64,6 +63,7 @@ func main() {
 			awsCloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,
+			op.InstanceProfileProvider,
 			op.PricingProvider,
 			op.AMIProvider,
 			op.LicenseProvider,

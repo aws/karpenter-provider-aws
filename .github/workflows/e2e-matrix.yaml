@@ -7,14 +7,15 @@ on:
         default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.27"
+        default: "1.28"
+      eksctl_version:
+        type: string
+        default: v0.160.0-rc.0
       git_ref:
         type: string
-      event_name:
-        type: string
-        required: true
       workflow_trigger:
         type: string
+        required: true
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -34,7 +35,11 @@ on:
           - "1.25"
           - "1.26"
           - "1.27"
-        default: "1.27"
+          - "1.28"
+        default: "1.28"
+      eksctl_version:
+        type: string
+        default: v0.160.0-rc.0
 # All jobs will run under the following conditions:
 #   1. Upstream Karpenter repo triggered the job by schedule, push, or dispatch
 #   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed
@@ -49,19 +54,21 @@ jobs:
     with:
       suite: ${{ matrix.suite }}
       git_ref: ${{ inputs.git_ref }}
-      event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
+      eksctl_version: ${{ inputs.eksctl_version }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      from_git_ref: v0.29.1
+      # This version matches the steps of the newest version of the install-eksctl action
+      # which will take in the eksctl_version into the composite action
+      from_git_ref: 3519331035579ac0caf66a7f5a5282a2fef9b409
       to_git_ref: ${{ inputs.git_ref }}
-      event_name: ${{ inputs.event_name }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
+      eksctl_version: ${{ inputs.eksctl_version }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -21,7 +21,11 @@ on:
           - "1.25"
           - "1.26"
           - "1.27"
-        default: "1.27"
+          - "1.28"
+        default: "1.28"
+      eksctl_version:
+        type: string
+        default: v0.160.0-rc.0
   workflow_call:
     inputs:
       from_git_ref:
@@ -30,14 +34,14 @@ on:
       to_git_ref:
         type: string
       region:
-        type: string 
-        default: "us-east-2"
-      event_name:
         type: string
-        required: true
+        default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.27"
+        default: "1.28"
+      eksctl_version:
+        type: string
+        default: v0.160.0-rc.0
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -54,10 +58,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.to_git_ref }}
-      - if: always() && inputs.event_name == 'workflow_run'
+      - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/start
         with:
-          name: "${{ github.workflow }} / e2e (Upgrade) / ${{ github.job }} (snapshot)"
+          name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
           git_ref: ${{ inputs.to_git_ref }}
       - uses: ./.github/actions/install-deps
       - uses: actions/checkout@v4
@@ -82,6 +86,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
+          eksctl_version: ${{ inputs.eksctl_version }}
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.from_git_ref }}
       - name: install prometheus
@@ -99,6 +104,8 @@ jobs:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          ecr_region: ${{ vars.ECR_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.from_git_ref }}
       - uses: actions/checkout@v4
@@ -112,6 +119,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
+          eksctl_version: ${{ inputs.eksctl_version }}
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.to_git_ref }}
       - name: upgrade prometheus
@@ -137,6 +145,8 @@ jobs:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          ecr_region: ${{ vars.ECR_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: run the Upgrade test suite
@@ -145,12 +155,11 @@ jobs:
           TEST_SUITE="Integration" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: (success() || failure()) && inputs.event_name != 'workflow_run' && inputs.event_name != 'conformance'
+        if: (success() || failure()) && github.event_name != 'workflow_run' && github.event_name != 'conformance'
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: Upgrade
           k8s_version: ${{ inputs.k8s_version }}
-          event_name: ${{ inputs.event_name }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
@@ -169,8 +178,9 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
-      - if: always() && inputs.event_name == 'workflow_run'
+          eksctl_version: ${{ inputs.eksctl_version }}
+      - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
-          name: "${{ github.workflow }} / e2e (Upgrade) / ${{ github.job }} (snapshot)"
+          name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
           git_ref: ${{ inputs.to_git_ref }}

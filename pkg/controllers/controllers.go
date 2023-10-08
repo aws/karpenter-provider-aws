@@ -33,6 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/license"
 	"github.com/aws/karpenter/pkg/providers/placementgroup"
 	"github.com/aws/karpenter/pkg/providers/pricing"
@@ -45,14 +46,14 @@ import (
 
 func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
 	unavailableOfferings *cache.UnavailableOfferings, cloudProvider *cloudprovider.CloudProvider, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, pricingProvider *pricing.Provider, amiProvider *amifamily.Provider,
-	licenseProvider *license.Provider, hostResourceGroupProvider *hostresourcegroup.Provider, placementGroupProvider *placementgroup.Provider) []controller.Controller {
+	securityGroupProvider *securitygroup.Provider, instanceProfileProvider *instanceprofile.Provider, pricingProvider *pricing.Provider,
+	amiProvider *amifamily.Provider, licenseProvider *license.Provider, hostResourceGroupProvider *hostresourcegroup.Provider, placementGroupProvider *placementgroup.Provider) []controller.Controller {
 
 	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
 
 	linkController := nodeclaimlink.NewController(kubeClient, cloudProvider)
 	controllers := []controller.Controller{
-		nodeclass.NewNodeTemplateController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostResourceGroupProvider, placementGroupProvider),
+		nodeclass.NewNodeTemplateController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, licenseProvider, hostResourceGroupProvider, placementGroupProvider),
 		linkController,
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider, linkController),
 	}

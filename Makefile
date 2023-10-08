@@ -161,7 +161,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
 docgen: ## Generate docs
-	$(WITH_GOFLAGS) ./hack/docgen.sh
+	KARPENTER_CORE_DIR=$(KARPENTER_CORE_DIR) $(WITH_GOFLAGS) ./hack/docgen.sh
 
 codegen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/codegen.sh
@@ -169,7 +169,10 @@ codegen: ## Auto generate files based on AWS APIs response
 stable-release-pr: ## Generate PR for stable release
 	$(WITH_GOFLAGS) ./hack/release/stable-pr.sh
 
-release: ## Builds and publishes stable release if env var RELEASE_VERSION is set, or a snapshot release otherwise
+snapshot: ## Builds and publishes snapshot release
+	$(WITH_GOFLAGS) ./hack/release/snapshot.sh
+
+release: ## Builds and publishes stable release
 	$(WITH_GOFLAGS) ./hack/release/release.sh
 
 release-crd: ## Packages and publishes a karpenter-crd helm chart

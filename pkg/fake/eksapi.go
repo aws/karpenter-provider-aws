@@ -15,6 +15,9 @@ limitations under the License.
 package fake
 
 import (
+	"context"
+
+	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 )
@@ -24,7 +27,7 @@ const ()
 // EKSAPIBehavior must be reset between tests otherwise tests will
 // pollute each other.
 type EKSAPIBehavior struct {
-	DescribeClusterBehaviour MockedFunction[eks.DescribeClusterInput, eks.DescribeClusterOutput]
+	DescribeClusterBehavior MockedFunction[eks.DescribeClusterInput, eks.DescribeClusterOutput]
 }
 
 type EKSAPI struct {
@@ -35,11 +38,11 @@ type EKSAPI struct {
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (s *EKSAPI) Reset() {
-	s.DescribeClusterBehaviour.Reset()
+	s.DescribeClusterBehavior.Reset()
 }
 
-func (s *EKSAPI) DescribeCluster(input *eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
-	return s.DescribeClusterBehaviour.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
+func (s *EKSAPI) DescribeClusterWithContext(_ context.Context, input *eks.DescribeClusterInput, _ ...request.Option) (*eks.DescribeClusterOutput, error) {
+	return s.DescribeClusterBehavior.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
 		return nil, nil
 	})
 }

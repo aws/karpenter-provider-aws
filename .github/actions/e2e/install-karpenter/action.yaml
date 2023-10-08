@@ -10,6 +10,12 @@ inputs:
   region:
     description: "Region to access AWS"
     required: true
+  ecr_account_id:
+    description: "Account ID for the ECR repo"
+    required: true
+  ecr_region:
+    description: "Region for the ECR repo"
+    required: true
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
     required: true
@@ -28,17 +34,24 @@ runs:
     with:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-helm
+    with:
+      version: v3.12.3 # Pinned to this version since v3.13.0 has issues with anonymous pulls: https://github.com/helm/helm/issues/12423
   - name: create karpenter namespace
     shell: bash
     run: |
       kubectl create ns karpenter || true
       kubectl label ns karpenter scrape=enabled --overwrite=true
       kubectl label ns karpenter pod-security.kubernetes.io/enforce=restricted --overwrite=true
+  - name: login to ecr via docker
+    uses: docker/login-action@v3
+    with:
+      registry: ${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com
+      logout: true
   - name: install-karpenter
     shell: bash
     run: |
       aws eks update-kubeconfig --name "${{ inputs.cluster_name }}"
-      helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
+        helm upgrade --install karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
         -n karpenter \
         --version "v0-$(git rev-parse HEAD)" \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/karpenter-irsa-${{ inputs.cluster_name }}" \
@@ -64,6 +77,6 @@ runs:
     shell: bash
     run: |
       helm diff upgrade --namespace karpenter \
-        karpenter oci://public.ecr.aws/karpenter/karpenter \
+        karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
         --version v0-$(git rev-parse HEAD) \
         --reuse-values --three-way-merge --detailed-exitcode

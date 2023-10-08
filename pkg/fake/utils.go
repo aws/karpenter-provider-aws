@@ -47,6 +47,14 @@ func SubnetID() string {
 	return fmt.Sprintf("subnet-%s", randomdata.Alphanumeric(17))
 }
 
+func InstanceProfileID() string {
+	return fmt.Sprintf("instanceprofile-%s", randomdata.Alphanumeric(17))
+}
+
+func RoleID() string {
+	return fmt.Sprintf("role-%s", randomdata.Alphanumeric(17))
+}
+
 func PrivateDNSName() string {
 	return fmt.Sprintf("ip-192-168-%d-%d.%s.compute.internal", randomdata.Number(0, 256), randomdata.Number(0, 256), DefaultRegion)
 }

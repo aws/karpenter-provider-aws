@@ -82,4 +82,7 @@ type EC2NodeClassStatus struct {
 	// PlacementGroups contains the ec2 placement group arns
 	// +optional
 	PlacementGroups []string `json:"placementGroups,omitempty"`
+	// InstanceProfile contains the resolved instance profile for the role
+	// +optional
+	InstanceProfile string `json:"instanceProfile,omitempty"`
 }

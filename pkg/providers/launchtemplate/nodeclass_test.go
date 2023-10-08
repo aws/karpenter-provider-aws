@@ -67,7 +67,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 								Values:   []string{corev1beta1.CapacityTypeOnDemand},
 							},
 						},
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},
@@ -93,6 +93,13 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Encrypted).To(Equal(aws.Bool(true)))
 			Expect(*launchTemplate.LaunchTemplateSpecification.Version).To(Equal("$Latest"))
 		})
+	})
+	It("should fail to provision if the instance profile isn't defined", func() {
+		nodeClass.Status.InstanceProfile = ""
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod()
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	Context("Cache", func() {
 		It("should use same launch template for equivalent constraints", func() {
@@ -955,14 +962,6 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
 		})
-		It("should specify dockerd if specified in the provisionerSpec", func() {
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{ContainerRuntime: aws.String("dockerd")}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime dockerd")
-		})
 		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
 			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1beta1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1100,7 +1099,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 
-				nodePool.Spec.Template.Spec.NodeClass = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
+				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
 				ExpectApplied(ctx, env.Client, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1436,24 +1435,12 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String(v1.LabelInstanceTypeStable),
-								Value: aws.String("m5.large"),
-							},
-						},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
-						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String(v1.LabelInstanceTypeStable),
-								Value: aws.String("m5.xlarge"),
-							},
-						},
+						Architecture: aws.String("arm64"),
 						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})
@@ -1463,11 +1450,11 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
-				expectedImageIds := sets.NewString("ami-123", "ami-456")
-				actualImageIds := sets.NewString(
-					*awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
-					*awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
-				)
+				expectedImageIds := sets.New[string]("ami-123", "ami-456")
+				actualImageIds := sets.New[string]()
+				awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					actualImageIds.Insert(*ltInput.LaunchTemplateData.ImageId)
+				})
 				Expect(expectedImageIds.Equal(actualImageIds)).To(BeTrue())
 			})
 			It("should create a launch template with the newest compatible AMI when multiple amis are discovered", func() {

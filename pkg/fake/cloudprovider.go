@@ -26,7 +26,8 @@ import (
 )
 
 const (
-	DefaultRegion = "us-west-2"
+	DefaultRegion  = "us-west-2"
+	DefaultAccount = "123456789"
 )
 
 var _ corecloudprovider.CloudProvider = (*CloudProvider)(nil)

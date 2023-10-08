@@ -1,5 +1,9 @@
 name: InstallHelm
 description: 'Installs helm'
+inputs:
+  version:
+    description: "Version of Helm to install"
+    required: true
 runs:
   using: "composite"
   steps:
@@ -8,7 +12,7 @@ runs:
       run: |
         curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
         chmod 700 get_helm.sh
-        ./get_helm.sh
+        ./get_helm.sh --version ${{ inputs.version }}
     - name: install helm-diff
       shell: bash
       run: |

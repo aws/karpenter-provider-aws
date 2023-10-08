@@ -105,14 +105,14 @@ Karpenter v0.26.1+ introduced the `karpenter-crd` helm chart. When installing th
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
 
 ```shell
-kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
+kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
 ```
 
 - In the case of `annotation validation error: missing key "meta.helm.sh/release-namespace": must be set to "karpenter"` run:
 
 ```shell
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
+kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
+kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
 ```
 
 ## Uninstallation
@@ -202,7 +202,7 @@ See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-prac
 
 ### Missing subnetSelector and securityGroupSelector tags causes provisioning failures
 
-Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./concepts/node-templates/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./concepts/node-templates/#securitygroupselector" >}}) tags be set to match your cluster.
+Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./concepts/nodeclasses/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./concepts/nodeclasses/#securitygroupselector" >}}) tags be set to match your cluster.
 The [Provisioner]({{<ref "./getting-started/getting-started-with-karpenter/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
 
 ```text
@@ -289,7 +289,7 @@ time=2023-06-12T19:18:15Z type=Warning reason=FailedCreatePodSandBox from=kubele
 
 By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
 
-If the max-pods (configured through your Provisioner [`kubeletConfiguration`]({{<ref "./concepts/provisioners#speckubeletconfiguration" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
+If the max-pods (configured through your Provisioner [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
 
 ##### Solutions
 
@@ -297,13 +297,13 @@ To avoid this discrepancy between `maxPods` and the supported pod density of the
 
 1. Enable [Prefix Delegation](https://www.eksworkshop.com/docs/networking/prefix/) to increase the number of allocatable IPs for the ENIs on each instance type
 2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your Provisioner
-3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/provisioners#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
+3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
 
 For more information on pod density, view the [Pod Density Conceptual Documentation]({{<ref "./concepts/pod-density" >}}).
 
 #### IP exhaustion in a subnet
 
-When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/node-templates#specsubnetselector" >}}) value in your [`AWSNodeTemplate`]({{<ref "./concepts/node-templates" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
+When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/nodeclasses#specsubnetselector" >}}) value in your [`AWSNodeTemplate`]({{<ref "./concepts/nodeclasses" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
 
 ##### Solutions
 
@@ -550,7 +550,7 @@ This means that your CNI plugin is out of date. You can find instructions on how
 ### Node terminates before ready on failed encrypted EBS volume
 
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
-This issue also applies to [Block Device Mappings]({{<ref "./concepts/node-templates/#block-device-mappings" >}}) specified in the Provisioner.
+This issue also applies to [Block Device Mappings]({{<ref "./concepts/nodeclasses/#block-device-mappings" >}}) specified in the Provisioner.
 In either case, this results in the node terminating almost immediately upon creation.
 
 Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.

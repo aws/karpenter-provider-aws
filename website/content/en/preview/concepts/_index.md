@@ -44,7 +44,7 @@ Here are some things to know about the Karpenter provisioner:
 * **Provisioner CR**: Karpenter defines a Custom Resource called a Provisioner to specify provisioning configuration.
 Each provisioner manages a distinct set of nodes, but pods can be scheduled to any provisioner that supports its scheduling constraints.
 A provisioner contains constraints that impact the nodes that can be provisioned and attributes of those nodes (such timers for removing nodes).
-See [Provisioning]({{<ref "./provisioners" >}}) docs for a description of settings and provisioner examples.
+See [Provisioning]({{<ref "./nodepools" >}}) docs for a description of settings and provisioner examples.
 
 * **Well-known labels**: The provisioner can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes.
 See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details.

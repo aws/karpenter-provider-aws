@@ -29,6 +29,8 @@ const (
 	UnavailableOfferingsTTL = 3 * time.Minute
 	// InstanceTypesAndZonesTTL is the time before we refresh instance types and zones at EC2
 	InstanceTypesAndZonesTTL = 5 * time.Minute
+	// InstanceProfileTTL is the time before we refresh checking instance profile existence at IAM
+	InstanceProfileTTL = 15 * time.Minute
 )
 
 const (

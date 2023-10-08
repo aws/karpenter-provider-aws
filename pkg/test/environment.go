@@ -27,6 +27,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
 	"github.com/aws/karpenter/pkg/providers/instance"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/license"
@@ -45,6 +46,7 @@ type Environment struct {
 	// API
 	EC2API            *fake.EC2API
 	SSMAPI            *fake.SSMAPI
+	IAMAPI            *fake.IAMAPI
 	PricingAPI        *fake.PricingAPI
 	LicenseManagerAPI *fake.LicenseManagerAPI
 	ResourceGroupsAPI *fake.ResourceGroupsAPI
@@ -57,6 +59,7 @@ type Environment struct {
 	LaunchTemplateCache       *cache.Cache
 	SubnetCache               *cache.Cache
 	SecurityGroupCache        *cache.Cache
+	InstanceProfileCache      *cache.Cache
 	LicenseCache              *cache.Cache
 	HostResourceGroupCache    *cache.Cache
 	PlacementGroupCache       *cache.Cache
@@ -66,6 +69,7 @@ type Environment struct {
 	InstanceProvider          *instance.Provider
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
+	InstanceProfileProvider   *instanceprofile.Provider
 	PricingProvider           *pricing.Provider
 	AMIProvider               *amifamily.Provider
 	AMIResolver               *amifamily.Resolver
@@ -78,8 +82,9 @@ type Environment struct {
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
 	// API
-	ec2api := &fake.EC2API{}
-	ssmapi := &fake.SSMAPI{}
+	ec2api := fake.NewEC2API()
+	ssmapi := fake.NewSSMAPI()
+	iamapi := fake.NewIAMAPI()
 	lmapi := &fake.LicenseManagerAPI{}
 	rgapi := &fake.ResourceGroupsAPI{}
 
@@ -94,20 +99,22 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	licenseCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	hostResourceGroupsCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	placementGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
-	pricingProvider := pricing.NewProvider(ctx, fakePricingAPI, ec2api, "")
+	pricingProvider := pricing.NewProvider(ctx, fakePricingAPI, ec2api, fake.DefaultRegion)
 	subnetProvider := subnet.NewProvider(ec2api, subnetCache)
 	securityGroupProvider := securitygroup.NewProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewProvider(env.KubernetesInterface, kubernetesVersionCache)
+	instanceProfileProvider := instanceprofile.NewProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	amiProvider := amifamily.NewProvider(versionProvider, ssmapi, ec2api, ec2Cache)
 	licenseProvider := license.NewProvider(lmapi, licenseCache)
 	hostResourceGroupProvider := hostresourcegroup.NewProvider(rgapi, hostResourceGroupsCache)
 	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache)
 
 	amiResolver := amifamily.New(amiProvider, licenseProvider, hostResourceGroupProvider, placementGroupProvider)
-	instanceTypesProvider := instancetype.NewProvider("", instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
+	instanceTypesProvider := instancetype.NewProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
 		launchtemplate.NewProvider(
 			ctx,
@@ -116,6 +123,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			amiResolver,
 			securityGroupProvider,
 			subnetProvider,
+			instanceProfileProvider,
 			ptr.String("ca-bundle"),
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),
@@ -134,6 +142,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	return &Environment{
 		EC2API:            ec2api,
 		SSMAPI:            ssmapi,
+		IAMAPI:            iamapi,
 		LicenseManagerAPI: lmapi,
 		PricingAPI:        fakePricingAPI,
 		ResourceGroupsAPI: rgapi,
@@ -144,6 +153,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		LaunchTemplateCache:       launchTemplateCache,
 		SubnetCache:               subnetCache,
 		SecurityGroupCache:        securityGroupCache,
+		InstanceProfileCache:      instanceProfileCache,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		LicenseCache:              licenseCache,
 
@@ -151,11 +161,12 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		InstanceProvider:          instanceProvider,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
+		LaunchTemplateProvider:    launchTemplateProvider,
+		InstanceProfileProvider:   instanceProfileProvider,
 		PricingProvider:           pricingProvider,
 		AMIProvider:               amiProvider,
 		AMIResolver:               amiResolver,
 		VersionProvider:           versionProvider,
-		LaunchTemplateProvider:    launchTemplateProvider,
 		LicenseProvider:           licenseProvider,
 		HostResourceGroupProvider: hostResourceGroupProvider,
 		PlacementGroupProvider:    placementGroupProvider,
@@ -167,6 +178,7 @@ func (env *Environment) Reset() {
 	env.SSMAPI.Reset()
 	env.LicenseManagerAPI.Reset()
 	env.ResourceGroupsAPI.Reset()
+	env.IAMAPI.Reset()
 	env.PricingAPI.Reset()
 	env.PricingProvider.Reset()
 
@@ -178,6 +190,7 @@ func (env *Environment) Reset() {
 	env.SubnetCache.Flush()
 	env.SecurityGroupCache.Flush()
 	env.LicenseCache.Flush()
+	env.InstanceProfileCache.Flush()
 
 	mfs, err := crmetrics.Registry.Gather()
 	if err != nil {

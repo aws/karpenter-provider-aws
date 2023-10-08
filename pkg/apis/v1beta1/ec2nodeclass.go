@@ -53,7 +53,10 @@ type EC2NodeClassSpec struct {
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
 	// +optional
 	UserData *string `json:"userData,omitempty"`
-	// Role is the AWS identity that nodes use.
+	// Role is the AWS identity that nodes use. This field is immutable.
+	// Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
+	// This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
+	// for the old instance profiles on an update.
 	// +required
 	Role string `json:"role"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
@@ -111,21 +114,6 @@ type EC2NodeClassSpec struct {
 	// DO NOT USE THIS VALUE when performing business logic in code
 	// +optional
 	OriginalAMISelector map[string]string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalLicenseSelector is the original license selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalLicenseSelector map[string]string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalHostResourceGroupSelector is the original hrg selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalHostResourceGroupSelector map[string]string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalPlacementGroupSelector is the original placement group selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalPlacementGroupSelector map[string]string `json:"-" hash:"ignore"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -336,8 +324,8 @@ type EC2NodeClass struct {
 	IsNodeTemplate bool `json:"-" hash:"ignore"`
 }
 
-func (a *EC2NodeClass) Hash() string {
-	return fmt.Sprint(lo.Must(hashstructure.Hash(a.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
+func (in *EC2NodeClass) Hash() string {
+	return fmt.Sprint(lo.Must(hashstructure.Hash(in.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
 		ZeroNil:         true,

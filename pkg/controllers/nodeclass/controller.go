@@ -23,22 +23,31 @@ import (
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-core/pkg/events"
 	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/license"
 	"github.com/aws/karpenter/pkg/providers/placementgroup"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -48,23 +57,27 @@ import (
 
 type Controller struct {
 	kubeClient                client.Client
+	recorder                  events.Recorder
 	subnetProvider            *subnet.Provider
 	securityGroupProvider     *securitygroup.Provider
 	amiProvider               *amifamily.Provider
+	instanceProfileProvider   *instanceprofile.Provider
 	licenseProvider           *license.Provider
 	hostResourceGroupProvider *hostresourcegroup.Provider
 	placementGroupProvider    *placementgroup.Provider
 }
 
-func NewController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider,
+func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider,
 	licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider,
 	placementGroupProvider *placementgroup.Provider) *Controller {
 	return &Controller{
 		kubeClient:                kubeClient,
+		recorder:                  recorder,
 		subnetProvider:            subnetProvider,
 		securityGroupProvider:     securityGroupProvider,
 		amiProvider:               amiProvider,
+		instanceProfileProvider:   instanceProfileProvider,
 		licenseProvider:           licenseProvider,
 		hostResourceGroupProvider: hostresourcegroupProvider,
 		placementGroupProvider:    placementGroupProvider,
@@ -73,6 +86,9 @@ func NewController(kubeClient client.Client, subnetProvider *subnet.Provider,
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
+	if !nodeClass.IsNodeTemplate {
+		controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
+	}
 	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, nodeclassutil.HashAnnotation(nodeClass))
 	err := multierr.Combine(
 		c.resolveSubnets(ctx, nodeClass),
@@ -81,6 +97,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		c.resolveLicenses(ctx, nodeClass),
 		c.resolveHostResourceGroups(ctx, nodeClass),
 		c.resolvePlacementGroups(ctx, nodeClass),
+		c.resolveInstanceProfile(ctx, nodeClass),
 	)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
@@ -92,6 +109,34 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		}
 	}
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
+}
+
+func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+	stored := nodeClass.DeepCopy()
+	if nodeClass.IsNodeTemplate {
+		return reconcile.Result{}, nil
+	}
+	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
+		return reconcile.Result{}, nil
+	}
+	nodeClaimList := &corev1beta1.NodeClaimList{}
+	if err := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"spec.nodeClass.name": nodeClass.Name}); err != nil {
+		return reconcile.Result{}, fmt.Errorf("listing nodeclaims that are using nodeclass, %w", err)
+	}
+	if len(nodeClaimList.Items) > 0 {
+		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) string { return nc.Name })))
+		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
+	}
+	if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
+		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
+	}
+	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
+	if !equality.Semantic.DeepEqual(stored, nodeClass) {
+		if err := nodeclassutil.Patch(ctx, c.kubeClient, stored, nodeClass); err != nil {
+			return reconcile.Result{}, client.IgnoreNotFound(fmt.Errorf("removing termination finalizer, %w", err))
+		}
+	}
+	return reconcile.Result{}, nil
 }
 
 func (c *Controller) resolveSubnets(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
@@ -198,18 +243,30 @@ func (c *Controller) resolvePlacementGroups(ctx context.Context, nodeClass *v1be
 	}
 	return nil
 }
+func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
+	if nodeClass.IsNodeTemplate {
+		return nil
+	}
+	name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
+	if err != nil {
+		return fmt.Errorf("resolving instance profile, %w", err)
+	}
+	nodeClass.Status.InstanceProfile = name
+	return nil
+}
+
+var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*NodeClassController)(nil)
 
 //nolint:revive
 type NodeClassController struct {
 	*Controller
 }
 
-func NewNodeClassController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider,
-	licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider,
-	placementProvider *placementgroup.Provider) corecontroller.Controller {
+func NewNodeClassController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider, placementProvider *placementgroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostresourcegroupProvider, placementProvider),
+		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider,
+			instanceProfileProvider, licenseProvider, hostresourcegroupProvider, placementProvider),
 	})
 }
 
@@ -221,6 +278,22 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 	return corecontroller.Adapt(controllerruntime.
 		NewControllerManagedBy(m).
 		For(&v1beta1.EC2NodeClass{}).
+		Watches(
+			&source.Kind{Type: &corev1beta1.NodeClaim{}},
+			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+				nc := o.(*corev1beta1.NodeClaim)
+				if nc.Spec.NodeClassRef == nil {
+					return nil
+				}
+				return []reconcile.Request{{NamespacedName: types.NamespacedName{Name: nc.Spec.NodeClassRef.Name}}}
+			}),
+			// Watch for NodeClaim deletion events
+			builder.WithPredicates(predicate.Funcs{
+				CreateFunc: func(e event.CreateEvent) bool { return false },
+				UpdateFunc: func(e event.UpdateEvent) bool { return false },
+				DeleteFunc: func(e event.DeleteEvent) bool { return true },
+			}),
+		).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewMaxOfRateLimiter(
@@ -236,12 +309,13 @@ type NodeTemplateController struct {
 	*Controller
 }
 
-func NewNodeTemplateController(kubeClient client.Client, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, amiProvider *amifamily.Provider,
+func NewNodeTemplateController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider,
 	licenseProvider *license.Provider, hostresourcegroupProvider *hostresourcegroup.Provider,
 	placementProvider *placementgroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &NodeTemplateController{
-		Controller: NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, licenseProvider, hostresourcegroupProvider, placementProvider),
+		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider,
+			instanceProfileProvider, licenseProvider, hostresourcegroupProvider, placementProvider),
 	})
 }
 

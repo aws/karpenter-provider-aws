@@ -34,6 +34,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/licensemanager"
 	"github.com/aws/aws-sdk-go/service/resourcegroups"
 	"github.com/aws/aws-sdk-go/service/ssm"
@@ -53,6 +54,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/hostresourcegroup"
 	"github.com/aws/karpenter/pkg/providers/instance"
+	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/license"
@@ -73,6 +75,7 @@ type Operator struct {
 	EC2API                    ec2iface.EC2API
 	SubnetProvider            *subnet.Provider
 	SecurityGroupProvider     *securitygroup.Provider
+	InstanceProfileProvider   *instanceprofile.Provider
 	AMIProvider               *amifamily.Provider
 	AMIResolver               *amifamily.Resolver
 	LaunchTemplateProvider    *launchtemplate.Provider
@@ -131,6 +134,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewProvider(
 		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
@@ -150,6 +154,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
+		instanceProfileProvider,
 		lo.Must(getCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
@@ -180,6 +185,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
 		SecurityGroupProvider:     securityGroupProvider,
+		InstanceProfileProvider:   instanceProfileProvider,
 		AMIProvider:               amiProvider,
 		AMIResolver:               amiResolver,
 		VersionProvider:           versionProvider,
@@ -216,7 +222,7 @@ func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string
 	if clusterEndpointFromSettings != "" {
 		return clusterEndpointFromSettings, nil // cluster endpoint is explicitly set
 	}
-	out, err := eksAPI.DescribeCluster(&eks.DescribeClusterInput{
+	out, err := eksAPI.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
 		Name: aws.String(settings.FromContext(ctx).ClusterName),
 	})
 	if err != nil {

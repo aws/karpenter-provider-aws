@@ -33,7 +33,11 @@ on:
           - "1.25"
           - "1.26"
           - "1.27"
-        default: "1.27"
+          - "1.28"
+        default: "1.28"
+      eksctl_version:
+        type: string
+        default: v0.160.0-rc.0
       enable_metrics:
         type: boolean
         default: false
@@ -47,12 +51,12 @@ on:
       suite:
         type: string
         required: true
-      event_name:
-        type: string
-        required: true
       k8s_version:
         type: string
-        default: "1.27"
+        default: "1.28"
+      eksctl_version:
+        type: string
+        default: v0.160.0-rc.0
       enable_metrics:
         type: boolean
         default: false
@@ -73,7 +77,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.git_ref }}
-      - if: always() && inputs.event_name == 'workflow_run'
+      - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/start
         with:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (${{ inputs.suite }})
@@ -87,7 +91,7 @@ jobs:
           role-duration-seconds: 21600
       - name: add jitter on cluster creation
         run: |
-          # Creating jitter so that we can stagger cluster creation to avoid throttling 
+          # Creating jitter so that we can stagger cluster creation to avoid throttling
           sleep $(( $RANDOM % 300 + 1 ))
       - name: generate cluster name
         run: |
@@ -102,6 +106,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
+          eksctl_version: ${{ inputs.eksctl_version }}
           ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
@@ -119,6 +124,8 @@ jobs:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          ecr_region: ${{ vars.ECR_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
       - name: run the ${{ inputs.suite }} test suite
@@ -127,12 +134,11 @@ jobs:
           TEST_SUITE="${{ inputs.suite }}" ENABLE_METRICS=${{ inputs.enable_metrics }} METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: (success() || failure()) && inputs.event_name != 'workflow_run' && inputs.workflow_trigger != 'conformance'
+        if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'conformance'
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: ${{ inputs.suite }}
           k8s_version: ${{ inputs.k8s_version }}
-          event_name: ${{ inputs.event_name }}
           git_ref: ${{ inputs.git_ref }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
@@ -151,7 +157,8 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
-      - if: always() && inputs.event_name == 'workflow_run'
+          eksctl_version: ${{ inputs.eksctl_version }}
+      - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (${{ inputs.suite }})

@@ -78,27 +78,6 @@ func (in *AWS) DeepCopyInto(out *AWS) {
 			(*out)[key] = val
 		}
 	}
-	if in.LicenseSelector != nil {
-		in, out := &in.LicenseSelector, &out.LicenseSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
-	if in.HostResourceGroupSelector != nil {
-		in, out := &in.HostResourceGroupSelector, &out.HostResourceGroupSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
-	if in.PlacementGroupSelector != nil {
-		in, out := &in.PlacementGroupSelector, &out.PlacementGroupSelector
-		*out = make(map[string]string, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
-	}
 	if in.Tags != nil {
 		in, out := &in.Tags, &out.Tags
 		*out = make(map[string]string, len(*in))
@@ -238,21 +217,6 @@ func (in *AWSNodeTemplateStatus) DeepCopyInto(out *AWSNodeTemplateStatus) {
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
-	}
-	if in.Licenses != nil {
-		in, out := &in.Licenses, &out.Licenses
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.HostResourceGroups != nil {
-		in, out := &in.HostResourceGroups, &out.HostResourceGroups
-		*out = make([]string, len(*in))
-		copy(*out, *in)
-	}
-	if in.PlacementGroups != nil {
-		in, out := &in.PlacementGroups, &out.PlacementGroups
-		*out = make([]string, len(*in))
-		copy(*out, *in)
 	}
 }
 

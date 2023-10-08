@@ -15,6 +15,9 @@ inputs:
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+  eksctl_version:
+    description: "Version of eksctl to install"
+    default: v0.160.0-rc.0
 runs:
   using: "composite"
   steps:
@@ -29,13 +32,13 @@ runs:
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-eksctl
       with:
-        eksctl_version: v0.147.0
+        version: ${{ inputs.eksctl_version }}
     - name: delete-instance-profiles
       shell:
       run: |
         for name in $(aws iam list-instance-profiles --query "InstanceProfiles[*].{Name:InstanceProfileName}" --output text); do
           tags=$(aws iam list-instance-profile-tags --instance-profile-name $name --output json || true)
-          if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "testing/cluster") | .Value') == "${{ inputs.cluster_name }}" ]]; then 
+          if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "testing/cluster") | .Value') == "${{ inputs.cluster_name }}" ]]; then
               roleName=$(aws iam get-instance-profile --instance-profile-name $name --query "InstanceProfile.Roles[*].{Name:RoleName}" --output text)
               aws iam remove-role-from-instance-profile --instance-profile-name $name --role-name $roleName
               aws iam delete-instance-profile --instance-profile-name $name
@@ -60,9 +63,9 @@ runs:
             --network-interface-id
     - name: delete-security-group
       shell: bash
-      # For drift testing, we create a security group and need to clean it up here 
+      # For drift testing, we create a security group and need to clean it up here
       # to avoid leaks if the tests is not fully completed
-      run: | 
+      run: |
         aws ec2 describe-security-groups \
           --filters Name=group-name,Values=security-group-drift Name=tag:karpenter.sh/discovery,Values=${{ inputs.cluster_name }} \
           --query "SecurityGroups[*].{ID:GroupId}" \

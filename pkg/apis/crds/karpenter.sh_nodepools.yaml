@@ -13,14 +13,11 @@ spec:
     kind: NodePool
     listKind: NodePoolList
     plural: nodepools
-    shortNames:
-    - np
-    - nps
     singular: nodepool
   scope: Cluster
   versions:
   - additionalPrinterColumns:
-    - jsonPath: .spec.template.spec.nodeClass.name
+    - jsonPath: .spec.template.spec.nodeClassRef.name
       name: NodeClass
       type: string
     - jsonPath: .spec.weight
@@ -30,7 +27,7 @@ spec:
     name: v1beta1
     schema:
       openAPIV3Schema:
-        description: NodePool is the Schema for the Provisioners API
+        description: NodePool is the Schema for the NodePools API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -82,6 +79,14 @@ spec:
                     pattern: ^(([0-9]+(s|m|h))+)|(Never)$
                     type: string
                 type: object
+                x-kubernetes-validations:
+                - message: consolidateAfter cannot be combined with consolidationPolicy=WhenUnderutilized
+                  rule: 'has(self.consolidateAfter) ? self.consolidationPolicy !=
+                    ''WhenUnderutilized'' || self.consolidateAfter == ''Never'' :
+                    true'
+                - message: consolidateAfter must be specified with consolidationPolicy=WhenEmpty
+                  rule: 'self.consolidationPolicy == ''WhenEmpty'' ? has(self.consolidateAfter)
+                    : true'
               limits:
                 additionalProperties:
                   anyOf:
@@ -134,10 +139,6 @@ spec:
                             items:
                               type: string
                             type: array
-                          containerRuntime:
-                            description: ContainerRuntime is the container runtime
-                              to be used with your worker nodes.
-                            type: string
                           cpuCFSQuota:
                             description: CPUCFSQuota enables CPU CFS quota enforcement
                               for containers that specify CPU limits.
@@ -226,9 +227,9 @@ spec:
                               for OS system daemons and kernel memory.
                             type: object
                         type: object
-                      nodeClass:
-                        description: NodeClass is a reference to an object that defines
-                          provider specific configuration
+                      nodeClassRef:
+                        description: NodeClassRef is a reference to an object that
+                          defines provider specific configuration
                         properties:
                           apiVersion:
                             description: API version of the referent
@@ -358,7 +359,7 @@ spec:
                           type: object
                         type: array
                     required:
-                    - nodeClass
+                    - nodeClassRef
                     - requirements
                     type: object
                 type: object

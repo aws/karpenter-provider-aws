@@ -16,7 +16,10 @@ inputs:
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
     required: false
-    default: "1.27"
+    default: "1.28"
+  eksctl_version:
+    description: "Version of eksctl to install"
+    default: v0.160.0-rc.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     required: false
@@ -38,7 +41,7 @@ runs:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-eksctl
     with:
-      eksctl_version: v0.147.0
+      version: ${{ inputs.eksctl_version }}
   - name: create iam policies
     shell: bash
     run: |
@@ -47,10 +50,10 @@ runs:
       if [ ! -f $CLOUDFORMATION_PATH ]; then
         CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml
       fi
-      
+
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
       yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
-      
+
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
         --stack-name iam-${{ inputs.cluster_name }} \
@@ -64,7 +67,7 @@ runs:
       # Create or Upgrade the cluster based on whether the cluster already exists
       cmd="create"
       eksctl get cluster --name ${{ inputs.cluster_name }} && cmd="upgrade"
-      
+
       eksctl ${cmd} cluster -f - <<EOF
       ---
       apiVersion: eksctl.io/v1alpha5

@@ -129,12 +129,6 @@ spec:
                 description: DetailedMonitoring controls if detailed monitoring is
                   enabled for instances that are launched
                 type: boolean
-              hostResourceGroupSelector:
-                additionalProperties:
-                  type: string
-                description: HostResourceGroups specifies the hostResourceGroup names
-                  to use for ec2 placement
-                type: object
               instanceProfile:
                 description: InstanceProfile is the AWS identity that instances use.
                 type: string
@@ -150,12 +144,6 @@ spec:
                   a custom launch template and is exposed in the Spec as `launchTemplate`
                   for backwards compatibility.'
                 type: string
-              licenseSelector:
-                additionalProperties:
-                  type: string
-                description: LicenseSelector specifies the license configuration specifications
-                  to launch instances with
-                type: object
               metadataOptions:
                 description: "MetadataOptions for the generated launch template of
                   provisioned nodes. \n This specifies the exposure of the Instance
@@ -203,12 +191,6 @@ spec:
                       always returns the version 2.0 credentials; the version 1.0
                       credentials are not available."
                     type: string
-                type: object
-              placementGroupSelector:
-                additionalProperties:
-                  type: string
-                description: PlacementGroup specifies the placement group names to
-                  use for ec2 placement
                 type: object
               securityGroupSelector:
                 additionalProperties:
@@ -287,24 +269,6 @@ spec:
                   - id
                   - requirements
                   type: object
-                type: array
-              hostResourceGroups:
-                description: HostResourceGroups contains the current Host Resource
-                  Groups that currently apply given the HostResourceGroup selectors.
-                items:
-                  type: string
-                type: array
-              licenses:
-                description: Licenses contains the current License Configuration Specifications
-                  that currently apply given the LicenseConfiguration selectors.
-                items:
-                  type: string
-                type: array
-              placementGroups:
-                description: PlacementGroups contains the current placement groups
-                  that currently apply given the PlacementGroup selectors.
-                items:
-                  type: string
                 type: array
               securityGroups:
                 description: SecurityGroups contains the current Security Groups values
