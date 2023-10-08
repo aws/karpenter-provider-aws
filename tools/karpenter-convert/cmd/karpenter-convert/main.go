@@ -17,7 +17,7 @@ package main
 import (
 	"os"
 
-	kk "github.com/aws/karpenter/tools/karpenter-convert/pkg/karpenter-convert"
+	"github.com/aws/karpenter/tools/karpenter-convert/pkg/convert"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
@@ -29,7 +29,7 @@ import (
 func main() {
 	kubeConfigFlags := genericclioptions.NewConfigFlags(false).WithDeprecatedPasswordFlag()
 	f := cmdutil.NewFactory(kubeConfigFlags)
-	cmd := kk.NewCmd(f, genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
+	cmd := convert.NewCmd(f, genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
 	code := cli.Run(cmd)
 	os.Exit(code)
 }

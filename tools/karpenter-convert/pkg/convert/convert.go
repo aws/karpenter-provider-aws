@@ -16,6 +16,7 @@ package convert
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/spf13/cobra"
 
@@ -95,7 +96,17 @@ func (o *Context) RunConvert() error {
 		ContinueOnError().
 		FilenameParam(false, &o.FilenameOptions).
 		Flatten().
-		Do()
+		Do().
+		IgnoreErrors(func(err error) bool {
+			regexPattern := `no kind ".*" is registered for version`
+			regex := regexp.MustCompile(regexPattern)
+			if regex.MatchString(err.Error()) {
+				fmt.Fprintln(o.IOStreams.ErrOut, "#warning:", err.Error())
+				return true
+			}
+
+			return false
+		})
 
 	err := r.Err()
 	if err != nil {

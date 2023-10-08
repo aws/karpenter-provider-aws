@@ -24,7 +24,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	convert "github.com/aws/karpenter/tools/karpenter-convert/pkg/karpenter-convert"
+	"github.com/aws/karpenter/tools/karpenter-convert/pkg/convert"
 
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/client-go/rest/fake"
