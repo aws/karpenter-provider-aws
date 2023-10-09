@@ -80,6 +80,14 @@ spec:
 
   # optional, configures detailed monitoring for the instance
   detailedMonitoring: true
+
+  # optional, configures launch template settings related to host placement
+  hostResourceGroupSelectorTerms:
+  - name: my-hrg
+  licenseSelectorTerms:
+  - name: my-license
+  placementGroupSelectorTerms:
+  - name: my-placement-group
 status:
   # resolved subnets
   subnets:
@@ -122,6 +130,15 @@ status:
   
   # generated instance profile name
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
+
+  # resolved placement information
+  licenses:
+  - arn:aws:license-manager:us-west-2:111122223333:license/lic-123456789
+  hostResourceGroup:
+    name: my-hrg
+    arn:aws:resource-groups:us-west-2:111122223333:group/my-hrg
+  placementGroup:
+  - arn:aws:ec2:us-west-2:111122223333:group/my-placement-group
 ```
 Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/main/examples/nodepool/).
 
@@ -745,6 +762,37 @@ spec:
   detailedMonitoring: true
 ```
 
+
+## spec.hostResourceGroupsSelectorTerms
+
+Enables use of Host Resource Groups, primarily for using dedicated hosts. Groups are matched on results from the [AWS ResourceGroups API](https://docs.aws.amazon.com/ARG/latest/APIReference/API_ListGroups.html)
+```yaml
+spec:
+  hostResourceGroupSelectorTerms:
+  - name: my-hrg
+```
+
+
+## spec.licenseSelectorTerms
+Enables use of License Configuration Specifications, primarily for using dedicated hosts. Groups are matched on results from the [AWS LicenseManager API](https://docs.aws.amazon.com/license-manager/latest/APIReference/API_ListLicenses.html)
+
+```yaml
+spec:
+  licenseSelectorTerms:
+  - name: my-license
+```
+
+## spec.placementGroupSelectorTerms
+Enables use of EC2 placement groups. Groups are matched on results from the [AWS EC2 API](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribePlacementGroups.html)
+
+```yaml
+spec:
+  placementGroupSelectorTerms:
+  - name: my-placement-group
+```
+
+
+
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
 
@@ -880,4 +928,43 @@ spec:
   role: "KarpenterNodeRole-${CLUSTER_NAME}"
 status:
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
+```
+
+## status.hostResourceGroup
+
+[`status.hostResourceGroup`]({{< ref "#statushostResourceGroup" >}}) containts the resolved host resource groups specified in the [`spec.hostResourceGroupSelectorTerms`]({{< ref "#spechostResourceGroupSelectorTerms" >}})
+
+```yaml
+spec:
+  hostResourceGroupSelectorTerms:
+  - name: my-hrg
+status:
+  hostResourceGroup:
+    name: my-hrg
+    arn:aws:resource-groups:us-west-2:111122223333:group/my-hrg
+```
+
+
+## status.licenses
+[`status.licenses`]({{< ref "#statuslicenses" >}}) containts the resolved license configuration specifications as specified in the [`spec.licenseSelectorTerms`]({{< ref "#speclicenseSelectorTerms" >}})
+
+```yaml
+spec:
+  licenseSelectorTerms:
+  - name: my-license
+status:
+  licenses:
+  - arn:aws:license-manager:us-west-2:111122223333:license/lic-12345689
+```
+
+## status.placementGroups
+[`status.placementGroups`]({{< ref "#statusplacementGroups" >}}) containts the resolved EC2 placement groups as specified in the [`spec.placementGroupSelectorTerms`]({{< ref "#specplacementGroupSelectorTerms" >}})
+
+```yaml
+spec:
+  placementGroupSelectorTerms:
+  - name: my-placement-group
+status:
+  placementGroups:
+  - arn:aws:ec2:us-west-2:111122223333:group/my-placement-group
 ```
