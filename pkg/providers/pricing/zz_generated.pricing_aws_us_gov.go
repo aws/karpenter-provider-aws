@@ -16,11 +16,8 @@ limitations under the License.
 
 package pricing
 
-import "time"
-
 // generated at 2023-09-18T13:06:44Z for us-east-1
 
-var InitialPriceUpdateTimeUSGov, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
 var InitialOnDemandPricesUSGov = map[string]map[string]float64{
 	"us-gov-west-1": {
 		// c1 family

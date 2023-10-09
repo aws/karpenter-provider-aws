@@ -101,10 +101,8 @@ func main() {
 	license := lo.Must(os.ReadFile("hack/boilerplate.go.txt"))
 	fmt.Fprintln(src, string(license))
 	fmt.Fprintln(src, "package pricing")
-	fmt.Fprintln(src, `import "time"`)
 	now := time.Now().UTC().Format(time.RFC3339)
 	fmt.Fprintf(src, "// generated at %s for %s\n\n\n", now, region)
-	fmt.Fprintf(src, "var InitialPriceUpdateTime%s, _ = time.Parse(time.RFC3339, \"%s\")\n", getPartitionSuffix(opts.partition), now)
 	fmt.Fprintf(src, "var InitialOnDemandPrices%s = map[string]map[string]float64{\n", getPartitionSuffix(opts.partition))
 	// record prices for each region we are interested in
 	for _, region := range getAWSRegions(opts.partition) {
