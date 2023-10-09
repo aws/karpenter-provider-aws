@@ -185,7 +185,7 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can acces
 ### AllowScopedEC2InstanceActionsWithTags
 The AllowScopedEC2InstanceActionsWithTags Sid allows the 
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html), [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html), and [CreateLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateLaunchTemplate.html)
-actions requested by the Karpenter controller to access all `fleet`, `instance`, `volume`, `network-interface`, or `launch-template` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/provisioner-name` tag be set to any value with these actions.
+actions requested by the Karpenter controller to access all `fleet`, `instance`, `volume`, `network-interface`, or `launch-template` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/nodepool` tag be set to any value with these actions.
 This makes sure that these resources that are managed by the Karpenter controller are assigned these tags.
 
 ```
@@ -209,7 +209,7 @@ This makes sure that these resources that are managed by the Karpenter controlle
                   "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
                 },
                 "StringLike": {
-                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                  "aws:RequestTag/karpenter.sh/nodepool": "*"
                 }
               }
             },
@@ -219,7 +219,7 @@ This makes sure that these resources that are managed by the Karpenter controlle
 ### AllowScopedResourceCreationTagging
 The AllowScopedResourceCreationTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)
 actions on `fleet`, `instance`, `volume`, `network-interface`, and `launch-template` resources, provided that a `CreateAction` of `RunInstance`, `CreateFleet`, or `CreateLaunchTemplate`
-has been run, the `kubernetes.io/cluster/${ClusterName}` tag is set to `owned`, and the `karpenter.sh/provisioner-name` tag is set to any value with these actions.
+has been run, the `kubernetes.io/cluster/${ClusterName}` tag is set to `owned`, and the `karpenter.sh/nodepool` tag is set to any value with these actions.
 ```
             {
               "Sid": "AllowScopedResourceCreationTagging",
@@ -242,35 +242,34 @@ has been run, the `kubernetes.io/cluster/${ClusterName}` tag is set to `owned`, 
                   ]
                 },
                 "StringLike": {
-                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                  "aws:RequestTag/karpenter.sh/nodepool": "*"
                 }
               }
             },
 ```
 
-### AllowMachineMigrationTagging
-The AllowMachineMigrationTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html) actions on instance resources associated with machine migrations.
+### AllowScopedResourceTagging
+The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html) actions on instance resources associated with node migrations.
 These tags are set to indicate that a successful migration has occurred.
-With this action, the `kubernetes.io/cluster/${ClusterName}` tag is set to `owned` and the `karpenter.sh/managed-by` tag is set to `${ClusterName}`.
-Likewise, the `karpenter.sh/provisioner-name` tag must be set to some value and any values can be set for `karpenter.sh/provisioner-name` and `karpenter.sh/managed-by`.
+With this action, the `karpenter.sh/cluster/${ClusterName}` tag is set to `owned`.
+Likewise, the `karpenter.sh/nodepool` tag must be set to some value and any values can be set for `karpenter.k8s.aws/nodeclaim`.
 ```
             {
-              "Sid": "AllowMachineMigrationTagging",
+              "Sid": "AllowScopedResourceTagging",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
               "Action": "ec2:CreateTags",
               "Condition": {
                 "StringEquals": {
-                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
-                  "aws:RequestTag/karpenter.sh/managed-by": "${ClusterName}"
+                  "aws:ResourceTag/karpenter.sh/cluster/${ClusterName}": "owned"
                 },
                 "StringLike": {
-                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                  "aws:ResourceTag/karpenter.sh/nodepool": "*"
                 },
                 "ForAllValues:StringEquals": {
                   "aws:TagKeys": [
-                    "karpenter.sh/provisioner-name",
-                    "karpenter.sh/managed-by"
+                    "karpenter.k8s.aws/nodeclaim",
+                    "Name"
                   ]
                 }
               }
@@ -278,7 +277,7 @@ Likewise, the `karpenter.sh/provisioner-name` tag must be set to some value and 
 ```
 
 ### AllowScopedDeletion
-The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) and [DeleteLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteLaunchTemplate.html) actions to delete instance and launch-template resources, provided that `karpenter.sh/provisioner-name` and `kubernetes.io/cluster/${ClusterName}` tags are set.
+The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) and [DeleteLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteLaunchTemplate.html) actions to delete instance and launch-template resources, provided that `karpenter.sh/nodepool` and `kubernetes.io/cluster/${ClusterName}` tags are set.
 
 ```
             {
@@ -297,7 +296,7 @@ The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.
                   "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
                 },
                 "StringLike": {
-                  "aws:ResourceTag/karpenter.sh/provisioner-name": "*"
+                  "aws:ResourceTag/karpenter.sh/nodepool": "*"
                 }
               }
             },
@@ -393,6 +392,97 @@ The `iam:PassedToService` restricts the permission to make these requests to onl
             },
 ```
 
+### AllowScopedInstanceProfileCreationActions
+The AllowScopedInstanceProfileCreationActions Sid gives the Karpenter controller permission to create a new instance profile with [`iam:CreateInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateInstanceProfile.html),
+provided that the request is made to a cluster with `kubernetes.io/cluster/${ClusterName` set to owned and is made in the current region.
+Also, `karpenter.sh/nodeclass` must be set to some value.
+```
+ {
+              "Sid": "AllowScopedInstanceProfileCreationActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "iam:CreateInstanceProfile"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
+                },
+                "StringLike": {
+                  "aws:RequestTag/karpenter.sh/nodeclass": "*"
+                }
+              }
+            },
+```
+
+### AllowScopedInstanceProfileTagActions
+The AllowScopedInstanceProfileTagActions Sid gives the Karpenter controller permission to tag an instance profile with [`iam:TagInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_TagInstanceProfile.html), based on the values shown below,
+Also, `karpenter.sh/nodeclass` must be set to some value.
+
+```
+            {
+              "Sid": "AllowScopedInstanceProfileTagActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "iam:TagInstanceProfile"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}",
+                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
+                },
+                "StringLike": {
+                  "aws:ResourceTag/karpenter.sh/nodeclass": "*",
+                  "aws:RequestTag/karpenter.sh/nodeclass": "*"
+                }
+              }
+            },
+```
+
+
+### AllowScopedInstanceProfileActions
+The AllowScopedInstanceProfileActions Sid gives the Karpenter controller permission to perform [`iam:AddRoleToInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AddRoleToInstanceProfile.html), [`iam:RemoveRoleFromInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_RemoveRoleFromInstanceProfile.html), and [`iam:DeleteInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteInstanceProfile.html) actions, 
+provided that the request is made to a cluster with `kubernetes.io/cluster/${ClusterName` set to owned and is made in the current region.
+Also, `karpenter.sh/nodeclass` must be set to some value.
+
+```
+            {
+              "Sid": "AllowScopedInstanceProfileActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "iam:AddRoleToInstanceProfile",
+                "iam:RemoveRoleFromInstanceProfile",
+                "iam:DeleteInstanceProfile"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}"
+                },
+                "StringLike": {
+                  "aws:ResourceTag/karpenter.sh/nodeclass": "*"
+                }
+              }
+            },
+```
+### AllowInstanceProfileActions
+The AllowInstanceProfileActions Sid gives the Karpenter controller permission to perform [`iam:GetInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetInstanceProfile.html) actions to retrieve informatio about a specified instance profile.
+
+```
+            {
+              "Sid": "AllowInstanceProfileReadActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": "iam:GetInstanceProfile"
+            },
+            {
+```
+
 ### AllowAPIServerEndpointDiscovery
 The Karpenter controller needs to be able to find the Kubernetes cluster's API endpoint in order to communicate with the API server.
 The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get that information (`eks:DescribeCluster`) for the cluster (`cluster/${ClusterName}`).
@@ -406,9 +496,6 @@ The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get t
           ]
         }
 ```
-
-[O
-
 
 # Interruption Handling 
 Settings in this section allow the Karpenter controller to interact with interruption queues.
