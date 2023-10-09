@@ -73,10 +73,10 @@ type Options struct {
 func NewOptions() *Options {
 	o := &Options{}
 	flag.StringVar(&o.partition, "partition", "aws", "The partition to generate prices for. Valid options are \"aws\", \"aws-us-gov\", and \"aws-cn\".")
-	flag.StringVar(&o.output, "output", "pkg/providers/pricing/zz_generated.pricing_us.go", "The destination for the generated go file.")
+	flag.StringVar(&o.output, "output", "pkg/providers/pricing/zz_generated.pricing_aws.go", "The destination for the generated go file.")
 	flag.Parse()
 	if !lo.Contains([]string{"aws", "aws-us-gov", "aws-cn"}, o.partition) {
-		panic("invalid partition: must be \"aws\", \"aws-us-gov\", or \"aws-cn\"")
+		log.Fatal("invalid partition: must be \"aws\", \"aws-us-gov\", or \"aws-cn\"")
 	}
 	return o
 }
