@@ -22,7 +22,7 @@ jobs:
           TAG=$(git describe --tags --exact-match)
           echo "TAG=${TAG}" >> $GITHUB_ENV
       - uses: ./.github/actions/install-deps
-      - uses: aws-actions/configure-aws-credentials@v1-node16
+      - uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_RELEASE_ROLE_NAME }}'
           aws-region: ${{ vars.ECR_REGION }}
