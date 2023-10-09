@@ -96,9 +96,9 @@ var _ = Describe("Pricing", func() {
 				}
 			}
 		},
-		Entry("aws", pricing.InitialOnDemandPricesAWS, pricing.InitialPriceUpdateAWS),
-		Entry("aws-us-gov", pricing.InitialOnDemandPricesUSGov, pricing.InitialPriceUpdateUSGov),
-		Entry("aws-cn", pricing.InitialOnDemandPricesCN, pricing.InitialPriceUpdateCN),
+		Entry("aws", pricing.InitialOnDemandPricesAWS, pricing.InitialPriceUpdateTimeAWS),
+		Entry("aws-us-gov", pricing.InitialOnDemandPricesUSGov, pricing.InitialPriceUpdateTimeUSGov),
+		Entry("aws-cn", pricing.InitialOnDemandPricesCN, pricing.InitialPriceUpdateTimeCN),
 	)
 	It("should return static on-demand data if pricing API fails", func() {
 		awsEnv.PricingAPI.NextError.Set(fmt.Errorf("failed"))

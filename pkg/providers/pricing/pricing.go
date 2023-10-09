@@ -426,14 +426,14 @@ func getInitialPriceUpdateByRegion(region string) time.Time {
 		initialPrices map[string]map[string]float64
 		timestamp     time.Time
 	}{
-		{InitialOnDemandPricesAWS, InitialPriceUpdateAWS},
-		{InitialOnDemandPricesUSGov, InitialPriceUpdateUSGov},
-		{InitialOnDemandPricesCN, InitialPriceUpdateCN},
+		{InitialOnDemandPricesAWS, InitialPriceUpdateTimeAWS},
+		{InitialOnDemandPricesUSGov, InitialPriceUpdateTimeUSGov},
+		{InitialOnDemandPricesCN, InitialPriceUpdateTimeCN},
 	} {
 		if _, ok := partition.initialPrices[region]; ok {
 			return partition.timestamp
 		}
 	}
 	// default to aws partition
-	return InitialPriceUpdateAWS
+	return InitialPriceUpdateTimeAWS
 }

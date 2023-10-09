@@ -20,7 +20,7 @@ import "time"
 
 // generated at 2023-09-18T13:06:44Z for us-east-1
 
-var InitialPriceUpdateAWS, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
+var InitialPriceUpdateTimeAWS, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	"us-east-1": {
 		// a1 family

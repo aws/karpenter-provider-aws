@@ -20,7 +20,7 @@ import "time"
 
 // generated at 2023-09-18T13:06:44Z for cn-north-1
 
-var InitialPriceUpdateCN, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
+var InitialPriceUpdateTimeCN, _ = time.Parse(time.RFC3339, "2023-09-18T13:06:44Z")
 var InitialOnDemandPricesCN = map[string]map[string]float64{
 	"cn-north-1": {
 		// c3 family
