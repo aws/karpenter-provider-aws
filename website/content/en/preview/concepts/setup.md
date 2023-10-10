@@ -5,11 +5,11 @@ weight: 5
 description: >
   Descriptions of how Karpenter uses CloudFormation to set up permissions
 ---
-When you create a cluster to use with Karpenter in the [Getting Started with Karpenter]({{< relref "../getting-started/getting-started-with-karpenter" >}}) guide, the procedure uses CloudFormation to prepare the cluster for Karpenter to be able to create and manage nodes, as well as gather and respond to interruption events.
+The [Getting Started with Karpenter]({{< relref "../getting-started/getting-started-with-karpenter" >}}) guide uses CloudFormation to bootstrap the cluster to enable Karpenter to create and manage nodes, as well as to allow Karpenter to respond to interruption events.
 This document describes the `cloudformation.yaml` file used in that guide.
-These descriptions will be useful to understand:
+These descriptions should allow you to understand:
 
-* What Karpenter is authorized to do with your EKS cluster and AWS resources when you use the `cloudformation.yaml` file
+* What Karpenter is authorized to do with your EKS cluster and AWS resources when using the `cloudformation.yaml` file
 * What permissions you need to set up if you are adding Karpenter to an existing cluster
 
 # Review the cloudformation.yaml file
@@ -17,28 +17,17 @@ These descriptions will be useful to understand:
 To download a particular version of `cloudformation.yaml`, set the version and use `curl` to pull the file to your local system:
 
 ```bash
-export KARPENTER_VERSION=v0.29.0
+export KARPENTER_VERSION={{< param "latest_release_version" >}}
 curl https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
-The `cloudformation.yaml` file starts with the following information:
-
-```
-AWSTemplateFormatVersion: "2010-09-09"
-Description: Resources used by https://github.com/aws/karpenter
-Parameters:
-  ClusterName:
-    Type: String
-    Description: "EKS cluster name"
-Resources:
-```
-
-The rest of the `cloudformation.yaml` file describes the resources that CloudFormation deploys.
+Following some header information, the rest of the `cloudformation.yaml` file describes the resources that CloudFormation deploys.
 The sections of that file can be grouped together under the following general headings:
 
-* **Node Authorization**: Creates a NodeInstanceProfile, attaches a NodeRole to it, and connects it to an IAM Identity Mapping that Karpenter uses. This defines the permissions each node managed by Karpenter has to access EC2 and other AWS resources.
-* **Karpenter Controller Authorization**:  Creates a service account (named `karpenter`) that is combined with the KarpenterControllerPolicy. The KarpenterControllerPolicy allows the Karpenter controller to control assets within EC2 specifically and within AWS in general.
-* **Interruption Handling**: The interruption handling sections of this file allow the Karpenter controller to see and respond to interruptions that occur with the nodes that Karpenter is managing. Interruptions can reflect things like a spot instance going away or physical hardware going down. Allowing the Karpenter controller to see these interruptions allows Karpenter to respond by bringing nodes up and down and moving workloads.
+* **Node Authorization**: Creates a NodeInstanceProfile, attaches a NodeRole to it, and connects it to an IAM Identity Mapping that Karpenter uses. This defines the permissions each node managed by Karpenter has to access EC2 and other AWS resources. This doesn't actually create the IAM Identity Mapping. That part is orchestrated by `eksctl` in the Getting Started guide.
+* **Karpenter Controller Authorization**:  Creates the `KarpenterControllerPolicy` that is attached to the service account.
+Again, the actual service account creation (`karpenter`), that is combined with the `KarpenterControllerPolicy`, is orchestrated by `eksctl` in the Getting Started guide.
+* **Interruption Handling**: The interruption handling sections of this file allow the Karpenter controller to see and respond to interruptions that occur with the nodes that Karpenter is managing. See the [Interruption](https://karpenter.sh/docs/concepts/deprovisioning/#interruption) section of the Deprovisioning page for details.
 
 A lot of the object naming that is done by `cloudformation.yaml` is based on the following:
 
@@ -52,8 +41,8 @@ That name would then be appended to any name below where `${ClusterName}` is inc
 The following sections of the `cloudformation.yaml` file set up permissions related to what Kubernetes nodes created by Karpenter can do with EC2 and other AWS features.
 In particular, this involves setting up an instance profile and attaching a node role to that profile with the following objects:
 
-* KarpenterNodeInstanceProfile
 * KarpenterNodeRole
+* KarpenterNodeInstanceProfile
 
 ## KarpenterNodeInstanceProfile
 This section creates an [EC2 Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html) that includes the node role named `KarpenterNodeRole`, with the cluster name appended.
@@ -71,8 +60,7 @@ For example, with a cluster name of `bob-karpenter-demo`, the instance profile n
       Roles:
         - !Ref "KarpenterNodeRole"
 ```
-To do this manually for an existing cluster, you would find your cluster's InstanceProfileName and use that to attach the role needed.
-To list all instance profiles, type:
+To do this manually for an existing cluster, you would find the name of the instance profile that your Kubernetes nodes are already using, and use that to associate the existing IAM role to the Karpenter-managed nodes.
 
 ```bash
 aws iam list-instance-profiles
@@ -93,7 +81,7 @@ PRINCIPAL       ec2.amazonaws.com
 
 ## KarpenterNodeRole
 
-This section creates the node role that is attached to the `KarpenterNodeInstanceProfile` instance profile created earlier.
+This section of the template  defines a node IAM role. Karpenter also needs an instance profile to associate the IAM role with EC2 instances as they launch.
 Given a cluster name of `bob-karpenter-demo`, this role would end up being named `"KarpenterNodeRole-bob-karpenter-demo`.
 
 ```
@@ -127,9 +115,8 @@ The role created here includes several AWS managed policies, which are designed 
 
 # Karpenter Controller Authorization 
 
-This section sets the permissions that the Karpenter Controller has to create and manage EC2 and other AWS resources.
-In particular, the section creates a service account (karpenter) that is combined with the KarpenterControllerPolicy.
-The permissions here go beyond the permissions assigned to Karpenter nodes in the previous section.
+This section sets the permissions that the Karpenter Controller will have to create and manage EC2 and other AWS resources.
+When used in the Getting Started guide, `eksctl` uses these permissions to create a service account (karpenter) that is combined with the KarpenterControllerPolicy.
 
 The resources defined in this section are associated with:
 
@@ -140,7 +127,6 @@ Because the scope of the KarpenterControllerPolicy is an AWS region, the cluster
 ## KarpenterControllerPolicy
 
 A `KarpenterControllerPolicy` object sets the name of the policy, then defines a set of resources and actions allowed for those resources.
-The policy creates authorization for the Karpenter Controller to AWS resources, instead of using the NodeInstanceProfile which probably has less permissions to AWS resources.
 For our example, the KarpenterControllerPolicy would be named: `KarpenterControllerPolicy-bob-karpenter-demo`
 
 ```
@@ -161,7 +147,7 @@ Someone wanting to add Karpenter to an existing cluster, instead of using `cloud
 
 The AllowScopedEC2InstanceActions statement ID (Sid) identifies a set of EC2 resources that are allowed to be used with
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html) and [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html) actions.
-For `RunInstances` and `CreateFleet` actions, the Karpenter controller can access `image`, `snapshot`, `spot-instances-request`, `security-group`, `subnet` and `launch-template` EC2 resources, scoped for the particular AWS partition and region.
+For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (buy not create) `image`, `snapshot`, `spot-instances-request`, `security-group`, `subnet` and `launch-template` EC2 resources, scoped for the particular AWS partition and region.
 
 ```
             {
@@ -185,7 +171,7 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can acces
 ### AllowScopedEC2InstanceActionsWithTags
 The AllowScopedEC2InstanceActionsWithTags Sid allows the 
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html), [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html), and [CreateLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateLaunchTemplate.html)
-actions requested by the Karpenter controller to access all `fleet`, `instance`, `volume`, `network-interface`, or `launch-template` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/nodepool` tag be set to any value with these actions.
+actions requested by the Karpenter controller to create all `fleet`, `instance`, `volume`, `network-interface`, or `launch-template` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/nodepool` tag be set to any value with these actions to ensure that Karpenter is only allowed to create instances for a single EKS cluster.
 This makes sure that these resources that are managed by the Karpenter controller are assigned these tags.
 
 ```
@@ -218,8 +204,7 @@ This makes sure that these resources that are managed by the Karpenter controlle
 
 ### AllowScopedResourceCreationTagging
 The AllowScopedResourceCreationTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)
-actions on `fleet`, `instance`, `volume`, `network-interface`, and `launch-template` resources, provided that a `CreateAction` of `RunInstance`, `CreateFleet`, or `CreateLaunchTemplate`
-has been run, the `kubernetes.io/cluster/${ClusterName}` tag is set to `owned`, and the `karpenter.sh/nodepool` tag is set to any value with these actions.
+actions on `fleet`, `instance`, `volume`, `network-interface`, and `launch-template` resources, While making `RunInstance`, `CreateFleet`, or `CreateLaunchTemplate` calls.
 ```
             {
               "Sid": "AllowScopedResourceCreationTagging",
@@ -277,7 +262,7 @@ Likewise, the `karpenter.sh/nodepool` tag must be set to some value and any valu
 ```
 
 ### AllowScopedDeletion
-The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) and [DeleteLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteLaunchTemplate.html) actions to delete instance and launch-template resources, provided that `karpenter.sh/nodepool` and `kubernetes.io/cluster/${ClusterName}` tags are set.
+The AllowScopedDeletion Sid allows [TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) and [DeleteLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteLaunchTemplate.html) actions to delete instance and launch-template resources, provided that `karpenter.sh/nodepool` and `kubernetes.io/cluster/${ClusterName}` tags are set.These tags must be present on all resources that Karpenter is going to delete. This ensures that Karpenter can only delete instances and launch templates that are associated with it.
 
 ```
             {
@@ -357,6 +342,8 @@ Because pricing information does not exist in every region at the moment, the Al
 ```
 
 ### AllowInterruptionQueueActions
+Karpenter supports interruption queues, that you can create as described in the [Interruption](https://karpenter.sh/docs/concepts/deprovisioning/#interruption) section of the Deprovisioning page.
+This section of the cloudformation.yaml template can give Karpenter permission to access those queues by specifying the resource ARN.
 For the interruption queue you created (`${KarepenterInterruptionQueue.Arn}`), the AllowInterruptionQueueActions Sid lets the Karpenter controller have permission to delete messages ([DeleteMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html)), get queue attributes ([GetQueueAttributes](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueAttributes.html)), get queue URL ([GetQueueUrl](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueUrl.html)), and receive messages ([ReceiveMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)).
 
 ```
@@ -375,8 +362,7 @@ For the interruption queue you created (`${KarepenterInterruptionQueue.Arn}`), t
 
 ### AllowPassingInstanceRole
 The AllowPassingInstanceRole Sid gives the Karpenter controller permission to pass (`iam:PassRole`) the node role (`KarpenterNodeRole-${ClusterName}`) to the instance profile.
-This allows EC2 to check those permissions when making an EC2 instance call, such as an EC2 launch call.
-The `iam:PassedToService` restricts the permission to make these requests to only the EC2 service (`ec2.amazonaws.com`).
+This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${ClusterName}` when utilizing the [instance profile](#karpenternodeinstanceprofile) to launch nodes.
 
 ```
             {
@@ -484,7 +470,10 @@ The AllowInstanceProfileActions Sid gives the Karpenter controller permission to
 ```
 
 ### AllowAPIServerEndpointDiscovery
-The Karpenter controller needs to be able to find the Kubernetes cluster's API endpoint in order to communicate with the API server.
+You can optionally allow the Karpenter controller to discover the Kubernetes cluster's external API endpoint to enable EC2 nodes to successfully join the EKS cluster.
+
+> **Note**: If you are not using an EKS control plane, you will have to specify this endpoint explicitly. See the description of the `aws.clusterEndpoint` setting in the [ConfigMap](.settings/#configmap) documentation for details.
+
 The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get that information (`eks:DescribeCluster`) for the cluster (`cluster/${ClusterName}`).
 ```
             {
@@ -498,8 +487,9 @@ The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get t
 ```
 
 # Interruption Handling 
-Settings in this section allow the Karpenter controller to interact with interruption queues.
-So, for example, if Spot instances are being reclaimed or a node crashes, seeing messages from these queues allows Karpenter to be proactive in moving workloads or adding new nodes.
+Settings in this section allow the Karpenter controller to stand-up an interruption queue to receive notification messages from other AWS services about the health and status of instances. For example, this interruption queue allows Karpenter to be aware of spot instance interruptions that are sent 2 minutes before spot instances are reclaimed by EC2. Adding this queue allows Karpenter to be proactive in migrating workloads to new nodes.
+See the [Interruption](https://karpenter.sh/docs/concepts/deprovisioning/#interruption) section of the Deprovisioning page for details.
+
 Defining the `KarpenterInterruptionQueuePolicy` allows Karpenter to see and respond to the following:
 
 * AWS health events
@@ -531,8 +521,8 @@ See [SetQueueAttributes](https://docs.aws.amazon.com/AWSSimpleQueueService/lates
 ```
 
 ## KarpenterInterruptionQueuePolicy
-The Karpenter interruption queue policy is created and applied to allow the Karpenter controller to see messages for selected services.
-In particular, the [AWS::SQS::QueuePolicy](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queuepolicy.html) resource here applies `EC2InterruptionPolicy` to the `KarpenterInterruptionQueue`. The policy allows [sqs:SendMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html) actions to `events.amazonaws.com` and `sqs.amazonaws.com` services. It also allows the `GetAtt` function to get attributes from `KarpenterInterruptionQueue.Arn`.
+The Karpenter interruption queue policy is created to allow AWS services that we want to receive instance notifications from to push notification messages to the queue.
+The [AWS::SQS::QueuePolicy](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-sqs-queuepolicy.html) resource here applies `EC2InterruptionPolicy` to the `KarpenterInterruptionQueue`. The policy allows [sqs:SendMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_SendMessage.html) actions to `events.amazonaws.com` and `sqs.amazonaws.com` services. It also allows the `GetAtt` function to get attributes from `KarpenterInterruptionQueue.Arn`.
 
 ```
   KarpenterInterruptionQueuePolicy:
@@ -552,28 +542,27 @@ In particular, the [AWS::SQS::QueuePolicy](https://docs.aws.amazon.com/AWSCloudF
             Resource: !GetAtt KarpenterInterruptionQueue.Arn
 ```
 
-## ScheduledChangeRule
+## Rules
 This section allows Karpenter to gather [AWS Health Events](https://docs.aws.amazon.com/health/latest/ug/cloudwatch-events-health.html#about-public-events) and direct them to a queue where they can be consumed by Karpenter.
-In particular, the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) here creates a rule where the [EventPattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html) is set to send events from the `aws.health` source to `KarpenterInterruptionQueue`.
+These rules include:
 
-```
-  ScheduledChangeRule:
-    Type: 'AWS::Events::Rule'
-    Properties:
-      EventPattern:
-        source:
-          - aws.health
-        detail-type:
-          - AWS Health Event
-      Targets:
-        - Id: KarpenterInterruptionQueueTarget
-          Arn: !GetAtt KarpenterInterruptionQueue.Arn
-```
+* ScheduledChangeRule: The [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) creates a rule where the [EventPattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html) is set to send events from the `aws.health` source to `KarpenterInterruptionQueue`.
 
-## SpotInterruptionRule
-An EC2 Spot Instance Interruption warning tells you that AWS is about to reclaim a Spot instance you are using.
-This section allows Karpenter to gather [EC2 Spot Instance Interruption Warning](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html) events and direct them to a queue where they can be consumed by Karpenter.
-In particular, the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) here creates a rule where the [EventPattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html) is set to send events from the `aws.ec2` source to `KarpenterInterruptionQueue`.
+   ```
+     ScheduledChangeRule:
+       Type: 'AWS::Events::Rule'
+       Properties:
+         EventPattern:
+           source:
+             - aws.health
+           detail-type:
+             - AWS Health Event
+         Targets:
+           - Id: KarpenterInterruptionQueueTarget
+             Arn: !GetAtt KarpenterInterruptionQueue.Arn
+   ```
+
+* SpotInterruptionRule: An EC2 Spot Instance Interruption warning tells you that AWS is about to reclaim a Spot instance you are using. This rule allows Karpenter to gather [EC2 Spot Instance Interruption Warning](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/spot-interruptions.html) events and direct them to a queue where they can be consumed by Karpenter. In particular, the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) here creates a rule where the [EventPattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html) is set to send events from the `aws.ec2` source to `KarpenterInterruptionQueue`.
 
 ```
   SpotInterruptionRule:
@@ -589,41 +578,35 @@ In particular, the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudForma
           Arn: !GetAtt KarpenterInterruptionQueue.Arn
 ```
 
-## RebalanceRule
+* RebalanceRule: An EC2 Instance Rebalance Recommendation signal tells you that a Spot instance is at a heightened risk of being interrupted, allowing Karpenter to get new instances or simply rebalance workloads.  This rule allows Karpenter to gather [EC2 Instance Rebalance Recommendation](https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/rebalance-recommendations.html) signals and direct them to a queue where they can be consumed by Karpenter. In particular, the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) here creates a rule where the [EventPattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html) is set to send events from the `aws.ec2` source to `KarpenterInterruptionQueue`.
 
-An EC2 Instance Rebalance Recommendation signal tells you that a Spot instance is at a heightened risk of being interrupted, allowing Karpenter to get new instances or simply rebalance workloads.
-This section allows Karpenter to gather [EC2 Instance Rebalance Recommendation](https://docs.aws.amazon.com/AWSEC2/latest/WindowsGuide/rebalance-recommendations.html) signals and direct them to a queue where they can be consumed by Karpenter.
-In particular, the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) here creates a rule where the [EventPattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html) is set to send events from the `aws.ec2` source to `KarpenterInterruptionQueue`.
+   ```
+     RebalanceRule:
+       Type: 'AWS::Events::Rule'
+       Properties:
+         EventPattern:
+           source:
+             - aws.ec2
+           detail-type:
+             - EC2 Instance Rebalance Recommendation
+         Targets:
+           - Id: KarpenterInterruptionQueueTarget
+             Arn: !GetAtt KarpenterInterruptionQueue.Arn
+   ```
 
-```
-  RebalanceRule:
-    Type: 'AWS::Events::Rule'
-    Properties:
-      EventPattern:
-        source:
-          - aws.ec2
-        detail-type:
-          - EC2 Instance Rebalance Recommendation
-      Targets:
-        - Id: KarpenterInterruptionQueueTarget
-          Arn: !GetAtt KarpenterInterruptionQueue.Arn
-```
+* InstanceStateChangeRule: An EC2 Instance State-change Notification signal tells you that the state of an instance has changed to one of the following states: pending, running, stopping, stopped, shutting-down, or terminated. This rule allows Karpenter to gather [EC2 Instance State-change](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-instance-state-changes.html) signals and direct them to a queue where they can be consumed by Karpenter. In particular, the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) here creates a rule where the [EventPattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html) is set to send events from the `aws.ec2` source to `KarpenterInterruptionQueue`.
 
-## InstanceStateChangeRule
-An EC2 Instance State-change Notification signal tells you that the state of an instance has changed to one of the following states: pending, running, stopping, stopped, shutting-down, or terminated.
-This section allows Karpenter to gather [EC2 Instance State-change](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/monitoring-instance-state-changes.html) signals and direct them to a queue where they can be consumed by Karpenter.
-In particular, the [AWS::Events::Rule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-events-rule.html) here creates a rule where the [EventPattern](https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-event-patterns.html) is set to send events from the `aws.ec2` source to `KarpenterInterruptionQueue`.
 
-```
-  InstanceStateChangeRule:
-    Type: 'AWS::Events::Rule'
-    Properties:
-      EventPattern:
-        source:
-          - aws.ec2
-        detail-type:
-          - EC2 Instance State-change Notification
-      Targets:
-        - Id: KarpenterInterruptionQueueTarget
-          Arn: !GetAtt KarpenterInterruptionQueue.Arn
-```
+   ```
+     InstanceStateChangeRule:
+       Type: 'AWS::Events::Rule'
+       Properties:
+         EventPattern:
+           source:
+             - aws.ec2
+           detail-type:
+             - EC2 Instance State-change Notification
+         Targets:
+           - Id: KarpenterInterruptionQueueTarget
+             Arn: !GetAtt KarpenterInterruptionQueue.Arn
+   ```
