@@ -171,10 +171,17 @@ Flatten Settings Map using "." syntax
 {{/*
 Flatten the stdout logging outputs from args provided
 */}}
-{{- define "karpenter.controller.outputPathsList" -}}
+{{- define "karpenter.outputPathsList" -}}
 {{ $paths := list -}}
 {{- range .Values.controller.outputPaths -}}
-    {{- $paths = printf "%s" . | quote  | append $paths -}}
+    {{- if not (has (printf "%s" . | quote) $paths) -}}
+        {{- $paths = printf "%s" . | quote  | append $paths -}}
+    {{- end -}}
+{{- end -}}
+{{- range .Values.logConfig.outputPaths -}}
+    {{- if not (has (printf "%s" . | quote) $paths) -}}
+        {{- $paths = printf "%s" . | quote  | append $paths -}}
+    {{- end -}}
 {{- end -}}
 {{ $paths | join ", " }}
 {{- end -}}
@@ -182,10 +189,17 @@ Flatten the stdout logging outputs from args provided
 {{/*
 Flatten the stderr logging outputs from args provided
 */}}
-{{- define "karpenter.controller.errorOutputPathsList" -}}
+{{- define "karpenter.errorOutputPathsList" -}}
 {{ $paths := list -}}
 {{- range .Values.controller.errorOutputPaths -}}
-    {{- $paths = printf "%s" . | quote  | append $paths -}}
+    {{- if not (has (printf "%s" . | quote) $paths) -}}
+        {{- $paths = printf "%s" . | quote  | append $paths -}}
+    {{- end -}}
+{{- end -}}
+{{- range .Values.logConfig.errorOutputPaths -}}
+    {{- if not (has (printf "%s" . | quote) $paths) -}}
+        {{- $paths = printf "%s" . | quote  | append $paths -}}
+    {{- end -}}
 {{- end -}}
 {{ $paths | join ", " }}
 {{- end -}}
