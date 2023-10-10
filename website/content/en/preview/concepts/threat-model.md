@@ -21,11 +21,11 @@ When running in AWS, Karpenter is typically installed onto EC2 instances that ru
 
 ### Cluster Operator
 
-The Cluster Operator has full control over Kubernetes resources to install and configure Karpenter, its CRDs, and Provisioners and NodeTemplates. The Cluster Operator has privileges to  manage the cloud identities and permissions for Nodes, and the cloud identity and permissions for Karpenter.
+The Cluster Operator has full control to install and configure Karpenter including all [`NodePools`]{{<ref "./nodepools" >}} and [`EC2NodeClasses`]{{<ref "./nodeclasses" >}}. The Cluster Operator has privileges to manage the cloud identities and permissions for Nodes, and the cloud identity and permissions for Karpenter.
 
 ### Cluster Developer
 
-A Cluster Developer has the ability to create pods via Deployments, ReplicaSets, StatefulSets, Jobs, etc.  This assumes that the Cluster Developer cannot modify the Karpenter pod or launch pods using Karpenter’s service account and gain access to Karpenter’s IAM role.
+A Cluster Developer has the ability to create pods via `Deployments`, `ReplicaSets`, `StatefulSets`, `Jobs`, etc. This assumes that the Cluster Developer cannot modify the Karpenter pod or launch pods using Karpenter’s service account and gain access to Karpenter’s IAM role.
 
 ### Karpenter Controller
 
@@ -57,23 +57,23 @@ Karpenter has permissions to create and manage cloud instances. Karpenter has Ku
 
 **Threat**: A Cluster Developer attempts to have Karpenter create more instances than intended by creating a large number of pods or by using anti-affinity to schedule one pod per node.
 
-**Mitigation**: In addition to [Kubernetes resource limits](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota), Cluster Operators can [configure limits on a Provisioner](https://karpenter.sh/preview/concepts/provisioners/#speclimitsresources) to limit the total amount of memory, CPU, or other resources provisioned across all nodes.
+**Mitigation**: In addition to [Kubernetes resource limits](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota), Cluster Operators can [configure limits on a NodePool]({{< ref "./nodepools#spec-limits" >}}) to limit the total amount of memory, CPU, or other resources provisioned across all nodes.
 
-## AWS-Specific Threats
+## Threats
 
-### Threat: Using EC2 CreateTag/DeleteTag Permissions to Orchestrate Machine Creation/Deletion
+### Threat: Using EC2 CreateTag/DeleteTag Permissions to Orchestrate Instance Creation/Deletion
 
-**Background**: As of v0.28.0, Karpenter creates a mapping between CloudProvider machines and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
+**Background**: As of v0.28.0, Karpenter creates a mapping between CloudProvider instances and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
 
 * `karpenter.sh/managed-by`
-* `karpenter.sh/provisioner-name`
+* `karpenter.sh/nodepool`
 * `kubernetes.io/cluster/${CLUSTER_NAME}`
 
-Any user that has the ability to Create/Delete tags on CloudProvider machines will have the ability to orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect.
+Any user that has the ability to Create/Delete tags on CloudProvider instances will have the ability to orchestrate Karpenter to Create/Delete CloudProvider instances as a side effect.
 
-In addition, as of v0.29.0, Karpenter will Drift on Security Groups and Subnets. If a user has the Create/Delete tags permission for either of resources, they can orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect.
+In addition, as of v0.29.0, Karpenter will Drift on Security Groups and Subnets. If a user has the Create/Delete tags permission for either of resources, they can orchestrate Karpenter to Create/Delete CloudProvider instances as a side effect.
 
-**Threat:** A Cluster Operator attempts to create or delete a tag on a resource discovered by Karpenter. If it has the ability to create a tag it can effectively create or delete CloudProvider machines associated with the tagged resources.
+**Threat:** A Cluster Operator attempts to create or delete a tag on a resource discovered by Karpenter. If it has the ability to create a tag it can effectively create or delete CloudProvider instances associated with the tagged resources.
 
 **Mitigation** Cluster Operators should [enforce tag-based IAM policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_tags.html) on these tags against any EC2 instance resource (`i-*`) for any users that might have [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)/[DeleteTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteTags.html) permissions but should not have [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html)/[TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) permissions.
 

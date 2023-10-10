@@ -45,7 +45,6 @@ func main() {
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
-			ctx,
 			op.Clock,
 			op.GetClient(),
 			op.KubernetesInterface,

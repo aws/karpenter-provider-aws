@@ -1369,7 +1369,6 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				},
 			})
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			Eventually(func() bool { return awsEnv.PricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot}},
@@ -1396,7 +1395,6 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 				},
 			})
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			Eventually(func() bool { return awsEnv.PricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			// not restricting to the zone so we can get any zone
 			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{

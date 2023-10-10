@@ -19,14 +19,22 @@ bandwidth() {
 }
 
 pricing() {
-  GENERATED_FILE="pkg/providers/pricing/zz_generated.pricing.go"
-  NO_UPDATE=$' pkg/providers/pricing/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
-  SUBJECT="Pricing"
+  declare -a PARTITIONS=(
+    "aws"
+    "aws-us-gov"
+    # "aws-cn"
+  )
 
-  go run hack/code/prices_gen.go -- "${GENERATED_FILE}"
+  for partition in "${PARTITIONS[@]}"; do
+    GENERATED_FILE="pkg/providers/pricing/zz_generated.pricing_${partition//-/_}.go"
+    NO_UPDATE=" ${GENERATED_FILE} "$'| 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
+    SUBJECT="Pricing"
 
-  GIT_DIFF=$(git diff --stat "${GENERATED_FILE}")
-  checkForUpdates "${GIT_DIFF}" "${NO_UPDATE}" "${SUBJECT} beside timestamps since last update" "${GENERATED_FILE}"
+    go run hack/code/prices_gen.go --partition "$partition" --output "$GENERATED_FILE"
+
+    GIT_DIFF=$(git diff --stat "${GENERATED_FILE}")
+    checkForUpdates "${GIT_DIFF}" "${NO_UPDATE}" "${SUBJECT} beside timestamps since last update" "${GENERATED_FILE}"
+  done
 }
 
 vpcLimits() {
