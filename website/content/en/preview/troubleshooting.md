@@ -623,4 +623,4 @@ caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.2
 This network timeout occurs because there is no VPC endpoint available for the [Price List Query API.](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-pelong.html).
 To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
 To disable pricing lookups and avoid the error messages, set the `AWS_ISOLATED_VPC` environment variable (or the `--aws-isolated-vpc` option) to true.
-See [Environment Variables / CLI Flags]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for details.
+See [Environment Variables / CLI Flags]({{<ref "./reference/settings#environment-variables--cli-flags" >}}) for details.
