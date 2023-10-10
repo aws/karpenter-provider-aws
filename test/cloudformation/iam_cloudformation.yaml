@@ -123,6 +123,7 @@ Resources:
               - cloudformation:DeleteStack
               - cloudformation:DescribeChangeSet
               - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeStackResources
               - cloudformation:ExecuteChangeSet
               - cloudformation:GetTemplate
               - cloudformation:GetTemplateSummary
