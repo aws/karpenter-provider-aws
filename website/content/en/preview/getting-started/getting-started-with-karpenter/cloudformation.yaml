@@ -5,13 +5,6 @@ Parameters:
     Type: String
     Description: "EKS cluster name"
 Resources:
-  KarpenterNodeInstanceProfile:
-    Type: "AWS::IAM::InstanceProfile"
-    Properties:
-      InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
-      Path: "/"
-      Roles:
-        - !Ref "KarpenterNodeRole"
   KarpenterNodeRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -120,7 +113,7 @@ Resources:
                 },
                 "ForAllValues:StringEquals": {
                   "aws:TagKeys": [
-                    "karpenter.k8s.aws/nodeclaim",
+                    "karpenter.sh/nodeclaim",
                     "Name"
                   ]
                 }
