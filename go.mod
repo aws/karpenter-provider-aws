@@ -85,7 +85,6 @@ require (
 	github.com/rivo/uniseg v0.4.4 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.uber.org/atomic v1.11.0 // indirect
 	go.uber.org/automaxprocs v1.5.3 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/net v0.17.0 // indirect
@@ -115,5 +114,4 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-
-replace github.com/aws/karpenter-core => github.com/sadath-12/karpenter-core sadath-v1
+replace github.com/aws/karpenter-core => github.com/sadath-12/karpenter-core v0.0.0-20231010074117-dfa8c9151084
