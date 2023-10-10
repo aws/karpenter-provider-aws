@@ -65,7 +65,7 @@ jobs:
     with:
       # This version matches the steps of the newest version of the install-eksctl action
       # which will take in the eksctl_version into the composite action
-      from_git_ref: d29fb004f959d268ecfbddaccee004c99fc8c300
+      from_git_ref: 3519331035579ac0caf66a7f5a5282a2fef9b409
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
