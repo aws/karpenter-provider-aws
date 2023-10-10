@@ -75,6 +75,10 @@ runs:
           -r \
           aws ec2 delete-security-group \
             --group-id
+    - name: delete-iam-alpha-policy
+      shell: bash
+      run: |
+        aws iam delete-policy --policy-arn "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-Alpha-${{ inputs.cluster_name }}" || true
     - name: delete-iam-policies-stack
       shell: bash
       run: |
