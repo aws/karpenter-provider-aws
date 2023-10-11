@@ -99,7 +99,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels. |
 | webhook.enabled | bool | `true` | Whether to enable the webhooks and webhook permissions. |
-| webhook.logLevel | string | `"error"` |  |
+| webhook.logLevel | string | `"error"` | Webhook log level (Deprecated: Use logConfig.logLevel.webhook instead) |
 | webhook.metrics.port | int | `8001` | The container port to use for webhook metrics. |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
 

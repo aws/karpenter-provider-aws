@@ -54,6 +54,12 @@ const (
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
+type LaunchTemplate struct {
+	Name          string
+	InstanceTypes []*cloudprovider.InstanceType
+	ImageID       string
+}
+
 type Provider struct {
 	sync.Mutex
 	ec2api                  ec2iface.EC2API
@@ -97,14 +103,15 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 }
 
 func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim,
-	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string, tags map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string, tags map[string]string) ([]*LaunchTemplate, error) {
 
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
 	if nodeClass.Spec.LaunchTemplateName != nil {
-		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeClass.Spec.LaunchTemplateName): instanceTypes}, nil
+		return []*LaunchTemplate{{Name: ptr.StringValue(nodeClass.Spec.LaunchTemplateName), InstanceTypes: instanceTypes}}, nil
 	}
+
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, additionalLabels), tags)
 	if err != nil {
 		return nil, err
@@ -113,14 +120,14 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 	if err != nil {
 		return nil, err
 	}
-	launchTemplates := map[string][]*cloudprovider.InstanceType{}
+	var launchTemplates []*LaunchTemplate
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
 		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
 		if err != nil {
 			return nil, err
 		}
-		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
+		launchTemplates = append(launchTemplates, &LaunchTemplate{Name: *ec2LaunchTemplate.LaunchTemplateName, InstanceTypes: resolvedLaunchTemplate.InstanceTypes, ImageID: resolvedLaunchTemplate.AMIID})
 	}
 	return launchTemplates, nil
 }

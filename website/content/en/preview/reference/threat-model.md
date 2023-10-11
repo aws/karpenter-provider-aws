@@ -21,7 +21,7 @@ When running in AWS, Karpenter is typically installed onto EC2 instances that ru
 
 ### Cluster Operator
 
-The Cluster Operator has full control to install and configure Karpenter including all [`NodePools`]{{<ref "./nodepools" >}} and [`EC2NodeClasses`]{{<ref "./nodeclasses" >}}. The Cluster Operator has privileges to manage the cloud identities and permissions for Nodes, and the cloud identity and permissions for Karpenter.
+The Cluster Operator has full control to install and configure Karpenter including all [`NodePools`]{{<ref "../concepts/nodepools" >}} and [`EC2NodeClasses`]{{<ref "../concepts/nodeclasses" >}}. The Cluster Operator has privileges to manage the cloud identities and permissions for Nodes, and the cloud identity and permissions for Karpenter.
 
 ### Cluster Developer
 
@@ -57,7 +57,7 @@ Karpenter has permissions to create and manage cloud instances. Karpenter has Ku
 
 **Threat**: A Cluster Developer attempts to have Karpenter create more instances than intended by creating a large number of pods or by using anti-affinity to schedule one pod per node.
 
-**Mitigation**: In addition to [Kubernetes resource limits](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota), Cluster Operators can [configure limits on a NodePool]({{< ref "./nodepools#spec-limits" >}}) to limit the total amount of memory, CPU, or other resources provisioned across all nodes.
+**Mitigation**: In addition to [Kubernetes resource limits](https://kubernetes.io/docs/concepts/policy/resource-quotas/#object-count-quota), Cluster Operators can [configure limits on a NodePool]({{< ref "../concepts/nodepools#spec-limits" >}}) to limit the total amount of memory, CPU, or other resources provisioned across all nodes.
 
 ## Threats
 

@@ -63,9 +63,10 @@ jobs:
   e2e-upgrade:
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      # This version matches the steps of the newest version of the install-eksctl action
-      # which will take in the eksctl_version into the composite action
-      from_git_ref: 3519331035579ac0caf66a7f5a5282a2fef9b409
+      # This version matches the steps of the newest version that contains the additional step
+      # of deploying the instance profile so that the pre-upgrade and post-upgrade create-cluster
+      # actions have the same number of steps and don't fail during post-cleanup
+      from_git_ref: 62c25a3ea85c7d00165e60a913fff1ec7c1f29fd
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}

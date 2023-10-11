@@ -4,6 +4,8 @@ on:
     tags: [ 'v*.*.*' ]
 permissions:
   id-token: write
+  pull-requests: write
+  contents: write
 jobs:
   release:
     if: github.repository == 'aws/karpenter'
