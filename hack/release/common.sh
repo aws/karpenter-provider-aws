@@ -144,7 +144,7 @@ publishHelmChart() {
     helm dependency update "${CHART_NAME}"
     helm lint "${CHART_NAME}"
     helm package "${CHART_NAME}" --version "$HELM_CHART_VERSION"
-    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
+    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}" --debug
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
 }
