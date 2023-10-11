@@ -183,7 +183,7 @@ __Behavioral Fields__
 | Block Device Mappings      |    x    |          |
 | Detailed Monitoring        |    x    |          |
 
-To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "./settings#feature-gates" >}}).
+To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
 
 Karpenter will add `MachineDrifted` status condition on the machines if the machine is drifted, and does not have the status condition,
 
