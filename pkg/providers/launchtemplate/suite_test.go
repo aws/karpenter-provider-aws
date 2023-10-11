@@ -120,9 +120,9 @@ func ExpectLaunchTemplatesCreatedWithUserDataContaining(substrings ...string) {
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-		ExpectWithOffset(2, err).To(BeNil())
+		Expect(err).To(BeNil())
 		for _, substring := range substrings {
-			ExpectWithOffset(2, string(userData)).To(ContainSubstring(substring))
+			Expect(string(userData)).To(ContainSubstring(substring))
 		}
 	})
 }
@@ -132,9 +132,9 @@ func ExpectLaunchTemplatesCreatedWithUserDataNotContaining(substrings ...string)
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-		ExpectWithOffset(2, err).To(BeNil())
+		Expect(err).To(BeNil())
 		for _, substring := range substrings {
-			ExpectWithOffset(2, string(userData)).ToNot(ContainSubstring(substring))
+			Expect(string(userData)).ToNot(ContainSubstring(substring))
 		}
 	})
 }
@@ -144,10 +144,10 @@ func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
-		ExpectWithOffset(2, err).To(BeNil())
+		Expect(err).To(BeNil())
 		// Newlines are always added for missing TOML fields, so strip them out before comparisons.
 		actualUserData := strings.Replace(string(userData), "\n", "", -1)
 		expectedUserData := strings.Replace(expected, "\n", "", -1)
-		ExpectWithOffset(2, actualUserData).To(Equal(expectedUserData))
+		Expect(actualUserData).To(Equal(expectedUserData))
 	})
 }

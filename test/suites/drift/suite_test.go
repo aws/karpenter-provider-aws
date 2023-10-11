@@ -112,7 +112,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": customAMI}
 		env.ExpectCreatedOrUpdated(nodeTemplate)
 
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
@@ -211,7 +211,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectCreatedOrUpdated(nodeTemplate)
 
 		By("validating the drifted status condition has propagated")
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
@@ -236,7 +236,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectCreatedOrUpdated(nodeTemplate)
 
 		By("validating the drifted status condition has propagated")
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
@@ -261,7 +261,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectCreatedOrUpdated(updatedProvisioner)
 
 		By("validating the drifted status condition has propagated")
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
@@ -316,7 +316,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectCreatedOrUpdated(updatedAWSNodeTemplate)
 
 		By("validating the drifted status condition has propagated")
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
