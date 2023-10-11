@@ -371,12 +371,28 @@ spec:
 
 ### Pod Density
 
+By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
+
+{{% alert title="Note" color="primary" %}}
+By default, the VPC CNI allocates IPs for a node and pods from the same subnet. With [VPC CNI Custom Networking](https://aws.github.io/aws-eks-best-practices/networking/custom-networking), the pods will receive IP addresses from another subnet dedicated to pod IPs. This approach makes it easier to manage IP addresses and allows for separate Network Access Control Lists (NACLs) applied to your pods. VPC CNI Custom Networking reduces the pod density of a node since one of the ENI attachments will be used for the node and cannot share the allocated IPs on the interface to pods. Karpenter supports VPC CNI Custom Networking and similar CNI setups where the primary node interface is separated from the pods interfaces through a global [setting](./settings.md#configmap) within the karpenter-global-settings configmap: `aws.reservedENIs`. In the common case, `aws.reservedENIs` should be set to `"1"` if using Custom Networking.
+{{% /alert %}}
+
+{{% alert title="Windows Support Notice" color="warning" %}}
+It's currently not possible to specify custom networking with Windows nodes.
+{{% /alert %}}
+
 #### Max Pods
 
-By default, AWS will configure the maximum density of pods on a node [based on the node instance type](https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt). For small instances that require an increased pod density or large instances that require a reduced pod density, you can override this default value with `.spec.kubeletConfiguration.maxPods`. This value will be used during Karpenter pod scheduling and passed through to `--max-pods` on kubelet startup.
+For small instances that require an increased pod density or large instances that require a reduced pod density, you can override this default value with `.spec.kubeletConfiguration.maxPods`. This value will be used during Karpenter pod scheduling and passed through to `--max-pods` on kubelet startup.
 
 {{% alert title="Note" color="primary" %}}
 When using small instance types, it may be necessary to enable [prefix assignment mode](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) in the AWS VPC CNI plugin to support a higher pod density per node.  Prefix assignment mode was introduced in AWS VPC CNI v1.9 and allows ENIs to manage a broader set of IP addresses.  Much higher pod densities are supported as a result.
+{{% /alert %}}
+
+{{% alert title="Windows Support Notice" color="warning" %}}
+Presently, Windows worker nodes do not support using more than one ENI.
+As a consequence, the number of IP addresses, and subsequently, the number of pods that a Windows worker node can support is limited by the number of IPv4 addresses available on the primary ENI.
+Currently, Karpenter will only consider individual secondary IP addresses when calculating the pod density limit.
 {{% /alert %}}
 
 #### Pods Per Core
@@ -437,7 +453,7 @@ This field points to the cloud provider-specific custom resource. Learn more abo
 
 ## spec.consolidation
 
-You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.ttlSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning]({{<ref "./disruption" >}}) for more.
+You can configure Karpenter to deprovision instances through your Provisioner in multiple ways. You can use `spec.ttlSecondsAfterEmpty`, `spec.ttlSecondsUntilExpired` or `spec.consolidation.enabled`. Read [Deprovisioning](../deprovisioning/) for more.
 
 ## Example Use-Cases
 
