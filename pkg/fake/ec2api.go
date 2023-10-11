@@ -174,6 +174,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 				LaunchTemplateAndOverrides: &ec2.LaunchTemplateAndOverridesResponse{
 					Overrides: &ec2.FleetLaunchTemplateOverrides{
 						SubnetId:         input.LaunchTemplateConfigs[0].Overrides[0].SubnetId,
+						ImageId:          input.LaunchTemplateConfigs[0].Overrides[0].ImageId,
 						InstanceType:     input.LaunchTemplateConfigs[0].Overrides[0].InstanceType,
 						AvailabilityZone: input.LaunchTemplateConfigs[0].Overrides[0].AvailabilityZone,
 					},
