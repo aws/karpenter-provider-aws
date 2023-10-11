@@ -364,7 +364,6 @@ func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Obje
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
-	GinkgoHelper()
 	createdNodes := env.Monitor.CreatedNodes()
 	Expect(len(createdNodes)).To(BeNumerically(comparator, count),
 		fmt.Sprintf("expected %d created nodes, had %d (%v)", count, len(createdNodes), NodeNames(createdNodes)))
