@@ -79,7 +79,8 @@ COMMUNITY_CONTRIBUTIONS=$(
         .author != "suket22" and
         .author != "StableRelease" and
         .author != "dependabot[bot]" and
-        .author != "github-actions[bot]"
+        .author != "github-actions[bot]" and
+        .author != "APICodeGen"
     )
 ' | jq -s
 )

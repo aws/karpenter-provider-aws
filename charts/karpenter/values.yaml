@@ -117,16 +117,14 @@ controller:
   #    cpu: 1
   #    memory: 1Gi
 
-  # -- Controller outputPaths - default to stdout only
+  # -- Controller outputPaths - defaults to stdout only (Deprecated: Use logConfig.outputPaths instead)
   outputPaths:
     - stdout
-  # -- Controller errorOutputPaths - default to stderr only
+  # -- Controller errorOutputPaths - defaults to stderr only (Deprecated: Use logConfig.errorOutputPaths instead)
   errorOutputPaths:
     - stderr
-  # -- Controller log level, defaults to the global log level
+  # -- Controller log level, defaults to the global log level (Deprecated: Use logConfig.logLevel.controller instead)
   logLevel: ""
-  # -- Controller log encoding, defaults to the global log encoding
-  logEncoding: ""
   # -- Additional volumeMounts for the controller pod.
   extraVolumeMounts: []
   # - name: aws-iam-token
@@ -145,6 +143,7 @@ controller:
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
   enabled: true
+  # -- Webhook log level (Deprecated: Use logConfig.logLevel.webhook instead)
   logLevel: error
   # -- The container port to use for the webhook.
   port: 8443
@@ -153,8 +152,25 @@ webhook:
     port: 8001
 # -- Global log level
 logLevel: debug
-# -- Global log encoding
+# -- Global log encoding (Deprecated: Use logConfig.logEncoding instead)
 logEncoding: console
+# -- Log configuration
+logConfig:
+  # -- Whether to enable provisioning and mounting the log ConfigMap
+  enabled: true
+  # -- Log outputPaths - defaults to stdout only
+  outputPaths:
+    - stdout
+  # -- Log errorOutputPaths - defaults to stderr only
+  errorOutputPaths:
+    - stderr
+  # -- Log encoding - defaults to console - must be one of 'json', 'console'
+  logEncoding: console
+  # -- Component-based log configuration
+  logLevel:
+    global: debug
+    controller: debug
+    webhook: error
 # -- Global Settings to configure Karpenter
 settings:
   # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
