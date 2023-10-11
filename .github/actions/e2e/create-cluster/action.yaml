@@ -85,7 +85,7 @@ runs:
       cmd="create"
       eksctl get cluster --name ${{ inputs.cluster_name }} && cmd="upgrade"
 
-      eksctl ${cmd} cluster -f - <<EOF
+      cat << EOF >> clusterconfig.yaml
       ---
       apiVersion: eksctl.io/v1alpha5
       kind: ClusterConfig
@@ -146,6 +146,14 @@ runs:
         wellKnownPolicies:
           ebsCSIController: true
       EOF
+      
+      eksctl ${cmd} cluster -f clusterconfig.yaml
+      
+      # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
+      # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
+      eksctl update iamserviceaccount -f clusterconfig.yaml --approve
+      
+
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash
