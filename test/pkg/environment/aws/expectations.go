@@ -145,7 +145,6 @@ func (env *Environment) ExpectInstanceTerminated(nodeName string) {
 	Expect(err).To(Succeed())
 }
 
-
 func (env *Environment) GetInstanceByID(instanceID string) ec2.Instance {
 	GinkgoHelper()
 	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
