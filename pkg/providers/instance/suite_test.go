@@ -36,8 +36,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/cloudprovider"
@@ -72,8 +70,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	nodepoolutil.EnableNodePools = true
-	nodeclaimutil.EnableNodeClaims = true
 	ctx = options.ToContext(ctx, opts)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
@@ -176,107 +172,6 @@ var _ = Describe("Combined/InstanceProvider", func() {
 		instances, err := awsEnv.InstanceProvider.List(ctx)
 		Expect(err).To(BeNil())
 		Expect(instances).To(HaveLen(40))
-
-		retrievedIDs := sets.New[string](lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
-		Expect(ids.Equal(retrievedIDs)).To(BeTrue())
-	})
-	It("should only return Provisioner-owned instances and not NodePool-owned instances if EnableNodePools/EnableNodeClaims isn't enabled", func() {
-		nodepoolutil.EnableNodePools = false
-		nodeclaimutil.EnableNodeClaims = false
-
-		ids := sets.New[string]()
-		// Provision instances that have the karpenter.sh/provisioner-name key
-		for i := 0; i < 20; i++ {
-			instanceID := fake.InstanceID()
-			awsEnv.EC2API.Instances.Store(
-				instanceID,
-				&ec2.Instance{
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
-					},
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
-							Value: aws.String("owned"),
-						},
-						{
-							Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
-							Value: aws.String("default"),
-						},
-						{
-							Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
-						},
-					},
-					PrivateDnsName: aws.String(fake.PrivateDNSName()),
-					Placement: &ec2.Placement{
-						AvailabilityZone: aws.String(fake.DefaultRegion),
-					},
-					// Launch time was 1m ago
-					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
-					InstanceId:   aws.String(instanceID),
-					InstanceType: aws.String("m5.large"),
-				},
-			)
-			ids.Insert(instanceID)
-		}
-		// Provision instances that have the karpenter.sh/nodepool key
-		for i := 0; i < 20; i++ {
-			instanceID := fake.InstanceID()
-			awsEnv.EC2API.Instances.Store(
-				instanceID,
-				&ec2.Instance{
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
-					},
-					Tags: []*ec2.Tag{
-						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
-							Value: aws.String("owned"),
-						},
-						{
-							Key:   aws.String(corev1beta1.NodePoolLabelKey),
-							Value: aws.String("default"),
-						},
-						{
-							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
-						},
-					},
-					PrivateDnsName: aws.String(fake.PrivateDNSName()),
-					Placement: &ec2.Placement{
-						AvailabilityZone: aws.String(fake.DefaultRegion),
-					},
-					// Launch time was 1m ago
-					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
-					InstanceId:   aws.String(instanceID),
-					InstanceType: aws.String("m5.large"),
-				},
-			)
-		}
-		// Provision instances that do not have this tag key
-		for i := 0; i < 20; i++ {
-			instanceID := fake.InstanceID()
-			awsEnv.EC2API.Instances.Store(
-				instanceID,
-				&ec2.Instance{
-					State: &ec2.InstanceState{
-						Name: aws.String(ec2.InstanceStateNameRunning),
-					},
-					PrivateDnsName: aws.String(fake.PrivateDNSName()),
-					Placement: &ec2.Placement{
-						AvailabilityZone: aws.String(fake.DefaultRegion),
-					},
-					// Launch time was 1m ago
-					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
-					InstanceId:   aws.String(instanceID),
-					InstanceType: aws.String("m5.large"),
-				},
-			)
-		}
-		instances, err := awsEnv.InstanceProvider.List(ctx)
-		Expect(err).To(BeNil())
-		Expect(instances).To(HaveLen(20))
 
 		retrievedIDs := sets.New[string](lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
 		Expect(ids.Equal(retrievedIDs)).To(BeTrue())

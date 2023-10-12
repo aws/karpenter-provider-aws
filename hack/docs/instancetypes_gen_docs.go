@@ -63,8 +63,18 @@ func (m *FakeManager) GetConfig() *rest.Config {
 	return &rest.Config{}
 }
 
+func (m *FakeManager) GetFieldIndexer() client.FieldIndexer {
+	return &FakeFieldIndexer{}
+}
+
 func (m *FakeManager) Elected() <-chan struct{} {
 	return make(chan struct{}, 1)
+}
+
+type FakeFieldIndexer struct{}
+
+func (f *FakeFieldIndexer) IndexField(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
+	return nil
 }
 
 func main() {

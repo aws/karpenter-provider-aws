@@ -68,7 +68,7 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 
 func EC2NodeClassFieldIndexer(ctx context.Context) func(cache.Cache) error {
 	return func(c cache.Cache) error {
-		return c.IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClass.name", func(obj client.Object) []string {
+		return c.IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClassRef.name", func(obj client.Object) []string {
 			nc := obj.(*corev1beta1.NodeClaim)
 			if nc.Spec.NodeClassRef == nil {
 				return []string{""}

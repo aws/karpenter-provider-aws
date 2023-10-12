@@ -41,8 +41,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
@@ -85,8 +83,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	nodepoolutil.EnableNodePools = true
-	nodeclaimutil.EnableNodeClaims = true
 	awsEnv.Reset()
 })
 

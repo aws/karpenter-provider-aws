@@ -32,8 +32,6 @@ import (
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter/pkg/apis/settings"
@@ -357,17 +355,5 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 			}(ids[i], nodes[i])
 		}
 		wg.Wait()
-	})
-	It("should not delete an instance if EnableNodePools/EnableNodeClaims isn't enabled", func() {
-		nodepoolutil.EnableNodePools = false
-		nodeclaimutil.EnableNodeClaims = false
-
-		// Launch time was 1m ago
-		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
-		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
-
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
-		_, err := cloudProvider.Get(ctx, providerID)
-		Expect(err).ToNot(HaveOccurred())
 	})
 })
