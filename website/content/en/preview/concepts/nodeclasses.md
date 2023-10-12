@@ -131,7 +131,7 @@ AMIFamily is a required field, dictating both the default bootstrapping logic fo
 
 ### AL2
 
-```console
+```bash
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
 
@@ -166,7 +166,7 @@ max-pods = 110
 
 ### Ubuntu
 
-```console
+```bash
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
 

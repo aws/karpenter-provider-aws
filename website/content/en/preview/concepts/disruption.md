@@ -95,7 +95,7 @@ When there are multiple nodes that could be potentially deleted or replaced, Kar
 
 If consolidation is enabled, Karpenter periodically reports events against nodes that indicate why the node can't be consolidated.  These events can be used to investigate nodes that you expect to have been consolidated, but still remain in your cluster.
 
-```console
+```bash
 Events:
   Type     Reason                   Age                From             Message
   ----     ------                   ----               ----             -------

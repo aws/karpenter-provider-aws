@@ -194,7 +194,7 @@ Karpenter marks CloudProvider capacity as "managed by" a Machine using the `karp
 ### Upgrading to v0.27.3+
 * The `defaulting.webhook.karpenter.sh` mutating webhook was removed in `v0.27.3`. If you are coming from an older version of Karpenter where this webhook existed and the webhook was not managed by Helm, you may need to delete the stale webhook.
 
-```console
+```bash
 kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
 ```
 

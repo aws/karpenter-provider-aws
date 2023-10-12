@@ -255,7 +255,7 @@ spec:
 
 When attempting to schedule a large number of pods with PersistentVolumes, it's possible that these pods will co-locate on the same node. Pods will report the following errors in their events using a `kubectl describe pod` call
 
-```console
+```bash
 Warning   FailedAttachVolume    pod/example-pod                      AttachVolume.Attach failed for volume "***" : rpc error: code = Internal desc = Could not attach volume "***" to node "***": attachment of disk "***" failed, expected device to be attached but was attaching
 Warning   FailedMount           pod/example-pod                      Unable to attach or mount volumes: unmounted volumes=[***], unattached volumes=[***]: timed out waiting for the condition
 ```
@@ -266,7 +266,7 @@ In this case, Karpenter may fail to scale-up your nodes due to these pods due to
 
 Karpenter does not support [in-tree storage plugins](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/) to provision PersistentVolumes, since nearly all of the in-tree plugins have been deprecated in upstream Kubernetes. This means that, if you are using a statically-provisioned PersistentVolume that references a volume source like `AWSElasticBlockStore` or a dynamically-provisioned PersistentVolume that references a StorageClass with a in-tree storage plugin provisioner like `kubernetes.io/aws-ebs`, Karpenter will fail to discover the maxiumum volume attachments for the node. Instead, Karpenter may think the node still has more schedulable space due to memory and cpu constraints when there is really no more schedulable space on the node due to volume limits. When Karpenter sees you are using an in-tree storage plugin on your pod volumes, it will print the following error message into the logs. If you see this message, upgrade your StorageClasses and statically-provisioned PersistentVolumes to use the latest CSI drivers for your cloud provider.
 
-```console
+```bash
 2023-04-05T23:56:53.363Z        ERROR   controller.node_state   PersistentVolume source 'AWSElasticBlockStore' uses an in-tree storage plugin which is unsupported by Karpenter and is deprecated by Kubernetes. Scale-ups may fail because Karpenter will not discover driver limits. Use a PersistentVolume that references the 'CSI' volume source for Karpenter auto-scaling support.       {"commit": "b2af562", "node": "ip-192-168-36-137.us-west-2.compute.internal", "pod": "inflate0-6c4bdb8b75-7qmfd", "volume": "mypd", "persistent-volume": "pvc-11db7489-3c6e-46f3-a958-91f9d5009d41"}
 2023-04-05T23:56:53.464Z        ERROR   controller.node_state   StorageClass .spec.provisioner uses an in-tree storage plugin which is unsupported by Karpenter and is deprecated by Kubernetes. Scale-ups may fail because Karpenter will not discover driver limits. Create a new StorageClass with a .spec.provisioner referencing the CSI driver plugin name 'ebs.csi.aws.com'.     {"commit": "b2af562", "node": "ip-192-168-36-137.us-west-2.compute.internal", "pod": "inflate0-6c4bdb8b75-7qmfd", "volume": "mypd", "storage-class": "gp2", "provisioner": "kubernetes.io/aws-ebs"}
 ```
@@ -299,7 +299,7 @@ To avoid this discrepancy between `maxPods` and the supported pod density of the
 2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your Provisioner
 3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
 
-For more information on pod density, view the [Pod Density Conceptual Documentation]({{<ref "./concepts/pod-density" >}}).
+For more information on pod density, view the [Pod Density Section in the NodePools doc]({{<ref "./concepts/nodepools#pod-density" >}}).
 
 #### IP exhaustion in a subnet
 
