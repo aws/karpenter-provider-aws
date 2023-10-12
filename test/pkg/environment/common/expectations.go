@@ -344,17 +344,12 @@ func (env *Environment) eventuallyExpectScaleDown() {
 	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.StartingNodeCount, env.Monitor.NodeCount()))
 }
 
-
-
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
 	GinkgoHelper()
 	env.EventuallyExpectNotFoundAssertion(objects...).Should(Succeed())
 }
 
-
-
 func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Object) AsyncAssertion {
-	GinkgoHelper()
 	return Eventually(func(g Gomega) {
 		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
