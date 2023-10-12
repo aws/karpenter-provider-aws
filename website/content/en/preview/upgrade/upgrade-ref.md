@@ -107,6 +107,11 @@ spec:
       memory: 100Mi
       ephemeral-storage: 1Gi
     maxPods: 20
+  limits:
+    resources:
+      cpu: 1000
+      memory: 1000Gi
+  weight: 50
 ```
 
 **NodePool example (v1beta1)**
@@ -148,6 +153,10 @@ spec:
           memory: 100Mi
           ephemeral-storage: 1Gi
         maxPods: 20
+  limits:
+    cpu: 1000
+    memory: 1000Gi
+  weight: 50
 ```
 
 ### Provider
