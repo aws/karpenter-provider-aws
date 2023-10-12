@@ -20,6 +20,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
