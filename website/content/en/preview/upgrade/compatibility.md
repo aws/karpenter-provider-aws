@@ -8,9 +8,8 @@ description: >
 
 # Compatibility 
 
-To make upgrading easier we aim to minimize introduction of breaking changes.
-Before you begin upgrading Karpenter, consider Karpenter compatibilty Kubernetes, the NodePool (previously Provisioner) API,
-Kubernetes Custom Resource Definitions (CRDs) applied through Helm Charts, and 
+To make upgrading easier we aim to minimize the introduction of breaking changes.
+Before you begin upgrading Karpenter, consider Karpenter compatibility issues related to Kubernetes, the NodePool API (previously Provisioner), and Kubernetes Custom Resource Definitions (CRDs) applied through Helm Charts.
 
 ## Compatibility Matrix 
 
@@ -32,16 +31,6 @@ For more information on Karpenter's support for these keys, view [this tracking 
 {{% /alert %}}
 
 ## Compatibility issues
-
-To make upgrading easier, we aim to minimize the introduction of breaking changes with the followings components:
-
-* Provisioner API
-* Helm Chart
-
-We try to maintain compatibility with:
-
-* The application itself
-* The documentation of the application
 
 When we introduce a breaking change, we do so only as described in this document.
 

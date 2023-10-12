@@ -1,6 +1,6 @@
 ---
-title: "Karpenter Upgrade Guide"
-linkTitle: "Karpenter Upgrade Guide"
+title: "Upgrade Guide"
+linkTitle: "Upgrade Guide"
 weight: 10
 description: >
   Learn about upgrading Karpenter
@@ -8,7 +8,7 @@ description: >
 
 Karpenter is a controller that runs in your cluster, but it is not tied to a specific Kubernetes version, as the Cluster Autoscaler is.
 Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes and keep Karpenter up to date on bug fixes and new features.
-This guide contains information needed to upgrade to the latest release of Karpenters, along with compatibility issues you need to be aware of when upgrading from earlier Karpenter versions.
+This guide contains information needed to upgrade to the latest release of Karpenter, along with compatibility issues you need to be aware of when upgrading from earlier Karpenter versions.
 
 ### Upgrading to v0.32.0+
 
@@ -16,22 +16,34 @@ This guide contains information needed to upgrade to the latest release of Karpe
 
 Here is some information you should know about upgrading the Karpenter controller to v0.32:
 
-* **Towards a v1 release**: The latest version of Karpenter sets the stage for Karpenter v1. Karpenter v0.32 implements the Karpenter v1beta1 API spec. The intention is to have v1beta1 be used as the v1 spec, with only minimal changes as needed.
-* **Path to upgrading**: This procedure assumes that you are upgrading from Karpenter v0.31 to v0.32. If you are on an earlier version of Karpenter, review the [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for breaking changes.
-* **Enhancing and renaming components**: For v1beta1, APIs have been enhanced to improve and solidify Karpenter APIS, as well as to make features more aligned with other Kubernetes autoscaling technologies. Part of these enhancements includes renaming Kind elements Provisioner (now NodePool), Machine (now NodeClaim), and AWSNodeTemplate (now EC2NodeClass). To fully transition to v1beta1, you need to update those Kind elements in your manifests and make other changes to your cluster, as described later.
+* **Towards a v1 release**: The latest version of Karpenter sets the stage for Karpenter v1. Karpenter v0.32.x implements the Karpenter v1beta1 API spec. The intention is to have v1beta1 be used as the v1 spec, with only minimal changes needed.
+* **Path to upgrading**: This procedure assumes that you are upgrading from Karpenter v0.31.x to v0.32.x. If you are on an earlier version of Karpenter, review the [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for earlier versions' breaking changes.
+* **Enhancing and renaming components**: For v1beta1, APIs have been enhanced to improve and solidify Karpenter APIs. Part of these enhancements includes renaming the Kinds for all Karpenter CustomResources. The following name changes have been made:
+   * Provisioner -> NodePool
+   * Machine -> NodeClaim
+   * AWSNodeTemplate -> EC2NodeClass
 * **Running v1alpha1 alongside v1beta1**: Having different Kind names for v1alpha5 and v1beta1 allows them to coexist for the same Karpenter controller for v0.32. This gives you time to transition to the new v1beta1 APIs while existing Provisioners and other objects stay in place. Keep in mind that there is no guarantee that the two versions will be able to coexist in future Karpenter versions.
 
 Some things that will help you with this upgrade include:
 
-* **[Karpenter Upgrade Reference]({{< relref "upgrade-ref.md" >}})**: Provides a complete reference to help you transition your Provisioner, Machine, and AWSNodeTemplate manifests, as well as other components, to be able to work with the new v1beta1 names, labels, and other elements.
+* **[Karpenter Upgrade Reference]({{< relref "v1beta1-reference" >}})**: Provides a complete reference to help you transition your Provisioner, Machine, and AWSNodeTemplate manifests, as well as other components, to be able to work with the new v1beta1 names, labels, and other elements.
 * **[Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert)**: Simplifies the creation of NodePool and EC2NodeClass manifests.
-* **[Compatibility]({{< relref "compatibility.md" >}})**: Offers details about Karpenter compatibility with different versions of Kubernetes and other components.
 
 ##### Procedure
 
 This procedure assumes you are running the Karpenter controller on cluster and want to upgrade that cluster to v0.32.x.
 
 **NOTE**: Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so you should carefully evaluate your cluster and workloads before proceeding.
+
+
+### Prerequisites
+
+To upgrade your provisioner and AWSNodeTemplate YAML files to be compatible with v1beta1, you can either update them manually or use the [karpenter-convert](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert) CLI tool. To install that tool:
+
+```
+go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@latest
+```
+Add `~/go/bin` to your $PATH, if you have not already done so.
 
 1. Determine the current cluster version: Run the following to make sure that your Karpenter version is v0.31.x:
    ```
@@ -43,7 +55,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
    Image: public.ecr.aws/karpenter/controller:v0.31.0@sha256:d29767fa9c5c0511a3812397c932f5735234f03a7a875575422b712d15e54a77
    ```
 
-2. Review for breaking changes: If you are already running Karpenter v0.31, you can skip this step. If you are running an earlier Karpenter version, you need to review the upgrade notes each minor release to make sure that you deal with any breaking changes that might have been introduced. See [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for details on each previous Karpenter version.
+2. Review for breaking changes: If you are already running Karpenter v0.31.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the upgrade notes for each minor release.
 
 3. Set environment variables for your cluster:
 
@@ -96,13 +108,13 @@ This procedure assumes you are running the Karpenter controller on cluster and w
     ```
 
 7. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert/README).
-   See the [AWSNodeTemplate to EC2NodeClass]({{< relref "upgrade-ref#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects. Here is an example of how to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
+   See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-reference#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects. Here is an example of how to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
 
     ```bash
     karpenter-convert -f awsnodetemplate.yaml > ec2nodeclass.yaml
     ```
 
-8. Edit the converted EC2NodeClass file and manually:
+8. Edit the converted EC2NodeClass file manually:
 
    * Specify your AWS role where there is a `your AWS role Here` placeholder.
    * Otherwise check the file for accuracy.
@@ -127,7 +139,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
 12. Roll over nodes: With the new NodePool yaml in hand, there are several ways you can begin to roll over your nodes to use the new NodePool:
 
-   * Periodic Rolling with Drift: Enable drift in your NodePool file, then do the following:
+   * Periodic Rolling with [Drift]({{< relref "../concepts/disruption#drift" >}}): Enable [drift]({{< relref "../concepts/disruption#drift" >}}) in your NodePool file, then do the following:
       - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
       - Wait as Karpenter marks all machines owned by that Provisioner as having drifted.
       - Watch as replacement nodes are launched from the new NodePool resource.
@@ -160,7 +172,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
 ### Upgrading to v0.30.0+
 
-* Karpenter will now [statically drift]({{<ref "../concepts/disruption.md#drift" >}}) on both Provisioner and AWSNodeTemplate Fields. For Provisioner Static Drift, the `karpenter.sh/provisioner-hash` annotation must be present on both the Provisioner and Machine. For AWSNodeTemplate drift, the `karpenter.k8s.aws/nodetemplate-hash` annotation must be present on the AWSNodeTemplate and Machine. Karpenter will not add these annotations to pre-existing nodes, so each of these nodes will need to be recycled one time for the annotations to be added.
+* Karpenter will now [statically drift]({{<ref "../concepts/disruption#drift" >}}) on both Provisioner and AWSNodeTemplate Fields. For Provisioner Static Drift, the `karpenter.sh/provisioner-hash` annotation must be present on both the Provisioner and Machine. For AWSNodeTemplate drift, the `karpenter.k8s.aws/nodetemplate-hash` annotation must be present on the AWSNodeTemplate and Machine. Karpenter will not add these annotations to pre-existing nodes, so each of these nodes will need to be recycled one time for the annotations to be added.
 * Karpenter will now fail validation on AWSNodeTemplates and Provisioner `spec.provider` that have `amiSelectors`, `subnetSelectors`, or `securityGroupSelectors` set with a combination of id selectors (`aws-ids`, `aws::ids`) and other selectors. 
 * Karpenter now statically sets the `securityContext` at both the pod and container-levels and doesn't allow override values to be passed through the helm chart. This change was made to adhere to [Restricted Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted), which follows pod hardening best practices. 
 

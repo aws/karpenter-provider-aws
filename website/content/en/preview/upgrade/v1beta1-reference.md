@@ -1,26 +1,27 @@
 ---
-title: "Karpenter Upgrade Reference"
-linkTitle: "Karpenter Upgrade Reference"
+title: "v1beta1 Upgrade Reference"
+linkTitle: "v1beta1 Upgrade Reference"
 weight: 10
 description: >
   API information for upgrading Karpenter
 ---
 
-Significant changes to the Karpenter APIs and various compatibility issues have been introduced in Karpenter v0.32.
+Significant changes to the Karpenter APIs have been introduced in Karpenter v0.32.x.
 In this release, Karpenter APIs have advanced to v1beta1, in preparation for Karpenter v1 in the near future.
 The v1beta1 changes are meant to simplify and improve ease of use of those APIs, as well as solidify the APIs for the v1 release.
 Use this document as a reference to the changes that were introduced in the current release and as a guide to how you need to update the manifests and other Karpenter objects you created in previous Karpenter releases.
 
-The [Karpenter Upgrade Guide}(]({{< relref "upgrade-guide" >}}) steps you through the process of upgrading Karpenter for the latest release.
-For a more general understanding of Karpenter compatibility issues, see the ({{< relref "#compatibility" >}}) section of this document.
+The [Upgrade Guide]({{< relref "upgrade-guide" >}}) steps you through the process of upgrading Karpenter for the latest release.
+For a more general understanding of Karpenter's compatibility, see the [Compatibility Document]({{< relref "compatibility" >}}).
 
 # Karpenter Migration Information
 
 Use the information below to help migrate your Karpenter v1alpha assets to v1beta1.
 
+
 ### Custom Resource Definition (CRD) Upgrades
 
-Karpenter ships with a few Custom Resource Definitions (CRDs). Starting with v0.32, CRDs representing Provisioners (karpenter.sh_provisioners.yaml), Machines (karpenter.sh_machines.yaml) and AWS Node Templates (karpenter.k8s.aws_awsnodetemplates.yaml) are replaced by those for Node Pools, Node Claims, and EC2 Node classes, respectively.
+Karpenter ships with a few Custom Resource Definitions (CRDs). Starting with v0.32.0, CRDs representing Provisioners, Machines, and AWS Node Templates are replaced by those for Node Pools, Node Claims, and EC2 Node classes, respectively.
 You can find these CRDs on [Karpenter APIs CRD](https://github.com/aws/karpenter/tree/main/pkg/apis/crds) page.
 
 The [Karpenter Upgrade Guide}(]({{< relref "upgrade-guide" >}}) describes how to install the new CRDs using `kubectl`. However, you can instead install those CRDs as an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd), that can be used by Helm to manage the lifecycle of these CRDs.  See [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) for the source code,
@@ -39,18 +40,19 @@ helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-cr
 
 Karpenter v1beta1 introduces changes to some common labels, annotations, and status conditions that are present in the project. The tables below lists the v1alpha5 values and their v1beta1 equivalent.
 
-| Core Karpenter Labels           |                             |
+| Karpenter Labels                |                             |
 |---------------------------------|-----------------------------|
 | **v1alpha5**                    | **v1beta1**                 |
 | karpenter.sh/provisioner-name   | karpenter.sh/nodepool       |
 
 
-| Core Karpenter Annotations      |                             |
-|---------------------------------|-----------------------------|
-| **v1alpha5**                    | **v1beta1**                 |
-| karpenter.sh/provisioner-hash   | karpenter.sh/nodepool-hash  |
-| karpenter.sh/do-not-consolidate | karpenter.sh/do-not-disrupt |
-| karpenter.sh/do-not-evict       | karpenter.sh/do-not-disrupt |
+| Karpenter Annotations               |                                  |
+|-------------------------------------|----------------------------------|
+| **v1alpha5**                        | **v1beta1**                      |
+| karpenter.sh/provisioner-hash       | karpenter.sh/nodepool-hash       |
+| karpenter.k8s.aws/nodetemplate-hash | karpenter.k8s.aws/nodeclass-hash |
+| karpenter.sh/do-not-consolidate     | karpenter.sh/do-not-disrupt      |
+| karpenter.sh/do-not-evict           | karpenter.sh/do-not-disrupt      |
 
 > **Note**: Karpenter dropped the `karpenter.sh/do-not-consolidate` annotation in favor of the `karpenter.sh/do-not-disrupt` annotation on nodes. This annotation specifies that no voluntary disruption should be performed by Karpenter against this node.
 
@@ -68,6 +70,7 @@ Karpenter v1beta1 introduces changes to some common labels, annotations, and sta
 
 Karpenter v1beta1 moves almost all top-level fields under the `NodePool` template field. Similar to Deployments (which template Pods that are orchestrated by the deployment controller), Karpenter NodePool templates NodeClaims (that are orchestrated by the Karpenter controller). Here is an example of a `Provisioner` (v1alpha5) migrated to a `NodePool` (v1beta1):
 
+Note that the `Limits` and `Weight` fields sit outside of the template section. The `Labels` and `Annotations` fields from the Provisioner are now under the `spec.template.metadata` section. Note that all other fields including requirements, taints, kubeletConfiguration, and so on, are specified under the `spec.template.spec` section.
 
 **Provisioner example (v1alpha)**
 
@@ -237,7 +240,7 @@ spec:
 
 ### Consolidation
 
-The Karpenter `spec.consolidation` block has been shifted into a `consolidationPolicy`. If you were previously enabling Karpenter’s consolidation feature for underutilized nodes using the `consolidation.enabled` flag, you now enable consolidation through the `consolidationPolicy`.
+The Karpenter `spec.consolidation` block has also been shifted under `consolidationPolicy`. If you were previously enabling Karpenter’s consolidation feature for underutilized nodes using the `consolidation.enabled` flag, you now enable consolidation through the `consolidationPolicy`.
 
 **consolidation enabled example (v1alpha)**
 
@@ -259,10 +262,9 @@ kind: NodePool
 spec:
   disruption:
     consolidationPolicy: WhenUnderutilized
-
 ```
 
-> Note: You currently can’t the `consolidateAfter` field when specifying `consolidationPolicy: WhenUnderutilized`. Karpenter will use a 15s `consolidateAfter` runtime default. 
+> Note: You currently can’t set the `consolidateAfter` field when specifying `consolidationPolicy: WhenUnderutilized`. Karpenter will use a 15s `consolidateAfter` runtime default.
 
 ### TTLSecondsUntilExpired
 
@@ -550,6 +552,7 @@ spec:
 ### LaunchTemplateName
 
 The `spec.launchTemplateName` field for referencing unmanaged launch templates within Karpenter has been removed. 
+Find a discussion of the decision to remove `spec.launchTemplateName`, see [RFC: Unmanaged LaunchTemplate Removal](https://github.com/aws/karpenter/blob/main/designs/unmanaged-launch-template-removal.md).
 
 ### AMIFamily
 
@@ -584,21 +587,21 @@ The v1beta1 specification removes the `karpenter-global-settings` ConfigMap in f
 
 
 | **`karpenter-global-settings` ConfigMap Key**     | **Environment Variable**        | **CLI Argument**
-|---------------------------------------------------|---------------------------------|-----------------------------------|
-| batchMaxDuration                                  | BATCH_MAX_DURATION              | --batch-max-duration              |
-| batchIdleDuration                                 | BATCH_IDLE_DURATION             | --batch-idle-duration             |
-| aws.assumeRoleARN                                 | AWS_ASSUME_ROLE_ARN             | --aws-assume-role-arn             |
-| aws.assumeRoleDuration                            | AWS_ASSUME_ROLE_DURATION        | --aws-assume-role-duration        |
-| aws.clusterCABundle                               | AWS_CLUSTER_CA_BUNDLE           | --aws-cluster-ca-bundle           |
-| aws.clusterName                                   | AWS_CLUSTER_NAME                | --aws-cluster-name                |
-| aws.clusterEndpoint                               | AWS_CLUSTER_ENDPOINT            | --aws-cluster-endpoint            |
-| aws.defaultInstanceProfile                        | Dropped                         | Dropped                           |
-| aws.enablePodENI                                  | Dropped                         | Dropped                           |
-| aws.enableENILimitedPodDensity                    | Dropped                         | Dropped                           |
-| aws.isolatedVPC                                   | AWS_ISOLATED_VPC                |--aws-isolated-vpc                 |
-| aws.vmMemoryOverheadPercent                       | AWS_VM_MEMORY_OVERHEAD_PERCENT  |--aws-vm-memory-overhead-percent   |
-| aws.interruptionQueueName                         | AWS_INTERRUPTION_QUEUE_NAME     |--aws-interruption-queue-name      |
-| featureGates.enableDrift                          | FEATURE_GATE="Drift=true"       |--feature-gates Drift=true         |
+|---------------------------------------------------|---------------------------------|-------------------------------|
+| batchMaxDuration                                  | BATCH_MAX_DURATION              | --batch-max-duration          |
+| batchIdleDuration                                 | BATCH_IDLE_DURATION             | --batch-idle-duration         |
+| assumeRoleARN                                     | ASSUME_ROLE_ARN                 | --assume-role-arn             |
+| assumeRoleDuration                                | ASSUME_ROLE_DURATION            | --assume-role-duration        |
+| clusterCABundle                                   | CLUSTER_CA_BUNDLE               | --cluster-ca-bundle           |
+| clusterName                                       | CLUSTER_NAME                    | --cluster-name                |
+| clusterEndpoint                                   | CLUSTER_ENDPOINT                | --cluster-endpoint            |
+| defaultInstanceProfile                            | Dropped                         | Dropped                       |
+| enablePodENI                                      | Dropped                         | Dropped                       |
+| enableENILimitedPodDensity                        | Dropped                         | Dropped                       |
+| isolatedVPC                                       | ISOLATED_VPC                    | --isolated-vpc                |
+| vmMemoryOverheadPercent                           | VM_MEMORY_OVERHEAD_PERCENT      | --vm-memory-overhead-percent  |
+| interruptionQueueName                             | INTERRUPTION_QUEUE_NAME         | --interruption-queue-name     |
+| featureGates.enableDrift                          | FEATURE_GATE="Drift=true"       | --feature-gates Drift=true    |
 
 ## Drift Enabled by Default
 
