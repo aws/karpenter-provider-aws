@@ -101,7 +101,7 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Expect that the Machine will get an expired status condition
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineExpired)).ToNot(BeNil())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineExpired).IsTrue()).To(BeTrue())
@@ -169,7 +169,7 @@ var _ = Describe("Expiration", func() {
 		env.ExpectUpdated(provisioner)
 
 		// Expect that the Machine will get an expired status condition
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineExpired)).ToNot(BeNil())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineExpired).IsTrue()).To(BeTrue())
