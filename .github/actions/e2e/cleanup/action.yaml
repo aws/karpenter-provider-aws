@@ -39,10 +39,10 @@ runs:
         for name in $(aws iam list-instance-profiles --query "InstanceProfiles[*].{Name:InstanceProfileName}" --output text); do
           tags=$(aws iam list-instance-profile-tags --instance-profile-name $name --output json || true)
           if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "testing/cluster") | .Value') == "${{ inputs.cluster_name }}" ]]; then
+              echo "Deleting instance profile '$name'..."
               roleName=$(aws iam get-instance-profile --instance-profile-name $name --query "InstanceProfile.Roles[*].{Name:RoleName}" --output text)
               aws iam remove-role-from-instance-profile --instance-profile-name $name --role-name $roleName
               aws iam delete-instance-profile --instance-profile-name $name
-              break
           fi
         done
     - name: delete-cluster
