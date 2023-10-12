@@ -188,13 +188,13 @@ func (env *Environment) ExpectPodENIDisabled() {
 func (env *Environment) ExpectPrefixDelegationEnabled() {
 	GinkgoHelper()
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_PREFIX_DELEGATION", "true")
+		"ENABLE_PREFIX_DELEGATION", "true", "aws-node")
 }
 
 func (env *Environment) ExpectPrefixDelegationDisabled() {
 	GinkgoHelper()
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_PREFIX_DELEGATION", "false")
+		"ENABLE_PREFIX_DELEGATION", "false", "aws-node")
 }
 
 func (env *Environment) ExpectExists(obj client.Object) {

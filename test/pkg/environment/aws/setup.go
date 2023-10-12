@@ -22,7 +22,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
-var persistedSettings *v1.ConfigMap
+var persistedSettings = &v1.ConfigMap{}
 
 var (
 	CleanableObjects = []client.Object{
