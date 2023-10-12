@@ -13,9 +13,9 @@ The finalizer blocks deletion of the node object while the Termination Controlle
 
 ### Disruption Controller
 
-Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automatic method](#methods) at a time, in order of Expiration, Drift, Emptiness, and then Consolidation. Each method varies slightly, but they all follow the standard disruption process:
+Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automatic method](#automatic-methods) at a time, in order of Expiration, Drift, and then Consolidation. Each method varies slightly, but they all follow the standard disruption process:
 1. Identify a list of prioritized candidates for the disruption method.
-   * If there are [pods that cannot be evicted](#pod-eviction) on the node, Karpenter will ignore the node and try disruption it later.
+   * If there are [pods that cannot be evicted](#pod-eviction) on the node, Karpenter will ignore the node and try disrupting it later.
    * If there are no disruptable nodes, continue to the next disruption method.
 2. For each disruptable node, execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
 3. Cordon the node(s) to prevent pods from scheduling to it.
@@ -54,7 +54,8 @@ When you run `kubectl delete node` on a node without a finalizer, the node is de
 {{% /alert %}}
 
 ## Automated Methods
-* **Expiration**: Karpenter will annotate nodes as expired and disrupt nodes after they have lived a set number of seconds, based on the NodePool's `spec.disruption.expireAfter` value. You can use node expiry to periodically recycle nodes due to security concerns.
+
+* **Expiration**: Karpenter will mark nodes as expired and disrupt them after they have lived a set number of seconds, based on the NodePool's `spec.disruption.expireAfter` value. You can use node expiry to periodically recycle nodes due to security concerns.
 * [**Consolidation**]({{<ref "#consolidation" >}}): Karpenter works to actively reduce cluster cost by identifying when:
   * Nodes can be removed because the node is empty 
   * Nodes can be removed as their workloads will run on other nodes in the cluster.
@@ -145,7 +146,7 @@ __Behavioral Fields__
 | Subnet Selector Terms         |         |    x    |
 | Security Group Selector Terms |         |    x    |
 | AMI Family                    |    x    |         |
-| AMI Selector     Terms        |         |    x    |
+| AMI Selector Terms            |         |    x    |
 | UserData                      |    x    |         |
 | Tags                          |    x    |         |
 | Metadata Options              |    x    |         |
@@ -183,7 +184,7 @@ To enable interruption handling, configure the `--interruption-queue-name` CLI a
 
 ### Pod-Level Controls
 
-You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-evict: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
+You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
 
 Examples of pods that you might want to opt-out of disruption include an interactive game that you don't want to interrupt or a long batch job (such as you might have with machine learning) that would need to start over if it were interrupted.
 
@@ -194,7 +195,7 @@ spec:
   template:
     metadata:
       annotations:
-        karpenter.sh/do-not-evict: "true"
+        karpenter.sh/do-not-disrupt: "true"
 ```
 
 {{% alert title="Note" color="primary" %}}
@@ -212,14 +213,14 @@ Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}
 
 ### Node-Level Controls
 
-Nodes can be opted out of consolidation disruption by setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the node.
+Nodes can be opted out of consolidation disruption by setting the annotation `karpenter.sh/do-not-disrupt: "true"` on the node.
 
 ```yaml
 apiVersion: v1
 kind: Node
 metadata:
   annotations:
-    karpenter.sh/do-not-consolidate: "true"
+    karpenter.sh/do-not-disrupt: "true"
 ```
 
 #### Example: Disable Disruption on a NodePool
