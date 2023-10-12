@@ -164,8 +164,6 @@ These well-known labels may be specified at the NodePool level, or in a workload
 
 For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the NodePool list and the NodePool has instance type requirements, Karpenter will not create a node or schedule the pod.
 
-📝 None of these values are required.
-
 ### Instance Types
 
 - key: `node.kubernetes.io/instance-type`
@@ -218,11 +216,38 @@ Karpenter prioritizes Spot offerings if the NodePool allows Spot and on-demand i
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
 
-## spec.weight
+{{% alert title="Recommended" color="primary" %}}
+Karpenter allows you to be extremely flexible with your NodePools by only constraining your instance types in ways that are absolutely necessary for your cluster. By default, Karpenter will enforce that you specify the `spec.template.spec.requirements` field, but will not enforce that you specify any requirements within the field. If you choose to specify `requirements: []`, this means that you will completely flexible to _all_ instance types that your cloud provider supports.
 
-Karpenter allows you to describe NodePool preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
+Though Karpenter doesn't enforce these defaults, for most use-cases, we recommend that you specify _some_ requirements to avoid odd behavior or exotic instance types. Below, is a high-level recommendation for requirements that should fit the majority of use-cases for generic workloads
 
-For more information on weighting NodePools, see the [Weighting NodePools section]({{<ref "scheduling#weighting-nodepools" >}}) in the scheduling details.
+```yaml
+spec:
+  template:
+    spec:
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+```
+
+{{% /alert %}}
+
+## spec.template.spec.nodeClassRef
+
+This field points to the Cloud Provider NodeClass resource. Learn more about [EC2NodeClasses]({{<ref "nodeclasses" >}}).
 
 ## spec.template.spec.kubelet
 
@@ -368,6 +393,10 @@ The value generated from `podsPerCore` cannot exceed `maxPods`, meaning, if both
 Bottlerocket AMIFamily currently does not support `podsPerCore` configuration. If a NodePool contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `podsPerCore` value will be ignored for scheduling and for configuring the kubelet.
 {{% /alert %}}
 
+## spec.disruption
+
+You can configure Karpenter to disrupt Nodes through your NodePool in multiple ways. You can use `spec.disruption.consolidationPolicy`, `spec.disruption.consolidateAfter` or `spec.disruption.expireAfter`. Read [Disruption]({{<ref "disruption" >}}) for more.
+
 ## spec.limits
 
 The NodePool spec includes a limits section (`spec.limits`), which constrains the maximum amount of resources that the NodePool will manage.
@@ -407,15 +436,13 @@ kubectl get nodepool -o=jsonpath='{.items[0].status}'
 
 Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca582229600a3599b40e9a82a951d8bbbf/core/v1/resource.go#L23) (`k8s.io/api/core/v1`) for more information on `resources`.
 
-## spec.template.spec.nodeClassRef
+## spec.weight
 
-This field points to the Cloud Provider NodeClass resource. Learn more about [EC2NodeClasses]({{<ref "nodeclasses" >}}).
+Karpenter allows you to describe NodePool preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 
-## spec.disruption
+For more information on weighting NodePools, see the [Weighting NodePools section]({{<ref "scheduling#weighting-nodepools" >}}) in the scheduling details.
 
-You can configure Karpenter to disrupt Nodes through your NodePool in multiple ways. You can use `spec.disruption.consolidationPolicy`, `spec.disruption.consolidateAfter` or `spec.disruption.expireAfter`. Read [Disruption]({{<ref "disruption" >}}) for more.
-
-## Example Use-Cases
+## Examples
 
 ### Isolating Expensive Hardware
 
