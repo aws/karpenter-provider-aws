@@ -1,7 +1,7 @@
 ---
 title: "v1beta1 Upgrade Reference"
 linkTitle: "v1beta1 Upgrade Reference"
-weight: 10
+weight: 20
 description: >
   API information for upgrading Karpenter
 ---
