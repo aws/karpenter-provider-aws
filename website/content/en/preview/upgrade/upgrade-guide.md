@@ -73,7 +73,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 
     ```bash
     TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter/v0.32.0/website/content/en/preview/upgrade/v1beta1-controller-policy.json > ${TEMPOUT}
+    curl -fsSL https://raw.githubusercontent.com/chrisnegus/karpenter/docs-v1beta1-migrate/website/content/en/preview/upgrade/v1beta1-controller-policy.json > ${TEMPOUT}
     
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
     POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
@@ -86,9 +86,9 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 5. Apply the v0.32.0 CRDs in the crds directory of the Karpenter helm chart:
 
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.sh_nodepools.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.0/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+    kubectl apply -f https://raw.githubusercontent.com/chrisnegus/karpenter/docs-v1beta1-migrate/pkg/apis/crds/karpenter.sh_nodepools.yaml
+    kubectl apply -f https://raw.githubusercontent.com/chrisnegus/karpenter/docs-v1beta1-migrate/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+    kubectl apply -f https://raw.githubusercontent.com/chrisnegus/karpenter/docs-v1beta1-migrate/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
     ```
 
 6. Upgrade Karpenter to the new version:
