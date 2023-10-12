@@ -299,7 +299,7 @@ To avoid this discrepancy between `maxPods` and the supported pod density of the
 2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your Provisioner
 3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
 
-For more information on pod density, view the [Pod Density Conceptual Documentation]({{<ref "./concepts/pod-density" >}}).
+For more information on pod density, view the [Pod Density Section in the NodePools doc]({{<ref "./concepts/nodepools#pod-density" >}}).
 
 #### IP exhaustion in a subnet
 
