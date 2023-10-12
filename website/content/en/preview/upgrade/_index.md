@@ -1,6 +1,6 @@
 ---
-title: "Upgrade Guide"
-linkTitle: "Upgrade Guide"
+title: "Upgrade"
+linkTitle: "Upgrade"
 weight: 10
 description: >
   Upgrading Karpenter guide and reference
