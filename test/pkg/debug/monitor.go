@@ -24,6 +24,7 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
@@ -46,7 +47,9 @@ func New(ctx context.Context, config *rest.Config, kubeClient client.Client) *Mo
 			logger.WithOptions()
 			return ctx
 		},
-		MetricsBindAddress: "0",
+		Metrics: server.Options{
+			BindAddress: "0",
+		},
 	}))
 	for _, c := range newControllers(kubeClient) {
 		lo.Must0(c.Builder(ctx, mgr).Complete(c), "failed to register controller")

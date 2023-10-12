@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
@@ -232,8 +231,8 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 		NewControllerManagedBy(m).
 		For(&v1beta1.EC2NodeClass{}).
 		Watches(
-			&source.Kind{Type: &corev1beta1.NodeClaim{}},
-			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+			&corev1beta1.NodeClaim{},
+			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
 				nc := o.(*corev1beta1.NodeClaim)
 				if nc.Spec.NodeClassRef == nil {
 					return nil
