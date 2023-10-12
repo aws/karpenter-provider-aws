@@ -155,6 +155,10 @@ func Process(resource runtime.Object) (runtime.Object, error) {
 
 func processNodeTemplate(resource runtime.Object) runtime.Object {
 	nodetemplate := resource.(*v1alpha1.AWSNodeTemplate)
+	// If the AMIFamily wasn't specified, then we know that it should be AL2 for the conversion
+	if nodetemplate.Spec.AMIFamily == nil {
+		nodetemplate.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+	}
 
 	nodeclass := nodeclassutil.New(nodetemplate)
 	nodeclass.TypeMeta = metav1.TypeMeta{
@@ -162,18 +166,15 @@ func processNodeTemplate(resource runtime.Object) runtime.Object {
 		APIVersion: v1beta1.SchemeGroupVersion.String(),
 	}
 	nodeclass.Spec.Role = "<your AWS role here>"
-
 	return nodeclass
 }
 
 func processProvisioner(resource runtime.Object) runtime.Object {
 	provisioner := resource.(*v1alpha5.Provisioner)
-
 	nodepool := nodepoolutil.New(provisioner)
 	nodepool.TypeMeta = metav1.TypeMeta{
 		Kind:       "NodePool",
 		APIVersion: corev1beta1.SchemeGroupVersion.String(),
 	}
-
 	return nodepool
 }
