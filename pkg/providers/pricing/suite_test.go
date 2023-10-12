@@ -30,7 +30,6 @@ import (
 	. "knative.dev/pkg/logging/testing"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -45,7 +44,7 @@ import (
 
 var ctx context.Context
 var stop context.CancelFunc
-var opts options.Options
+var opts *options.Options
 var env *coretest.Environment
 var awsEnv *test.Environment
 var controller *pricing.Controller
@@ -71,7 +70,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = injection.WithOptions(ctx, opts)
+	ctx = options.ToContext(ctx, opts)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 
