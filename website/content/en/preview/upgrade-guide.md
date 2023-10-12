@@ -15,9 +15,9 @@ To make upgrading easier we aim to minimize introduction of breaking changes wit
 
 [comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
 
-| KUBERNETES |  1.23   |  1.24   |  1.25   |  1.26   |  1.27   |
-|------------|---------|---------|---------|---------|---------|
-| karpenter  | 0.21.x+ | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ |
+| KUBERNETES |  1.24   |  1.25   |  1.26   |  1.27   |  1.28  |
+|------------|---------|---------|---------|---------|--------|
+| karpenter  | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ | 0.31.1 |
 
 [comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
 
