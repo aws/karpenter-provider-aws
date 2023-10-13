@@ -144,7 +144,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 --dns-cluster-ip '10.100.0.10' \
 --use-max-pods false \
 --container-runtime containerd \
---kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test  --max-pods=110'
+--kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test  --max-pods=110'
 --//--
 ```
 
@@ -161,7 +161,7 @@ max-pods = 110
 
 [settings.kubernetes.node-labels]
 'karpenter.sh/capacity-type' = 'on-demand'
-'karpenter.sh/provisioner-name' = 'test'
+'karpenter.sh/nodepool' = 'test'
 ```
 
 ### Ubuntu
@@ -178,7 +178,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 /etc/eks/bootstrap.sh 'test-cluster' --apiserver-endpoint 'https://test-cluster' --b64-cluster-ca 'ca-bundle' \
 --dns-cluster-ip '10.100.0.10' \
 --use-max-pods false \
---kubelet-extra-args '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test" --max-pods=110'
+--kubelet-extra-args '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110'
 --//--
 ```
 
@@ -187,7 +187,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 ```powershell
 <powershell>
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
 </powershell>
 ```
 
@@ -196,7 +196,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 ```powershell
 <powershell>
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
 </powershell>
 ```
 
@@ -444,7 +444,7 @@ Control the exposure of [Instance Metadata Service](https://docs.aws.amazon.com/
 
 Refer to [recommended, security best practices](https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node) for limiting exposure of Instance Metadata and User Data to pods.
 
-If metadataOptions are omitted from this provisioner, the following default settings are applied to the `EC2NodeClass`.
+If metadataOptions are omitted from this NodePool, the following default settings are applied to the `EC2NodeClass`.
 
 ```yaml
 spec:
@@ -578,7 +578,7 @@ spec:
     chown -R ec2-user ~ec2-user/.ssh
 ```
 
-For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
+For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/v1beta1).
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
@@ -632,7 +632,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 /etc/eks/bootstrap.sh 'test-cluster' --apiserver-endpoint 'https://test-cluster' --b64-cluster-ca 'ca-bundle' \
 --use-max-pods false \
 --container-runtime containerd \
---kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test  --max-pods=110'
+--kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test  --max-pods=110'
 --//--
 ```
 
@@ -686,7 +686,7 @@ cluster-name = 'cluster'
 
 [settings.kubernetes.node-labels]
 'karpenter.sh/capacity-type' = 'on-demand'
-'karpenter.sh/provisioner-name' = 'provisioner'
+'karpenter.sh/nodepool' = 'default'
 
 [settings.kubernetes.node-taints]
 
@@ -714,7 +714,7 @@ Write-Host "Running custom user data script"
 <powershell>
 Write-Host "Running custom user data script"
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/provisioner-name=windows2022" --max-pods=110' -DNSClusterIP '10.0.100.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/nodepool=windows2022" --max-pods=110' -DNSClusterIP '10.0.100.10'
 </powershell>
 ```
 
