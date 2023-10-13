@@ -32,6 +32,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -135,11 +136,15 @@ func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
 
 func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
 	var out = &ec2.DescribeInstancesOutput{}
+	tagKeys := []string{v1alpha5.ProvisionerNameLabelKey}
+	if nodepoolutil.EnableNodePools {
+		tagKeys = append(tagKeys, corev1beta1.NodePoolLabelKey)
+	}
 	err := p.ec2api.DescribeInstancesPagesWithContext(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
-				Values: aws.StringSlice([]string{v1alpha5.ProvisionerNameLabelKey, corev1beta1.NodePoolLabelKey}),
+				Values: aws.StringSlice(tagKeys),
 			},
 			{
 				Name:   aws.String("tag-key"),
