@@ -86,7 +86,7 @@ var _ = Describe("Machine/GarbageCollection", func() {
 	})
 
 	It("should delete an instance if there is no machine owner", func() {
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -96,7 +96,7 @@ var _ = Describe("Machine/GarbageCollection", func() {
 		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 	})
 	It("should delete an instance along with the node if there is no machine owner (to quicken scheduling)", func() {
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -195,7 +195,7 @@ var _ = Describe("Machine/GarbageCollection", func() {
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
-					// Launch time was 10m ago
+					// Launch time was 1m ago
 					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
 					InstanceId:   aws.String(instanceID),
 					InstanceType: aws.String("m5.large"),
@@ -244,7 +244,7 @@ var _ = Describe("Machine/GarbageCollection", func() {
 			return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 		})
 
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -253,7 +253,7 @@ var _ = Describe("Machine/GarbageCollection", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete the instance or node if it already has a machine that matches it", func() {
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -337,7 +337,7 @@ var _ = Describe("Machine/GarbageCollection", func() {
 		wg.Wait()
 	})
 	It("should not delete an instance if it is linked", func() {
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -357,7 +357,7 @@ var _ = Describe("Machine/GarbageCollection", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete an instance if it is recently linked but the machine doesn't exist", func() {
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 

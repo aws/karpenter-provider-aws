@@ -32,6 +32,8 @@ import (
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
+	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter/pkg/apis/settings"
@@ -91,7 +93,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 	})
 
 	It("should delete an instance if there is no NodeClaim owner", func() {
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -101,7 +103,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 	})
 	It("should delete an instance along with the node if there is no NodeClaim owner (to quicken scheduling)", func() {
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -200,7 +202,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 					Placement: &ec2.Placement{
 						AvailabilityZone: aws.String(fake.DefaultRegion),
 					},
-					// Launch time was 10m ago
+					// Launch time was 1m ago
 					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
 					InstanceId:   aws.String(instanceID),
 					InstanceType: aws.String("m5.large"),
@@ -254,7 +256,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 			return aws.StringValue(t.Key) == corev1beta1.ManagedByAnnotationKey
 		})
 
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -263,7 +265,7 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete the instance or node if it already has a NodeClaim that matches it", func() {
-		// Launch time was 10m ago
+		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
@@ -355,5 +357,17 @@ var _ = Describe("NodeClaim/GarbageCollection", func() {
 			}(ids[i], nodes[i])
 		}
 		wg.Wait()
+	})
+	It("should not delete an instance if EnableNodePools/EnableNodeClaims isn't enabled", func() {
+		nodepoolutil.EnableNodePools = false
+		nodeclaimutil.EnableNodeClaims = false
+
+		// Launch time was 1m ago
+		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
+		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
+
+		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		_, err := cloudProvider.Get(ctx, providerID)
+		Expect(err).ToNot(HaveOccurred())
 	})
 })
