@@ -12,5 +12,9 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
 config
 
-release "$GIT_TAG"
+# Don't release with a dirty commit!
+if [[ "$(git status --porcelain)" != "" ]]; then
+    exit 1
+fi
 
+release "$GIT_TAG"
