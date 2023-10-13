@@ -1,0 +1,42 @@
+# This example provisioner will provision instances using an AMI that belongs to a custom AMIFamily
+# Keep in mind, that you're in charge of bootstrapping your worker nodes.
+
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        name: custom-family
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: custom-family
+spec:
+  amiFamily: Custom
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - id: ami-123
+    - id: ami-456
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "Running my custom set-up"
+
+    /etc/eks/bootstrap.sh my-cluster --kubelet-extra-args='--node-labels=foo=bar'
+
+    --BOUNDARY

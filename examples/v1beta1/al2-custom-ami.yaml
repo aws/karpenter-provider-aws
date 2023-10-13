@@ -1,0 +1,40 @@
+# This example NodePool will provision instances using a custom EKS-Optimized AMI that belongs to the
+# AL2 AMIFamily. If your AMIs are built off https://github.com/awslabs/amazon-eks-ami and can be bootstrapped
+# by Karpenter, this may be a good fit for you.
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        name: al2
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: al2
+spec:
+  amiFamily: AL2
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - id: ami-123
+    - id: ami-456
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "Running a custom user data script"
+
+    --BOUNDARY--

@@ -1,0 +1,36 @@
+# This example NodePool will provision instances
+# running Bottlerocket OS
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        name: bottlerocket
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: bottlerocket
+spec:
+  amiFamily: Bottlerocket
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeType: gp3
+        volumeSize: 4Gi
+        deleteOnTermination: true
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeType: gp3
+        volumeSize: 20Gi # replace with your required disk size
+        deleteOnTermination: true

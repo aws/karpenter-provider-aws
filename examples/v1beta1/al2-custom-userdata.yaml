@@ -1,0 +1,37 @@
+# This example NodePool will provision instances using the AL2 EKS-Optimized AMI.
+# The UserData defined in spec.UserData needs to be in the MIME-multipart format,
+# and will be prepended to a Karpenter managed section that will bootstrap the kubelet.
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  template:
+    spec:
+      nodeClassRef:
+        name: al2
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: al2
+spec:
+  amiFamily: AL2
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "Running a custom user data script"
+
+    --BOUNDARY--
