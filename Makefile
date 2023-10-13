@@ -68,6 +68,7 @@ clean-run: ## Clean resources deployed by the run target
 
 test: ## Run tests
 	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
+	cd tools/karpenter-convert && go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
 
 battletest: ## Run randomized, racing, code-covered tests
 	go test -v ./pkg/... \

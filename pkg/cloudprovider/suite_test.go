@@ -28,7 +28,6 @@ import (
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/test"
@@ -47,7 +46,7 @@ import (
 
 var ctx context.Context
 var stop context.CancelFunc
-var opts options.Options
+var opts *options.Options
 var env *coretest.Environment
 var awsEnv *test.Environment
 var prov *provisioning.Provisioner
@@ -82,7 +81,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = injection.WithOptions(ctx, opts)
+	ctx = options.ToContext(ctx, opts)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 

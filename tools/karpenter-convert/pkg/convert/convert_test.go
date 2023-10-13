@@ -69,7 +69,7 @@ var _ = Describe("ConvertObject", func() {
 			bytes, _ := os.ReadFile(tc.outputFile)
 			content := string(bytes)
 
-			Expect(buf.String()).To(ContainSubstring(content), fmt.Sprintf("unexpected output when converting %s to %q, expected: %q, but got %q", tc.file, tc.outputFile, content, buf.String()))
+			Expect(buf.String()).To(Equal(content), fmt.Sprintf("unexpected output when converting %s to %q, expected: %q, but got %q", tc.file, tc.outputFile, content, buf.String()))
 		},
 
 		Entry("provisioner to nodepool",
@@ -85,6 +85,13 @@ var _ = Describe("ConvertObject", func() {
 				name:       "nodetemplate to nodeclass",
 				file:       "./testdata/nodetemplate.yaml",
 				outputFile: "./testdata/nodeclass.yaml",
+			},
+		),
+		Entry("nodetemplate (empty amifamily) to nodeclass",
+			testcase{
+				name:       "nodetemplate (empty amifamily) to nodeclass",
+				file:       "./testdata/nodetemplate_no_amifamily.yaml",
+				outputFile: "./testdata/nodeclass_no_amifamily.yaml",
 			},
 		),
 	)

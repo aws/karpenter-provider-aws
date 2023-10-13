@@ -116,10 +116,9 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 		node := o.(*v1.Node)
 		return []string{strconv.FormatBool(node.Spec.Unschedulable)}
 	}))
-	c := lo.Must(client.NewDelegatingClient(client.NewDelegatingClientInput{
-		CacheReader: cache,
-		Client:      lo.Must(client.New(config, client.Options{Scheme: scheme})),
-	}))
+
+	c := lo.Must(client.New(config, client.Options{Scheme: scheme, Cache: &client.CacheOptions{Reader: cache}}))
+
 	go func() {
 		lo.Must0(cache.Start(ctx))
 	}()

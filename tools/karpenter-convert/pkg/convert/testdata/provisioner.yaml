@@ -3,35 +3,18 @@ kind: Provisioner
 metadata:
   name: default
 spec:
-  # References cloud provider-specific custom resource, see your cloud provider specific documentation
   providerRef:
     name: default
-
-  # Provisioned nodes will have these taints
-  # Taints may prevent pods from scheduling if they are not tolerated by the pod.
   taints:
     - key: example.com/special-taint
       effect: NoSchedule
-
-  # Provisioned nodes will have these taints, but pods do not need to tolerate these taints to be provisioned by this
-  # provisioner. These taints are expected to be temporary and some other entity (e.g. a DaemonSet) is responsible for
-  # removing the taint after it has finished initializing the node.
   startupTaints:
     - key: example.com/another-taint
       effect: NoSchedule
-
-  # Labels are arbitrary key-values that are applied to all nodes
   labels:
     billing-team: my-team
-
-  # Annotations are arbitrary key-values that are applied to all nodes
   annotations:
     example.com/owner: "my-team"
-
-  # Requirements that constrain the parameters of provisioned nodes.
-  # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
-  # Operators { In, NotIn, Exists, DoesNotExist, Gt, and Lt } are supported.
-  # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#operators
   requirements:
     - key: "karpenter.k8s.aws/instance-category"
       operator: In
@@ -54,9 +37,6 @@ spec:
     - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
       operator: In
       values: ["spot", "on-demand"]
-
-  # Karpenter provides the ability to specify a few additional Kubelet args.
-  # These are all optional and provide support for additional customization and use cases.
   kubeletConfiguration:
     clusterDNS: ["10.0.1.100"]
     containerRuntime: containerd
@@ -86,28 +66,12 @@ spec:
     cpuCFSQuota: true
     podsPerCore: 2
     maxPods: 20
-
-
-  # Resource limits constrain the total size of the cluster.
-  # Limits prevent Karpenter from creating new instances once the limit is exceeded.
   limits:
     resources:
       cpu: "1000"
       memory: 1000Gi
-
-  # Enables consolidation which attempts to reduce cluster cost by both removing un-needed nodes and down-sizing those
-  # that can't be removed.  Mutually exclusive with the ttlSecondsAfterEmpty parameter.
   consolidation:
     enabled: false
-
-  # If omitted, the feature is disabled and nodes will never expire.  If set to less time than it requires for a node
-  # to become ready, the node may expire before any pods successfully start.
   ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
-
-  # If omitted, the feature is disabled, nodes will never scale down due to low utilization
   ttlSecondsAfterEmpty: 30
-
-  # Priority given to the provisioner when the scheduler considers which provisioner
-  # to select. Higher weights indicate higher priority when comparing provisioners.
-  # Specifying no weight is equivalent to specifying a weight of 0.
   weight: 10

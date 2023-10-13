@@ -52,13 +52,12 @@ func main() {
 
 	envVarsBlock := "| Environment Variable | CLI Flag | Description |\n"
 	envVarsBlock += "|--|--|--|\n"
-	opts.VisitAll(func(f *flag.Flag) {
+	opts.FlagSet.VisitAll(func(f *flag.Flag) {
 		if f.DefValue == "" {
 			envVarsBlock += fmt.Sprintf("| %s | %s | %s|\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), "\\-\\-"+f.Name, f.Usage)
 		} else {
 			envVarsBlock += fmt.Sprintf("| %s | %s | %s (default = %s)|\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), "\\-\\-"+f.Name, f.Usage, f.DefValue)
 		}
-
 	})
 
 	log.Println("writing output to", outputFileName)
