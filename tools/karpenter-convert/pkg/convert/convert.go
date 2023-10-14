@@ -15,9 +15,14 @@ limitations under the License.
 package convert
 
 import (
+	"bytes"
+	"context"
 	"fmt"
+	"io"
 	"regexp"
+	"strings"
 
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
 	"github.com/aws/karpenter/pkg/apis"
@@ -32,11 +37,13 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
+	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 
 type Context struct {
@@ -47,6 +54,8 @@ type Context struct {
 
 	resource.FilenameOptions
 	genericiooptions.IOStreams
+
+	IgnoreDefaults bool
 }
 
 func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
@@ -63,6 +72,7 @@ func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Comm
 		},
 	}
 
+	rootCmd.Flags().BoolVarP(&o.IgnoreDefaults, "ignore-defaults", "I", o.IgnoreDefaults, "Ignore defaults requirements when migrating Provisioners to NodePool.")
 	cmdutil.AddFilenameOptionFlags(rootCmd, &o.FilenameOptions, "to need to get converted.")
 	o.PrintFlags.AddFlags(rootCmd)
 
@@ -84,12 +94,12 @@ func (o *Context) RunConvert() error {
 	if err := apis.AddToScheme(scheme); err != nil {
 		return err
 	}
-	if err := v1alpha5.SchemeBuilder.AddToScheme(scheme); err != nil {
+	if err := corev1alpha5.SchemeBuilder.AddToScheme(scheme); err != nil {
 		return err
 	}
 
 	b := o.builder().
-		WithScheme(scheme, v1alpha1.SchemeGroupVersion, v1alpha5.SchemeGroupVersion).
+		WithScheme(scheme, v1alpha1.SchemeGroupVersion, corev1alpha5.SchemeGroupVersion).
 		LocalParam(true)
 
 	r := b.
@@ -128,11 +138,20 @@ func (o *Context) RunConvert() error {
 			continue
 		}
 
-		obj, err := Process(info.Object)
+		obj, err := process(info.Object, o)
 		if err != nil {
 			fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
 		} else {
-			if err := o.Printer.PrintObj(obj, o.Out); err != nil {
+			var buffer bytes.Buffer
+			writer := io.Writer(&buffer)
+
+			if err := o.Printer.PrintObj(obj, writer); err != nil {
+				fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
+			}
+
+			output := parseOutput(buffer)
+
+			if _, err := o.Out.Write([]byte(output)); err != nil {
 				fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
 			}
 		}
@@ -141,11 +160,21 @@ func (o *Context) RunConvert() error {
 	return nil
 }
 
-func Process(resource runtime.Object) (runtime.Object, error) {
+func parseOutput(buffer bytes.Buffer) string {
+	output := buffer.String()
+	output = strings.Replace(output, "status: {}\n", "", -1)
+	output = strings.Replace(output, "      creationTimestamp: null\n", "", -1)
+	output = strings.Replace(output, "  creationTimestamp: null\n", "", -1)
+	output = strings.Replace(output, "      resources: {}\n", "", -1)
+
+	return output
+}
+
+func process(resource runtime.Object, o *Context) (runtime.Object, error) {
 	kind := resource.GetObjectKind().GroupVersionKind().Kind
 	switch kind {
 	case "Provisioner":
-		return processProvisioner(resource), nil
+		return processProvisioner(resource, o), nil
 	case "AWSNodeTemplate":
 		return processNodeTemplate(resource), nil
 	default:
@@ -161,20 +190,30 @@ func processNodeTemplate(resource runtime.Object) runtime.Object {
 	}
 
 	nodeclass := nodeclassutil.New(nodetemplate)
+	nodeclass.ObjectMeta.CreationTimestamp = metav1.Time{}
 	nodeclass.TypeMeta = metav1.TypeMeta{
 		Kind:       "EC2NodeClass",
 		APIVersion: v1beta1.SchemeGroupVersion.String(),
 	}
-	nodeclass.Spec.Role = "<your AWS role here>"
+	nodeclass.Spec.Role = "$KARPENTER_NODE_ROLE"
 	return nodeclass
 }
 
-func processProvisioner(resource runtime.Object) runtime.Object {
-	provisioner := resource.(*v1alpha5.Provisioner)
-	nodepool := nodepoolutil.New(provisioner)
+func processProvisioner(resource runtime.Object, o *Context) runtime.Object {
+	coreprovisioner := resource.(*corev1alpha5.Provisioner)
+
+	if !o.IgnoreDefaults {
+		provisioner := lo.ToPtr(v1alpha5.Provisioner(lo.FromPtr(coreprovisioner)))
+		provisioner.SetDefaults(context.Background())
+		coreprovisioner = lo.ToPtr(corev1alpha5.Provisioner(lo.FromPtr(provisioner)))
+	}
+
+	nodepool := nodepoolutil.New(coreprovisioner)
+	nodepool.ObjectMeta.CreationTimestamp = metav1.Time{}
 	nodepool.TypeMeta = metav1.TypeMeta{
 		Kind:       "NodePool",
 		APIVersion: corev1beta1.SchemeGroupVersion.String(),
 	}
+
 	return nodepool
 }

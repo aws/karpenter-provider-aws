@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -38,9 +39,10 @@ func TestConvert(t *testing.T) {
 
 var _ = Describe("ConvertObject", func() {
 	type testcase struct {
-		name       string
-		file       string
-		outputFile string
+		name           string
+		ignoreDefaults bool
+		file           string
+		outputFile     string
 	}
 
 	DescribeTable("conversion tests",
@@ -63,6 +65,9 @@ var _ = Describe("ConvertObject", func() {
 			if err := cmd.Flags().Set("output", "yaml"); err != nil {
 				Expect(err).To(BeNil())
 			}
+			if err := cmd.Flags().Set("ignore-defaults", strconv.FormatBool(tc.ignoreDefaults)); err != nil {
+				Expect(err).To(BeNil())
+			}
 
 			cmd.Run(cmd, []string{})
 
@@ -77,6 +82,24 @@ var _ = Describe("ConvertObject", func() {
 				name:       "provisioner to nodepool",
 				file:       "./testdata/provisioner.yaml",
 				outputFile: "./testdata/nodepool.yaml",
+			},
+		),
+
+		Entry("provisioner (set defaults) to nodepool",
+			testcase{
+				name:           "provisioner to nodepool",
+				file:           "./testdata/provisioner_defaults.yaml",
+				outputFile:     "./testdata/nodepool_defaults.yaml",
+				ignoreDefaults: false,
+			},
+		),
+
+		Entry("provisioner (no set defaults) to nodepool",
+			testcase{
+				name:           "provisioner to nodepool",
+				file:           "./testdata/provisioner_no_defaults.yaml",
+				outputFile:     "./testdata/nodepool_no_defaults.yaml",
+				ignoreDefaults: true,
 			},
 		),
 
