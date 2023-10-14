@@ -28,4 +28,4 @@ karpenter-convert -f provisioner.yaml | kubectl apply -f -
 ## Usage notes
 
 When converting an AWSNodeTemplate to EC2NodeClass, the newly introduced field `role` can't be mapped automatically.
-The tool leaves a placeholder `<your AWS role here>` which needs to be manually updated.
+The tool leaves a placeholder `$KARPENTER_NODE_ROLE` which needs to be manually updated.
