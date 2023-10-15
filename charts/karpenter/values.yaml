@@ -154,7 +154,7 @@ webhook:
 logLevel: debug
 # -- Global log encoding (Deprecated: Use logConfig.logEncoding instead)
 logEncoding: console
-# -- Log configuration
+# -- Log configuration (Deprecated: Logging configuration will be dropped by v1, use logLevel instead)
 logConfig:
   # -- Whether to enable provisioning and mounting the log ConfigMap
   enabled: true
@@ -183,7 +183,25 @@ settings:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
-  # -- AWS-specific configuration values
+  # -- Role to assume for calling AWS services.
+  assumeRoleARN: ""
+  # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRoleARN set.
+  assumeRoleDuration: 15m
+  # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
+  clusterCABundle: ""
+  # -- Cluster name.
+  clusterName: ""
+  # -- Cluster endpoint. If not set, will be discovered during startup (EKS only)
+  clusterEndpoint: ""
+  # -- If true then assume we can't reach AWS services which don't have a VPC endpoint
+  # This also has the effect of disabling look-ups to the AWS pricing endpoint
+  isolatedVPC: false
+  # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
+  vmMemoryOverheadPercent: 0.075
+  # -- interruptionQueueName is disabled if not specified. Enabling interruption handling may
+  # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
+  interruptionQueueName: ""
+  # -- AWS-specific configuration values (Deprecated: Use values without the "aws" prefix instead)
   aws:
     # -- Role to assume for calling AWS services.
     assumeRoleARN: ""
