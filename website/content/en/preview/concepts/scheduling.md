@@ -453,8 +453,7 @@ metadata:
 spec:
   weight: 50
   limits:
-    resources:
-      cpu: 100
+    cpu: 100
   template:
     spec:
       requirements:

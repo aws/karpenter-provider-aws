@@ -144,9 +144,8 @@ spec:
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
   limits:
-    resources:
-      cpu: "1000"
-      memory: 1000Gi
+    cpu: "1000"
+    memory: 1000Gi
 
   # Priority given to the NodePool when the scheduler considers which NodePool
   # to select. Higher weights indicate higher priority when comparing NodePools.
