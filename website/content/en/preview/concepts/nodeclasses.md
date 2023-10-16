@@ -127,7 +127,7 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 ## spec.amiFamily
 
-AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify a custom amiSelector. Default bootstrapping logic is shown below for each of the supported families.
+AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
 
 ### AL2
 
@@ -281,7 +281,7 @@ CLUSTER_VPC_ID="$(aws eks describe-cluster --name $CLUSTER_NAME --query cluster.
 aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=kubernetes.io/cluster/$CLUSTER_NAME --query 'SecurityGroups[].[GroupName]' --output text
 ```
 
-If multiple securityGroups are printed, you will need a more specific securityGroupSelector. We generally recommend that you use the `karpenter.sh/discovery: $CLUSTER_NAME` tag selector instead.
+If multiple securityGroups are printed, you will need more specific securityGroupSelectorTerms. We generally recommend that you use the `karpenter.sh/discovery: $CLUSTER_NAME` tag selector instead.
 {{% /alert %}}
 
 #### Examples
@@ -331,14 +331,14 @@ spec:
 Select using ids:
 ```yaml
 spec:
- securityGroupSelector:
+ securityGroupSelectorTerms:
     - id: "sg-063d7acfb4b06c82c"
     - id: "sg-06e0cf9c198874591"
 ```
 
 ## spec.amiSelectorTerms
 
-AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). This field is optional, and Karpenter will use the latest EKS-optimized AMIs for the AMIFamily if no amiSelectorTerms are specified. To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To ensure that AMIs are owned by the expected owner, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs. If this is not set, it defaults to `self,amazon`.
+AMISelectorTerms are used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). This field is optional, and Karpenter will use the latest EKS-optimized AMIs for the AMIFamily if no amiSelectorTerms are specified. To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To ensure that AMIs are owned by the expected owner, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs. If this is not set, it defaults to `self,amazon`.
 
 {{% alert title="Tip" color="secondary" %}}
 AMIs may be specified by any AWS tag, including `Name`. Selecting by tag or by name using wildcards (`*`) is supported.
@@ -369,14 +369,14 @@ Select by name:
 
 Select by `Name` tag:
 ```yaml
-  amiSelector:
+  amiSelectorTerms:
     - tags:
         Name: my-ami
 ```
 
 Select by name and owner:
 ```yaml
-  amiSelector:
+  amiSelectorTerms:
     - name: my-ami
       owner: self
     - name: my-ami
@@ -400,7 +400,7 @@ spec:
 
 Specify using ids:
 ```yaml
-  amiSelector:
+  amiSelectorTerms:
     - id: "ami-123"
     - id: "ami-456"
 ```
