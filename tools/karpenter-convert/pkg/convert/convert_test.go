@@ -103,6 +103,15 @@ var _ = Describe("ConvertObject", func() {
 			},
 		),
 
+		Entry("provisioner (kubectl output) to nodepool",
+			testcase{
+				name:           "provisioner to nodepool",
+				file:           "./testdata/provisioner_kubectl_output.yaml",
+				outputFile:     "./testdata/nodepool_kubectl_output.yaml",
+				ignoreDefaults: true,
+			},
+		),
+
 		Entry("nodetemplate to nodeclass",
 			testcase{
 				name:       "nodetemplate to nodeclass",
@@ -110,11 +119,20 @@ var _ = Describe("ConvertObject", func() {
 				outputFile: "./testdata/nodeclass.yaml",
 			},
 		),
+
 		Entry("nodetemplate (empty amifamily) to nodeclass",
 			testcase{
 				name:       "nodetemplate (empty amifamily) to nodeclass",
 				file:       "./testdata/nodetemplate_no_amifamily.yaml",
 				outputFile: "./testdata/nodeclass_no_amifamily.yaml",
+			},
+		),
+
+		Entry("nodetemplate (kubectl output) to nodeclass",
+			testcase{
+				name:       "nodetemplate to nodeclass",
+				file:       "./testdata/nodetemplate_kubectl_output.yaml",
+				outputFile: "./testdata/nodeclass_kubectl_output.yaml",
 			},
 		),
 	)

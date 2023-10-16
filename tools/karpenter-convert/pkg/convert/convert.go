@@ -72,7 +72,7 @@ func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Comm
 		},
 	}
 
-	rootCmd.Flags().BoolVarP(&o.IgnoreDefaults, "ignore-defaults", "I", o.IgnoreDefaults, "Ignore defaults requirements when migrating Provisioners to NodePool.")
+	rootCmd.Flags().BoolVarP(&o.IgnoreDefaults, "ignore-defaults", "I", o.IgnoreDefaults, "Ignore defining default requirements when migrating Provisioners to NodePool.")
 	cmdutil.AddFilenameOptionFlags(rootCmd, &o.FilenameOptions, "to need to get converted.")
 	o.PrintFlags.AddFlags(rootCmd)
 
@@ -138,7 +138,7 @@ func (o *Context) RunConvert() error {
 			continue
 		}
 
-		obj, err := process(info.Object, o)
+		obj, err := convert(info.Object, o)
 		if err != nil {
 			fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
 		} else {
@@ -149,7 +149,7 @@ func (o *Context) RunConvert() error {
 				fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
 			}
 
-			output := parseOutput(buffer)
+			output := dropFields(buffer)
 
 			if _, err := o.Out.Write([]byte(output)); err != nil {
 				fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
@@ -160,7 +160,7 @@ func (o *Context) RunConvert() error {
 	return nil
 }
 
-func parseOutput(buffer bytes.Buffer) string {
+func dropFields(buffer bytes.Buffer) string {
 	output := buffer.String()
 	output = strings.Replace(output, "status: {}\n", "", -1)
 	output = strings.Replace(output, "      creationTimestamp: null\n", "", -1)
@@ -170,19 +170,21 @@ func parseOutput(buffer bytes.Buffer) string {
 	return output
 }
 
-func process(resource runtime.Object, o *Context) (runtime.Object, error) {
+// Convert a Provisioner into a NodePool and an AWSNodeTemplate into a NodeClass.
+// If the input is of a different kind, returns an error
+func convert(resource runtime.Object, o *Context) (runtime.Object, error) {
 	kind := resource.GetObjectKind().GroupVersionKind().Kind
 	switch kind {
 	case "Provisioner":
-		return processProvisioner(resource, o), nil
+		return convertProvisioner(resource, o), nil
 	case "AWSNodeTemplate":
-		return processNodeTemplate(resource), nil
+		return convertNodeTemplate(resource), nil
 	default:
 		return nil, fmt.Errorf("unknown kind. expected one of Provisioner, AWSNodeTemplate. got %s", kind)
 	}
 }
 
-func processNodeTemplate(resource runtime.Object) runtime.Object {
+func convertNodeTemplate(resource runtime.Object) runtime.Object {
 	nodetemplate := resource.(*v1alpha1.AWSNodeTemplate)
 	// If the AMIFamily wasn't specified, then we know that it should be AL2 for the conversion
 	if nodetemplate.Spec.AMIFamily == nil {
@@ -190,16 +192,27 @@ func processNodeTemplate(resource runtime.Object) runtime.Object {
 	}
 
 	nodeclass := nodeclassutil.New(nodetemplate)
-	nodeclass.ObjectMeta.CreationTimestamp = metav1.Time{}
 	nodeclass.TypeMeta = metav1.TypeMeta{
 		Kind:       "EC2NodeClass",
 		APIVersion: v1beta1.SchemeGroupVersion.String(),
 	}
+
+	// From the input NodeTemplate, keep only name, labels and annotations
+	nodeclass.ObjectMeta = metav1.ObjectMeta{
+		Name:        nodetemplate.Name,
+		Labels:      nodetemplate.Labels,
+		Annotations: nodetemplate.Annotations,
+	}
+
+	// Cleanup the status provided in input
+	nodeclass.Status = v1beta1.EC2NodeClassStatus{}
+
+	// Leave a placeholder for the role. This can be substituted with `envsubst` or other means
 	nodeclass.Spec.Role = "$KARPENTER_NODE_ROLE"
 	return nodeclass
 }
 
-func processProvisioner(resource runtime.Object, o *Context) runtime.Object {
+func convertProvisioner(resource runtime.Object, o *Context) runtime.Object {
 	coreprovisioner := resource.(*corev1alpha5.Provisioner)
 
 	if !o.IgnoreDefaults {
@@ -209,11 +222,23 @@ func processProvisioner(resource runtime.Object, o *Context) runtime.Object {
 	}
 
 	nodepool := nodepoolutil.New(coreprovisioner)
-	nodepool.ObjectMeta.CreationTimestamp = metav1.Time{}
 	nodepool.TypeMeta = metav1.TypeMeta{
 		Kind:       "NodePool",
 		APIVersion: corev1beta1.SchemeGroupVersion.String(),
 	}
+
+	// From the input Provisioner, keep only name, labels and annotations
+	nodepool.ObjectMeta = metav1.ObjectMeta{
+		Name:        coreprovisioner.Name,
+		Labels:      coreprovisioner.Labels,
+		Annotations: coreprovisioner.Annotations,
+	}
+
+	// Reset timestamp if present
+	nodepool.Spec.Template.CreationTimestamp = metav1.Time{}
+
+	// Cleanup the status provided in input
+	nodepool.Status = corev1beta1.NodePoolStatus{}
 
 	return nodepool
 }

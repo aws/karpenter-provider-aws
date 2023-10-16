@@ -9,7 +9,21 @@ It converts `v1alpha5/Provisioner` to `v1beta1/NodePool` and `v1alpha1/AWSNodeTe
 go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@latest
 ```
 
-## Usage:
+## Usage
+```console
+Usage:
+  karpenter-convert [flags]
+
+Flags:
+  -f, --filename strings               Filename, directory, or URL to files to need to get converted.
+  -h, --help                           help for karpenter-convert
+  -I, --ignore-defaults                Ignore defining default requirements when migrating Provisioners to NodePool.
+  -k, --kustomize string               Process the kustomization directory. This flag can't be used together with -f or -R.
+  -o, --output string                  Output format. One of: (json, yaml, name, go-template, go-template-file, template, templatefile, jsonpath, jsonpath-as-json, jsonpath-file). (default "yaml")
+  -R, --recursive                      Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.
+```
+
+## Examples:
 
 ```console
 # Convert a single Provisioner file to NodePool
@@ -23,6 +37,11 @@ karpenter-convert -f . > output.yaml
 
 # Convert a single provisioner and apply directly to the cluster
 karpenter-convert -f provisioner.yaml | kubectl apply -f -
+
+# Convert a single provisioner ignoring the default requirements
+# Karpenter provisioners had logic to default Instance Families, OS, Architecture and Cpacity type when these were not provided.
+# NodePool drops these defaults, and you can avoid that the conversion tools applies them for you during the conversion
+karpenter-convert --ignore-defaults -f provisioner.yaml > nodepool.yaml
 ```
 
 ## Usage notes
