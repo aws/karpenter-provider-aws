@@ -46,6 +46,8 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 
+const karpenterNodeRolePlaceholder string = "$KARPENTER_NODE_ROLE"
+
 type Context struct {
 	PrintFlags *genericclioptions.PrintFlags
 	Printer    printers.ResourcePrinter
@@ -72,18 +74,20 @@ func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Comm
 		},
 	}
 
-	rootCmd.Flags().BoolVarP(&o.IgnoreDefaults, "ignore-defaults", "I", o.IgnoreDefaults, "Ignore defining default requirements when migrating Provisioners to NodePool.")
-	cmdutil.AddFilenameOptionFlags(rootCmd, &o.FilenameOptions, "to need to get converted.")
+	rootCmd.Flags().BoolVar(&o.IgnoreDefaults, "ignore-defaults", o.IgnoreDefaults, "Ignore defining default requirements when migrating Provisioners to NodePool.")
+	cmdutil.AddJsonFilenameFlag(rootCmd.Flags(), &o.Filenames, "Filename, directory, or URL to files to need to get converted.")
+	rootCmd.Flags().BoolVarP(&o.Recursive, "recursive", "R", o.Recursive, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
+
 	o.PrintFlags.AddFlags(rootCmd)
 
 	return rootCmd
 }
 
 func (o *Context) Complete(f cmdutil.Factory, _ *cobra.Command) (err error) {
-	err = o.FilenameOptions.RequireFilenameOrKustomize()
-	if err != nil {
-		return err
+	if len(o.Filenames) == 0 {
+		return fmt.Errorf("must specify -f")
 	}
+
 	o.builder = f.NewBuilder
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	return err
@@ -208,7 +212,7 @@ func convertNodeTemplate(resource runtime.Object) runtime.Object {
 	nodeclass.Status = v1beta1.EC2NodeClassStatus{}
 
 	// Leave a placeholder for the role. This can be substituted with `envsubst` or other means
-	nodeclass.Spec.Role = "$KARPENTER_NODE_ROLE"
+	nodeclass.Spec.Role = karpenterNodeRolePlaceholder
 	return nodeclass
 }
 

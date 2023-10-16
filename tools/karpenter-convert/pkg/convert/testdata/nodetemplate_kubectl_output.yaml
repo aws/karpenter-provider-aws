@@ -1,9 +1,6 @@
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"karpenter.k8s.aws/v1alpha1","kind":"AWSNodeTemplate","metadata":{"annotations":{},"name":"default"},"spec":{"securityGroupSelector":{"karpenter.sh/discovery":"eks-workshop-camigration"},"subnetSelector":{"karpenter.sh/discovery":"eks-workshop-camigration"},"tags":{"app.kubernetes.io/created-by":"eks-workshop","aws-node-termination-handler/managed":"true"}}}
   creationTimestamp: "2023-05-08T13:37:43Z"
   generation: 2
   name: default

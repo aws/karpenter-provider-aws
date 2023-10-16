@@ -17,8 +17,7 @@ Usage:
 Flags:
   -f, --filename strings               Filename, directory, or URL to files to need to get converted.
   -h, --help                           help for karpenter-convert
-  -I, --ignore-defaults                Ignore defining default requirements when migrating Provisioners to NodePool.
-  -k, --kustomize string               Process the kustomization directory. This flag can't be used together with -f or -R.
+      --ignore-defaults                Ignore defining default requirements when migrating Provisioners to NodePool.
   -o, --output string                  Output format. One of: (json, yaml, name, go-template, go-template-file, template, templatefile, jsonpath, jsonpath-as-json, jsonpath-file). (default "yaml")
   -R, --recursive                      Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.
 ```

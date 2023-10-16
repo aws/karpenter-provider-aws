@@ -1,9 +1,6 @@
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 metadata:
-  annotations:
-    kubectl.kubernetes.io/last-applied-configuration: |
-      {"apiVersion":"karpenter.sh/v1alpha5","kind":"Provisioner","metadata":{"annotations":{},"name":"provisioner1"},"spec":{"labels":{"type":"app1"},"limits":{"resources":{"cpu":100,"memory":"1000Gi"}},"providerRef":{"name":"default"},"requirements":[{"key":"karpenter.sh/capacity-type","operator":"In","values":["on-demand"]},{"key":"node.kubernetes.io/instance-family","operator":"In","values":["c","r","m"]}]}}
   creationTimestamp: "2023-07-10T13:41:16Z"
   generation: 1
   name: provisioner1
