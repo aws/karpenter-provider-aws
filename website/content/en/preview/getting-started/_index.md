@@ -12,7 +12,7 @@ cascade:
 To get started with Karpenter, the [Getting Started with Karpenter]({{< relref "getting-started-with-karpenter" >}}) guide provides an end-to-end procedure for creating a cluster (with `eksctl`) and adding Karpenter.
 If you prefer, the following instructions use Terraform to create a cluster and add Karpenter:
 
-* [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints): Follow a basic [Getting Started](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/getting-started/) guide and also add modules and add-ons. This includes a [Karpenter](https://aws-ia.github.io/terraform-aws-eks-blueprints/v4.18.0/add-ons/karpenter/) add-on that lets you bypass the instructions in this guide for setting up Karpenter.
+* [Amazon EKS Blueprints for Terraform](https://aws-ia.github.io/terraform-aws-eks-blueprints): Follow a basic [Getting Started](https://aws-ia.github.io/terraform-aws-eks-blueprints/getting-started/) guide and also add modules and add-ons. This includes a [Karpenter](https://aws-ia.github.io/terraform-aws-eks-blueprints/patterns/karpenter/) add-on that lets you bypass the instructions in this guide for setting up Karpenter.
 
 Although not supported, you could also try Karpenter on other Kubernetes distributions running on AWS. For example:
 
