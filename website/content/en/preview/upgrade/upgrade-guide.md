@@ -48,7 +48,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 1. Determine the current cluster version: Run the following to make sure that your Karpenter version is v0.31.x:
    ```
    kubectl get pod -A | grep karpenter
-   kubectl describe pod -n karpenter-xxxxxxxxxx-xxxxx | grep Image: | grep v0.....
+   kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image: | grep v0.....
    ```
    Sample output:
    ```
@@ -107,7 +107,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
       --wait
     ```
 
-7. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert/README).
+7. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert).
    See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-reference#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects. Here is an example of how to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
 
     ```bash
