@@ -127,7 +127,7 @@ func AsTypedString[T ~string](key string, target *T) configmap.ParseFunc {
 // AsStringMap parses a value as a JSON map of map[string]string.
 func AsStringMap(key string, target *map[string]string) configmap.ParseFunc {
 	return func(data map[string]string) error {
-		if raw, ok := data[key]; ok {
+		if raw, ok := data[key]; ok && raw != "" {
 			m := map[string]string{}
 			if err := json.Unmarshal([]byte(raw), &m); err != nil {
 				return err

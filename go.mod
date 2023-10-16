@@ -9,6 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.46.0
 	github.com/aws/karpenter-core v0.31.1-0.20231019191151-73c0fd546f75
 	github.com/aws/karpenter/tools/kompat v0.0.0-20231010173459-62c25a3ea85c
+	github.com/go-logr/zapr v1.2.4
 	github.com/imdario/mergo v0.3.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.13.0
@@ -49,7 +50,6 @@ require (
 	github.com/go-kit/log v0.2.1 // indirect
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
-	github.com/go-logr/zapr v1.2.4 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/swag v0.22.4 // indirect

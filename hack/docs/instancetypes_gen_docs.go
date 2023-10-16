@@ -40,6 +40,7 @@ import (
 	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/operator/options"
@@ -93,6 +94,8 @@ func main() {
 		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
 		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
 	}))
+	// TODO @joinnis: Remove this when dropping alpha support
+	ctx = settings.ToContext(ctx, test.Settings())
 
 	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
 		Manager:             &FakeManager{},

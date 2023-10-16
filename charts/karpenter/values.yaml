@@ -198,9 +198,12 @@ settings:
   isolatedVPC: false
   # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
   vmMemoryOverheadPercent: 0.075
-  # -- interruptionQueueName is disabled if not specified. Enabling interruption handling may
+  # -- interruptionQueue is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
-  interruptionQueueName: ""
+  interruptionQueue: ""
+  # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved
+  # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
+  reservedENIs: "0"
   # -- AWS-specific configuration values (Deprecated: Use values without the "aws" prefix instead)
   aws:
     # -- Role to assume for calling AWS services.
@@ -230,10 +233,17 @@ settings:
     interruptionQueueName: ""
     # -- The global tags to use on all AWS infrastructure resources (launch templates, instances, etc.) across node templates
     tags:
+    # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved
+    # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
+    reservedENIs: "0"
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
   featureGates:
-    # -- driftEnabled is in ALPHA and is disabled by default.
-    # Setting driftEnabled to true enables the drift deprovisioner to watch for drift between currently deployed nodes
+    # -- drift is in ALPHA and is disabled by default.
+    # Setting drift to true enables the drift disruption method to watch for drift between currently deployed nodes
+    # and the desired state of nodes set in provisioners and node templates
+    drift: false
+    # -- driftEnabled is in ALPHA and is disabled by default. (Deprecated: Use featureGates.drift instead)
+    # Setting driftEnabled to true enables the drift disruption method to watch for drift between currently deployed nodes
     # and the desired state of nodes set in provisioners and node templates
     driftEnabled: false

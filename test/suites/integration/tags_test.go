@@ -66,9 +66,7 @@ var _ = Describe("Tags", func() {
 				},
 			})
 
-			env.ExpectSettingsOverridden(map[string]string{
-				"aws.tags": `{"TestTag": "TestVal", "example.com/tag": "custom-value"}`,
-			})
+			env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.tags": `{"TestTag": "TestVal", "example.com/tag": "custom-value"}`})
 			provisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
 			pod := coretest.Pod()
 

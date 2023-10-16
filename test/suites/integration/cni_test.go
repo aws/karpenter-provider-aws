@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -33,9 +34,7 @@ import (
 
 var _ = Describe("CNITests", func() {
 	It("should set max pods to 110 when AWSENILimited when AWS_ENI_LIMITED_POD_DENSITY is false", func() {
-		env.ExpectSettingsOverridden(map[string]string{
-			"aws.enableENILimitedPodDensity": "false",
-		})
+		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.enableENILimitedPodDensity": "false"})
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -73,9 +72,8 @@ var _ = Describe("CNITests", func() {
 		Expect(allocatablePods).To(Equal(eniLimitedPodsFor(node.Labels["node.kubernetes.io/instance-type"])))
 	})
 	It("should set maxPods when reservedENIs is set", func() {
-		env.ExpectSettingsOverridden(map[string]string{
-			"aws.reservedENIs": "1",
-		})
+		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.reservedENIs": "1"})
+		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "RESERVED_ENIS", Value: "1"})
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -111,9 +109,9 @@ func reservedENIsFor(instanceType string) int64 {
 	Expect(err).ToNot(HaveOccurred())
 	networkInfo := *instance.InstanceTypes[0].NetworkInfo
 	reservedENIs := 0
-	reservedENIsStr, ok := env.ExpectSettings().Data["aws.reservedENIs"]
+	reservedENIsVar, ok := lo.Find(env.ExpectSettings(), func(v corev1.EnvVar) bool { return v.Name == "RESERVED_ENIS" })
 	if ok {
-		reservedENIs, err = strconv.Atoi(reservedENIsStr)
+		reservedENIs, err = strconv.Atoi(reservedENIsVar.Value)
 		Expect(err).ToNot(HaveOccurred())
 	}
 	return (*networkInfo.MaximumNetworkInterfaces-int64(reservedENIs))*(*networkInfo.Ipv4AddressesPerInterface-1) + 2

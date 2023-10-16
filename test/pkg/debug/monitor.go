@@ -18,11 +18,13 @@ import (
 	"context"
 	"sync"
 
+	"github.com/go-logr/zapr"
 	"github.com/samber/lo"
 	"k8s.io/client-go/rest"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrl "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
@@ -39,6 +41,7 @@ type Monitor struct {
 
 func New(ctx context.Context, config *rest.Config, kubeClient client.Client) *Monitor {
 	logger := logging.FromContext(ctx)
+	ctrl.SetLogger(zapr.NewLogger(logger.Desugar()))
 	mgr := lo.Must(controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme: scheme.Scheme,
 		BaseContext: func() context.Context {

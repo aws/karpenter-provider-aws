@@ -96,24 +96,76 @@ func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
 	}
 }
 
-// ExpectSettings gets the karpenter-global-settings ConfigMap
-func (env *Environment) ExpectSettings() *v1.ConfigMap {
+func (env *Environment) ExpectSettings() (res []v1.EnvVar) {
+	GinkgoHelper()
+
+	d := &appsv1.Deployment{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+	return lo.Map(d.Spec.Template.Spec.Containers[0].Env, func(v v1.EnvVar, _ int) v1.EnvVar {
+		return *v.DeepCopy()
+	})
+}
+
+func (env *Environment) ExpectSettingsReplaced(vars ...v1.EnvVar) {
+	GinkgoHelper()
+
+	d := &appsv1.Deployment{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+	stored := d.DeepCopy()
+	d.Spec.Template.Spec.Containers[0].Env = vars
+
+	if !equality.Semantic.DeepEqual(d, stored) {
+		By("replacing environment variables for karpenter deployment")
+		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		env.EventuallyExpectKarpenterRestarted()
+	}
+}
+
+func (env *Environment) ExpectSettingsOverridden(vars ...v1.EnvVar) {
+	GinkgoHelper()
+
+	d := &appsv1.Deployment{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+	stored := d.DeepCopy()
+	for _, v := range vars {
+		if _, i, ok := lo.FindIndexOf(d.Spec.Template.Spec.Containers[0].Env, func(e v1.EnvVar) bool {
+			return e.Name == v.Name
+		}); ok {
+			d.Spec.Template.Spec.Containers[0].Env[i] = v
+		} else {
+			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, v)
+		}
+	}
+	if !equality.Semantic.DeepEqual(d, stored) {
+		By("overriding environment variables for karpenter deployment")
+		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		env.EventuallyExpectKarpenterRestarted()
+	}
+}
+
+// ExpectSettingsLegacy gets the karpenter-global-settings ConfigMap
+func (env *Environment) ExpectSettingsLegacy() *v1.ConfigMap {
 	GinkgoHelper()
 	return env.ExpectConfigMapExists(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"})
 }
 
-// ExpectSettingsReplaced performs a full replace of the settings, replacing the existing data
+// ExpectSettingsReplacedLegacy performs a full replace of the settings, replacing the existing data
 // with the data passed through
-func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
+func (env *Environment) ExpectSettingsReplacedLegacy(data ...map[string]string) {
 	GinkgoHelper()
 	if env.ExpectConfigMapDataReplaced(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
 		env.EventuallyExpectKarpenterRestarted()
 	}
 }
 
-// ExpectSettingsOverridden overrides specific values specified through data. It only overrides
+// ExpectSettingsOverriddenLegacy overrides specific values specified through data. It only overrides
 // or inserts the specific values specified and does not upsert any of the existing data
-func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
+func (env *Environment) ExpectSettingsOverriddenLegacy(data ...map[string]string) {
 	GinkgoHelper()
 	if env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
 		env.EventuallyExpectKarpenterRestarted()
@@ -226,6 +278,11 @@ func (env *Environment) EventuallyExpectKarpenterRestarted() {
 	GinkgoHelper()
 	By("rolling out the new karpenter deployment")
 	env.EventuallyExpectRollout("karpenter", "karpenter")
+	env.ExpectKarpenterLeaseOwnerChanged()
+}
+
+func (env *Environment) ExpectKarpenterLeaseOwnerChanged() {
+	GinkgoHelper()
 
 	By("waiting for a new karpenter pod to hold the lease")
 	pods := env.ExpectKarpenterPods()

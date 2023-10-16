@@ -98,26 +98,52 @@ spec:
                   containerName: controller
                   divisor: "0"
                   resource: limits.memory
+            - name: FEATURE_GATES
+              value: "Drift={{ or .Values.settings.featureGates.drift .Values.settings.featureGates.driftEnabled }}"
+          {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
-              value: "{{ .Values.settings.batchMaxDuration }}"
+              value: "{{ . }}"
+          {{- end }}
+          {{- with .Values.settings.batchIdleDuration }}
             - name: BATCH_IDLE_DURATION
-              value: "{{ .Values.settings.batchIdleDuration }}"
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.assumeRoleARN .Values.settings.aws.assumeRoleARN }}
             - name: ASSUME_ROLE_ARN
-              value: "{{ or .Values.settings.assumeRoleARN .Values.settings.aws.assumeRoleARN }}"
-            - name: ASSUME_ROLE_ARN
-              value: "{{ or .Values.settings.assumeRoleDuration .Values.settings.aws.assumeRoleDuration }}"
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.assumeRoleDuration .Values.settings.aws.assumeRoleDuration }}
+            - name: ASSUME_ROLE_DURATION
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.clusterCABundle .Values.settings.aws.clusterCABundle }}
             - name: CLUSTER_CA_BUNDLE
-              value: "{{ or .Values.settings.clusterCABundle .Values.settings.aws.clusterCABundle }}"
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.clusterName .Values.settings.aws.clusterName }}
             - name: CLUSTER_NAME
-              value: "{{ or .Values.settings.clusterName .Values.settings.aws.clusterName }}"
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.clusterEndpoint .Values.settings.aws.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
-              value: "{{ or .Values.settings.clusterEndpoint .Values.settings.aws.clusterEndpoint }}"
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.isolatedVPC .Values.settings.aws.isolatedVPC }}
             - name: ISOLATED_VPC
-              value: "{{ or .Values.settings.isolatedVPC .Values.settings.aws.isolatedVPC }}"
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.vmMemoryOverheadPercent .Values.settings.aws.vmMemoryOverheadPercent }}
             - name: VM_MEMORY_OVERHEAD_PERCENT
-              value: "{{ or .Values.settings.vmMemoryOverheadPercent .Values.settings.aws.vmMemoryOverheadPercent }}"
-            - name: INTERRUPTION_QUEUE_NAME
-              value: "{{ or .Values.settings.interruptionQueueName .Values.settings.aws.interruptionQueueName }}"
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.interruptionQueue .Values.settings.aws.interruptionQueueName }}
+            - name: INTERRUPTION_QUEUE
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.reservedENIs .Values.settings.aws.reservedENIs }}
+            - name: RESERVED_ENIS
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}

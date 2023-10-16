@@ -12,10 +12,10 @@ CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
-      		--set settings.aws.clusterName=${CLUSTER_NAME} \
-			--set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
+      		--set settings.clusterName=${CLUSTER_NAME} \
+			--set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
+			--set settings.interruptionQueue=${CLUSTER_NAME} \
 			--set settings.featureGates.driftEnabled=true \
 			--set controller.resources.requests.cpu=1 \
 			--set controller.resources.requests.memory=1Gi \
@@ -76,7 +76,10 @@ battletest: ## Run randomized, racing, code-covered tests
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test \
+	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
+		CLUSTER_NAME=${CLUSTER_NAME} \
+		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		go test \
 		-p 1 \
 		-count 1 \
 		-timeout ${TEST_TIMEOUT} \

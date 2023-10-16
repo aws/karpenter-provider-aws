@@ -22,7 +22,8 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
-var persistedSettings = &v1.ConfigMap{}
+var persistedSettings []v1.EnvVar
+var persistedSettingsLegacy = &v1.ConfigMap{}
 
 var (
 	CleanableObjects = []client.Object{
@@ -32,6 +33,7 @@ var (
 
 func (env *Environment) BeforeEach() {
 	persistedSettings = env.ExpectSettings()
+	persistedSettingsLegacy = env.ExpectSettingsLegacy()
 	env.Environment.BeforeEach()
 }
 
@@ -43,5 +45,6 @@ func (env *Environment) Cleanup() {
 func (env *Environment) AfterEach() {
 	env.Environment.AfterEach()
 	// Ensure we reset settings after collecting the controller logs
-	env.ExpectSettingsReplaced(persistedSettings.Data)
+	env.ExpectSettingsReplaced(persistedSettings...)
+	env.ExpectSettingsReplacedLegacy(persistedSettingsLegacy.Data)
 }
