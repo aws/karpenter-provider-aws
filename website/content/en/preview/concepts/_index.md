@@ -6,7 +6,7 @@ description: >
   Understand key concepts of Karpenter
 ---
 
-Users fall under two basic roles: [Kubernetes cluster administrators]({{<ref "#cluster-administrator" >}}) and [application developers]({{<ref "#application-developers" >}}). This document describes Karpenter concepts through the lens of those two types of users.
+Users fall under two basic roles: [Kubernetes cluster administrators]({{<ref "#cluster-administrator" >}}) and [application developers]({{<ref "#application-developer" >}}). This document describes Karpenter concepts through the lens of those two types of users.
 
 ## Cluster Administrator
 
@@ -37,7 +37,7 @@ Here are some things to know about Karpenter's NodePools:
 
 * [**Defining Constraints**]({{<ref "nodepools" >}}): Karpenter defines a Custom Resource called a NodePool to specify configuration. Each NodePool manages a distinct set of nodes, but pods can be scheduled to any NodePool that supports its scheduling constraints. A NodePool contains constraints that impact the nodes that can be provisioned and attributes of those nodes. See the [NodePools Documentation]({{<ref "nodepools" >}}) docs for a description of configuration and NodePool examples.
 
-* [**Defining Disruption**]({{<ref "disruption" >}}): A NodePool can also include values to indicate when nodes should be disrupted. This includes configuration around concepts like [Consolidation]({{<ref "disruption#consolidation" >}}) and [Expiration]({{<ref "disruption" >}}).
+* [**Defining Disruption**]({{<ref "disruption" >}}): A NodePool can also include values to indicate when nodes should be disrupted. This includes configuration around concepts like [Consolidation]({{<ref "disruption#consolidation" >}}), [Drift]({{<ref "disruption#drift" >}}), and [Expiration]({{<ref "disruption#automated-methods" >}}).
 
 * **Well-known labels**: The NodePool can use well-known Kubernetes labels to allow pods to request only certain instance types, architectures, operating systems, or other attributes when creating nodes. See [Well-Known Labels, Annotations and Taints](https://kubernetes.io/docs/reference/labels-annotations-taints/) for details. Keep in mind that only a subset of these labels are supported in Karpenter, as described later.
 
@@ -78,7 +78,7 @@ An application developer can tighten the constraints defined in a NodePool by th
 
 Karpenter makes requests to provision new nodes to the associated cloud provider. The first supported cloud provider is AWS, although Karpenter is designed to work with other cloud providers. Separating Kubernetes and AWS-specific settings allows Karpenter a clean path to integrating with other cloud providers.
 
-While using Kubernetes well-known labels, the NodePool can set some values that are specific to the cloud provider. So, for example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
+While using Kubernetes well-known labels, the NodePool can set some values that are specific to the cloud provider. For example, to include a certain instance type, you could use the Kubernetes label `node.kubernetes.io/instance-type`, but set its value to an AWS instance type (such as `m5.large` or `m5.2xlarge`).
 
 ### Kubernetes Cluster Autoscaler
 
@@ -86,7 +86,7 @@ Like Karpenter, [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/au
 
 * **Designed to handle the full flexibility of the cloud**: Karpenter has the ability to efficiently address the full range of instance types available through AWS. Cluster autoscaler was not originally built with the flexibility to handle hundreds of instance types, zones, and purchase options.
 
-* **Group-less node provisioning**: Karpenter manages each instance directly, without use of additional orchestration mechanisms like node groups. This enables it to retry in milliseconds instead of minutes when capacity is unavailable. It also allows Karpenter to leverage diverse instance types, availability zones, and purchase options without the creation of hundreds of node groups.
+* **Quick node provisioning**: Karpenter manages each instance directly, without use of additional orchestration mechanisms like node groups. This enables it to retry in milliseconds instead of minutes when capacity is unavailable. It also allows Karpenter to leverage diverse instance types, availability zones, and purchase options without the creation of hundreds of node groups.
 
 ## Application Developer
 

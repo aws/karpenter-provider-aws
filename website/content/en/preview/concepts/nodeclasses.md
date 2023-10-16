@@ -440,11 +440,11 @@ Karpenter allows overrides of the default "Name" tag but does not allow override
 
 ## spec.metadataOptions
 
-Control the exposure of [Instance Metadata Service](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) on EC2 Instances launched by this NodePool using a generated launch template.
+Control the exposure of [Instance Metadata Service](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) on EC2 Instances launched by this EC2NodeClass using a generated launch template.
 
 Refer to [recommended, security best practices](https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node) for limiting exposure of Instance Metadata and User Data to pods.
 
-If metadataOptions are omitted from this NodePool, the following default settings are applied to the `EC2NodeClass`.
+If metadataOptions are omitted from this EC2NodeClass, the following default settings are applied:
 
 ```yaml
 spec:
