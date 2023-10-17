@@ -1,8 +1,11 @@
 # This example NodePool will avoid small instance types in the cluster
+---
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
-  name: default
+  name: large-instances
+  annotations:
+    kubernetes.io/description: "NodePool for provisioning larger instances using Gt/Lt requirements"
 spec:
   template:
     spec:
@@ -21,8 +24,10 @@ apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 metadata:
   name: default
+  annotations:
+    kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
 spec:
-  amiFamily: AL2
+  amiFamily: AL2 # Amazon Linux 2
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:

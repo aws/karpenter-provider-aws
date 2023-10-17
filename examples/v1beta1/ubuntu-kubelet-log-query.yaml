@@ -1,13 +1,31 @@
-# This example provisioner will provision instances using the Ubuntu EKS AMI
+# This example NodePool provisions instances using the Ubuntu EKS AMI
 # and will be prepended to a Karpenter managed section that will bootstrap the kubelet.
-
+---
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
-  name: default
+  name: ubuntu
+  annotations:
+    kubernetes.io/description: "General purpose NodePool for generic workloads"
 spec:
   template:
     spec:
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
       nodeClassRef:
         name: ubuntu
 ---
@@ -15,6 +33,8 @@ apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 metadata:
   name: ubuntu
+  annotations:
+    kubernetes.io/description: "EC2NodeClass for running Ubuntu nodes with user data that enables the NodeLogQuery feature gate"
 spec:
   amiFamily: Ubuntu
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name

@@ -1,30 +1,42 @@
 # This example NodePool will provision instances
-# with multiple EBS attached
+# with multiple EBS volumes attached
+---
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
   name: default
+  annotations:
+    kubernetes.io/description: "General purpose NodePool for generic workloads"
 spec:
   template:
     spec:
       requirements:
-        # Include general purpose instance families
-        - key: karpenter.k8s.aws/instance-family
+        - key: kubernetes.io/arch
           operator: In
-          values: [c6g, c7g, c6a, c6i, m6a, m6g, m6i, r6a, r6g, r6i]
-        # Exclude small instance sizes
-        - key: karpenter.k8s.aws/instance-size
+          values: ["amd64"]
+        - key: kubernetes.io/os
           operator: In
-          values: [medium, large, xlarge, xlarge, 2xlarge, 4xlarge]
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
       nodeClassRef:
-        name: default
+        name: multiple-ebs
 ---
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 metadata:
-  name: default
+  name: multiple-ebs
+  annotations:
+    kubernetes.io/description: "EC2NodeClass to provision multiple EBS volumes to attach to new nodes"
 spec:
-  amiFamily: AL2
+  amiFamily: AL2 # Amazon Linux 2
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:

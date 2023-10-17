@@ -1,8 +1,11 @@
 # This example NodePool will provision instances running Windows Server 2022
+---
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
   name: windows2022
+  annotations:
+    kubernetes.io/description: "General purpose NodePool for Windows workloads"
 spec:
   template:
     spec:
@@ -10,6 +13,18 @@ spec:
         - key: kubernetes.io/os
           operator: In
           values: ["windows"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
       nodeClassRef:
         name: windows2022
 ---

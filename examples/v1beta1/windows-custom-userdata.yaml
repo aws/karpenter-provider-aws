@@ -1,19 +1,33 @@
-# This example provisioner will provision instances using the Windows 2022 EKS-Optimized AMI.
+# This example NodePool provisions instances using the Windows 2022 EKS-Optimized AMI.
 # The UserData defined in spec.UserData should be PowerShell commands
 # and they will be prepended to a Karpenter managed section that will bootstrap the kubelet.
 # This example also applies to the Windows 2019 EKS-Optimized AMI.
-
+---
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
   name: windows2022
+  annotations:
+    kubernetes.io/description: "General purpose NodePool for Windows workloads"
 spec:
   template:
     spec:
       requirements:
         - key: kubernetes.io/os
           operator: In
-          values: [ "windows" ]
+          values: ["windows"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
       nodeClassRef:
         name: windows2022
 ---
