@@ -148,8 +148,7 @@ Resources:
               - eks:ListFargateProfiles
               - eks:TagResource
               - eks:DescribeCluster
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
+            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
             Condition:
               StringEquals:
                 aws:RequestedRegion: 
@@ -169,16 +168,17 @@ Resources:
               - eks:DeleteNodegroup
               - eks:DescribeNodegroup
               - eks:TagResource
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:nodegroup/*"
+            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:nodegroup/*"
             Condition:
               StringEquals:
                 aws:RequestedRegion: 
                   Ref: Regions
           - Effect: Allow
+            Action: logs:PutRetentionPolicy
+            Resource: !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/eks/*"
+          - Effect: Allow
             Action: fis:CreateExperimentTemplate
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:action/*"
+            Resource: !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:action/*"
             Condition:
               StringEquals:
                 aws:RequestedRegion: 
