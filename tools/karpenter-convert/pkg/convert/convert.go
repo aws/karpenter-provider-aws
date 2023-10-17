@@ -93,6 +93,7 @@ func (o *Context) Complete(f cmdutil.Factory, _ *cobra.Command) (err error) {
 	return err
 }
 
+//nolint:gocyclo
 func (o *Context) RunConvert() error {
 	scheme := runtime.NewScheme()
 	if err := apis.AddToScheme(scheme); err != nil {
@@ -160,7 +161,6 @@ func (o *Context) RunConvert() error {
 			}
 		}
 	}
-
 	return nil
 }
 
