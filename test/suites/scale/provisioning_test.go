@@ -68,6 +68,12 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"nitro"},
 				},
+				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+				{
+					Key:      v1alpha1.LabelInstanceFamily,
+					Operator: v1.NodeSelectorOpNotIn,
+					Values:   []string{"r7a", "c7a"},
+				},
 			},
 			// No limits!!!
 			// https://tenor.com/view/chaos-gif-22919457
