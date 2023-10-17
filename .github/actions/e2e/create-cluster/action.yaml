@@ -113,6 +113,10 @@ runs:
           - key: CriticalAddonsOnly
             value: "true"
             effect: NoSchedule
+      cloudWatch:
+        clusterLogging:
+          enableTypes: ["*"]
+          logRetentionInDays: 30
       iam:
         serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
         serviceAccounts:
@@ -152,8 +156,6 @@ runs:
       # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
       # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
       eksctl update iamserviceaccount -f clusterconfig.yaml --approve
-      
-
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash
@@ -162,13 +164,6 @@ runs:
       arn="arn:aws:iam::${{ inputs.account_id }}:oidc-provider/${oidc_id}"
       aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
          --tags Key=testing/type,Value=e2e  Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
-  - name: enable control-plane logging for the cluster
-    shell: bash
-    run: |
-      aws eks update-cluster-config \
-        --region ${{ inputs.region }} \
-        --name ${{ inputs.cluster_name }} \
-        --logging '{"clusterLogging":[{"types":["api","audit","authenticator","controllerManager","scheduler"],"enabled":true}]}'
   - name: give KarpenterNodeRole permission to bootstrap
     shell: bash
     run: |
