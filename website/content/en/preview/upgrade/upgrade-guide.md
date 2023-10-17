@@ -121,7 +121,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 8. Edit the converted EC2NodeClass file manually:
 
    * Specify your AWS role where there is a `KARPENTER_NODE_ROLE` placeholder. For example, if you created your cluster using the [Getting Started with Karpenter](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/) guide, you would use the name `KarpenterNodeRole-<cluster>`, substituting your cluster name for `<cluster>`.
-   * Otherwise check the file for accuracy.
+   * Otherwise, check the file for accuracy.
 
 9. When you are satisfied with your EC2NodeClass file, apply it as follows:
 
