@@ -201,11 +201,12 @@ func convertNodeTemplate(resource runtime.Object) runtime.Object {
 		APIVersion: v1beta1.SchemeGroupVersion.String(),
 	}
 
-	// From the input NodeTemplate, keep only name, labels and annotations
+	// From the input NodeTemplate, keep only name, labels, annotations and finalizers
 	nodeclass.ObjectMeta = metav1.ObjectMeta{
 		Name:        nodetemplate.Name,
 		Labels:      nodetemplate.Labels,
 		Annotations: nodetemplate.Annotations,
+		Finalizers:  nodetemplate.Finalizers,
 	}
 
 	// Cleanup the status provided in input
@@ -231,11 +232,12 @@ func convertProvisioner(resource runtime.Object, o *Context) runtime.Object {
 		APIVersion: corev1beta1.SchemeGroupVersion.String(),
 	}
 
-	// From the input Provisioner, keep only name, labels and annotations
+	// From the input Provisioner, keep only name, labels, annotations and finalizers
 	nodepool.ObjectMeta = metav1.ObjectMeta{
 		Name:        coreprovisioner.Name,
 		Labels:      coreprovisioner.Labels,
 		Annotations: coreprovisioner.Annotations,
+		Finalizers:  coreprovisioner.Finalizers,
 	}
 
 	// Reset timestamp if present
