@@ -1,0 +1,69 @@
+# This example NodePool provisions instances using the Ubuntu EKS AMI
+# and will be prepended to a Karpenter managed section that will bootstrap the kubelet.
+---
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: ubuntu
+  annotations:
+    kubernetes.io/description: "General purpose NodePool for generic workloads"
+spec:
+  template:
+    spec:
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+      nodeClassRef:
+        name: ubuntu
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: ubuntu
+  annotations:
+    kubernetes.io/description: "EC2NodeClass for running Ubuntu nodes with user data that enables the NodeLogQuery feature gate"
+spec:
+  amiFamily: Ubuntu
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    # There is currently a bug with log query and kubelet running inside a snap environment
+    # https://github.com/kubernetes/kubernetes/issues/120618
+    # This example is provided for reference on how to change Ubuntu settings in user data
+
+    set -e
+
+    # This requires Kubernetes 1.27 or above (alpha feature)
+    # This modifies the configuration of the /etc/eks/bootstrap.sh script because /etc/kubernetes/kubelet/kubelet-config.json
+    # doesn't exist before bootstrap.sh is run
+    
+    sed -i 's/args="$KUBELET_EXTRA_ARGS"/args="--feature-gates=NodeLogQuery=true $KUBELET_EXTRA_ARGS"/g' /etc/eks/bootstrap.sh
+    sed -i '/# writes kubeReserved and evictionHard/a echo "$(jq .enableSystemLogHandler=true $KUBELET_CONFIG)" > $KUBELET_CONFIG' /etc/eks/bootstrap.sh
+    sed -i '/# writes kubeReserved and evictionHard/a echo "$(jq .enableSystemLogQuery=true $KUBELET_CONFIG)" > $KUBELET_CONFIG' /etc/eks/bootstrap.sh
+
+    --BOUNDARY--
