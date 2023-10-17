@@ -102,6 +102,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace karpenter --create-namespace \
       --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
+      --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
       --set settings.aws.clusterName=${CLUSTER_NAME} \
       --set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
       --set controller.resources.requests.cpu=1 \
@@ -120,7 +121,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 
 8. Edit the converted EC2NodeClass file manually:
 
-   * Specify your AWS role where there is a `KARPENTER_NODE_ROLE` placeholder. For example, if you created your cluster using the [Getting Started with Karpenter](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/) guide, you would use the name `KarpenterNodeRole-<cluster>`, substituting your cluster name for `<cluster>`.
+   * Specify your AWS role where there is a `$KARPENTER_NODE_ROLE` placeholder. For example, if you created your cluster using the [Getting Started with Karpenter](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/) guide, you would use the name `KarpenterNodeRole-$CLUSTER_NAME`, substituting your cluster name for `$CLUSTER_NAME`.
    * Otherwise, check the file for accuracy.
 
 9. When you are satisfied with your EC2NodeClass file, apply it as follows:

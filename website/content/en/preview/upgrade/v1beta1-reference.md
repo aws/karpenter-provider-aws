@@ -573,25 +573,25 @@ The AMIFamily field is now required. If you were previously not specifying the A
 
 The following table shows v1alpha5 metrics and the v1beta1 version of each metric. All metrics on this table will exist simultaneously, while both v1alpha5 and v1beta1 are supported within the same version.
 
-| **v1alpha5 Metric Name**                                              | **v1beta1 Metric Name**                                          |
-|-----------------------------------------------------------------------|------------------------------------------------------------------|
-| karpenter_machines_created                                            | karpenter_nodeclaims_created                                     |
-| karpenter_machines_disrupted                                          | karpenter_nodeclaims_disrupted                                   |
-| karpenter_machines_drifted                                            | karpenter_nodeclaims_drifted                                     |
-| karpenter_machines_initialized                                        | karpenter_nodeclaims_initialized                                 |
-| karpenter_machines_launched                                           | karpenter_nodeclaims_launched                                    |
-| karpenter_machines_registered                                         | karpenter_nodeclaims_registered                                  |
-| karpenter_machines_terminated                                         | karpenter_nodeclaims_terminated                                  |
-| karpenter_provisioners_limit                                          | karpenter_nodepools_limit                                        |
-| karpenter_provisioners_usage                                          | karpenter_nodepools_usage                                        |
-| karpenter_provisioners_usage_pct                                      | Dropped                                                          |
-| karpenter_deprovisioning_evaluation_duration_seconds                  | karpenter_disruption_evaluation_duration_seconds                 |
-| karpenter_deprovisioning_eligible_machines                            | karpenter_disruption_eligible_nodeclaims                         |
-| karpenter_deprovisioning_replacement_machine_initialized_seconds      | karpenter_disruption_replacement_nodeclaims_initialized_seconds  |
-| karpenter_deprovisioning_replacement_machine_launch_failure_counter   | karpenter_disruption_replacement_nodeclaims_launch_failed        |
-| karpenter_deprovisioning_actions_performed                            | karpenter_disruption_actions_performed_total                     |
-| karpenter_deprovisioning_consolidation_timeouts                       | karpenter_disruption_consolidation_timeouts_total                |
-| karpenter_nodes_leases_deleted                                        | karpenter_leases_deleted                                         |
+| **v1alpha5 Metric Name**                                              | **v1beta1 Metric Name**                                         |
+|-----------------------------------------------------------------------|-----------------------------------------------------------------|
+| karpenter_machines_created                                            | karpenter_nodeclaims_created                                    |
+| karpenter_machines_disrupted                                          | karpenter_nodeclaims_disrupted                                  |
+| karpenter_machines_drifted                                            | karpenter_nodeclaims_drifted                                    |
+| karpenter_machines_initialized                                        | karpenter_nodeclaims_initialized                                |
+| karpenter_machines_launched                                           | karpenter_nodeclaims_launched                                   |
+| karpenter_machines_registered                                         | karpenter_nodeclaims_registered                                 |
+| karpenter_machines_terminated                                         | karpenter_nodeclaims_terminated                                 |
+| karpenter_provisioners_limit                                          | karpenter_nodepools_limit                                       |
+| karpenter_provisioners_usage                                          | karpenter_nodepools_usage                                       |
+| karpenter_provisioners_usage_pct                                      | Dropped                                                         |
+| karpenter_deprovisioning_evaluation_duration_seconds                  | karpenter_disruption_evaluation_duration_seconds                |
+| karpenter_deprovisioning_eligible_machines                            | karpenter_disruption_eligible_nodeclaims                        |
+| karpenter_deprovisioning_replacement_machine_initialized_seconds      | karpenter_disruption_replacement_nodeclaims_initialized_seconds |
+| karpenter_deprovisioning_replacement_machine_launch_failure_counter   | karpenter_disruption_replacement_nodeclaims_launch_failed_total |
+| karpenter_deprovisioning_actions_performed                            | karpenter_disruption_actions_performed_total                    |
+| karpenter_deprovisioning_consolidation_timeouts                       | karpenter_disruption_consolidation_timeouts_total               |
+| karpenter_nodes_leases_deleted                                        | karpenter_leases_deleted                                        |
 
 In addition to these metrics, the MachineNotFound error returned by the `karpenter_cloudprovider_errors_total` values in the error label has been changed to `NodeClaimNotFound`. This is agnostic to the version of the API (Machine or NodeClaim) that actually owns the instance.
 
@@ -656,6 +656,6 @@ Karpenter will drop support for ConfigMap discovery through the APIServer starti
 
 Karpenter v1beta1 APIs now support Common Expression Language (CEL) for validaiton directly through the APIServer. This change means that Karpenter’s validating webhooks are no longer needed to ensure that Karpenter’s NodePools and EC2NodeClasses are configured correctly. 
 
-As a result, Karpenter will now disable webhooks by default by setting the `DISABLE_WEBHOOKS` environment variable to `true` starting in v0.33.0. If you are currently on a version of Kubernetes < 1.25, CEL validation for Custom Resources is not enabled. We recommend that you enable the webhooks on these versions with `DISABLE_WEBHOOKS=false` to get proper validation support for any Karpenter configuration.
+As a result, Karpenter will now disable webhooks by default by setting the `DISABLE_WEBHOOK` environment variable to `true` starting in v0.33.0. If you are currently on a version of Kubernetes < less than 1.25, CEL validation for Custom Resources is not enabled. We recommend that you enable the webhooks on these versions with `DISABLE_WEBHOOK=false` to get proper validation support for any Karpenter configuration.
 
 
