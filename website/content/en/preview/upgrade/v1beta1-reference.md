@@ -14,7 +14,7 @@ Use this document as a reference to the changes that were introduced in the curr
 The [Upgrade Guide]({{< relref "upgrade-guide" >}}) steps you through the process of upgrading Karpenter for the latest release.
 For a more general understanding of Karpenter's compatibility, see the [Compatibility Document]({{< relref "compatibility" >}}).
 
-# Karpenter Migration Information
+## Karpenter Migration Information
 
 Use the information below to help migrate your Karpenter v1alpha assets to v1beta1.
 
@@ -70,7 +70,9 @@ Karpenter v1beta1 introduces changes to some common labels, annotations, and sta
 
 Karpenter v1beta1 moves almost all top-level fields under the `NodePool` template field. Similar to Deployments (which template Pods that are orchestrated by the deployment controller), Karpenter NodePool templates NodeClaims (that are orchestrated by the Karpenter controller). Here is an example of a `Provisioner` (v1alpha5) migrated to a `NodePool` (v1beta1):
 
-Note that the `Limits` and `Weight` fields sit outside of the template section. The `Labels` and `Annotations` fields from the Provisioner are now under the `spec.template.metadata` section. Note that all other fields including requirements, taints, kubeletConfiguration, and so on, are specified under the `spec.template.spec` section.
+Note that:
+* The `Limits` and `Weight` fields sit outside of the template section. The `Labels` and `Annotations` fields from the Provisioner are now under the `spec.template.metadata` section. All other fields including requirements, taints, kubelet, and so on, are specified under the `spec.template.spec` section.
+* Support for `spec.template.spec.kubelet.containerRuntime` has been dropped. If you are using EKS 1.23 you should upgrade to containerd before using Karpenter v0.32.0, as this field in the kubelet block of the NodePool is not supported. EKS 1.24+ only supports containerd as a supported runtime.
 
 **Provisioner example (v1alpha)**
 
@@ -104,7 +106,7 @@ spec:
   - key: example.com/another-taint
     value: "true"
     effect: NoSchedule
-  kubeletConfiguration:
+  kubelet:
     systemReserved:
       cpu: 100m
       memory: 100Mi
@@ -150,7 +152,7 @@ spec:
       - key: example.com/another-taint
         value: "true"
         effect: NoSchedule
-      kubeletConfiguration:
+      kubelet:
         systemReserved:
           cpu: 100m
           memory: 100Mi
@@ -357,6 +359,15 @@ If you were previously relying on this defaulting logic, you will now need to ex
 ## AWSNodeTemplate to EC2NodeClass
 
 To configure AWS-specific settings, AWSNodeTemplate (v1alpha) is being changed to EC2NodeClass (v1beta1). Below are ways in which you can update your manifests for the new version.
+
+{{% alert title="Note" color="warning" %}}
+Note that:
+
+* Tag-based [AMI Selection](https://karpenter.sh/v0.31/concepts/node-templates/#ami-selection) is not supported for the new v1beta1 `EC2NodeClass` API. That feature allowed users to tag their AMIs using EC2 tags to express “In” requirements on selected. This let a user specify that a given AMI should be used only for a given instance type, instance size, and so on. The downside of this feature is that there is no way to represent “NotIn”-based requirements in the current state, which means that there is no way to exclude an instance type, size, and so on from using a different AMI. We recommend using different NodePools with different EC2NodeClasses with your various AMI requirement constraints to appropriately constrain your AMIs based on the instance types you’ve selected for a given NodePool.
+{{% /alert %}}
+
+* Karpenter will tag EC2 instances associated with Nodes with their node name. This makes it easier to map nodes to instances if you are not currently using [resource-based naming](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-naming.html).
+
 
 ### InstanceProfile
 
@@ -610,4 +621,41 @@ The v1beta1 specification removes the `karpenter-global-settings` ConfigMap in f
 ## Drift Enabled by Default
 
 The drift feature will now be enabled by default starting from v0.33.0. If you don’t specify the Drift featureGate, the feature will be assumed to be enabled. You can disable the drift feature by specifying --feature-gates Drift=false. This feature gate is expected to be dropped when core APIs (NodePool, NodeClaim) are bumped to v1.
+
+## Logging Configuration is No Longer Dynamic
+
+As part of this deprecation, Karpenter will no longer call out to the APIServer to discover the ConfigMap. Instead, Karpenter will expect the ConfigMap to be mounted on the filesystem at `/etc/karpenter/logging/zap-logger-config`. You can also still choose to override the individual log level of components of the system (webhook and controller) at the paths `/etc/karpenter/logging/loglevel.webhook` and `/etc/karpenter/logging/loglevel.controller`. 
+
+What you do to upgrade this feature depends on how you install Karpenter:
+
+* If you are using the helm chart to install Karpenter, you won’t need to make any changes for Karpenter to begin using this new mechanism for loading the config.
+
+* If you are manually configuring the deployment for Karpenter, you will need to add the following sections to your deployment:
+
+   ```
+   apiVersion: apps/v1
+   kind: Deployment
+   spec:
+     template:
+       spec:
+       ...
+         containers:
+         - name: controller
+           volumeMounts:
+           - name: config-logging
+             mountPath: /etc/karpenter/logging
+         volumes:
+         - name: config-logging
+           configMap:
+             name: config-logging
+   ```
+
+Karpenter will drop support for ConfigMap discovery through the APIServer starting in v0.33.0, meaning that you will need to ensure that you are mounting the config file on the expected filepath by that version.
+
+## Webhooks Support Deprecated in Favor of CEL
+
+Karpenter v1beta1 APIs now support Common Expression Language (CEL) for validaiton directly through the APIServer. This change means that Karpenter’s validating webhooks are no longer needed to ensure that Karpenter’s NodePools and EC2NodeClasses are configured correctly. 
+
+As a result, Karpenter will now disable webhooks by default by setting the `DISABLE_WEBHOOKS` environment variable to `true` starting in v0.33.0. If you are currently on a version of Kubernetes < 1.25, CEL validation for Custom Resources is not enabled. We recommend that you enable the webhooks on these versions with `DISABLE_WEBHOOKS=false` to get proper validation support for any Karpenter configuration.
+
 
