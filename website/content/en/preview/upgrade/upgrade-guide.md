@@ -14,7 +14,7 @@ This guide contains information needed to upgrade to the latest release of Karpe
 
 #### v1beta1 Migration
 
-Here is some information you should know about upgrading the Karpenter controller to v0.32:
+Here is some information you should know about upgrading the Karpenter controller to v0.32.x:
 
 * **Towards a v1 release**: The latest version of Karpenter sets the stage for Karpenter v1. Karpenter v0.32.x implements the Karpenter v1beta1 API spec. The intention is to have v1beta1 be used as the v1 spec, with only minimal changes needed.
 * **Path to upgrading**: This procedure assumes that you are upgrading from Karpenter v0.31.x to v0.32.x. If you are on an earlier version of Karpenter, review the [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for earlier versions' breaking changes.
@@ -22,7 +22,7 @@ Here is some information you should know about upgrading the Karpenter controlle
    * Provisioner -> NodePool
    * Machine -> NodeClaim
    * AWSNodeTemplate -> EC2NodeClass
-* **Running v1alpha1 alongside v1beta1**: Having different Kind names for v1alpha5 and v1beta1 allows them to coexist for the same Karpenter controller for v0.32. This gives you time to transition to the new v1beta1 APIs while existing Provisioners and other objects stay in place. Keep in mind that there is no guarantee that the two versions will be able to coexist in future Karpenter versions.
+* **Running v1alpha1 alongside v1beta1**: Having different Kind names for v1alpha5 and v1beta1 allows them to coexist for the same Karpenter controller for v0.32.x. This gives you time to transition to the new v1beta1 APIs while existing Provisioners and other objects stay in place. Keep in mind that there is no guarantee that the two versions will be able to coexist in future Karpenter versions.
 
 Some things that will help you with this upgrade include:
 
@@ -55,6 +55,10 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
    Image: public.ecr.aws/karpenter/controller:v0.31.0@sha256:d29767fa9c5c0511a3812397c932f5735234f03a7a875575422b712d15e54a77
    ```
 
+   {{% alert title="Note" color="primary" %}}
+   v0.31.2 introduces minor changes to Karpenter so that rollback from v0.32.0 is supported. If you are coming from some other patch version of minor version v0.31.x, note that v0.31.2 is the _only_ patch version that supports rollback.
+   {{% /alert %}}
+
 2. Review for breaking changes: If you are already running Karpenter v0.31.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the upgrade notes for each minor release.
 
 3. Set environment variables for your cluster:
@@ -73,7 +77,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 
     ```bash
     TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/chrisnegus/karpenter/docs-v1beta1-migrate/website/content/en/preview/upgrade/v1beta1-controller-policy.json > ${TEMPOUT}
+    curl -fsSL https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}website/content/en/preview/upgrade/v1beta1-controller-policy.json > ${TEMPOUT}
     
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
     POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
@@ -86,9 +90,9 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 5. Apply the v0.32.0 CRDs in the crds directory of the Karpenter helm chart:
 
     ```bash
-    kubectl apply -f https://raw.githubusercontent.com/chrisnegus/karpenter/docs-v1beta1-migrate/pkg/apis/crds/karpenter.sh_nodepools.yaml
-    kubectl apply -f https://raw.githubusercontent.com/chrisnegus/karpenter/docs-v1beta1-migrate/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-    kubectl apply -f https://raw.githubusercontent.com/chrisnegus/karpenter/docs-v1beta1-migrate/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodepools.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
     ```
 
 6. Upgrade Karpenter to the new version:
@@ -116,8 +120,8 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 
 8. Edit the converted EC2NodeClass file manually:
 
-   * Specify your AWS role where there is a `your AWS role Here` placeholder.
-   * Otherwise check the file for accuracy.
+   * Specify your AWS role where there is a `KARPENTER_NODE_ROLE` placeholder.
+   * Otherwise, check the file for accuracy.
 
 9. When you are satisfied with your EC2NodeClass file, apply it as follows:
 
@@ -149,7 +153,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
    * Forced Deletion: For each Provisioner in your cluster:
 
       - Delete the old Provisioner with: `kubectl delete provisioner <provisioner-name> --cascade=foreground`
-      - Wait as Karpenter deletes all of the Provisioner's nodes. All nodes will drain simultaneously. New nodes are launched after the old ones have been drained.
+      - Wait as Karpenter deletes all the Provisioner's nodes. All nodes will drain simultaneously. New nodes are launched after the old ones have been drained.
 
    * Manual Rolling: For each Provisioner in your cluster:
       - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`

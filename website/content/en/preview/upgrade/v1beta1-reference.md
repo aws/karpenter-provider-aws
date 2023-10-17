@@ -574,9 +574,12 @@ The following table shows v1alpha5 metrics and the v1beta1 version of each metri
 | karpenter_provisioners_limit                                          | karpenter_nodepools_limit                                        |
 | karpenter_provisioners_usage                                          | karpenter_nodepools_usage                                        |
 | karpenter_provisioners_usage_pct                                      | Dropped                                                          |
+| karpenter_deprovisioning_evaluation_duration_seconds                  | karpenter_disruption_evaluation_duration_seconds                 |
 | karpenter_deprovisioning_eligible_machines                            | karpenter_disruption_eligible_nodeclaims                         |
 | karpenter_deprovisioning_replacement_machine_initialized_seconds      | karpenter_disruption_replacement_nodeclaims_initialized_seconds  |
 | karpenter_deprovisioning_replacement_machine_launch_failure_counter   | karpenter_disruption_replacement_nodeclaims_launch_failed        |
+| karpenter_deprovisioning_actions_performed                            | karpenter_disruption_actions_performed_total                     |
+| karpenter_deprovisioning_consolidation_timeouts                       | karpenter_disruption_consolidation_timeouts_total                |
 | karpenter_nodes_leases_deleted                                        | karpenter_leases_deleted                                         |
 
 In addition to these metrics, the MachineNotFound error returned by the `karpenter_cloudprovider_errors_total` values in the error label has been changed to `NodeClaimNotFound`. This is agnostic to the version of the API (Machine or NodeClaim) that actually owns the instance.
@@ -601,6 +604,7 @@ The v1beta1 specification removes the `karpenter-global-settings` ConfigMap in f
 | isolatedVPC                                       | ISOLATED_VPC                    | --isolated-vpc                |
 | vmMemoryOverheadPercent                           | VM_MEMORY_OVERHEAD_PERCENT      | --vm-memory-overhead-percent  |
 | interruptionQueueName                             | INTERRUPTION_QUEUE_NAME         | --interruption-queue-name     |
+| reservedENIs                                      | RESERVED_ENIS                   | --reserved-enis               |
 | featureGates.enableDrift                          | FEATURE_GATE="Drift=true"       | --feature-gates Drift=true    |
 
 ## Drift Enabled by Default
