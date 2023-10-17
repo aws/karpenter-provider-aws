@@ -1,7 +1,6 @@
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 metadata:
-  creationTimestamp: null
   name: default
 spec:
   amiFamily: Bottlerocket
@@ -32,7 +31,7 @@ spec:
       deleteOnTermination: true
       volumeSize: 100Gi
       volumeType: gp3
-  role: <your AWS role here>
+  role: $KARPENTER_NODE_ROLE
   securityGroupSelectorTerms:
   - tags:
       karpenter.sh/discovery: $MY_CLUSTER_NAME
@@ -47,4 +46,3 @@ spec:
     kube-api-qps = 30
     [settings.kubernetes.eviction-hard]
     "memory.available" = "10%"
-status: {}

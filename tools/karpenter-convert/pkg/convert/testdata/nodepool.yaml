@@ -1,7 +1,6 @@
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 metadata:
-  creationTimestamp: null
   name: default
 spec:
   disruption:
@@ -15,7 +14,6 @@ spec:
     metadata:
       annotations:
         example.com/owner: my-team
-      creationTimestamp: null
       labels:
         billing-team: my-team
     spec:
@@ -87,7 +85,10 @@ spec:
         values:
         - spot
         - on-demand
-      resources: {}
+      - key: kubernetes.io/os
+        operator: In
+        values:
+        - linux
       startupTaints:
       - effect: NoSchedule
         key: example.com/another-taint
@@ -95,4 +96,3 @@ spec:
       - effect: NoSchedule
         key: example.com/special-taint
   weight: 10
-status: {}
