@@ -53,19 +53,19 @@ The number of times that Karpenter failed to launch a replacement node for depro
 ## Disruption Metrics
 
 ### `karpenter_disruption_actions_performed_total`
-Number of disruption methods performed. Labeled by disruption type.
+Number of disruption actions performed. Labeled by disruption method.
 
 ### `karpenter_disruption_consolidation_timeouts_total`
 Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
 
 ### `karpenter_disruption_eligible_nodes`
-Number of nodes eligible for disruption by Karpenter. Labeled by disruption type.
+Number of nodes eligible for disruption by Karpenter. Labeled by disruption method.
 
 ### `karpenter_disruption_evaluation_duration_seconds`
 Duration of the disruption evaluation process in seconds.
 
 ### `karpenter_disruption_replacement_nodeclaim_failures_total`
-The number of times that Karpenter failed to launch a replacement node for disruption. Labeled by disruption type.
+The number of times that Karpenter failed to launch a replacement node for disruption. Labeled by disruption method.
 
 ### `karpenter_disruption_replacement_nodeclaim_initialized_seconds`
 Amount of time required for a replacement nodeclaim to become initialized.

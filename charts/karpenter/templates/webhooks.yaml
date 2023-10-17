@@ -23,17 +23,6 @@ webhooks:
       - apiGroups:
           - karpenter.k8s.aws
         apiVersions:
-          - v1beta1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - ec2nodeclasses
-          - ec2nodeclasses/status
-        scope: '*'
-      - apiGroups:
-          - karpenter.k8s.aws
-        apiVersions:
           - v1alpha1
         operations:
           - CREATE
@@ -41,6 +30,17 @@ webhooks:
         resources:
           - awsnodetemplates
           - awsnodetemplates/status
+        scope: '*'
+      - apiGroups:
+          - karpenter.k8s.aws
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - ec2nodeclasses
+          - ec2nodeclasses/status
         scope: '*'
       - apiGroups:
           - karpenter.sh
@@ -78,17 +78,6 @@ webhooks:
       - apiGroups:
           - karpenter.k8s.aws
         apiVersions:
-          - v1beta1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - nodeclasses
-          - nodeclasses/status
-        scope: '*'
-      - apiGroups:
-          - karpenter.k8s.aws
-        apiVersions:
           - v1alpha1
         operations:
           - CREATE
@@ -98,6 +87,17 @@ webhooks:
           - awsnodetemplates/status
         scope: '*'
       - apiGroups:
+          - karpenter.k8s.aws
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - ec2nodeclasses
+          - ec2nodeclasses/status
+        scope: '*'
+      - apiGroups:
           - karpenter.sh
         apiVersions:
           - v1alpha5
@@ -105,30 +105,7 @@ webhooks:
           - CREATE
           - UPDATE
         resources:
-          - nodepools
-          - nodepools/status
-        scope: '*'
-      - apiGroups:
-          - karpenter.sh
-        apiVersions:
-          - v1beta1
-        operations:
-          - CREATE
-          - UPDATE
-          - DELETE
-        resources:
-          - nodeclaims
-          - nodeclaims/status
-        scope: '*'
-      - apiGroups:
-          - karpenter.sh
-        apiVersions:
-          - v1beta1
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - nodepools
-          - nodepools/status
+          - provisioners
+          - provisioners/status
         scope: '*'
 {{- end }}
