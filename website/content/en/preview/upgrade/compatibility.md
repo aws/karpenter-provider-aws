@@ -9,7 +9,7 @@ description: >
 # Compatibility 
 
 To make upgrading easier we aim to minimize the introduction of breaking changes.
-Before you begin upgrading Karpenter, consider Karpenter compatibility issues related to Kubernetes, the NodePool API (previously Provisioner), and Kubernetes Custom Resource Definitions (CRDs) applied through Helm Charts.
+Before you begin upgrading Karpenter, consider Karpenter compatibility issues related to Kubernetes and the NodePool API (previously Provisioner).
 
 ## Compatibility Matrix 
 
@@ -41,29 +41,6 @@ Note this does not mean every minor upgrade has a breaking change as we will als
 minor version when we release a new feature.
 
 Users should therefore check to see if there is a breaking change every time they are upgrading to a new minor version.
-
-### Custom Resource Definition (CRD) Upgrades
-
-Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
-* As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs.
-  * To upgrade or install `karpenter-crd` run:
-    ```
-    helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
-    ```
-
-{{% alert title="Note" color="warning" %}}
-< If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-installing-the-karpenter-crd-chart" >}}) for details on how to resolve these errors.
-{{% /alert %}}
-
-* As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
-
-In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
-
-```shell
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodepools.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
-```
 
 ### How Do We Break Incompatibility?
 

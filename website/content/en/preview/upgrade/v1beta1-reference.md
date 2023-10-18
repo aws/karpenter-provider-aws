@@ -18,23 +18,12 @@ For a more general understanding of Karpenter's compatibility, see the [Compatib
 
 Use the information below to help migrate your Karpenter v1alpha assets to v1beta1.
 
-
 ### Custom Resource Definition (CRD) Upgrades
 
-Karpenter ships with a few Custom Resource Definitions (CRDs). Starting with v0.32.0, CRDs representing Provisioners, Machines, and AWS Node Templates are replaced by those for Node Pools, Node Claims, and EC2 Node classes, respectively.
-You can find these CRDs on [Karpenter APIs CRD](https://github.com/aws/karpenter/tree/main/pkg/apis/crds) page.
+Karpenter ships with a few Custom Resource Definitions (CRDs). Starting with v0.32.0, CRDs representing Provisioners, Machines, and AWS Node Templates are replaced by those for NodePools, NodeClaims, and EC2Nodeclasses, respectively.
+You can find these CRDs by visiting the [Karpenter GitHub repository](https://github.com/aws/karpenter/tree/main/pkg/apis/crds).
 
-The [Karpenter Upgrade Guide}(]({{< relref "upgrade-guide" >}}) describes how to install the new CRDs using `kubectl`. However, you can instead install those CRDs as an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd), that can be used by Helm to manage the lifecycle of these CRDs.  See [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) for the source code,
-
-To upgrade or install `karpenter-crd` run:
-
-```
-helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
-```
-
-{{% alert title="Note" color="warning" %}}
-< If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-installing-the-karpenter-crd-chart" >}}) for details on how to resolve these errors.
-{{% /alert %}}
+The [Karpenter Upgrade Guide}(]({{< relref "upgrade-guide" >}}) describes how to install the new CRDs.
 
 ## Annotations, Labels, and Status Conditions
 
@@ -168,7 +157,6 @@ spec:
 
 The Karpenter `spec.provider` field has been deprecated since version v0.7.0 and is now removed in the new `NodePool` resource. Any of the fields that you could specify within the `spec.provider` field are now available in the separate `NodeClass` resource.
 
-
 **Provider example (v1alpha)**
 
 ```
@@ -216,7 +204,6 @@ This field works the same as the `ttlSecondsAfterEmpty` field except this field 
 
 * `Never`: This disables empty consolidation.
 * Duration String (e.g. “10m”, “1s”): This enables empty consolidation for the time specified.
-
 
 **ttlSecondsAfterEmpty example (v1alpha)**
 
@@ -310,10 +297,9 @@ Karpenter now statically defaults some fields in the v1beta1 if they are not spe
 
 ### spec.template.spec.requirements Defaults Dropped
 
-Karpenter v1beta1 drops the defaulting logic for the node requirements that were shipped by default with Provisioners. Previously, Karpenter would create dynamic defaulting in the following cases. If multiple of these cases were satisfied, those default requirements would be combined:
+Karpenter v1beta1 drops the defaulting logic for the node requirements that were shipped by default with Provisioners in v1alpha5. Previously, Karpenter would create dynamic defaulting in the following cases. If multiple of these cases were satisfied, those default requirements would be combined:
 
-
-* If you don’t specify any instance type requirement:
+* If you didn't specify any instance type requirement:
 
    ```
    spec:
@@ -326,7 +312,7 @@ Karpenter v1beta1 drops the defaulting logic for the node requirements that were
        values: ["2"]
    ```
 
-* If you don’t specify any capacity type requirement (`karpenter.sh/capacity-type`):
+* If you didn’t specify any capacity type requirement (`karpenter.sh/capacity-type`):
 
    ```
    spec:
@@ -336,7 +322,7 @@ Karpenter v1beta1 drops the defaulting logic for the node requirements that were
        values: ["on-demand"]
    ```
 
-* If you don’t specify any OS requirement (`kubernetes.io/os`):
+* If you didn’t specify any OS requirement (`kubernetes.io/os`):
    ```
    spec:
      requirements:
@@ -345,7 +331,7 @@ Karpenter v1beta1 drops the defaulting logic for the node requirements that were
        values: ["linux"]
    ```
 
-* If you don’t specify any architecture requirement (`kubernetes.io/arch`):
+* If you didn’t specify any architecture requirement (`kubernetes.io/arch`):
    ```
    spec:
      requirements:
@@ -373,7 +359,13 @@ Note that:
 
 The Karpenter `spec.instanceProfile` field has been removed from the EC2NodeClass in favor of the `spec.role` field. Karpenter is also removing support for the `defaultInstanceProfile` specified globally in the karpenter-global-settings, making the `spec.role` field required for all EC2NodeClasses.
 
-Karpenter will now auto-generate the instance profile in your EC2NodeClass, given the role that you specify. 
+Karpenter will now auto-generate the instance profile in your EC2NodeClass, given the role that you specify. To find the role, type:
+
+```
+export INSTANCE_PROFILE_NAME=KarpenterNodeInstanceProfile-bob-karpenter-demo
+aws iam get-instance-profile --instance-profile-name $INSTANCE_PROFILE_NAME --query "InstanceProfile.Roles[0].RoleName"
+KarpenterNodeRole-bob-karpenter-demo
+```
 
 **instanceProfile example (v1alpha)**
 
