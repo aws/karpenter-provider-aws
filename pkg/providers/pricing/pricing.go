@@ -126,7 +126,8 @@ func (p *Provider) OnDemandPrice(instanceType string) (float64, bool) {
 }
 
 // SpotPrice returns the last known spot price for a given instance type and zone, returning an error
-// if there is no known spot pricing for that instance type or zone
+// if there is no known spot pricing for that instance type or zone, or if the spot price is more expensive than
+// on demand price for the instance type
 func (p *Provider) SpotPrice(instanceType string, zone string) (float64, bool) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -135,7 +136,9 @@ func (p *Provider) SpotPrice(instanceType string, zone string) (float64, bool) {
 			return val.defaultPrice, true
 		}
 		if price, ok := p.spotPrices[instanceType].prices[zone]; ok {
-			return price, true
+			if onDemandPrice, onDemandOk := p.onDemandPrices[instanceType]; (onDemandOk && price <= onDemandPrice) || !onDemandOk {
+				return price, true
+			}
 		}
 		return 0.0, false
 	}
