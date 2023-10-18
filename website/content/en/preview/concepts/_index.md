@@ -1,7 +1,7 @@
 ---
 title: "Concepts"
 linkTitle: "Concepts"
-weight: 10
+weight: 20
 description: >
   Understand key concepts of Karpenter
 ---

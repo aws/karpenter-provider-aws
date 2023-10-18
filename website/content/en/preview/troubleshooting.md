@@ -1,7 +1,7 @@
 ---
 title: "Troubleshooting"
 linkTitle: "Troubleshooting"
-weight: 90
+weight: 70
 description: >
   Troubleshoot Karpenter problems
 ---
