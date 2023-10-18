@@ -47,23 +47,22 @@ type Options struct {
 	InterruptionQueueName   string
 	ReservedENIs            int
 
-	isolatedVPC string
 	setFlags    map[string]bool
 }
 
-func (o *Options) AddFlags(fs *flag.FlagSet) {
+func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.AssumeRoleARN, "assume-role-arn", env.WithDefaultString("ASSUME_ROLE_ARN", ""), "Role to assume for calling AWS services.")
 	fs.DurationVar(&o.AssumeRoleDuration, "assume-role-duration", env.WithDefaultDuration("ASSUME_ROLE_DURATION", 15*time.Minute), "Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRole set.")
 	fs.StringVar(&o.ClusterCABundle, "cluster-ca-bundle", env.WithDefaultString("CLUSTER_CA_BUNDLE", ""), "Cluster CA bundle for nodes to use for TLS connections with the API server. If not set, this is taken from the controller's TLS configuration.")
 	fs.StringVar(&o.ClusterName, "cluster-name", env.WithDefaultString("CLUSTER_NAME", ""), "[REQUIRED] The kubernetes cluster name for resource discovery.")
 	fs.StringVar(&o.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.")
-	fs.StringVar(&o.isolatedVPC, "isolated-vpc", env.WithDefaultString("ISOLATED_VPC", "false"), "If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS pricing endpoint.")
+	fs.BoolVarWithEnv(&o.IsolatedVPC, "isolated-vpc", "ISOLATED_VPC", false, "If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS pricing endpoint.")
 	fs.Float64Var(&o.VMMemoryOverheadPercent, "vm-memory-overhead-percent", env.WithDefaultFloat64("VM_MEMORY_OVERHEAD_PERCENT", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types.")
 	fs.StringVar(&o.InterruptionQueueName, "interruption-queue-name", env.WithDefaultString("INTERRUPTION_QUEUE_NAME", ""), "Interruption queue is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 }
 
-func (o *Options) Parse(fs *flag.FlagSet, args ...string) error {
+func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, flag.ErrHelp) {
 			os.Exit(0)
@@ -87,9 +86,6 @@ func (o *Options) Parse(fs *flag.FlagSet, args ...string) error {
 	if err := o.Validate(); err != nil {
 		return fmt.Errorf("validating options, %w", err)
 	}
-
-	// Parse options which can't be directly parsed by flag
-	o.IsolatedVPC = (o.isolatedVPC == "true")
 
 	return nil
 }

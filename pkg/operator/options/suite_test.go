@@ -18,14 +18,19 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/operator/options"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
+
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/test"
 )
 
 var ctx context.Context
@@ -37,10 +42,34 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = Describe("Options", func() {
-	var fs *flag.FlagSet
+	var envState map[string]string
+	var environmentVariables = []string{
+		"ASSUME_ROLE_ARN",
+		"ASSUME_ROLE_DURATION",
+		"CLUSTER_CA_BUNDLE",
+		"CLUSTER_NAME",
+		"CLUSTER_ENDPOINT",
+		"ISOLATED_VPC",
+		"VM_MOMORY_OVERHEAD_PERCENT",
+		"INTERRUPTION_QUEUE_NAME",
+		"RESERVED_ENIS",
+	}
+
+	var fs *coreoptions.FlagSet
 	var opts *options.Options
+
 	BeforeEach(func() {
-		fs = flag.NewFlagSet("karpenter", flag.ContinueOnError)
+		envState = map[string]string{}
+		for _, ev := range environmentVariables {
+			val, ok := os.LookupEnv(ev)
+			if ok {
+				envState[ev] = val
+			}
+			os.Unsetenv(ev)
+		}
+		fs = &coreoptions.FlagSet{
+			FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
+		}
 		opts = &options.Options{}
 		opts.AddFlags(fs)
 
@@ -50,15 +79,90 @@ var _ = Describe("Options", func() {
 		Expect(err).To(BeNil())
 	})
 
+	AfterEach(func() {
+		for _, ev := range environmentVariables {
+			os.Unsetenv(ev)
+		}
+		for ev, val := range envState {
+			os.Setenv(ev, val)
+		}
+	})
+
 	Context("Merging", func() {
-		It("shouldn't overwrite cli flags / env vars", func() {
+		It("shouldn't overwrite options when all are set", func() {
+			err := opts.Parse(
+				fs,
+				"--assume-role-arn", "options-cluster-role",
+				"--assume-role-duration", "20m",
+				"--cluster-ca-bundle", "options-bundle",
+				"--cluster-name", "options-cluster",
+				"--cluster-endpoint", "https://options-cluster",
+				"--isolated-vpc",
+				"--vm-memory-overhead-percent", "0.1",
+				"--interruption-queue-name", "options-cluster",
+				"--reserved-enis", "10",
+			)
+			Expect(err).ToNot(HaveOccurred())
+			ctx = settings.ToContext(ctx, &settings.Settings{
+				AssumeRoleARN:           "settings-cluster-role",
+				AssumeRoleDuration:      time.Minute * 22,
+				ClusterCABundle:         "settings-bundle",
+				ClusterName:             "settings-cluster",
+				ClusterEndpoint:         "https://settings-cluster",
+				IsolatedVPC:             true,
+				VMMemoryOverheadPercent: 0.05,
+				InterruptionQueueName:   "settings-cluster",
+				ReservedENIs:            8,
+			})
+			opts.MergeSettings(ctx)
+			expectOptionsEqual(opts, test.Options(test.OptionsFields{
+				AssumeRoleARN:           lo.ToPtr("options-cluster-role"),
+				AssumeRoleDuration:      lo.ToPtr(20 * time.Minute),
+				ClusterCABundle:         lo.ToPtr("options-bundle"),
+				ClusterName:             lo.ToPtr("options-cluster"),
+				ClusterEndpoint:         lo.ToPtr("https://options-cluster"),
+				IsolatedVPC:             lo.ToPtr(true),
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
+				InterruptionQueueName:   lo.ToPtr("options-cluster"),
+				ReservedENIs:            lo.ToPtr(10),
+			}))
+
+		})
+		It("should overwrite options when none are set", func() {
+			err := opts.Parse(fs)
+			Expect(err).ToNot(HaveOccurred())
+			ctx = settings.ToContext(ctx, &settings.Settings{
+				AssumeRoleARN:           "settings-cluster-role",
+				AssumeRoleDuration:      time.Minute * 22,
+				ClusterCABundle:         "settings-bundle",
+				ClusterName:             "settings-cluster",
+				ClusterEndpoint:         "https://settings-cluster",
+				IsolatedVPC:             true,
+				VMMemoryOverheadPercent: 0.05,
+				InterruptionQueueName:   "settings-cluster",
+				ReservedENIs:            8,
+			})
+			opts.MergeSettings(ctx)
+			expectOptionsEqual(opts, test.Options(test.OptionsFields{
+				AssumeRoleARN:           lo.ToPtr("settings-cluster-role"),
+				AssumeRoleDuration:      lo.ToPtr(22 * time.Minute),
+				ClusterCABundle:         lo.ToPtr("settings-bundle"),
+				ClusterName:             lo.ToPtr("settings-cluster"),
+				ClusterEndpoint:         lo.ToPtr("https://settings-cluster"),
+				IsolatedVPC:             lo.ToPtr(true),
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0.05),
+				InterruptionQueueName:   lo.ToPtr("settings-cluster"),
+				ReservedENIs:            lo.ToPtr(8),
+			}))
+
+		})
+		It("should correctly merge options and settings when mixed", func() {
 			err := opts.Parse(
 				fs,
 				"--assume-role-arn", "options-cluster-role",
 				"--cluster-ca-bundle", "options-bundle",
 				"--cluster-name", "options-cluster",
 				"--cluster-endpoint", "https://options-cluster",
-				"--isolated-vpc", "false",
 				"--interruption-queue-name", "options-cluster",
 			)
 			Expect(err).ToNot(HaveOccurred())
@@ -74,17 +178,46 @@ var _ = Describe("Options", func() {
 				ReservedENIs:            10,
 			})
 			opts.MergeSettings(ctx)
-			Expect(opts.AssumeRoleARN).To(Equal("options-cluster-role"))
-			Expect(opts.AssumeRoleDuration).To(Equal(time.Minute * 20))
-			Expect(opts.ClusterCABundle).To(Equal("options-bundle"))
-			Expect(opts.ClusterName).To(Equal("options-cluster"))
-			Expect(opts.ClusterEndpoint).To(Equal("https://options-cluster"))
-			Expect(opts.IsolatedVPC).To(BeFalse())
-			Expect(opts.VMMemoryOverheadPercent).To(Equal(0.1))
-			Expect(opts.InterruptionQueueName).To(Equal("options-cluster"))
-			Expect(opts.ReservedENIs).To(Equal(10))
+			expectOptionsEqual(opts, test.Options(test.OptionsFields{
+				AssumeRoleARN:           lo.ToPtr("options-cluster-role"),
+				AssumeRoleDuration:      lo.ToPtr(20 * time.Minute),
+				ClusterCABundle:         lo.ToPtr("options-bundle"),
+				ClusterName:             lo.ToPtr("options-cluster"),
+				ClusterEndpoint:         lo.ToPtr("https://options-cluster"),
+				IsolatedVPC:             lo.ToPtr(true),
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
+				InterruptionQueueName:   lo.ToPtr("options-cluster"),
+				ReservedENIs:            lo.ToPtr(10),
+			}))
 		})
 
+		It("should correctly fallback to env vars when CLI flags aren't set", func() {
+			os.Setenv("ASSUME_ROLE_ARN", "env-role")
+			os.Setenv("ASSUME_ROLE_DURATION", "20m")
+			os.Setenv("CLUSTER_CA_BUNDLE", "env-bundle")
+			os.Setenv("CLUSTER_NAME", "env-cluster")
+			os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
+			os.Setenv("ISOLATED_VPC", "true")
+			os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
+			os.Setenv("INTERRUPTION_QUEUE_NAME", "env-cluster")
+			os.Setenv("RESERVED_ENIS", "10")
+			fs = &coreoptions.FlagSet{
+				FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
+			}
+			opts.AddFlags(fs)
+			opts.Parse(fs)
+			expectOptionsEqual(opts, test.Options(test.OptionsFields{
+				AssumeRoleARN:           lo.ToPtr("env-role"),
+				AssumeRoleDuration:      lo.ToPtr(20 * time.Minute),
+				ClusterCABundle:         lo.ToPtr("env-bundle"),
+				ClusterName:             lo.ToPtr("env-cluster"),
+				ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
+				IsolatedVPC:             lo.ToPtr(true),
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
+				InterruptionQueueName:   lo.ToPtr("env-cluster"),
+				ReservedENIs:            lo.ToPtr(10),
+			}))
+		})
 	})
 
 	Context("Validation", func() {
@@ -96,7 +229,7 @@ var _ = Describe("Options", func() {
 			Expect(func() {
 				opts.MergeSettings(ctx)
 				fmt.Printf("%#v", opts)
-				}).To(Panic())
+			}).To(Panic())
 		})
 		It("should fail when assume role duration is less than 15 minutes", func() {
 			err := opts.Parse(fs, "--assume-role-duration", "1s")
@@ -116,3 +249,16 @@ var _ = Describe("Options", func() {
 		})
 	})
 })
+
+func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
+	GinkgoHelper()
+	Expect(optsA.AssumeRoleARN).To(Equal(optsB.AssumeRoleARN))
+	Expect(optsA.AssumeRoleDuration).To(Equal(optsB.AssumeRoleDuration))
+	Expect(optsA.ClusterCABundle).To(Equal(optsB.ClusterCABundle))
+	Expect(optsA.ClusterName).To(Equal(optsB.ClusterName))
+	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
+	Expect(optsA.IsolatedVPC).To(Equal(optsB.IsolatedVPC))
+	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
+	Expect(optsA.InterruptionQueueName).To(Equal(optsB.InterruptionQueueName))
+	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
+}

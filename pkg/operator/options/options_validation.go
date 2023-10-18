@@ -28,20 +28,12 @@ func (o Options) Validate() error {
 		o.validateVMMemoryOverheadPercent(),
 		o.validateAssumeRoleDuration(),
 		o.validateReservedENIs(),
-		o.validateIsolateVPC(),
 	)
 }
 
 func (o Options) validateAssumeRoleDuration() error {
 	if o.AssumeRoleDuration < time.Minute*15 {
 		return fmt.Errorf("assume-role-duration cannot be less than 15 minutes")
-	}
-	return nil
-}
-
-func (o Options) validateIsolateVPC() error {
-	if o.isolatedVPC != "true" && o.isolatedVPC != "false" {
-		return fmt.Errorf("%q is not a valid value for isolated-vpc, options are true or false", o.isolatedVPC)
 	}
 	return nil
 }
