@@ -1,7 +1,7 @@
 ---
-title: "Upgrade"
-linkTitle: "Upgrade"
-weight: 95
+title: "Upgrading"
+linkTitle: "Upgrading"
+weight: 30
 description: >
   Upgrading Karpenter guide and reference
 cascade:

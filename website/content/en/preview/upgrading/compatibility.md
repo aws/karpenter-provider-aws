@@ -1,7 +1,7 @@
 ---
 title: "Compatibility"
-linkTitle: "Karpenter Compatibility"
-weight: 30
+linkTitle: "Compatibility"
+weight: 20
 description: >
   Compatibility issues for Karpenter
 ---

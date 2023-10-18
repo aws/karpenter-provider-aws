@@ -1,7 +1,7 @@
 ---
 title: "v1beta1 Upgrade Reference"
 linkTitle: "v1beta1 Upgrade Reference"
-weight: 20
+weight: 30
 description: >
   API information for upgrading Karpenter
 ---
@@ -14,16 +14,12 @@ Use this document as a reference to the changes that were introduced in the curr
 The [Upgrade Guide]({{< relref "upgrade-guide" >}}) steps you through the process of upgrading Karpenter for the latest release.
 For a more general understanding of Karpenter's compatibility, see the [Compatibility Document]({{< relref "compatibility" >}}).
 
-## Karpenter Migration Information
-
-Use the information below to help migrate your Karpenter v1alpha assets to v1beta1.
-
-### Custom Resource Definition (CRD) Upgrades
+## CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). Starting with v0.32.0, CRDs representing Provisioners, Machines, and AWS Node Templates are replaced by those for NodePools, NodeClaims, and EC2Nodeclasses, respectively.
-You can find these CRDs by visiting the [Karpenter GitHub repository](https://github.com/aws/karpenter/tree/main/pkg/apis/crds).
+You can find these CRDs by visiting the [Karpenter GitHub repository](https://github.com/aws/karpenter/tree{{< githubRelRef >}}pkg/apis/crds).
 
-The [Karpenter Upgrade Guide}(]({{< relref "upgrade-guide" >}}) describes how to install the new CRDs.
+The [Upgrade Guide]({{< relref "upgrade-guide" >}}) describes how to install the new CRDs.
 
 ## Annotations, Labels, and Status Conditions
 
@@ -65,7 +61,7 @@ Note that:
 
 **Provisioner example (v1alpha)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
  ...
@@ -110,7 +106,7 @@ spec:
 
 **NodePool example (v1beta1)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 ...
@@ -159,7 +155,7 @@ The Karpenter `spec.provider` field has been deprecated since version v0.7.0 and
 
 **Provider example (v1alpha)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 ...
@@ -172,7 +168,7 @@ spec:
 
 **Nodepool example (v1beta1)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 ...
@@ -181,7 +177,8 @@ nodeClassRef:
 ```
 
 **EC2NodeClass example (v1beta1)**
-```
+
+```yaml
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 metadata:
@@ -207,7 +204,7 @@ This field works the same as the `ttlSecondsAfterEmpty` field except this field 
 
 **ttlSecondsAfterEmpty example (v1alpha)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 ...
@@ -216,7 +213,8 @@ spec:
 ```
 
 **consolidationPolicy and consolidateAfter examples (v1beta1)**
-```
+
+```yaml
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 ...
@@ -233,7 +231,7 @@ The Karpenter `spec.consolidation` block has also been shifted under `consolidat
 
 **consolidation enabled example (v1alpha)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 ...
@@ -244,7 +242,7 @@ spec:
 
 **consolidationPolicy WhenUnderutilized example (v1beta1)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 ...
@@ -264,7 +262,7 @@ The Karpenter `spec.ttlSecondsUntilExpired` field has been removed in favor of t
 
 **consolidation ttlSecondsUntilExpired example (v1alpha)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1alpha5
 kind: Provisioner
 ...
@@ -274,7 +272,7 @@ spec:
 
 **consolidationPolicy WhenUnderutilized example (v1beta1)**
 
-```
+```yaml
 apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 ...
@@ -301,7 +299,7 @@ Karpenter v1beta1 drops the defaulting logic for the node requirements that were
 
 * If you didn't specify any instance type requirement:
 
-   ```
+   ```yaml
    spec:
      requirements:
      - key: karpenter.k8s.aws/instance-category
@@ -314,7 +312,7 @@ Karpenter v1beta1 drops the defaulting logic for the node requirements that were
 
 * If you didn’t specify any capacity type requirement (`karpenter.sh/capacity-type`):
 
-   ```
+   ```yaml
    spec:
      requirements:
      - key: karpenter.sh/capacity-type
@@ -323,7 +321,7 @@ Karpenter v1beta1 drops the defaulting logic for the node requirements that were
    ```
 
 * If you didn’t specify any OS requirement (`kubernetes.io/os`):
-   ```
+   ```yaml
    spec:
      requirements:
      - key: kubernetes.io/os
@@ -332,7 +330,7 @@ Karpenter v1beta1 drops the defaulting logic for the node requirements that were
    ```
 
 * If you didn’t specify any architecture requirement (`kubernetes.io/arch`):
-   ```
+   ```yaml
    spec:
      requirements:
      - key: kubernetes.io/arch
@@ -347,12 +345,12 @@ If you were previously relying on this defaulting logic, you will now need to ex
 To configure AWS-specific settings, AWSNodeTemplate (v1alpha) is being changed to EC2NodeClass (v1beta1). Below are ways in which you can update your manifests for the new version.
 
 {{% alert title="Note" color="warning" %}}
-Note that:
-
-* Tag-based [AMI Selection](https://karpenter.sh/v0.31/concepts/node-templates/#ami-selection) is not supported for the new v1beta1 `EC2NodeClass` API. That feature allowed users to tag their AMIs using EC2 tags to express “In” requirements on selected. This let a user specify that a given AMI should be used only for a given instance type, instance size, and so on. The downside of this feature is that there is no way to represent “NotIn”-based requirements in the current state, which means that there is no way to exclude an instance type, size, and so on from using a different AMI. We recommend using different NodePools with different EC2NodeClasses with your various AMI requirement constraints to appropriately constrain your AMIs based on the instance types you’ve selected for a given NodePool.
+Tag-based [AMI Selection](https://karpenter.sh/v0.31/concepts/node-templates/#ami-selection) is no longer supported for the new v1beta1 `EC2NodeClass` API. That feature allowed users to tag their AMIs using EC2 tags to express “In” requirements on selected. We recommend using different NodePools with different EC2NodeClasses with your various AMI requirement constraints to appropriately constrain your AMIs based on the instance types you’ve selected for a given NodePool.
 {{% /alert %}}
 
-* Karpenter will tag EC2 instances associated with Nodes with their node name. This makes it easier to map nodes to instances if you are not currently using [resource-based naming](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-naming.html).
+{{% alert title="Note" color="primary" %}} 
+Karpenter will now tag EC2 instances with their node name instead of with `karpenter.sh/provisioner-name: $PROVISIONER_NAME`. This makes it easier to map nodes to instances if you are not currently using [resource-based naming](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-naming.html).
+{{% /alert %}}
 
 
 ### InstanceProfile
@@ -361,7 +359,7 @@ The Karpenter `spec.instanceProfile` field has been removed from the EC2NodeClas
 
 Karpenter will now auto-generate the instance profile in your EC2NodeClass, given the role that you specify. To find the role, type:
 
-```
+```bash
 export INSTANCE_PROFILE_NAME=KarpenterNodeInstanceProfile-bob-karpenter-demo
 aws iam get-instance-profile --instance-profile-name $INSTANCE_PROFILE_NAME --query "InstanceProfile.Roles[0].RoleName"
 KarpenterNodeRole-bob-karpenter-demo
@@ -369,7 +367,7 @@ KarpenterNodeRole-bob-karpenter-demo
 
 **instanceProfile example (v1alpha)**
 
-```
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
@@ -379,7 +377,7 @@ spec:
 
 **role example (v1beta1)**
 
-```
+```yaml
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
@@ -394,7 +392,7 @@ Karpenter’s `spec.subnetSelector`, `spec.securityGroupSelector`, and `spec.ami
 
 **subnetSelector example (v1alpha)**
 
-```
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
@@ -404,7 +402,8 @@ spec:
 ```
 
 **SubnetSelectorTerms.tags example (v1beta1)**
-```
+
+```yaml
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
@@ -415,7 +414,8 @@ spec:
 ```
 
 **subnetSelector example (v1alpha)**
-```
+
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
@@ -425,7 +425,8 @@ spec:
 ```
 
 **subnetSelectorTerms.id example (v1beta1)**
-```
+
+```yaml
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
@@ -436,7 +437,8 @@ spec:
 ```
 
 **securityGroupSelector example (v1alpha)**
-```
+
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
@@ -446,7 +448,8 @@ spec:
 ```
 
 **securityGroupSelectorTerms.tags example (v1beta1)**
-```
+
+```yaml
 apiVersion: compute.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
@@ -458,7 +461,7 @@ spec:
 
 **securityGroupSelector example (v1alpha)**
 
-```
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
@@ -469,7 +472,8 @@ spec:
 
 
 **securityGroupSelectorTerms.id example (v1beta1)**
-```
+
+```yaml
 apiVersion: compute.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
@@ -481,7 +485,8 @@ spec:
 
 
 **amiSelector example (v1alpha)**
-```
+
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
@@ -492,7 +497,8 @@ spec:
 
 
 **amiSelectorTerms.tags example (v1beta1)**
-```
+
+```yaml
 apiVersion: compute.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
@@ -503,7 +509,8 @@ spec:
 ```
 
 **amiSelector example (v1alpha)**
-```
+
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
@@ -513,7 +520,8 @@ spec:
 ```
 
 **amiSelectorTerms example (v1beta1)**
-```
+
+```yaml
 apiVersion: compute.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
@@ -525,7 +533,8 @@ spec:
 
 
 **amiSelector example (v1alpha)**
-```
+
+```yaml
 apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
@@ -536,7 +545,8 @@ spec:
 ```
 
 **amiSelectorTerms.name example (v1beta1)**
-```
+
+```yaml
 apiVersion: compute.k8s.aws/v1beta1
 kind: EC2NodeClass
 ...
@@ -624,7 +634,7 @@ What you do to upgrade this feature depends on how you install Karpenter:
 
 * If you are manually configuring the deployment for Karpenter, you will need to add the following sections to your deployment:
 
-   ```
+   ```yaml
    apiVersion: apps/v1
    kind: Deployment
    spec:
@@ -644,10 +654,8 @@ What you do to upgrade this feature depends on how you install Karpenter:
 
 Karpenter will drop support for ConfigMap discovery through the APIServer starting in v0.33.0, meaning that you will need to ensure that you are mounting the config file on the expected filepath by that version.
 
-## Webhooks Support Deprecated in Favor of CEL
+## Webhook Support Deprecated in Favor of CEL
 
 Karpenter v1beta1 APIs now support Common Expression Language (CEL) for validaiton directly through the APIServer. This change means that Karpenter’s validating webhooks are no longer needed to ensure that Karpenter’s NodePools and EC2NodeClasses are configured correctly. 
 
 As a result, Karpenter will now disable webhooks by default by setting the `DISABLE_WEBHOOK` environment variable to `true` starting in v0.33.0. If you are currently on a version of Kubernetes < less than 1.25, CEL validation for Custom Resources is not enabled. We recommend that you enable the webhooks on these versions with `DISABLE_WEBHOOK=false` to get proper validation support for any Karpenter configuration.
-
-

@@ -8,3 +8,8 @@
 /preview/concepts/provisioners /preview/concepts/nodepools
 /preview/concepts/node-templates /preview/concepts/nodeclasses
 /preview/concepts/deprovisioning /preview/concepts/disruption
+/preview/upgrade/* /preview/upgrading/*
+/preview/concepts/instance-types /preview/reference/instance-types
+/preview/concepts/metrics /preview/reference/metrics
+/preview/concepts/settings /preview/reference/settings
+/preview/concepts/threat-model /preview/reference/threat-model

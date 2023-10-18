@@ -1,7 +1,7 @@
 ---
 title: "FAQs"
 linkTitle: "FAQs"
-weight: 90
+weight: 60
 description: >
   Review Karpenter Frequently Asked Questions
 ---
@@ -34,7 +34,7 @@ Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes
 ## Compatibility
 
 ### Which versions of Kubernetes does Karpenter support?
-See the [Compatibility Matrix in the Upgrade Section]({{< ref "./upgrade/compatibility#compatibility-matrix" >}}) to view the supported Kubernetes versions per Karpenter released version.
+See the [Compatibility Matrix in the Upgrade Section]({{< ref "./upgrading/compatibility#compatibility-matrix" >}}) to view the supported Kubernetes versions per Karpenter released version.
 
 ### What Kubernetes distributions are supported?
 Karpenter documents integration with a fresh or existing installation of the latest AWS Elastic Kubernetes Service (EKS). Other Kubernetes distributions (KOPs, etc.) can be used, but setting up cloud provider permissions for those distributions has not been documented.
@@ -197,7 +197,7 @@ To upgrade Karpenter to version `$VERSION`, make sure that the `KarpenterNode IA
 Next, locate `KarpenterController IAM Role` ARN (i.e., ARN of the resource created in [Create the KarpenterController IAM Role](../getting-started/getting-started-with-karpenter/#create-the-karpentercontroller-iam-role)) and pass them to the helm upgrade command.
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
-For information on upgrading Karpenter, see the [Upgrade Guide]({{< ref "./upgrade/upgrade-guide/" >}}).
+For information on upgrading Karpenter, see the [Upgrade Guide]({{< ref "./upgrading/upgrade-guide/" >}}).
 
 ## Upgrading Kubernetes Cluster
 
