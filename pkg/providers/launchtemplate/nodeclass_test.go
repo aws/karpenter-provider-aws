@@ -747,10 +747,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		})
 
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(true),
-			}))
-
+			ctx = settings.ToContext(ctx, test.Settings())
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
