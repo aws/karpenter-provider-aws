@@ -27,6 +27,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
@@ -54,6 +55,9 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1
 	region string, nodeClass *v1beta1.EC2NodeClass, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
 	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+	if aws.StringValue(info.InstanceType) == "trn1.2xlarge" {
+		logging.FromContext(ctx).Infof("DEBUGGING: this is the AMI Family for the trn1.2xlarge: %s", amiFamily.DefaultAMIs("v1.27", false)[0].Query)
+	}
 	return &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
 		Requirements: computeRequirements(ctx, info, offerings, region, amiFamily, kc, nodeClass),
@@ -151,7 +155,7 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 }
 
 func getOS(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []string {
-	if _, ok := amiFamily.(*amifamily.Windows); ok {
+	if _, ok := amiFamily.(amifamily.Windows); ok {
 		if getArchitecture(info) == corev1beta1.ArchitectureAmd64 {
 			return []string{string(v1.Windows)}
 		}

@@ -29,6 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
@@ -99,14 +100,14 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 
 		nodeSelector := map[string]string{
 			// Well known
-			corev1beta1.NodePoolLabelKey:     nodePool.Name,
-			v1.LabelTopologyRegion:           fake.DefaultRegion,
-			v1.LabelTopologyZone:             "test-zone-1a",
-			v1.LabelInstanceTypeStable:       "g4dn.8xlarge",
-			v1.LabelOSStable:                 "linux",
+			corev1beta1.NodePoolLabelKey: nodePool.Name,
+			v1.LabelTopologyRegion:       fake.DefaultRegion,
+			v1.LabelTopologyZone:         "test-zone-1a",
+			v1.LabelInstanceTypeStable:   "g4dn.8xlarge",
+			v1.LabelOSStable: "linux",
 			v1.LabelArchStable:               "amd64",
 			corev1beta1.CapacityTypeLabelKey: "on-demand",
-			// Well Known to AWS
+			//Well Known to AWS
 			v1beta1.LabelInstanceHypervisor:                   "nitro",
 			v1beta1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1beta1.LabelInstanceCategory:                     "g",
@@ -129,10 +130,10 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
 			"beta.kubernetes.io/arch":       "amd64",
-			"beta.kubernetes.io/os":         "linux",
+			"beta.kubernetes.io/os": "linux",
 			v1.LabelInstanceType:            "g4dn.8xlarge",
 			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
-			v1.LabelWindowsBuild:            v1beta1.Windows2022Build,
+			v1.LabelWindowsBuild: v1beta1.Windows2022Build,
 		}
 
 		// Ensure that we're exercising all well known labels
@@ -143,7 +144,8 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{key: value}}))
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		for _, pod := range pods {
+		for i, pod := range pods {
+			logging.FromContext(ctx).Infof("DEBUGGING: THIS IS THE (%d)th iteration with requirements %s", i, pod.Spec.NodeSelector)
 			ExpectScheduled(ctx, env.Client, pod)
 		}
 	})
@@ -1150,8 +1152,8 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+				}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1228,8 +1230,8 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-					}},
+					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+				}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)

@@ -154,7 +154,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		*sess.Config.Region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,
-		subnetProvider,
 		unavailableOfferingsCache,
 		pricingProvider,
 	)
