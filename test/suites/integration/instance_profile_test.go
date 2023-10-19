@@ -25,7 +25,6 @@ import (
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/providers/instanceprofile"
@@ -49,7 +48,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 						Tags: map[string]string{"*": "*"},
 					},
 				},
-				Role: fmt.Sprintf("KarpenterNodeRole-%s", settings.FromContext(env.Context).ClusterName),
+				Role: fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName),
 			},
 		})
 	})

@@ -136,15 +136,6 @@ var _ = Describe("Validation", func() {
 		Expect(s.Tags).To(HaveKeyWithValue("kubernetes.io/role/key", "value2"))
 		Expect(s.Tags).To(HaveKeyWithValue("kubernetes.io/cluster/other-tag/hello", "value3"))
 	})
-	It("should fail validation with panic when clusterName not included", func() {
-		cm := &v1.ConfigMap{
-			Data: map[string]string{
-				"aws.clusterEndpoint": "https://00000000000000000000000.gr7.us-west-2.eks.amazonaws.com",
-			},
-		}
-		_, err := (&settings.Settings{}).Inject(ctx, cm)
-		Expect(err).To(HaveOccurred())
-	})
 	It("should fail validation when clusterEndpoint is invalid (not absolute)", func() {
 		cm := &v1.ConfigMap{
 			Data: map[string]string{

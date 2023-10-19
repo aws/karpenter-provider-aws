@@ -33,9 +33,9 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/test"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
@@ -114,7 +114,7 @@ var _ = Describe("NodeTemplate/InstanceProvider", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -123,7 +123,7 @@ var _ = Describe("NodeTemplate/InstanceProvider", func() {
 						},
 						{
 							Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
+							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),

@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -29,10 +30,10 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
+	"github.com/aws/karpenter/pkg/operator/options"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -53,6 +54,9 @@ func TestInterruption(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
+	env.Context = options.ToContext(env.Context, awstest.Options(awstest.OptionsFields{
+		InterruptionQueue: lo.ToPtr(env.InterruptionQueue),
+	}))
 	env.BeforeEach()
 	env.ExpectQueueExists()
 })
@@ -63,8 +67,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
@@ -111,8 +115,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
@@ -151,8 +155,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{
@@ -191,8 +195,8 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the node when receiving a scheduled change health event", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{

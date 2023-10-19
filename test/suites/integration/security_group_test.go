@@ -28,7 +28,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 
@@ -37,14 +36,14 @@ import (
 
 var _ = Describe("SecurityGroups", func() {
 	It("should use the security-group-id selector", func() {
-		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(securityGroups)).To(BeNumerically(">", 1))
 
 		ids := strings.Join([]string{*securityGroups[0].GroupId, *securityGroups[1].GroupId}, ",")
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"aws-ids": ids},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
@@ -58,7 +57,7 @@ var _ = Describe("SecurityGroups", func() {
 	})
 
 	It("should use the security group selector with multiple tag values", func() {
-		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(securityGroups)).To(BeNumerically(">", 1))
 		first := securityGroups[0]
 		last := securityGroups[len(securityGroups)-1]
@@ -69,7 +68,7 @@ var _ = Describe("SecurityGroups", func() {
 					lo.FromPtr(lo.FindOrElse(first.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value),
 					lo.FromPtr(lo.FindOrElse(last.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value),
 				)},
-				SubnetSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SubnetSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			},
 		})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
@@ -85,8 +84,8 @@ var _ = Describe("SecurityGroups", func() {
 	It("should update the AWSNodeTemplateStatus for security groups", func() {
 		nodeTemplate := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			},
 		})
 
@@ -96,7 +95,7 @@ var _ = Describe("SecurityGroups", func() {
 })
 
 func EventuallyExpectSecurityGroups(env *aws.Environment, nodeTemplate *v1alpha1.AWSNodeTemplate) {
-	securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+	securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 	Expect(securityGroups).ToNot(HaveLen(0))
 
 	ids := sets.New(lo.Map(securityGroups, func(s aws.SecurityGroup, _ int) string {

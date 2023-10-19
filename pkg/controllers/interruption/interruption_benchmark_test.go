@@ -43,6 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
@@ -50,7 +51,7 @@ import (
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/test"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 )
@@ -77,12 +78,13 @@ func BenchmarkNotification100(b *testing.B) {
 func benchmarkNotificationController(b *testing.B, messageCount int) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("message-count", messageCount))
 	fakeClock = &clock.FakeClock{}
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
-	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 		ClusterName:           lo.ToPtr("karpenter-notification-benchmarking"),
 		IsolatedVPC:           lo.ToPtr(true),
 		InterruptionQueueName: lo.ToPtr("test-cluster"),
 	}))
+	ctx = settings.ToContext(ctx, test.Settings())
 	env = coretest.NewEnvironment(scheme.Scheme)
 	// Stop the coretest environment after the coretest completes
 	defer func() {
@@ -181,7 +183,7 @@ func newProviders(kubeClient client.Client) providerSet {
 
 func (p *providerSet) makeInfrastructure(ctx context.Context) error {
 	if _, err := p.sqsAPI.CreateQueueWithContext(ctx, &sqs.CreateQueueInput{
-		QueueName: lo.ToPtr(settings.FromContext(ctx).InterruptionQueueName),
+		QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueueName),
 		Attributes: map[string]*string{
 			sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
 		},

@@ -28,7 +28,6 @@ func (s Settings) Validate() (errs *apis.FieldError) {
 	return errs.Also(
 		s.validateEndpoint(),
 		s.validateTags(),
-		s.validateClusterName(),
 		s.validateVMMemoryOverheadPercent(),
 		s.validateReservedENIs(),
 		s.validateAssumeRoleDuration(),
@@ -38,13 +37,6 @@ func (s Settings) Validate() (errs *apis.FieldError) {
 func (s Settings) validateAssumeRoleDuration() (errs *apis.FieldError) {
 	if s.AssumeRoleDuration < time.Minute*15 {
 		return errs.Also(apis.ErrInvalidValue("assumeRoleDuration cannot be less than 15 Minutes", "assumeRoleDuration"))
-	}
-	return nil
-}
-
-func (s Settings) validateClusterName() (errs *apis.FieldError) {
-	if s.ClusterName == "" {
-		return errs.Also(apis.ErrMissingField("clusterName is required", "clusterName"))
 	}
 	return nil
 }

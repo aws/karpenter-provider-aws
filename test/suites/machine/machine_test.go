@@ -31,7 +31,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -40,8 +39,8 @@ var _ = Describe("StandaloneMachine", func() {
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	BeforeEach(func() {
 		nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 	})
 	It("should create a standard machine within the 'c' instance family", func() {
@@ -273,8 +272,8 @@ var _ = Describe("StandaloneMachine", func() {
 		// Create userData that adds custom labels through the --kubelet-extra-args
 		nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
 		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": customAMI}
-		nodeTemplate.Spec.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
-			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle()))))
+		nodeTemplate.Spec.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
+			env.ClusterEndpoint, env.ExpectCABundle()))))
 
 		machine := test.Machine(v1alpha5.Machine{
 			Spec: v1alpha5.MachineSpec{

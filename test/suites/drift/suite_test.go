@@ -39,7 +39,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -73,8 +72,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 	BeforeEach(func() {
 		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 		nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner = test.Provisioner(test.ProvisionerOptions{
 			Requirements: []v1.NodeSelectorRequirement{{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeOnDemand}}},
@@ -101,7 +100,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		oldCustomAMI := *parameter.Parameter.Value
 		nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
 		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": oldCustomAMI}
-		nodeTemplate.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName))
+		nodeTemplate.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
 
 		env.ExpectCreated(pod, nodeTemplate, provisioner)
 		env.EventuallyExpectHealthy(pod)
@@ -134,7 +133,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		oldCustomAMI := *parameter.Parameter.Value
 		nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
 		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": oldCustomAMI}
-		nodeTemplate.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName))
+		nodeTemplate.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
 
 		env.ExpectCreated(pod, nodeTemplate, provisioner)
 		env.EventuallyExpectHealthy(pod)
@@ -151,7 +150,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 	})
 	It("should deprovision nodes that have drifted due to securitygroup", func() {
 		By("getting the cluster vpc id")
-		output, err := env.EKSAPI.DescribeCluster(&eks.DescribeClusterInput{Name: awssdk.String(settings.FromContext(env.Context).ClusterName)})
+		output, err := env.EKSAPI.DescribeCluster(&eks.DescribeClusterInput{Name: awssdk.String(env.ClusterName)})
 		Expect(err).To(BeNil())
 
 		By("creating new security group")
@@ -165,11 +164,11 @@ var _ = Describe("Drift", Label("AWS"), func() {
 					Tags: []*ec2.Tag{
 						{
 							Key:   awssdk.String("karpenter.sh/discovery"),
-							Value: awssdk.String(settings.FromContext(env.Context).ClusterName),
+							Value: awssdk.String(env.ClusterName),
 						},
 						{
 							Key:   awssdk.String(test.DiscoveryLabel),
-							Value: awssdk.String(settings.FromContext(env.Context).ClusterName),
+							Value: awssdk.String(env.ClusterName),
 						},
 						{
 							Key:   awssdk.String("creation-date"),
@@ -185,7 +184,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		var securitygroups []aws.SecurityGroup
 		var testSecurityGroup aws.SecurityGroup
 		Eventually(func(g Gomega) {
-			securitygroups = env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+			securitygroups = env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 			testSecurityGroup, _ = lo.Find(securitygroups, func(sg aws.SecurityGroup) bool {
 				return awssdk.StringValue(sg.GroupName) == "security-group-drift"
 			})
@@ -222,7 +221,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, machine, node)
 	})
 	It("should deprovision nodes that have drifted due to subnets", func() {
-		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(subnets)).To(BeNumerically(">", 1))
 
 		nodeTemplate.Spec.SubnetSelector = map[string]string{"aws-ids": subnets[0].ID}
@@ -300,7 +299,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 	)
 	DescribeTable("AWSNodeTemplate Drift", func(fieldName string, nodeTemplateSpec v1alpha1.AWSNodeTemplateSpec) {
 		if fieldName == "InstanceProfile" {
-			nodeTemplateSpec.AWS.InstanceProfile = awssdk.String(fmt.Sprintf("KarpenterNodeInstanceProfile-Drift-%s", settings.FromContext(env.Context).ClusterName))
+			nodeTemplateSpec.AWS.InstanceProfile = awssdk.String(fmt.Sprintf("KarpenterNodeInstanceProfile-Drift-%s", env.ClusterName))
 			ExpectInstanceProfileCreated(nodeTemplateSpec.AWS.InstanceProfile)
 		}
 
@@ -476,7 +475,7 @@ func ExpectInstanceProfileCreated(instanceProfileName *string) {
 		Tags: []*iam.Tag{
 			{
 				Key:   awssdk.String(test.DiscoveryLabel),
-				Value: awssdk.String(settings.FromContext(env.Context).ClusterName),
+				Value: awssdk.String(env.ClusterName),
 			},
 		},
 	}
@@ -485,7 +484,7 @@ func ExpectInstanceProfileCreated(instanceProfileName *string) {
 	Expect(ignoreAlreadyExists(err)).ToNot(HaveOccurred())
 	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: instanceProfileName,
-		RoleName:            awssdk.String(fmt.Sprintf("KarpenterNodeRole-%s", settings.FromContext(env.Context).ClusterName)),
+		RoleName:            awssdk.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
 	}
 	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
 	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())

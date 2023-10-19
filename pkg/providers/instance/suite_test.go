@@ -29,23 +29,22 @@ import (
 	"k8s.io/client-go/tools/record"
 	. "knative.dev/pkg/logging/testing"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter-core/pkg/operator/options"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/test"
 )
 
 var ctx context.Context
-var opts *options.Options
 var env *coretest.Environment
 var awsEnv *test.Environment
 var cloudProvider *cloudprovider.CloudProvider
@@ -58,7 +57,8 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = options.ToContext(ctx, test.Options())
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
@@ -70,8 +70,8 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = options.ToContext(ctx, opts)
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = options.ToContext(ctx, test.Options())
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv.Reset()
 })
@@ -90,7 +90,7 @@ var _ = Describe("Combined/InstanceProvider", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -99,7 +99,7 @@ var _ = Describe("Combined/InstanceProvider", func() {
 						},
 						{
 							Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
+							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
@@ -125,7 +125,7 @@ var _ = Describe("Combined/InstanceProvider", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -134,7 +134,7 @@ var _ = Describe("Combined/InstanceProvider", func() {
 						},
 						{
 							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-							Value: aws.String(settings.FromContext(ctx).ClusterName),
+							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
