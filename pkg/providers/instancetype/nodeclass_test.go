@@ -16,6 +16,7 @@ package instancetype_test
 
 import (
 	"fmt"
+	awspricing "github.com/aws/aws-sdk-go/service/pricing"
 	"math"
 	"sort"
 	"strings"
@@ -1347,7 +1348,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(corev1beta1.CapacityTypeLabelKey, corev1beta1.CapacityTypeOnDemand))
 		})
-		It("should launch spot capacity if flexible to both spot and on demand", func() {
+		It("should launch spot capacity if flexible to both spot and on demand and spot is available", func() {
 			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot, corev1beta1.CapacityTypeOnDemand}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1355,6 +1356,35 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(corev1beta1.CapacityTypeLabelKey, corev1beta1.CapacityTypeSpot))
+		})
+		It("should launch on demand capacity if flexible to both spot and on demand but on demand is cheaper", func() {
+			now := time.Now()
+			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+				SpotPriceHistory: []*ec2.SpotPrice{
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     aws.String("m5.large"),
+						SpotPrice:        aws.String("2.00"),
+						Timestamp:        &now,
+					},
+				},
+			})
+			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+
+			awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+				PriceList: []aws.JSONValue{
+					fake.NewOnDemandPrice("m5.large", 1.20),
+				},
+			})
+			Expect(awsEnv.PricingProvider.UpdateOnDemandPricing(ctx)).To(Succeed())
+
+			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot, corev1beta1.CapacityTypeOnDemand}}}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(corev1beta1.CapacityTypeLabelKey, corev1beta1.CapacityTypeOnDemand))
 		})
 		It("should fail to launch capacity when there is no zonal availability for spot", func() {
 			now := time.Now()

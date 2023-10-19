@@ -16,6 +16,7 @@ package instancetype_test
 
 import (
 	"fmt"
+	awspricing "github.com/aws/aws-sdk-go/service/pricing"
 	"math"
 	"sort"
 	"strings"
@@ -25,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/gstruct"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -360,6 +362,7 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
+		Expect(call.TargetCapacitySpecification.DefaultTargetCapacityType).To(PointTo(Equal("spot")))
 
 		// find the cheapest OD price that works
 		cheapestODPrice := math.MaxFloat64
@@ -375,6 +378,109 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 			spotPrice, ok := awsEnv.PricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
 			Expect(ok).To(BeTrue())
 			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
+		}
+	})
+	It("should order the instance types by price and only consider the on-demand types that are cheaper than the cheapest spot price", func() {
+		now := time.Now()
+		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("m5.large"),
+					SpotPrice:        aws.String("2.00"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("m5.large"),
+					SpotPrice:        aws.String("1.90"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1c"),
+					InstanceType:     aws.String("m5.large"),
+					SpotPrice:        aws.String("2.10"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("m5.2xlarge"),
+					SpotPrice:        aws.String("2.20"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("m5.2xlarge"),
+					SpotPrice:        aws.String("2.30"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1c"),
+					InstanceType:     aws.String("m5.2xlarge"),
+					SpotPrice:        aws.String("2.40"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+
+		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("m5.large", 1.20),
+				fake.NewOnDemandPrice("m5.2xlarge", 2.40),
+			},
+		})
+		Expect(awsEnv.PricingProvider.UpdateOnDemandPricing(ctx)).To(Succeed())
+
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1alpha5.LabelCapacityType,
+				Operator: v1.NodeSelectorOpIn,
+				Values: []string{
+					v1alpha5.CapacityTypeSpot,
+					v1alpha5.CapacityTypeOnDemand,
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+
+		its, err := cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(provisioner))
+		Expect(err).To(BeNil())
+		// Order all the instances by their price
+		// We need some way to deterministically order them if their prices match
+		reqs := scheduling.NewNodeSelectorRequirements(provisioner.Spec.Requirements...)
+		sort.Slice(its, func(i, j int) bool {
+			iPrice := its[i].Offerings.Requirements(reqs).Cheapest().Price
+			jPrice := its[j].Offerings.Requirements(reqs).Cheapest().Price
+			if iPrice == jPrice {
+				return its[i].Name < its[j].Name
+			}
+			return iPrice < jPrice
+		})
+
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
+		Expect(call.TargetCapacitySpecification.DefaultTargetCapacityType).To(PointTo(Equal("on-demand")))
+
+		// find the cheapest OD price that works
+		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
+			_, ok := awsEnv.PricingProvider.OnDemandPrice(*override.InstanceType)
+			Expect(ok).To(BeTrue())
+		}
+		// and our spot prices should be more expensive than the OD price so an error will be returned
+		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
+			_, ok := awsEnv.PricingProvider.SpotPrice(*override.InstanceType, *override.AvailabilityZone)
+			Expect(ok).To(BeFalse())
 		}
 	})
 	It("should de-prioritize metal", func() {
@@ -1378,7 +1484,7 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeOnDemand))
 		})
-		It("should launch spot capacity if flexible to both spot and on demand", func() {
+		It("should launch spot capacity if flexible to both spot and on demand and spot is available", func() {
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot, v1alpha5.CapacityTypeOnDemand}}}
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
@@ -1386,6 +1492,35 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeSpot))
+		})
+		It("should launch on demand capacity if flexible to both spot and on demand but on demand is cheaper", func() {
+			now := time.Now()
+			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+				SpotPriceHistory: []*ec2.SpotPrice{
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     aws.String("m5.large"),
+						SpotPrice:        aws.String("2.00"),
+						Timestamp:        &now,
+					},
+				},
+			})
+			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+
+			awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+				PriceList: []aws.JSONValue{
+					fake.NewOnDemandPrice("m5.large", 1.20),
+				},
+			})
+			Expect(awsEnv.PricingProvider.UpdateOnDemandPricing(ctx)).To(Succeed())
+
+			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot, v1alpha5.CapacityTypeOnDemand}}}
+			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1alpha5.LabelCapacityType, v1alpha5.CapacityTypeOnDemand))
 		})
 		It("should fail to launch capacity when there is no zonal availability for spot", func() {
 			now := time.Now()
