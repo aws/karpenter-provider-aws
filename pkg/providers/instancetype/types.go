@@ -51,26 +51,20 @@ var (
 )
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1beta1.KubeletConfiguration,
-	region string, nodeClass *v1beta1.EC2NodeClass, offerings cloudprovider.Offerings) []*cloudprovider.InstanceType {
+	region string, nodeClass *v1beta1.EC2NodeClass, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
-	windows := amifamily.GetAMIFamily(ptr.String(v1alpha1.Windows2022), &amifamily.Options{})
-	linux := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
-	families := []amifamily.AMIFamily{windows, linux}
-	// it := aws.StringValue(info.InstanceType)
-	// logging.FromContext(ctx).Infof("DEBUGGING: this is the AMI Family for %s: %s", it, amiFamily.DefaultAMIs("v1.27", false)[0].Query)
-	return lo.Map(families, func(a amifamily.AMIFamily, _ int) *cloudprovider.InstanceType {
-		return &cloudprovider.InstanceType{
-			Name:         aws.StringValue(info.InstanceType),
-			Requirements: computeRequirements(ctx, info, offerings, region, a, kc, nodeClass),
-			Offerings:    offerings,
-			Capacity:     computeCapacity(ctx, info, a, nodeClass.Spec.BlockDeviceMappings, kc),
-			Overhead: &cloudprovider.InstanceTypeOverhead{
-				KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, a, kc), ENILimitedPods(ctx, info), a, kc),
-				SystemReserved:    systemReservedResources(kc),
-				EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(a, nodeClass.Spec.BlockDeviceMappings), a, kc),
-			},
-		}
-	})
+	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+	return &cloudprovider.InstanceType{
+		Name:         aws.StringValue(info.InstanceType),
+		Requirements: computeRequirements(ctx, info, offerings, region, amiFamily, kc, nodeClass),
+		Offerings:    offerings,
+		Capacity:     computeCapacity(ctx, info, amiFamily, nodeClass.Spec.BlockDeviceMappings, kc),
+		Overhead: &cloudprovider.InstanceTypeOverhead{
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info), amiFamily, kc),
+			SystemReserved:    systemReservedResources(kc),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeClass.Spec.BlockDeviceMappings), amiFamily, kc),
+		},
+	}
 }
 
 //nolint:gocyclo
