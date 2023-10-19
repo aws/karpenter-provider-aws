@@ -37,6 +37,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,6 +47,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/operator"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
@@ -166,6 +168,14 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 	)
+
+	lo.Must0(operator.Manager.GetFieldIndexer().IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClassRef.name", func(o client.Object) []string {
+		nc := o.(*corev1beta1.NodeClaim)
+		if nc.Spec.NodeClassRef == nil {
+			return []string{}
+		}
+		return []string{nc.Spec.NodeClassRef.Name}
+	}), "failed to setup nodeclaim indexer")
 
 	return ctx, &Operator{
 		Operator:                  operator,

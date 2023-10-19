@@ -58,6 +58,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | logConfig.errorOutputPaths | list | `["stderr"]` | Log errorOutputPaths - defaults to stderr only |
 | logConfig.logEncoding | string | `"console"` | Log encoding - defaults to console - must be one of 'json', 'console' |
 | logConfig.logLevel | object | `{"controller":"debug","global":"debug","webhook":"error"}` | Component-based log configuration |
+| logConfig.logLevel.controller | string | `"debug"` | Controller log level, defaults to 'debug' |
+| logConfig.logLevel.global | string | `"debug"` | Global log level, defaults to 'debug' |
+| logConfig.logLevel.webhook | string | `"error"` | Error log level, defaults to 'error' |
 | logConfig.outputPaths | list | `["stdout"]` | Log outputPaths - defaults to stdout only |
 | logEncoding | string | `"console"` | Global log encoding (Deprecated: Use logConfig.logEncoding instead) |
 | logLevel | string | `"debug"` | Global log level |
