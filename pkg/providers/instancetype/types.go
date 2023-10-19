@@ -155,7 +155,7 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 }
 
 func getOS(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []string {
-	if _, ok := amiFamily.(amifamily.Windows); ok {
+	if _, ok := amiFamily.(*amifamily.Windows); ok {
 		if getArchitecture(info) == corev1beta1.ArchitectureAmd64 {
 			return []string{string(v1.Windows)}
 		}
