@@ -94,7 +94,7 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-		InterruptionQueueName: lo.ToPtr("test-cluster"),
+		InterruptionQueue: lo.ToPtr("test-cluster"),
 	}))
 	ctx = settings.ToContext(ctx, test.Settings())
 	unavailableOfferingsCache.Flush()

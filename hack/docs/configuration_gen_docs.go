@@ -49,7 +49,9 @@ func main() {
 	topDoc := fmt.Sprintf("%s%s\n\n", startDocSections[0], genStart)
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
-	fs := &options.FlagSet{FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError)}
+	fs := &coreoptions.FlagSet {
+		FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
+	}
 	(&coreoptions.Options{}).AddFlags(fs)
 	(&options.Options{}).AddFlags(fs)
 

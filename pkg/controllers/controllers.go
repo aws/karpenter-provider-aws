@@ -54,7 +54,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider, linkController),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 	}
-	if options.FromContext(ctx).InterruptionQueueName != "" {
+	if options.FromContext(ctx).InterruptionQueue != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, interruption.NewSQSProvider(sqs.New(sess)), unavailableOfferings))
 	}
 	if options.FromContext(ctx).IsolatedVPC {

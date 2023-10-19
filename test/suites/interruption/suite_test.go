@@ -55,7 +55,7 @@ func TestInterruption(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	env.Context = options.ToContext(env.Context, awstest.Options(awstest.OptionsFields{
-		InterruptionQueueName: lo.ToPtr(env.InterruptionQueueName),
+		InterruptionQueue: lo.ToPtr(env.InterruptionQueue),
 	}))
 	env.BeforeEach()
 	env.ExpectQueueExists()

@@ -80,8 +80,8 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", options.FromContext(ctx).InterruptionQueueName))
-	if c.cm.HasChanged(options.FromContext(ctx).InterruptionQueueName, nil) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", options.FromContext(ctx).InterruptionQueue))
+	if c.cm.HasChanged(options.FromContext(ctx).InterruptionQueue, nil) {
 		logging.FromContext(ctx).Debugf("watching interruption queue")
 	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)

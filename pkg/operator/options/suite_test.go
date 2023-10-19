@@ -50,8 +50,8 @@ var _ = Describe("Options", func() {
 		"CLUSTER_NAME",
 		"CLUSTER_ENDPOINT",
 		"ISOLATED_VPC",
-		"VM_MOMORY_OVERHEAD_PERCENT",
-		"INTERRUPTION_QUEUE_NAME",
+		"VM_MEMORY_OVERHEAD_PERCENT",
+		"INTERRUPTION_QUEUE",
 		"RESERVED_ENIS",
 	}
 
@@ -99,7 +99,7 @@ var _ = Describe("Options", func() {
 				"--cluster-endpoint", "https://options-cluster",
 				"--isolated-vpc",
 				"--vm-memory-overhead-percent", "0.1",
-				"--interruption-queue-name", "options-cluster",
+				"--interruption-queue", "options-cluster",
 				"--reserved-enis", "10",
 			)
 			Expect(err).ToNot(HaveOccurred())
@@ -123,7 +123,7 @@ var _ = Describe("Options", func() {
 				ClusterEndpoint:         lo.ToPtr("https://options-cluster"),
 				IsolatedVPC:             lo.ToPtr(true),
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-				InterruptionQueueName:   lo.ToPtr("options-cluster"),
+				InterruptionQueue:       lo.ToPtr("options-cluster"),
 				ReservedENIs:            lo.ToPtr(10),
 			}))
 
@@ -151,7 +151,7 @@ var _ = Describe("Options", func() {
 				ClusterEndpoint:         lo.ToPtr("https://settings-cluster"),
 				IsolatedVPC:             lo.ToPtr(true),
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0.05),
-				InterruptionQueueName:   lo.ToPtr("settings-cluster"),
+				InterruptionQueue:       lo.ToPtr("settings-cluster"),
 				ReservedENIs:            lo.ToPtr(8),
 			}))
 
@@ -163,7 +163,7 @@ var _ = Describe("Options", func() {
 				"--cluster-ca-bundle", "options-bundle",
 				"--cluster-name", "options-cluster",
 				"--cluster-endpoint", "https://options-cluster",
-				"--interruption-queue-name", "options-cluster",
+				"--interruption-queue", "options-cluster",
 			)
 			Expect(err).ToNot(HaveOccurred())
 			ctx = settings.ToContext(ctx, &settings.Settings{
@@ -186,7 +186,7 @@ var _ = Describe("Options", func() {
 				ClusterEndpoint:         lo.ToPtr("https://options-cluster"),
 				IsolatedVPC:             lo.ToPtr(true),
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-				InterruptionQueueName:   lo.ToPtr("options-cluster"),
+				InterruptionQueue:       lo.ToPtr("options-cluster"),
 				ReservedENIs:            lo.ToPtr(10),
 			}))
 		})
@@ -199,13 +199,14 @@ var _ = Describe("Options", func() {
 			os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
 			os.Setenv("ISOLATED_VPC", "true")
 			os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
-			os.Setenv("INTERRUPTION_QUEUE_NAME", "env-cluster")
+			os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
 			os.Setenv("RESERVED_ENIS", "10")
 			fs = &coreoptions.FlagSet{
 				FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
 			}
 			opts.AddFlags(fs)
-			opts.Parse(fs)
+			err := opts.Parse(fs)
+			Expect(err).ToNot(HaveOccurred())
 			expectOptionsEqual(opts, test.Options(test.OptionsFields{
 				AssumeRoleARN:           lo.ToPtr("env-role"),
 				AssumeRoleDuration:      lo.ToPtr(20 * time.Minute),
@@ -214,7 +215,7 @@ var _ = Describe("Options", func() {
 				ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
 				IsolatedVPC:             lo.ToPtr(true),
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
-				InterruptionQueueName:   lo.ToPtr("env-cluster"),
+				InterruptionQueue:       lo.ToPtr("env-cluster"),
 				ReservedENIs:            lo.ToPtr(10),
 			}))
 		})
@@ -259,6 +260,6 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
 	Expect(optsA.IsolatedVPC).To(Equal(optsB.IsolatedVPC))
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
-	Expect(optsA.InterruptionQueueName).To(Equal(optsB.InterruptionQueueName))
+	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
 	Expect(optsA.ReservedENIs).To(Equal(optsB.ReservedENIs))
 }

@@ -44,10 +44,10 @@ type Options struct {
 	ClusterEndpoint         string
 	IsolatedVPC             bool
 	VMMemoryOverheadPercent float64
-	InterruptionQueueName   string
+	InterruptionQueue       string
 	ReservedENIs            int
 
-	setFlags    map[string]bool
+	setFlags map[string]bool
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -58,7 +58,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.")
 	fs.BoolVarWithEnv(&o.IsolatedVPC, "isolated-vpc", "ISOLATED_VPC", false, "If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS pricing endpoint.")
 	fs.Float64Var(&o.VMMemoryOverheadPercent, "vm-memory-overhead-percent", env.WithDefaultFloat64("VM_MEMORY_OVERHEAD_PERCENT", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types.")
-	fs.StringVar(&o.InterruptionQueueName, "interruption-queue-name", env.WithDefaultString("INTERRUPTION_QUEUE_NAME", ""), "Interruption queue is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
+	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 }
 
@@ -103,7 +103,7 @@ func (o *Options) MergeSettings(ctx context.Context) {
 	mergeField(&o.ClusterEndpoint, s.ClusterEndpoint, o.setFlags["cluster-endpoint"])
 	mergeField(&o.IsolatedVPC, s.IsolatedVPC, o.setFlags["isolated-vpc"])
 	mergeField(&o.VMMemoryOverheadPercent, s.VMMemoryOverheadPercent, o.setFlags["vm-memory-overhead-percent"])
-	mergeField(&o.InterruptionQueueName, s.InterruptionQueueName, o.setFlags["interruption-queue-name"])
+	mergeField(&o.InterruptionQueue, s.InterruptionQueueName, o.setFlags["interruption-queue"])
 	mergeField(&o.ReservedENIs, s.ReservedENIs, o.setFlags["reserved-enis"])
 	if err := o.validateRequiredFields(); err != nil {
 		panic(fmt.Errorf("checking required fields, %w", err))

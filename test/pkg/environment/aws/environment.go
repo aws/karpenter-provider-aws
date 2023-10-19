@@ -56,9 +56,9 @@ type Environment struct {
 
 	SQSProvider *interruption.SQSProvider
 
-	ClusterName           string
-	ClusterEndpoint       string
-	InterruptionQueueName string
+	ClusterName       string
+	ClusterEndpoint   string
+	InterruptionQueue string
 }
 
 func NewEnvironment(t *testing.T) *Environment {
@@ -86,9 +86,9 @@ func NewEnvironment(t *testing.T) *Environment {
 		SQSProvider:   interruption.NewSQSProvider(sqs.New(session)),
 		TimeStreamAPI: GetTimeStreamAPI(session),
 
-		ClusterName:           lo.Must(os.LookupEnv("CLUSTER_NAME")),
-		ClusterEndpoint:       lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
-		InterruptionQueueName: lo.Must(os.LookupEnv("INTERRUPTION_QUEUE_NAME")),
+		ClusterName:       lo.Must(os.LookupEnv("CLUSTER_NAME")),
+		ClusterEndpoint:   lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
+		InterruptionQueue: lo.Must(os.LookupEnv("INTERRUPTION_QUEUE")),
 	}
 }
 

@@ -43,7 +43,7 @@ func NewSQSProvider(client sqsiface.SQSAPI) *SQSProvider {
 	}
 	provider.queueURL.Resolve = func(ctx context.Context) (string, error) {
 		input := &sqs.GetQueueUrlInput{
-			QueueName: aws.String(options.FromContext(ctx).InterruptionQueueName),
+			QueueName: aws.String(options.FromContext(ctx).InterruptionQueue),
 		}
 		ret, err := provider.client.GetQueueUrlWithContext(ctx, input)
 		if err != nil {
@@ -66,12 +66,12 @@ func (s *SQSProvider) QueueExists(ctx context.Context) (bool, error) {
 }
 
 func (s *SQSProvider) DiscoverQueueURL(ctx context.Context) (string, error) {
-	if options.FromContext(ctx).InterruptionQueueName != lo.FromPtr(s.queueName.Load()) {
+	if options.FromContext(ctx).InterruptionQueue != lo.FromPtr(s.queueName.Load()) {
 		res, err := s.queueURL.TryGet(ctx, atomic.IgnoreCacheOption)
 		if err != nil {
 			return res, err
 		}
-		s.queueName.Store(lo.ToPtr(options.FromContext(ctx).InterruptionQueueName))
+		s.queueName.Store(lo.ToPtr(options.FromContext(ctx).InterruptionQueue))
 		return res, nil
 	}
 	return s.queueURL.TryGet(ctx)
