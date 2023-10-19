@@ -48,7 +48,7 @@ func main() {
 	topDoc := fmt.Sprintf("%s%s\n\n", startDocSections[0], genStart)
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
-	fs := flag.NewFlagSet("karpenter", flag.ContinueOnError)
+	fs := &options.FlagSet{FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError)}
 	(&options.Options{}).AddFlags(fs)
 
 	envVarsBlock := "| Environment Variable | CLI Flag | Description |\n"
