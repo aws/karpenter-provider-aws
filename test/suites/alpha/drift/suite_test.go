@@ -55,7 +55,7 @@ func TestDrift(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Drift")
+	RunSpecs(t, "Alpha/Drift")
 }
 
 var _ = BeforeEach(func() {

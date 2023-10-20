@@ -12,11 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package scale_test
+package machine_test
 
 import (
 	"testing"
-	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -26,24 +25,17 @@ import (
 
 var env *aws.Environment
 
-func TestScale(t *testing.T) {
+func TestMachine(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
-		SetDefaultEventuallyTimeout(time.Hour)
 	})
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Scale")
+	RunSpecs(t, "Alpha/Machine")
 }
 
-var _ = BeforeEach(func() {
-	env.ExpectPrefixDelegationEnabled()
-	env.BeforeEach()
-})
+var _ = BeforeEach(func() { env.BeforeEach() })
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() {
-	env.AfterEach()
-	env.ExpectPrefixDelegationDisabled()
-})
+var _ = AfterEach(func() { env.AfterEach() })

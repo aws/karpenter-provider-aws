@@ -20,6 +20,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 var persistedSettings []v1.EnvVar
@@ -28,6 +29,7 @@ var persistedSettingsLegacy = &v1.ConfigMap{}
 var (
 	CleanableObjects = []client.Object{
 		&v1alpha1.AWSNodeTemplate{},
+		&v1beta1.EC2NodeClass{},
 	}
 )
 
@@ -38,8 +40,8 @@ func (env *Environment) BeforeEach() {
 }
 
 func (env *Environment) Cleanup() {
-	env.Environment.CleanupObjects(CleanableObjects...)
 	env.Environment.Cleanup()
+	env.Environment.CleanupObjects(CleanableObjects...)
 }
 
 func (env *Environment) AfterEach() {

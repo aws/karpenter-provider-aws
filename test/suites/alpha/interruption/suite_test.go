@@ -50,7 +50,7 @@ func TestInterruption(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Interruption")
+	RunSpecs(t, "Alpha/Interruption")
 }
 
 var _ = BeforeEach(func() {

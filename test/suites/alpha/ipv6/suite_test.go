@@ -40,7 +40,7 @@ func TestIPv6(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "IPv6")
+	RunSpecs(t, "Alpha/IPv6")
 }
 
 var _ = BeforeEach(func() { env.BeforeEach() })

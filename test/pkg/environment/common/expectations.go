@@ -40,6 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
@@ -578,6 +579,29 @@ func (env *Environment) EventuallyExpectMachinesReady(machines ...*v1alpha5.Mach
 		for _, machine := range machines {
 			temp := &v1alpha5.Machine{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).Should(Succeed())
+			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
+		}
+	}).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectCreatedNodeClaimCount(comparator string, count int) []*corev1beta1.NodeClaim {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for created nodeclaims to be %s to %d", comparator, count))
+	nodeClaimList := &corev1beta1.NodeClaimList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env.Context, nodeClaimList)).To(Succeed())
+		g.Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
+	}).Should(Succeed())
+	return lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) *corev1beta1.NodeClaim {
+		return &nc
+	})
+}
+
+func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1beta1.NodeClaim) {
+	Eventually(func(g Gomega) {
+		for _, nc := range nodeClaims {
+			temp := &corev1beta1.NodeClaim{}
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), temp)).Should(Succeed())
 			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
 		}
 	}).Should(Succeed())

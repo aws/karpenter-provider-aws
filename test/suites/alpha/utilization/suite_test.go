@@ -42,7 +42,7 @@ func TestUtilization(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Utilization")
+	RunSpecs(t, "Alpha/Utilization")
 }
 
 var _ = BeforeEach(func() { env.BeforeEach() })

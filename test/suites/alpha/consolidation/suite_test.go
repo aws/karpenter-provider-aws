@@ -49,7 +49,7 @@ func TestConsolidation(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Consolidation")
+	RunSpecs(t, "Alpha/Consolidation")
 }
 
 var _ = BeforeEach(func() { env.BeforeEach() })
