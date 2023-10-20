@@ -32,7 +32,7 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
-g
+
 ### Upgrading to v0.32.0+
 
 #### v1beta1 Migration
@@ -102,7 +102,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     TEMPOUT=$(mktemp)
     curl -fsSL https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
     
-    REGION=${AWS_REGION:=$AWS_DEFAULT_REGION}
+    AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION}
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
     POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
@@ -119,7 +119,9 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     ```
 
    {{% alert title="Note" color="warning" %}}
-   < If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-installing-the-karpenter-crd-chart" >}}) for details on how to resolve these errors.
+
+   If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-installing-the-karpenter-crd-chart" >}}) for details on how to resolve these errors.
+
    {{% /alert %}}
 
    * As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide. In general, ou can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
@@ -194,11 +196,38 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
       - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
       - For all the nodes owned by the Provisioner, delete one at a time as follows: `kubectl delete node <node-name>`
 
-13. Update workload labels: Old v1alpha labels (`karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict`) are deprecated, but will not be dropped until Karpenter v1. However, you can begin updating those labels at any time with `karpenter.sh/do-not-disrupt`. You should check that there are no more Provisioner, AWSNodeTemplate, or Machine resources on your cluster. at which time you can delete the old CRDs. To validate that there are no more machines, type:
+13. Update workload labels: Old alpha labels (`karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict`) are deprecated, but will not be dropped until Karpenter v1. However, you can begin updating those labels at any time with `karpenter.sh/do-not-disrupt`. 
 
-   ```bash
-   kubectl get machines
-   ```
+14. Check that there are no more Provisioner, AWSNodeTemplate, or Machine resources on your cluster. at which time you can delete the old CRDs. To validate this, run the following command and ensure that there are no outputs to any of them:
+
+    ```bash
+    kubectl get machines
+    kubectl get awsnodetemplates
+    kubectl get provisioners
+    ```
+
+15. Remove the alpha Karpenter CRDs from the cluster.
+
+    ```bash
+    kubectl delete crd machines.karpenter.sh
+    kubectl delete crd awsnodetemplates.karpenter.k8s.aws
+    kubectl delete crd provisioners.karpenter.sh
+    ```
+   
+16. Finally, remove the alpha policy from the controller role: This will remove any remaining permissions from the alpha APIs. You can orchestrate the removal of this policy with the following command:
+
+    ```bash
+    ROLE_NAME="${CLUSTER_NAME}-karpenter"
+    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}"
+    POLICY_ARN=$(aws iam list-policies --query 'Policies[?PolicyName==`KarpenterControllerPolicy-scale-test`].Arn' --output text)
+    aws iam detach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
+    ```
+
+    {{% alert title="Note" color="warning" %}}
+
+    If you are using some IaC for managing your policy documents attached to the controller role, you may want to attach this new beta policy to the same CloudFormation stack. You can do this by removing the old alpha policy, ensuring that the Karpenter controller continues to work with just the beta policy, and then updating the stack to contain the new beta policy rather than having that policy managed separately.
+
+    {{% /alert %}}
    
 #### Additional Release Notes
 
