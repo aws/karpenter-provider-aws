@@ -39,7 +39,6 @@ import (
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -94,7 +93,7 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 				},
 			},
 		})
-		// Add a do-not-evict pod so that we can check node metadata before we deprovision
+		// Add a do-not-disrupt pod so that we can check node metadata before we disrupt
 		pod = test.Pod(test.PodOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
@@ -105,14 +104,14 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "true"})
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
-	It("should deprovision nodes that have drifted due to AMIs", func() {
+	It("should disrupt nodes that have drifted due to AMIs", func() {
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
 		})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value
-		nodeClass.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
 		nodeClass.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
 
@@ -135,7 +134,7 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 	})
-	It("should not deprovision nodes that have drifted without the featureGate enabled", func() {
+	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
 		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "false"})
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 		// choose an old static image
@@ -161,7 +160,7 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), &v1.Node{})).To(Succeed())
 		}).WithTimeout(time.Minute).Should(Succeed())
 	})
-	It("should deprovision nodes that have drifted due to securitygroup", func() {
+	It("should disrupt nodes that have drifted due to securitygroup", func() {
 		By("getting the cluster vpc id")
 		output, err := env.EKSAPI.DescribeCluster(&eks.DescribeClusterInput{Name: awssdk.String(env.ClusterName)})
 		Expect(err).To(BeNil())
@@ -233,7 +232,7 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 	})
-	It("should deprovision nodes that have drifted due to subnets", func() {
+	It("should disrupt nodes that have drifted due to subnets", func() {
 		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(subnets)).To(BeNumerically(">", 1))
 
@@ -349,7 +348,7 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 	DescribeTable("EC2NodeClass Drift", func(fieldName string, nodeClassSpec v1beta1.EC2NodeClassSpec) {
 		updatedNodeClass := awstest.EC2NodeClass(v1beta1.EC2NodeClass{Spec: *nodeClass.Spec.DeepCopy()}, v1beta1.EC2NodeClass{Spec: nodeClassSpec})
 		updatedNodeClass.ObjectMeta = nodeClass.ObjectMeta
-		updatedNodeClass.Annotations = map[string]string{v1alpha1.AnnotationNodeTemplateHash: updatedNodeClass.Hash()}
+		updatedNodeClass.Annotations = map[string]string{v1beta1.AnnotationNodeClassHash: updatedNodeClass.Hash()}
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
@@ -425,7 +424,7 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
 
 			// Drift should fail and the original node should be uncordoned
-			// TODO: reduce timeouts when deprovisioning waits are factored out
+			// TODO: reduce timeouts when disruption waits are factored out
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
 				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
@@ -483,7 +482,7 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
 
 			// Drift should fail and original node should be uncordoned
-			// TODO: reduce timeouts when deprovisioning waits are factored outr
+			// TODO: reduce timeouts when disruption waits are factored outr
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
 				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
