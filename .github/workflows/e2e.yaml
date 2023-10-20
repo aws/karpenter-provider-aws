@@ -96,7 +96,7 @@ jobs:
           sleep $(( $RANDOM % 300 + 1 ))
       - name: generate cluster name
         run: |
-          CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}')
+          CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}' | tr / -)
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_ENV
       - name: create eks cluster '${{ env.CLUSTER_NAME }}'
