@@ -435,20 +435,6 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 	})
-	It("should fail to launch AWS Pod ENI if the setting enabling it isn't set", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-			EnablePodENI: lo.ToPtr(false),
-		}))
-		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		pod := coretest.UnschedulablePod(coretest.PodOptions{
-			ResourceRequirements: v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
-				Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
-			},
-		})
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-		ExpectNotScheduled(ctx, env.Client, pod)
-	})
 	It("should launch AWS Pod ENI on a compatible instance type", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -971,7 +957,7 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 		})
 		It("should override max-pods value when AWSENILimitedPodDensity is unset", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnablePodENI: lo.ToPtr(false),
+				EnableENILimitedPodDensity: lo.ToPtr(false),
 			}))
 
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)

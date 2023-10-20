@@ -173,19 +173,16 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	blockDeviceMappings []*v1beta1.BlockDeviceMapping, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
-		v1.ResourceCPU:              *cpu(info),
-		v1.ResourceMemory:           *memory(ctx, info),
-		v1.ResourceEphemeralStorage: *ephemeralStorage(amiFamily, blockDeviceMappings),
-		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
-		v1beta1.ResourceAWSPodENI:   *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
-		v1beta1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
-		v1beta1.ResourceAMDGPU:      *amdGPUs(info),
-		v1beta1.ResourceAWSNeuron:   *awsNeurons(info),
-		v1beta1.ResourceHabanaGaudi: *habanaGaudis(info),
-	}
-	if _, ok := amiFamily.(*amifamily.Windows); ok {
-		//ResourcePrivateIPv4Address is the same as ENILimitedPods on Windows node
-		resourceList[v1beta1.ResourcePrivateIPv4Address] = *privateIPv4Address(info)
+		v1.ResourceCPU:                     *cpu(info),
+		v1.ResourceMemory:                  *memory(ctx, info),
+		v1.ResourceEphemeralStorage:        *ephemeralStorage(amiFamily, blockDeviceMappings),
+		v1.ResourcePods:                    *pods(ctx, info, amiFamily, kc),
+		v1beta1.ResourceAWSPodENI:          *awsPodENI(aws.StringValue(info.InstanceType)),
+		v1beta1.ResourceNVIDIAGPU:          *nvidiaGPUs(info),
+		v1beta1.ResourceAMDGPU:             *amdGPUs(info),
+		v1beta1.ResourceAWSNeuron:          *awsNeurons(info),
+		v1beta1.ResourceHabanaGaudi:        *habanaGaudis(info),
+		v1beta1.ResourcePrivateIPv4Address: *privateIPv4Address(info),
 	}
 	return resourceList
 }
@@ -238,10 +235,10 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1be
 	return amifamily.DefaultEBS.VolumeSize
 }
 
-func awsPodENI(ctx context.Context, name string) *resource.Quantity {
+func awsPodENI(name string) *resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := Limits[name]
-	if settings.FromContext(ctx).EnablePodENI && ok && limits.IsTrunkingCompatible {
+	if ok && limits.IsTrunkingCompatible {
 		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}
 	return resources.Quantity("0")
