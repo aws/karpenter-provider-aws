@@ -94,7 +94,7 @@ func (env *Environment) ExpectCleanCluster() {
 		metaList := &metav1.PartialObjectMetadataList{}
 		gvk := lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme()))
 		metaList.SetGroupVersionKind(gvk)
-		Expect(env.Client.List(env.Context, metaList), client.Limit(1)).To(Succeed())
+		Expect(env.Client.List(env.Context, metaList, client.Limit(1))).To(Succeed())
 		Expect(metaList.Items).To(HaveLen(0), fmt.Sprintf("expected no %s to exist", gvk.Kind))
 	}
 }
