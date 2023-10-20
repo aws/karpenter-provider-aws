@@ -51,7 +51,7 @@ func TestExpiration(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Expiration")
+	RunSpecs(t, "Alpha/Expiration")
 }
 
 var _ = BeforeEach(func() {

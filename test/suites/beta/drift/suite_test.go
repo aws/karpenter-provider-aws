@@ -55,7 +55,7 @@ func TestDrift(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Drift")
+	RunSpecs(t, "Beta/Drift")
 }
 
 var _ = BeforeEach(func() {
@@ -65,7 +65,7 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
+var _ = Describe("Drift", Label("AWS"), func() {
 	var pod *v1.Pod
 	var nodeClass *v1beta1.EC2NodeClass
 	var nodePool *corev1beta1.NodePool
@@ -88,7 +88,7 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
 						Requirements: []v1.NodeSelectorRequirement{{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeOnDemand}}},
-						NodeClassRef:  &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
 					},
 				},
 			},
@@ -211,14 +211,14 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 			return ""
 		})
 		clusterSecurityGroupIDs := strings.Join(lo.WithoutEmpty(awsIDs), ",")
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{{Tags:map[string]string{"aws-ids": fmt.Sprintf("%s,%s", clusterSecurityGroupIDs, awssdk.StringValue(testSecurityGroup.GroupId))}}}
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", clusterSecurityGroupIDs, awssdk.StringValue(testSecurityGroup.GroupId))}}}
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
 
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{{Tags:map[string]string{"aws-ids": clusterSecurityGroupIDs}}}
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"aws-ids": clusterSecurityGroupIDs}}}
 		env.ExpectCreatedOrUpdated(nodeClass)
 
 		By("validating the drifted status condition has propagated")
@@ -236,14 +236,14 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(subnets)).To(BeNumerically(">", 1))
 
-		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags:map[string]string{"aws-ids": subnets[0].ID}}}
+		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"aws-ids": subnets[0].ID}}}
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
 
-		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags:map[string]string{"aws-ids": subnets[1].ID}}}
+		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"aws-ids": subnets[1].ID}}}
 		env.ExpectCreatedOrUpdated(nodeClass)
 
 		By("validating the drifted status condition has propagated")
@@ -509,7 +509,6 @@ var _ = Describe("v1beta1/Drift", Label("AWS"), func() {
 		})
 	})
 })
-
 
 func ExpectInstanceProfileCreated(instanceProfileName *string) {
 	By("creating an instance profile")

@@ -33,7 +33,7 @@ func TestIntegration(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Integration")
+	RunSpecs(t, "Alpha/Integration")
 }
 
 var _ = BeforeEach(func() { env.BeforeEach() })

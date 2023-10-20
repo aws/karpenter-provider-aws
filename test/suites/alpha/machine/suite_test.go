@@ -33,7 +33,7 @@ func TestMachine(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Machine")
+	RunSpecs(t, "Alpha/Machine")
 }
 
 var _ = BeforeEach(func() { env.BeforeEach() })
