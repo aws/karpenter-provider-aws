@@ -207,7 +207,7 @@ Resources:
                   "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
                 },
                 "StringLike": {
-                  "aws:RequestTag/karpenter.sh/nodeclass": "*"
+                  "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
                 }
               }
             },
@@ -226,8 +226,8 @@ Resources:
                   "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
                 },
                 "StringLike": {
-                  "aws:ResourceTag/karpenter.sh/nodeclass": "*",
-                  "aws:RequestTag/karpenter.sh/nodeclass": "*"
+                  "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
+                  "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
                 }
               }
             },
@@ -246,7 +246,7 @@ Resources:
                   "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}"
                 },
                 "StringLike": {
-                  "aws:ResourceTag/karpenter.sh/nodeclass": "*"
+                  "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
                 }
               }
             },
