@@ -11,6 +11,8 @@ metadata:
 spec:
   template:
     spec:
+      nodeClassRef:
+        name: default
       requirements:
         - key: kubernetes.io/arch
           operator: In
@@ -27,8 +29,6 @@ spec:
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
           values: ["2"]
-      nodeClassRef:
-        name: default
   limits:
     cpu: 100
 ---
@@ -43,7 +43,7 @@ spec:
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name

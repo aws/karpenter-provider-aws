@@ -10,7 +10,7 @@ main() {
 }
 
 tools() {
-    go install github.com/google/go-licenses@latest
+    # go install github.com/google/go-licenses@latest
     go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
     go install github.com/google/ko@latest
     go install github.com/mikefarah/yq/v4@latest

@@ -9,6 +9,8 @@ metadata:
 spec:
   template:
     spec:
+      nodeClassRef:
+        name: default
       requirements:
           # exclude instances with < 4 cores and < 8GiB memory (8192 mebibytes)
         - key: "karpenter.k8s.aws/instance-cpu"
@@ -17,8 +19,6 @@ spec:
         - key: "karpenter.k8s.aws/instance-memory"
           operator: Gt
           values: ["8191"]
-      nodeClassRef:
-        name: default
 ---
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
@@ -31,7 +31,7 @@ spec:
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
   securityGroupSelectorTerms:
     - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+      karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
