@@ -114,7 +114,10 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		}
 		errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 	})
-	return reconcile.Result{}, multierr.Combine(errs...)
+	if err = multierr.Combine(errs...); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
 }
 
 func (c *Controller) Name() string {
