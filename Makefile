@@ -16,7 +16,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 			--set settings.interruptionQueue=${CLUSTER_NAME} \
-			--set settings.featureGates.driftEnabled=true \
+			--set settings.featureGates.drift=true \
 			--set controller.resources.requests.cpu=1 \
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
@@ -48,15 +48,18 @@ ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
 run: ## Run Karpenter controller binary against your local cluster
 	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
-		--from-literal=aws.clusterName=${CLUSTER_NAME} \
-		--from-literal=aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-		--from-literal=aws.interruptionQueueName=${CLUSTER_NAME} \
-		--from-literal=featureGates.driftEnabled=true \
 		--dry-run=client -o yaml | kubectl apply -f -
 
 
-	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} KUBERNETES_MIN_VERSION="1.19.0-0" LEADER_ELECT=false DISABLE_WEBHOOK=true \
+	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} \
+		KUBERNETES_MIN_VERSION="1.19.0-0" \
+		LEADER_ELECT=false \
+		DISABLE_WEBHOOK=true \
+		CLUSTER_NAME=${CLUSTER_NAME} \
+		CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
+		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		FEATURE_GATES="Drift=true" \
 		go run ./cmd/controller/main.go
 
 clean-run: ## Clean resources deployed by the run target

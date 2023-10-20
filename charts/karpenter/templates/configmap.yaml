@@ -55,4 +55,7 @@ data:
 {{- with .Values.settings.aws.reservedENIs }}
   aws.reservedENIs: "{{ . }}"
 {{- end }}
+{{- with .Values.settings.featureGates.driftEnabled }}
+  featureGates.driftEnabled: "${{ . }}"
+{{- end }}
 
