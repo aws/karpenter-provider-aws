@@ -206,21 +206,27 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		}).Should(Succeed())
 
 		By("creating a new provider with the new securitygroup")
-		awsIDs := lo.Map(securitygroups, func(sg aws.SecurityGroup, _ int) string {
+		awsIDs := lo.FilterMap(securitygroups, func(sg aws.SecurityGroup, _ int) (string, bool) {
 			if awssdk.StringValue(sg.GroupId) != awssdk.StringValue(testSecurityGroup.GroupId) {
-				return awssdk.StringValue(sg.GroupId)
+				return awssdk.StringValue(sg.GroupId), true
 			}
-			return ""
+			return "", false
 		})
-		clusterSecurityGroupIDs := strings.Join(lo.WithoutEmpty(awsIDs), ",")
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{{ID: clusterSecurityGroupIDs},{ID: awssdk.StringValue(testSecurityGroup.GroupId)}}
+		sgTerms := []v1beta1.SecurityGroupSelectorTerm{{ID: awssdk.StringValue(testSecurityGroup.GroupId)}}
+		for _, id := range awsIDs {
+			sgTerms = append(sgTerms, v1beta1.SecurityGroupSelectorTerm{ID: id})
+		}
+		nodeClass.Spec.SecurityGroupSelectorTerms = sgTerms
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
 
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{{ID: clusterSecurityGroupIDs}}
+		sgTerms = lo.Reject(sgTerms, func(t v1beta1.SecurityGroupSelectorTerm, _ int) bool {
+			return t.ID == awssdk.StringValue(testSecurityGroup.GroupId)
+		})
+		nodeClass.Spec.SecurityGroupSelectorTerms = sgTerms
 		env.ExpectCreatedOrUpdated(nodeClass)
 
 		By("validating the drifted status condition has propagated")
@@ -260,7 +266,6 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, node)
 	})
 	DescribeTable("NodePool Drift", func(fieldName string, nodePoolOption corev1beta1.NodeClaimTemplate) {
-		nodePoolOption.ObjectMeta = nodePool.ObjectMeta
 		updatedNodePool := test.NodePool(
 			corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
@@ -277,6 +282,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 				},
 			},
 		)
+		updatedNodePool.ObjectMeta = nodePool.ObjectMeta
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
