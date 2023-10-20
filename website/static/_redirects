@@ -8,7 +8,7 @@
 /preview/concepts/provisioners /preview/concepts/nodepools
 /preview/concepts/node-templates /preview/concepts/nodeclasses
 /preview/concepts/deprovisioning /preview/concepts/disruption
-/preview/upgrade/* /preview/upgrading/*
+/preview/upgrade-guide /preview/upgrading/upgrade-guide
 /preview/concepts/instance-types /preview/reference/instance-types
 /preview/concepts/metrics /preview/reference/metrics
 /preview/concepts/settings /preview/reference/settings
