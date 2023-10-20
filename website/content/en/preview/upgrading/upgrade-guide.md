@@ -63,22 +63,22 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
 To upgrade your provisioner and AWSNodeTemplate YAML files to be compatible with v1beta1, you can either update them manually or use the [karpenter-convert](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert) CLI tool. To install that tool:
 
-```
+```bash
 go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@latest
 ```
 Add `~/go/bin` to your $PATH, if you have not already done so.
 
 1. Determine the current cluster version: Run the following to make sure that your Karpenter version is v0.31.x:
-   ```
+   ```bash
    kubectl get pod -A | grep karpenter
    kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image: | grep v0.....
    ```
    Sample output:
-   ```
+   ```bash
    Image: public.ecr.aws/karpenter/controller:v0.31.0@sha256:d29767fa9c5c0511a3812397c932f5735234f03a7a875575422b712d15e54a77
    ```
 
-   {{% alert title="Note" color="primary" %}}
+   {{% alert title="Warning" color="primary" %}}
    v0.31.2 introduces minor changes to Karpenter so that rollback from v0.32.0 is supported. If you are coming from some other patch version of minor version v0.31.x, note that v0.31.2 is the _only_ patch version that supports rollback.
    {{% /alert %}}
 
@@ -100,8 +100,9 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 
     ```bash
     TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}website/content/en/preview/upgrade/v1beta1-controller-policy.json > ${TEMPOUT}
+    curl -fsSL https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
     
+    REGION=${AWS_REGION:=$AWS_DEFAULT_REGION}
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
     POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
@@ -113,7 +114,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 5. Apply the v0.32.0 Custom Resource Definitions (CRDs) in the crds directory of the Karpenter helm chart. Here are the ways you can do this:
 
    * As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs. To upgrade or install `karpenter-crd` run:
-    ```
+    ```bash
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
     ```
 
