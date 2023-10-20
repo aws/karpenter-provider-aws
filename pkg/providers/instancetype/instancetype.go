@@ -171,7 +171,7 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 
 func (p *Provider) getAvailabilityZones(ctx context.Context) (sets.Set[string], error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
-	// We lock here so that multiple callers to listAvailabilityZones do not result in cache misses and multiple
+	// We lock here so that multiple callers to getAvailabilityZones do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call.
 	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
 	p.mu.Lock()
@@ -199,7 +199,7 @@ func (p *Provider) getAvailabilityZones(ctx context.Context) (sets.Set[string], 
 
 func (p *Provider) getInstanceTypeOfferings(ctx context.Context) (map[string]sets.Set[string], error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
-	// We lock here so that multiple callers to getInstanceTypeZones do not result in cache misses and multiple
+	// We lock here so that multiple callers to getInstanceTypeOfferings do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call.
 	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
 	p.mu.Lock()
