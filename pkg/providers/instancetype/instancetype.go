@@ -38,6 +38,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter/pkg/providers/pricing"
+	"github.com/aws/karpenter/pkg/providers/subnet"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
@@ -52,6 +53,7 @@ const (
 type Provider struct {
 	region          string
 	ec2api          ec2iface.EC2API
+	subnetProvider  *subnet.Provider
 	pricingProvider *pricing.Provider
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
@@ -68,11 +70,12 @@ type Provider struct {
 	instanceTypesSeqNum uint64
 }
 
-func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API,
+func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider) *Provider {
 	return &Provider{
 		ec2api:               ec2api,
 		region:               region,
+		subnetProvider:       subnetProvider,
 		pricingProvider:      pricingProvider,
 		cache:                cache,
 		unavailableOfferings: unavailableOfferingsCache,
@@ -93,10 +96,18 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 		return nil, err
 	}
 	// Get AvailabilityZones from EC2
-	availabilityZones, err := p.listAvailabilityZones(ctx)
+	availabilityZones, err := p.getAvailabilityZones(ctx)
 	if err != nil {
 		return nil, err
 	}
+	// Constrain AZs from subnets
+	subnets, err := p.subnetProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, err
+	}
+	subnetZones := sets.New[string](lo.Map(subnets, func(s *ec2.Subnet, _ int) string {
+		return aws.StringValue(s.AvailabilityZone)
+	})...)
 
 	// Compute fully initialized instance types hash key
 	instanceTypeZonesHash, _ := hashstructure.Hash(instanceTypeOfferings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
@@ -107,7 +118,7 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 		return item.([]*cloudprovider.InstanceType), nil
 	}
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
-		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], availabilityZones))
+		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], availabilityZones, subnetZones))
 	})
 	for _, instanceType := range instanceTypes {
 		InstanceTypeVCPU.With(prometheus.Labels{
@@ -122,10 +133,13 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 }
 
 func (p *Provider) LivenessProbe(req *http.Request) error {
+	if err := p.subnetProvider.LivenessProbe(req); err != nil {
+		return err
+	}
 	return p.pricingProvider.LivenessProbe(req)
 }
 
-func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, instanceTypeZones, availabilityZones sets.Set[string]) []cloudprovider.Offering {
+func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, instanceTypeZones, availabilityZones, subnetZones sets.Set[string]) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for az := range availabilityZones {
 		// while usage classes should be a distinct set, there's no guarantee of that
@@ -143,7 +157,7 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 				logging.FromContext(ctx).Errorf("Received unknown capacity type %s for instance type %s", capacityType, *instanceType.InstanceType)
 				continue
 			}
-			available := !isUnavailable && ok && instanceTypeZones.Has(az)
+			available := !isUnavailable && ok && instanceTypeZones.Has(az) && subnetZones.Has(az)
 			offerings = append(offerings, cloudprovider.Offering{
 				Zone:         az,
 				CapacityType: capacityType,
@@ -155,7 +169,7 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 	return offerings
 }
 
-func (p *Provider) listAvailabilityZones(ctx context.Context) (sets.Set[string], error) {
+func (p *Provider) getAvailabilityZones(ctx context.Context) (sets.Set[string], error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to listAvailabilityZones do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call.

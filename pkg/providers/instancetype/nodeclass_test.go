@@ -95,42 +95,42 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		})
 	})
 
-	FIt("should support individual instance type labels", func() {
+	It("should support individual instance type labels", func() {
 		ExpectApplied(ctx, env.Client, nodePool, windowsNodePool, nodeClass, windowsNodeClass)
 
 		nodeSelector := map[string]string{
 			// Well known
-			corev1beta1.NodePoolLabelKey: nodePool.Name,
-			//v1.LabelTopologyRegion:           fake.DefaultRegion,
-			//v1.LabelTopologyZone:             "test-zone-1a",
-			//v1.LabelInstanceTypeStable:       "g4dn.8xlarge",
-			v1.LabelOSStable: "linux",
-			//v1.LabelArchStable:               "amd64",
-			//corev1beta1.CapacityTypeLabelKey: "on-demand",
+			corev1beta1.NodePoolLabelKey:     nodePool.Name,
+			v1.LabelTopologyRegion:           fake.DefaultRegion,
+			v1.LabelTopologyZone:             "test-zone-1a",
+			v1.LabelInstanceTypeStable:       "g4dn.8xlarge",
+			v1.LabelOSStable:                 "linux",
+			v1.LabelArchStable:               "amd64",
+			corev1beta1.CapacityTypeLabelKey: "on-demand",
 			//Well Known to AWS
-			//v1beta1.LabelInstanceHypervisor:                   "nitro",
-			//v1beta1.LabelInstanceEncryptionInTransitSupported: "true",
-			//v1beta1.LabelInstanceCategory:                     "g",
-			//v1beta1.LabelInstanceGeneration:                   "4",
-			//v1beta1.LabelInstanceFamily:                       "g4dn",
-			//v1beta1.LabelInstanceSize:                         "8xlarge",
-			//v1beta1.LabelInstanceCPU:                          "32",
-			//v1beta1.LabelInstanceMemory:                       "131072",
-			//v1beta1.LabelInstanceNetworkBandwidth:             "50000",
-			//v1beta1.LabelInstancePods:                         "58",
-			//v1beta1.LabelInstanceGPUName:                      "t4",
-			//v1beta1.LabelInstanceGPUManufacturer:              "nvidia",
-			//v1beta1.LabelInstanceGPUCount:                     "1",
-			//v1beta1.LabelInstanceGPUMemory:                    "16384",
-			//v1beta1.LabelInstanceLocalNVME:                    "900",
-			//v1beta1.LabelInstanceAcceleratorName:              "inferentia",
-			//v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
-			//v1beta1.LabelInstanceAcceleratorCount:             "1",
+			v1beta1.LabelInstanceHypervisor:                   "nitro",
+			v1beta1.LabelInstanceEncryptionInTransitSupported: "true",
+			v1beta1.LabelInstanceCategory:                     "g",
+			v1beta1.LabelInstanceGeneration:                   "4",
+			v1beta1.LabelInstanceFamily:                       "g4dn",
+			v1beta1.LabelInstanceSize:                         "8xlarge",
+			v1beta1.LabelInstanceCPU:                          "32",
+			v1beta1.LabelInstanceMemory:                       "131072",
+			v1beta1.LabelInstanceNetworkBandwidth:             "50000",
+			v1beta1.LabelInstancePods:                         "58",
+			v1beta1.LabelInstanceGPUName:                      "t4",
+			v1beta1.LabelInstanceGPUManufacturer:              "nvidia",
+			v1beta1.LabelInstanceGPUCount:                     "1",
+			v1beta1.LabelInstanceGPUMemory:                    "16384",
+			v1beta1.LabelInstanceLocalNVME:                    "900",
+			v1beta1.LabelInstanceAcceleratorName:              "inferentia",
+			v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
+			v1beta1.LabelInstanceAcceleratorCount:             "1",
 			// Deprecated Labels
-			//v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
-			//v1.LabelFailureDomainBetaZone:   "test-zone-1a",
-			//"beta.kubernetes.io/arch":       "amd64",
-			"beta.kubernetes.io/os": "linux",
+			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
+			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
+			"beta.kubernetes.io/arch":       "amd64",
+			"beta.kubernetes.io/os":         "linux",
 			//v1.LabelInstanceType:            "g4dn.8xlarge",
 			//"topology.ebs.csi.aws.com/zone": "test-zone-1a",
 			v1.LabelWindowsBuild: v1beta1.Windows2022Build,
@@ -1152,8 +1152,8 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-				}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1230,8 +1230,8 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			pod.Spec.Affinity = &v1.Affinity{NodeAffinity: &v1.NodeAffinity{PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
 				{
 					Weight: 1, Preference: v1.NodeSelectorTerm{MatchExpressions: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
-				}},
+						{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}},
+					}},
 				},
 			}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)

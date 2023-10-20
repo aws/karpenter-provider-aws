@@ -94,7 +94,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	instanceProfileProvider := instanceprofile.NewProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	amiProvider := amifamily.NewProvider(versionProvider, ssmapi, ec2api, ec2Cache)
 	amiResolver := amifamily.New(amiProvider)
-	instanceTypesProvider := instancetype.NewProvider(fake.DefaultRegion, instanceTypeCache, ec2api, unavailableOfferingsCache, pricingProvider)
+	instanceTypesProvider := instancetype.NewProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
 		launchtemplate.NewProvider(
 			ctx,
