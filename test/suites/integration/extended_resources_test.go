@@ -119,9 +119,7 @@ var _ = Describe("Extended Resources", func() {
 		DeferCleanup(func() {
 			env.ExpectPodENIDisabled()
 		})
-		env.ExpectSettingsOverridden(map[string]string{
-			"aws.enablePodENI": "true",
-		})
+		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.enablePodENI": "true"})
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},

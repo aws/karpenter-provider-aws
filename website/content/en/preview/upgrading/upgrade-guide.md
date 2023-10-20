@@ -137,8 +137,8 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace karpenter --create-namespace \
       --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-      --set settings.aws.clusterName=${CLUSTER_NAME} \
-      --set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
+      --set settings.clusterName=${CLUSTER_NAME} \
+      --set settings.interruptionQueue=${CLUSTER_NAME} \
       --set controller.resources.requests.cpu=1 \
       --set controller.resources.requests.memory=1Gi \
       --set controller.resources.limits.cpu=1 \
@@ -204,6 +204,8 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
 * Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
+* Karpenter now moves all logging configuration for the Zap logger into the `logConfig` values block. Configuring Karpenter logging with this mechanism _is_ deprecated and will be dropped at v1. Karpenter now only surfaces logLevel through the `logLevel` helm value. If you need more advanced configuration due to log parsing constraints, we recommend configuring your log parser to handle Karpenter's Zap JSON logging.
+* Karpenter now moves all AWS controller-wide configuration settings from the `settings.aws` block into the top-level `settings` block. The previous `settings.aws` block is deprecated and will be dropped at v0.33.0.
 
 ### Upgrading to v0.31.0+
 

@@ -73,9 +73,8 @@ var _ = Describe("Expiration", func() {
 			ProviderRef:            &v1alpha5.MachineTemplateRef{Name: nodeTemplate.Name},
 			TTLSecondsUntilExpired: ptr.Int64(30),
 		})
-		env.ExpectSettingsOverridden(map[string]string{
-			"featureGates.driftEnabled": "false",
-		})
+		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "false"})
+		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
 	It("should expire the node after the TTLSecondsUntilExpired is reached", func() {
 		var numPods int32 = 1

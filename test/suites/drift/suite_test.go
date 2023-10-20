@@ -87,9 +87,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				},
 			},
 		})
-		env.ExpectSettingsOverridden(map[string]string{
-			"featureGates.driftEnabled": "true",
-		})
+		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "true"})
+		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
 	It("should deprovision nodes that have drifted due to AMIs", func() {
 		// choose an old static image
@@ -122,9 +121,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, machine, node)
 	})
 	It("should not deprovision nodes that have drifted without the featureGate enabled", func() {
-		env.ExpectSettingsOverridden(map[string]string{
-			"featureGates.driftEnabled": "false",
-		})
+		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "false"})
+		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
