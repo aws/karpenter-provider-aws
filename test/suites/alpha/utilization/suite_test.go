@@ -49,7 +49,7 @@ var _ = BeforeEach(func() { env.BeforeEach() })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("Alpha/Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {
+var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	It("should provision one pod per node", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},

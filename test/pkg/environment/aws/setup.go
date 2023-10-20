@@ -40,8 +40,8 @@ func (env *Environment) BeforeEach() {
 }
 
 func (env *Environment) Cleanup() {
-	env.Environment.CleanupObjects(CleanableObjects...)
 	env.Environment.Cleanup()
+	env.Environment.CleanupObjects(CleanableObjects...)
 }
 
 func (env *Environment) AfterEach() {
