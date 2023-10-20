@@ -181,6 +181,7 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1beta1.ResourceNVIDIAGPU:          *nvidiaGPUs(info),
 		v1beta1.ResourceAMDGPU:             *amdGPUs(info),
 		v1beta1.ResourceAWSNeuron:          *awsNeurons(info),
+		v1beta1.ResourceAWSNeuronCore:      *awsNeuronCores(info),
 		v1beta1.ResourceHabanaGaudi:        *habanaGaudis(info),
 		v1beta1.ResourcePrivateIPv4Address: *privateIPv4Address(info),
 	}
@@ -282,6 +283,18 @@ func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 		for _, accelerator := range info.InferenceAcceleratorInfo.Accelerators {
 			count += *accelerator.Count
 		}
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
+// TODO: remove hardcoded neuroncore multipliers once DescribeInstaceTypes contains neuroncore data
+// Values found from: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/arch/model-architecture-fit.html#model-architecture-fit
+func awsNeuronCores(info *ec2.InstanceTypeInfo) *resource.Quantity {
+	count := awsNeurons(info).Value()
+	if strings.Contains(*info.InstanceType, "inf1") {
+		count *= 4
+	} else {
+		count *= 2
 	}
 	return resources.Quantity(fmt.Sprint(count))
 }

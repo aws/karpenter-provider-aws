@@ -516,6 +516,65 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
+	It("should launch instances for AWS NeuronCore resource requests", func() {
+		nodeNames := sets.NewString()
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		pods := []*v1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuronCore: resource.MustParse("4")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuronCore: resource.MustParse("4")},
+				},
+			}),
+			// Should pack onto same instance
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuronCore: resource.MustParse("8")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuronCore: resource.MustParse("8")},
+				},
+			}),
+			// Should pack onto a separate instance
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuronCore: resource.MustParse("16")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuronCore: resource.MustParse("16")},
+				},
+			}),
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		for _, pod := range pods {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(2))
+	})
+	It("should launch trn1 instances for AWS Neuron resource requests", func() {
+		nodeNames := sets.NewString()
+		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"trn1.2xlarge"},
+			},
+		}
+		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
+		pods := []*v1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuronCore: resource.MustParse("2")},
+					Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuronCore: resource.MustParse("2")},
+				},
+			}),
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		for _, pod := range pods {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "trn1.2xlarge"))
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(1))
+	})
 	It("should launch instances for AWS Neuron resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
