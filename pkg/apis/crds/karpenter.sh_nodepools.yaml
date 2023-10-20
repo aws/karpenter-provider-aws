@@ -9,386 +9,320 @@ spec:
   group: karpenter.sh
   names:
     categories:
-    - karpenter
+      - karpenter
     kind: NodePool
     listKind: NodePoolList
     plural: nodepools
     singular: nodepool
   scope: Cluster
   versions:
-  - additionalPrinterColumns:
-    - jsonPath: .spec.template.spec.nodeClassRef.name
-      name: NodeClass
-      type: string
-    - jsonPath: .spec.weight
-      name: Weight
-      priority: 1
-      type: string
-    name: v1beta1
-    schema:
-      openAPIV3Schema:
-        description: NodePool is the Schema for the NodePools API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: NodePoolSpec is the top level provisioner specification.
-              Provisioners launch nodes in response to pods that are unschedulable.
-              A single provisioner is capable of managing a diverse set of nodes.
-              Node properties are determined from a combination of provisioner and
-              pod scheduling constraints.
-            properties:
-              disruption:
-                default:
-                  consolidationPolicy: WhenUnderutilized
-                  expireAfter: 720h
-                description: Disruption contains the parameters that relate to Karpenter's
-                  disruption logic
-                properties:
-                  consolidateAfter:
-                    description: ConsolidateAfter is the duration the controller will
-                      wait before attempting to terminate nodes that are underutilized.
-                      Refer to ConsolidationPolicy for how underutilization is considered.
-                    pattern: ^(([0-9]+(s|m|h))+)|(Never)$
-                    type: string
-                  consolidationPolicy:
-                    default: WhenUnderutilized
-                    description: ConsolidationPolicy describes which nodes Karpenter
-                      can disrupt through its consolidation algorithm. This policy
-                      defaults to "WhenUnderutilized" if not specified
-                    enum:
-                    - WhenEmpty
-                    - WhenUnderutilized
-                    type: string
-                  expireAfter:
-                    default: 720h
-                    description: ExpireAfter is the duration the controller will wait
-                      before terminating a node, measured from when the node is created.
-                      This is useful to implement features like eventually consistent
-                      node upgrade, memory leak protection, and disruption testing.
-                    pattern: ^(([0-9]+(s|m|h))+)|(Never)$
-                    type: string
-                type: object
-                x-kubernetes-validations:
-                - message: consolidateAfter cannot be combined with consolidationPolicy=WhenUnderutilized
-                  rule: 'has(self.consolidateAfter) ? self.consolidationPolicy !=
-                    ''WhenUnderutilized'' || self.consolidateAfter == ''Never'' :
-                    true'
-                - message: consolidateAfter must be specified with consolidationPolicy=WhenEmpty
-                  rule: 'self.consolidationPolicy == ''WhenEmpty'' ? has(self.consolidateAfter)
-                    : true'
-              limits:
-                additionalProperties:
-                  anyOf:
-                  - type: integer
-                  - type: string
-                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                  x-kubernetes-int-or-string: true
-                description: Limits define a set of bounds for provisioning capacity.
-                type: object
-              template:
-                description: Template contains the template of possibilities for the
-                  provisioning logic to launch a NodeClaim with. NodeClaims launched
-                  from this NodePool will often be further constrained than the template
-                  specifies.
-                properties:
-                  metadata:
-                    properties:
-                      annotations:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      finalizers:
-                        items:
-                          type: string
-                        type: array
-                      labels:
-                        additionalProperties:
-                          type: string
-                        type: object
-                      name:
-                        type: string
-                      namespace:
-                        type: string
-                    type: object
-                  spec:
-                    description: NodeClaimSpec describes the desired state of the
-                      NodeClaim
-                    properties:
-                      kubelet:
-                        description: Kubelet defines args to be used when configuring
-                          kubelet on provisioned nodes. They are a subset of the upstream
-                          types, recognizing not all options may be supported. Wherever
-                          possible, the types and names should reflect the upstream
-                          kubelet types.
-                        properties:
-                          clusterDNS:
-                            description: clusterDNS is a list of IP addresses for
-                              the cluster DNS server. Note that not all providers
-                              may use all addresses.
-                            items:
-                              type: string
-                            type: array
-                          cpuCFSQuota:
-                            description: CPUCFSQuota enables CPU CFS quota enforcement
-                              for containers that specify CPU limits.
-                            type: boolean
-                          evictionHard:
-                            additionalProperties:
-                              type: string
-                            description: EvictionHard is the map of signal names to
-                              quantities that define hard eviction thresholds
-                            type: object
-                          evictionMaxPodGracePeriod:
-                            description: EvictionMaxPodGracePeriod is the maximum
-                              allowed grace period (in seconds) to use when terminating
-                              pods in response to soft eviction thresholds being met.
-                            format: int32
-                            type: integer
-                          evictionSoft:
-                            additionalProperties:
-                              type: string
-                            description: EvictionSoft is the map of signal names to
-                              quantities that define soft eviction thresholds
-                            type: object
-                          evictionSoftGracePeriod:
-                            additionalProperties:
-                              type: string
-                            description: EvictionSoftGracePeriod is the map of signal
-                              names to quantities that define grace periods for each
-                              eviction signal
-                            type: object
-                          imageGCHighThresholdPercent:
-                            description: ImageGCHighThresholdPercent is the percent
-                              of disk usage after which image garbage collection is
-                              always run. The percent is calculated by dividing this
-                              field value by 100, so this field must be between 0
-                              and 100, inclusive. When specified, the value must be
-                              greater than ImageGCLowThresholdPercent.
-                            format: int32
-                            maximum: 100
-                            minimum: 0
-                            type: integer
-                          imageGCLowThresholdPercent:
-                            description: ImageGCLowThresholdPercent is the percent
-                              of disk usage before which image garbage collection
-                              is never run. Lowest disk usage to garbage collect to.
-                              The percent is calculated by dividing this field value
-                              by 100, so the field value must be between 0 and 100,
-                              inclusive. When specified, the value must be less than
-                              imageGCHighThresholdPercent
-                            format: int32
-                            maximum: 100
-                            minimum: 0
-                            type: integer
-                          kubeReserved:
-                            additionalProperties:
-                              anyOf:
-                              - type: integer
-                              - type: string
-                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              x-kubernetes-int-or-string: true
-                            description: KubeReserved contains resources reserved
-                              for Kubernetes system components.
-                            type: object
-                          maxPods:
-                            description: MaxPods is an override for the maximum number
-                              of pods that can run on a worker node instance.
-                            format: int32
-                            minimum: 0
-                            type: integer
-                          podsPerCore:
-                            description: PodsPerCore is an override for the number
-                              of pods that can run on a worker node instance based
-                              on the number of cpu cores. This value cannot exceed
-                              MaxPods, so, if MaxPods is a lower value, that value
-                              will be used.
-                            format: int32
-                            minimum: 0
-                            type: integer
-                          systemReserved:
-                            additionalProperties:
-                              anyOf:
-                              - type: integer
-                              - type: string
-                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              x-kubernetes-int-or-string: true
-                            description: SystemReserved contains resources reserved
-                              for OS system daemons and kernel memory.
-                            type: object
-                        type: object
-                      nodeClassRef:
-                        description: NodeClassRef is a reference to an object that
-                          defines provider specific configuration
-                        properties:
-                          apiVersion:
-                            description: API version of the referent
+    - additionalPrinterColumns:
+        - jsonPath: .spec.template.spec.nodeClassRef.name
+          name: NodeClass
+          type: string
+        - jsonPath: .spec.weight
+          name: Weight
+          priority: 1
+          type: string
+      name: v1beta1
+      schema:
+        openAPIV3Schema:
+          description: NodePool is the Schema for the NodePools API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: NodePoolSpec is the top level provisioner specification. Provisioners launch nodes in response to pods that are unschedulable. A single provisioner is capable of managing a diverse set of nodes. Node properties are determined from a combination of provisioner and pod scheduling constraints.
+              properties:
+                disruption:
+                  default:
+                    consolidationPolicy: WhenUnderutilized
+                    expireAfter: 720h
+                  description: Disruption contains the parameters that relate to Karpenter's disruption logic
+                  properties:
+                    consolidateAfter:
+                      description: ConsolidateAfter is the duration the controller will wait before attempting to terminate nodes that are underutilized. Refer to ConsolidationPolicy for how underutilization is considered.
+                      pattern: ^(([0-9]+(s|m|h))+)|(Never)$
+                      type: string
+                    consolidationPolicy:
+                      default: WhenUnderutilized
+                      description: ConsolidationPolicy describes which nodes Karpenter can disrupt through its consolidation algorithm. This policy defaults to "WhenUnderutilized" if not specified
+                      enum:
+                        - WhenEmpty
+                        - WhenUnderutilized
+                      type: string
+                    expireAfter:
+                      default: 720h
+                      description: ExpireAfter is the duration the controller will wait before terminating a node, measured from when the node is created. This is useful to implement features like eventually consistent node upgrade, memory leak protection, and disruption testing.
+                      pattern: ^(([0-9]+(s|m|h))+)|(Never)$
+                      type: string
+                  type: object
+                  x-kubernetes-validations:
+                    - message: consolidateAfter cannot be combined with consolidationPolicy=WhenUnderutilized
+                      rule: 'has(self.consolidateAfter) ? self.consolidationPolicy != ''WhenUnderutilized'' || self.consolidateAfter == ''Never'' : true'
+                    - message: consolidateAfter must be specified with consolidationPolicy=WhenEmpty
+                      rule: 'self.consolidationPolicy == ''WhenEmpty'' ? has(self.consolidateAfter) : true'
+                limits:
+                  additionalProperties:
+                    anyOf:
+                      - type: integer
+                      - type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  description: Limits define a set of bounds for provisioning capacity.
+                  type: object
+                template:
+                  description: Template contains the template of possibilities for the provisioning logic to launch a NodeClaim with. NodeClaims launched from this NodePool will often be further constrained than the template specifies.
+                  properties:
+                    metadata:
+                      properties:
+                        annotations:
+                          additionalProperties:
                             type: string
-                          kind:
-                            description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"'
+                          type: object
+                        finalizers:
+                          items:
                             type: string
-                          name:
-                            description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
+                          type: array
+                        labels:
+                          additionalProperties:
                             type: string
-                        required:
-                        - name
-                        type: object
-                      requirements:
-                        description: Requirements are layered with GetLabels and applied
-                          to every node.
-                        items:
-                          description: A node selector requirement is a selector that
-                            contains values, a key, and an operator that relates the
-                            key and values.
+                          type: object
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                      type: object
+                    spec:
+                      description: NodeClaimSpec describes the desired state of the NodeClaim
+                      properties:
+                        kubelet:
+                          description: Kubelet defines args to be used when configuring kubelet on provisioned nodes. They are a subset of the upstream types, recognizing not all options may be supported. Wherever possible, the types and names should reflect the upstream kubelet types.
                           properties:
-                            key:
-                              description: The label key that the selector applies
-                                to.
-                              type: string
-                            operator:
-                              description: Represents a key's relationship to a set
-                                of values. Valid operators are In, NotIn, Exists,
-                                DoesNotExist. Gt, and Lt.
-                              type: string
-                            values:
-                              description: An array of string values. If the operator
-                                is In or NotIn, the values array must be non-empty.
-                                If the operator is Exists or DoesNotExist, the values
-                                array must be empty. If the operator is Gt or Lt,
-                                the values array must have a single element, which
-                                will be interpreted as an integer. This array is replaced
-                                during a strategic merge patch.
+                            clusterDNS:
+                              description: clusterDNS is a list of IP addresses for the cluster DNS server. Note that not all providers may use all addresses.
                               items:
                                 type: string
                               type: array
-                          required:
-                          - key
-                          - operator
+                            cpuCFSQuota:
+                              description: CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
+                              type: boolean
+                            evictionHard:
+                              additionalProperties:
+                                type: string
+                                pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
+                              description: EvictionHard is the map of signal names to quantities that define hard eviction thresholds
+                              type: object
+                              x-kubernetes-validations:
+                                - message: valid keys for evictionHard are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
+                                  rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
+                            evictionMaxPodGracePeriod:
+                              description: EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in response to soft eviction thresholds being met.
+                              format: int32
+                              type: integer
+                            evictionSoft:
+                              additionalProperties:
+                                type: string
+                                pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
+                              description: EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
+                              type: object
+                              x-kubernetes-validations:
+                                - message: valid keys for evictionSoft are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
+                                  rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
+                            evictionSoftGracePeriod:
+                              additionalProperties:
+                                type: string
+                              description: EvictionSoftGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
+                              type: object
+                              x-kubernetes-validations:
+                                - message: valid keys for evictionSoftGracePeriod are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
+                                  rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
+                            imageGCHighThresholdPercent:
+                              description: ImageGCHighThresholdPercent is the percent of disk usage after which image garbage collection is always run. The percent is calculated by dividing this field value by 100, so this field must be between 0 and 100, inclusive. When specified, the value must be greater than ImageGCLowThresholdPercent.
+                              format: int32
+                              maximum: 100
+                              minimum: 0
+                              type: integer
+                            imageGCLowThresholdPercent:
+                              description: ImageGCLowThresholdPercent is the percent of disk usage before which image garbage collection is never run. Lowest disk usage to garbage collect to. The percent is calculated by dividing this field value by 100, so the field value must be between 0 and 100, inclusive. When specified, the value must be less than imageGCHighThresholdPercent
+                              format: int32
+                              maximum: 100
+                              minimum: 0
+                              type: integer
+                            kubeReserved:
+                              additionalProperties:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: KubeReserved contains resources reserved for Kubernetes system components.
+                              type: object
+                              x-kubernetes-validations:
+                                - message: valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']
+                                  rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
+                                - message: kubeReserved value cannot be a negative resource quantity
+                                  rule: self.all(x, !self[x].startsWith('-'))
+                            maxPods:
+                              description: MaxPods is an override for the maximum number of pods that can run on a worker node instance.
+                              format: int32
+                              minimum: 0
+                              type: integer
+                            podsPerCore:
+                              description: PodsPerCore is an override for the number of pods that can run on a worker node instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if MaxPods is a lower value, that value will be used.
+                              format: int32
+                              minimum: 0
+                              type: integer
+                            systemReserved:
+                              additionalProperties:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: SystemReserved contains resources reserved for OS system daemons and kernel memory.
+                              type: object
+                              x-kubernetes-validations:
+                                - message: valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']
+                                  rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
+                                - message: systemReserved value cannot be a negative resource quantity
+                                  rule: self.all(x, !self[x].startsWith('-'))
                           type: object
-                        type: array
-                      resources:
-                        description: Resources models the resource requirements for
-                          the NodeClaim to launch
-                        properties:
-                          requests:
-                            additionalProperties:
-                              anyOf:
-                              - type: integer
-                              - type: string
-                              pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              x-kubernetes-int-or-string: true
-                            description: Requests describes the minimum required resources
-                              for the NodeClaim to launch
+                          x-kubernetes-validations:
+                            - message: imageGCHighThresholdPercent must be greater than imageGCLowThresholdPercent
+                              rule: 'has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent) ?  self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent  : true'
+                            - message: evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod
+                              rule: has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true
+                            - message: evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft
+                              rule: has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true
+                        nodeClassRef:
+                          description: NodeClassRef is a reference to an object that defines provider specific configuration
+                          properties:
+                            apiVersion:
+                              description: API version of the referent
+                              type: string
+                            kind:
+                              description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"'
+                              type: string
+                            name:
+                              description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
+                              type: string
+                          required:
+                            - name
+                          type: object
+                        requirements:
+                          description: Requirements are layered with GetLabels and applied to every node.
+                          items:
+                            description: A node selector requirement is a selector that contains values, a key, and an operator that relates the key and values.
+                            properties:
+                              key:
+                                description: The label key that the selector applies to.
+                                type: string
+                              operator:
+                                description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+                                type: string
+                              values:
+                                description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
+                                items:
+                                  type: string
+                                type: array
+                            required:
+                              - key
+                              - operator
                             type: object
-                        type: object
-                      startupTaints:
-                        description: StartupTaints are taints that are applied to
-                          nodes upon startup which are expected to be removed automatically
-                          within a short period of time, typically by a DaemonSet
-                          that tolerates the taint. These are commonly used by daemonsets
-                          to allow initialization and enforce startup ordering.  StartupTaints
-                          are ignored for provisioning purposes in that pods are not
-                          required to tolerate a StartupTaint in order to have nodes
-                          provisioned for them.
-                        items:
-                          description: The node this Taint is attached to has the
-                            "effect" on any pod that does not tolerate the Taint.
+                          type: array
+                        resources:
+                          description: Resources models the resource requirements for the NodeClaim to launch
                           properties:
-                            effect:
-                              description: Required. The effect of the taint on pods
-                                that do not tolerate the taint. Valid effects are
-                                NoSchedule, PreferNoSchedule and NoExecute.
-                              type: string
-                            key:
-                              description: Required. The taint key to be applied to
-                                a node.
-                              type: string
-                            timeAdded:
-                              description: TimeAdded represents the time at which
-                                the taint was added. It is only written for NoExecute
-                                taints.
-                              format: date-time
-                              type: string
-                            value:
-                              description: The taint value corresponding to the taint
-                                key.
-                              type: string
-                          required:
-                          - effect
-                          - key
+                            requests:
+                              additionalProperties:
+                                anyOf:
+                                  - type: integer
+                                  - type: string
+                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                                x-kubernetes-int-or-string: true
+                              description: Requests describes the minimum required resources for the NodeClaim to launch
+                              type: object
                           type: object
-                        type: array
-                      taints:
-                        description: Taints will be applied to the NodeClaim's node.
-                        items:
-                          description: The node this Taint is attached to has the
-                            "effect" on any pod that does not tolerate the Taint.
-                          properties:
-                            effect:
-                              description: Required. The effect of the taint on pods
-                                that do not tolerate the taint. Valid effects are
-                                NoSchedule, PreferNoSchedule and NoExecute.
-                              type: string
-                            key:
-                              description: Required. The taint key to be applied to
-                                a node.
-                              type: string
-                            timeAdded:
-                              description: TimeAdded represents the time at which
-                                the taint was added. It is only written for NoExecute
-                                taints.
-                              format: date-time
-                              type: string
-                            value:
-                              description: The taint value corresponding to the taint
-                                key.
-                              type: string
-                          required:
-                          - effect
-                          - key
-                          type: object
-                        type: array
-                    required:
-                    - nodeClassRef
-                    - requirements
-                    type: object
-                type: object
-              weight:
-                description: Weight is the priority given to the provisioner during
-                  scheduling. A higher numerical weight indicates that this provisioner
-                  will be ordered ahead of other provisioners with lower weights.
-                  A provisioner with no weight will be treated as if it is a provisioner
-                  with a weight of 0.
-                format: int32
-                maximum: 100
-                minimum: 1
-                type: integer
-            type: object
-          status:
-            description: NodePoolStatus defines the observed state of NodePool
-            properties:
-              resources:
-                additionalProperties:
-                  anyOf:
-                  - type: integer
-                  - type: string
-                  pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                  x-kubernetes-int-or-string: true
-                description: Resources is the list of resources that have been provisioned.
-                type: object
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
+                        startupTaints:
+                          description: StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically within a short period of time, typically by a DaemonSet that tolerates the taint. These are commonly used by daemonsets to allow initialization and enforce startup ordering.  StartupTaints are ignored for provisioning purposes in that pods are not required to tolerate a StartupTaint in order to have nodes provisioned for them.
+                          items:
+                            description: The node this Taint is attached to has the "effect" on any pod that does not tolerate the Taint.
+                            properties:
+                              effect:
+                                description: Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
+                                type: string
+                              key:
+                                description: Required. The taint key to be applied to a node.
+                                type: string
+                              timeAdded:
+                                description: TimeAdded represents the time at which the taint was added. It is only written for NoExecute taints.
+                                format: date-time
+                                type: string
+                              value:
+                                description: The taint value corresponding to the taint key.
+                                type: string
+                            required:
+                              - effect
+                              - key
+                            type: object
+                          type: array
+                        taints:
+                          description: Taints will be applied to the NodeClaim's node.
+                          items:
+                            description: The node this Taint is attached to has the "effect" on any pod that does not tolerate the Taint.
+                            properties:
+                              effect:
+                                description: Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
+                                type: string
+                              key:
+                                description: Required. The taint key to be applied to a node.
+                                type: string
+                              timeAdded:
+                                description: TimeAdded represents the time at which the taint was added. It is only written for NoExecute taints.
+                                format: date-time
+                                type: string
+                              value:
+                                description: The taint value corresponding to the taint key.
+                                type: string
+                            required:
+                              - effect
+                              - key
+                            type: object
+                          type: array
+                      required:
+                        - nodeClassRef
+                        - requirements
+                      type: object
+                  type: object
+                weight:
+                  description: Weight is the priority given to the provisioner during scheduling. A higher numerical weight indicates that this provisioner will be ordered ahead of other provisioners with lower weights. A provisioner with no weight will be treated as if it is a provisioner with a weight of 0.
+                  format: int32
+                  maximum: 100
+                  minimum: 1
+                  type: integer
+              type: object
+            status:
+              description: NodePoolStatus defines the observed state of NodePool
+              properties:
+                resources:
+                  additionalProperties:
+                    anyOf:
+                      - type: integer
+                      - type: string
+                    pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                    x-kubernetes-int-or-string: true
+                  description: Resources is the list of resources that have been provisioned.
+                  type: object
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}

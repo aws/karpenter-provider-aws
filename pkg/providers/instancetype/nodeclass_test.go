@@ -40,6 +40,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/test"
@@ -645,16 +646,8 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
-			ctx, err := (&settings.Settings{}).Inject(ctx, &v1.ConfigMap{
-				Data: map[string]string{
-					"aws.clusterName": "karpenter-cluster",
-				},
-			})
-			Expect(err).To(BeNil())
-
-			s := settings.FromContext(ctx)
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				VMMemoryOverheadPercent: &s.VMMemoryOverheadPercent,
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				ClusterName: lo.ToPtr("karpenter-cluster"),
 			}))
 
 			var ok bool
@@ -713,7 +706,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 		})
 		Context("Eviction Thresholds", func() {
 			BeforeEach(func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 					VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 				}))
 			})
@@ -950,7 +943,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			}
 		})
 		It("should reserve ENIs when aws.reservedENIs is set and is used in max-pods calculation", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				ReservedENIs: lo.ToPtr(1),
 			}))
 
@@ -970,7 +963,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
 		})
 		It("should reserve ENIs when aws.reservedENIs is set and not go below 0 ENIs in max-pods calculation", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				ReservedENIs: lo.ToPtr(1_000_000),
 			}))
 

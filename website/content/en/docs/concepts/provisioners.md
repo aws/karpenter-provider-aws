@@ -58,7 +58,7 @@ spec:
     example.com/owner: "my-team"
 
   # Requirements that constrain the parameters of provisioned nodes.
-  # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
+  # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
   # Operators { In, NotIn, Exists, DoesNotExist, Gt, and Lt } are supported.
   # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#operators
   requirements:

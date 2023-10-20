@@ -64,6 +64,7 @@ func main() {
 			op.SubnetProvider,
 			op.SecurityGroupProvider,
 			op.InstanceProfileProvider,
+			op.InstanceProvider,
 			op.PricingProvider,
 			op.AMIProvider,
 		)...).

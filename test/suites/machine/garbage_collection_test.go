@@ -43,8 +43,8 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 
 	BeforeEach(func() {
 		provisioner = test.Provisioner()
-		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(securityGroups).ToNot(HaveLen(0))
 		Expect(subnets).ToNot(HaveLen(0))
 
@@ -75,7 +75,7 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 					ResourceType: aws.String(ec2.ResourceTypeInstance),
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(env.Context).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -93,8 +93,8 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 		// Update the userData for the instance input with the correct provisionerName
 		rawContent, err := os.ReadFile("testdata/al2_userdata_input.sh")
 		Expect(err).ToNot(HaveOccurred())
-		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
-			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
+		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
+			env.ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.ExpectRunInstances(instanceInput)
@@ -120,7 +120,7 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 			Tags: []*ec2.Tag{
 				{
 					Key:   aws.String(v1alpha5.MachineManagedByAnnotationKey),
-					Value: aws.String(settings.FromContext(env.Context).ClusterName),
+					Value: aws.String(env.ClusterName),
 				},
 			},
 		})
@@ -139,8 +139,8 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 		})
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},

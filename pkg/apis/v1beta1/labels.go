@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -56,8 +55,6 @@ const (
 )
 
 var (
-	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
-	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
 	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                  v1beta1.ArchitectureAmd64,
 		v1beta1.ArchitectureArm64: v1beta1.ArchitectureArm64,
@@ -78,20 +75,12 @@ var (
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.NodePoolLabelKey))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.ManagedByAnnotationKey))),
 	}
-	AMIFamilyBottlerocket = "Bottlerocket"
-	AMIFamilyAL2          = "AL2"
-	AMIFamilyUbuntu       = "Ubuntu"
-	AMIFamilyWindows2019  = "Windows2019"
-	AMIFamilyWindows2022  = "Windows2022"
-	AMIFamilyCustom       = "Custom"
-	SupportedAMIFamilies  = []string{
-		AMIFamilyBottlerocket,
-		AMIFamilyAL2,
-		AMIFamilyUbuntu,
-		AMIFamilyWindows2019,
-		AMIFamilyWindows2022,
-		AMIFamilyCustom,
-	}
+	AMIFamilyBottlerocket                      = "Bottlerocket"
+	AMIFamilyAL2                               = "AL2"
+	AMIFamilyUbuntu                            = "Ubuntu"
+	AMIFamilyWindows2019                       = "Windows2019"
+	AMIFamilyWindows2022                       = "Windows2022"
+	AMIFamilyCustom                            = "Custom"
 	Windows2019                                = "2019"
 	Windows2022                                = "2022"
 	WindowsCore                                = "Core"

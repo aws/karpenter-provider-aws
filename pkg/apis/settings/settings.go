@@ -22,6 +22,8 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/configmap"
+
+	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 )
 
 type settingsKeyType struct{}
@@ -68,6 +70,9 @@ func (*Settings) ConfigMap() string {
 // Inject creates a Settings from the supplied ConfigMap
 func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context, error) {
 	s := defaultSettings.DeepCopy()
+	if cm == nil {
+		return ToContext(ctx, s), nil
+	}
 
 	if err := configmap.Parse(cm.Data,
 		configmap.AsString("aws.assumeRoleARN", &s.AssumeRoleARN),
@@ -90,6 +95,10 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		return ctx, fmt.Errorf("validating settings, %w", err)
 	}
 	return ToContext(ctx, s), nil
+}
+
+func (*Settings) FromContext(ctx context.Context) coresettings.Injectable {
+	return FromContext(ctx)
 }
 
 func ToContext(ctx context.Context, s *Settings) context.Context {
