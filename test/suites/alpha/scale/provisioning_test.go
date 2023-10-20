@@ -86,7 +86,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		})
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
 		// Get the DS pod count and use it to calculate the DS pod overhead
-		dsCount = env.GetDaemonSetCount(provisioner)
+		dsCount = env.GetDaemonSetCountLegacy(provisioner)
 	})
 	It("should scale successfully on a node-dense scale-up", Label(debug.NoEvents), func(_ context.Context) {
 		// Disable Prefix Delegation for the node-dense scale-up to not exhaust the IPs

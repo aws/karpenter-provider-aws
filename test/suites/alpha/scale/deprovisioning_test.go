@@ -126,7 +126,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		}
 		deployment = test.Deployment(deploymentOptions)
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
-		dsCount = env.GetDaemonSetCount(provisioner)
+		dsCount = env.GetDaemonSetCountLegacy(provisioner)
 	})
 
 	AfterEach(func() {

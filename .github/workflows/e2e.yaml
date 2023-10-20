@@ -15,6 +15,7 @@ on:
         type: choice
         required: true
         options:
+          - Beta/Integration
           - Beta/Drift
           - Alpha/Integration
           - Alpha/Machine
