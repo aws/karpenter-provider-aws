@@ -107,7 +107,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
           eksctl_version: ${{ inputs.eksctl_version }}
-          ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
+          ip_family: ${{ contains(inputs.suite, 'IPv6') && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
         uses: ./.github/actions/e2e/install-prometheus
