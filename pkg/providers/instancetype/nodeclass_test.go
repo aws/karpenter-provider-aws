@@ -914,10 +914,6 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			}
 		})
 		It("should override max-pods value when AWSENILimitedPodDensity is unset", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
-
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
