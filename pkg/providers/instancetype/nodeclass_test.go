@@ -29,7 +29,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
@@ -131,21 +130,20 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
 			"beta.kubernetes.io/arch":       "amd64",
 			"beta.kubernetes.io/os":         "linux",
-			//v1.LabelInstanceType:            "g4dn.8xlarge",
-			//"topology.ebs.csi.aws.com/zone": "test-zone-1a",
+			v1.LabelInstanceType:            "g4dn.8xlarge",
+			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
 			v1.LabelWindowsBuild: v1beta1.Windows2022Build,
 		}
 
 		// Ensure that we're exercising all well known labels
-		//Expect(lo.Keys(nodeSelector)).To(ContainElements(append(corev1beta1.WellKnownLabels.UnsortedList(), lo.Keys(corev1beta1.NormalizedLabels)...)))
+		Expect(lo.Keys(nodeSelector)).To(ContainElements(append(corev1beta1.WellKnownLabels.UnsortedList(), lo.Keys(corev1beta1.NormalizedLabels)...)))
 
 		var pods []*v1.Pod
 		for key, value := range nodeSelector {
 			pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{key: value}}))
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		for i, pod := range pods {
-			logging.FromContext(ctx).Infof("DEBUGGING: THIS IS THE (%d)th iteration with requirements %s", i, pod.Spec.NodeSelector)
+		for _, pod := range pods {
 			ExpectScheduled(ctx, env.Client, pod)
 		}
 	})

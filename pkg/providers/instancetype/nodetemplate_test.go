@@ -30,7 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
@@ -151,8 +150,7 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 			pods = append(pods, coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{key: value}}))
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-		for i, pod := range pods {
-			logging.FromContext(ctx).Infof("DEBUGGING: THIS IS THE (%d)th iteration with requirements %s", i, pod.Spec.NodeSelector)
+		for _, pod := range pods {
 			ExpectScheduled(ctx, env.Client, pod)
 		}
 	})
