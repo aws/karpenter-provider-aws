@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strconv"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -38,9 +39,10 @@ func TestConvert(t *testing.T) {
 
 var _ = Describe("ConvertObject", func() {
 	type testcase struct {
-		name       string
-		file       string
-		outputFile string
+		name           string
+		ignoreDefaults bool
+		file           string
+		outputFile     string
 	}
 
 	DescribeTable("conversion tests",
@@ -63,13 +65,16 @@ var _ = Describe("ConvertObject", func() {
 			if err := cmd.Flags().Set("output", "yaml"); err != nil {
 				Expect(err).To(BeNil())
 			}
+			if err := cmd.Flags().Set("ignore-defaults", strconv.FormatBool(tc.ignoreDefaults)); err != nil {
+				Expect(err).To(BeNil())
+			}
 
 			cmd.Run(cmd, []string{})
 
 			bytes, _ := os.ReadFile(tc.outputFile)
 			content := string(bytes)
 
-			Expect(buf.String()).To(ContainSubstring(content), fmt.Sprintf("unexpected output when converting %s to %q, expected: %q, but got %q", tc.file, tc.outputFile, content, buf.String()))
+			Expect(buf.String()).To(Equal(content), fmt.Sprintf("unexpected output when converting %s to %q, expected: %q, but got %q", tc.file, tc.outputFile, content, buf.String()))
 		},
 
 		Entry("provisioner to nodepool",
@@ -80,11 +85,54 @@ var _ = Describe("ConvertObject", func() {
 			},
 		),
 
+		Entry("provisioner (set defaults) to nodepool",
+			testcase{
+				name:           "provisioner to nodepool",
+				file:           "./testdata/provisioner_defaults.yaml",
+				outputFile:     "./testdata/nodepool_defaults.yaml",
+				ignoreDefaults: false,
+			},
+		),
+
+		Entry("provisioner (no set defaults) to nodepool",
+			testcase{
+				name:           "provisioner to nodepool",
+				file:           "./testdata/provisioner_no_defaults.yaml",
+				outputFile:     "./testdata/nodepool_no_defaults.yaml",
+				ignoreDefaults: true,
+			},
+		),
+
+		Entry("provisioner (kubectl output) to nodepool",
+			testcase{
+				name:           "provisioner to nodepool",
+				file:           "./testdata/provisioner_kubectl_output.yaml",
+				outputFile:     "./testdata/nodepool_kubectl_output.yaml",
+				ignoreDefaults: true,
+			},
+		),
+
 		Entry("nodetemplate to nodeclass",
 			testcase{
 				name:       "nodetemplate to nodeclass",
 				file:       "./testdata/nodetemplate.yaml",
 				outputFile: "./testdata/nodeclass.yaml",
+			},
+		),
+
+		Entry("nodetemplate (empty amifamily) to nodeclass",
+			testcase{
+				name:       "nodetemplate (empty amifamily) to nodeclass",
+				file:       "./testdata/nodetemplate_no_amifamily.yaml",
+				outputFile: "./testdata/nodeclass_no_amifamily.yaml",
+			},
+		),
+
+		Entry("nodetemplate (kubectl output) to nodeclass",
+			testcase{
+				name:       "nodetemplate to nodeclass",
+				file:       "./testdata/nodetemplate_kubectl_output.yaml",
+				outputFile: "./testdata/nodeclass_kubectl_output.yaml",
 			},
 		),
 	)

@@ -56,7 +56,7 @@ spec:
     example.com/owner: "my-team"
 
   # Requirements that constrain the parameters of provisioned nodes.
-  # These requirements are combined with pod.spec.affinity.nodeAffinity rules.
+  # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
   # Operators { In, NotIn } are supported to enable including or excluding values
   requirements:
     - key: "karpenter.k8s.aws/instance-category"

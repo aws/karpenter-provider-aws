@@ -31,8 +31,6 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -40,7 +38,6 @@ import (
 
 var ctx context.Context
 var stop context.CancelFunc
-var opts options.Options
 var env *coretest.Environment
 var awsEnv *test.Environment
 var nodeClass *v1beta1.EC2NodeClass
@@ -65,7 +62,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = injection.WithOptions(ctx, opts)
 	ctx = coresettings.ToContext(ctx, coretest.Settings())
 	ctx = settings.ToContext(ctx, test.Settings())
 	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{

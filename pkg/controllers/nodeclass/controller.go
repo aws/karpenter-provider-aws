@@ -20,6 +20,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -35,10 +37,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
-
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/samber/lo"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/events"
@@ -120,7 +118,7 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 		return reconcile.Result{}, nil
 	}
 	nodeClaimList := &corev1beta1.NodeClaimList{}
-	if err := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"spec.nodeClass.name": nodeClass.Name}); err != nil {
+	if err := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"spec.nodeClassRef.name": nodeClass.Name}); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing nodeclaims that are using nodeclass, %w", err)
 	}
 	if len(nodeClaimList.Items) > 0 {
@@ -279,8 +277,8 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 		NewControllerManagedBy(m).
 		For(&v1beta1.EC2NodeClass{}).
 		Watches(
-			&source.Kind{Type: &corev1beta1.NodeClaim{}},
-			handler.EnqueueRequestsFromMapFunc(func(o client.Object) []reconcile.Request {
+			&corev1beta1.NodeClaim{},
+			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
 				nc := o.(*corev1beta1.NodeClaim)
 				if nc.Spec.NodeClassRef == nil {
 					return nil

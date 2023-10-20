@@ -123,44 +123,44 @@ func (env *Environment) ExpectInstanceProfileExists(profileName string) iam.Inst
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 	node := env.Environment.GetNode(nodeName)
-	return env.GetInstanceByIDWithOffset(1, env.ExpectParsedProviderID(node.Spec.ProviderID))
+	return env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
 }
 
 func (env *Environment) ExpectInstanceStopped(nodeName string) {
+	GinkgoHelper()
 	node := env.Environment.GetNode(nodeName)
 	_, err := env.EC2API.StopInstances(&ec2.StopInstancesInput{
 		Force:       aws.Bool(true),
 		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
 	})
-	ExpectWithOffset(1, err).To(Succeed())
+	Expect(err).To(Succeed())
 }
 
 func (env *Environment) ExpectInstanceTerminated(nodeName string) {
+	GinkgoHelper()
 	node := env.Environment.GetNode(nodeName)
 	_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
 	})
-	ExpectWithOffset(1, err).To(Succeed())
+	Expect(err).To(Succeed())
 }
 
 func (env *Environment) GetInstanceByID(instanceID string) ec2.Instance {
-	return env.GetInstanceByIDWithOffset(1, instanceID)
-}
-
-func (env *Environment) GetInstanceByIDWithOffset(offset int, instanceID string) ec2.Instance {
+	GinkgoHelper()
 	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{instanceID}),
 	})
-	ExpectWithOffset(offset+1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(offset+1, instance.Reservations).To(HaveLen(1))
-	ExpectWithOffset(offset+1, instance.Reservations[0].Instances).To(HaveLen(1))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(instance.Reservations).To(HaveLen(1))
+	Expect(instance.Reservations[0].Instances).To(HaveLen(1))
 	return *instance.Reservations[0].Instances[0]
 }
 
 func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
+	GinkgoHelper()
 	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, len(dvo.Volumes)).To(Equal(1))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(len(dvo.Volumes)).To(Equal(1))
 	return *dvo.Volumes[0]
 }
 
@@ -244,12 +244,14 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 }
 
 func (env *Environment) ExpectQueueExists() {
+	GinkgoHelper()
 	exists, err := env.SQSProvider.QueueExists(env.Context)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, exists).To(BeTrue())
+	Expect(err).ToNot(HaveOccurred())
+	Expect(exists).To(BeTrue())
 }
 
 func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
+	GinkgoHelper()
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
 
@@ -268,12 +270,13 @@ func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 		}(msg)
 	}
 	wg.Wait()
-	ExpectWithOffset(1, err).To(Succeed())
+	Expect(err).To(Succeed())
 }
 
 func (env *Environment) ExpectParsedProviderID(providerID string) string {
+	GinkgoHelper()
 	providerIDSplit := strings.Split(providerID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
+	Expect(len(providerIDSplit)).ToNot(Equal(0))
 	return providerIDSplit[len(providerIDSplit)-1]
 }
 

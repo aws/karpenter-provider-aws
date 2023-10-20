@@ -25,7 +25,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -52,8 +51,8 @@ var _ = Describe("IPv6", func() {
 	It("should provision an IPv6 node by discovering kube-dns IPv6", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}, Requirements: []v1.NodeSelectorRequirement{
 			{
@@ -82,8 +81,8 @@ var _ = Describe("IPv6", func() {
 		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}, Requirements: []v1.NodeSelectorRequirement{
 			{

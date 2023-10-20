@@ -29,7 +29,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/instance"
@@ -41,8 +40,8 @@ var _ = Describe("Tags", func() {
 		It("should tag all associated resources", func() {
 			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 				AWS: v1alpha1.AWS{
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 					Tags:                  map[string]string{"TestTag": "TestVal"},
 				},
 			})
@@ -62,8 +61,8 @@ var _ = Describe("Tags", func() {
 		It("should tag all associated resources with global tags", func() {
 			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 				AWS: v1alpha1.AWS{
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				},
 			})
 
@@ -94,10 +93,10 @@ var _ = Describe("Tags", func() {
 		BeforeEach(func() {
 			nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
 				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{
-					Tags: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				}},
 				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{
-					Tags: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 				}},
 			}})
 
@@ -169,8 +168,8 @@ var _ = Describe("Tags", func() {
 
 		It("shouldn't tag nodes provisioned by v1alpha5 provisioner", func() {
 			nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			}})
 
 			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{

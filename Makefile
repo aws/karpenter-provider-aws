@@ -1,12 +1,8 @@
 export K8S_VERSION ?= 1.27.x
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
-## Inject the app version into project.Version
-ifdef SNAPSHOT_TAG
-LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(SNAPSHOT_TAG)
-else
-LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)
-endif
+## Inject the app version into operator.Version
+LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter-core/pkg/operator.Version=$(shell git describe --tags --always)
 
 GOFLAGS ?= $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
@@ -68,6 +64,7 @@ clean-run: ## Clean resources deployed by the run target
 
 test: ## Run tests
 	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
+	cd tools/karpenter-convert && go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
 
 battletest: ## Run randomized, racing, code-covered tests
 	go test -v ./pkg/... \

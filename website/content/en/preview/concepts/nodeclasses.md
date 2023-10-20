@@ -140,15 +140,15 @@ status:
   placementGroup:
   - arn:aws:ec2:us-west-2:111122223333:group/my-placement-group
 ```
-Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/main/examples/nodepool/).
+Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable to all providers. To explore various `EC2NodeClass` configurations, refer to the examples provided [in the Karpenter Github repository](https://github.com/aws/karpenter/blob/main/examples/v1beta1/).
 
 ## spec.amiFamily
 
-AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify a custom amiSelector. Default bootstrapping logic is shown below for each of the supported families.
+AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
 
 ### AL2
 
-```console
+```bash
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
 
@@ -161,7 +161,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 --dns-cluster-ip '10.100.0.10' \
 --use-max-pods false \
 --container-runtime containerd \
---kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test  --max-pods=110'
+--kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test  --max-pods=110'
 --//--
 ```
 
@@ -178,12 +178,12 @@ max-pods = 110
 
 [settings.kubernetes.node-labels]
 'karpenter.sh/capacity-type' = 'on-demand'
-'karpenter.sh/provisioner-name' = 'test'
+'karpenter.sh/nodepool' = 'test'
 ```
 
 ### Ubuntu
 
-```console
+```bash
 MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
 
@@ -195,7 +195,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 /etc/eks/bootstrap.sh 'test-cluster' --apiserver-endpoint 'https://test-cluster' --b64-cluster-ca 'ca-bundle' \
 --dns-cluster-ip '10.100.0.10' \
 --use-max-pods false \
---kubelet-extra-args '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test" --max-pods=110'
+--kubelet-extra-args '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110'
 --//--
 ```
 
@@ -204,7 +204,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 ```powershell
 <powershell>
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
 </powershell>
 ```
 
@@ -213,7 +213,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 ```powershell
 <powershell>
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
 </powershell>
 ```
 
@@ -298,7 +298,7 @@ CLUSTER_VPC_ID="$(aws eks describe-cluster --name $CLUSTER_NAME --query cluster.
 aws ec2 describe-security-groups --filters Name=vpc-id,Values=$CLUSTER_VPC_ID Name=tag-key,Values=kubernetes.io/cluster/$CLUSTER_NAME --query 'SecurityGroups[].[GroupName]' --output text
 ```
 
-If multiple securityGroups are printed, you will need a more specific securityGroupSelector. We generally recommend that you use the `karpenter.sh/discovery: $CLUSTER_NAME` tag selector instead.
+If multiple securityGroups are printed, you will need more specific securityGroupSelectorTerms. We generally recommend that you use the `karpenter.sh/discovery: $CLUSTER_NAME` tag selector instead.
 {{% /alert %}}
 
 #### Examples
@@ -348,14 +348,14 @@ spec:
 Select using ids:
 ```yaml
 spec:
- securityGroupSelector:
+ securityGroupSelectorTerms:
     - id: "sg-063d7acfb4b06c82c"
     - id: "sg-06e0cf9c198874591"
 ```
 
 ## spec.amiSelectorTerms
 
-AMISelector is used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). This field is optional, and Karpenter will use the latest EKS-optimized AMIs for the AMIFamily if no amiSelectorTerms are specified. To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To ensure that AMIs are owned by the expected owner, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs. If this is not set, it defaults to `self,amazon`.
+AMISelectorTerms are used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). This field is optional, and Karpenter will use the latest EKS-optimized AMIs for the AMIFamily if no amiSelectorTerms are specified. To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To ensure that AMIs are owned by the expected owner, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs. If this is not set, it defaults to `self,amazon`.
 
 {{% alert title="Tip" color="secondary" %}}
 AMIs may be specified by any AWS tag, including `Name`. Selecting by tag or by name using wildcards (`*`) is supported.
@@ -386,14 +386,14 @@ Select by name:
 
 Select by `Name` tag:
 ```yaml
-  amiSelector:
+  amiSelectorTerms:
     - tags:
         Name: my-ami
 ```
 
 Select by name and owner:
 ```yaml
-  amiSelector:
+  amiSelectorTerms:
     - name: my-ami
       owner: self
     - name: my-ami
@@ -417,7 +417,7 @@ spec:
 
 Specify using ids:
 ```yaml
-  amiSelector:
+  amiSelectorTerms:
     - id: "ami-123"
     - id: "ami-456"
 ```
@@ -457,11 +457,11 @@ Karpenter allows overrides of the default "Name" tag but does not allow override
 
 ## spec.metadataOptions
 
-Control the exposure of [Instance Metadata Service](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) on EC2 Instances launched by this NodePool using a generated launch template.
+Control the exposure of [Instance Metadata Service](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-metadata.html) on EC2 Instances launched by this EC2NodeClass using a generated launch template.
 
 Refer to [recommended, security best practices](https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node) for limiting exposure of Instance Metadata and User Data to pods.
 
-If metadataOptions are omitted from this provisioner, the following default settings are applied to the `EC2NodeClass`.
+If metadataOptions are omitted from this EC2NodeClass, the following default settings are applied:
 
 ```yaml
 spec:
@@ -595,7 +595,7 @@ spec:
     chown -R ec2-user ~ec2-user/.ssh
 ```
 
-For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/provisioner/launchtemplates).
+For more examples on configuring fields for different AMI families, see the [examples here](https://github.com/aws/karpenter/blob/main/examples/v1beta1).
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
@@ -649,7 +649,7 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 /etc/eks/bootstrap.sh 'test-cluster' --apiserver-endpoint 'https://test-cluster' --b64-cluster-ca 'ca-bundle' \
 --use-max-pods false \
 --container-runtime containerd \
---kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/provisioner-name=test  --max-pods=110'
+--kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test  --max-pods=110'
 --//--
 ```
 
@@ -703,7 +703,7 @@ cluster-name = 'cluster'
 
 [settings.kubernetes.node-labels]
 'karpenter.sh/capacity-type' = 'on-demand'
-'karpenter.sh/provisioner-name' = 'provisioner'
+'karpenter.sh/nodepool' = 'default'
 
 [settings.kubernetes.node-taints]
 
@@ -731,7 +731,7 @@ Write-Host "Running custom user data script"
 <powershell>
 Write-Host "Running custom user data script"
 [string]$EKSBootstrapScriptFile = "$env:ProgramFiles\Amazon\EKS\Start-EKSBootstrap.ps1"
-& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/provisioner-name=windows2022" --max-pods=110' -DNSClusterIP '10.0.100.10'
+& $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=spot,karpenter.sh/nodepool=windows2022" --max-pods=110' -DNSClusterIP '10.0.100.10'
 </powershell>
 ```
 

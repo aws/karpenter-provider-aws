@@ -188,13 +188,13 @@ func (env *Environment) ExpectPodENIDisabled() {
 func (env *Environment) ExpectPrefixDelegationEnabled() {
 	GinkgoHelper()
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_PREFIX_DELEGATION", "true")
+		"ENABLE_PREFIX_DELEGATION", "true", "aws-node")
 }
 
 func (env *Environment) ExpectPrefixDelegationDisabled() {
 	GinkgoHelper()
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_PREFIX_DELEGATION", "false")
+		"ENABLE_PREFIX_DELEGATION", "false", "aws-node")
 }
 
 func (env *Environment) ExpectExists(obj client.Object) {
@@ -299,7 +299,8 @@ func (env *Environment) ExpectActiveKarpenterPod() *v1.Pod {
 }
 
 func (env *Environment) EventuallyExpectPendingPodCount(selector labels.Selector, numPods int) {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.PendingPodsCount(selector)).To(Equal(numPods))
 	}).Should(Succeed())
 }
@@ -312,7 +313,7 @@ func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector
 
 func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.Duration, selector labels.Selector, numPods int) {
 	GinkgoHelper()
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
 	}).WithTimeout(timeout).Should(Succeed())
 }
@@ -326,35 +327,30 @@ func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*
 }
 
 func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
+	GinkgoHelper()
 	pods := env.Monitor.RunningPods(selector)
 	nodeNames := sets.NewString()
 	for _, pod := range pods {
 		nodeNames.Insert(pod.Spec.NodeName)
 	}
-	ExpectWithOffset(1, len(nodeNames)).To(BeNumerically("==", uniqueNames))
+	Expect(len(nodeNames)).To(BeNumerically("==", uniqueNames))
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.StartingNodeCount))
 	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.StartingNodeCount, env.Monitor.NodeCount()))
 }
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
-	env.EventuallyExpectNotFoundWithOffset(1, objects...)
-}
-
-func (env *Environment) EventuallyExpectNotFoundWithOffset(offset int, objects ...client.Object) {
-	env.EventuallyExpectNotFoundAssertionWithOffset(offset+1, objects...).Should(Succeed())
+	GinkgoHelper()
+	env.EventuallyExpectNotFoundAssertion(objects...).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Object) AsyncAssertion {
-	return env.EventuallyExpectNotFoundAssertionWithOffset(1, objects...)
-}
-
-func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, objects ...client.Object) AsyncAssertion {
-	return EventuallyWithOffset(offset, func(g Gomega) {
+	return Eventually(func(g Gomega) {
 		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
@@ -363,8 +359,9 @@ func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, 
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
 	createdNodes := env.Monitor.CreatedNodes()
-	ExpectWithOffset(1, len(createdNodes)).To(BeNumerically(comparator, count),
+	Expect(len(createdNodes)).To(BeNumerically(comparator, count),
 		fmt.Sprintf("expected %d created nodes, had %d (%v)", count, len(createdNodes), NodeNames(createdNodes)))
 	return createdNodes
 }
@@ -454,9 +451,10 @@ func (env *Environment) EventuallyExpectNodeCountWithSelector(comparator string,
 }
 
 func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
 	By(fmt.Sprintf("waiting for created nodes to be %s to %d", comparator, count))
 	var createdNodes []*v1.Node
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		createdNodes = env.Monitor.CreatedNodes()
 		g.Expect(len(createdNodes)).To(BeNumerically(comparator, count),
 			fmt.Sprintf("expected %d created nodes, had %d (%v)", count, len(createdNodes), NodeNames(createdNodes)))
@@ -492,9 +490,10 @@ func (env *Environment) EventuallyExpectDeletedNodeCountWithSelector(comparator 
 }
 
 func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
 	By(fmt.Sprintf("waiting for initialized nodes to be %s to %d", comparator, count))
 	var nodes []*v1.Node
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		nodes = env.Monitor.CreatedNodes()
 		nodes = lo.Filter(nodes, func(n *v1.Node, _ int) bool {
 			return n.Labels[v1alpha5.LabelNodeInitialized] == "true"
@@ -505,9 +504,10 @@ func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, 
 }
 
 func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, count int) []*v1alpha5.Machine {
+	GinkgoHelper()
 	By(fmt.Sprintf("waiting for created machines to be %s to %d", comparator, count))
 	machineList := &v1alpha5.MachineList{}
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env.Context, machineList)).To(Succeed())
 		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count))
 	}).Should(Succeed())
@@ -527,16 +527,18 @@ func (env *Environment) EventuallyExpectMachinesReady(machines ...*v1alpha5.Mach
 }
 
 func (env *Environment) GetNode(nodeName string) v1.Node {
+	GinkgoHelper()
 	var node v1.Node
-	ExpectWithOffset(1, env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
 	return node
 }
 
 func (env *Environment) ExpectNoCrashes() {
+	GinkgoHelper()
 	_, crashed := lo.Find(lo.Values(env.Monitor.RestartCount()), func(restartCount int) bool {
 		return restartCount > 0
 	})
-	ExpectWithOffset(1, crashed).To(BeFalse(), "expected karpenter containers to not crash")
+	Expect(crashed).To(BeFalse(), "expected karpenter containers to not crash")
 }
 
 var (
@@ -573,13 +575,15 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 }
 
 func (env *Environment) EventuallyExpectMinUtilization(resource v1.ResourceName, comparator string, value float64) {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.MinUtilization(resource)).To(BeNumerically(comparator, value))
 	}).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName, comparator string, value float64) {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
 	}, 10*time.Minute).Should(Succeed())
 }
@@ -616,10 +620,11 @@ func (env *Environment) ExpectCABundle() string {
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
 	// within the same cluster it's managing.
+	GinkgoHelper()
 	transportConfig, err := env.Config.TransportConfig()
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	Expect(err).ToNot(HaveOccurred())
 	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	Expect(err).ToNot(HaveOccurred())
 	logging.FromContext(env.Context).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }

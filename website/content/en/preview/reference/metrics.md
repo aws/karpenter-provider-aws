@@ -50,6 +50,26 @@ Amount of time required for a replacement machine to become initialized.
 ### `karpenter_deprovisioning_replacement_machine_launch_failure_counter`
 The number of times that Karpenter failed to launch a replacement node for deprovisioning. Labeled by deprovisioner.
 
+## Disruption Metrics
+
+### `karpenter_disruption_actions_performed_total`
+Number of disruption actions performed. Labeled by disruption method.
+
+### `karpenter_disruption_consolidation_timeouts_total`
+Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
+
+### `karpenter_disruption_eligible_nodes`
+Number of nodes eligible for disruption by Karpenter. Labeled by disruption method.
+
+### `karpenter_disruption_evaluation_duration_seconds`
+Duration of the disruption evaluation process in seconds.
+
+### `karpenter_disruption_replacement_nodeclaim_failures_total`
+The number of times that Karpenter failed to launch a replacement node for disruption. Labeled by disruption method.
+
+### `karpenter_disruption_replacement_nodeclaim_initialized_seconds`
+Amount of time required for a replacement nodeclaim to become initialized.
+
 ## Interruption Metrics
 
 ### `karpenter_interruption_actions_performed`
@@ -86,6 +106,40 @@ Number of machines registered in total by Karpenter. Labeled by the owning provi
 
 ### `karpenter_machines_terminated`
 Number of machines terminated in total by Karpenter. Labeled by reason the machine was terminated and the owning provisioner.
+
+## Nodeclaims Metrics
+
+### `karpenter_nodeclaims_created`
+Number of nodeclaims created in total by Karpenter. Labeled by reason the nodeclaim was created and the owning nodepool.
+
+### `karpenter_nodeclaims_disrupted`
+Number of nodeclaims disrupted in total by Karpenter. Labeled by disruption type of the nodeclaim and the owning nodepool.
+
+### `karpenter_nodeclaims_drifted`
+Number of nodeclaims drifted reasons in total by Karpenter. Labeled by drift type of the nodeclaim and the owning nodepool.
+
+### `karpenter_nodeclaims_initialized`
+Number of nodeclaims initialized in total by Karpenter. Labeled by the owning nodepool.
+
+### `karpenter_nodeclaims_launched`
+Number of nodeclaims launched in total by Karpenter. Labeled by the owning nodepool.
+
+### `karpenter_nodeclaims_registered`
+Number of nodeclaims registered in total by Karpenter. Labeled by the owning nodepool.
+
+### `karpenter_nodeclaims_terminated`
+Number of nodeclaims terminated in total by Karpenter. Labeled by reason the nodeclaim was terminated and the owning nodepool.
+
+## Nodepools Metrics
+
+### `karpenter_nodepools_limit`
+The nodepool limits are the limits specified on the provisioner that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
+
+### `karpenter_nodepools_usage`
+The nodepool usage is the amount of resources that have been provisioned by a particular nodepool. Labeled by nodepool name and resource type.
+
+### `karpenter_nodepools_usage_pct`
+The nodepool usage percentage is the percentage of each resource used based on the resources provisioned and the limits that have been configured.  Labeled by nodepool name and resource type.
 
 ## Provisioner Metrics
 

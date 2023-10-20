@@ -25,7 +25,6 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -33,8 +32,8 @@ import (
 var _ = Describe("Emptiness", func() {
 	It("should terminate an empty node", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
@@ -56,7 +55,7 @@ var _ = Describe("Emptiness", func() {
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
 
 		By("waiting for the machine emptiness status condition to propagate")
-		EventuallyWithOffset(1, func(g Gomega) {
+		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineEmpty)).ToNot(BeNil())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineEmpty).IsTrue()).To(BeTrue())

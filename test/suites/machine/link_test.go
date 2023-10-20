@@ -42,8 +42,8 @@ var _ = Describe("MachineLink", func() {
 	var instanceInput *ec2.RunInstancesInput
 
 	BeforeEach(func() {
-		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
-		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName})
+		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(securityGroups).ToNot(HaveLen(0))
 		Expect(subnets).ToNot(HaveLen(0))
 
@@ -74,7 +74,7 @@ var _ = Describe("MachineLink", func() {
 					ResourceType: aws.String(ec2.ResourceTypeInstance),
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(env.Context).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName)),
 							Value: aws.String("owned"),
 						},
 					},
@@ -87,8 +87,8 @@ var _ = Describe("MachineLink", func() {
 	It("should succeed to link a Machine for an existing instance launched by Karpenter", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			AMIFamily:             &v1alpha1.AMIFamilyAL2,
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
@@ -102,8 +102,8 @@ var _ = Describe("MachineLink", func() {
 			Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
 			Value: aws.String(provisioner.Name),
 		})
-		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
-			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
+		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
+			env.ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.ExpectRunInstances(instanceInput)
@@ -141,15 +141,15 @@ var _ = Describe("MachineLink", func() {
 				return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 			})
 			g.Expect(ok).To(BeTrue())
-			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
+			g.Expect(aws.StringValue(tag.Value)).To(Equal(env.ClusterName))
 		}, time.Minute, time.Second).Should(Succeed())
 	})
 	It("should succeed to link a Machine for an existing instance launched by Karpenter with provider", func() {
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			Provider: &v1alpha1.AWS{
 				AMIFamily:             &v1alpha1.AMIFamilyAL2,
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+				SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			},
 		})
 		env.ExpectCreated(provisioner)
@@ -161,8 +161,8 @@ var _ = Describe("MachineLink", func() {
 			Key:   aws.String(v1alpha5.ProvisionerNameLabelKey),
 			Value: aws.String(provisioner.Name),
 		})
-		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
-			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
+		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
+			env.ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.ExpectRunInstances(instanceInput)
@@ -200,14 +200,14 @@ var _ = Describe("MachineLink", func() {
 				return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 			})
 			g.Expect(ok).To(BeTrue())
-			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
+			g.Expect(aws.StringValue(tag.Value)).To(Equal(env.ClusterName))
 		}, time.Minute, time.Second).Should(Succeed())
 	})
 	It("should succeed to link a Machine for an existing instance re-owned by Karpenter", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			AMIFamily:             &v1alpha1.AMIFamilyAL2,
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		}})
 		provisioner := test.Provisioner(test.ProvisionerOptions{
 			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
@@ -219,8 +219,8 @@ var _ = Describe("MachineLink", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// No tag specifications since we're mocking an instance not launched by Karpenter
-		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
-			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
+		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
+			env.ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.ExpectRunInstances(instanceInput)
@@ -263,7 +263,7 @@ var _ = Describe("MachineLink", func() {
 				return aws.StringValue(t.Key) == v1alpha5.MachineManagedByAnnotationKey
 			})
 			g.Expect(ok).To(BeTrue())
-			g.Expect(aws.StringValue(tag.Value)).To(Equal(settings.FromContext(env.Context).ClusterName))
+			g.Expect(aws.StringValue(tag.Value)).To(Equal(env.ClusterName))
 			tag, ok = lo.Find(instance.Tags, func(t *ec2.Tag) bool {
 				return aws.StringValue(t.Key) == v1alpha5.ProvisionerNameLabelKey
 			})

@@ -1,0 +1,46 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: provisioner1
+spec:
+  disruption:
+    expireAfter: Never
+  limits:
+    cpu: "100"
+    memory: 1000Gi
+  template:
+    metadata:
+      labels:
+        type: app1
+    spec:
+      nodeClassRef:
+        name: default
+      requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values:
+        - on-demand
+      - key: node.kubernetes.io/instance-family
+        operator: In
+        values:
+        - c
+        - r
+        - m
+      - key: kubernetes.io/os
+        operator: In
+        values:
+        - linux
+      - key: kubernetes.io/arch
+        operator: In
+        values:
+        - amd64
+      - key: karpenter.k8s.aws/instance-category
+        operator: In
+        values:
+        - c
+        - m
+        - r
+      - key: karpenter.k8s.aws/instance-generation
+        operator: Gt
+        values:
+        - "2"

@@ -21,7 +21,6 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
@@ -30,8 +29,8 @@ var _ = Describe("BackwardsCompatability", func() {
 		provisioner := test.Provisioner(
 			test.ProvisionerOptions{
 				Provider: &v1alpha1.AWS{
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+					SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
 					Tags: map[string]string{
 						"custom-tag":  "custom-value",
 						"custom-tag2": "custom-value2",

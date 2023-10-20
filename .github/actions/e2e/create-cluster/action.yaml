@@ -113,6 +113,10 @@ runs:
           - key: CriticalAddonsOnly
             value: "true"
             effect: NoSchedule
+      cloudWatch:
+        clusterLogging:
+          enableTypes: ["*"]
+          logRetentionInDays: 30
       iam:
         serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
         serviceAccounts:
@@ -152,8 +156,6 @@ runs:
       # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
       # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
       eksctl update iamserviceaccount -f clusterconfig.yaml --approve
-      
-
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash

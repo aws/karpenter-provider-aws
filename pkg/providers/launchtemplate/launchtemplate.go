@@ -39,6 +39,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -172,7 +173,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	options := &amifamily.Options{
-		ClusterName:             settings.FromContext(ctx).ClusterName,
+		ClusterName:             options.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
 		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
@@ -353,7 +354,7 @@ func (p *Provider) volumeSize(quantity *resource.Quantity) *int64 {
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *Provider) hydrateCache(ctx context.Context) {
-	clusterName := settings.FromContext(ctx).ClusterName
+	clusterName := options.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},

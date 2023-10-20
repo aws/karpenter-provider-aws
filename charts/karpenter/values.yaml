@@ -168,8 +168,11 @@ logConfig:
   logEncoding: console
   # -- Component-based log configuration
   logLevel:
+    # -- Global log level, defaults to 'debug'
     global: debug
+    # -- Controller log level, defaults to 'debug'
     controller: debug
+    # -- Error log level, defaults to 'error'
     webhook: error
 # -- Global Settings to configure Karpenter
 settings:
