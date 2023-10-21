@@ -90,7 +90,6 @@ var _ = Describe("Extended Resources", func() {
 		DeferCleanup(func() {
 			env.ExpectPodENIDisabled()
 		})
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.enablePodENI": "true"})
 		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
 			{

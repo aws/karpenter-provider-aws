@@ -103,7 +103,6 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 				},
 			},
 		})
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "true"})
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
@@ -137,7 +136,6 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 	})
 	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "false"})
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{

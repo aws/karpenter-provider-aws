@@ -52,7 +52,6 @@ var _ = Describe("CNITests", func() {
 		Expect(allocatablePods).To(Equal(eniLimitedPodsFor(node.Labels["node.kubernetes.io/instance-type"])))
 	})
 	It("should set maxPods when reservedENIs is set", func() {
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.reservedENIs": "1"})
 		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "RESERVED_ENIS", Value: "1"})
 		pod := test.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
