@@ -152,7 +152,7 @@ jobs:
       - name: run the Upgrade test suite
         run: |
           aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
-          CLUSTER_NAME=${{ env.CLUSTER_NAME }} INTERRUPTION_QUEUE=${{ env.CLUSTER_NAME }} CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ env.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" TEST_SUITE="Integration" make e2etests
+          CLUSTER_NAME=${{ env.CLUSTER_NAME }} INTERRUPTION_QUEUE=${{ env.CLUSTER_NAME }} CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ env.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" TEST_SUITE="Beta/Integration" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && github.event_name != 'conformance'
