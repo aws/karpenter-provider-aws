@@ -216,9 +216,15 @@ spec:
                       effect:
                         description: Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
                         type: string
+                        enum:
+                          - NoSchedule
+                          - PreferNoSchedule
+                          - NoExecute
                       key:
                         description: Required. The taint key to be applied to a node.
                         type: string
+                        minLength: 1
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                       timeAdded:
                         description: TimeAdded represents the time at which the taint was added. It is only written for NoExecute taints.
                         format: date-time
@@ -226,6 +232,7 @@ spec:
                       value:
                         description: The taint value corresponding to the taint key.
                         type: string
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                     required:
                       - effect
                       - key
@@ -239,9 +246,15 @@ spec:
                       effect:
                         description: Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
                         type: string
+                        enum:
+                          - NoSchedule
+                          - PreferNoSchedule
+                          - NoExecute
                       key:
                         description: Required. The taint key to be applied to a node.
                         type: string
+                        minLength: 1
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                       timeAdded:
                         description: TimeAdded represents the time at which the taint was added. It is only written for NoExecute taints.
                         format: date-time
@@ -249,6 +262,7 @@ spec:
                       value:
                         description: The taint value corresponding to the taint key.
                         type: string
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                     required:
                       - effect
                       - key

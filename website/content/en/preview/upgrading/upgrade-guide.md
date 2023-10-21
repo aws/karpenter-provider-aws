@@ -223,11 +223,11 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     aws iam detach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
     ```
 
-    {{% alert title="Note" color="warning" %}}
+{{% alert title="Note" color="warning" %}}
 
-    If you are using some IaC for managing your policy documents attached to the controller role, you may want to attach this new beta policy to the same CloudFormation stack. You can do this by removing the old alpha policy, ensuring that the Karpenter controller continues to work with just the beta policy, and then updating the stack to contain the new beta policy rather than having that policy managed separately.
+If you are using some IaC for managing your policy documents attached to the controller role, you may want to attach this new beta policy to the same CloudFormation stack. You can do this by removing the old alpha policy, ensuring that the Karpenter controller continues to work with just the beta policy, and then updating the stack to contain the new beta policy rather than having that policy managed separately.
 
-    {{% /alert %}}
+{{% /alert %}}
    
 #### Additional Release Notes
 
