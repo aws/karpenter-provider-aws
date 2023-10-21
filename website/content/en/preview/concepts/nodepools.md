@@ -172,7 +172,7 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 
 Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 
-Karpenter resolves the instanceTypes under the hood considering the constraints from the nodepool (such as requirements) and those that make schedules the pods 
+Karpenter resolves the instanceTypes under the hood considering the constraints from the nodepool (such as requirements) and those that schedules the pods 
 
 You can view them by running:
 
