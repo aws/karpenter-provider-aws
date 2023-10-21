@@ -57,8 +57,10 @@ var nodeClass *v1beta1.EC2NodeClass
 var _ = BeforeEach(func() {
 	nodeClass = awstest.EC2NodeClass(v1beta1.EC2NodeClass{
 		Spec: v1beta1.EC2NodeClassSpec{
+			AMIFamily:                  &v1beta1.AMIFamilyAL2,
 			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName}}},
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName}}},
+			SubnetSelectorTerms:        []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName}}},
+			Role:                       fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName),
 		},
 	})
 	env.BeforeEach()
@@ -75,8 +77,8 @@ var _ = Describe("Beta/Consolidation", func() {
 					// Disable Consolidation until we're ready
 					ConsolidateAfter: &corev1beta1.NillableDuration{},
 				},
-				Template: corev1beta1.NodeClaimTemplate {
-					Spec: corev1beta1.NodeClaimSpec {
+				Template: corev1beta1.NodeClaimTemplate{
+					Spec: corev1beta1.NodeClaimSpec{
 						Requirements: []v1.NodeSelectorRequirement{
 							{
 								Key:      corev1beta1.CapacityTypeLabelKey,
@@ -144,8 +146,8 @@ var _ = Describe("Beta/Consolidation", func() {
 					// Disable Consolidation until we're ready
 					ConsolidateAfter: &corev1beta1.NillableDuration{},
 				},
-				Template: corev1beta1.NodeClaimTemplate {
-					Spec: corev1beta1.NodeClaimSpec {
+				Template: corev1beta1.NodeClaimTemplate{
+					Spec: corev1beta1.NodeClaimSpec{
 						Requirements: []v1.NodeSelectorRequirement{
 							{
 								Key:      corev1beta1.CapacityTypeLabelKey,
@@ -265,8 +267,8 @@ var _ = Describe("Beta/Consolidation", func() {
 					// Disable Consolidation until we're ready
 					ConsolidateAfter: &corev1beta1.NillableDuration{},
 				},
-				Template: corev1beta1.NodeClaimTemplate {
-					Spec: corev1beta1.NodeClaimSpec {
+				Template: corev1beta1.NodeClaimTemplate{
+					Spec: corev1beta1.NodeClaimSpec{
 						Requirements: []v1.NodeSelectorRequirement{
 							{
 								Key:      corev1beta1.CapacityTypeLabelKey,
