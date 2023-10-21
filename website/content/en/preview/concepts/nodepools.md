@@ -172,7 +172,16 @@ For example, an instance type may be specified using a nodeSelector in a pod spe
 
 Generally, instance types should be a list and not a single value. Leaving these requirements undefined is recommended, as it maximizes choices for efficiently placing pods.
 
+Karpenter resolves the instanceTypes under the hood considering the constraints from the nodepool (such as requirements) and those that make schedules the pods 
+
+You can view them by running:
+
+```
+kubectl get nodepool -o=jsonpath='{.items[0].status.instanceTypes}'
+```
+
 Review [AWS instance types](../instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
+
 
 ### Availability Zones
 
@@ -430,7 +439,7 @@ Memory limits are described with a [`BinarySI` value, such as 1000Gi.](https://k
 
 You can view the current consumption of cpu and memory on your cluster by running:
 ```
-kubectl get nodepool -o=jsonpath='{.items[0].status}'
+kubectl get nodepool -o=jsonpath='{.items[0].status.resources}'
 ```
 
 Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca582229600a3599b40e9a82a951d8bbbf/core/v1/resource.go#L23) (`k8s.io/api/core/v1`) for more information on `resources`.
