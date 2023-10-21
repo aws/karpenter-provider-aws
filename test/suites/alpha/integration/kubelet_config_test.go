@@ -192,7 +192,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		})
 
 		// Get the DS pod count and use it to calculate the DS pod overhead
-		dsCount := env.GetDaemonSetCount(provisioner)
+		dsCount := env.GetDaemonSetCountLegacy(provisioner)
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 			MaxPods: ptr.Int32(1 + int32(dsCount)),
 		}
@@ -260,7 +260,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		//   2. If # of DS pods is even, we will have i.e. ceil((4+2)/2) = 3
 		//      Since we restrict node to two cores, we will allow 6 pods. Both nodes will have
 		//      4 DS pods and 2 test pods.
-		dsCount := env.GetDaemonSetCount(provisioner)
+		dsCount := env.GetDaemonSetCountLegacy(provisioner)
 		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
 			PodsPerCore: ptr.Int32(int32(math.Ceil(float64(2+dsCount) / 2))),
 		}
