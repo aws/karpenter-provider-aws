@@ -379,10 +379,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// Drift should fail and the original node should be uncordoned
 			// TODO: reduce timeouts when deprovisioning waits are factored out
-			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
-				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
-			}).WithTimeout(11 * time.Minute).Should(Succeed())
+			env.EventuallyExpectNodesUncordonedLegacyWithTimeout(12*time.Minute, cordonedNodes...)
 
 			Eventually(func(g Gomega) {
 				machines := &v1alpha5.MachineList{}
@@ -437,10 +434,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// Drift should fail and original node should be uncordoned
 			// TODO: reduce timeouts when deprovisioning waits are factored outr
-			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
-				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
-			}).WithTimeout(12 * time.Minute).Should(Succeed())
+			env.EventuallyExpectNodesUncordonedLegacyWithTimeout(12*time.Minute, cordonedNodes...)
 
 			// Expect that the new machine/node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}

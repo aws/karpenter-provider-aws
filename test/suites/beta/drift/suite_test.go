@@ -431,10 +431,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 
 			// Drift should fail and the original node should be uncordoned
 			// TODO: reduce timeouts when disruption waits are factored out
-			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
-				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
-			}).WithTimeout(11 * time.Minute).Should(Succeed())
+			env.EventuallyExpectNodesUncordonedWithTimeout(11*time.Minute, cordonedNodes...)
 
 			Eventually(func(g Gomega) {
 				nodeClaims := &corev1beta1.NodeClaimList{}
@@ -489,10 +486,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 
 			// Drift should fail and original node should be uncordoned
 			// TODO: reduce timeouts when disruption waits are factored outr
-			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
-				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
-			}).WithTimeout(12 * time.Minute).Should(Succeed())
+			env.EventuallyExpectNodesUncordonedWithTimeout(12*time.Minute, cordonedNodes...)
 
 			// Expect that the new nodeClaim/node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}
