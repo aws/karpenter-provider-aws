@@ -35,7 +35,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 
 		instance := env.GetInstance(node.Name)
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
-		Expect(instance.IamInstanceProfile.Arn).To(ContainSubstring(nodeClass.Spec.Role))
+		Expect(lo.FromPtr(instance.IamInstanceProfile.Arn)).To(ContainSubstring(nodeClass.Status.InstanceProfile))
 
 		instanceProfile := env.ExpectInstanceProfileExists(instanceprofile.GetProfileName(env.Context, env.Region, nodeClass))
 		Expect(instanceProfile.Roles).To(HaveLen(1))
@@ -50,7 +50,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		env.ExpectDeleted(nodePool, nodeClass)
 		Eventually(func(g Gomega) {
 			_, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
-				InstanceProfileName: aws.String(instanceprofile.GetProfileName(env.Context, env.Region, nodeClass)),
+				InstanceProfileName: aws.String(env.GetInstanceProfileName(nodeClass)),
 			})
 			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
 		}).Should(Succeed())
