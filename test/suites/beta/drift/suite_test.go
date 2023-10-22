@@ -433,6 +433,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 			// TODO: reduce timeouts when disruption waits are factored out
 			env.EventuallyExpectNodesUncordonedWithTimeout(11*time.Minute, cordonedNodes...)
 
+			// We give another 6 minutes here to handle the deletion at the 15m registration timeout
 			Eventually(func(g Gomega) {
 				nodeClaims := &corev1beta1.NodeClaimList{}
 				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
@@ -485,8 +486,8 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
 
 			// Drift should fail and original node should be uncordoned
-			// TODO: reduce timeouts when disruption waits are factored outr
-			env.EventuallyExpectNodesUncordonedWithTimeout(12*time.Minute, cordonedNodes...)
+			// TODO: reduce timeouts when disruption waits are factored out
+			env.EventuallyExpectNodesUncordonedWithTimeout(11*time.Minute, cordonedNodes...)
 
 			// Expect that the new nodeClaim/node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}

@@ -90,7 +90,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a", "r7a", "c7a"},
+						Values:   aws.ExcludedInstanceFamilies,
 					},
 					{
 						Key:      v1beta1.LabelInstanceCategory,
@@ -133,7 +133,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a", "r7a", "c7a"},
+						Values:   aws.ExcludedInstanceFamilies,
 					},
 					{
 						Key:      v1beta1.LabelInstanceCategory,

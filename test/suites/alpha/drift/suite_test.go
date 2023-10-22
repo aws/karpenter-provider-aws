@@ -379,7 +379,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// Drift should fail and the original node should be uncordoned
 			// TODO: reduce timeouts when deprovisioning waits are factored out
-			env.EventuallyExpectNodesUncordonedLegacyWithTimeout(12*time.Minute, cordonedNodes...)
+			env.EventuallyExpectNodesUncordonedLegacyWithTimeout(11*time.Minute, cordonedNodes...)
 
 			Eventually(func(g Gomega) {
 				machines := &v1alpha5.MachineList{}
@@ -433,8 +433,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			cordonedNodes := env.EventuallyExpectCordonedNodeCountLegacy("==", 1)
 
 			// Drift should fail and original node should be uncordoned
-			// TODO: reduce timeouts when deprovisioning waits are factored outr
-			env.EventuallyExpectNodesUncordonedLegacyWithTimeout(12*time.Minute, cordonedNodes...)
+			// TODO: reduce timeouts when deprovisioning waits are factored out
+			env.EventuallyExpectNodesUncordonedLegacyWithTimeout(11*time.Minute, cordonedNodes...)
 
 			// Expect that the new machine/node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}

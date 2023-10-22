@@ -107,7 +107,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					v1.NodeSelectorRequirement{
 						Key:      v1alpha1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a", "r7a"},
+						Values:   aws.ExcludedInstanceFamilies,
 					})
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
@@ -145,7 +145,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					v1.NodeSelectorRequirement{
 						Key:      v1alpha1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a", "r7a", "c7a"},
+						Values:   aws.ExcludedInstanceFamilies,
 					},
 					v1.NodeSelectorRequirement{
 						Key:      v1alpha1.LabelInstanceCategory,

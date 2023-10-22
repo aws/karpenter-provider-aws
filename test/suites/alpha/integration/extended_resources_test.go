@@ -31,6 +31,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awsenv "github.com/aws/karpenter/test/pkg/environment/aws"
 
 	awstest "github.com/aws/karpenter/pkg/test"
 )
@@ -135,7 +136,7 @@ var _ = Describe("Extended Resources", func() {
 				{
 					Key:      v1alpha1.LabelInstanceFamily,
 					Operator: v1.NodeSelectorOpNotIn,
-					Values:   []string{"m7a", "r7a"},
+					Values:   awsenv.ExcludedInstanceFamilies,
 				},
 			},
 		})
