@@ -68,6 +68,8 @@ type Provider struct {
 	cm                   *pretty.ChangeMonitor
 	// instanceTypesSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
 	instanceTypesSeqNum uint64
+	// instanceTypeOfferingsSeqNum is a monotonically increasing change counter used to avoid the expensive hashing operation on instance types
+	instanceTypeOfferingsSeqNum uint64
 }
 
 func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
@@ -110,10 +112,9 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	})...)
 
 	// Compute fully initialized instance types hash key
-	instanceTypeOfferingsHash, _ := hashstructure.Hash(instanceTypeOfferings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	subnetHash, _ := hashstructure.Hash(subnets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%d-%d-%s-%016x-%016x-%016x", p.instanceTypesSeqNum, p.unavailableOfferings.SeqNum, nodeClass.UID, subnetHash, instanceTypeOfferingsHash, kcHash)
+	key := fmt.Sprintf("%d-%d-%d-%s-%016x-%016x", p.instanceTypesSeqNum, p.instanceTypeOfferingsSeqNum, p.unavailableOfferings.SeqNum, nodeClass.UID, subnetHash, kcHash)
 
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
@@ -228,6 +229,7 @@ func (p *Provider) getInstanceTypeOfferings(ctx context.Context) (map[string]set
 	if p.cm.HasChanged("instance-type-count", len(instanceTypeOfferings)) {
 		logging.FromContext(ctx).With("instance-type-count", len(instanceTypeOfferings)).Debugf("discovered offerings for instance types")
 	}
+	atomic.AddUint64(&p.instanceTypeOfferingsSeqNum, 1)
 	p.cache.SetDefault(InstanceTypeOfferingsCacheKey, instanceTypeOfferings)
 	return instanceTypeOfferings, nil
 }
