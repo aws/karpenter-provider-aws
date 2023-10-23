@@ -18,6 +18,8 @@ on:
           - Beta/Integration
           - Beta/Drift
           - Beta/Consolidation
+          - Beta/Expiration
+          - Beta/NodeClaim
           - Alpha/Integration
           - Alpha/Machine
           - Alpha/Consolidation
