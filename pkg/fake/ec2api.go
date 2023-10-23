@@ -483,9 +483,9 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 		return e.DescribeAvailabilityZonesOutput.Clone(), nil
 	}
 	return &ec2.DescribeAvailabilityZonesOutput{AvailabilityZones: []*ec2.AvailabilityZone{
-		{ZoneName: aws.String("test-zone-1a"), ZoneId: aws.String("testzone1a")},
-		{ZoneName: aws.String("test-zone-1b"), ZoneId: aws.String("testzone1b")},
-		{ZoneName: aws.String("test-zone-1c"), ZoneId: aws.String("testzone1c")},
+		{ZoneName: aws.String("test-zone-1a"), ZoneId: aws.String("testzone1a"), ZoneType: aws.String("availability-zone")},
+		{ZoneName: aws.String("test-zone-1b"), ZoneId: aws.String("testzone1b"), ZoneType: aws.String("availability-zone")},
+		{ZoneName: aws.String("test-zone-1c"), ZoneId: aws.String("testzone1c"), ZoneType: aws.String("availability-zone")},
 	}}, nil
 }
 
