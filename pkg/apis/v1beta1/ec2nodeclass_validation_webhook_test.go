@@ -355,6 +355,15 @@ var _ = Describe("Webhook/Validation", func() {
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
 		})
+		It("should succeed with a valid ami selector on name and owner", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					Name:  "testname",
+					Owner: "testowner",
+				},
+			}
+			Expect(nc.Validate(ctx)).To(Succeed())
+		})
 		It("should fail when a ami selector term has no values", func() {
 			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{},
@@ -384,6 +393,17 @@ var _ = Describe("Webhook/Validation", func() {
 				{
 					Tags: map[string]string{
 						"": "testvalue",
+					},
+				},
+			}
+			Expect(nc.Validate(ctx)).ToNot(Succeed())
+		})
+		It("should fail when an ami selector term has an owner key with tags", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					Owner: "testowner",
+					Tags: map[string]string{
+						"test": "testvalue",
 					},
 				},
 			}

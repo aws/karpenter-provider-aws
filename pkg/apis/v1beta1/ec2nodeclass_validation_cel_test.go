@@ -35,7 +35,6 @@ var _ = Describe("CEL/Validation", func() {
 	var nc *v1beta1.EC2NodeClass
 
 	BeforeEach(func() {
-		env.Version.Minor()
 		if env.Version.Minor() < 25 {
 			Skip("CEL Validation is for 1.25>")
 		}
@@ -344,6 +343,15 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
+		It("should succeed with a valid ami selector on name and owner", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					Name:  "testname",
+					Owner: "testowner",
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
 		It("should fail when a ami selector term has no values", func() {
 			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{},
@@ -373,6 +381,17 @@ var _ = Describe("CEL/Validation", func() {
 				{
 					Tags: map[string]string{
 						"": "testvalue",
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when an ami selector term has an owner key with tags", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					Owner: "testowner",
+					Tags: map[string]string{
+						"test": "testvalue",
 					},
 				},
 			}
