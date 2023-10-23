@@ -52,7 +52,6 @@ var _ = Describe("Emptiness", func() {
 		By("waiting for the nodeclaim emptiness status condition to propagate")
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
-			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Empty)).ToNot(BeNil())
 			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Empty).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 

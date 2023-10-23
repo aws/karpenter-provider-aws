@@ -69,7 +69,6 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			v1beta1.LabelInstanceCPU:              "2",
 			v1beta1.LabelInstanceMemory:           "4096",
 			v1beta1.LabelInstanceNetworkBandwidth: "750",
-			v1beta1.LabelInstancePods:             "29",
 		}
 		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {

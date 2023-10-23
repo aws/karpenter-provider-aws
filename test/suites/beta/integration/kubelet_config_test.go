@@ -259,7 +259,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				Values:   []string{string(v1.Linux)},
 			},
 		}...)
-		nodePool.Spec.Template.Spec.Kubelet.PodsPerCore = ptr.Int32(1)
+		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}
 		numPods := 6
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),

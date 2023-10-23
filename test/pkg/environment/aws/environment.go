@@ -42,7 +42,7 @@ import (
 
 const WindowsDefaultImage = "mcr.microsoft.com/oss/kubernetes/pause:3.9"
 
-// ExcludedInstanceFamilies denotes instance families that have issues during resource registration due to compatability
+// ExcludedInstanceFamilies denotes instance families that have issues during resource registration due to compatibility
 // issues with versions of the VPR Resource Controller
 var ExcludedInstanceFamilies = []string{"m7a", "r7a", "c7a", "r7i"}
 

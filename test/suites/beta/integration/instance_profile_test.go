@@ -23,7 +23,6 @@ import (
 
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 )
 
 var _ = Describe("InstanceProfile Generation", func() {
@@ -37,7 +36,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
 		Expect(lo.FromPtr(instance.IamInstanceProfile.Arn)).To(ContainSubstring(nodeClass.Status.InstanceProfile))
 
-		instanceProfile := env.ExpectInstanceProfileExists(instanceprofile.GetProfileName(env.Context, env.Region, nodeClass))
+		instanceProfile := env.ExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 		Expect(instanceProfile.Roles).To(HaveLen(1))
 		Expect(lo.FromPtr(instanceProfile.Roles[0].RoleName)).To(Equal(nodeClass.Spec.Role))
 	})
