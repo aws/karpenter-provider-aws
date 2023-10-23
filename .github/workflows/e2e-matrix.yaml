@@ -61,13 +61,11 @@ jobs:
           - Alpha/Integration
           - Alpha/Machine
           - Alpha/Consolidation
-          - Alpha/Utilization
           - Alpha/Interruption
           - Alpha/Drift
           - Alpha/Expiration
           - Alpha/Chaos
           - Alpha/IPv6
-          - Alpha/Scale
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}

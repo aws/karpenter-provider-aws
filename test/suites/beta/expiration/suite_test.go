@@ -128,8 +128,7 @@ var _ = Describe("Expiration", func() {
 
 		// Eventually the node will be set as unschedulable, which means its actively being deprovisioned
 		Eventually(func(g Gomega) {
-			n := &v1.Node{}
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), n)).Should(Succeed())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
 				return corev1beta1.IsDisruptingTaint(t)
 			})
@@ -197,8 +196,7 @@ var _ = Describe("Expiration", func() {
 
 		// Eventually the node will be set as unschedulable, which means its actively being deprovisioned
 		Eventually(func(g Gomega) {
-			n := &v1.Node{}
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), n)).Should(Succeed())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
 				return corev1beta1.IsDisruptingTaint(t)
 			})
