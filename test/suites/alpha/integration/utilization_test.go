@@ -12,13 +12,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package utilization_test
+package integration_test
 
 import (
-	"testing"
-
 	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
@@ -29,25 +26,7 @@ import (
 	"github.com/aws/karpenter/test/pkg/debug"
 
 	awstest "github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
-
-var env *aws.Environment
-
-func TestUtilization(t *testing.T) {
-	RegisterFailHandler(Fail)
-	BeforeSuite(func() {
-		env = aws.NewEnvironment(t)
-	})
-	AfterSuite(func() {
-		env.Stop()
-	})
-	RunSpecs(t, "Alpha/Utilization")
-}
-
-var _ = BeforeEach(func() { env.BeforeEach() })
-var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	It("should provision one pod per node", func() {
