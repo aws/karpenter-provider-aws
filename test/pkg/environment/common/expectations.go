@@ -460,7 +460,7 @@ func (env *Environment) ConsistentlyExpectMachineCount(comparator string, count 
 	return lo.ToSlicePtr(machineList.Items)
 }
 
-func (env *Environment) EventuallyExpectCordonedNodeCount(comparator string, count int) []*v1.Node {
+func (env *Environment) EventuallyExpectCordonedNodeCountLegacy(comparator string, count int) []*v1.Node {
 	GinkgoHelper()
 	By(fmt.Sprintf("waiting for cordoned nodes to be %s to %d", comparator, count))
 	nodeList := &v1.NodeList{}
@@ -470,6 +470,40 @@ func (env *Environment) EventuallyExpectCordonedNodeCount(comparator string, cou
 			fmt.Sprintf("expected %d cordoned nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
+}
+
+func (env *Environment) EventuallyExpectNodesUncordonedLegacyWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for %d nodes to be uncordoned", len(nodes)))
+	nodeList := &v1.NodeList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.unschedulable": "true"})).To(Succeed())
+		cordonedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
+		g.Expect(cordonedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
+	}).WithTimeout(timeout).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectCordonedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for cordoned nodes to be %s to %d", comparator, count))
+	nodeList := &v1.NodeList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
+		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d cordoned nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+	}).Should(Succeed())
+	return lo.ToSlicePtr(nodeList.Items)
+}
+
+func (env *Environment) EventuallyExpectNodesUncordonedWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for %d nodes to be uncordoned", len(nodes)))
+	nodeList := &v1.NodeList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
+		cordonedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
+		g.Expect(cordonedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
+	}).WithTimeout(timeout).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) []*v1.Node {
