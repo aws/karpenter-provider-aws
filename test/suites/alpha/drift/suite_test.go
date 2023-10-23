@@ -377,7 +377,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}).Should(Succeed())
 
 			// Expect nodes To get cordoned
-			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
+			cordonedNodes := env.EventuallyExpectCordonedNodeCountLegacy("==", 1)
 
 			// Drift should fail and the original node should be uncordoned
 			// TODO: reduce timeouts when deprovisioning waits are factored out
@@ -435,7 +435,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}).Should(Succeed())
 
 			// Expect nodes To be cordoned
-			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
+			cordonedNodes := env.EventuallyExpectCordonedNodeCountLegacy("==", 1)
 
 			// Drift should fail and original node should be uncordoned
 			// TODO: reduce timeouts when deprovisioning waits are factored outr
