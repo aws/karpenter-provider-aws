@@ -18,6 +18,7 @@ on:
           - Beta/Integration
           - Beta/Drift
           - Beta/Consolidation
+          - Beta/Interruption
           - Beta/Chaos
           - Beta/Expiration
           - Beta/NodeClaim
