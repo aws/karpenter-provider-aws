@@ -106,7 +106,7 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			v1.LabelOSStable:                 "linux",
 			v1.LabelArchStable:               "amd64",
 			corev1beta1.CapacityTypeLabelKey: "on-demand",
-			//Well Known to AWS
+			// Well Known to AWS
 			v1beta1.LabelInstanceHypervisor:                   "nitro",
 			v1beta1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1beta1.LabelInstanceCategory:                     "g",

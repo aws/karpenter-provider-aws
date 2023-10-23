@@ -110,9 +110,10 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	})...)
 
 	// Compute fully initialized instance types hash key
-	instanceTypeZonesHash, _ := hashstructure.Hash(instanceTypeOfferings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	instanceTypeOfferingsHash, _ := hashstructure.Hash(instanceTypeOfferings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	subnetHash, _ := hashstructure.Hash(subnets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%d-%d-%s-%016x-%016x", p.instanceTypesSeqNum, p.unavailableOfferings.SeqNum, nodeClass.UID, instanceTypeZonesHash, kcHash)
+	key := fmt.Sprintf("%d-%d-%s-%016x-%016x-%016x", p.instanceTypesSeqNum, p.unavailableOfferings.SeqNum, nodeClass.UID, subnetHash, instanceTypeOfferingsHash, kcHash)
 
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
@@ -192,7 +193,9 @@ func (p *Provider) getAvailabilityZones(ctx context.Context) (sets.Set[string], 
 			instanceTypeZones.Insert(aws.StringValue(zone.ZoneName))
 		}
 	}
-	logging.FromContext(ctx).With("zones", instanceTypeZones.UnsortedList()).Debugf("discovered availability zones")
+	if p.cm.HasChanged("zones", instanceTypeZones) {
+		logging.FromContext(ctx).With("zones", instanceTypeZones.UnsortedList()).Debugf("discovered availability zones")
+	}
 	p.cache.Set(AvailabilityZonesCacheKey, instanceTypeZones, 24*time.Hour)
 	return instanceTypeZones, nil
 }
@@ -222,7 +225,9 @@ func (p *Provider) getInstanceTypeOfferings(ctx context.Context) (map[string]set
 		}); err != nil {
 		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
 	}
-	logging.FromContext(ctx).With("instance-type-count", len(instanceTypeOfferings)).Debugf("discovered offerings for instance types")
+	if p.cm.HasChanged("instance-type-count", len(instanceTypeOfferings)) {
+		logging.FromContext(ctx).With("instance-type-count", len(instanceTypeOfferings)).Debugf("discovered offerings for instance types")
+	}
 	p.cache.SetDefault(InstanceTypeOfferingsCacheKey, instanceTypeOfferings)
 	return instanceTypeOfferings, nil
 }
