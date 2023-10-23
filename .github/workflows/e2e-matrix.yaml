@@ -49,7 +49,25 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [Beta/Integration, Beta/Drift, Beta/Consolidation, Beta/Interruption, Beta/Chaos, Beta/Expiration, Beta/NodeClaim, Alpha/Integration, Alpha/Machine, Alpha/Consolidation, Alpha/Utilization, Alpha/Interruption, Alpha/Drift, Alpha/Expiration, Alpha/Chaos, Alpha/IPv6]
+        suite:
+          - Beta/Integration
+          - Beta/NodeClaim
+          - Beta/Consolidation
+          - Beta/Interruption
+          - Beta/Drift
+          - Beta/Expiration
+          - Beta/Chaos
+          - Beta/IPv6
+          - Alpha/Integration
+          - Alpha/Machine
+          - Alpha/Consolidation
+          - Alpha/Utilization
+          - Alpha/Interruption
+          - Alpha/Drift
+          - Alpha/Expiration
+          - Alpha/Chaos
+          - Alpha/IPv6
+          - Alpha/Scale
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
