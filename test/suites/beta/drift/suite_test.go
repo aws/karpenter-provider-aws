@@ -103,7 +103,6 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 				},
 			},
 		})
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "true"})
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
@@ -137,7 +136,6 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 	})
 	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "false"})
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
@@ -433,11 +431,9 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 
 			// Drift should fail and the original node should be uncordoned
 			// TODO: reduce timeouts when disruption waits are factored out
-			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
-				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
-			}).WithTimeout(11 * time.Minute).Should(Succeed())
+			env.EventuallyExpectNodesUncordonedWithTimeout(11*time.Minute, cordonedNodes...)
 
+			// We give another 6 minutes here to handle the deletion at the 15m registration timeout
 			Eventually(func(g Gomega) {
 				nodeClaims := &corev1beta1.NodeClaimList{}
 				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
@@ -490,11 +486,8 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
 
 			// Drift should fail and original node should be uncordoned
-			// TODO: reduce timeouts when disruption waits are factored outr
-			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
-				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
-			}).WithTimeout(12 * time.Minute).Should(Succeed())
+			// TODO: reduce timeouts when disruption waits are factored out
+			env.EventuallyExpectNodesUncordonedWithTimeout(11*time.Minute, cordonedNodes...)
 
 			// Expect that the new nodeClaim/node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}

@@ -88,7 +88,6 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			},
 		})
 		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "true"})
-		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
 	It("should deprovision nodes that have drifted due to AMIs", func() {
 		// choose an old static image
@@ -122,7 +121,6 @@ var _ = Describe("Drift", Label("AWS"), func() {
 	})
 	It("should not deprovision nodes that have drifted without the featureGate enabled", func() {
 		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "false"})
-		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
@@ -377,14 +375,11 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}).Should(Succeed())
 
 			// Expect nodes To get cordoned
-			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
+			cordonedNodes := env.EventuallyExpectCordonedNodeCountLegacy("==", 1)
 
 			// Drift should fail and the original node should be uncordoned
 			// TODO: reduce timeouts when deprovisioning waits are factored out
-			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
-				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
-			}).WithTimeout(11 * time.Minute).Should(Succeed())
+			env.EventuallyExpectNodesUncordonedLegacyWithTimeout(11*time.Minute, cordonedNodes...)
 
 			Eventually(func(g Gomega) {
 				machines := &v1alpha5.MachineList{}
@@ -435,14 +430,11 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}).Should(Succeed())
 
 			// Expect nodes To be cordoned
-			cordonedNodes := env.EventuallyExpectCordonedNodeCount("==", 1)
+			cordonedNodes := env.EventuallyExpectCordonedNodeCountLegacy("==", 1)
 
 			// Drift should fail and original node should be uncordoned
-			// TODO: reduce timeouts when deprovisioning waits are factored outr
-			Eventually(func(g Gomega) {
-				g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(cordonedNodes[0]), cordonedNodes[0]))
-				g.Expect(cordonedNodes[0].Spec.Unschedulable).To(BeFalse())
-			}).WithTimeout(12 * time.Minute).Should(Succeed())
+			// TODO: reduce timeouts when deprovisioning waits are factored out
+			env.EventuallyExpectNodesUncordonedLegacyWithTimeout(11*time.Minute, cordonedNodes...)
 
 			// Expect that the new machine/node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}

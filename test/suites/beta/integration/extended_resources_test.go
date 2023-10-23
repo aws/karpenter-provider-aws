@@ -30,6 +30,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	awsenv "github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var _ = Describe("Extended Resources", func() {
@@ -90,13 +91,12 @@ var _ = Describe("Extended Resources", func() {
 		DeferCleanup(func() {
 			env.ExpectPodENIDisabled()
 		})
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.enablePodENI": "true"})
 		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
 		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
 			{
 				Key:      v1beta1.LabelInstanceFamily,
 				Operator: v1.NodeSelectorOpNotIn,
-				Values:   []string{"m7a", "r7a", "c7a"},
+				Values:   awsenv.ExcludedInstanceFamilies,
 			},
 			{
 				Key:      v1beta1.LabelInstanceCategory,

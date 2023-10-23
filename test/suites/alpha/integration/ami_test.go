@@ -372,7 +372,7 @@ var _ = Describe("AMI", func() {
 					{
 						Key:      v1alpha1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a", "r7a", "c7a"},
+						Values:   awsenv.ExcludedInstanceFamilies,
 					},
 					{
 						Key:      v1alpha1.LabelInstanceCategory,

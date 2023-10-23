@@ -23,7 +23,6 @@ import (
 
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 )
 
 var _ = Describe("InstanceProfile Generation", func() {
@@ -35,9 +34,9 @@ var _ = Describe("InstanceProfile Generation", func() {
 
 		instance := env.GetInstance(node.Name)
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
-		Expect(instance.IamInstanceProfile.Arn).To(ContainSubstring(nodeClass.Spec.Role))
+		Expect(lo.FromPtr(instance.IamInstanceProfile.Arn)).To(ContainSubstring(nodeClass.Status.InstanceProfile))
 
-		instanceProfile := env.ExpectInstanceProfileExists(instanceprofile.GetProfileName(env.Context, env.Region, nodeClass))
+		instanceProfile := env.ExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
 		Expect(instanceProfile.Roles).To(HaveLen(1))
 		Expect(lo.FromPtr(instanceProfile.Roles[0].RoleName)).To(Equal(nodeClass.Spec.Role))
 	})
@@ -50,7 +49,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		env.ExpectDeleted(nodePool, nodeClass)
 		Eventually(func(g Gomega) {
 			_, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
-				InstanceProfileName: aws.String(instanceprofile.GetProfileName(env.Context, env.Region, nodeClass)),
+				InstanceProfileName: aws.String(env.GetInstanceProfileName(nodeClass)),
 			})
 			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
 		}).Should(Succeed())

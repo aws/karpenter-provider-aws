@@ -27,12 +27,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/mitchellh/hashstructure/v2"
 	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
 	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 // Spot Interruption experiment details partially copied from
@@ -119,6 +122,12 @@ func (env *Environment) ExpectInstanceProfileExists(profileName string) iam.Inst
 	Expect(err).ToNot(HaveOccurred())
 	Expect(out.InstanceProfile).ToNot(BeNil())
 	return lo.FromPtr(out.InstanceProfile)
+}
+
+// GetInstanceProfileName gets the string for the profile name based on the cluster name, region and the NodeClass name.
+// The length of this string can never exceed the maximum instance profile name limit of 128 characters.
+func (env *Environment) GetInstanceProfileName(nodeClass *v1beta1.EC2NodeClass) string {
+	return fmt.Sprintf("%s_%d", env.ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", env.Region, nodeClass.Name), hashstructure.FormatV2, nil)))
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {

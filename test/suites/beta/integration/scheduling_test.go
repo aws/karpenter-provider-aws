@@ -69,7 +69,6 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			v1beta1.LabelInstanceCPU:              "2",
 			v1beta1.LabelInstanceMemory:           "4096",
 			v1beta1.LabelInstanceNetworkBandwidth: "750",
-			v1beta1.LabelInstancePods:             "29",
 		}
 		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
@@ -239,7 +238,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			{
 				Key:      v1beta1.LabelInstanceFamily,
 				Operator: v1.NodeSelectorOpNotIn,
-				Values:   []string{"m7a", "r7a", "c7a"},
+				Values:   aws.ExcludedInstanceFamilies,
 			},
 			{
 				Key:      v1beta1.LabelInstanceCategory,

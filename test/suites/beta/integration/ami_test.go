@@ -41,8 +41,13 @@ var _ = Describe("AMI", func() {
 		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 	})
 
-	It("should use the AMI defined by the AMI Selector", func() {
+	It("should use the AMI defined by the AMI Selector Terms", func() {
 		pod := coretest.Pod()
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				ID: customAMI,
+			},
+		}
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -74,7 +79,7 @@ var _ = Describe("AMI", func() {
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
-	It("should support ami selector Name but fail with incorrect owners", func() {
+	It("should support AMI Selector Terms for Name but fail with incorrect owners", func() {
 		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
 			ImageIds: []*string{aws.String(customAMI)},
 		})
@@ -155,7 +160,7 @@ var _ = Describe("AMI", func() {
 				{
 					Key:      v1beta1.LabelInstanceFamily,
 					Operator: v1.NodeSelectorOpNotIn,
-					Values:   []string{"m7a", "r7a", "c7a"},
+					Values:   awsenv.ExcludedInstanceFamilies,
 				},
 				{
 					Key:      v1beta1.LabelInstanceCategory,
@@ -290,7 +295,7 @@ var _ = Describe("AMI", func() {
 				{
 					Key:      v1beta1.LabelInstanceFamily,
 					Operator: v1.NodeSelectorOpNotIn,
-					Values:   []string{"m7a", "r7a", "c7a"},
+					Values:   awsenv.ExcludedInstanceFamilies,
 				},
 				{
 					Key:      v1beta1.LabelInstanceCategory,

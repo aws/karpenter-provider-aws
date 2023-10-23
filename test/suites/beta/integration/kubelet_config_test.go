@@ -90,7 +90,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a", "r7a", "c7a"},
+						Values:   aws.ExcludedInstanceFamilies,
 					},
 					{
 						Key:      v1beta1.LabelInstanceCategory,
@@ -133,7 +133,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a", "r7a", "c7a"},
+						Values:   aws.ExcludedInstanceFamilies,
 					},
 					{
 						Key:      v1beta1.LabelInstanceCategory,
@@ -259,7 +259,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				Values:   []string{string(v1.Linux)},
 			},
 		}...)
-		nodePool.Spec.Template.Spec.Kubelet.PodsPerCore = ptr.Int32(1)
+		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}
 		numPods := 6
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
