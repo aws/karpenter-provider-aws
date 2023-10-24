@@ -159,7 +159,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 3)
-		env.ExpectUniqueNodeNames(selector, 3)
+		env.EventuallyExpectUniqueNodeNames(selector, 3)
 	})
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
@@ -201,7 +201,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 2)
-		env.ExpectUniqueNodeNames(selector, 2)
+		env.EventuallyExpectUniqueNodeNames(selector, 2)
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
@@ -233,6 +233,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.ExpectUniqueNodeNames(selector, 1)
+		env.EventuallyExpectUniqueNodeNames(selector, 1)
 	})
 })

@@ -55,6 +55,10 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      v1beta1.LabelInstanceCategory,
+			Operator: v1.NodeSelectorOpExists,
+		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -81,6 +85,10 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      v1beta1.LabelInstanceCategory,
+			Operator: v1.NodeSelectorOpExists,
+		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)

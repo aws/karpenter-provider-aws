@@ -214,7 +214,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 3)
-		env.ExpectUniqueNodeNames(selector, 3)
+		env.EventuallyExpectUniqueNodeNames(selector, 3)
 	})
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
@@ -268,7 +268,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreated(provisioner, provider, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 2)
-		env.ExpectUniqueNodeNames(selector, 2)
+		env.EventuallyExpectUniqueNodeNames(selector, 2)
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
@@ -308,6 +308,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreated(provisioner, provider, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.ExpectUniqueNodeNames(selector, 1)
+		env.EventuallyExpectUniqueNodeNames(selector, 1)
 	})
 })

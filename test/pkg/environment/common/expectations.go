@@ -384,14 +384,17 @@ func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*
 	return lo.ToSlicePtr(podList.Items)
 }
 
-func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
+func (env *Environment) EventuallyExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
 	GinkgoHelper()
-	pods := env.Monitor.RunningPods(selector)
-	nodeNames := sets.NewString()
-	for _, pod := range pods {
-		nodeNames.Insert(pod.Spec.NodeName)
-	}
-	Expect(len(nodeNames)).To(BeNumerically("==", uniqueNames))
+
+	Eventually(func(g Gomega) {
+		pods := env.Monitor.RunningPods(selector)
+		nodeNames := sets.NewString()
+		for _, pod := range pods {
+			nodeNames.Insert(pod.Spec.NodeName)
+		}
+		g.Expect(len(nodeNames)).To(BeNumerically("==", uniqueNames))
+	}).Should(Succeed())
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {
