@@ -5,12 +5,12 @@
       "Sid": "AllowScopedEC2InstanceActions",
       "Effect": "Allow",
       "Resource": [
-        "arn:${AWS_PARTITION}:ec2:${REGION}::image/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}::snapshot/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:spot-instances-request/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:security-group/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:subnet/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:launch-template/*"
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}::image/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}::snapshot/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:spot-instances-request/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:security-group/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:subnet/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
       ],
       "Action": [
         "ec2:RunInstances",
@@ -21,11 +21,11 @@
       "Sid": "AllowScopedEC2InstanceActionsWithTags",
       "Effect": "Allow",
       "Resource": [
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:fleet/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:instance/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:volume/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:network-interface/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:launch-template/*"
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:fleet/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:instance/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:volume/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:network-interface/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
       ],
       "Action": [
         "ec2:RunInstances",
@@ -45,11 +45,11 @@
       "Sid": "AllowScopedResourceCreationTagging",
       "Effect": "Allow",
       "Resource": [
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:fleet/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:instance/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:volume/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:network-interface/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:launch-template/*"
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:fleet/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:instance/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:volume/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:network-interface/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
       ],
       "Action": "ec2:CreateTags",
       "Condition": {
@@ -69,7 +69,7 @@
     {
       "Sid": "AllowScopedResourceTagging",
       "Effect": "Allow",
-      "Resource": "arn:${AWS_PARTITION}:ec2:${REGION}:*:instance/*",
+      "Resource": "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:instance/*",
       "Action": "ec2:CreateTags",
       "Condition": {
         "StringEquals": {
@@ -90,8 +90,8 @@
       "Sid": "AllowScopedDeletion",
       "Effect": "Allow",
       "Resource": [
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:instance/*",
-        "arn:${AWS_PARTITION}:ec2:${REGION}:*:launch-template/*"
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:instance/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
       ],
       "Action": [
         "ec2:TerminateInstances",
@@ -123,14 +123,14 @@
       ],
       "Condition": {
         "StringEquals": {
-          "aws:RequestedRegion": "${REGION}"
+          "aws:RequestedRegion": "${AWS_REGION}"
         }
       }
     },
     {
       "Sid": "AllowSSMReadActions",
       "Effect": "Allow",
-      "Resource": "arn:${AWS_PARTITION}:ssm:${REGION}::parameter/aws/service/*",
+      "Resource": "arn:${AWS_PARTITION}:ssm:${AWS_REGION}::parameter/aws/service/*",
       "Action": "ssm:GetParameter"
     },
     {
@@ -142,7 +142,7 @@
     {
       "Sid": "AllowInterruptionQueueActions",
       "Effect": "Allow",
-      "Resource": "arn:aws:sqs:${REGION}:${AWS_ACCOUNT_ID}:${CLUSTER_NAME}",
+      "Resource": "arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:${CLUSTER_NAME}",
       "Action": [
         "sqs:DeleteMessage",
         "sqs:GetQueueAttributes",
@@ -169,7 +169,7 @@
       "Condition": {
         "StringEquals": {
           "aws:RequestTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
-          "aws:RequestTag/topology.kubernetes.io/region": "${REGION}"
+          "aws:RequestTag/topology.kubernetes.io/region": "${AWS_REGION}"
         },
         "StringLike": {
           "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
@@ -184,9 +184,9 @@
       "Condition": {
         "StringEquals": {
           "aws:ResourceTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
-          "aws:ResourceTag/topology.kubernetes.io/region": "${REGION}",
+          "aws:ResourceTag/topology.kubernetes.io/region": "${AWS_REGION}",
           "aws:RequestTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
-          "aws:RequestTag/topology.kubernetes.io/region": "${REGION}"
+          "aws:RequestTag/topology.kubernetes.io/region": "${AWS_REGION}"
         },
         "StringLike": {
           "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
@@ -206,7 +206,7 @@
       "Condition": {
         "StringEquals": {
           "aws:ResourceTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
-          "aws:ResourceTag/topology.kubernetes.io/region": "${REGION}"
+          "aws:ResourceTag/topology.kubernetes.io/region": "${AWS_REGION}"
         },
         "StringLike": {
           "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
@@ -222,7 +222,7 @@
     {
       "Sid": "AllowAPIServerEndpointDiscovery",
       "Effect": "Allow",
-      "Resource": "arn:${AWS_PARTITION}:eks:${REGION}:${AWS_ACCOUNT_ID}:cluster/${CLUSTER_NAME}",
+      "Resource": "arn:${AWS_PARTITION}:eks:${AWS_REGION}:${AWS_ACCOUNT_ID}:cluster/${CLUSTER_NAME}",
       "Action": "eks:DescribeCluster"
     }
   ]
