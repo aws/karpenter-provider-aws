@@ -396,7 +396,7 @@ var _ = Describe("AMI", func() {
 			})
 
 			env.ExpectCreated(pod, provider, provisioner)
-			env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod) // Wait 15 minutes because Windows nodes/containers take longer to spin up
+			env.EventuallyExpectHealthyWithTimeout(time.Minute*20, pod) // Wait 20 minutes because Windows nodes/containers take longer to spin up
 			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
 				v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
 				v1.Taint{Key: "example.com", Value: "value", Effect: "NoSchedule"},

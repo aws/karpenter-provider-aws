@@ -251,18 +251,30 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			Image:            aws.WindowsDefaultImage,
 		}})
 		provider.Spec.AMIFamily = &v1alpha1.AMIFamilyWindows2022
-		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
-			Key:      v1.LabelOSStable,
-			Operator: v1.NodeSelectorOpExists,
-		},
+		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements,
+			v1.NodeSelectorRequirement{
+				Key:      v1.LabelOSStable,
+				Operator: v1.NodeSelectorOpExists,
+			},
+			v1.NodeSelectorRequirement{
+				Key:      v1alpha1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"c", "m", "r"},
+			},
 			// TODO: remove this requirement once VPC RC rolls out m7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
 			v1.NodeSelectorRequirement{
+				Key:      v1alpha1.LabelInstanceFamily,
+				Operator: v1.NodeSelectorOpNotIn,
+				Values:   aws.ExcludedInstanceFamilies,
+			},
+			v1.NodeSelectorRequirement{
 				Key:      v1alpha1.LabelInstanceGeneration,
-				Operator: v1.NodeSelectorOpLt,
-				Values:   []string{"7"},
-			})
+				Operator: v1.NodeSelectorOpGt,
+				Values:   []string{"2"},
+			},
+		)
 		env.ExpectCreated(provisioner, provider, deployment)
-		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*20, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should support the node-restriction.kubernetes.io label domain", func() {

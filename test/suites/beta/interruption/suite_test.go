@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -32,6 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -53,6 +55,9 @@ func TestInterruption(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
+	env.Context = options.ToContext(env.Context, test.Options(test.OptionsFields{
+		InterruptionQueue: lo.ToPtr(env.InterruptionQueue),
+	}))
 	env.BeforeEach()
 	env.ExpectQueueExists()
 	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
