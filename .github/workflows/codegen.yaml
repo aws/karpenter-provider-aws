@@ -5,9 +5,9 @@ on:
     - cron: '0 13 * * MON'
 
 permissions:
-  id-token: write
-  pull-requests: write
-  contents: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+  pull-requests: write # name: Create Pull Request
+  contents: write # name: Create Pull Request
 
 jobs:
   codegen:
