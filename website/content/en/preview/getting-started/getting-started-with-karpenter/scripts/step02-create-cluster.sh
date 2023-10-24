@@ -12,7 +12,7 @@ kind: ClusterConfig
 metadata:
   name: ${CLUSTER_NAME}
   region: ${AWS_DEFAULT_REGION}
-  version: "1.27"
+  version: "1.28"
   tags:
     karpenter.sh/discovery: ${CLUSTER_NAME}
 
