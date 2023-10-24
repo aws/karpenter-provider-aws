@@ -90,8 +90,24 @@ spec:
                         labels:
                           additionalProperties:
                             type: string
+                            maxLength: 63
+                            pattern: ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$
                           description: 'Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels'
                           type: object
+                          maxProperties: 100
+                          x-kubernetes-validations:
+                            - message: label domain "kubernetes.io" is restricted
+                              rule: self.all(x, x in ["beta.kubernetes.io/instance-type", "failure-domain.beta.kubernetes.io/region",  "beta.kubernetes.io/os", "beta.kubernetes.io/arch", "failure-domain.beta.kubernetes.io/zone", "topology.kubernetes.io/zone", "topology.kubernetes.io/region", "kubernetes.io/arch", "kubernetes.io/os", "node.kubernetes.io/windows-build"] || x.startsWith("node.kubernetes.io") || x.startsWith("node-restriction.kubernetes.io") || !x.find("^([^/]+)").endsWith("kubernetes.io"))
+                            - message: label domain "k8s.io" is restricted
+                              rule: self.all(x, x.startsWith("kops.k8s.io") || !x.find("^([^/]+)").endsWith("k8s.io"))
+                            - message: label domain "karpenter.sh" is restricted
+                              rule: self.all(x, x in ["karpenter.sh/capacity-type", "karpenter.sh/nodepool"] || !x.find("^([^/]+)").endsWith("karpenter.sh"))
+                            - message: label "karpenter.sh/nodepool" is restricted
+                              rule: self.all(x, x != "karpenter.sh/nodepool")
+                            - message: label "kubernetes.io/hostname" is restricted
+                              rule: self.all(x, x != "kubernetes.io/hostname")
+                            - message: label domain "karpenter.k8s.aws" is restricted
+                              rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                       type: object
                     spec:
                       description: NodeClaimSpec describes the desired state of the NodeClaim
