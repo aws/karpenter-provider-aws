@@ -41,10 +41,11 @@ authenticate properly by running `aws sts get-caller-identity`.
 
 ### 2. Set environment variables
 
-After setting up the tools, set the Karpenter version number:
+After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_VERSION={{< param "latest_release_version" >}}
+export K8S_VERSION={{< param "latest_k8s_version" >}}
 ```
 
 Then set the following environment variable:
@@ -56,7 +57,7 @@ If you open a new shell to run steps in this procedure, you need to set some or 
 To remind yourself of these values, type:
 
 ```bash
-echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID $TEMPOUT
+echo $KARPENTER_VERSION $K8S_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID $TEMPOUT
 ```
 
 {{% /alert %}}
