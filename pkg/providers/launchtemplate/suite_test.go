@@ -282,6 +282,33 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
 			ExpectTags(createFleetInput.TagSpecifications[2].Tags, nodeClass.Spec.Tags)
 		})
+		It("should request that tags be applied to both network interfaces and spot instance requests", func() {
+			nodeClass.Spec.Tags = map[string]string{
+				"tag1": "tag1value",
+				"tag2": "tag2value",
+			}
+			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{corev1beta1.CapacityTypeSpot},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(i *ec2.CreateLaunchTemplateInput) {
+				Expect(i.LaunchTemplateData.TagSpecifications).To(HaveLen(2))
+
+				// tags should be included in instance, volume, and fleet tag specification
+				Expect(*i.LaunchTemplateData.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeNetworkInterface))
+				ExpectTags(i.LaunchTemplateData.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
+
+				Expect(*i.LaunchTemplateData.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeSpotInstancesRequest))
+				ExpectTags(i.LaunchTemplateData.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
+			})
+		})
 		It("should override default tag names", func() {
 			// these tags are defaulted, so ensure users can override them
 			nodeClass.Spec.Tags = map[string]string{
