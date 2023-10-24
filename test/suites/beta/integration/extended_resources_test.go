@@ -92,18 +92,13 @@ var _ = Describe("Extended Resources", func() {
 			env.ExpectPodENIDisabled()
 		})
 		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-			{
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceFamily,
 				Operator: v1.NodeSelectorOpNotIn,
 				Values:   awsenv.ExcludedInstanceFamilies,
 			},
-			{
-				Key:      v1beta1.LabelInstanceCategory,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"c", "m", "r"},
-			},
-		}...)
+		)
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -210,10 +205,10 @@ var _ = Describe("Extended Resources", func() {
 func ExpectNvidiaDevicePluginCreated() {
 	GinkgoHelper()
 	env.ExpectCreated(&appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "nvidia-device-plugin-daemonset",
 			Namespace: "kube-system",
-		},
+		}),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -224,11 +219,11 @@ func ExpectNvidiaDevicePluginCreated() {
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Labels: map[string]string{
 						"name": "nvidia-device-plugin-ds",
 					},
-				},
+				}),
 				Spec: v1.PodSpec{
 					Tolerations: []v1.Toleration{
 						{
@@ -281,10 +276,10 @@ func ExpectNvidiaDevicePluginCreated() {
 func ExpectAMDDevicePluginCreated() {
 	GinkgoHelper()
 	env.ExpectCreated(&appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "amdgpu-device-plugin-daemonset",
 			Namespace: "kube-system",
-		},
+		}),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -292,11 +287,11 @@ func ExpectAMDDevicePluginCreated() {
 				},
 			},
 			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Labels: map[string]string{
 						"name": "amdgpu-dp-ds",
 					},
-				},
+				}),
 				Spec: v1.PodSpec{
 					PriorityClassName: "system-node-critical",
 					Tolerations: []v1.Toleration{
@@ -355,15 +350,15 @@ func ExpectAMDDevicePluginCreated() {
 func ExpectHabanaDevicePluginCreated() {
 	GinkgoHelper()
 	env.ExpectCreated(&v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name: "habana-system",
-		},
+		}),
 	})
 	env.ExpectCreated(&appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "habanalabs-device-plugin-daemonset",
 			Namespace: "habana-system",
-		},
+		}),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -374,14 +369,14 @@ func ExpectHabanaDevicePluginCreated() {
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"scheduler.alpha.kubernetes.io/critical-pod": "",
 					},
 					Labels: map[string]string{
 						"name": "habanalabs-device-plugin-ds",
 					},
-				},
+				}),
 				Spec: v1.PodSpec{
 					Tolerations: []v1.Toleration{
 						{

@@ -80,7 +80,7 @@ var _ = BeforeEach(func() {
 						{
 							Key:      corev1beta1.CapacityTypeLabelKey,
 							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{"on-demand"},
+							Values:   []string{corev1beta1.CapacityTypeOnDemand},
 						},
 					},
 				},

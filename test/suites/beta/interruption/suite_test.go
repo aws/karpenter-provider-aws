@@ -83,6 +83,28 @@ var _ = BeforeEach(func() {
 					NodeClassRef: &corev1beta1.NodeClassReference{
 						Name: nodeClass.Name,
 					},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelOSStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{string(v1.Linux)},
+						},
+						{
+							Key:      corev1beta1.CapacityTypeLabelKey,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{corev1beta1.CapacityTypeOnDemand},
+						},
+						{
+							Key:      v1beta1.LabelInstanceCategory,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"c", "m", "r"},
+						},
+						{
+							Key:      v1beta1.LabelInstanceGeneration,
+							Operator: v1.NodeSelectorOpGt,
+							Values:   []string{"2"},
+						},
+					},
 				},
 			},
 		},
@@ -94,7 +116,7 @@ var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
+		nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
 			Key:      corev1beta1.CapacityTypeLabelKey,
 			Operator: v1.NodeSelectorOpIn,
 			Values:   []string{corev1beta1.CapacityTypeSpot},
@@ -133,11 +155,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
-			Key:      corev1beta1.CapacityTypeLabelKey,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{corev1beta1.CapacityTypeOnDemand},
-		})
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -164,11 +181,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
-			Key:      corev1beta1.CapacityTypeLabelKey,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{corev1beta1.CapacityTypeOnDemand},
-		})
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -195,11 +207,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node when receiving a scheduled change health event", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
-			Key:      corev1beta1.CapacityTypeLabelKey,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{corev1beta1.CapacityTypeOnDemand},
-		})
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),

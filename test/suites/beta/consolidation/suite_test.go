@@ -324,18 +324,17 @@ var _ = Describe("Beta/Consolidation", func() {
 		// Expect the node to consolidate to a spot instance as it will be a cheaper
 		// instance than on-demand
 		nodePool.Spec.Disruption.ConsolidateAfter = nil
-		nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
-			{
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
 				Key:      corev1beta1.CapacityTypeLabelKey,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1beta1.CapacityTypeOnDemand, corev1beta1.CapacityTypeSpot},
+				Operator: v1.NodeSelectorOpExists,
 			},
-			{
+			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"large"},
 			},
-		}
+		)
 		env.ExpectUpdated(nodePool)
 
 		// Eventually expect the on-demand nodes to be consolidated into

@@ -84,6 +84,28 @@ var _ = BeforeEach(func() {
 					NodeClassRef: &corev1beta1.NodeClassReference{
 						Name: nodeClass.Name,
 					},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelOSStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{string(v1.Linux)},
+						},
+						{
+							Key:      corev1beta1.CapacityTypeLabelKey,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{corev1beta1.CapacityTypeOnDemand},
+						},
+						{
+							Key:      v1beta1.LabelInstanceCategory,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"c", "m", "r"},
+						},
+						{
+							Key:      v1beta1.LabelInstanceGeneration,
+							Operator: v1.NodeSelectorOpGt,
+							Values:   []string{"2"},
+						},
+					},
 				},
 			},
 		},
@@ -98,7 +120,7 @@ var _ = Describe("Chaos", func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
+			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
 				Key:      corev1beta1.CapacityTypeLabelKey,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{corev1beta1.CapacityTypeSpot},

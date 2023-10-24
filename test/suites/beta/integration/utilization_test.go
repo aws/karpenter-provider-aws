@@ -26,12 +26,11 @@ import (
 
 var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	It("should provision one pod per node", func() {
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
 			Key:      v1.LabelInstanceTypeStable,
 			Operator: v1.NodeSelectorOpIn,
 			Values:   []string{"t3a.small"},
 		})
-
 		deployment := test.Deployment(test.DeploymentOptions{
 			Replicas:   100,
 			PodOptions: test.PodOptions{ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")}}}})
