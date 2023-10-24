@@ -32,6 +32,8 @@ import (
 	"github.com/aws/karpenter/pkg/test"
 )
 
+const createdAtTag = "node.k8s.amazonaws.com/createdAt"
+
 var _ = Describe("Tags", func() {
 	Context("Static Tags", func() {
 		It("should tag all associated resources", func() {
@@ -42,11 +44,40 @@ var _ = Describe("Tags", func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 			instance := env.GetInstance(pod.Spec.NodeName)
-			volumeTags := tagMap(env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId).Tags)
-			instanceTags := tagMap(instance.Tags)
+			volumes := env.GetVolumes(lo.Map(instance.BlockDeviceMappings, func(bdm *ec2.InstanceBlockDeviceMapping, _ int) *string {
+				return bdm.Ebs.VolumeId
+			})...)
+			networkInterfaces := env.GetNetworkInterfaces(lo.Map(instance.NetworkInterfaces, func(ni *ec2.InstanceNetworkInterface, _ int) *string {
+				return ni.NetworkInterfaceId
+			})...)
 
-			Expect(instanceTags).To(HaveKeyWithValue("TestTag", "TestVal"))
-			Expect(volumeTags).To(HaveKeyWithValue("TestTag", "TestVal"))
+			Expect(tagMap(instance.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
+			for _, volume := range volumes {
+				Expect(tagMap(volume.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
+			}
+			for _, networkInterface := range networkInterfaces {
+				// Any ENI that contains this createdAt tag was created by the VPC CNI DaemonSet
+				if _, ok := tagMap(networkInterface.TagSet)[createdAtTag]; !ok {
+					Expect(tagMap(networkInterface.TagSet)).To(HaveKeyWithValue("TestTag", "TestVal"))
+				}
+			}
+		})
+		It("should tag spot instance requests when creating resources", func() {
+			coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      corev1beta1.CapacityTypeLabelKey,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{corev1beta1.CapacityTypeSpot},
+			})
+			nodeClass.Spec.Tags = map[string]string{"TestTag": "TestVal"}
+			pod := coretest.Pod()
+
+			env.ExpectCreated(pod, nodeClass, nodePool)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+			instance := env.GetInstance(pod.Spec.NodeName)
+			Expect(instance.SpotInstanceRequestId).ToNot(BeNil())
+			spotInstanceRequest := env.GetSpotInstanceRequest(instance.SpotInstanceRequestId)
+			Expect(tagMap(spotInstanceRequest.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
 		})
 	})
 

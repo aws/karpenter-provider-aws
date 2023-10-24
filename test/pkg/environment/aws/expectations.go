@@ -172,12 +172,38 @@ func (env *Environment) GetInstanceByID(instanceID string) ec2.Instance {
 	return *instance.Reservations[0].Instances[0]
 }
 
-func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
+func (env *Environment) GetVolume(id *string) *ec2.Volume {
+	volumes := env.GetVolumes(id)
+	Expect(volumes).To(HaveLen(1))
+	return volumes[0]
+}
+
+func (env *Environment) GetVolumes(ids ...*string) []*ec2.Volume {
 	GinkgoHelper()
-	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
+	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: ids})
 	Expect(err).ToNot(HaveOccurred())
-	Expect(len(dvo.Volumes)).To(Equal(1))
-	return *dvo.Volumes[0]
+	return dvo.Volumes
+}
+
+func (env *Environment) GetNetworkInterface(id *string) *ec2.NetworkInterface {
+	networkInterfaces := env.GetNetworkInterfaces(id)
+	Expect(networkInterfaces).To(HaveLen(1))
+	return networkInterfaces[0]
+}
+
+func (env *Environment) GetNetworkInterfaces(ids ...*string) []*ec2.NetworkInterface {
+	GinkgoHelper()
+	dnio, err := env.EC2API.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: ids})
+	Expect(err).ToNot(HaveOccurred())
+	return dnio.NetworkInterfaces
+}
+
+func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequest {
+	GinkgoHelper()
+	siro, err := env.EC2API.DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{SpotInstanceRequestIds: []*string{id}})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(siro.SpotInstanceRequests).To(HaveLen(1))
+	return siro.SpotInstanceRequests[0]
 }
 
 // GetSubnets returns all subnets matching the label selector
