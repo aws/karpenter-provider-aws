@@ -1,8 +1,4 @@
-<<<<<<< HEAD
 name: AlphaE2EScaleTrigger
-=======
-name: E2EScaleTrigger
->>>>>>> 659c1dc1 (test: add beta scale test)
 on:
   schedule:
     - cron: '7 18 * * *'
@@ -15,13 +11,8 @@ jobs:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/resolve-args.yaml
     with:
-<<<<<<< HEAD
       allowed_comment: "alpha-scale"
   alpha-scale:
-=======
-      allowed_comment: "scale"
-  scale:
->>>>>>> 659c1dc1 (test: add beta scale test)
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e.yaml
@@ -30,10 +21,6 @@ jobs:
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
       region: "us-west-2"
       enable_metrics: true
-<<<<<<< HEAD
       workflow_trigger: "alpha-scale"
-=======
-      workflow_trigger: "scale"
->>>>>>> 659c1dc1 (test: add beta scale test)
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
