@@ -160,6 +160,45 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 		},
 		{
+			InstanceType:                  aws.String("inf1.24xlarge"),
+			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
+			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
+			BurstablePerformanceSupported: aws.Bool(false),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    aws.String("nitro"),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(48),
+				DefaultVCpus: aws.Int64(96),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(196608),
+			},
+			InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
+				Accelerators: []*ec2.InferenceDeviceInfo{
+					{
+						Name:         aws.String("Inferentia"),
+						Manufacturer: aws.String("AWS"),
+						Count:        aws.Int64(16),
+					},
+				},
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:     aws.Int64(11),
+				Ipv4AddressesPerInterface:    aws.Int64(30),
+				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(11),
+					},
+				},
+			},
+		},
+		{
 			InstanceType:                  aws.String("inf1.2xlarge"),
 			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
 			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
