@@ -235,6 +235,7 @@ If you are using some IaC for managing your policy documents attached to the con
 * Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
 * Karpenter now moves all logging configuration for the Zap logger into the `logConfig` values block. Configuring Karpenter logging with this mechanism _is_ deprecated and will be dropped at v1. Karpenter now only surfaces logLevel through the `logLevel` helm value. If you need more advanced configuration due to log parsing constraints, we recommend configuring your log parser to handle Karpenter's Zap JSON logging.
 * Karpenter now moves all AWS controller-wide configuration settings from the `settings.aws` block into the top-level `settings` block. The previous `settings.aws` block is deprecated and will be dropped at v0.33.0.
+* The `settings.featureGates.driftEnabled` value is now deprecated in favor of the new `settings.featureGates.drift` value. Values in the future will not contain the word "enabled" and will contain naming more similar to [Upstream Feature Gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/).
 
 ### Upgrading to v0.31.0+
 

@@ -604,23 +604,23 @@ In addition to these metrics, the MachineNotFound error returned by the `karpent
 The v1beta1 specification removes the `karpenter-global-settings` ConfigMap in favor of setting all Karpenter configuration using environment variables. Along, with this change, Karpenter has chosen to remove certain global variables that can be configured with more specificity in the EC2NodeClass . These values are marked as removed below.
 
 
-| **`karpenter-global-settings` ConfigMap Key**     | **Environment Variable**        | **CLI Argument**
-|---------------------------------------------------|---------------------------------|-------------------------------|
-| batchMaxDuration                                  | BATCH_MAX_DURATION              | --batch-max-duration          |
-| batchIdleDuration                                 | BATCH_IDLE_DURATION             | --batch-idle-duration         |
-| assumeRoleARN                                     | ASSUME_ROLE_ARN                 | --assume-role-arn             |
-| assumeRoleDuration                                | ASSUME_ROLE_DURATION            | --assume-role-duration        |
-| clusterCABundle                                   | CLUSTER_CA_BUNDLE               | --cluster-ca-bundle           |
-| clusterName                                       | CLUSTER_NAME                    | --cluster-name                |
-| clusterEndpoint                                   | CLUSTER_ENDPOINT                | --cluster-endpoint            |
-| defaultInstanceProfile                            | Dropped                         | Dropped                       |
-| enablePodENI                                      | Dropped                         | Dropped                       |
-| enableENILimitedPodDensity                        | Dropped                         | Dropped                       |
-| isolatedVPC                                       | ISOLATED_VPC                    | --isolated-vpc                |
-| vmMemoryOverheadPercent                           | VM_MEMORY_OVERHEAD_PERCENT      | --vm-memory-overhead-percent  |
-| interruptionQueueName                             | INTERRUPTION_QUEUE_NAME         | --interruption-queue-name     |
-| reservedENIs                                      | RESERVED_ENIS                   | --reserved-enis               |
-| featureGates.enableDrift                          | FEATURE_GATE="Drift=true"       | --feature-gates Drift=true    |
+| **`karpenter-global-settings` ConfigMap Key** | **Environment Variable**        | **CLI Argument**
+|-----------------------------------------------|---------------------------------|-------------------------------|
+| batchMaxDuration                              | BATCH_MAX_DURATION              | --batch-max-duration          |
+| batchIdleDuration                             | BATCH_IDLE_DURATION             | --batch-idle-duration         |
+| assumeRoleARN                                 | ASSUME_ROLE_ARN                 | --assume-role-arn             |
+| assumeRoleDuration                            | ASSUME_ROLE_DURATION            | --assume-role-duration        |
+| clusterCABundle                               | CLUSTER_CA_BUNDLE               | --cluster-ca-bundle           |
+| clusterName                                   | CLUSTER_NAME                    | --cluster-name                |
+| clusterEndpoint                               | CLUSTER_ENDPOINT                | --cluster-endpoint            |
+| defaultInstanceProfile                        | Dropped                         | Dropped                       |
+| enablePodENI                                  | Dropped                         | Dropped                       |
+| enableENILimitedPodDensity                    | Dropped                         | Dropped                       |
+| isolatedVPC                                   | ISOLATED_VPC                    | --isolated-vpc                |
+| vmMemoryOverheadPercent                       | VM_MEMORY_OVERHEAD_PERCENT      | --vm-memory-overhead-percent  |
+| interruptionQueueName                         | INTERRUPTION_QUEUE_NAME         | --interruption-queue-name     |
+| reservedENIs                                  | RESERVED_ENIS                   | --reserved-enis               |
+| featureGates.driftEnabled                     | FEATURE_GATE="Drift=true"       | --feature-gates Drift=true    |
 
 ## Drift Enabled by Default
 

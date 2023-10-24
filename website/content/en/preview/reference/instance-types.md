@@ -37,7 +37,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1392Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|10|
 ### `a1.large`
 #### Labels
@@ -63,7 +62,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3055Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `a1.xlarge`
 #### Labels
@@ -89,7 +87,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6525Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `a1.2xlarge`
 #### Labels
@@ -115,7 +112,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `a1.4xlarge`
 #### Labels
@@ -141,7 +137,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27322Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `a1.metal`
 #### Labels
@@ -167,7 +162,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27322Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ## c1 Family
 ### `c1.medium`
@@ -193,7 +187,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1122Mi|
  |pods|12|
- |vpc.amazonaws.com/PrivateIPv4Address|5|
 ### `c1.xlarge`
 #### Labels
  | Label | Value |
@@ -217,7 +210,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|5637Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ## c3 Family
 ### `c3.large`
 #### Labels
@@ -242,7 +234,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|2878Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `c3.xlarge`
 #### Labels
  | Label | Value |
@@ -266,7 +257,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6111Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `c3.2xlarge`
 #### Labels
  | Label | Value |
@@ -290,7 +280,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13215Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `c3.4xlarge`
 #### Labels
  | Label | Value |
@@ -314,7 +303,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|25487Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `c3.8xlarge`
 #### Labels
  | Label | Value |
@@ -339,7 +327,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|53903Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## c4 Family
 ### `c4.large`
 #### Labels
@@ -364,7 +351,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|2878Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `c4.xlarge`
 #### Labels
  | Label | Value |
@@ -388,7 +374,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6111Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `c4.2xlarge`
 #### Labels
  | Label | Value |
@@ -412,7 +397,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13215Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `c4.4xlarge`
 #### Labels
  | Label | Value |
@@ -436,7 +420,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|25487Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `c4.8xlarge`
 #### Labels
  | Label | Value |
@@ -461,7 +444,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|53903Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## c5 Family
 ### `c5.large`
 #### Labels
@@ -487,7 +469,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5.xlarge`
 #### Labels
@@ -513,7 +494,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5.2xlarge`
 #### Labels
@@ -539,7 +519,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5.4xlarge`
 #### Labels
@@ -565,7 +544,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5.9xlarge`
 #### Labels
@@ -591,7 +569,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|65269Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5.12xlarge`
 #### Labels
@@ -617,7 +594,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5.18xlarge`
 #### Labels
@@ -643,7 +619,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|127934Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5.24xlarge`
 #### Labels
@@ -669,7 +644,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5.metal`
 #### Labels
@@ -695,7 +669,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c5a Family
 ### `c5a.large`
@@ -722,7 +695,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5a.xlarge`
 #### Labels
@@ -748,7 +720,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5a.2xlarge`
 #### Labels
@@ -774,7 +745,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5a.4xlarge`
 #### Labels
@@ -800,7 +770,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5a.8xlarge`
 #### Labels
@@ -826,7 +795,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5a.12xlarge`
 #### Labels
@@ -852,7 +820,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5a.16xlarge`
 #### Labels
@@ -878,7 +845,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5a.24xlarge`
 #### Labels
@@ -904,7 +870,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c5ad Family
 ### `c5ad.large`
@@ -932,7 +897,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5ad.xlarge`
 #### Labels
@@ -959,7 +923,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5ad.2xlarge`
 #### Labels
@@ -986,7 +949,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5ad.4xlarge`
 #### Labels
@@ -1013,7 +975,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5ad.8xlarge`
 #### Labels
@@ -1040,7 +1001,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5ad.12xlarge`
 #### Labels
@@ -1067,7 +1027,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5ad.16xlarge`
 #### Labels
@@ -1094,7 +1053,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5ad.24xlarge`
 #### Labels
@@ -1121,7 +1079,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c5d Family
 ### `c5d.large`
@@ -1149,7 +1106,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5d.xlarge`
 #### Labels
@@ -1176,7 +1132,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5d.2xlarge`
 #### Labels
@@ -1203,7 +1158,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5d.4xlarge`
 #### Labels
@@ -1230,7 +1184,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5d.9xlarge`
 #### Labels
@@ -1257,7 +1210,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|65269Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5d.12xlarge`
 #### Labels
@@ -1284,7 +1236,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5d.18xlarge`
 #### Labels
@@ -1311,7 +1262,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|127934Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5d.24xlarge`
 #### Labels
@@ -1338,7 +1288,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5d.metal`
 #### Labels
@@ -1365,7 +1314,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c5n Family
 ### `c5n.large`
@@ -1392,7 +1340,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|4298Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c5n.xlarge`
 #### Labels
@@ -1418,7 +1365,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|8952Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c5n.2xlarge`
 #### Labels
@@ -1444,7 +1390,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|18898Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c5n.4xlarge`
 #### Labels
@@ -1470,7 +1415,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|36853Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5n.9xlarge`
 #### Labels
@@ -1496,7 +1440,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5n.18xlarge`
 #### Labels
@@ -1522,7 +1465,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5n.metal`
 #### Labels
@@ -1548,7 +1490,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6a Family
 ### `c6a.large`
@@ -1575,7 +1516,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6a.xlarge`
 #### Labels
@@ -1601,7 +1541,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6a.2xlarge`
 #### Labels
@@ -1627,7 +1566,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6a.4xlarge`
 #### Labels
@@ -1653,7 +1591,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6a.8xlarge`
 #### Labels
@@ -1679,7 +1616,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `c6a.12xlarge`
 #### Labels
@@ -1705,7 +1641,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `c6a.16xlarge`
 #### Labels
@@ -1731,7 +1666,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.24xlarge`
 #### Labels
@@ -1757,7 +1691,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.32xlarge`
 #### Labels
@@ -1783,7 +1716,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.48xlarge`
 #### Labels
@@ -1809,7 +1741,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.metal`
 #### Labels
@@ -1835,7 +1766,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6g Family
 ### `c6g.medium`
@@ -1862,7 +1792,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1392Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c6g.large`
 #### Labels
@@ -1888,7 +1817,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3055Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6g.xlarge`
 #### Labels
@@ -1914,7 +1842,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6525Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6g.2xlarge`
 #### Labels
@@ -1940,7 +1867,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6g.4xlarge`
 #### Labels
@@ -1966,7 +1892,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27322Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6g.8xlarge`
 #### Labels
@@ -1992,7 +1917,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6g.12xlarge`
 #### Labels
@@ -2018,7 +1942,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|87943Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6g.16xlarge`
 #### Labels
@@ -2044,7 +1967,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6g.metal`
 #### Labels
@@ -2070,7 +1992,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6gd Family
 ### `c6gd.medium`
@@ -2098,7 +2019,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1392Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c6gd.large`
 #### Labels
@@ -2125,7 +2045,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3055Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6gd.xlarge`
 #### Labels
@@ -2152,7 +2071,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6525Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6gd.2xlarge`
 #### Labels
@@ -2179,7 +2097,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6gd.4xlarge`
 #### Labels
@@ -2206,7 +2123,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27322Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gd.8xlarge`
 #### Labels
@@ -2233,7 +2149,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gd.12xlarge`
 #### Labels
@@ -2260,7 +2175,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|87943Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gd.16xlarge`
 #### Labels
@@ -2287,7 +2201,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6gd.metal`
 #### Labels
@@ -2314,7 +2227,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6gn Family
 ### `c6gn.medium`
@@ -2341,7 +2253,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1392Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c6gn.large`
 #### Labels
@@ -2367,7 +2278,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3055Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6gn.xlarge`
 #### Labels
@@ -2393,7 +2303,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6525Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6gn.2xlarge`
 #### Labels
@@ -2419,7 +2328,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6gn.4xlarge`
 #### Labels
@@ -2445,7 +2353,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27322Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gn.8xlarge`
 #### Labels
@@ -2471,7 +2378,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gn.12xlarge`
 #### Labels
@@ -2497,7 +2403,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|87943Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6gn.16xlarge`
 #### Labels
@@ -2523,7 +2428,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6i Family
 ### `c6i.large`
@@ -2550,7 +2454,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6i.xlarge`
 #### Labels
@@ -2576,7 +2479,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6i.2xlarge`
 #### Labels
@@ -2602,7 +2504,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6i.4xlarge`
 #### Labels
@@ -2628,7 +2529,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6i.8xlarge`
 #### Labels
@@ -2654,7 +2554,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `c6i.12xlarge`
 #### Labels
@@ -2680,7 +2579,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `c6i.16xlarge`
 #### Labels
@@ -2706,7 +2604,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6i.24xlarge`
 #### Labels
@@ -2732,7 +2629,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6i.32xlarge`
 #### Labels
@@ -2758,7 +2654,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6i.metal`
 #### Labels
@@ -2784,7 +2679,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6id Family
 ### `c6id.large`
@@ -2812,7 +2706,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6id.xlarge`
 #### Labels
@@ -2839,7 +2732,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6id.2xlarge`
 #### Labels
@@ -2866,7 +2758,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6id.4xlarge`
 #### Labels
@@ -2893,7 +2784,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6id.8xlarge`
 #### Labels
@@ -2920,7 +2810,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `c6id.12xlarge`
 #### Labels
@@ -2947,7 +2836,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `c6id.16xlarge`
 #### Labels
@@ -2974,7 +2862,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6id.24xlarge`
 #### Labels
@@ -3001,7 +2888,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6id.32xlarge`
 #### Labels
@@ -3028,7 +2914,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6id.metal`
 #### Labels
@@ -3055,7 +2940,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6in Family
 ### `c6in.large`
@@ -3082,7 +2966,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c6in.xlarge`
 #### Labels
@@ -3108,7 +2991,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c6in.2xlarge`
 #### Labels
@@ -3134,7 +3016,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c6in.4xlarge`
 #### Labels
@@ -3160,7 +3041,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c6in.8xlarge`
 #### Labels
@@ -3186,7 +3066,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `c6in.12xlarge`
 #### Labels
@@ -3212,7 +3091,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `c6in.16xlarge`
 #### Labels
@@ -3238,7 +3116,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6in.24xlarge`
 #### Labels
@@ -3264,7 +3141,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6in.32xlarge`
 #### Labels
@@ -3290,7 +3166,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|238333Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ### `c6in.metal`
 #### Labels
@@ -3316,7 +3191,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|238333Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ## c7a Family
 ### `c7a.medium`
@@ -3342,7 +3216,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1451Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
 ### `c7a.large`
 #### Labels
  | Label | Value |
@@ -3366,7 +3239,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `c7a.xlarge`
 #### Labels
  | Label | Value |
@@ -3390,7 +3262,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `c7a.2xlarge`
 #### Labels
  | Label | Value |
@@ -3414,7 +3285,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `c7a.4xlarge`
 #### Labels
  | Label | Value |
@@ -3438,7 +3308,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `c7a.8xlarge`
 #### Labels
  | Label | Value |
@@ -3462,7 +3331,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `c7a.12xlarge`
 #### Labels
  | Label | Value |
@@ -3486,7 +3354,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `c7a.16xlarge`
 #### Labels
  | Label | Value |
@@ -3510,7 +3377,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `c7a.24xlarge`
 #### Labels
  | Label | Value |
@@ -3534,7 +3400,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `c7a.32xlarge`
 #### Labels
  | Label | Value |
@@ -3558,7 +3423,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `c7a.48xlarge`
 #### Labels
  | Label | Value |
@@ -3582,7 +3446,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `c7a.metal-48xl`
 #### Labels
  | Label | Value |
@@ -3606,7 +3469,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## c7g Family
 ### `c7g.medium`
 #### Labels
@@ -3632,7 +3494,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1392Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c7g.large`
 #### Labels
@@ -3658,7 +3519,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3055Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c7g.xlarge`
 #### Labels
@@ -3684,7 +3544,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6525Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c7g.2xlarge`
 #### Labels
@@ -3710,7 +3569,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c7g.4xlarge`
 #### Labels
@@ -3736,7 +3594,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27322Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7g.8xlarge`
 #### Labels
@@ -3762,7 +3619,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7g.12xlarge`
 #### Labels
@@ -3788,7 +3644,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|87943Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7g.16xlarge`
 #### Labels
@@ -3814,7 +3669,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c7g.metal`
 #### Labels
@@ -3840,7 +3694,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c7gd Family
 ### `c7gd.medium`
@@ -3868,7 +3721,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1392Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c7gd.large`
 #### Labels
@@ -3895,7 +3747,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3055Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c7gd.xlarge`
 #### Labels
@@ -3922,7 +3773,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6525Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c7gd.2xlarge`
 #### Labels
@@ -3949,7 +3799,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c7gd.4xlarge`
 #### Labels
@@ -3976,7 +3825,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27322Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gd.8xlarge`
 #### Labels
@@ -4003,7 +3851,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gd.12xlarge`
 #### Labels
@@ -4030,7 +3877,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|87943Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gd.16xlarge`
 #### Labels
@@ -4057,7 +3903,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c7gn Family
 ### `c7gn.medium`
@@ -4084,7 +3929,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1392Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `c7gn.large`
 #### Labels
@@ -4110,7 +3954,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3055Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `c7gn.xlarge`
 #### Labels
@@ -4136,7 +3979,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6525Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `c7gn.2xlarge`
 #### Labels
@@ -4162,7 +4004,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `c7gn.4xlarge`
 #### Labels
@@ -4188,7 +4029,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27322Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gn.8xlarge`
 #### Labels
@@ -4214,7 +4054,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gn.12xlarge`
 #### Labels
@@ -4240,7 +4079,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|87943Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c7gn.16xlarge`
 #### Labels
@@ -4266,7 +4104,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## c7i Family
 ### `c7i.large`
@@ -4293,7 +4130,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `c7i.xlarge`
 #### Labels
  | Label | Value |
@@ -4318,7 +4154,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `c7i.2xlarge`
 #### Labels
  | Label | Value |
@@ -4343,7 +4178,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `c7i.4xlarge`
 #### Labels
  | Label | Value |
@@ -4368,7 +4202,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `c7i.8xlarge`
 #### Labels
  | Label | Value |
@@ -4393,7 +4226,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `c7i.12xlarge`
 #### Labels
  | Label | Value |
@@ -4418,7 +4250,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `c7i.16xlarge`
 #### Labels
  | Label | Value |
@@ -4443,7 +4274,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `c7i.24xlarge`
 #### Labels
  | Label | Value |
@@ -4468,7 +4298,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `c7i.48xlarge`
 #### Labels
  | Label | Value |
@@ -4493,7 +4322,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## d2 Family
 ### `d2.xlarge`
 #### Labels
@@ -4518,7 +4346,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27896Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `d2.2xlarge`
 #### Labels
  | Label | Value |
@@ -4542,7 +4369,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|56786Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `d2.4xlarge`
 #### Labels
  | Label | Value |
@@ -4566,7 +4392,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112629Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `d2.8xlarge`
 #### Labels
  | Label | Value |
@@ -4591,7 +4416,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|228187Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## d3 Family
 ### `d3.xlarge`
 #### Labels
@@ -4618,7 +4442,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29845Mi|
  |pods|10|
- |vpc.amazonaws.com/PrivateIPv4Address|2|
  |vpc.amazonaws.com/pod-eni|42|
 ### `d3.2xlarge`
 #### Labels
@@ -4645,7 +4468,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|60067Mi|
  |pods|18|
- |vpc.amazonaws.com/PrivateIPv4Address|4|
  |vpc.amazonaws.com/pod-eni|92|
 ### `d3.4xlarge`
 #### Labels
@@ -4672,7 +4494,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|120468Mi|
  |pods|38|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|118|
 ### `d3.8xlarge`
 #### Labels
@@ -4699,7 +4520,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|241479Mi|
  |pods|59|
- |vpc.amazonaws.com/PrivateIPv4Address|19|
  |vpc.amazonaws.com/pod-eni|119|
 ## d3en Family
 ### `d3en.xlarge`
@@ -4727,7 +4547,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14690Mi|
  |pods|10|
- |vpc.amazonaws.com/PrivateIPv4Address|2|
  |vpc.amazonaws.com/pod-eni|24|
 ### `d3en.2xlarge`
 #### Labels
@@ -4754,7 +4573,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29757Mi|
  |pods|18|
- |vpc.amazonaws.com/PrivateIPv4Address|4|
  |vpc.amazonaws.com/pod-eni|58|
 ### `d3en.4xlarge`
 #### Labels
@@ -4781,7 +4599,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59847Mi|
  |pods|38|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|118|
 ### `d3en.6xlarge`
 #### Labels
@@ -4808,7 +4625,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|89938Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|118|
 ### `d3en.8xlarge`
 #### Labels
@@ -4835,7 +4651,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|120028Mi|
  |pods|78|
- |vpc.amazonaws.com/PrivateIPv4Address|19|
  |vpc.amazonaws.com/pod-eni|118|
 ### `d3en.12xlarge`
 #### Labels
@@ -4862,7 +4677,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|180528Mi|
  |pods|89|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|119|
 ## dl1 Family
 ### `dl1.24xlarge`
@@ -4895,7 +4709,6 @@ below are the resources available with some assumptions and after the instance o
  |habana.ai/gaudi|8|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|62|
 ## f1 Family
 ### `f1.2xlarge`
@@ -4923,7 +4736,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|114565Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `f1.4xlarge`
 #### Labels
  | Label | Value |
@@ -4949,7 +4761,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|228187Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `f1.16xlarge`
 #### Labels
  | Label | Value |
@@ -4975,7 +4786,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|919778Mi|
  |pods|394|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## g3 Family
 ### `g3.4xlarge`
 #### Labels
@@ -5006,7 +4816,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|112629Mi|
  |nvidia.com/gpu|1|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `g3.8xlarge`
 #### Labels
  | Label | Value |
@@ -5036,7 +4845,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|228187Mi|
  |nvidia.com/gpu|2|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `g3.16xlarge`
 #### Labels
  | Label | Value |
@@ -5066,7 +4874,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|453771Mi|
  |nvidia.com/gpu|4|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## g3s Family
 ### `g3s.xlarge`
 #### Labels
@@ -5096,7 +4903,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|27896Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ## g4ad Family
 ### `g4ad.xlarge`
 #### Labels
@@ -5128,7 +4934,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14712Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|12|
 ### `g4ad.2xlarge`
 #### Labels
@@ -5160,7 +4965,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29867Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|12|
 ### `g4ad.4xlarge`
 #### Labels
@@ -5192,7 +4996,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59946Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|11|
 ### `g4ad.8xlarge`
 #### Labels
@@ -5224,7 +5027,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|120248Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|10|
 ### `g4ad.16xlarge`
 #### Labels
@@ -5256,7 +5058,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|6|
 ## g4dn Family
 ### `g4dn.xlarge`
@@ -5289,7 +5090,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|14481Mi|
  |nvidia.com/gpu|1|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|39|
 ### `g4dn.2xlarge`
 #### Labels
@@ -5321,7 +5121,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|29636Mi|
  |nvidia.com/gpu|1|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|39|
 ### `g4dn.4xlarge`
 #### Labels
@@ -5353,7 +5152,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|59946Mi|
  |nvidia.com/gpu|1|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|59|
 ### `g4dn.8xlarge`
 #### Labels
@@ -5385,7 +5183,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|120248Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|58|
 ### `g4dn.12xlarge`
 #### Labels
@@ -5417,7 +5214,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|178933Mi|
  |nvidia.com/gpu|4|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `g4dn.16xlarge`
 #### Labels
@@ -5449,7 +5245,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|241490Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|118|
 ### `g4dn.metal`
 #### Labels
@@ -5481,7 +5276,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |nvidia.com/gpu|8|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## g5 Family
 ### `g5.xlarge`
@@ -5514,7 +5308,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|14162Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|4|
 ### `g5.2xlarge`
 #### Labels
@@ -5546,7 +5339,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|29317Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|17|
 ### `g5.4xlarge`
 #### Labels
@@ -5578,7 +5370,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|57691Mi|
  |nvidia.com/gpu|1|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|34|
 ### `g5.8xlarge`
 #### Labels
@@ -5610,7 +5401,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|118312Mi|
  |nvidia.com/gpu|1|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `g5.12xlarge`
 #### Labels
@@ -5642,7 +5432,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|173400Mi|
  |nvidia.com/gpu|4|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `g5.16xlarge`
 #### Labels
@@ -5674,7 +5463,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|239554Mi|
  |nvidia.com/gpu|1|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `g5.24xlarge`
 #### Labels
@@ -5706,7 +5494,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |nvidia.com/gpu|4|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `g5.48xlarge`
 #### Labels
@@ -5738,7 +5525,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|723299Mi|
  |nvidia.com/gpu|8|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|115|
 ## g5g Family
 ### `g5g.xlarge`
@@ -5770,7 +5556,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|6525Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `g5g.2xlarge`
 #### Labels
@@ -5801,7 +5586,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|14103Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `g5g.4xlarge`
 #### Labels
@@ -5832,7 +5616,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|27322Mi|
  |nvidia.com/gpu|1|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `g5g.8xlarge`
 #### Labels
@@ -5863,7 +5646,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|57632Mi|
  |nvidia.com/gpu|1|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `g5g.16xlarge`
 #### Labels
@@ -5894,7 +5676,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|112720Mi|
  |nvidia.com/gpu|2|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `g5g.metal`
 #### Labels
@@ -5925,7 +5706,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|112720Mi|
  |nvidia.com/gpu|2|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## h1 Family
 ### `h1.2xlarge`
@@ -5952,7 +5732,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `h1.4xlarge`
 #### Labels
  | Label | Value |
@@ -5977,7 +5756,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `h1.8xlarge`
 #### Labels
  | Label | Value |
@@ -6002,7 +5780,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `h1.16xlarge`
 #### Labels
  | Label | Value |
@@ -6027,7 +5804,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## hpc7g Family
 ### `hpc7g.4xlarge`
 #### Labels
@@ -6053,7 +5829,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118649Mi|
  |pods|198|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `hpc7g.8xlarge`
 #### Labels
  | Label | Value |
@@ -6078,7 +5853,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118649Mi|
  |pods|198|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `hpc7g.16xlarge`
 #### Labels
  | Label | Value |
@@ -6103,7 +5877,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118649Mi|
  |pods|198|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## i2 Family
 ### `i2.xlarge`
 #### Labels
@@ -6128,7 +5901,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27896Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `i2.2xlarge`
 #### Labels
  | Label | Value |
@@ -6152,7 +5924,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|56786Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `i2.4xlarge`
 #### Labels
  | Label | Value |
@@ -6176,7 +5947,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112629Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `i2.8xlarge`
 #### Labels
  | Label | Value |
@@ -6201,7 +5971,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|228187Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## i3 Family
 ### `i3.large`
 #### Labels
@@ -6228,7 +5997,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13770Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `i3.xlarge`
 #### Labels
  | Label | Value |
@@ -6254,7 +6022,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27896Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `i3.2xlarge`
 #### Labels
  | Label | Value |
@@ -6280,7 +6047,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|56786Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `i3.4xlarge`
 #### Labels
  | Label | Value |
@@ -6306,7 +6072,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112629Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `i3.8xlarge`
 #### Labels
  | Label | Value |
@@ -6332,7 +6097,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|228187Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `i3.16xlarge`
 #### Labels
  | Label | Value |
@@ -6358,7 +6122,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|453771Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `i3.metal`
 #### Labels
  | Label | Value |
@@ -6384,7 +6147,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|120|
 ## i3en Family
 ### `i3en.large`
@@ -6412,7 +6174,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|5|
 ### `i3en.xlarge`
 #### Labels
@@ -6439,7 +6200,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|12|
 ### `i3en.2xlarge`
 #### Labels
@@ -6466,7 +6226,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|28|
 ### `i3en.3xlarge`
 #### Labels
@@ -6493,7 +6252,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|89938Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `i3en.6xlarge`
 #### Labels
@@ -6520,7 +6278,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i3en.12xlarge`
 #### Labels
@@ -6547,7 +6304,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i3en.24xlarge`
 #### Labels
@@ -6574,7 +6330,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `i3en.metal`
 #### Labels
@@ -6601,7 +6356,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## i4g Family
 ### `i4g.large`
@@ -6629,7 +6383,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14422Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `i4g.xlarge`
 #### Labels
@@ -6656,7 +6409,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `i4g.2xlarge`
 #### Labels
@@ -6683,7 +6435,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59568Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `i4g.4xlarge`
 #### Labels
@@ -6710,7 +6461,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i4g.8xlarge`
 #### Labels
@@ -6737,7 +6487,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239495Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i4g.16xlarge`
 #### Labels
@@ -6764,7 +6513,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## i4i Family
 ### `i4i.large`
@@ -6792,7 +6540,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `i4i.xlarge`
 #### Labels
  | Label | Value |
@@ -6818,7 +6565,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|6|
 ### `i4i.2xlarge`
 #### Labels
@@ -6845,7 +6591,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|26|
 ### `i4i.4xlarge`
 #### Labels
@@ -6872,7 +6617,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|52|
 ### `i4i.8xlarge`
 #### Labels
@@ -6899,7 +6643,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|112|
 ### `i4i.16xlarge`
 #### Labels
@@ -6926,7 +6669,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|120|
 ### `i4i.32xlarge`
 #### Labels
@@ -6953,7 +6695,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|120|
 ### `i4i.metal`
 #### Labels
@@ -6980,7 +6721,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|120|
 ## im4gn Family
 ### `im4gn.large`
@@ -7008,7 +6748,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6844Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `im4gn.xlarge`
 #### Labels
@@ -7035,7 +6774,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `im4gn.2xlarge`
 #### Labels
@@ -7062,7 +6800,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `im4gn.4xlarge`
 #### Labels
@@ -7089,7 +6826,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `im4gn.8xlarge`
 #### Labels
@@ -7116,7 +6852,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `im4gn.16xlarge`
 #### Labels
@@ -7143,7 +6878,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## inf1 Family
 ### `inf1.xlarge`
@@ -7174,7 +6908,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6804Mi|
  |pods|38|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|38|
 ### `inf1.2xlarge`
 #### Labels
@@ -7204,7 +6937,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14382Mi|
  |pods|38|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|38|
 ### `inf1.6xlarge`
 #### Labels
@@ -7234,7 +6966,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|42536Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `inf1.24xlarge`
 #### Labels
@@ -7264,7 +6995,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|177976Mi|
  |pods|321|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|111|
 ## inf2 Family
 ### `inf2.xlarge`
@@ -7295,7 +7025,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `inf2.8xlarge`
 #### Labels
@@ -7325,7 +7054,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `inf2.24xlarge`
 #### Labels
@@ -7355,7 +7083,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `inf2.48xlarge`
 #### Labels
@@ -7385,7 +7112,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## is4gen Family
 ### `is4gen.medium`
@@ -7413,7 +7139,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|5181Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `is4gen.large`
 #### Labels
@@ -7440,7 +7165,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|10633Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `is4gen.xlarge`
 #### Labels
@@ -7467,7 +7191,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|21680Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `is4gen.2xlarge`
 #### Labels
@@ -7494,7 +7217,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|44413Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `is4gen.4xlarge`
 #### Labels
@@ -7521,7 +7243,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|87943Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `is4gen.8xlarge`
 #### Labels
@@ -7548,7 +7269,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178874Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ## m1 Family
 ### `m1.small`
@@ -7574,7 +7294,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1166Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
 ### `m1.medium`
 #### Labels
  | Label | Value |
@@ -7598,7 +7317,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3016Mi|
  |pods|12|
- |vpc.amazonaws.com/PrivateIPv4Address|5|
 ### `m1.large`
 #### Labels
  | Label | Value |
@@ -7622,7 +7340,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6430Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `m1.xlarge`
 #### Labels
  | Label | Value |
@@ -7646,7 +7363,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13215Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ## m2 Family
 ### `m2.xlarge`
 #### Labels
@@ -7671,7 +7387,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|15203Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `m2.2xlarge`
 #### Labels
  | Label | Value |
@@ -7695,7 +7410,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|30740Mi|
  |pods|118|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `m2.4xlarge`
 #### Labels
  | Label | Value |
@@ -7719,7 +7433,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|61858Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## m3 Family
 ### `m3.medium`
 #### Labels
@@ -7744,7 +7457,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3065Mi|
  |pods|12|
- |vpc.amazonaws.com/PrivateIPv4Address|5|
 ### `m3.large`
 #### Labels
  | Label | Value |
@@ -7768,7 +7480,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6430Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `m3.xlarge`
 #### Labels
  | Label | Value |
@@ -7792,7 +7503,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13215Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `m3.2xlarge`
 #### Labels
  | Label | Value |
@@ -7816,7 +7526,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|26763Mi|
  |pods|118|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## m4 Family
 ### `m4.large`
 #### Labels
@@ -7841,7 +7550,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7002Mi|
  |pods|20|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `m4.xlarge`
 #### Labels
  | Label | Value |
@@ -7865,7 +7573,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `m4.2xlarge`
 #### Labels
  | Label | Value |
@@ -7889,7 +7596,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `m4.4xlarge`
 #### Labels
  | Label | Value |
@@ -7913,7 +7619,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `m4.10xlarge`
 #### Labels
  | Label | Value |
@@ -7938,7 +7643,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|148623Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `m4.16xlarge`
 #### Labels
  | Label | Value |
@@ -7963,7 +7667,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## m5 Family
 ### `m5.large`
 #### Labels
@@ -7989,7 +7692,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5.xlarge`
 #### Labels
@@ -8015,7 +7717,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5.2xlarge`
 #### Labels
@@ -8041,7 +7742,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5.4xlarge`
 #### Labels
@@ -8067,7 +7767,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5.8xlarge`
 #### Labels
@@ -8093,7 +7792,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5.12xlarge`
 #### Labels
@@ -8119,7 +7817,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5.16xlarge`
 #### Labels
@@ -8145,7 +7842,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5.24xlarge`
 #### Labels
@@ -8171,7 +7867,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5.metal`
 #### Labels
@@ -8197,7 +7892,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|120|
 ## m5a Family
 ### `m5a.large`
@@ -8224,7 +7918,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5a.xlarge`
 #### Labels
@@ -8250,7 +7943,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5a.2xlarge`
 #### Labels
@@ -8276,7 +7968,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5a.4xlarge`
 #### Labels
@@ -8302,7 +7993,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5a.8xlarge`
 #### Labels
@@ -8328,7 +8018,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5a.12xlarge`
 #### Labels
@@ -8354,7 +8043,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5a.16xlarge`
 #### Labels
@@ -8380,7 +8068,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5a.24xlarge`
 #### Labels
@@ -8406,7 +8093,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5ad Family
 ### `m5ad.large`
@@ -8434,7 +8120,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5ad.xlarge`
 #### Labels
@@ -8461,7 +8146,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5ad.2xlarge`
 #### Labels
@@ -8488,7 +8172,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5ad.4xlarge`
 #### Labels
@@ -8515,7 +8198,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5ad.8xlarge`
 #### Labels
@@ -8542,7 +8224,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5ad.12xlarge`
 #### Labels
@@ -8569,7 +8250,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5ad.16xlarge`
 #### Labels
@@ -8596,7 +8276,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5ad.24xlarge`
 #### Labels
@@ -8623,7 +8302,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5d Family
 ### `m5d.large`
@@ -8651,7 +8329,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5d.xlarge`
 #### Labels
@@ -8678,7 +8355,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5d.2xlarge`
 #### Labels
@@ -8705,7 +8381,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5d.4xlarge`
 #### Labels
@@ -8732,7 +8407,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5d.8xlarge`
 #### Labels
@@ -8759,7 +8433,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5d.12xlarge`
 #### Labels
@@ -8786,7 +8459,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5d.16xlarge`
 #### Labels
@@ -8813,7 +8485,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5d.24xlarge`
 #### Labels
@@ -8840,7 +8511,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5d.metal`
 #### Labels
@@ -8867,7 +8537,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5dn Family
 ### `m5dn.large`
@@ -8895,7 +8564,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5dn.xlarge`
 #### Labels
@@ -8922,7 +8590,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5dn.2xlarge`
 #### Labels
@@ -8949,7 +8616,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5dn.4xlarge`
 #### Labels
@@ -8976,7 +8642,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5dn.8xlarge`
 #### Labels
@@ -9003,7 +8668,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5dn.12xlarge`
 #### Labels
@@ -9030,7 +8694,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5dn.16xlarge`
 #### Labels
@@ -9057,7 +8720,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5dn.24xlarge`
 #### Labels
@@ -9084,7 +8746,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5dn.metal`
 #### Labels
@@ -9111,7 +8772,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5n Family
 ### `m5n.large`
@@ -9138,7 +8798,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m5n.xlarge`
 #### Labels
@@ -9164,7 +8823,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m5n.2xlarge`
 #### Labels
@@ -9190,7 +8848,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m5n.4xlarge`
 #### Labels
@@ -9216,7 +8873,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5n.8xlarge`
 #### Labels
@@ -9242,7 +8898,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5n.12xlarge`
 #### Labels
@@ -9268,7 +8923,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m5n.16xlarge`
 #### Labels
@@ -9294,7 +8948,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5n.24xlarge`
 #### Labels
@@ -9320,7 +8973,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5n.metal`
 #### Labels
@@ -9346,7 +8998,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5zn Family
 ### `m5zn.large`
@@ -9373,7 +9024,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|13|
 ### `m5zn.xlarge`
 #### Labels
@@ -9399,7 +9049,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|29|
 ### `m5zn.2xlarge`
 #### Labels
@@ -9425,7 +9074,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|62|
 ### `m5zn.3xlarge`
 #### Labels
@@ -9451,7 +9099,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|42536Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|92|
 ### `m5zn.6xlarge`
 #### Labels
@@ -9477,7 +9124,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m5zn.12xlarge`
 #### Labels
@@ -9503,7 +9149,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5zn.metal`
 #### Labels
@@ -9529,7 +9174,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6a Family
 ### `m6a.large`
@@ -9556,7 +9200,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6a.xlarge`
 #### Labels
@@ -9582,7 +9225,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6a.2xlarge`
 #### Labels
@@ -9608,7 +9250,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6a.4xlarge`
 #### Labels
@@ -9634,7 +9275,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6a.8xlarge`
 #### Labels
@@ -9660,7 +9300,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6a.12xlarge`
 #### Labels
@@ -9686,7 +9325,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6a.16xlarge`
 #### Labels
@@ -9712,7 +9350,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.24xlarge`
 #### Labels
@@ -9738,7 +9375,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.32xlarge`
 #### Labels
@@ -9764,7 +9400,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.48xlarge`
 #### Labels
@@ -9790,7 +9425,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.metal`
 #### Labels
@@ -9816,7 +9450,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6g Family
 ### `m6g.medium`
@@ -9843,7 +9476,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3286Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m6g.large`
 #### Labels
@@ -9869,7 +9501,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6844Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6g.xlarge`
 #### Labels
@@ -9895,7 +9526,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6g.2xlarge`
 #### Labels
@@ -9921,7 +9551,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6g.4xlarge`
 #### Labels
@@ -9947,7 +9576,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6g.8xlarge`
 #### Labels
@@ -9973,7 +9601,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6g.12xlarge`
 #### Labels
@@ -9999,7 +9626,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178874Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6g.16xlarge`
 #### Labels
@@ -10025,7 +9651,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6g.metal`
 #### Labels
@@ -10051,7 +9676,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6gd Family
 ### `m6gd.medium`
@@ -10079,7 +9703,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3286Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m6gd.large`
 #### Labels
@@ -10106,7 +9729,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6844Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6gd.xlarge`
 #### Labels
@@ -10133,7 +9755,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6gd.2xlarge`
 #### Labels
@@ -10160,7 +9781,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6gd.4xlarge`
 #### Labels
@@ -10187,7 +9807,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6gd.8xlarge`
 #### Labels
@@ -10214,7 +9833,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6gd.12xlarge`
 #### Labels
@@ -10241,7 +9859,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178874Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6gd.16xlarge`
 #### Labels
@@ -10268,7 +9885,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6gd.metal`
 #### Labels
@@ -10295,7 +9911,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6i Family
 ### `m6i.large`
@@ -10322,7 +9937,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6i.xlarge`
 #### Labels
@@ -10348,7 +9962,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6i.2xlarge`
 #### Labels
@@ -10374,7 +9987,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6i.4xlarge`
 #### Labels
@@ -10400,7 +10012,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6i.8xlarge`
 #### Labels
@@ -10426,7 +10037,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6i.12xlarge`
 #### Labels
@@ -10452,7 +10062,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6i.16xlarge`
 #### Labels
@@ -10478,7 +10087,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6i.24xlarge`
 #### Labels
@@ -10504,7 +10112,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6i.32xlarge`
 #### Labels
@@ -10530,7 +10137,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6i.metal`
 #### Labels
@@ -10556,7 +10162,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6id Family
 ### `m6id.large`
@@ -10584,7 +10189,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6id.xlarge`
 #### Labels
@@ -10611,7 +10215,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6id.2xlarge`
 #### Labels
@@ -10638,7 +10241,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6id.4xlarge`
 #### Labels
@@ -10665,7 +10267,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6id.8xlarge`
 #### Labels
@@ -10692,7 +10293,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6id.12xlarge`
 #### Labels
@@ -10719,7 +10319,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6id.16xlarge`
 #### Labels
@@ -10746,7 +10345,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6id.24xlarge`
 #### Labels
@@ -10773,7 +10371,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6id.32xlarge`
 #### Labels
@@ -10800,7 +10397,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6id.metal`
 #### Labels
@@ -10827,7 +10423,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6idn Family
 ### `m6idn.large`
@@ -10855,7 +10450,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6idn.xlarge`
 #### Labels
@@ -10882,7 +10476,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6idn.2xlarge`
 #### Labels
@@ -10909,7 +10502,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6idn.4xlarge`
 #### Labels
@@ -10936,7 +10528,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6idn.8xlarge`
 #### Labels
@@ -10963,7 +10554,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6idn.12xlarge`
 #### Labels
@@ -10990,7 +10580,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6idn.16xlarge`
 #### Labels
@@ -11017,7 +10606,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6idn.24xlarge`
 #### Labels
@@ -11044,7 +10632,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6idn.32xlarge`
 #### Labels
@@ -11071,7 +10658,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|480816Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ### `m6idn.metal`
 #### Labels
@@ -11098,7 +10684,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|480816Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ## m6in Family
 ### `m6in.large`
@@ -11125,7 +10710,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m6in.xlarge`
 #### Labels
@@ -11151,7 +10735,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m6in.2xlarge`
 #### Labels
@@ -11177,7 +10760,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m6in.4xlarge`
 #### Labels
@@ -11203,7 +10785,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m6in.8xlarge`
 #### Labels
@@ -11229,7 +10810,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m6in.12xlarge`
 #### Labels
@@ -11255,7 +10835,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m6in.16xlarge`
 #### Labels
@@ -11281,7 +10860,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6in.24xlarge`
 #### Labels
@@ -11307,7 +10885,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6in.32xlarge`
 #### Labels
@@ -11333,7 +10910,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|480816Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ### `m6in.metal`
 #### Labels
@@ -11359,7 +10935,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|480816Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ## m7a Family
 ### `m7a.medium`
@@ -11386,7 +10961,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3345Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m7a.large`
 #### Labels
@@ -11412,7 +10986,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m7a.xlarge`
 #### Labels
@@ -11438,7 +11011,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m7a.2xlarge`
 #### Labels
@@ -11464,7 +11036,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m7a.4xlarge`
 #### Labels
@@ -11490,7 +11061,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7a.8xlarge`
 #### Labels
@@ -11516,7 +11086,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m7a.12xlarge`
 #### Labels
@@ -11542,7 +11111,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m7a.16xlarge`
 #### Labels
@@ -11568,7 +11136,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7a.24xlarge`
 #### Labels
@@ -11594,7 +11161,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7a.32xlarge`
 #### Labels
@@ -11620,7 +11186,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7a.48xlarge`
 #### Labels
@@ -11646,7 +11211,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7a.metal-48xl`
 #### Labels
@@ -11672,7 +11236,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7g Family
 ### `m7g.medium`
@@ -11699,7 +11262,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3286Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m7g.large`
 #### Labels
@@ -11725,7 +11287,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6844Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m7g.xlarge`
 #### Labels
@@ -11751,7 +11312,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m7g.2xlarge`
 #### Labels
@@ -11777,7 +11337,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m7g.4xlarge`
 #### Labels
@@ -11803,7 +11362,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7g.8xlarge`
 #### Labels
@@ -11829,7 +11387,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7g.12xlarge`
 #### Labels
@@ -11855,7 +11412,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178874Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7g.16xlarge`
 #### Labels
@@ -11881,7 +11437,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7g.metal`
 #### Labels
@@ -11907,7 +11462,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7gd Family
 ### `m7gd.medium`
@@ -11935,7 +11489,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3286Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `m7gd.large`
 #### Labels
@@ -11962,7 +11515,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6844Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m7gd.xlarge`
 #### Labels
@@ -11989,7 +11541,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m7gd.2xlarge`
 #### Labels
@@ -12016,7 +11567,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m7gd.4xlarge`
 #### Labels
@@ -12043,7 +11593,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57632Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7gd.8xlarge`
 #### Labels
@@ -12070,7 +11619,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7gd.12xlarge`
 #### Labels
@@ -12097,7 +11645,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178874Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7gd.16xlarge`
 #### Labels
@@ -12124,7 +11671,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7i Family
 ### `m7i.large`
@@ -12151,7 +11697,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `m7i.xlarge`
 #### Labels
@@ -12177,7 +11722,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m7i.2xlarge`
 #### Labels
@@ -12203,7 +11747,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `m7i.4xlarge`
 #### Labels
@@ -12229,7 +11772,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `m7i.8xlarge`
 #### Labels
@@ -12255,7 +11797,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `m7i.12xlarge`
 #### Labels
@@ -12281,7 +11822,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `m7i.16xlarge`
 #### Labels
@@ -12307,7 +11847,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7i.24xlarge`
 #### Labels
@@ -12333,7 +11872,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7i.48xlarge`
 #### Labels
@@ -12359,7 +11897,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7i-flex Family
 ### `m7i-flex.large`
@@ -12386,7 +11923,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6903Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|3|
 ### `m7i-flex.xlarge`
 #### Labels
@@ -12412,7 +11948,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|8|
 ### `m7i-flex.2xlarge`
 #### Labels
@@ -12438,7 +11973,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `m7i-flex.4xlarge`
 #### Labels
@@ -12464,7 +11998,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|34|
 ### `m7i-flex.8xlarge`
 #### Labels
@@ -12490,7 +12023,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ## p2 Family
 ### `p2.xlarge`
@@ -12521,7 +12053,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|56786Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `p2.8xlarge`
 #### Labels
  | Label | Value |
@@ -12551,7 +12082,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|459304Mi|
  |nvidia.com/gpu|8|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `p2.16xlarge`
 #### Labels
  | Label | Value |
@@ -12581,7 +12111,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|690421Mi|
  |nvidia.com/gpu|16|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## p3 Family
 ### `p3.2xlarge`
 #### Labels
@@ -12611,7 +12140,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|56786Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `p3.8xlarge`
 #### Labels
@@ -12642,7 +12170,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|228187Mi|
  |nvidia.com/gpu|4|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `p3.16xlarge`
 #### Labels
@@ -12673,7 +12200,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|459304Mi|
  |nvidia.com/gpu|8|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ## p3dn Family
 ### `p3dn.24xlarge`
@@ -12706,7 +12232,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|718987Mi|
  |nvidia.com/gpu|8|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## p4d Family
 ### `p4d.24xlarge`
@@ -12739,7 +12264,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|1082712Mi|
  |nvidia.com/gpu|8|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|62|
 ## p5 Family
 ### `p5.48xlarge`
@@ -12772,7 +12296,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|1938410Mi|
  |nvidia.com/gpu|8|
  |pods|100|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|120|
 ## r3 Family
 ### `r3.large`
@@ -12798,7 +12321,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13534Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `r3.xlarge`
 #### Labels
  | Label | Value |
@@ -12822,7 +12344,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27896Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r3.2xlarge`
 #### Labels
  | Label | Value |
@@ -12846,7 +12367,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|56786Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r3.4xlarge`
 #### Labels
  | Label | Value |
@@ -12870,7 +12390,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112629Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r3.8xlarge`
 #### Labels
  | Label | Value |
@@ -12895,7 +12414,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|228187Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## r4 Family
 ### `r4.large`
 #### Labels
@@ -12921,7 +12439,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|13770Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `r4.xlarge`
 #### Labels
  | Label | Value |
@@ -12946,7 +12463,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27896Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r4.2xlarge`
 #### Labels
  | Label | Value |
@@ -12971,7 +12487,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|56786Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r4.4xlarge`
 #### Labels
  | Label | Value |
@@ -12996,7 +12511,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112629Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r4.8xlarge`
 #### Labels
  | Label | Value |
@@ -13021,7 +12535,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|228187Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r4.16xlarge`
 #### Labels
  | Label | Value |
@@ -13046,7 +12559,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|453771Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## r5 Family
 ### `r5.large`
 #### Labels
@@ -13072,7 +12584,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5.xlarge`
 #### Labels
@@ -13098,7 +12609,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5.2xlarge`
 #### Labels
@@ -13124,7 +12634,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5.4xlarge`
 #### Labels
@@ -13150,7 +12659,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5.8xlarge`
 #### Labels
@@ -13176,7 +12684,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5.12xlarge`
 #### Labels
@@ -13202,7 +12709,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5.16xlarge`
 #### Labels
@@ -13228,7 +12734,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5.24xlarge`
 #### Labels
@@ -13254,7 +12759,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5.metal`
 #### Labels
@@ -13280,7 +12784,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|120|
 ## r5a Family
 ### `r5a.large`
@@ -13307,7 +12810,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5a.xlarge`
 #### Labels
@@ -13333,7 +12835,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5a.2xlarge`
 #### Labels
@@ -13359,7 +12860,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5a.4xlarge`
 #### Labels
@@ -13385,7 +12885,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5a.8xlarge`
 #### Labels
@@ -13411,7 +12910,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5a.12xlarge`
 #### Labels
@@ -13437,7 +12935,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5a.16xlarge`
 #### Labels
@@ -13463,7 +12960,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5a.24xlarge`
 #### Labels
@@ -13489,7 +12985,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5ad Family
 ### `r5ad.large`
@@ -13517,7 +13012,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5ad.xlarge`
 #### Labels
@@ -13544,7 +13038,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5ad.2xlarge`
 #### Labels
@@ -13571,7 +13064,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5ad.4xlarge`
 #### Labels
@@ -13598,7 +13090,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5ad.8xlarge`
 #### Labels
@@ -13625,7 +13116,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5ad.12xlarge`
 #### Labels
@@ -13652,7 +13142,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5ad.16xlarge`
 #### Labels
@@ -13679,7 +13168,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5ad.24xlarge`
 #### Labels
@@ -13706,7 +13194,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5b Family
 ### `r5b.large`
@@ -13733,7 +13220,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5b.xlarge`
 #### Labels
@@ -13759,7 +13245,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5b.2xlarge`
 #### Labels
@@ -13785,7 +13270,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5b.4xlarge`
 #### Labels
@@ -13811,7 +13295,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5b.8xlarge`
 #### Labels
@@ -13837,7 +13320,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5b.12xlarge`
 #### Labels
@@ -13863,7 +13345,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5b.16xlarge`
 #### Labels
@@ -13889,7 +13370,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5b.24xlarge`
 #### Labels
@@ -13915,7 +13395,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5b.metal`
 #### Labels
@@ -13941,7 +13420,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5d Family
 ### `r5d.large`
@@ -13969,7 +13447,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5d.xlarge`
 #### Labels
@@ -13996,7 +13473,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5d.2xlarge`
 #### Labels
@@ -14023,7 +13499,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5d.4xlarge`
 #### Labels
@@ -14050,7 +13525,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5d.8xlarge`
 #### Labels
@@ -14077,7 +13551,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5d.12xlarge`
 #### Labels
@@ -14104,7 +13577,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5d.16xlarge`
 #### Labels
@@ -14131,7 +13603,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5d.24xlarge`
 #### Labels
@@ -14158,7 +13629,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5d.metal`
 #### Labels
@@ -14185,7 +13655,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5dn Family
 ### `r5dn.large`
@@ -14213,7 +13682,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5dn.xlarge`
 #### Labels
@@ -14240,7 +13708,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5dn.2xlarge`
 #### Labels
@@ -14267,7 +13734,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5dn.4xlarge`
 #### Labels
@@ -14294,7 +13760,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5dn.8xlarge`
 #### Labels
@@ -14321,7 +13786,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5dn.12xlarge`
 #### Labels
@@ -14348,7 +13812,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5dn.16xlarge`
 #### Labels
@@ -14375,7 +13838,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5dn.24xlarge`
 #### Labels
@@ -14402,7 +13864,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5dn.metal`
 #### Labels
@@ -14429,7 +13890,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5n Family
 ### `r5n.large`
@@ -14456,7 +13916,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r5n.xlarge`
 #### Labels
@@ -14482,7 +13941,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r5n.2xlarge`
 #### Labels
@@ -14508,7 +13966,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r5n.4xlarge`
 #### Labels
@@ -14534,7 +13991,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5n.8xlarge`
 #### Labels
@@ -14560,7 +14016,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5n.12xlarge`
 #### Labels
@@ -14586,7 +14041,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r5n.16xlarge`
 #### Labels
@@ -14612,7 +14066,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5n.24xlarge`
 #### Labels
@@ -14638,7 +14091,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5n.metal`
 #### Labels
@@ -14664,7 +14116,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6a Family
 ### `r6a.large`
@@ -14691,7 +14142,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6a.xlarge`
 #### Labels
@@ -14717,7 +14167,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6a.2xlarge`
 #### Labels
@@ -14743,7 +14192,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6a.4xlarge`
 #### Labels
@@ -14769,7 +14217,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6a.8xlarge`
 #### Labels
@@ -14795,7 +14242,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6a.12xlarge`
 #### Labels
@@ -14821,7 +14267,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6a.16xlarge`
 #### Labels
@@ -14847,7 +14292,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.24xlarge`
 #### Labels
@@ -14873,7 +14317,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.32xlarge`
 #### Labels
@@ -14899,7 +14342,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.48xlarge`
 #### Labels
@@ -14925,7 +14367,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.metal`
 #### Labels
@@ -14951,7 +14392,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6g Family
 ### `r6g.medium`
@@ -14978,7 +14418,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7075Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `r6g.large`
 #### Labels
@@ -15004,7 +14443,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14422Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6g.xlarge`
 #### Labels
@@ -15030,7 +14468,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6g.2xlarge`
 #### Labels
@@ -15056,7 +14493,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59568Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6g.4xlarge`
 #### Labels
@@ -15082,7 +14518,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6g.8xlarge`
 #### Labels
@@ -15108,7 +14543,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239495Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6g.12xlarge`
 #### Labels
@@ -15134,7 +14568,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360736Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6g.16xlarge`
 #### Labels
@@ -15160,7 +14593,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6g.metal`
 #### Labels
@@ -15186,7 +14618,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6gd Family
 ### `r6gd.medium`
@@ -15214,7 +14645,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7075Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `r6gd.large`
 #### Labels
@@ -15241,7 +14671,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14422Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6gd.xlarge`
 #### Labels
@@ -15268,7 +14697,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6gd.2xlarge`
 #### Labels
@@ -15295,7 +14723,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59568Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6gd.4xlarge`
 #### Labels
@@ -15322,7 +14749,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6gd.8xlarge`
 #### Labels
@@ -15349,7 +14775,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239495Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6gd.12xlarge`
 #### Labels
@@ -15376,7 +14801,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360736Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6gd.16xlarge`
 #### Labels
@@ -15403,7 +14827,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6gd.metal`
 #### Labels
@@ -15430,7 +14853,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6i Family
 ### `r6i.large`
@@ -15457,7 +14879,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6i.xlarge`
 #### Labels
@@ -15483,7 +14904,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6i.2xlarge`
 #### Labels
@@ -15509,7 +14929,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6i.4xlarge`
 #### Labels
@@ -15535,7 +14954,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6i.8xlarge`
 #### Labels
@@ -15561,7 +14979,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6i.12xlarge`
 #### Labels
@@ -15587,7 +15004,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6i.16xlarge`
 #### Labels
@@ -15613,7 +15029,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6i.24xlarge`
 #### Labels
@@ -15639,7 +15054,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6i.32xlarge`
 #### Labels
@@ -15665,7 +15079,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6i.metal`
 #### Labels
@@ -15691,7 +15104,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6id Family
 ### `r6id.large`
@@ -15719,7 +15131,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6id.xlarge`
 #### Labels
@@ -15746,7 +15157,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6id.2xlarge`
 #### Labels
@@ -15773,7 +15183,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6id.4xlarge`
 #### Labels
@@ -15800,7 +15209,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6id.8xlarge`
 #### Labels
@@ -15827,7 +15235,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6id.12xlarge`
 #### Labels
@@ -15854,7 +15261,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6id.16xlarge`
 #### Labels
@@ -15881,7 +15287,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6id.24xlarge`
 #### Labels
@@ -15908,7 +15313,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6id.32xlarge`
 #### Labels
@@ -15935,7 +15339,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6id.metal`
 #### Labels
@@ -15962,7 +15365,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6idn Family
 ### `r6idn.large`
@@ -15990,7 +15392,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6idn.xlarge`
 #### Labels
@@ -16017,7 +15418,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6idn.2xlarge`
 #### Labels
@@ -16044,7 +15444,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6idn.4xlarge`
 #### Labels
@@ -16071,7 +15470,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6idn.8xlarge`
 #### Labels
@@ -16098,7 +15496,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6idn.12xlarge`
 #### Labels
@@ -16125,7 +15522,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6idn.16xlarge`
 #### Labels
@@ -16152,7 +15548,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6idn.24xlarge`
 #### Labels
@@ -16179,7 +15574,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6idn.32xlarge`
 #### Labels
@@ -16206,7 +15600,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|965782Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ### `r6idn.metal`
 #### Labels
@@ -16233,7 +15626,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|965782Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ## r6in Family
 ### `r6in.large`
@@ -16260,7 +15652,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r6in.xlarge`
 #### Labels
@@ -16286,7 +15677,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r6in.2xlarge`
 #### Labels
@@ -16312,7 +15702,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r6in.4xlarge`
 #### Labels
@@ -16338,7 +15727,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r6in.8xlarge`
 #### Labels
@@ -16364,7 +15752,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|84|
 ### `r6in.12xlarge`
 #### Labels
@@ -16390,7 +15777,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `r6in.16xlarge`
 #### Labels
@@ -16416,7 +15802,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6in.24xlarge`
 #### Labels
@@ -16442,7 +15827,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6in.32xlarge`
 #### Labels
@@ -16468,7 +15852,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|965782Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ### `r6in.metal`
 #### Labels
@@ -16494,7 +15877,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|965782Mi|
  |pods|345|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|108|
 ## r7a Family
 ### `r7a.medium`
@@ -16521,7 +15903,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7134Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
 ### `r7a.large`
 #### Labels
  | Label | Value |
@@ -16546,7 +15927,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `r7a.xlarge`
 #### Labels
  | Label | Value |
@@ -16571,7 +15951,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r7a.2xlarge`
 #### Labels
  | Label | Value |
@@ -16596,7 +15975,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r7a.4xlarge`
 #### Labels
  | Label | Value |
@@ -16621,7 +15999,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7a.8xlarge`
 #### Labels
  | Label | Value |
@@ -16646,7 +16023,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7a.12xlarge`
 #### Labels
  | Label | Value |
@@ -16671,7 +16047,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7a.16xlarge`
 #### Labels
  | Label | Value |
@@ -16696,7 +16071,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `r7a.24xlarge`
 #### Labels
  | Label | Value |
@@ -16721,7 +16095,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `r7a.32xlarge`
 #### Labels
  | Label | Value |
@@ -16746,7 +16119,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `r7a.48xlarge`
 #### Labels
  | Label | Value |
@@ -16771,7 +16143,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `r7a.metal-48xl`
 #### Labels
  | Label | Value |
@@ -16795,7 +16166,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## r7g Family
 ### `r7g.medium`
 #### Labels
@@ -16821,7 +16191,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7075Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `r7g.large`
 #### Labels
@@ -16847,7 +16216,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14422Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r7g.xlarge`
 #### Labels
@@ -16873,7 +16241,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r7g.2xlarge`
 #### Labels
@@ -16899,7 +16266,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59568Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r7g.4xlarge`
 #### Labels
@@ -16925,7 +16291,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7g.8xlarge`
 #### Labels
@@ -16951,7 +16316,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239495Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7g.12xlarge`
 #### Labels
@@ -16977,7 +16341,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360736Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7g.16xlarge`
 #### Labels
@@ -17003,7 +16366,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r7g.metal`
 #### Labels
@@ -17029,7 +16391,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r7gd Family
 ### `r7gd.medium`
@@ -17057,7 +16418,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7075Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|4|
 ### `r7gd.large`
 #### Labels
@@ -17084,7 +16444,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14422Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `r7gd.xlarge`
 #### Labels
@@ -17111,7 +16470,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `r7gd.2xlarge`
 #### Labels
@@ -17138,7 +16496,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59568Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `r7gd.4xlarge`
 #### Labels
@@ -17165,7 +16522,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118253Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.8xlarge`
 #### Labels
@@ -17192,7 +16548,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178874Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.12xlarge`
 #### Labels
@@ -17219,7 +16574,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239495Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.16xlarge`
 #### Labels
@@ -17246,7 +16600,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## r7i Family
 ### `r7i.large`
@@ -17272,7 +16625,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `r7i.xlarge`
 #### Labels
  | Label | Value |
@@ -17296,7 +16648,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r7i.2xlarge`
 #### Labels
  | Label | Value |
@@ -17320,7 +16671,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r7i.4xlarge`
 #### Labels
  | Label | Value |
@@ -17344,7 +16694,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7i.8xlarge`
 #### Labels
  | Label | Value |
@@ -17368,7 +16717,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7i.12xlarge`
 #### Labels
  | Label | Value |
@@ -17392,7 +16740,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7i.16xlarge`
 #### Labels
  | Label | Value |
@@ -17416,7 +16763,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `r7i.24xlarge`
 #### Labels
  | Label | Value |
@@ -17440,7 +16786,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `r7i.48xlarge`
 #### Labels
  | Label | Value |
@@ -17464,7 +16809,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## r7iz Family
 ### `r7iz.large`
 #### Labels
@@ -17490,7 +16834,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `r7iz.xlarge`
 #### Labels
  | Label | Value |
@@ -17515,7 +16858,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r7iz.2xlarge`
 #### Labels
  | Label | Value |
@@ -17540,7 +16882,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `r7iz.4xlarge`
 #### Labels
  | Label | Value |
@@ -17565,7 +16906,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7iz.8xlarge`
 #### Labels
  | Label | Value |
@@ -17590,7 +16930,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7iz.12xlarge`
 #### Labels
  | Label | Value |
@@ -17615,7 +16954,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `r7iz.16xlarge`
 #### Labels
  | Label | Value |
@@ -17640,7 +16978,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `r7iz.32xlarge`
 #### Labels
  | Label | Value |
@@ -17665,7 +17002,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## t1 Family
 ### `t1.micro`
 #### Labels
@@ -17690,7 +17026,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|180Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ## t2 Family
 ### `t2.nano`
 #### Labels
@@ -17715,7 +17050,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|74Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ### `t2.micro`
 #### Labels
  | Label | Value |
@@ -17739,7 +17073,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|548Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ### `t2.small`
 #### Labels
  | Label | Value |
@@ -17763,7 +17096,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1418Mi|
  |pods|11|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
 ### `t2.medium`
 #### Labels
  | Label | Value |
@@ -17787,7 +17119,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3246Mi|
  |pods|17|
- |vpc.amazonaws.com/PrivateIPv4Address|5|
 ### `t2.large`
 #### Labels
  | Label | Value |
@@ -17811,7 +17142,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6837Mi|
  |pods|35|
- |vpc.amazonaws.com/PrivateIPv4Address|11|
 ### `t2.xlarge`
 #### Labels
  | Label | Value |
@@ -17835,7 +17165,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14316Mi|
  |pods|44|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `t2.2xlarge`
 #### Labels
  | Label | Value |
@@ -17859,7 +17188,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29471Mi|
  |pods|44|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ## t3 Family
 ### `t3.nano`
 #### Labels
@@ -17885,7 +17213,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|74Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ### `t3.micro`
 #### Labels
  | Label | Value |
@@ -17910,7 +17237,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|548Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ### `t3.small`
 #### Labels
  | Label | Value |
@@ -17935,7 +17261,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1418Mi|
  |pods|11|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
 ### `t3.medium`
 #### Labels
  | Label | Value |
@@ -17960,7 +17285,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3246Mi|
  |pods|17|
- |vpc.amazonaws.com/PrivateIPv4Address|5|
 ### `t3.large`
 #### Labels
  | Label | Value |
@@ -17985,7 +17309,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6837Mi|
  |pods|35|
- |vpc.amazonaws.com/PrivateIPv4Address|11|
 ### `t3.xlarge`
 #### Labels
  | Label | Value |
@@ -18010,7 +17333,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `t3.2xlarge`
 #### Labels
  | Label | Value |
@@ -18035,7 +17357,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ## t3a Family
 ### `t3a.nano`
 #### Labels
@@ -18061,7 +17382,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|74Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ### `t3a.micro`
 #### Labels
  | Label | Value |
@@ -18086,7 +17406,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|548Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ### `t3a.small`
 #### Labels
  | Label | Value |
@@ -18111,7 +17430,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1451Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
 ### `t3a.medium`
 #### Labels
  | Label | Value |
@@ -18136,7 +17454,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3246Mi|
  |pods|17|
- |vpc.amazonaws.com/PrivateIPv4Address|5|
 ### `t3a.large`
 #### Labels
  | Label | Value |
@@ -18161,7 +17478,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6837Mi|
  |pods|35|
- |vpc.amazonaws.com/PrivateIPv4Address|11|
 ### `t3a.xlarge`
 #### Labels
  | Label | Value |
@@ -18186,7 +17502,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `t3a.2xlarge`
 #### Labels
  | Label | Value |
@@ -18211,7 +17526,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ## t4g Family
 ### `t4g.nano`
 #### Labels
@@ -18237,7 +17551,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|15Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ### `t4g.micro`
 #### Labels
  | Label | Value |
@@ -18262,7 +17575,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|489Mi|
  |pods|4|
- |vpc.amazonaws.com/PrivateIPv4Address|1|
 ### `t4g.small`
 #### Labels
  | Label | Value |
@@ -18287,7 +17599,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1359Mi|
  |pods|11|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
 ### `t4g.medium`
 #### Labels
  | Label | Value |
@@ -18312,7 +17623,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3187Mi|
  |pods|17|
- |vpc.amazonaws.com/PrivateIPv4Address|5|
 ### `t4g.large`
 #### Labels
  | Label | Value |
@@ -18337,7 +17647,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6778Mi|
  |pods|35|
- |vpc.amazonaws.com/PrivateIPv4Address|11|
 ### `t4g.xlarge`
 #### Labels
  | Label | Value |
@@ -18362,7 +17671,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14103Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `t4g.2xlarge`
 #### Labels
  | Label | Value |
@@ -18387,7 +17695,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29258Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ## trn1 Family
 ### `trn1.2xlarge`
 #### Labels
@@ -18418,7 +17725,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|17|
 ### `trn1.32xlarge`
 #### Labels
@@ -18449,7 +17755,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
  |pods|247|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|82|
 ## trn1n Family
 ### `trn1n.32xlarge`
@@ -18481,7 +17786,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
  |pods|247|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|120|
 ## u-12tb1 Family
 ### `u-12tb1.112xlarge`
@@ -18508,7 +17812,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|11630731Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## u-18tb1 Family
 ### `u-18tb1.112xlarge`
 #### Labels
@@ -18534,7 +17837,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|17450328Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## u-24tb1 Family
 ### `u-24tb1.112xlarge`
 #### Labels
@@ -18560,7 +17862,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|23269925Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## u-3tb1 Family
 ### `u-3tb1.56xlarge`
 #### Labels
@@ -18586,7 +17887,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|2906869Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|6|
 ## u-6tb1 Family
 ### `u-6tb1.56xlarge`
@@ -18613,7 +17913,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|5811134Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ### `u-6tb1.112xlarge`
 #### Labels
  | Label | Value |
@@ -18638,7 +17937,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|5811134Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## u-9tb1 Family
 ### `u-9tb1.112xlarge`
 #### Labels
@@ -18664,7 +17962,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|8720933Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
 ## vt1 Family
 ### `vt1.3xlarge`
 #### Labels
@@ -18690,7 +17987,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|21739Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `vt1.6xlarge`
 #### Labels
@@ -18716,7 +18012,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|42536Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `vt1.24xlarge`
 #### Labels
@@ -18742,7 +18037,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## x1 Family
 ### `x1.16xlarge`
@@ -18769,7 +18063,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|921538Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `x1.32xlarge`
 #### Labels
  | Label | Value |
@@ -18794,7 +18087,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1846005Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## x1e Family
 ### `x1e.xlarge`
 #### Labels
@@ -18820,7 +18112,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|114884Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
 ### `x1e.2xlarge`
 #### Labels
  | Label | Value |
@@ -18845,7 +18136,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|230123Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `x1e.4xlarge`
 #### Labels
  | Label | Value |
@@ -18870,7 +18160,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|461240Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `x1e.8xlarge`
 #### Labels
  | Label | Value |
@@ -18895,7 +18184,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|923474Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
 ### `x1e.16xlarge`
 #### Labels
  | Label | Value |
@@ -18920,7 +18208,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1846005Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ### `x1e.32xlarge`
 #### Labels
  | Label | Value |
@@ -18945,7 +18232,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3694939Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
 ## x2gd Family
 ### `x2gd.medium`
 #### Labels
@@ -18972,7 +18258,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14653Mi|
  |pods|8|
- |vpc.amazonaws.com/PrivateIPv4Address|3|
  |vpc.amazonaws.com/pod-eni|10|
 ### `x2gd.large`
 #### Labels
@@ -18999,7 +18284,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29577Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|9|
 ### `x2gd.xlarge`
 #### Labels
@@ -19026,7 +18310,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59568Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|18|
 ### `x2gd.2xlarge`
 #### Labels
@@ -19053,7 +18336,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|120189Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|38|
 ### `x2gd.4xlarge`
 #### Labels
@@ -19080,7 +18362,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239495Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `x2gd.8xlarge`
 #### Labels
@@ -19107,7 +18388,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|481978Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `x2gd.12xlarge`
 #### Labels
@@ -19134,7 +18414,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|724461Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `x2gd.16xlarge`
 #### Labels
@@ -19161,7 +18440,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961411Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2gd.metal`
 #### Labels
@@ -19188,7 +18466,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961411Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## x2idn Family
 ### `x2idn.16xlarge`
@@ -19216,7 +18493,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2idn.24xlarge`
 #### Labels
@@ -19243,7 +18519,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2idn.32xlarge`
 #### Labels
@@ -19270,7 +18545,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1931403Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2idn.metal`
 #### Labels
@@ -19297,7 +18571,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1931403Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## x2iedn Family
 ### `x2iedn.xlarge`
@@ -19325,7 +18598,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|120248Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|11|
 ### `x2iedn.2xlarge`
 #### Labels
@@ -19352,7 +18624,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|241490Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|27|
 ### `x2iedn.4xlarge`
 #### Labels
@@ -19379,7 +18650,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|482037Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `x2iedn.8xlarge`
 #### Labels
@@ -19406,7 +18676,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|967003Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `x2iedn.16xlarge`
 #### Labels
@@ -19433,7 +18702,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1931403Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iedn.24xlarge`
 #### Labels
@@ -19460,7 +18728,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|2901336Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iedn.32xlarge`
 #### Labels
@@ -19487,7 +18754,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3871269Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iedn.metal`
 #### Labels
@@ -19514,7 +18780,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3871269Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## x2iezn Family
 ### `x2iezn.2xlarge`
@@ -19541,7 +18806,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|241490Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|62|
 ### `x2iezn.4xlarge`
 #### Labels
@@ -19567,7 +18831,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|482037Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `x2iezn.6xlarge`
 #### Labels
@@ -19593,7 +18856,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|724520Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `x2iezn.8xlarge`
 #### Labels
@@ -19619,7 +18881,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|967003Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|114|
 ### `x2iezn.12xlarge`
 #### Labels
@@ -19645,7 +18906,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iezn.metal`
 #### Labels
@@ -19671,7 +18931,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ## z1d Family
 ### `z1d.large`
@@ -19699,7 +18958,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
- |vpc.amazonaws.com/PrivateIPv4Address|9|
  |vpc.amazonaws.com/pod-eni|13|
 ### `z1d.xlarge`
 #### Labels
@@ -19726,7 +18984,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|28|
 ### `z1d.2xlarge`
 #### Labels
@@ -19753,7 +19010,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
- |vpc.amazonaws.com/PrivateIPv4Address|14|
  |vpc.amazonaws.com/pod-eni|58|
 ### `z1d.3xlarge`
 #### Labels
@@ -19780,7 +19036,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `z1d.6xlarge`
 #### Labels
@@ -19807,7 +19062,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|178933Mi|
  |pods|234|
- |vpc.amazonaws.com/PrivateIPv4Address|29|
  |vpc.amazonaws.com/pod-eni|54|
 ### `z1d.12xlarge`
 #### Labels
@@ -19834,7 +19088,6 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
 ### `z1d.metal`
 #### Labels
@@ -19861,5 +19114,4 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
- |vpc.amazonaws.com/PrivateIPv4Address|49|
  |vpc.amazonaws.com/pod-eni|107|
