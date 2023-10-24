@@ -59,7 +59,6 @@ var _ = BeforeEach(func() {
 		InterruptionQueue: lo.ToPtr(env.InterruptionQueue),
 	}))
 	env.BeforeEach()
-	env.ExpectQueueExists()
 	nodeClass = env.DefaultEC2NodeClass()
 	nodePool = env.DefaultNodePool(nodeClass)
 })

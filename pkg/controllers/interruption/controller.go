@@ -38,6 +38,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/events"
@@ -59,14 +60,14 @@ type Controller struct {
 	kubeClient                client.Client
 	clk                       clock.Clock
 	recorder                  events.Recorder
-	sqsProvider               *SQSProvider
+	sqsProvider               *sqs.Provider
 	unavailableOfferingsCache *cache.UnavailableOfferings
 	parser                    *EventParser
 	cm                        *pretty.ChangeMonitor
 }
 
 func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder,
-	sqsProvider *SQSProvider, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
+	sqsProvider *sqs.Provider, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
 
 	return &Controller{
 		kubeClient:                kubeClient,
