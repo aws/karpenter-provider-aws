@@ -36,6 +36,10 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
+<<<<<<< HEAD
+=======
+	awstest "github.com/aws/karpenter/pkg/test"
+>>>>>>> 659c1dc1 (test: add beta scale test)
 	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
