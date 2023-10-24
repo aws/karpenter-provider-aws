@@ -274,7 +274,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			},
 		)
 		env.ExpectCreated(provisioner, provider, deployment)
-		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*20, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should support the node-restriction.kubernetes.io label domain", func() {

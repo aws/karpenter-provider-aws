@@ -128,7 +128,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					},
 				})
 				env.ExpectCreated(nodeClass, nodePool, pod)
-				env.EventuallyExpectHealthyWithTimeout(time.Minute*20, pod)
+				env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("when the AMIFamily is Windows2019", &v1beta1.AMIFamilyWindows2019),
