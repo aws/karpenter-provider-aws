@@ -7,7 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.46.1
-	github.com/aws/karpenter-core v0.31.1-0.20231020234031-e0623869f604
+	github.com/aws/karpenter-core v0.31.1-0.20231023230955-f52b18ab8c13
 	github.com/aws/karpenter/tools/kompat v0.0.0-20231010173459-62c25a3ea85c
 	github.com/go-logr/zapr v1.2.4
 	github.com/imdario/mergo v0.3.16
@@ -106,9 +106,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/cloud-provider v0.28.2 // indirect
+	k8s.io/cloud-provider v0.28.3 // indirect
 	k8s.io/component-base v0.28.3 // indirect
-	k8s.io/csi-translation-lib v0.28.2 // indirect
+	k8s.io/csi-translation-lib v0.28.3 // indirect
 	k8s.io/klog/v2 v2.100.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
