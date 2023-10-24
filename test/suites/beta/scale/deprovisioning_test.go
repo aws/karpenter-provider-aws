@@ -79,7 +79,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 	var dsCount int
 
 	BeforeEach(func() {
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "true"})
+		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=True"})
 		nodeClass = awstest.EC2NodeClass(v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
 			AMIFamily: &v1beta1.AMIFamilyAL2,
 			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
