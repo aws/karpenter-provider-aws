@@ -166,6 +166,8 @@ logConfig:
     webhook: error
 # -- Global Settings to configure Karpenter
 settings:
+  # -- AWS-specific settings (Deprecated: The AWS block inside of settings was flattened into settings)
+  aws: {}
   # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
   batchMaxDuration: 10s
