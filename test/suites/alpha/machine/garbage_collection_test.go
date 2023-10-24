@@ -135,7 +135,8 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 	})
 	It("should succeed to garbage collect a Machine that was deleted without the cluster's knowledge", func() {
 		// Disable the interruption queue for the garbage collection test
-		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: ""})
+		env.ExpectSettingsRemoved(corev1.EnvVar{Name: "INTERRUPTION_QUEUE"})
+		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.interruptionQueueName": ""})
 
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},

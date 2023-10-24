@@ -37,6 +37,19 @@ import (
 var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	var selectors sets.Set[string]
 
+	BeforeEach(func() {
+		// Make the NodePool requirements fully flexible, so we can match well-known label keys
+		nodePool = test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpExists,
+			},
+			v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceGeneration,
+				Operator: v1.NodeSelectorOpExists,
+			},
+		)
+	})
 	BeforeAll(func() {
 		selectors = sets.New[string]()
 	})
@@ -343,6 +356,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 						},
 						Requirements: []v1.NodeSelectorRequirement{
 							{
+								Key:      v1.LabelOSStable,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{string(v1.Linux)},
+							},
+							{
 								Key:      v1.LabelInstanceTypeStable,
 								Operator: v1.NodeSelectorOpIn,
 								Values:   []string{"t3.nano"},
@@ -361,6 +379,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 							Name: nodeClass.Name,
 						},
 						Requirements: []v1.NodeSelectorRequirement{
+							{
+								Key:      v1.LabelOSStable,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{string(v1.Linux)},
+							},
 							{
 								Key:      v1.LabelInstanceTypeStable,
 								Operator: v1.NodeSelectorOpIn,

@@ -93,6 +93,9 @@ var _ = BeforeEach(func() {
 					},
 				},
 			},
+			Disruption: corev1beta1.Disruption{
+				ConsolidateAfter: &corev1beta1.NillableDuration{},
+			},
 		},
 	})
 })
