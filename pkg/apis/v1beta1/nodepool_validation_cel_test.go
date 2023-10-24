@@ -54,28 +54,56 @@ var _ = Describe("CEL/Validation", func() {
 			},
 		}
 	})
-	It("should allow restricted domains exceptions", func() {
-		oldNodePool := nodePool.DeepCopy()
-		for label := range v1beta1.LabelDomainExceptions {
-			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
-				{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+	Context("Requirements", func() {
+		It("should allow restricted domains exceptions", func() {
+			oldNodePool := nodePool.DeepCopy()
+			for label := range v1beta1.LabelDomainExceptions {
+				nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				}
+				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
+				Expect(nodePool.RuntimeValidate()).To(Succeed())
+				Expect(env.Client.Delete(ctx, nodePool)).To(Succeed())
+				nodePool = oldNodePool.DeepCopy()
 			}
-			Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
-			Expect(nodePool.RuntimeValidate()).To(Succeed())
-			Expect(env.Client.Delete(ctx, nodePool)).To(Succeed())
-			nodePool = oldNodePool.DeepCopy()
-		}
+		})
+		It("should allow well known label exceptions", func() {
+			oldNodePool := nodePool.DeepCopy()
+			for label := range v1beta1.WellKnownLabels.Difference(sets.New(v1beta1.NodePoolLabelKey)) {
+				nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+					{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				}
+				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
+				Expect(nodePool.RuntimeValidate()).To(Succeed())
+				Expect(env.Client.Delete(ctx, nodePool)).To(Succeed())
+				nodePool = oldNodePool.DeepCopy()
+			}
+		})
 	})
-	It("should allow well known label exceptions", func() {
-		oldNodePool := nodePool.DeepCopy()
-		for label := range v1beta1.WellKnownLabels.Difference(sets.New(v1beta1.NodePoolLabelKey)) {
-			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
-				{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+	Context("Labels", func() {
+		It("should allow restricted domains exceptions", func() {
+			oldNodePool := nodePool.DeepCopy()
+			for label := range v1beta1.LabelDomainExceptions {
+				nodePool.Spec.Template.Labels = map[string]string{
+					label: "test",
+				}
+				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
+				Expect(nodePool.RuntimeValidate()).To(Succeed())
+				Expect(env.Client.Delete(ctx, nodePool)).To(Succeed())
+				nodePool = oldNodePool.DeepCopy()
 			}
-			Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
-			Expect(nodePool.RuntimeValidate()).To(Succeed())
-			Expect(env.Client.Delete(ctx, nodePool)).To(Succeed())
-			nodePool = oldNodePool.DeepCopy()
-		}
+		})
+		It("should allow well known label exceptions", func() {
+			oldNodePool := nodePool.DeepCopy()
+			for label := range v1beta1.WellKnownLabels.Difference(sets.New(v1beta1.NodePoolLabelKey)) {
+				nodePool.Spec.Template.Labels = map[string]string{
+					label: "test",
+				}
+				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
+				Expect(nodePool.RuntimeValidate()).To(Succeed())
+				Expect(env.Client.Delete(ctx, nodePool)).To(Succeed())
+				nodePool = oldNodePool.DeepCopy()
+			}
+		})
 	})
 })
