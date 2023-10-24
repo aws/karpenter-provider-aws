@@ -111,26 +111,14 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
     ```
 
-5. Apply the v0.32.0 Custom Resource Definitions (CRDs) in the crds directory of the Karpenter helm chart. Here are the ways you can do this:
-
-   * As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs. To upgrade or install `karpenter-crd` run:
-    ```bash
-    helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
-    ```
-
-   {{% alert title="Note" color="warning" %}}
-
-   If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-installing-the-karpenter-crd-chart" >}}) for details on how to resolve these errors.
-
-   {{% /alert %}}
-
-   * As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide. In general, ou can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
+5. Apply the v0.32.0 Custom Resource Definitions (CRDs):
 
    ```bash
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodepools.yaml
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
     ```
+
 6. Upgrade Karpenter to the new version:
 
     ```bash
@@ -147,6 +135,10 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
       --set controller.resources.limits.memory=1Gi \
       --wait
     ```
+
+   {{% alert title="Note" color="warning" %}}
+   Karpenter has deprecated and moved a number of Helm values as part of the v1beta1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1beta1. You can find detail for all the settings that were moved in the [v1beta1 Upgrade Reference]({{<ref "v1beta1-reference#helm-values" >}}).
+   {{% /alert %}}
 
 7. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert).
    See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-reference#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects. Here is an example of how to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
@@ -234,8 +226,6 @@ If you are using some IaC for managing your policy documents attached to the con
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
 * Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
 * Karpenter now moves all logging configuration for the Zap logger into the `logConfig` values block. Configuring Karpenter logging with this mechanism _is_ deprecated and will be dropped at v1. Karpenter now only surfaces logLevel through the `logLevel` helm value. If you need more advanced configuration due to log parsing constraints, we recommend configuring your log parser to handle Karpenter's Zap JSON logging.
-* Karpenter now moves all AWS controller-wide configuration settings from the `settings.aws` block into the top-level `settings` block. The previous `settings.aws` block is deprecated and will be dropped at v0.33.0.
-* The `settings.featureGates.driftEnabled` value is now deprecated in favor of the new `settings.featureGates.drift` value. Values in the future will not contain the word "enabled" and will contain naming more similar to [Upstream Feature Gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/).
 
 ### Upgrading to v0.31.0+
 

@@ -604,23 +604,49 @@ In addition to these metrics, the MachineNotFound error returned by the `karpent
 The v1beta1 specification removes the `karpenter-global-settings` ConfigMap in favor of setting all Karpenter configuration using environment variables. Along, with this change, Karpenter has chosen to remove certain global variables that can be configured with more specificity in the EC2NodeClass . These values are marked as removed below.
 
 
-| **`karpenter-global-settings` ConfigMap Key** | **Environment Variable**        | **CLI Argument**
-|-----------------------------------------------|---------------------------------|-------------------------------|
-| batchMaxDuration                              | BATCH_MAX_DURATION              | --batch-max-duration          |
-| batchIdleDuration                             | BATCH_IDLE_DURATION             | --batch-idle-duration         |
-| assumeRoleARN                                 | ASSUME_ROLE_ARN                 | --assume-role-arn             |
-| assumeRoleDuration                            | ASSUME_ROLE_DURATION            | --assume-role-duration        |
-| clusterCABundle                               | CLUSTER_CA_BUNDLE               | --cluster-ca-bundle           |
-| clusterName                                   | CLUSTER_NAME                    | --cluster-name                |
-| clusterEndpoint                               | CLUSTER_ENDPOINT                | --cluster-endpoint            |
-| defaultInstanceProfile                        | Dropped                         | Dropped                       |
-| enablePodENI                                  | Dropped                         | Dropped                       |
-| enableENILimitedPodDensity                    | Dropped                         | Dropped                       |
-| isolatedVPC                                   | ISOLATED_VPC                    | --isolated-vpc                |
-| vmMemoryOverheadPercent                       | VM_MEMORY_OVERHEAD_PERCENT      | --vm-memory-overhead-percent  |
-| interruptionQueueName                         | INTERRUPTION_QUEUE_NAME         | --interruption-queue-name     |
-| reservedENIs                                  | RESERVED_ENIS                   | --reserved-enis               |
-| featureGates.driftEnabled                     | FEATURE_GATE="Drift=true"       | --feature-gates Drift=true    |
+| **`karpenter-global-settings` ConfigMap Key** | **Environment Variable**   | **CLI Argument**
+|-----------------------------------------------|----------------------------|--------------------------|
+| batchMaxDuration                              | BATCH_MAX_DURATION         | --batch-max-duration     |
+| batchIdleDuration                             | BATCH_IDLE_DURATION        | --batch-idle-duration    |
+| assumeRoleARN                                 | ASSUME_ROLE_ARN            | --assume-role-arn        |
+| assumeRoleDuration                            | ASSUME_ROLE_DURATION       | --assume-role-duration   |
+| clusterCABundle                               | CLUSTER_CA_BUNDLE          | --cluster-ca-bundle      |
+| clusterName                                   | CLUSTER_NAME               | --cluster-name           |
+| clusterEndpoint                               | CLUSTER_ENDPOINT           | --cluster-endpoint       |
+| defaultInstanceProfile                        | Dropped                    | Dropped                  |
+| enablePodENI                                  | Dropped                    | Dropped                  |
+| enableENILimitedPodDensity                    | Dropped                    | Dropped                  |
+| isolatedVPC                                   | ISOLATED_VPC               | --isolated-vpc           |
+| vmMemoryOverheadPercent                       | VM_MEMORY_OVERHEAD_PERCENT | --vm-memory-overhead-percent |
+| interruptionQueueName                         | INTERRUPTION_QUEUE         | --interruption-queue     |
+| reservedENIs                                  | RESERVED_ENIS              | --reserved-enis          |
+| featureGates.driftEnabled                     | FEATURE_GATE="Drift=true"  | --feature-gates Drift=true |
+
+## Helm Values
+
+The v1beta1 helm chart comes with a number of changes to the values that were previously used in v0.31.x. Your older helm values will continue to work throughout v0.32.x but any values no longer specified in the chart will no longer be supported starting in v0.33.0.
+
+| < v0.32.x Key                           | >= v0.32.x Key                   |
+|-----------------------------------------|----------------------------------|
+| controller.outputPaths                  | logConfig.outputPaths            |
+| controller.errorOutputPaths             | logConfig.errorOutputPaths       |
+| controller.logLevel                     | logConfig.logLevel.controller    |
+| webhook.logLevel                        | logConfig.logLevel.webhook       |
+| logEncoding                             | logConfig.logEncoding            |
+| settings.aws.assumeRoleARN              | settings.assumeRoleARN           |
+| settings.aws.assumeRoleDuration         | settings.assumeRoleDuration      |
+| settings.aws.clusterCABundle            | settings.clusterCABundle         |
+| settings.aws.clusterName                | settings.clusterName             |
+| settings.aws.clusterEndpoint            | settings.clusterEndpoint         |
+| settings.aws.defaultInstanceProfile     | Dropped                          |
+| settings.aws.enablePodENI               | Dropped                          |
+| settings.aws.enableENILimitedPodDensity | Dropped                          |
+| settings.aws.isolatedVPC                | settings.isolatedVPC             |
+| settings.aws.vmMemoryOverheadPercent    | settings.vmMemoryOverheadPercent |
+| settings.aws.interruptionQueueName      | settings.interruptionQueue       |
+| settings.aws.tags                       | Dropped                          |
+| settings.aws.reservedENIs               | settings.reservedENIs            |
+| settings.featureGates.driftEnabled      | settings.featureGates.drift      |
 
 ## Drift Enabled by Default
 
