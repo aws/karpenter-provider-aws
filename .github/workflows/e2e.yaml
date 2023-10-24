@@ -74,9 +74,8 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 permissions:
-  id-token: write # This is required for requesting the JWT
-  contents: read  # This is required for actions/checkout
-  statuses: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+  statuses: write # ./.github/actions/commit-status/start
 jobs:
   run-suite:
     name: suite-${{ inputs.suite }}

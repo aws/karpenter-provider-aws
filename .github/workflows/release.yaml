@@ -3,9 +3,9 @@ on:
   push:
     tags: [ 'v*.*.*' ]
 permissions:
-  id-token: write
-  pull-requests: write
-  contents: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+  contents: write # marvinpinto/action-automatic-releases@latest
+  pull-requests: write # name: Create PR
 jobs:
   release:
     if: github.repository == 'aws/karpenter'

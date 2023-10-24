@@ -8,7 +8,7 @@ on:
   schedule:
     - cron: '0 13 * * MON'
 permissions:
-  id-token: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   publish-tools:
     if: github.repository == 'aws/karpenter'

@@ -3,7 +3,7 @@ on:
   push:
     branches: [ main ]
 permissions:
-  id-token: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   release:
     if: github.repository == 'aws/karpenter'
