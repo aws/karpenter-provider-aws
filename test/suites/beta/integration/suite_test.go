@@ -20,6 +20,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	coretest "github.com/aws/karpenter-core/pkg/test"
@@ -67,6 +68,13 @@ var _ = BeforeEach(func() {
 				Spec: corev1beta1.NodeClaimSpec{
 					NodeClassRef: &corev1beta1.NodeClassReference{
 						Name: nodeClass.Name,
+					},
+					Requirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      v1.LabelOSStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{string(v1.Linux)},
+						},
 					},
 				},
 			},

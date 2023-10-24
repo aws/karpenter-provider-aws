@@ -234,7 +234,12 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		}})
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
 		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
+		nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelOSStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{string(v1.Linux)},
+			},
 			{
 				Key:      v1beta1.LabelInstanceFamily,
 				Operator: v1.NodeSelectorOpNotIn,
@@ -245,7 +250,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"c", "m", "r"},
 			},
-		}...)
+		}
 		env.ExpectCreated(nodeClass, nodePool, deployment)
 		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)

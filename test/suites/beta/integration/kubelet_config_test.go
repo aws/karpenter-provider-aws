@@ -129,7 +129,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				// requirements, not off of the instance type options so scheduling can fail if nodepool aren't
 				// properly scoped
 				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.*, c7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
+				nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
 					{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
@@ -145,7 +145,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{string(v1.Windows)},
 					},
-				}...)
+				}
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
 					NodeSelector: map[string]string{
@@ -154,7 +154,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					},
 				})
 				env.ExpectCreated(nodeClass, nodePool, pod)
-				env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod)
+				env.EventuallyExpectHealthyWithTimeout(time.Minute*20, pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("when the AMIFamily is Windows2019", &v1beta1.AMIFamilyWindows2019),

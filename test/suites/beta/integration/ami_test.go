@@ -286,7 +286,7 @@ var _ = Describe("AMI", func() {
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 
 			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
+			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{
 					Key:      v1.LabelOSStable,
 					Operator: v1.NodeSelectorOpIn,
@@ -302,7 +302,7 @@ var _ = Describe("AMI", func() {
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"c", "m", "r"},
 				},
-			}...)
+			}
 			pod := coretest.Pod(coretest.PodOptions{
 				Image: awsenv.WindowsDefaultImage,
 				NodeSelector: map[string]string{
