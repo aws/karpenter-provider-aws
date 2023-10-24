@@ -588,7 +588,6 @@ The following table shows v1alpha5 metrics and the v1beta1 version of each metri
 | karpenter_machines_terminated                                         | karpenter_nodeclaims_terminated                                 |
 | karpenter_provisioners_limit                                          | karpenter_nodepools_limit                                       |
 | karpenter_provisioners_usage                                          | karpenter_nodepools_usage                                       |
-| karpenter_provisioners_usage_pct                                      | Dropped                                                         |
 | karpenter_deprovisioning_evaluation_duration_seconds                  | karpenter_disruption_evaluation_duration_seconds                |
 | karpenter_deprovisioning_eligible_machines                            | karpenter_disruption_eligible_nodeclaims                        |
 | karpenter_deprovisioning_replacement_machine_initialized_seconds      | karpenter_disruption_replacement_nodeclaims_initialized_seconds |
@@ -596,6 +595,7 @@ The following table shows v1alpha5 metrics and the v1beta1 version of each metri
 | karpenter_deprovisioning_actions_performed                            | karpenter_disruption_actions_performed_total                    |
 | karpenter_deprovisioning_consolidation_timeouts                       | karpenter_disruption_consolidation_timeouts_total               |
 | karpenter_nodes_leases_deleted                                        | karpenter_leases_deleted                                        |
+| karpenter_provisioners_usage_pct                                      | **Dropped**                                                     |
 
 In addition to these metrics, the MachineNotFound error returned by the `karpenter_cloudprovider_errors_total` values in the error label has been changed to `NodeClaimNotFound`. This is agnostic to the version of the API (Machine or NodeClaim) that actually owns the instance.
 
@@ -604,23 +604,49 @@ In addition to these metrics, the MachineNotFound error returned by the `karpent
 The v1beta1 specification removes the `karpenter-global-settings` ConfigMap in favor of setting all Karpenter configuration using environment variables. Along, with this change, Karpenter has chosen to remove certain global variables that can be configured with more specificity in the EC2NodeClass . These values are marked as removed below.
 
 
-| **`karpenter-global-settings` ConfigMap Key**     | **Environment Variable**        | **CLI Argument**
-|---------------------------------------------------|---------------------------------|-------------------------------|
-| batchMaxDuration                                  | BATCH_MAX_DURATION              | --batch-max-duration          |
-| batchIdleDuration                                 | BATCH_IDLE_DURATION             | --batch-idle-duration         |
-| assumeRoleARN                                     | ASSUME_ROLE_ARN                 | --assume-role-arn             |
-| assumeRoleDuration                                | ASSUME_ROLE_DURATION            | --assume-role-duration        |
-| clusterCABundle                                   | CLUSTER_CA_BUNDLE               | --cluster-ca-bundle           |
-| clusterName                                       | CLUSTER_NAME                    | --cluster-name                |
-| clusterEndpoint                                   | CLUSTER_ENDPOINT                | --cluster-endpoint            |
-| defaultInstanceProfile                            | Dropped                         | Dropped                       |
-| enablePodENI                                      | Dropped                         | Dropped                       |
-| enableENILimitedPodDensity                        | Dropped                         | Dropped                       |
-| isolatedVPC                                       | ISOLATED_VPC                    | --isolated-vpc                |
-| vmMemoryOverheadPercent                           | VM_MEMORY_OVERHEAD_PERCENT      | --vm-memory-overhead-percent  |
-| interruptionQueueName                             | INTERRUPTION_QUEUE_NAME         | --interruption-queue-name     |
-| reservedENIs                                      | RESERVED_ENIS                   | --reserved-enis               |
-| featureGates.enableDrift                          | FEATURE_GATE="Drift=true"       | --feature-gates Drift=true    |
+| **`karpenter-global-settings` ConfigMap Key** | **Environment Variable**   | **CLI Argument**             |
+|-----------------------------------------------|----------------------------|------------------------------|
+| batchMaxDuration                              | BATCH_MAX_DURATION         | --batch-max-duration         |
+| batchIdleDuration                             | BATCH_IDLE_DURATION        | --batch-idle-duration        |
+| assumeRoleARN                                 | ASSUME_ROLE_ARN            | --assume-role-arn            |
+| assumeRoleDuration                            | ASSUME_ROLE_DURATION       | --assume-role-duration       |
+| clusterCABundle                               | CLUSTER_CA_BUNDLE          | --cluster-ca-bundle          |
+| clusterName                                   | CLUSTER_NAME               | --cluster-name               |
+| clusterEndpoint                               | CLUSTER_ENDPOINT           | --cluster-endpoint           |
+| isolatedVPC                                   | ISOLATED_VPC               | --isolated-vpc               |
+| vmMemoryOverheadPercent                       | VM_MEMORY_OVERHEAD_PERCENT | --vm-memory-overhead-percent |
+| interruptionQueueName                         | INTERRUPTION_QUEUE         | --interruption-queue         |
+| reservedENIs                                  | RESERVED_ENIS              | --reserved-enis              |
+| featureGates.driftEnabled                     | FEATURE_GATE="Drift=true"  | --feature-gates Drift=true   |
+| defaultInstanceProfile                        | **Dropped**                | **Dropped**                  |
+| enablePodENI                                  | **Dropped**                | **Dropped**                  |
+| enableENILimitedPodDensity                    | **Dropped**                | **Dropped**                  |
+
+## Helm Values
+
+The v1beta1 helm chart comes with a number of changes to the values that were previously used in v0.31.x. Your older helm values will continue to work throughout v0.32.x but any values no longer specified in the chart will no longer be supported starting in v0.33.0.
+
+| < v0.32.x Key                           | >= v0.32.x Key                   |
+|-----------------------------------------|----------------------------------|
+| controller.outputPaths                  | logConfig.outputPaths            |
+| controller.errorOutputPaths             | logConfig.errorOutputPaths       |
+| controller.logLevel                     | logConfig.logLevel.controller    |
+| webhook.logLevel                        | logConfig.logLevel.webhook       |
+| logEncoding                             | logConfig.logEncoding            |
+| settings.aws.assumeRoleARN              | settings.assumeRoleARN           |
+| settings.aws.assumeRoleDuration         | settings.assumeRoleDuration      |
+| settings.aws.clusterCABundle            | settings.clusterCABundle         |
+| settings.aws.clusterName                | settings.clusterName             |
+| settings.aws.clusterEndpoint            | settings.clusterEndpoint         |
+| settings.aws.isolatedVPC                | settings.isolatedVPC             |
+| settings.aws.vmMemoryOverheadPercent    | settings.vmMemoryOverheadPercent |
+| settings.aws.interruptionQueueName      | settings.interruptionQueue       |
+| settings.aws.reservedENIs               | settings.reservedENIs            |
+| settings.featureGates.driftEnabled      | settings.featureGates.drift      |
+| settings.aws.defaultInstanceProfile     | **Dropped**                      |
+| settings.aws.enablePodENI               | **Dropped**                      |
+| settings.aws.enableENILimitedPodDensity | **Dropped**                      |
+| settings.aws.tags                       | **Dropped**                      |
 
 ## Drift Enabled by Default
 
