@@ -519,22 +519,22 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			// Should pack onto same instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1beta1.ResourceAWSNeuronCore: resource.MustParse("8")},
-					Limits:   v1.ResourceList{v1beta1.ResourceAWSNeuronCore: resource.MustParse("8")},
+					Requests: v1.ResourceList{v1beta1.ResourceAWSNeuronCore: resource.MustParse("32")},
+					Limits:   v1.ResourceList{v1beta1.ResourceAWSNeuronCore: resource.MustParse("32")},
 				},
 			}),
 			// Should pack onto a separate instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1beta1.ResourceAWSNeuronCore: resource.MustParse("16")},
-					Limits:   v1.ResourceList{v1beta1.ResourceAWSNeuronCore: resource.MustParse("16")},
+					Requests: v1.ResourceList{v1beta1.ResourceAWSNeuronCore: resource.MustParse("64")},
+					Limits:   v1.ResourceList{v1beta1.ResourceAWSNeuronCore: resource.MustParse("64")},
 				},
 			}),
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.24xlarge"))
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
@@ -578,22 +578,22 @@ var _ = Describe("NodeClass/InstanceTypes", func() {
 			// Should pack onto same instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1beta1.ResourceAWSNeuron: resource.MustParse("2")},
-					Limits:   v1.ResourceList{v1beta1.ResourceAWSNeuron: resource.MustParse("2")},
+					Requests: v1.ResourceList{v1beta1.ResourceAWSNeuron: resource.MustParse("8")},
+					Limits:   v1.ResourceList{v1beta1.ResourceAWSNeuron: resource.MustParse("8")},
 				},
 			}),
 			// Should pack onto a separate instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1beta1.ResourceAWSNeuron: resource.MustParse("4")},
-					Limits:   v1.ResourceList{v1beta1.ResourceAWSNeuron: resource.MustParse("4")},
+					Requests: v1.ResourceList{v1beta1.ResourceAWSNeuron: resource.MustParse("16")},
+					Limits:   v1.ResourceList{v1beta1.ResourceAWSNeuron: resource.MustParse("16")},
 				},
 			}),
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.6xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "inf1.24xlarge"))
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))

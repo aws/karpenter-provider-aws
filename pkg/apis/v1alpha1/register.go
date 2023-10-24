@@ -82,6 +82,7 @@ var (
 	ResourceNVIDIAGPU             v1.ResourceName         = "nvidia.com/gpu"
 	ResourceAMDGPU                v1.ResourceName         = "amd.com/gpu"
 	ResourceAWSNeuron             v1.ResourceName         = "aws.amazon.com/neuron"
+	ResourceAWSNeuronDevice       v1.ResourceName         = "aws.amazon.com/neurondevice"
 	ResourceAWSNeuronCore         v1.ResourceName         = "aws.amazon.com/neuroncore"
 	ResourceHabanaGaudi           v1.ResourceName         = "habana.ai/gaudi"
 	ResourceAWSPodENI             v1.ResourceName         = "vpc.amazonaws.com/pod-eni"

@@ -145,7 +145,7 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 	if strings.HasPrefix(*info.InstanceType, "trn1") {
 		requirements.Get(v1beta1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
 		requirements.Get(v1beta1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
-		requirements.Get(v1beta1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(awsNeurons(info)))
+		requirements.Get(v1beta1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(awsNeuronDevices(info)))
 	}
 	return requirements
 }
@@ -180,7 +180,8 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1beta1.ResourceAWSPodENI:          *awsPodENI(aws.StringValue(info.InstanceType)),
 		v1beta1.ResourceNVIDIAGPU:          *nvidiaGPUs(info),
 		v1beta1.ResourceAMDGPU:             *amdGPUs(info),
-		v1beta1.ResourceAWSNeuron:          *awsNeurons(info),
+		v1beta1.ResourceAWSNeuron:          *awsNeuronDevices(info),
+		v1beta1.ResourceAWSNeuronDevice:    *awsNeuronDevices(info),
 		v1beta1.ResourceAWSNeuronCore:      *awsNeuronCores(info),
 		v1beta1.ResourceHabanaGaudi:        *habanaGaudis(info),
 		v1beta1.ResourcePrivateIPv4Address: *privateIPv4Address(info),
@@ -271,7 +272,7 @@ func amdGPUs(info *ec2.InstanceTypeInfo) *resource.Quantity {
 
 // TODO: remove trn1 hardcode values once DescribeInstanceTypes contains the accelerator data
 // Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
-func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
+func awsNeuronDevices(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	count := int64(0)
 	if *info.InstanceType == "trn1.2xlarge" {
 		count = int64(1)
@@ -290,7 +291,7 @@ func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 // TODO: remove hardcoded neuroncore multipliers once DescribeInstaceTypes contains neuroncore data
 // Values found from: https://awsdocs-neuron.readthedocs-hosted.com/en/latest/general/arch/model-architecture-fit.html#model-architecture-fit
 func awsNeuronCores(info *ec2.InstanceTypeInfo) *resource.Quantity {
-	count := awsNeurons(info).Value()
+	count := awsNeuronDevices(info).Value()
 	if strings.Contains(*info.InstanceType, "inf1") {
 		count *= 4
 	} else {
