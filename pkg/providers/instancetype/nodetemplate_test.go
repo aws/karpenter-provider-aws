@@ -1196,21 +1196,21 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 	})
 	Context("Insufficient Capacity Error Cache", func() {
 		It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
-			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
+			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: v1alpha5.CapacityTypeOnDemand, InstanceType: "inf1.24xlarge", Zone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 			pods := []*v1.Pod{
 				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
-						Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
+						Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
 					},
 				}),
 				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
-						Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("1")},
+						Requests: v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
+						Limits:   v1.ResourceList{v1alpha1.ResourceAWSNeuron: resource.MustParse("4")},
 					},
 				}),
 			}
