@@ -192,22 +192,6 @@ spec:
                       credentials are not available."
                     type: string
                 type: object
-              networkInterfaces:
-                items:
-                  properties:
-                    associatePublicIPAddress:
-                      description: Associates a public IPv4 address with eth0 for
-                        a new network interface.
-                      type: boolean
-                    description:
-                      description: A description for the network interface.
-                      type: string
-                    deviceIndex:
-                      description: The device index for the network interface attachment.
-                      format: int64
-                      type: integer
-                  type: object
-                type: array
               securityGroupSelector:
                 additionalProperties:
                   type: string

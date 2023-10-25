@@ -52,7 +52,6 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 			Context:                       nodeTemplate.Spec.Context,
 			LaunchTemplateName:            nodeTemplate.Spec.LaunchTemplateName,
 			InstanceProfile:               nodeTemplate.Spec.InstanceProfile,
-			NetworkInterfaces:             NewNetworkInterfaces(nodeTemplate.Spec.NetworkInterfaces),
 		},
 		Status: v1beta1.EC2NodeClassStatus{
 			Subnets:        NewSubnets(nodeTemplate.Status.Subnets),
@@ -148,26 +147,6 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 		}
 	}
 	return terms
-}
-
-func NewNetworkInterfaces(networkInterfaces []*v1alpha1.NetworkInterface) []*v1beta1.NetworkInterface {
-	if networkInterfaces == nil {
-		return nil
-	}
-	return lo.Map(networkInterfaces, func(networkInterface *v1alpha1.NetworkInterface, _ int) *v1beta1.NetworkInterface {
-		return NewNetworkInterface(networkInterface)
-	})
-}
-
-func NewNetworkInterface(networkInterface *v1alpha1.NetworkInterface) *v1beta1.NetworkInterface {
-	if networkInterface == nil {
-		return nil
-	}
-	return &v1beta1.NetworkInterface{
-		AssociatePublicIPAddress: networkInterface.AssociatePublicIPAddress,
-		Description:              networkInterface.Description,
-		DeviceIndex:              networkInterface.DeviceIndex,
-	}
 }
 
 func NewBlockDeviceMappings(bdms []*v1alpha1.BlockDeviceMapping) []*v1beta1.BlockDeviceMapping {
