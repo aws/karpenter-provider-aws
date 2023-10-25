@@ -87,5 +87,6 @@ jobs:
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
       eksctl_version: ${{ inputs.eksctl_version }}
+      workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
