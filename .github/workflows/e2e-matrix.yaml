@@ -8,9 +8,6 @@ on:
       k8s_version:
         type: string
         default: "1.28"
-      eksctl_version:
-        type: string
-        default: v0.163.0
       cleanup:
         type: boolean
         required: true
@@ -28,8 +25,10 @@ on:
       region:
         type: choice
         options:
+          - "us-east-1"
           - "us-east-2"
           - "us-west-2"
+          - "eu-west-1"
         default: "us-east-2"
       k8s_version:
         type: choice
@@ -41,9 +40,6 @@ on:
           - "1.27"
           - "1.28"
         default: "1.28"
-      eksctl_version:
-        type: string
-        default: v0.163.0
       cleanup:
         type: boolean
         required: true
@@ -80,7 +76,6 @@ jobs:
       git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
-      eksctl_version: ${{ inputs.eksctl_version }}
       cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
@@ -95,7 +90,6 @@ jobs:
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
-      eksctl_version: ${{ inputs.eksctl_version }}
       cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:

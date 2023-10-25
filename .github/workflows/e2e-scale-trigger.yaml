@@ -12,8 +12,8 @@ on:
         default: 'us-west-2'
         type: choice
         options:
-          - 'us-west-2'
-          - 'us-east-1'
+          - "us-east-1"
+          - "us-west-2"
       cleanup:
         required: true
         default: true

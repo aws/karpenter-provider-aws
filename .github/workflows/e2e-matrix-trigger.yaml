@@ -10,11 +10,11 @@ on:
   workflow_dispatch:
     region:
       required: true
-      default: 'us-west-2'
+      default: 'us-east-2'
       type: choice
       options:
-        - 'us-west-2'
-        - 'us-east-1'
+        - "us-east-1"
+        - "us-east-2"
     cleanup:
       required: true
       default: true
@@ -31,7 +31,7 @@ jobs:
     uses: ./.github/workflows/e2e-matrix.yaml
     with:
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
-      region: ${{ inputs.region || 'us-west-2' }}
+      region: ${{ inputs.region || 'us-east-2' }}
       workflow_trigger: "matrix"
       cleanup: ${{ inputs.cleanup || true }}
     secrets:
