@@ -44,6 +44,7 @@ var defaultSettings = &Settings{
 	InterruptionQueueName:      "",
 	Tags:                       map[string]string{},
 	ReservedENIs:               0,
+	AMIK8sVersionTag:           "",
 }
 
 // +k8s:deepcopy-gen=true
@@ -61,6 +62,7 @@ type Settings struct {
 	InterruptionQueueName      string
 	Tags                       map[string]string
 	ReservedENIs               int
+	AMIK8sVersionTag           string
 }
 
 func (*Settings) ConfigMap() string {
@@ -86,6 +88,7 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		configmap.AsBool("aws.isolatedVPC", &s.IsolatedVPC),
 		configmap.AsFloat64("aws.vmMemoryOverheadPercent", &s.VMMemoryOverheadPercent),
 		configmap.AsString("aws.interruptionQueueName", &s.InterruptionQueueName),
+		configmap.AsString("amiK8sVersionTag", &s.AMIK8sVersionTag),
 		AsStringMap("aws.tags", &s.Tags),
 		configmap.AsInt("aws.reservedENIs", &s.ReservedENIs),
 	); err != nil {

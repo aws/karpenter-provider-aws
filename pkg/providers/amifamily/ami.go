@@ -34,6 +34,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/version"
 
@@ -118,13 +119,17 @@ func NewProvider(versionProvider *version.Provider, ssm ssmiface.SSMAPI, ec2api 
 func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
 	var err error
 	var amis AMIs
+	kubernetesVersion, err := p.versionProvider.Get(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting kubernetes version %w", err)
+	}
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
-		amis, err = p.getDefaultAMIs(ctx, nodeClass, options)
+		amis, err = p.getDefaultAMIs(ctx, nodeClass, options, kubernetesVersion)
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms, nodeClass.IsNodeTemplate)
+		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms, nodeClass.IsNodeTemplate, kubernetesVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -136,15 +141,11 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, opt
 	return amis, nil
 }
 
-func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {
+func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options, kubernetesVersion string) (res AMIs, err error) {
 	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
 		return images.(AMIs), nil
 	}
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
-	kubernetesVersion, err := p.versionProvider.Get(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("getting kubernetes version %w", err)
-	}
 	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion, nodeClass.IsNodeTemplate)
 	for _, ami := range defaultAMIs {
 		if id, err := p.resolveSSMParameter(ctx, ami.Query); err != nil {
@@ -183,7 +184,16 @@ func (p *Provider) resolveSSMParameter(ctx context.Context, ssmQuery string) (st
 	return ami, nil
 }
 
-func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm, isNodeTemplate bool) (AMIs, error) {
+func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm, isNodeTemplate bool, kubernetesVersion string) (AMIs, error) {
+	amiK8sVersionFilterTag := settings.FromContext(ctx).AMIK8sVersionTag
+	if amiK8sVersionFilterTag != "" {
+		terms = append(terms, v1beta1.AMISelectorTerm{
+			ID:    "",
+			Name:  "",
+			Owner: "",
+			Tags:  map[string]string{amiK8sVersionFilterTag: kubernetesVersion},
+		})
+	}
 	filterAndOwnerSets := GetFilterAndOwnerSets(terms)
 	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {

@@ -203,3 +203,6 @@ settings:
     # Setting drift to true enables the drift disruption method to watch for drift between currently deployed nodes
     # and the desired state of nodes set in provisioners and node templates
     drift: false
+  # The name of an AMI tag whose value corresponds to the k8s version that the AMI was built for. If set, Karpenter
+  # will only consider AMIs with tags whose value matches the cluster's k8s version.
+  amiK8sVersionTag: ""

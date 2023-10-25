@@ -46,6 +46,7 @@ type Options struct {
 	VMMemoryOverheadPercent float64
 	InterruptionQueue       string
 	ReservedENIs            int
+	AMIK8sVersionTag        string
 
 	setFlags map[string]bool
 }
@@ -60,6 +61,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.Float64Var(&o.VMMemoryOverheadPercent, "vm-memory-overhead-percent", env.WithDefaultFloat64("VM_MEMORY_OVERHEAD_PERCENT", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types.")
 	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
+	fs.StringVar(&o.AMIK8sVersionTag, "ami-k8s-version-tag", env.WithDefaultString("AMI_K8S_VERSION_TAG", ""), "The name of an AMI tag whose value corresponds to the k8s version that the AMI was built for. If set, Karpenter will only consider AMIs with tags whose value matches the cluster's k8s version.")
 }
 
 func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
@@ -105,6 +107,7 @@ func (o *Options) MergeSettings(ctx context.Context) {
 	mergeField(&o.VMMemoryOverheadPercent, s.VMMemoryOverheadPercent, o.setFlags["vm-memory-overhead-percent"])
 	mergeField(&o.InterruptionQueue, s.InterruptionQueueName, o.setFlags["interruption-queue"])
 	mergeField(&o.ReservedENIs, s.ReservedENIs, o.setFlags["reserved-enis"])
+	mergeField(&o.AMIK8sVersionTag, s.AMIK8sVersionTag, o.setFlags["ami-k8s-version-tag"])
 	if err := o.validateRequiredFields(); err != nil {
 		panic(fmt.Errorf("checking required fields, %w", err))
 	}

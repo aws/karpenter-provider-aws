@@ -144,6 +144,10 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.settings.amiK8sVersionTag }}
+            - name: AMI_K8S_VERSION_TAG
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
