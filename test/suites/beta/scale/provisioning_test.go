@@ -61,6 +61,11 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		}})
 		nodePool = test.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
+				Disruption: corev1beta1.Disruption{
+					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+					// Disable Consolidation until we're ready
+					ConsolidateAfter: &corev1beta1.NillableDuration{},
+				},
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
 						NodeClassRef: &corev1beta1.NodeClassReference{
@@ -78,7 +83,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 								Values:   []string{string(v1.Linux)},
 							},
 							{
-								Key:      "karpenter.k8s.aws/instance-hypervisor",
+								Key:      v1beta1.LabelInstanceHypervisor,
 								Operator: v1.NodeSelectorOpIn,
 								Values:   []string{"nitro"},
 							},
