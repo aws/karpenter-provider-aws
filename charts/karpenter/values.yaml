@@ -154,8 +154,8 @@ logConfig:
   # -- Log errorOutputPaths - defaults to stderr only
   errorOutputPaths:
     - stderr
-  # -- Log encoding - defaults to console - must be one of 'json', 'console'
-  logEncoding: console
+  # -- Log encoding - defaults to json - must be one of 'json', 'console'
+  logEncoding: json
   # -- Component-based log configuration
   logLevel:
     # -- Global log level, defaults to 'debug'
