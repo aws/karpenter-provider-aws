@@ -38,6 +38,7 @@ var _ = Describe("DaemonSet", func() {
 
 	BeforeEach(func() {
 		nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+		nodePool.Spec.Disruption.ConsolidateAfter = nil
 		priorityclass = &schedulingv1.PriorityClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "high-priority-daemonsets",
