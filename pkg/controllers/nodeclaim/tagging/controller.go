@@ -61,11 +61,9 @@ func (c *Controller) Name() string {
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (reconcile.Result, error) {
 	stored := nodeClaim.DeepCopy()
-
 	if !isTaggable(nodeClaim) {
 		return reconcile.Result{}, nil
 	}
-
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", nodeClaim.Status.ProviderID))
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
@@ -73,18 +71,15 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeC
 		logging.FromContext(ctx).Errorf("failed to parse instance ID, %w", err)
 		return reconcile.Result{}, nil
 	}
-
-	if err := c.tagInstance(ctx, nodeClaim, id); err != nil {
+	if err = c.tagInstance(ctx, nodeClaim, id); err != nil {
 		return reconcile.Result{}, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 	}
-
 	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1beta1.AnnotationInstanceTagged: "true"})
 	if !equality.Semantic.DeepEqual(nodeClaim, stored) {
 		if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
 			return reconcile.Result{}, client.IgnoreNotFound(err)
 		}
 	}
-
 	return reconcile.Result{}, nil
 }
 

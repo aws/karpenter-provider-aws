@@ -8,7 +8,7 @@ on:
   schedule:
     - cron: '0 13 * * MON'
 permissions:
-  id-token: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   publish-tools:
     if: github.repository == 'aws/karpenter'
@@ -18,6 +18,9 @@ jobs:
         with:
           fetch-depth: 0
       - uses: ./.github/actions/install-deps
-      - uses: ./.github/actions/authenticate-aws
+      - uses: aws-actions/configure-aws-credentials@v4.0.1
+        with:
+          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.ECR_REGION }}
       - run: ./push-docker.sh
         working-directory: ./test

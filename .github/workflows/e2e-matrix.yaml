@@ -49,7 +49,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [Integration, Machine, Consolidation, Utilization, Interruption, Drift, Expiration, Chaos, IPv6]
+        suite:
+          - Beta/Integration
+          - Beta/NodeClaim
+          - Beta/Consolidation
+          - Beta/Interruption
+          - Beta/Drift
+          - Beta/Expiration
+          - Beta/Chaos
+          - Beta/IPv6
+          - Alpha/Integration
+          - Alpha/Machine
+          - Alpha/Consolidation
+          - Alpha/Interruption
+          - Alpha/Drift
+          - Alpha/Expiration
+          - Alpha/Chaos
+          - Alpha/IPv6
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
@@ -63,9 +79,10 @@ jobs:
   e2e-upgrade:
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      # This version matches the steps of the newest version of the install-eksctl action
-      # which will take in the eksctl_version into the composite action
-      from_git_ref: d29fb004f959d268ecfbddaccee004c99fc8c300
+      # This version matches the steps of the newest version that contains the additional step
+      # of deploying the instance profile so that the pre-upgrade and post-upgrade create-cluster
+      # actions have the same number of steps and don't fail during post-cleanup
+      from_git_ref: 62c25a3ea85c7d00165e60a913fff1ec7c1f29fd
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}

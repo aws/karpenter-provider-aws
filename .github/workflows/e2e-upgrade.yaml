@@ -46,9 +46,8 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 permissions:
-  id-token: write # This is required for requesting the JWT
-  contents: read  # This is required for actions/checkout
-  statuses: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+  statuses: write # ./.github/actions/commit-status/start
 jobs:
   run-suite:
     name: suite-upgrade
@@ -68,7 +67,7 @@ jobs:
         with:
           ref: ${{ inputs.from_git_ref }}
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
           aws-region: ${{ inputs.region }}
@@ -104,6 +103,8 @@ jobs:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          ecr_region: ${{ vars.ECR_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.from_git_ref }}
       - uses: actions/checkout@v4
@@ -143,12 +144,14 @@ jobs:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
+          ecr_region: ${{ vars.ECR_REGION }}
           cluster_name: ${{ env.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: run the Upgrade test suite
         run: |
           aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
-          TEST_SUITE="Integration" make e2etests
+          CLUSTER_NAME=${{ env.CLUSTER_NAME }} INTERRUPTION_QUEUE=${{ env.CLUSTER_NAME }} CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ env.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" TEST_SUITE="Beta/Integration" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && github.event_name != 'conformance'

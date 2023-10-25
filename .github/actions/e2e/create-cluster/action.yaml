@@ -31,7 +31,7 @@ runs:
   using: "composite"
   steps:
   - name: configure aws credentials
-    uses: aws-actions/configure-aws-credentials@v4
+    uses: aws-actions/configure-aws-credentials@v4.0.1
     with:
       role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
       aws-region: ${{ inputs.region }}
@@ -41,7 +41,7 @@ runs:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-eksctl
     with:
-      eksctl_version: ${{ inputs.eksctl_version }}
+      version: ${{ inputs.eksctl_version }}
   - name: create iam policies
     shell: bash
     run: |
@@ -60,7 +60,24 @@ runs:
         --template-file $CLOUDFORMATION_PATH \
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides "ClusterName=${{ inputs.cluster_name }}" \
-        --tags "testing/type=e2e" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
+        --tags "testing/type=e2e" "testing/cluster=${{ inputs.cluster_name }}" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
+  - name: deploy alpha instance profile
+    shell: bash
+    run: |
+      aws iam create-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${{ inputs.cluster_name }}" --tags Key=testing/type,Value=e2e Key=testing/cluster,Value=${{ inputs.cluster_name }} || true
+      aws iam add-role-to-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${{ inputs.cluster_name }}" --role-name "KarpenterNodeRole-${{ inputs.cluster_name }}" || true
+  - name: deploy alpha policy
+    shell: bash
+    run: |
+      export AWS_PARTITION=aws
+      export AWS_REGION=${{ inputs.region }}
+      export AWS_ACCOUNT_ID=${{ inputs.account_id }}
+      export CLUSTER_NAME=${{ inputs.cluster_name }}
+      
+      POLICY_DOCUMENT=$(envsubst < .github/actions/e2e/create-cluster/alpha-controller-policy.json)
+      POLICY_NAME="KarpenterControllerPolicy-Alpha-${CLUSTER_NAME}"
+      echo "Creating policy $POLICY_NAME..."
+      aws iam create-policy --policy-name "$POLICY_NAME" --policy-document "$POLICY_DOCUMENT" || true
   - name: create or upgrade cluster
     shell: bash
     run: |
@@ -68,7 +85,7 @@ runs:
       cmd="create"
       eksctl get cluster --name ${{ inputs.cluster_name }} && cmd="upgrade"
 
-      eksctl ${cmd} cluster -f - <<EOF
+      cat << EOF >> clusterconfig.yaml
       ---
       apiVersion: eksctl.io/v1alpha5
       kind: ClusterConfig
@@ -96,6 +113,10 @@ runs:
           - key: CriticalAddonsOnly
             value: "true"
             effect: NoSchedule
+      cloudWatch:
+        clusterLogging:
+          enableTypes: ["*"]
+          logRetentionInDays: 30
       iam:
         serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
         serviceAccounts:
@@ -104,6 +125,7 @@ runs:
               namespace: karpenter
             attachPolicyARNs:
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-Alpha-${{ inputs.cluster_name }}"
             permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
             roleName: karpenter-irsa-${{ inputs.cluster_name }}
             roleOnly: true
@@ -128,6 +150,12 @@ runs:
         wellKnownPolicies:
           ebsCSIController: true
       EOF
+      
+      eksctl ${cmd} cluster -f clusterconfig.yaml
+      
+      # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
+      # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
+      eksctl update iamserviceaccount -f clusterconfig.yaml --approve
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash

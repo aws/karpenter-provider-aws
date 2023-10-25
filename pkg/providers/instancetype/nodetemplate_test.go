@@ -40,6 +40,7 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
+	"github.com/aws/karpenter/pkg/operator/options"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 
 	"github.com/aws/karpenter/pkg/apis/settings"
@@ -434,20 +435,6 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 	})
-	It("should fail to launch AWS Pod ENI if the setting enabling it isn't set", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-			EnablePodENI: lo.ToPtr(false),
-		}))
-		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
-		pod := coretest.UnschedulablePod(coretest.PodOptions{
-			ResourceRequirements: v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
-				Limits:   v1.ResourceList{v1alpha1.ResourceAWSPodENI: resource.MustParse("1")},
-			},
-		})
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-		ExpectNotScheduled(ctx, env.Client, pod)
-	})
 	It("should launch AWS Pod ENI on a compatible instance type", func() {
 		ExpectApplied(ctx, env.Client, provisioner, nodeTemplate)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -664,16 +651,8 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
-			ctx, err := (&settings.Settings{}).Inject(ctx, &v1.ConfigMap{
-				Data: map[string]string{
-					"aws.clusterName": "karpenter-cluster",
-				},
-			})
-			Expect(err).To(BeNil())
-
-			s := settings.FromContext(ctx)
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				VMMemoryOverheadPercent: &s.VMMemoryOverheadPercent,
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				ClusterName: lo.ToPtr("karpenter-cluster"),
 			}))
 
 			var ok bool
@@ -734,7 +713,7 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 		})
 		Context("Eviction Thresholds", func() {
 			BeforeEach(func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 					VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 				}))
 			})
@@ -977,10 +956,6 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 			}
 		})
 		It("should override max-pods value when AWSENILimitedPodDensity is unset", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnablePodENI: lo.ToPtr(false),
-			}))
-
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			provisioner = test.Provisioner(coretest.ProvisionerOptions{Kubelet: &v1alpha5.KubeletConfiguration{MaxPods: ptr.Int32(10)}})
@@ -990,7 +965,7 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 			}
 		})
 		It("should reserve ENIs when aws.reservedENIs is set and is used in max-pods calculation", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				ReservedENIs: lo.ToPtr(1),
 			}))
 
@@ -1010,7 +985,7 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
 		})
 		It("should reserve ENIs when aws.reservedENIs is set and not go below 0 ENIs in max-pods calculation", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				ReservedENIs: lo.ToPtr(1_000_000),
 			}))
 
@@ -1400,7 +1375,6 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 				},
 			})
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			Eventually(func() bool { return awsEnv.PricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
 				{Key: v1alpha5.LabelCapacityType, Operator: v1.NodeSelectorOpIn, Values: []string{v1alpha5.CapacityTypeSpot}},
@@ -1427,7 +1401,6 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 				},
 			})
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
-			Eventually(func() bool { return awsEnv.PricingProvider.SpotLastUpdated().After(now) }).Should(BeTrue())
 
 			// not restricting to the zone so we can get any zone
 			provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{

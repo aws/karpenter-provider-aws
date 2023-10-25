@@ -30,9 +30,10 @@ import (
 	"knative.dev/pkg/ptr"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -172,19 +173,16 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	blockDeviceMappings []*v1beta1.BlockDeviceMapping, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
-		v1.ResourceCPU:              *cpu(info),
-		v1.ResourceMemory:           *memory(ctx, info),
-		v1.ResourceEphemeralStorage: *ephemeralStorage(amiFamily, blockDeviceMappings),
-		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
-		v1beta1.ResourceAWSPodENI:   *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
-		v1beta1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
-		v1beta1.ResourceAMDGPU:      *amdGPUs(info),
-		v1beta1.ResourceAWSNeuron:   *awsNeurons(info),
-		v1beta1.ResourceHabanaGaudi: *habanaGaudis(info),
-	}
-	if _, ok := amiFamily.(*amifamily.Windows); ok {
-		//ResourcePrivateIPv4Address is the same as ENILimitedPods on Windows node
-		resourceList[v1beta1.ResourcePrivateIPv4Address] = *privateIPv4Address(info)
+		v1.ResourceCPU:                     *cpu(info),
+		v1.ResourceMemory:                  *memory(ctx, info),
+		v1.ResourceEphemeralStorage:        *ephemeralStorage(amiFamily, blockDeviceMappings),
+		v1.ResourcePods:                    *pods(ctx, info, amiFamily, kc),
+		v1beta1.ResourceAWSPodENI:          *awsPodENI(aws.StringValue(info.InstanceType)),
+		v1beta1.ResourceNVIDIAGPU:          *nvidiaGPUs(info),
+		v1beta1.ResourceAMDGPU:             *amdGPUs(info),
+		v1beta1.ResourceAWSNeuron:          *awsNeurons(info),
+		v1beta1.ResourceHabanaGaudi:        *habanaGaudis(info),
+		v1beta1.ResourcePrivateIPv4Address: *privateIPv4Address(info),
 	}
 	return resourceList
 }
@@ -201,7 +199,7 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 	}
 	mem := resources.Quantity(fmt.Sprintf("%dMi", sizeInMib))
 	// Account for VM overhead in calculation
-	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*awssettings.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
+	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*options.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
 	return mem
 }
 
@@ -237,10 +235,10 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1be
 	return amifamily.DefaultEBS.VolumeSize
 }
 
-func awsPodENI(ctx context.Context, name string) *resource.Quantity {
+func awsPodENI(name string) *resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := Limits[name]
-	if awssettings.FromContext(ctx).EnablePodENI && ok && limits.IsTrunkingCompatible {
+	if ok && limits.IsTrunkingCompatible {
 		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}
 	return resources.Quantity("0")
@@ -308,7 +306,7 @@ func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Q
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
-	usableNetworkInterfaces := lo.Max([]int64{(networkInterfaces - int64(awssettings.FromContext(ctx).ReservedENIs)), 0})
+	usableNetworkInterfaces := lo.Max([]int64{(networkInterfaces - int64(options.FromContext(ctx).ReservedENIs)), 0})
 	if usableNetworkInterfaces == 0 {
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
@@ -403,7 +401,7 @@ func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.A
 	switch {
 	case kc != nil && kc.MaxPods != nil:
 		count = int64(ptr.Int32Value(kc.MaxPods))
-	case awssettings.FromContext(ctx).EnableENILimitedPodDensity && amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
+	case settings.FromContext(ctx).EnableENILimitedPodDensity && amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info).Value()
 	default:
 		count = 110

@@ -27,12 +27,25 @@ import (
 // This will contain configuration necessary to launch instances in AWS.
 type EC2NodeClassSpec struct {
 	// SubnetSelectorTerms is a list of or subnet selector terms. The terms are ORed.
+	// +kubebuilder:validation:XValidation:message="subnetSelectorTerms cannot be empty",rule="self.size() != 0"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id']",rule="self.all(x, has(x.tags) || has(x.id))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in subnetSelectorTerms",rule="!self.all(x, has(x.id) && has(x.tags))"
+	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	SubnetSelectorTerms []SubnetSelectorTerm `json:"subnetSelectorTerms" hash:"ignore"`
 	// SecurityGroupSelectorTerms is a list of or security group selector terms. The terms are ORed.
+	// +kubebuilder:validation:XValidation:message="securityGroupSelectorTerms cannot be empty",rule="self.size() != 0"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in securityGroupSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name)))"
+	// +kubebuilder:validation:XValidation:message="'name' is mutually exclusive, cannot be set with a combination of other fields in securityGroupSelectorTerms",rule="!self.all(x, has(x.name) && (has(x.tags) || has(x.id)))"
+	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name) || has(x.owner)))"
+	// +kubebuilder:validation:XValidation:message="'owner' cannot be set with 'tags'",rule="!self.all(x, has(x.owner) && has(x.tags))"
+	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms,omitempty" hash:"ignore"`
 	// AMIFamily is the AMI family that instances use.
@@ -48,12 +61,20 @@ type EC2NodeClassSpec struct {
 	// Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
 	// This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
 	// for the old instance profiles on an update.
+	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="immutable field changed"
 	// +required
 	Role string `json:"role"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
+	// +kubebuilder:validation:XValidation:message="empty tag keys aren't supported",rule="self.all(k, k != '')"
+	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching kubernetes.io/cluster/",rule="self.all(k, !k.startsWith('kubernetes.io/cluster') )"
+	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/provisioner-name",rule="self.all(k, k != 'karpenter.sh/provisioner-name')"
+	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/nodepool",rule="self.all(k, k != 'karpenter.sh/nodepool')"
+	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/managed-by",rule="self.all(k, k !='karpenter.sh/managed-by')"
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
+	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
+	// +kubebuilder:validation:MaxItems:=50
 	// +optional
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
@@ -115,6 +136,8 @@ type EC2NodeClassSpec struct {
 type SubnetSelectorTerm struct {
 	// Tags is a map of key/value tags used to select subnets
 	// Specifying '*' for a value selects all values for a given tag key.
+	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
 	// ID is the subnet id in EC2
@@ -128,6 +151,8 @@ type SubnetSelectorTerm struct {
 type SecurityGroupSelectorTerm struct {
 	// Tags is a map of key/value tags used to select subnets
 	// Specifying '*' for a value selects all values for a given tag key.
+	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
 	// ID is the security group id in EC2
@@ -144,6 +169,8 @@ type SecurityGroupSelectorTerm struct {
 type AMISelectorTerm struct {
 	// Tags is a map of key/value tags used to select subnets
 	// Specifying '*' for a value selects all values for a given tag key.
+	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
+	// +kubebuilder:validation:MaxProperties:=20
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
 	// ID is the ami id in EC2
@@ -170,12 +197,14 @@ type MetadataOptions struct {
 	// If you specify a value of "disabled", instance metadata will not be accessible
 	// on the node.
 	// +kubebuilder:default=enabled
+	// +kubebuilder:validation:Enum:={enabled,disabled}
 	// +optional
 	HTTPEndpoint *string `json:"httpEndpoint,omitempty"`
 	// HTTPProtocolIPv6 enables or disables the IPv6 endpoint for the instance metadata
 	// service on provisioned nodes. If metadata options is non-nil, but this parameter
 	// is not specified, the default state is "disabled".
 	// +kubebuilder:default=disabled
+	// +kubebuilder:validation:Enum:={enabled,disabled}
 	// +optional
 	HTTPProtocolIPv6 *string `json:"httpProtocolIPv6,omitempty"`
 	// HTTPPutResponseHopLimit is the desired HTTP PUT response hop limit for
@@ -184,6 +213,8 @@ type MetadataOptions struct {
 	// If metadata options is non-nil, but this parameter is not specified, the
 	// default value is 2.
 	// +kubebuilder:default=2
+	// +kubebuilder:validation:Minimum:=1
+	// +kubebuilder:validation:Maximum:=64
 	// +optional
 	HTTPPutResponseHopLimit *int64 `json:"httpPutResponseHopLimit,omitempty"`
 	// HTTPTokens determines the state of token usage for instance metadata
@@ -201,16 +232,18 @@ type MetadataOptions struct {
 	// role credentials always returns the version 2.0 credentials; the version
 	// 1.0 credentials are not available.
 	// +kubebuilder:default=required
+	// +kubebuilder:validation:Enum:={required,optional}
 	// +optional
 	HTTPTokens *string `json:"httpTokens,omitempty"`
 }
 
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
-	// +optional
+	// +required
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
-	// +optional
+	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
+	// +required
 	EBS *BlockDevice `json:"ebs,omitempty"`
 	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
 	// configure at most one root volume in BlockDeviceMappings.
@@ -257,7 +290,7 @@ type BlockDevice struct {
 	// Valid Range: Minimum value of 125. Maximum value of 1000.
 	// +optional
 	Throughput *int64 `json:"throughput,omitempty"`
-	// VolumeSize in GiBs. You must specify either a snapshot ID or
+	// VolumeSize in `Gi`, `G`, `Ti`, or `T`. You must specify either a snapshot ID or
 	// a volume size. The following are the supported volumes sizes for each volume
 	// type:
 	//
@@ -268,11 +301,16 @@ type BlockDevice struct {
 	//    * st1 and sc1: 125-16,384
 	//
 	//    * standard: 1-1,024
+	// + TODO: Add the CEL resources.quantity type after k8s 1.29
+	// + https://github.com/kubernetes/apiserver/commit/b137c256373aec1c5d5810afbabb8932a19ecd2a#diff-838176caa5882465c9d6061febd456397a3e2b40fb423ed36f0cabb1847ecb4dR190
+	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$"
+	// +kubebuilder:validation:XIntOrString
 	// +optional
-	VolumeSize *resource.Quantity `json:"volumeSize,omitempty" hash:"string"`
+	VolumeSize *resource.Quantity `json:"volumeSize,omitempty"`
 	// VolumeType of the block device.
 	// For more information, see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)
 	// in the Amazon Elastic Compute Cloud User Guide.
+	// +kubebuilder:validation:Enum:={standard,io1,io2,gp2,sc1,st1,gp3}
 	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
 }
@@ -297,6 +335,7 @@ type EC2NodeClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
+	// +kubebuilder:validation:XValidation:message="amiSelectorTerms is required when amiFamily == 'Custom'",rule="self.amiFamily == 'Custom' ? self.amiSelectorTerms.size() != 0 : true"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 

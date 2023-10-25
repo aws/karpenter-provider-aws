@@ -8,7 +8,9 @@ config(){
   RELEASE_REPO_ECR=${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
-  PRIVATE_PULL_THROUGH_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+  PRIVATE_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+  SNAPSHOT_REPO_ECR=${SNAPSHOT_REPO_ECR:-${PRIVATE_HOST}/karpenter/snapshot/}
+
   CURRENT_MAJOR_VERSION="0"
   RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
@@ -29,15 +31,29 @@ versionData(){
   RELEASE_MINOR_VERSION="v${RELEASE_VERSION_MAJOR}.${RELEASE_VERSION_MINOR}"
 }
 
+snapshot() {
+  RELEASE_VERSION=$1
+  echo "Release Type: snapshot
+Release Version: ${RELEASE_VERSION}
+Commit: $(git rev-parse HEAD)
+Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
+
+  authenticatePrivateRepo
+  buildImages ${SNAPSHOT_REPO_ECR}
+  cosignImages
+  publishHelmChart "karpenter" "${RELEASE_VERSION}" "${SNAPSHOT_REPO_ECR}"
+  publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${SNAPSHOT_REPO_ECR}"
+}
+
 release() {
   RELEASE_VERSION=$1
-  echo "Release Type: $(releaseType "${RELEASE_VERSION}")
+  echo "Release Type: stable
 Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
   authenticate
-  buildImages
+  buildImages ${RELEASE_REPO_ECR}
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
@@ -49,13 +65,14 @@ authenticate() {
 }
 
 authenticatePrivateRepo() {
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PRIVATE_PULL_THROUGH_HOST}
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PRIVATE_HOST}
 }
 
 buildImages() {
+    RELEASE_REPO=$1
     # Set the SOURCE_DATE_EPOCH and KO_DATA_DATE_EPOCH values for reproducable builds with timestamps
     # https://ko.build/advanced/faq/
-    CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} SOURCE_DATE_EPOCH=$(git log -1 --format='%ct') KO_DATA_DATE_EPOCH=$(git log -1 --format='%ct') KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
+    CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} SOURCE_DATE_EPOCH=$(git log -1 --format='%ct') KO_DATA_DATE_EPOCH=$(git log -1 --format='%ct') KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
     HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
     IMG_REPOSITORY=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 1)
     IMG_TAG=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)
@@ -109,7 +126,7 @@ cosignImages() {
 pullPrivateReplica(){
   authenticatePrivateRepo
   RELEASE_IDENTIFIER=$1
-  PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
+  PULL_THROUGH_CACHE_PATH="${PRIVATE_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
   HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
   helm pull "oci://${PULL_THROUGH_CACHE_PATH}karpenter" --version "${HELM_CHART_VERSION}"
@@ -135,7 +152,7 @@ publishHelmChart() {
 createNewWebsiteDirectory() {
     RELEASE_VERSION=$1
     versionData "${RELEASE_VERSION}"
-    
+
     mkdir -p "website/content/en/${RELEASE_MINOR_VERSION}"
     cp -r website/content/en/preview/* "website/content/en/${RELEASE_MINOR_VERSION}/"
     find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"

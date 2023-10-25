@@ -1,7 +1,7 @@
 ---
 title: "Troubleshooting"
 linkTitle: "Troubleshooting"
-weight: 90
+weight: 70
 description: >
   Troubleshoot Karpenter problems
 ---
@@ -105,14 +105,14 @@ Karpenter v0.26.1+ introduced the `karpenter-crd` helm chart. When installing th
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
 
 ```shell
-kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
+kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
 ```
 
 - In the case of `annotation validation error: missing key "meta.helm.sh/release-namespace": must be set to "karpenter"` run:
 
 ```shell
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
+kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
+kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
 ```
 
 ## Uninstallation
@@ -179,6 +179,17 @@ approach, and now it's much more restrictive.
 
 ## Provisioning
 
+### Instances with swap volumes fail to register with control plane
+
+Some instance types (c1.medium and m1.small) are given limited amount of memory (see [Instance Store swap volumes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-store-swap-volumes.html)). They are subsequently configured to use a swap volume, which will cause the kubelet to fail on launch. The following error can be seen in the systemd logs:
+
+```bash
+"command failed" err="failed to run Kubelet: running with swap on is not supported, please disable swap!..."
+```
+
+##### Solutions
+Disabling swap will allow kubelet to join the cluster successfully, however users should be mindful of performance, and consider adjusting the Provisioner requirements to use larger instance types.
+
 ### DaemonSets can result in deployment failures
 
 For Karpenter versions 0.5.3 and earlier, DaemonSets were not properly considered when provisioning nodes.
@@ -202,7 +213,7 @@ See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-prac
 
 ### Missing subnetSelector and securityGroupSelector tags causes provisioning failures
 
-Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./concepts/node-templates/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./concepts/node-templates/#securitygroupselector" >}}) tags be set to match your cluster.
+Starting with Karpenter v0.5.5, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./concepts/nodeclasses/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./concepts/nodeclasses/#securitygroupselector" >}}) tags be set to match your cluster.
 The [Provisioner]({{<ref "./getting-started/getting-started-with-karpenter/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
 
 ```text
@@ -255,7 +266,7 @@ spec:
 
 When attempting to schedule a large number of pods with PersistentVolumes, it's possible that these pods will co-locate on the same node. Pods will report the following errors in their events using a `kubectl describe pod` call
 
-```console
+```bash
 Warning   FailedAttachVolume    pod/example-pod                      AttachVolume.Attach failed for volume "***" : rpc error: code = Internal desc = Could not attach volume "***" to node "***": attachment of disk "***" failed, expected device to be attached but was attaching
 Warning   FailedMount           pod/example-pod                      Unable to attach or mount volumes: unmounted volumes=[***], unattached volumes=[***]: timed out waiting for the condition
 ```
@@ -266,7 +277,7 @@ In this case, Karpenter may fail to scale-up your nodes due to these pods due to
 
 Karpenter does not support [in-tree storage plugins](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/) to provision PersistentVolumes, since nearly all of the in-tree plugins have been deprecated in upstream Kubernetes. This means that, if you are using a statically-provisioned PersistentVolume that references a volume source like `AWSElasticBlockStore` or a dynamically-provisioned PersistentVolume that references a StorageClass with a in-tree storage plugin provisioner like `kubernetes.io/aws-ebs`, Karpenter will fail to discover the maxiumum volume attachments for the node. Instead, Karpenter may think the node still has more schedulable space due to memory and cpu constraints when there is really no more schedulable space on the node due to volume limits. When Karpenter sees you are using an in-tree storage plugin on your pod volumes, it will print the following error message into the logs. If you see this message, upgrade your StorageClasses and statically-provisioned PersistentVolumes to use the latest CSI drivers for your cloud provider.
 
-```console
+```bash
 2023-04-05T23:56:53.363Z        ERROR   controller.node_state   PersistentVolume source 'AWSElasticBlockStore' uses an in-tree storage plugin which is unsupported by Karpenter and is deprecated by Kubernetes. Scale-ups may fail because Karpenter will not discover driver limits. Use a PersistentVolume that references the 'CSI' volume source for Karpenter auto-scaling support.       {"commit": "b2af562", "node": "ip-192-168-36-137.us-west-2.compute.internal", "pod": "inflate0-6c4bdb8b75-7qmfd", "volume": "mypd", "persistent-volume": "pvc-11db7489-3c6e-46f3-a958-91f9d5009d41"}
 2023-04-05T23:56:53.464Z        ERROR   controller.node_state   StorageClass .spec.provisioner uses an in-tree storage plugin which is unsupported by Karpenter and is deprecated by Kubernetes. Scale-ups may fail because Karpenter will not discover driver limits. Create a new StorageClass with a .spec.provisioner referencing the CSI driver plugin name 'ebs.csi.aws.com'.     {"commit": "b2af562", "node": "ip-192-168-36-137.us-west-2.compute.internal", "pod": "inflate0-6c4bdb8b75-7qmfd", "volume": "mypd", "storage-class": "gp2", "provisioner": "kubernetes.io/aws-ebs"}
 ```
@@ -289,7 +300,7 @@ time=2023-06-12T19:18:15Z type=Warning reason=FailedCreatePodSandBox from=kubele
 
 By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
 
-If the max-pods (configured through your Provisioner [`kubeletConfiguration`]({{<ref "./concepts/provisioners#speckubeletconfiguration" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
+If the max-pods (configured through your Provisioner [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
 
 ##### Solutions
 
@@ -297,13 +308,13 @@ To avoid this discrepancy between `maxPods` and the supported pod density of the
 
 1. Enable [Prefix Delegation](https://www.eksworkshop.com/docs/networking/prefix/) to increase the number of allocatable IPs for the ENIs on each instance type
 2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your Provisioner
-3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/provisioners#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
+3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
 
-For more information on pod density, view the [Pod Density Conceptual Documentation]({{<ref "./concepts/pod-density" >}}).
+For more information on pod density, view the [Pod Density Section in the NodePools doc]({{<ref "./concepts/nodepools#pod-density" >}}).
 
 #### IP exhaustion in a subnet
 
-When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/node-templates#specsubnetselector" >}}) value in your [`AWSNodeTemplate`]({{<ref "./concepts/node-templates" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
+When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/nodeclasses#specsubnetselector" >}}) value in your [`AWSNodeTemplate`]({{<ref "./concepts/nodeclasses" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
 
 ##### Solutions
 
@@ -550,7 +561,7 @@ This means that your CNI plugin is out of date. You can find instructions on how
 ### Node terminates before ready on failed encrypted EBS volume
 
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
-This issue also applies to [Block Device Mappings]({{<ref "./concepts/node-templates/#block-device-mappings" >}}) specified in the Provisioner.
+This issue also applies to [Block Device Mappings]({{<ref "./concepts/nodeclasses/#block-device-mappings" >}}) specified in the Provisioner.
 In either case, this results in the node terminating almost immediately upon creation.
 
 Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.
@@ -623,4 +634,4 @@ caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.2
 This network timeout occurs because there is no VPC endpoint available for the [Price List Query API.](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-pelong.html).
 To workaround this issue, Karpenter ships updated on-demand pricing data as part of the Karpenter binary; however, this means that pricing data will only be updated on Karpenter version upgrades.
 To disable pricing lookups and avoid the error messages, set the `AWS_ISOLATED_VPC` environment variable (or the `--aws-isolated-vpc` option) to true.
-See [Environment Variables / CLI Flags]({{<ref "./concepts/settings/#environment-variables--cli-flags" >}}) for details.
+See [Environment Variables / CLI Flags]({{<ref "./reference/settings#environment-variables--cli-flags" >}}) for details.

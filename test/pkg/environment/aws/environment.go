@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"os"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -41,6 +42,10 @@ import (
 
 const WindowsDefaultImage = "mcr.microsoft.com/oss/kubernetes/pause:3.9"
 
+// ExcludedInstanceFamilies denotes instance families that have issues during resource registration due to compatibility
+// issues with versions of the VPR Resource Controller
+var ExcludedInstanceFamilies = []string{"m7a", "r7a", "c7a", "r7i"}
+
 type Environment struct {
 	*common.Environment
 	Region string
@@ -54,6 +59,10 @@ type Environment struct {
 	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
 
 	SQSProvider *interruption.SQSProvider
+
+	ClusterName       string
+	ClusterEndpoint   string
+	InterruptionQueue string
 }
 
 func NewEnvironment(t *testing.T) *Environment {
@@ -80,6 +89,10 @@ func NewEnvironment(t *testing.T) *Environment {
 		EKSAPI:        eks.New(session),
 		SQSProvider:   interruption.NewSQSProvider(sqs.New(session)),
 		TimeStreamAPI: GetTimeStreamAPI(session),
+
+		ClusterName:       lo.Must(os.LookupEnv("CLUSTER_NAME")),
+		ClusterEndpoint:   lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
+		InterruptionQueue: lo.Must(os.LookupEnv("INTERRUPTION_QUEUE")),
 	}
 }
 

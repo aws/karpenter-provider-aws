@@ -5,13 +5,6 @@ Parameters:
     Type: String
     Description: "EKS cluster name"
 Resources:
-  KarpenterNodeInstanceProfile:
-    Type: "AWS::IAM::InstanceProfile"
-    Properties:
-      InstanceProfileName: !Sub "KarpenterNodeInstanceProfile-${ClusterName}"
-      Path: "/"
-      Roles:
-        - !Ref "KarpenterNodeRole"
   KarpenterNodeRole:
     Type: "AWS::IAM::Role"
     Properties:
@@ -77,7 +70,7 @@ Resources:
                   "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
                 },
                 "StringLike": {
-                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                  "aws:RequestTag/karpenter.sh/nodepool": "*"
                 }
               }
             },
@@ -102,27 +95,26 @@ Resources:
                   ]
                 },
                 "StringLike": {
-                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                  "aws:RequestTag/karpenter.sh/nodepool": "*"
                 }
               }
             },
             {
-              "Sid": "AllowMachineMigrationTagging",
+              "Sid": "AllowScopedResourceTagging",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
               "Action": "ec2:CreateTags",
               "Condition": {
                 "StringEquals": {
-                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
-                  "aws:RequestTag/karpenter.sh/managed-by": "${ClusterName}"
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
                 },
                 "StringLike": {
-                  "aws:RequestTag/karpenter.sh/provisioner-name": "*"
+                  "aws:ResourceTag/karpenter.sh/nodepool": "*"
                 },
                 "ForAllValues:StringEquals": {
                   "aws:TagKeys": [
-                    "karpenter.sh/provisioner-name",
-                    "karpenter.sh/managed-by"
+                    "karpenter.sh/nodeclaim",
+                    "Name"
                   ]
                 }
               }
@@ -143,7 +135,7 @@ Resources:
                   "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
                 },
                 "StringLike": {
-                  "aws:ResourceTag/karpenter.sh/provisioner-name": "*"
+                  "aws:ResourceTag/karpenter.sh/nodepool": "*"
                 }
               }
             },
@@ -201,6 +193,68 @@ Resources:
                   "iam:PassedToService": "ec2.amazonaws.com"
                 }
               }
+            },
+            {
+              "Sid": "AllowScopedInstanceProfileCreationActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "iam:CreateInstanceProfile"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
+                },
+                "StringLike": {
+                  "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+                }
+              }
+            },
+            {
+              "Sid": "AllowScopedInstanceProfileTagActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "iam:TagInstanceProfile"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}",
+                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
+                },
+                "StringLike": {
+                  "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
+                  "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+                }
+              }
+            },
+            {
+              "Sid": "AllowScopedInstanceProfileActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": [
+                "iam:AddRoleToInstanceProfile",
+                "iam:RemoveRoleFromInstanceProfile",
+                "iam:DeleteInstanceProfile"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}"
+                },
+                "StringLike": {
+                  "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
+                }
+              }
+            },
+            {
+              "Sid": "AllowInstanceProfileReadActions",
+              "Effect": "Allow",
+              "Resource": "*",
+              "Action": "iam:GetInstanceProfile"
             },
             {
               "Sid": "AllowAPIServerEndpointDiscovery",

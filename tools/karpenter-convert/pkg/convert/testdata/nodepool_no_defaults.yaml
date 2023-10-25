@@ -1,0 +1,29 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  disruption:
+    consolidateAfter: 30s
+    consolidationPolicy: WhenEmpty
+    expireAfter: 720h0m0s
+  limits:
+    cpu: 1k
+    memory: 1000Gi
+  template:
+    metadata:
+      annotations:
+        example.com/owner: my-team
+      labels:
+        billing-team: my-team
+    spec:
+      nodeClassRef:
+        name: default
+      requirements: null
+      startupTaints:
+      - effect: NoSchedule
+        key: example.com/another-taint
+      taints:
+      - effect: NoSchedule
+        key: example.com/special-taint
+  weight: 10

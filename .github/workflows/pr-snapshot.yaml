@@ -1,0 +1,52 @@
+name: PullRequestSnapshot
+on:
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+permissions:
+  id-token: write
+  pull-requests: write
+  statuses: write
+jobs:
+  release:
+    if: github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/download-artifact
+      - name: Parse artifacts and assign GA environment variables
+        run: |
+          pr_number=$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)
+          pr_commit=$(tail -n 1 /tmp/artifacts/metadata.txt)
+          echo "PR_COMMIT=$pr_commit" >> $GITHUB_ENV
+          echo "PR_NUMBER=$pr_number" >> $GITHUB_ENV
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.PR_COMMIT }}
+      - uses: ./.github/actions/commit-status/start
+        with:
+          name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
+          git_ref: ${{ env.PR_COMMIT }}
+      - uses: ./.github/actions/install-deps
+      - uses: aws-actions/configure-aws-credentials@v4.0.1
+        with:
+          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.ECR_REGION }}
+      - run: make snapshot
+        env:
+          GH_PR_NUMBER: ${{env.PR_NUMBER}}
+      - uses: actions/github-script@v6
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.rest.issues.createComment({
+              issue_number: `${{env.PR_NUMBER}}`,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'Snapshot successfully published to `oci://${{ vars.ECR_ACCOUNT_ID }}.dkr.ecr.${{ vars.ECR_REGION }}.amazonaws.com/karpenter/snapshot/karpenter:v0-${{env.PR_COMMIT}}`.'
+            })
+      - if: always()
+        uses: ./.github/actions/commit-status/end
+        with:
+          name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
+          git_ref: ${{ env.PR_COMMIT }}

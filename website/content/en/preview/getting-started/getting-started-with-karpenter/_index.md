@@ -41,10 +41,11 @@ authenticate properly by running `aws sts get-caller-identity`.
 
 ### 2. Set environment variables
 
-After setting up the tools, set the Karpenter version number:
+After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_VERSION={{< param "latest_release_version" >}}
+export K8S_VERSION={{< param "latest_k8s_version" >}}
 ```
 
 Then set the following environment variable:
@@ -56,7 +57,7 @@ If you open a new shell to run steps in this procedure, you need to set some or 
 To remind yourself of these values, type:
 
 ```bash
-echo $KARPENTER_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID $TEMPOUT
+echo $KARPENTER_VERSION $K8S_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID $TEMPOUT
 ```
 
 {{% /alert %}}
@@ -92,32 +93,23 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 Karpenter creates a mapping between CloudProvider machines and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
 
 * `karpenter.sh/managed-by`
-* `karpenter.sh/provisioner-name`
+* `karpenter.sh/nodepool`
 * `kubernetes.io/cluster/${CLUSTER_NAME}`
 
 Because Karpenter takes this dependency, any user that has the ability to Create/Delete these tags on CloudProvider machines will have the ability to orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect. We recommend that you [enforce tag-based IAM policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_tags.html) on these tags against any EC2 instance resource (`i-*`) for any users that might have [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)/[DeleteTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteTags.html) permissions but should not have [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html)/[TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) permissions.
 {{% /alert %}}
 
-### 5. Create Provisioner
+### 5. Create NodePool
 
-A single Karpenter provisioner is capable of handling many different pod
-shapes. Karpenter makes scheduling and provisioning decisions based on pod
-attributes such as labels and affinity. In other words, Karpenter eliminates
-the need to manage many different node groups.
+A single Karpenter NodePool is capable of handling many different pod shapes. Karpenter makes scheduling and provisioning decisions based on pod attributes such as labels and affinity. In other words, Karpenter eliminates the need to manage many different node groups.
 
-Create a default provisioner using the command below.
-This provisioner uses `securityGroupSelector` and `subnetSelector` to discover resources used to launch nodes.
-We applied the tag `karpenter.sh/discovery` in the `eksctl` command above.
-Depending how these resources are shared between clusters, you may need to use different tagging schemes.
+Create a default NodePool using the command below. This NodePool uses `securityGroupSelectorTerms` and `subnetSelectorTerms` to discover resources used to launch nodes. We applied the tag `karpenter.sh/discovery` in the `eksctl` command above. Depending on how these resources are shared between clusters, you may need to use different tagging schemes.
 
-The `consolidation` value configures Karpenter to reduce cluster cost by removing and replacing nodes. As a result, consolidation will terminate any empty nodes on the cluster. This behavior can be disabled by leaving the value undefined or setting `consolidation.enabled` to `false`. Review the [provisioner CRD]({{<ref "../../concepts/provisioners" >}}) for more information.
+The `consolidationPolicy` set to `WhenUnderutilized` in the `disruption` block configures Karpenter to reduce cluster cost by removing and replacing nodes. As a result, consolidation will terminate any empty nodes on the cluster. This behavior can be disabled by setting `consolidateAfter` to `Never`, telling Karpenter that it should never consolidate nodes. Review the [NodePool API docs]({{<ref "../../concepts/nodepools" >}}) for more information.
 
-Review the [provisioner CRD]({{<ref "../../concepts/provisioners" >}}) for more information. For example,
-`ttlSecondsUntilExpired` configures Karpenter to terminate nodes when a maximum age is reached.
+Note: This NodePool will create capacity as long as the sum of all created capacity is less than the specified limit.
 
-Note: This provisioner will create capacity as long as the sum of all created capacity is less than the specified limit.
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step12-add-provisioner.sh" language="bash"%}}
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step12-add-nodepool.sh" language="bash"%}}
 
 Karpenter is now active and ready to begin provisioning nodes.
 

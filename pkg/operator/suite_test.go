@@ -26,12 +26,11 @@ import (
 	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/fake"
 	awscontext "github.com/aws/karpenter/pkg/operator"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/test"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -50,8 +49,6 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
-	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeEKSAPI = &fake.EKSAPI{}
@@ -72,7 +69,7 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Operator", func() {
 	It("should resolve endpoint if set via configuration", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 			ClusterEndpoint: lo.ToPtr("https://api.test-cluster.k8s.local"),
 		}))
 		endpoint, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
@@ -80,7 +77,7 @@ var _ = Describe("Operator", func() {
 		Expect(endpoint).To(Equal("https://api.test-cluster.k8s.local"))
 	})
 	It("should resolve endpoint if not set, via call to API", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 			ClusterEndpoint: lo.ToPtr(""),
 		}))
 		fakeEKSAPI.DescribeClusterBehavior.Output.Set(
@@ -96,7 +93,7 @@ var _ = Describe("Operator", func() {
 		Expect(endpoint).To(Equal("https://cluster-endpoint.test-cluster.k8s.local"))
 	})
 	It("should propagate error if API fails", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 			ClusterEndpoint: lo.ToPtr(""),
 		}))
 		fakeEKSAPI.DescribeClusterBehavior.Error.Set(errors.New("test error"))
