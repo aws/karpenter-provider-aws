@@ -39,7 +39,6 @@ import (
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
@@ -61,55 +60,8 @@ func TestChaos(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	env.BeforeEach()
-	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-		Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily: &v1beta1.AMIFamilyAL2,
-			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			Role: fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName),
-		},
-	})
-	nodePool = coretest.NodePool(corev1beta1.NodePool{
-		Spec: corev1beta1.NodePoolSpec{
-			Template: corev1beta1.NodeClaimTemplate{
-				Spec: corev1beta1.NodeClaimSpec{
-					NodeClassRef: &corev1beta1.NodeClassReference{
-						Name: nodeClass.Name,
-					},
-					Requirements: []v1.NodeSelectorRequirement{
-						{
-							Key:      v1.LabelOSStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{string(v1.Linux)},
-						},
-						{
-							Key:      corev1beta1.CapacityTypeLabelKey,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1beta1.CapacityTypeOnDemand},
-						},
-						{
-							Key:      v1beta1.LabelInstanceCategory,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{"c", "m", "r"},
-						},
-						{
-							Key:      v1beta1.LabelInstanceGeneration,
-							Operator: v1.NodeSelectorOpGt,
-							Values:   []string{"2"},
-						},
-					},
-				},
-			},
-		},
-	})
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
