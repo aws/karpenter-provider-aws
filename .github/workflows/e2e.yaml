@@ -45,10 +45,14 @@ on:
         default: "1.28"
       eksctl_version:
         type: string
-        default: v0.160.0-rc.0
+        default: v0.163.0
       enable_metrics:
         type: boolean
         default: false
+      cleanup:
+        type: boolean
+        required: true
+        default: true
   workflow_call:
     inputs:
       git_ref:
@@ -64,10 +68,14 @@ on:
         default: "1.28"
       eksctl_version:
         type: string
-        default: v0.160.0-rc.0
+        default: v0.163.0
       enable_metrics:
         type: boolean
         default: false
+      cleanup:
+        type: boolean
+        required: true
+        default: true
       workflow_trigger:
         type: string
     secrets:
@@ -159,7 +167,7 @@ jobs:
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}' resources
         uses: ./.github/actions/e2e/cleanup
-        if: always()
+        if: always() && inputs.cleanup
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
