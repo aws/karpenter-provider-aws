@@ -96,8 +96,11 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	workqueue.ParallelizeUntil(ctx, 100, len(retrieved), func(i int) {
 		errs[i] = c.link(ctx, retrieved[i], machineList.Items)
 	})
+	if err = multierr.Combine(errs...); err != nil {
+		return reconcile.Result{}, err
+	}
 	// Effectively, don't requeue this again once it succeeds
-	return reconcile.Result{RequeueAfter: math.MaxInt64}, multierr.Combine(errs...)
+	return reconcile.Result{RequeueAfter: math.MaxInt64}, nil
 }
 
 func (c *Controller) link(ctx context.Context, retrieved *v1beta1.NodeClaim, existingMachines []v1alpha5.Machine) error {

@@ -55,9 +55,9 @@ runs:
         -n karpenter \
         --version "v0-$(git rev-parse HEAD)" \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/karpenter-irsa-${{ inputs.cluster_name }}" \
-        --set settings.aws.clusterName="${{ inputs.cluster_name }}" \
+        --set settings.clusterName="${{ inputs.cluster_name }}" \
         --set settings.aws.defaultInstanceProfile="KarpenterNodeInstanceProfile-${{ inputs.cluster_name }}" \
-        --set settings.aws.interruptionQueueName="${{ inputs.cluster_name }}" \
+        --set settings.interruptionQueue="${{ inputs.cluster_name }}" \
         --set controller.resources.requests.cpu=3 \
         --set controller.resources.requests.memory=3Gi \
         --set controller.resources.limits.cpu=3 \

@@ -32,7 +32,6 @@ import (
 	"knative.dev/pkg/logging"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -40,6 +39,7 @@ import (
 	"github.com/aws/karpenter/pkg/batcher"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -105,7 +105,7 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 
 func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
 	if err := p.CreateTags(ctx, id, map[string]string{
-		v1alpha5.MachineManagedByAnnotationKey: settings.FromContext(ctx).ClusterName,
+		v1alpha5.MachineManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
 		v1alpha5.ProvisionerNameLabelKey:       provisionerName,
 	}); err != nil {
 		return fmt.Errorf("linking tags, %w", err)
@@ -136,19 +136,15 @@ func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
 
 func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
 	var out = &ec2.DescribeInstancesOutput{}
-	tagKeys := []string{v1alpha5.ProvisionerNameLabelKey}
-	if nodepoolutil.EnableNodePools {
-		tagKeys = append(tagKeys, corev1beta1.NodePoolLabelKey)
-	}
 	err := p.ec2api.DescribeInstancesPagesWithContext(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
-				Values: aws.StringSlice(tagKeys),
+				Values: aws.StringSlice([]string{v1alpha5.ProvisionerNameLabelKey, corev1beta1.NodePoolLabelKey}),
 			},
 			{
 				Name:   aws.String("tag-key"),
-				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)}),
+				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)}),
 			},
 			instanceStateFilter,
 		},
@@ -262,15 +258,16 @@ func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *co
 			"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey]),
 		}
 		staticTags = map[string]string{
-			fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
-			v1alpha5.ProvisionerNameLabelKey:                                               nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey],
-			v1alpha5.MachineManagedByAnnotationKey:                                         settings.FromContext(ctx).ClusterName,
+			fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
+			v1alpha5.ProvisionerNameLabelKey:                                              nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey],
+			v1alpha5.MachineManagedByAnnotationKey:                                        options.FromContext(ctx).ClusterName,
 		}
 	} else {
 		staticTags = map[string]string{
-			fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
+			fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
 			corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
-			corev1beta1.ManagedByAnnotationKey: settings.FromContext(ctx).ClusterName,
+			corev1beta1.ManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
+			v1beta1.LabelNodeClass:             nodeClass.Name,
 		}
 	}
 	return lo.Assign(overridableTags, settings.FromContext(ctx).Tags, nodeClass.Spec.Tags, staticTags)

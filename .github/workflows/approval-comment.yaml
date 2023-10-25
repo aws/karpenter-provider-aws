@@ -6,7 +6,6 @@ on:
 jobs:
   approval-comment:
     if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale') || startsWith(github.event.review.body, '/karpenter conformance')
-    permissions: write-all
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -21,4 +20,7 @@ jobs:
           echo ${{ github.event.pull_request.number }} >> /tmp/artifacts/metadata.txt
           echo ${{ github.event.review.commit_id }} >> /tmp/artifacts/metadata.txt
           cat /tmp/artifacts/metadata.txt
-      - uses: ./.github/actions/upload-artifact
+      - uses: actions/upload-artifact@v3
+        with:
+          name: artifacts
+          path: /tmp/artifacts

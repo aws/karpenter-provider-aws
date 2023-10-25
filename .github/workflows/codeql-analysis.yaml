@@ -12,9 +12,8 @@ jobs:
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
-      security-events: write
+      actions: read # github/codeql-action/init@v2
+      security-events: write # github/codeql-action/init@v2
 
     strategy:
       fail-fast: false

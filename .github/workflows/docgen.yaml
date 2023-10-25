@@ -5,7 +5,7 @@ on:
     branches: [main]
 
 permissions:
-  id-token: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 
 jobs:
   docgen-ci:

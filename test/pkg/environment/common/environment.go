@@ -37,9 +37,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-core/pkg/operator"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/utils/project"
 )
 
 type ContextKey string
@@ -91,7 +92,7 @@ func (env *Environment) Stop() {
 
 func NewConfig() *rest.Config {
 	config := controllerruntime.GetConfigOrDie()
-	config.UserAgent = fmt.Sprintf("testing-%s", project.Version)
+	config.UserAgent = fmt.Sprintf("testing-%s", operator.Version)
 	config.QPS = 1e6
 	config.Burst = 1e6
 	return config
@@ -115,6 +116,13 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 	lo.Must0(cache.IndexField(ctx, &v1.Node{}, "spec.unschedulable", func(o client.Object) []string {
 		node := o.(*v1.Node)
 		return []string{strconv.FormatBool(node.Spec.Unschedulable)}
+	}))
+	lo.Must0(cache.IndexField(ctx, &v1.Node{}, "spec.taints[*].karpenter.sh/disruption", func(o client.Object) []string {
+		node := o.(*v1.Node)
+		t, _ := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
+			return t.Key == v1beta1.DisruptionTaintKey
+		})
+		return []string{t.Value}
 	}))
 
 	c := lo.Must(client.New(config, client.Options{Scheme: scheme, Cache: &client.CacheOptions{Reader: cache}}))

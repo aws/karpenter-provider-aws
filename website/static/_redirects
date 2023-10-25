@@ -5,11 +5,25 @@
 /v0.26/getting-started/getting-started-with-karpenter/*  /v0.26/getting-started/getting-started-with-eksctl/:splat
 /v0.27/getting-started/getting-started-with-eksctl/* /v0.27/getting-started/getting-started-with-karpenter/:splat
 /v0.28/getting-started/getting-started-with-eksctl/* /v0.28/getting-started/getting-started-with-karpenter/:splat
+
+# Redirect all preview documentation to the new routes
 /preview/concepts/provisioners /preview/concepts/nodepools
 /preview/concepts/node-templates /preview/concepts/nodeclasses
 /preview/concepts/deprovisioning /preview/concepts/disruption
-/preview/upgrade/* /preview/upgrading/*
+/preview/upgrade-guide /preview/upgrading/upgrade-guide
 /preview/concepts/instance-types /preview/reference/instance-types
 /preview/concepts/metrics /preview/reference/metrics
 /preview/concepts/settings /preview/reference/settings
 /preview/concepts/threat-model /preview/reference/threat-model
+
+# Redirect all v0.32 documentation to the new routes
+/v0.32/concepts/provisioners /v0.32/concepts/nodepools
+/v0.32/concepts/node-templates /v0.32/concepts/nodeclasses
+/v0.32/concepts/deprovisioning /v0.32/concepts/disruption
+/v0.32/upgrade-guide /v0.32/upgrading/upgrade-guide
+/v0.32/concepts/instance-types /v0.32/reference/instance-types
+/v0.32/concepts/metrics /v0.32/reference/metrics
+/v0.32/concepts/settings /v0.32/reference/settings
+/v0.32/concepts/threat-model /v0.32/reference/threat-model
+
+# TODO @joinnis: Add redirects for the "docs" version and future versions after v0.32 release

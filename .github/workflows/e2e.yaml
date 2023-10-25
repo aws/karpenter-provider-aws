@@ -15,16 +15,24 @@ on:
         type: choice
         required: true
         options:
-          - Integration
-          - Machine
-          - Consolidation
-          - Utilization
-          - Interruption
-          - Drift
-          - Expiration
-          - Chaos
-          - IPv6
-          - Scale
+          - Beta/Integration
+          - Beta/NodeClaim
+          - Beta/Consolidation
+          - Beta/Interruption
+          - Beta/Drift
+          - Beta/Expiration
+          - Beta/Chaos
+          - Beta/IPv6
+          - Alpha/Integration
+          - Alpha/Machine
+          - Alpha/Consolidation
+          - Alpha/Utilization
+          - Alpha/Interruption
+          - Alpha/Drift
+          - Alpha/Expiration
+          - Alpha/Chaos
+          - Alpha/IPv6
+          - Alpha/Scale
       k8s_version:
         type: choice
         options:
@@ -66,9 +74,8 @@ on:
       SLACK_WEBHOOK_URL:
         required: true
 permissions:
-  id-token: write # This is required for requesting the JWT
-  contents: read  # This is required for actions/checkout
-  statuses: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+  statuses: write # ./.github/actions/commit-status/start
 jobs:
   run-suite:
     name: suite-${{ inputs.suite }}
@@ -95,7 +102,7 @@ jobs:
           sleep $(( $RANDOM % 300 + 1 ))
       - name: generate cluster name
         run: |
-          CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}')
+          CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}' | tr / -)
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_ENV
       - name: create eks cluster '${{ env.CLUSTER_NAME }}'
@@ -107,7 +114,7 @@ jobs:
           cluster_name: ${{ env.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
           eksctl_version: ${{ inputs.eksctl_version }}
-          ip_family: ${{ inputs.suite == 'IPv6' && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
+          ip_family: ${{ contains(inputs.suite, 'IPv6') && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
         uses: ./.github/actions/e2e/install-prometheus
@@ -133,7 +140,7 @@ jobs:
           aws eks update-kubeconfig --name ${{ env.CLUSTER_NAME }}
           TEST_SUITE="${{ inputs.suite }}" ENABLE_METRICS=${{ inputs.enable_metrics }} METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
             CLUSTER_NAME="${{ env.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ env.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
-            INTERRUPTION_QUEUE_NAME="${{ env.CLUSTER_NAME }}" make e2etests
+            INTERRUPTION_QUEUE="${{ env.CLUSTER_NAME }}" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'conformance'

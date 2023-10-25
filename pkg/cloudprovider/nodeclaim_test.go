@@ -79,7 +79,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 			{
 				Key:      v1.LabelInstanceTypeStable,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{},
+				Values:   []string{"test-instance-type"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)

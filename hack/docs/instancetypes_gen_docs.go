@@ -35,14 +35,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	coreoperator "github.com/aws/karpenter-core/pkg/operator"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -63,8 +64,18 @@ func (m *FakeManager) GetConfig() *rest.Config {
 	return &rest.Config{}
 }
 
+func (m *FakeManager) GetFieldIndexer() client.FieldIndexer {
+	return &FakeFieldIndexer{}
+}
+
 func (m *FakeManager) Elected() <-chan struct{} {
 	return make(chan struct{}, 1)
+}
+
+type FakeFieldIndexer struct{}
+
+func (f *FakeFieldIndexer) IndexField(_ context.Context, _ client.Object, _ string, _ client.IndexerFunc) error {
+	return nil
 }
 
 func main() {
@@ -77,12 +88,14 @@ func main() {
 	lo.Must0(os.Setenv("AWS_SDK_LOAD_CONFIG", "true"))
 	lo.Must0(os.Setenv("AWS_REGION", "us-east-1"))
 
-	ctx := coresettings.ToContext(context.Background(), coretest.Settings())
-	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+	ctx := coreoptions.ToContext(context.Background(), coretest.Options())
+	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 		ClusterName:     lo.ToPtr("docs-gen"),
 		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
 		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
 	}))
+	// TODO @joinnis: Remove this when dropping alpha support
+	ctx = settings.ToContext(ctx, test.Settings())
 
 	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
 		Manager:             &FakeManager{},
