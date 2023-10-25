@@ -226,6 +226,7 @@ If you are using some IaC for managing your policy documents attached to the con
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
 * Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
 * Karpenter now moves all logging configuration for the Zap logger into the `logConfig` values block. Configuring Karpenter logging with this mechanism _is_ deprecated and will be dropped at v1. Karpenter now only surfaces logLevel through the `logLevel` helm value. If you need more advanced configuration due to log parsing constraints, we recommend configuring your log parser to handle Karpenter's Zap JSON logging.
+* The default log encoding changed from `console` to `json`. If you were previously not setting the type of log encoding, this default will change with the helm chart. If you were setting the value through `logEncoding`, this value will continue to work until v0.33.x but it is deprecated in favor of `logConfig.logEncoding`
 
 ### Upgrading to v0.31.0+
 
