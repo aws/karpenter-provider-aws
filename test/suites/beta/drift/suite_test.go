@@ -45,7 +45,7 @@ import (
 )
 
 var env *aws.Environment
-var customAMI string
+var amdAMI string
 
 func TestDrift(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -70,7 +70,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 	var nodeClass *v1beta1.EC2NodeClass
 	var nodePool *corev1beta1.NodePool
 	BeforeEach(func() {
-		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		amdAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 		nodeClass = awstest.EC2NodeClass(v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
 			AMIFamily: &v1beta1.AMIFamilyAL2,
 			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
@@ -122,7 +122,34 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectNodeCount("==", 1)[0]
-		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: customAMI}}
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMI}}
+		env.ExpectCreatedOrUpdated(nodeClass)
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
+
+		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, nodeClaim, node)
+	})
+	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
+		armParameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
+			Name: awssdk.String("/aws/service/eks/optimized-ami/1.28/amazon-linux-2-arm64/recommended/image_id"),
+		})
+		Expect(err).To(BeNil())
+		armAMI := *armParameter.Parameter.Value
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: armAMI}}
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		node := env.EventuallyExpectNodeCount("==", 1)[0]
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMI}}
 		env.ExpectCreatedOrUpdated(nodeClass)
 
 		Eventually(func(g Gomega) {
@@ -152,7 +179,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		node := env.Monitor.CreatedNodes()[0]
-		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: customAMI}}
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMI}}
 		env.ExpectUpdated(nodeClass)
 
 		// We should consistently get the same node existing for a minute

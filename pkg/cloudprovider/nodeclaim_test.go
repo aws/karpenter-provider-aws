@@ -311,7 +311,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
-		It("should return drifted if the AMI no longer matches the existing machine instance type", func() {
+		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMIID}}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
