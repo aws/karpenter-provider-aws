@@ -19,6 +19,9 @@ jobs:
     name: cleanup-${{ inputs.cluster_name }}
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.git_ref }}
       - name: cleanup karpenter and cluster '${{ inputs.cluster_name }}' resources
         uses: ./.github/actions/e2e/cleanup
         with:
