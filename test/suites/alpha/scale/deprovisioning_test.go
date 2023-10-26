@@ -103,7 +103,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 					Values:   []string{string(v1.Linux)},
 				},
 				{
-					Key:      "karpenter.k8s.aws/instance-hypervisor",
+					Key:      v1alpha1.LabelInstanceHypervisor,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"nitro"},
 				},
