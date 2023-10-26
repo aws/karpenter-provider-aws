@@ -1,0 +1,13 @@
+name: Test
+on:
+  workflow_dispatch:
+    inputs:
+      cleanup:
+        type: boolean
+        required: true
+        default: true
+jobs:
+  run-suite:
+    uses: ./.github/workflows/test-workflow-call.yaml
+    with:
+      cleanup: ${{ inputs.cleanup }}

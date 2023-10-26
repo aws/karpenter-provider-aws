@@ -1,0 +1,14 @@
+name: TestWorkflowCall
+on:
+  workflow_call:
+    inputs:
+      cleanup:
+        type: boolean
+        required: true
+jobs:
+  run-suite:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ inputs.cleanup }}
+        run: |
+          echo "Hello"
