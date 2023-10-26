@@ -173,7 +173,7 @@ jobs:
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}' resources
         uses: ./.github/actions/e2e/cleanup
-        if: always() && inputs.cleanup
+        if: always() && inputs.cleanup == true
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
