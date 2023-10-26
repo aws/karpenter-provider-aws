@@ -36,6 +36,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
+	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -82,6 +83,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
 		nodePool.Spec.Limits = nil
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      v1beta1.LabelInstanceHypervisor,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"nitro"},
+		})
 		deploymentOptions = test.DeploymentOptions{
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
@@ -142,7 +148,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			nodePoolMap := map[string]*corev1beta1.NodePool{}
 			// Generate all the nodePools for multi-deprovisioning
 			for _, v := range disruptionMethods {
-				np := nodePool.DeepCopy()
+				np := test.NodePool()
+				np.Spec = *nodePool.Spec.DeepCopy()
 				np.Spec.Template.Spec.Taints = []v1.Taint{
 					{
 						Key:    deprovisioningTypeKey,
@@ -175,8 +182,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			// Create a separate nodeClass for drift so that we can change the nodeClass later without it affecting
 			// the other nodePools
-			driftNodeClass := nodeClass.DeepCopy()
-			driftNodeClass.Name = test.RandomName()
+			driftNodeClass := awstest.EC2NodeClass()
+			driftNodeClass.Spec = *nodeClass.Spec.DeepCopy()
 			nodePoolMap[driftValue].Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
 				Name: driftNodeClass.Name,
 			}
@@ -222,7 +229,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			// Create a nodePool for expiration so that expiration can do replacement
 			nodePoolMap[noExpirationValue] = test.NodePool()
-			nodePoolMap[noExpirationValue].Spec = nodePoolMap[expirationValue].Spec
+			nodePoolMap[noExpirationValue].Spec = *nodePoolMap[expirationValue].Spec.DeepCopy()
 
 			// Enable consolidation, emptiness, and expiration
 			nodePoolMap[consolidationValue].Spec.Disruption.ConsolidateAfter = nil
