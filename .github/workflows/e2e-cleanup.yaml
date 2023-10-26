@@ -19,7 +19,7 @@ jobs:
     name: cleanup-${{ inputs.cluster_name }}
     runs-on: ubuntu-latest
     steps:
-      - name: cleanup karpenter and cluster '${{ inputs.cluster-name }}' resources
+      - name: cleanup karpenter and cluster '${{ inputs.cluster_name }}' resources
         uses: ./.github/actions/e2e/cleanup
         with:
           account_id: ${{ vars.ACCOUNT_ID }}

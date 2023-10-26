@@ -7,17 +7,18 @@ on:
     workflows: [ApprovalComment]
     types: [completed]
   workflow_dispatch:
-    region:
-      required: true
-      default: 'eu-west-1'
-      type: choice
-      options:
-        - "us-east-1"
-        - "eu-west-1"
-    cleanup:
-      required: true
-      default: true
-      type: boolean
+    inputs:
+      region:
+        required: true
+        default: 'eu-west-1'
+        type: choice
+        options:
+          - "us-east-1"
+          - "eu-west-1"
+      cleanup:
+        required: true
+        default: true
+        type: boolean
 jobs:
   resolve:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
