@@ -150,57 +150,63 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
    Karpenter has deprecated and moved a number of Helm values as part of the v1beta1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1beta1. You can find detail for all the settings that were moved in the [v1beta1 Upgrade Reference]({{<ref "v1beta1-reference#helm-values" >}}).
    {{% /alert %}}
 
-7. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert).
+7. Install the `karpenter-convert` tool to automatically convert the alpha Karpenter manifests to beta:
+
+    ```bash
+    go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@latest
+    ```
+
+8. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert).
    See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-reference#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects. Here is an example of how to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
 
     ```bash
     karpenter-convert -f awsnodetemplate.yaml > ec2nodeclass.yaml
     ```
 
-8. Edit the converted EC2NodeClass file manually:
+9. Edit the converted EC2NodeClass file manually:
 
    * Specify your AWS role where there is a `$KARPENTER_NODE_ROLE` placeholder. For example, if you created your cluster using the [Getting Started with Karpenter]({{< ref "../getting-started/getting-started-with-karpenter" >}}) guide, you would use the name `KarpenterNodeRole-$CLUSTER_NAME`, substituting your cluster name for `$CLUSTER_NAME`.
    * Otherwise, check the file for accuracy.
 
-9. When you are satisfied with your EC2NodeClass file, apply it as follows:
+10. When you are satisfied with your EC2NodeClass file, apply it as follows:
 
     ```bash
     kubectl apply -f ec2nodeclass.yaml
     ```
 
-10. Convert each Provisioner to a NodePool. Again, either manually update your Provisioner manifests or use the karpenter-convert CLI tool:
+11. Convert each Provisioner to a NodePool. Again, either manually update your Provisioner manifests or use the karpenter-convert CLI tool:
 
     ```bash
     karpenter-convert -f provisioner.yaml > nodepool.yaml
     ```
 
-11. When you are satisfied with your NodePool file, apply it as follows:
+12. When you are satisfied with your NodePool file, apply it as follows:
 
     ```bash
     kubectl apply -f nodepool.yaml
     ```
 
-12. Roll over nodes: With the new NodePool yaml in hand, there are several ways you can begin to roll over your nodes to use the new NodePool:
+13. Roll over nodes: With the new NodePool yaml in hand, there are several ways you can begin to roll over your nodes to use the new NodePool:
 
-   * Periodic Rolling with [Drift]({{< relref "../concepts/disruption#drift" >}}): Enable [drift]({{< relref "../concepts/disruption#drift" >}}) in your NodePool file, then do the following:
-      - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
-      - Wait as Karpenter marks all machines owned by that Provisioner as having drifted.
-      - Watch as replacement nodes are launched from the new NodePool resource.
+14. Periodic Rolling with [Drift]({{< relref "../concepts/disruption#drift" >}}): Enable [drift]({{< relref "../concepts/disruption#drift" >}}) in your NodePool file, then do the following:
+     - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
+     - Wait as Karpenter marks all machines owned by that Provisioner as having drifted.
+     - Watch as replacement nodes are launched from the new NodePool resource.
 
-     Because Karpenter will only roll of one node at a time, it may take some time for Karpenter to completely roll all nodes under a Provisioner.
+    Because Karpenter will only roll of one node at a time, it may take some time for Karpenter to completely roll all nodes under a Provisioner.
 
-   * Forced Deletion: For each Provisioner in your cluster:
+15. Forced Deletion: For each Provisioner in your cluster:
 
-      - Delete the old Provisioner with: `kubectl delete provisioner <provisioner-name> --cascade=foreground`
-      - Wait as Karpenter deletes all the Provisioner's nodes. All nodes will drain simultaneously. New nodes are launched after the old ones have been drained.
+     - Delete the old Provisioner with: `kubectl delete provisioner <provisioner-name> --cascade=foreground`
+     - Wait as Karpenter deletes all the Provisioner's nodes. All nodes will drain simultaneously. New nodes are launched after the old ones have been drained.
 
-   * Manual Rolling: For each Provisioner in your cluster:
-      - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
-      - For all the nodes owned by the Provisioner, delete one at a time as follows: `kubectl delete node <node-name>`
+16. Manual Rolling: For each Provisioner in your cluster:
+     - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
+     - For all the nodes owned by the Provisioner, delete one at a time as follows: `kubectl delete node <node-name>`
 
-13. Update workload labels: Old alpha labels (`karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict`) are deprecated, but will not be dropped until Karpenter v1. However, you can begin updating those labels at any time with `karpenter.sh/do-not-disrupt`. Any pods that specified a `karpenter.sh/provisioner-name:DoesNotExist` requirement also need to add a `karpenter.sh/nodepool:DoesNotExist` requirement to ensure that the pods continue to not schedule to nodes unmanaged by Karpenter while migrating to v1beta1.
+17. Update workload labels: Old alpha labels (`karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict`) are deprecated, but will not be dropped until Karpenter v1. However, you can begin updating those labels at any time with `karpenter.sh/do-not-disrupt`. Any pods that specified a `karpenter.sh/provisioner-name:DoesNotExist` requirement also need to add a `karpenter.sh/nodepool:DoesNotExist` requirement to ensure that the pods continue to not schedule to nodes unmanaged by Karpenter while migrating to v1beta1.
 
-14. Check that there are no more Provisioner, AWSNodeTemplate, or Machine resources on your cluster. at which time you can delete the old CRDs. To validate this, run the following command and ensure that there are no outputs to any of them:
+18. Check that there are no more Provisioner, AWSNodeTemplate, or Machine resources on your cluster. at which time you can delete the old CRDs. To validate this, run the following command and ensure that there are no outputs to any of them:
 
     ```bash
     kubectl get machines
@@ -208,7 +214,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     kubectl get provisioners
     ```
 
-15. Remove the alpha Karpenter CRDs from the cluster.
+19. Remove the alpha Karpenter CRDs from the cluster.
 
     ```bash
     kubectl delete crd machines.karpenter.sh
@@ -216,7 +222,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     kubectl delete crd provisioners.karpenter.sh
     ```
     
-16. Remove the alpha instance profile(s). If you were just using the InstanceProfile deployed through the [Getting Started Guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}), delete the `KarpenterNodeInstanceProfile` section from the CloudFormation. Alternatively, if you want to remove the instance profile manually, you can run the following command
+20. Remove the alpha instance profile(s). If you were just using the InstanceProfile deployed through the [Getting Started Guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}), delete the `KarpenterNodeInstanceProfile` section from the CloudFormation. Alternatively, if you want to remove the instance profile manually, you can run the following command
 
     ```bash
     ROLE_NAME="KarpenterNodeRole-${ClusterName}"
@@ -225,7 +231,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     aws iam delete-instance-profile --instance-profile-name "${INSTANCE_PROFILE_NAME}"
     ```
    
-17. Finally, remove the alpha policy from the controller role: This will remove any remaining permissions from the alpha APIs. You can orchestrate the removal of this policy with the following command:
+21. Finally, remove the alpha policy from the controller role: This will remove any remaining permissions from the alpha APIs. You can orchestrate the removal of this policy with the following command:
 
     ```bash
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
