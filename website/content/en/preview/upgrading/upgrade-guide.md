@@ -149,7 +149,7 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 
 8. Edit the converted EC2NodeClass file manually:
 
-   * Specify your AWS role where there is a `$KARPENTER_NODE_ROLE` placeholder. For example, if you created your cluster using the [Getting Started with Karpenter](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/) guide, you would use the name `KarpenterNodeRole-$CLUSTER_NAME`, substituting your cluster name for `$CLUSTER_NAME`.
+   * Specify your AWS role where there is a `$KARPENTER_NODE_ROLE` placeholder. For example, if you created your cluster using the [Getting Started with Karpenter]({{< ref "../getting-started/getting-started-with-karpenter" >}}) guide, you would use the name `KarpenterNodeRole-$CLUSTER_NAME`, substituting your cluster name for `$CLUSTER_NAME`.
    * Otherwise, check the file for accuracy.
 
 9. When you are satisfied with your EC2NodeClass file, apply it as follows:
@@ -205,8 +205,17 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     kubectl delete crd awsnodetemplates.karpenter.k8s.aws
     kubectl delete crd provisioners.karpenter.sh
     ```
+    
+16. Remove the alpha instance profile(s). If you were just using the InstanceProfile deployed through the [Getting Started Guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}), delete the `KarpenterNodeInstanceProfile` section from the CloudFormation. Alternatively, if you want to remove the instance profile manually, you can run the following command
+
+    ```bash
+    ROLE_NAME="KarpenterNodeRole-${ClusterName}"
+    INSTANCE_PROFILE_NAME="KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
+    aws iam remove-role-from-instance-profile --instance-profile-name "${INSTANCE_PROFILE_NAME}" --role-name "${ROLE_NAME}"
+    aws iam delete-instance-profile --instance-profile-name "${INSTANCE_PROFILE_NAME}"
+    ```
    
-16. Finally, remove the alpha policy from the controller role: This will remove any remaining permissions from the alpha APIs. You can orchestrate the removal of this policy with the following command:
+17. Finally, remove the alpha policy from the controller role: This will remove any remaining permissions from the alpha APIs. You can orchestrate the removal of this policy with the following command:
 
     ```bash
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
@@ -422,7 +431,7 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
   3. `kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.13.2/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml`
   4. Perform the Karpenter upgrade to v0.13.x, which will install the new `awsnodetemplates` CRD.
   5. Reapply the `awsnodetemplate` manifests you saved from step 1, if applicable.
-* v0.13.0 also adds EC2/spot price fetching to Karpenter to allow making more accurate decisions regarding node deployments.  Our getting started guide documents this, but if you are upgrading Karpenter you will need to modify your Karpenter controller policy to add the `pricing:GetProducts` and `ec2:DescribeSpotPriceHistory` permissions.
+* v0.13.0 also adds EC2/spot price fetching to Karpenter to allow making more accurate decisions regarding node deployments.  Our [getting started guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}) documents this, but if you are upgrading Karpenter you will need to modify your Karpenter controller policy to add the `pricing:GetProducts` and `ec2:DescribeSpotPriceHistory` permissions.
 
 
 ### Upgrading to v0.12.0+

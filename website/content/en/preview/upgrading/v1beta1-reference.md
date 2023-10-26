@@ -33,13 +33,13 @@ Karpenter v1beta1 introduces changes to some common labels, annotations, and sta
 > **Note**: Previously, you could use the `karpenter.sh/provisioner-name:DoesNotExist` requirement on pods to specify that pods should schedule to nodes unmanaged by Karpenter. With the addition of the `karpenter.sh/nodepool` label key, you now need to specify the `karpenter.sh/nodepool:DoesNotExist` requirement on these pods as well to ensure they don't schedule to nodes provisioned by the new NodePool resources.
 
 
-| Karpenter Annotations               |                                  |
-|-------------------------------------|----------------------------------|
-| **v1alpha5**                        | **v1beta1**                      |
-| karpenter.sh/provisioner-hash       | karpenter.sh/nodepool-hash       |
-| karpenter.k8s.aws/nodetemplate-hash | karpenter.k8s.aws/nodeclass-hash |
-| karpenter.sh/do-not-consolidate     | karpenter.sh/do-not-disrupt      |
-| karpenter.sh/do-not-evict           | karpenter.sh/do-not-disrupt      |
+| Karpenter Annotations               |                                     |
+|-------------------------------------|-------------------------------------|
+| **v1alpha5**                        | **v1beta1**                         |
+| karpenter.sh/provisioner-hash       | karpenter.sh/nodepool-hash          |
+| karpenter.k8s.aws/nodetemplate-hash | karpenter.k8s.aws/ec2nodeclass-hash |
+| karpenter.sh/do-not-consolidate     | karpenter.sh/do-not-disrupt         |
+| karpenter.sh/do-not-evict           | karpenter.sh/do-not-disrupt         |
 
 > **Note**: Karpenter dropped the `karpenter.sh/do-not-consolidate` annotation in favor of the `karpenter.sh/do-not-disrupt` annotation on nodes. This annotation specifies that no voluntary disruption should be performed by Karpenter against this node.
 
