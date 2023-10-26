@@ -1,9 +1,9 @@
 ---
-title: "v1beta1 Upgrade Reference"
-linkTitle: "v1beta1 Upgrade Reference"
+title: "v1beta1 Reference"
+linkTitle: "v1beta1 Reference"
 weight: 30
 description: >
-  API information for upgrading Karpenter
+  API information for upgrading Karpenter to v1beta1
 ---
 
 Significant changes to the Karpenter APIs have been introduced in Karpenter v0.32.x.
