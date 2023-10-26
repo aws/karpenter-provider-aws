@@ -36,7 +36,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
-	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -80,56 +79,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 	BeforeEach(func() {
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=True"})
-		nodeClass = awstest.EC2NodeClass(v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily: &v1beta1.AMIFamilyAL2,
-			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			Role: fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName),
-		}})
-		nodePool = test.NodePool(corev1beta1.NodePool{
-			Spec: corev1beta1.NodePoolSpec{
-				Disruption: corev1beta1.Disruption{
-					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
-					// Disable Consolidation until we're ready
-					ConsolidateAfter: &corev1beta1.NillableDuration{},
-				},
-				Template: corev1beta1.NodeClaimTemplate{
-					Spec: corev1beta1.NodeClaimSpec{
-						NodeClassRef: &corev1beta1.NodeClassReference{
-							Name: nodeClass.Name,
-						},
-						Requirements: []v1.NodeSelectorRequirement{
-							{
-								Key:      corev1beta1.CapacityTypeLabelKey,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{corev1beta1.CapacityTypeOnDemand},
-							},
-							{
-								Key:      v1.LabelOSStable,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{string(v1.Linux)},
-							},
-							{
-								Key:      v1beta1.LabelInstanceHypervisor,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{"nitro"},
-							},
-						},
-					},
-				},
-				// No limits!!!
-				// https://tenor.com/view/chaos-gif-22919457
-				Limits: corev1beta1.Limits{},
-			},
-		})
+		nodeClass = env.DefaultEC2NodeClass()
+		nodePool = env.DefaultNodePool(nodeClass)
+		nodePool.Spec.Limits = nil
 		deploymentOptions = test.DeploymentOptions{
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
