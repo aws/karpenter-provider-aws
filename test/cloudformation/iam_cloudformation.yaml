@@ -9,7 +9,7 @@ Parameters:
     Description: "The restrictions on which branches have permission to reach out to the OIDC provider. This is useful for security hardening of your github actions as described in https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions"
   Regions:
     Type: CommaDelimitedList
-    Default: "us-east-2,us-west-2,eu-west-1"
+    Default: "us-east-1,us-east-2,us-west-2,eu-west-1"
   PrometheusWorkspaceID:
     Type: String
     Description: "Prometheus workspace to forward cluster prometheus metrics to"
