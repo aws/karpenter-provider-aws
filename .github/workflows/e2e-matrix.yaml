@@ -8,9 +8,10 @@ on:
       k8s_version:
         type: string
         default: "1.28"
-      eksctl_version:
-        type: string
-        default: v0.160.0-rc.0
+      cleanup:
+        type: boolean
+        required: true
+        default: true
       git_ref:
         type: string
       workflow_trigger:
@@ -24,8 +25,10 @@ on:
       region:
         type: choice
         options:
+          - "us-east-1"
           - "us-east-2"
           - "us-west-2"
+          - "eu-west-1"
         default: "us-east-2"
       k8s_version:
         type: choice
@@ -37,9 +40,10 @@ on:
           - "1.27"
           - "1.28"
         default: "1.28"
-      eksctl_version:
-        type: string
-        default: v0.160.0-rc.0
+      cleanup:
+        type: boolean
+        required: true
+        default: true
 # All jobs will run under the following conditions:
 #   1. Upstream Karpenter repo triggered the job by schedule, push, or dispatch
 #   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed
@@ -72,7 +76,7 @@ jobs:
       git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
-      eksctl_version: ${{ inputs.eksctl_version }}
+      cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -86,7 +90,7 @@ jobs:
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
-      eksctl_version: ${{ inputs.eksctl_version }}
+      cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

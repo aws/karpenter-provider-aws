@@ -23,9 +23,10 @@ on:
           - "1.27"
           - "1.28"
         default: "1.28"
-      eksctl_version:
-        type: string
-        default: v0.160.0-rc.0
+      cleanup:
+        required: true
+        default: true
+        type: boolean
   workflow_call:
     inputs:
       from_git_ref:
@@ -39,9 +40,10 @@ on:
       k8s_version:
         type: string
         default: "1.28"
-      eksctl_version:
-        type: string
-        default: v0.160.0-rc.0
+      cleanup:
+        required: true
+        default: true
+        type: boolean
       workflow_trigger:
         type: string
     secrets:
@@ -87,7 +89,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: ${{ inputs.eksctl_version }}
+          eksctl_version: v0.163.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.from_git_ref }}
       - name: install prometheus
@@ -120,7 +122,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: ${{ inputs.eksctl_version }}
+          eksctl_version: v0.163.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.to_git_ref }}
       - name: upgrade prometheus
@@ -172,14 +174,14 @@ jobs:
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}' resources
         uses: ./.github/actions/e2e/cleanup
-        if: always()
+        if: always() && inputs.cleanup
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
-          eksctl_version: ${{ inputs.eksctl_version }}
+          eksctl_version: v0.163.0
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:
