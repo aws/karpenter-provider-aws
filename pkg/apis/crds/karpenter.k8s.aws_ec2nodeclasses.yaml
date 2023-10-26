@@ -272,6 +272,8 @@ spec:
                   profiles on an update.
                 type: string
                 x-kubernetes-validations:
+                - message: role cannot be empty
+                  rule: self != ''
                 - message: immutable field changed
                   rule: self == oldSelf
               securityGroupSelectorTerms:

@@ -41,6 +41,7 @@ var _ = Describe("CEL/Validation", func() {
 		nc = &v1beta1.EC2NodeClass{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec: v1beta1.EC2NodeClassSpec{
+				Role:      "test-role",
 				AMIFamily: &v1beta1.AMIFamilyAL2,
 				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
 					{
@@ -703,6 +704,10 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("Role Immutability", func() {
+		It("should fail if role is not defined", func() {
+			nc.Spec.Role = ""
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
 		It("should fail when updating the role", func() {
 			nc.Spec.Role = "test-role"
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
