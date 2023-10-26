@@ -32,7 +32,7 @@ var _ = FDescribe("NetworkInterfaces", func() {
 		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 			{
 				Tags: map[string]string{
-					"Name": "*Private*",
+					"Name":                   "*Private*",
 					"karpenter.sh/discovery": env.ClusterName,
 				},
 			},
@@ -73,13 +73,13 @@ var _ = FDescribe("NetworkInterfaces", func() {
 		}),
 		Entry("when a single interface is specified with AssociatePublicIPAddress = true", &v1beta1.NetworkInterface{
 			AssociatePublicIPAddress: lo.ToPtr(true),
-			Description: lo.ToPtr("a test interface"),
-			DeviceIndex: lo.ToPtr(int64(0)),
+			Description:              lo.ToPtr("a test interface"),
+			DeviceIndex:              lo.ToPtr(int64(0)),
 		}),
 		Entry("when a single interface is specified with AssociatePublicIPAddress = false", &v1beta1.NetworkInterface{
 			AssociatePublicIPAddress: lo.ToPtr(false),
-			Description: lo.ToPtr("a test interface"),
-			DeviceIndex: lo.ToPtr(int64(0)),
+			Description:              lo.ToPtr("a test interface"),
+			DeviceIndex:              lo.ToPtr(int64(0)),
 		}),
 		Entry(
 			"when multiple interfaces are specified",
