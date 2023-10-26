@@ -21,12 +21,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - name: configure aws credentials
-      uses: aws-actions/configure-aws-credentials@v4.0.1
-      with:
-        role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
-        aws-region: ${{ inputs.region }}
-        role-duration-seconds: 21600
     - uses: actions/checkout@v4
       with:
         ref: ${{ inputs.git_ref }}
