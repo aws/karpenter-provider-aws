@@ -97,8 +97,11 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 			errs[i] = c.garbageCollect(ctx, managedRetrieved[i], nodeList)
 		}
 	})
+	if err = multierr.Combine(errs...); err != nil {
+		return reconcile.Result{}, err
+	}
 	c.successfulCount++
-	return reconcile.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, multierr.Combine(errs...)
+	return reconcile.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, nil
 }
 
 func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.NodeClaim, nodeList *v1.NodeList) error {

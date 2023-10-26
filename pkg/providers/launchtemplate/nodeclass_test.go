@@ -56,7 +56,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
-					ObjectMeta: metav1.ObjectMeta{
+					ObjectMeta: corev1beta1.ObjectMeta{
 						// TODO @joinnis: Move this into the coretest.NodePool function
 						Labels: map[string]string{coretest.DiscoveryLabel: "unspecified"},
 					},

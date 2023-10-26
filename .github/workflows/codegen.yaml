@@ -5,9 +5,9 @@ on:
     - cron: '0 13 * * MON'
 
 permissions:
-  id-token: write
-  pull-requests: write
-  contents: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+  pull-requests: write # name: Create Pull Request
+  contents: write # name: Create Pull Request
 
 jobs:
   codegen:
@@ -29,9 +29,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_GIT_PUSH: true
-      - run: export APICodeGenUpdate=$((cat /tmp/codegen-updates && echo "APICodeGenUpdate=true" >> $GITHUB_ENV) || echo "false")
+      - id: detect-changes
+        run: cat /tmp/codegen-updates && echo APICodeGenUpdate=true >> $GITHUB_OUTPUT
       - name: Create Pull Request
-        if: env.APICodeGenUpdate == 'true'
+        if: steps.detect-changes.outputs.APICodeGenUpdate == 'true'
         uses: actions/github-script@v6
         with:
           script: |

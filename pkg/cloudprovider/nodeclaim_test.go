@@ -79,7 +79,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 			{
 				Key:      v1.LabelInstanceTypeStable,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{},
+				Values:   []string{"test-instance-type"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -124,26 +124,32 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 		})
 	})
 	Context("NodeClaim Drift", func() {
-		var validAMI string
+		var armAMIID, amdAMIID string
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
 		var validSubnet1 string
 		var validSubnet2 string
 		BeforeEach(func() {
-			validAMI = fake.ImageID()
+			armAMIID, amdAMIID = fake.ImageID(), fake.ImageID()
 			validSecurityGroup = fake.SecurityGroupID()
 			validSubnet1 = fake.SubnetID()
 			validSubnet2 = fake.SubnetID()
 			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
-				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
+				Parameter: &ssm.Parameter{Value: aws.String(armAMIID)},
 			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
-						ImageId:      aws.String(validAMI),
+						ImageId:      aws.String(armAMIID),
 						Architecture: aws.String("arm64"),
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					},
+					{
+						Name:         aws.String(coretest.RandomName()),
+						ImageId:      aws.String(amdAMIID),
+						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				},
@@ -171,7 +177,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 
 			// Create the instance we want returned from the EC2 API
 			instance = &ec2.Instance{
-				ImageId:               aws.String(validAMI),
+				ImageId:               aws.String(armAMIID),
 				InstanceType:          aws.String(selectedInstanceType.Name),
 				SubnetId:              aws.String(validSubnet1),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
@@ -304,6 +310,13 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 			})
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
+		})
+		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMIID}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
 		})
 		Context("Static Drift Detection", func() {
 			DescribeTable("should return drifted if the spec is updated",

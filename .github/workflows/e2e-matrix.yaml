@@ -49,7 +49,23 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        suite: [Integration, Machine, Consolidation, Utilization, Interruption, Drift, Expiration, Chaos, IPv6]
+        suite:
+          - Beta/Integration
+          - Beta/NodeClaim
+          - Beta/Consolidation
+          - Beta/Interruption
+          - Beta/Drift
+          - Beta/Expiration
+          - Beta/Chaos
+          - Beta/IPv6
+          - Alpha/Integration
+          - Alpha/Machine
+          - Alpha/Consolidation
+          - Alpha/Interruption
+          - Alpha/Drift
+          - Alpha/Expiration
+          - Alpha/Chaos
+          - Alpha/IPv6
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
@@ -71,5 +87,6 @@ jobs:
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
       eksctl_version: ${{ inputs.eksctl_version }}
+      workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

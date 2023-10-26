@@ -167,7 +167,6 @@ func (o *Context) RunConvert() error {
 func dropFields(buffer bytes.Buffer) string {
 	output := buffer.String()
 	output = strings.Replace(output, "status: {}\n", "", -1)
-	output = strings.Replace(output, "      creationTimestamp: null\n", "", -1)
 	output = strings.Replace(output, "  creationTimestamp: null\n", "", -1)
 	output = strings.Replace(output, "      resources: {}\n", "", -1)
 
@@ -239,9 +238,6 @@ func convertProvisioner(resource runtime.Object, o *Context) runtime.Object {
 		Annotations: coreprovisioner.Annotations,
 		Finalizers:  coreprovisioner.Finalizers,
 	}
-
-	// Reset timestamp if present
-	nodepool.Spec.Template.CreationTimestamp = metav1.Time{}
 
 	// Cleanup the status provided in input
 	nodepool.Status = corev1beta1.NodePoolStatus{}

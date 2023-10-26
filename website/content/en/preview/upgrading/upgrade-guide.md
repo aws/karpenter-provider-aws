@@ -28,11 +28,11 @@ If you get the error `invalid ownership metadata; label validation error:` while
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodepols.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodepools.yaml
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
-g
+
 ### Upgrading to v0.32.0+
 
 #### v1beta1 Migration
@@ -63,22 +63,22 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
 To upgrade your provisioner and AWSNodeTemplate YAML files to be compatible with v1beta1, you can either update them manually or use the [karpenter-convert](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert) CLI tool. To install that tool:
 
-```
+```bash
 go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@latest
 ```
 Add `~/go/bin` to your $PATH, if you have not already done so.
 
 1. Determine the current cluster version: Run the following to make sure that your Karpenter version is v0.31.x:
-   ```
+   ```bash
    kubectl get pod -A | grep karpenter
    kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image: | grep v0.....
    ```
    Sample output:
-   ```
+   ```bash
    Image: public.ecr.aws/karpenter/controller:v0.31.0@sha256:d29767fa9c5c0511a3812397c932f5735234f03a7a875575422b712d15e54a77
    ```
 
-   {{% alert title="Note" color="primary" %}}
+   {{% alert title="Warning" color="primary" %}}
    v0.31.2 introduces minor changes to Karpenter so that rollback from v0.32.0 is supported. If you are coming from some other patch version of minor version v0.31.x, note that v0.31.2 is the _only_ patch version that supports rollback.
    {{% /alert %}}
 
@@ -100,8 +100,9 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
 
     ```bash
     TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}website/content/en/preview/upgrade/v1beta1-controller-policy.json > ${TEMPOUT}
+    curl -fsSL https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
     
+    AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION}
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
     POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
@@ -110,24 +111,14 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
     ```
 
-5. Apply the v0.32.0 Custom Resource Definitions (CRDs) in the crds directory of the Karpenter helm chart. Here are the ways you can do this:
-
-   * As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs. To upgrade or install `karpenter-crd` run:
-    ```
-    helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
-    ```
-
-   {{% alert title="Note" color="warning" %}}
-   < If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-installing-the-karpenter-crd-chart" >}}) for details on how to resolve these errors.
-   {{% /alert %}}
-
-   * As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide. In general, ou can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
+5. Apply the v0.32.0 Custom Resource Definitions (CRDs):
 
    ```bash
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodepools.yaml
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
     ```
+
 6. Upgrade Karpenter to the new version:
 
     ```bash
@@ -136,14 +127,18 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace karpenter --create-namespace \
       --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-      --set settings.aws.clusterName=${CLUSTER_NAME} \
-      --set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
+      --set settings.clusterName=${CLUSTER_NAME} \
+      --set settings.interruptionQueue=${CLUSTER_NAME} \
       --set controller.resources.requests.cpu=1 \
       --set controller.resources.requests.memory=1Gi \
       --set controller.resources.limits.cpu=1 \
       --set controller.resources.limits.memory=1Gi \
       --wait
     ```
+
+   {{% alert title="Note" color="warning" %}}
+   Karpenter has deprecated and moved a number of Helm values as part of the v1beta1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1beta1. You can find detail for all the settings that were moved in the [v1beta1 Upgrade Reference]({{<ref "v1beta1-reference#helm-values" >}}).
+   {{% /alert %}}
 
 7. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert).
    See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-reference#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects. Here is an example of how to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
@@ -193,16 +188,45 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
       - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
       - For all the nodes owned by the Provisioner, delete one at a time as follows: `kubectl delete node <node-name>`
 
-13. Update workload labels: Old v1alpha labels (`karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict`) are deprecated, but will not be dropped until Karpenter v1. However, you can begin updating those labels at any time with `karpenter.sh/do-not-disrupt`. You should check that there are no more Provisioner, AWSNodeTemplate, or Machine resources on your cluster. at which time you can delete the old CRDs. To validate that there are no more machines, type:
+13. Update workload labels: Old alpha labels (`karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict`) are deprecated, but will not be dropped until Karpenter v1. However, you can begin updating those labels at any time with `karpenter.sh/do-not-disrupt`. Any pods that specified a `karpenter.sh/provisioner-name:DoesNotExist` requirement also need to add a `karpenter.sh/nodepool:DoesNotExist` requirement to ensure that the pods continue to not schedule to nodes unmanaged by Karpenter while migrating to v1beta1.
 
-   ```bash
-   kubectl get machines
-   ```
+14. Check that there are no more Provisioner, AWSNodeTemplate, or Machine resources on your cluster. at which time you can delete the old CRDs. To validate this, run the following command and ensure that there are no outputs to any of them:
+
+    ```bash
+    kubectl get machines
+    kubectl get awsnodetemplates
+    kubectl get provisioners
+    ```
+
+15. Remove the alpha Karpenter CRDs from the cluster.
+
+    ```bash
+    kubectl delete crd machines.karpenter.sh
+    kubectl delete crd awsnodetemplates.karpenter.k8s.aws
+    kubectl delete crd provisioners.karpenter.sh
+    ```
+   
+16. Finally, remove the alpha policy from the controller role: This will remove any remaining permissions from the alpha APIs. You can orchestrate the removal of this policy with the following command:
+
+    ```bash
+    ROLE_NAME="${CLUSTER_NAME}-karpenter"
+    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}"
+    POLICY_ARN=$(aws iam list-policies --query 'Policies[?PolicyName==`KarpenterControllerPolicy-scale-test`].Arn' --output text)
+    aws iam detach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
+    ```
+
+{{% alert title="Note" color="warning" %}}
+
+If you are using some IaC for managing your policy documents attached to the controller role, you may want to attach this new beta policy to the same CloudFormation stack. You can do this by removing the old alpha policy, ensuring that the Karpenter controller continues to work with just the beta policy, and then updating the stack to contain the new beta policy rather than having that policy managed separately.
+
+{{% /alert %}}
    
 #### Additional Release Notes
 
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
 * Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
+* Karpenter now moves all logging configuration for the Zap logger into the `logConfig` values block. Configuring Karpenter logging with this mechanism _is_ deprecated and will be dropped at v1. Karpenter now only surfaces logLevel through the `logLevel` helm value. If you need more advanced configuration due to log parsing constraints, we recommend configuring your log parser to handle Karpenter's Zap JSON logging.
+* The default log encoding changed from `console` to `json`. If you were previously not setting the type of log encoding, this default will change with the helm chart. If you were setting the value through `logEncoding`, this value will continue to work until v0.33.x but it is deprecated in favor of `logConfig.logEncoding`
 
 ### Upgrading to v0.31.0+
 

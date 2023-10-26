@@ -38,7 +38,6 @@ func init() {
 		LabelInstanceCPU,
 		LabelInstanceMemory,
 		LabelInstanceNetworkBandwidth,
-		LabelInstancePods,
 		LabelInstanceGPUName,
 		LabelInstanceGPUManufacturer,
 		LabelInstanceGPUCount,
@@ -93,7 +92,7 @@ var (
 	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 
-	LabelNodeClass = Group + "/nodeclass"
+	LabelNodeClass = Group + "/ec2nodeclass"
 
 	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"
@@ -105,7 +104,6 @@ var (
 	LabelInstanceCPU                          = Group + "/instance-cpu"
 	LabelInstanceMemory                       = Group + "/instance-memory"
 	LabelInstanceNetworkBandwidth             = Group + "/instance-network-bandwidth"
-	LabelInstancePods                         = Group + "/instance-pods"
 	LabelInstanceGPUName                      = Group + "/instance-gpu-name"
 	LabelInstanceGPUManufacturer              = Group + "/instance-gpu-manufacturer"
 	LabelInstanceGPUCount                     = Group + "/instance-gpu-count"
@@ -113,6 +111,6 @@ var (
 	LabelInstanceAcceleratorName              = Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = Group + "/instance-accelerator-count"
-	AnnotationNodeClassHash                   = Group + "/nodeclass-hash"
+	AnnotationNodeClassHash                   = Group + "/ec2nodeclass-hash"
 	AnnotationInstanceTagged                  = Group + "/tagged"
 )

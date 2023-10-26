@@ -85,19 +85,29 @@ spec:
                         annotations:
                           additionalProperties:
                             type: string
+                          description: 'Annotations is an unstructured key value map stored with a resource that may be set by external tools to store and retrieve arbitrary metadata. They are not queryable and should be preserved when modifying objects. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations'
                           type: object
-                        finalizers:
-                          items:
-                            type: string
-                          type: array
                         labels:
                           additionalProperties:
                             type: string
+                            maxLength: 63
+                            pattern: ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$
+                          description: 'Map of string keys and values that can be used to organize and categorize (scope and select) objects. May match selectors of replication controllers and services. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels'
                           type: object
-                        name:
-                          type: string
-                        namespace:
-                          type: string
+                          maxProperties: 100
+                          x-kubernetes-validations:
+                            - message: label domain "kubernetes.io" is restricted
+                              rule: self.all(x, x in ["beta.kubernetes.io/instance-type", "failure-domain.beta.kubernetes.io/region",  "beta.kubernetes.io/os", "beta.kubernetes.io/arch", "failure-domain.beta.kubernetes.io/zone", "topology.kubernetes.io/zone", "topology.kubernetes.io/region", "kubernetes.io/arch", "kubernetes.io/os", "node.kubernetes.io/windows-build"] || x.startsWith("node.kubernetes.io") || x.startsWith("node-restriction.kubernetes.io") || !x.find("^([^/]+)").endsWith("kubernetes.io"))
+                            - message: label domain "k8s.io" is restricted
+                              rule: self.all(x, x.startsWith("kops.k8s.io") || !x.find("^([^/]+)").endsWith("k8s.io"))
+                            - message: label domain "karpenter.sh" is restricted
+                              rule: self.all(x, x in ["karpenter.sh/capacity-type", "karpenter.sh/nodepool"] || !x.find("^([^/]+)").endsWith("karpenter.sh"))
+                            - message: label "karpenter.sh/nodepool" is restricted
+                              rule: self.all(x, x != "karpenter.sh/nodepool")
+                            - message: label "kubernetes.io/hostname" is restricted
+                              rule: self.all(x, x != "kubernetes.io/hostname")
+                            - message: label domain "karpenter.k8s.aws" is restricted
+                              rule: self.all(x, x in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
                       type: object
                     spec:
                       description: NodeClaimSpec describes the desired state of the NodeClaim
@@ -224,19 +234,49 @@ spec:
                               key:
                                 description: The label key that the selector applies to.
                                 type: string
+                                maxLength: 316
+                                pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
+                                x-kubernetes-validations:
+                                  - message: label domain "kubernetes.io" is restricted
+                                    rule: self in ["beta.kubernetes.io/instance-type", "failure-domain.beta.kubernetes.io/region", "beta.kubernetes.io/os", "beta.kubernetes.io/arch", "failure-domain.beta.kubernetes.io/zone", "topology.kubernetes.io/zone", "topology.kubernetes.io/region", "node.kubernetes.io/instance-type", "kubernetes.io/arch", "kubernetes.io/os", "node.kubernetes.io/windows-build"] || self.startsWith("node.kubernetes.io/") || self.startsWith("node-restriction.kubernetes.io/") || !self.find("^([^/]+)").endsWith("kubernetes.io")
+                                  - message: label domain "k8s.io" is restricted
+                                    rule: self.startsWith("kops.k8s.io/") || !self.find("^([^/]+)").endsWith("k8s.io")
+                                  - message: label domain "karpenter.sh" is restricted
+                                    rule: self in ["karpenter.sh/capacity-type", "karpenter.sh/nodepool"] || !self.find("^([^/]+)").endsWith("karpenter.sh")
+                                  - message: label "karpenter.sh/nodepool" is restricted
+                                    rule: self != "karpenter.sh/nodepool"
+                                  - message: label "kubernetes.io/hostname" is restricted
+                                    rule: self != "kubernetes.io/hostname"
+                                  - message: label domain "karpenter.k8s.aws" is restricted
+                                    rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                               operator:
                                 description: Represents a key's relationship to a set of values. Valid operators are In, NotIn, Exists, DoesNotExist. Gt, and Lt.
                                 type: string
+                                enum:
+                                  - In
+                                  - NotIn
+                                  - Exists
+                                  - DoesNotExist
+                                  - Gt
+                                  - Lt
                               values:
                                 description: An array of string values. If the operator is In or NotIn, the values array must be non-empty. If the operator is Exists or DoesNotExist, the values array must be empty. If the operator is Gt or Lt, the values array must have a single element, which will be interpreted as an integer. This array is replaced during a strategic merge patch.
                                 items:
                                   type: string
                                 type: array
+                                maxLength: 63
+                                pattern: ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$
                             required:
                               - key
                               - operator
                             type: object
+                          maxItems: 30
                           type: array
+                          x-kubernetes-validations:
+                            - message: requirements with operator 'In' must have a value defined
+                              rule: 'self.all(x, x.operator == ''In'' ? x.values.size() != 0 : true)'
+                            - message: requirements operator 'Gt' or 'Lt' must have a single positive integer value
+                              rule: 'self.all(x, (x.operator == ''Gt'' || x.operator == ''Lt'') ? (x.values.size() == 1 && int(x.values[0]) >= 0) : true)'
                         resources:
                           description: Resources models the resource requirements for the NodeClaim to launch
                           properties:
@@ -258,9 +298,15 @@ spec:
                               effect:
                                 description: Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
                                 type: string
+                                enum:
+                                  - NoSchedule
+                                  - PreferNoSchedule
+                                  - NoExecute
                               key:
                                 description: Required. The taint key to be applied to a node.
                                 type: string
+                                minLength: 1
+                                pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                               timeAdded:
                                 description: TimeAdded represents the time at which the taint was added. It is only written for NoExecute taints.
                                 format: date-time
@@ -268,6 +314,7 @@ spec:
                               value:
                                 description: The taint value corresponding to the taint key.
                                 type: string
+                                pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                             required:
                               - effect
                               - key
@@ -281,9 +328,15 @@ spec:
                               effect:
                                 description: Required. The effect of the taint on pods that do not tolerate the taint. Valid effects are NoSchedule, PreferNoSchedule and NoExecute.
                                 type: string
+                                enum:
+                                  - NoSchedule
+                                  - PreferNoSchedule
+                                  - NoExecute
                               key:
                                 description: Required. The taint key to be applied to a node.
                                 type: string
+                                minLength: 1
+                                pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                               timeAdded:
                                 description: TimeAdded represents the time at which the taint was added. It is only written for NoExecute taints.
                                 format: date-time
@@ -291,6 +344,7 @@ spec:
                               value:
                                 description: The taint value corresponding to the taint key.
                                 type: string
+                                pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*(\/))?([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9]$
                             required:
                               - effect
                               - key

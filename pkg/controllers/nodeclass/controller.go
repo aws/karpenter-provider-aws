@@ -106,7 +106,10 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
 		}
 	}
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, err
+	if err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 
 func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {

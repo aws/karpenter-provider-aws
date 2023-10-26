@@ -7,6 +7,8 @@ docs:            <-- Documentation changes that do not impact code
 test:            <-- Test changes that do not impact behavior
 ci:              <-- Changes that affect test or rollout automation
 !${type}:        <-- Include ! if your change includes a backwards incompatible change.
+
+Please review the Karpenter contribution docs at https://karpenter.sh/docs/contributing/ before submitting your pull request.
 -->
 
 Fixes #N/A <!-- issue number -->
