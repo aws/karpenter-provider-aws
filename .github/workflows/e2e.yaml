@@ -24,6 +24,7 @@ on:
           - Beta/Expiration
           - Beta/Chaos
           - Beta/IPv6
+          - Beta/Scale
           - Alpha/Integration
           - Alpha/Machine
           - Alpha/Consolidation
