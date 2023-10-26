@@ -42,7 +42,6 @@ on:
         default: "1.28"
       cleanup:
         required: true
-        default: true
         type: boolean
       workflow_trigger:
         type: string

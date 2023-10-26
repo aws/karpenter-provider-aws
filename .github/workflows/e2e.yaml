@@ -71,7 +71,6 @@ on:
       cleanup:
         type: boolean
         required: true
-        default: true
       workflow_trigger:
         type: string
     secrets:
