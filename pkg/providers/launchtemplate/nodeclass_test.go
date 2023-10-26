@@ -1563,7 +1563,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 				Expect(*input.LaunchTemplateData.ImageId).To(ContainSubstring("test-ami"))
 			})
 		})
-		Context("Subnet-based Launch Template Configration", func() {
+		Context("NetworkInterfaces", func() {
 			It("should explicitly set 'AssignPublicIPv4' to false in the Launch Template", func() {
 				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1,test-subnet-3"}}}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1573,8 +1573,23 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeFalse())
 			})
-
-			It("should not explicitly set 'AssignPublicIPv4' when the subnets are configured to assign public IPv4 addresses", func() {
+			It("should overwrite 'AssignPublicIPv4' to true when specified by user in the EC2NodeClass.NetworkInterfaces", func() {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1,test-subnet-3"}}}
+				nodeClass.Spec.NetworkInterfaces = []*v1beta1.NetworkInterface{
+					{
+						AssociatePublicIPAddress: aws.Bool(true),
+						DeviceIndex:              aws.Int64(0),
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeTrue())
+				Expect(len(input.LaunchTemplateData.SecurityGroupIds)).To(BeNumerically("==", 0))
+			})
+			It("should not explicitly set 'AssignPublicIPv4' when the subnets are configured to assign public IPv4 addresses and the user did not specify otherwise", func() {
 				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-2"}}}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
@@ -1582,6 +1597,47 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
 				Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically("==", 0))
+			})
+			It("should use the same securityGroup for all networkInterfaces ", func() {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-2"}}}
+				nodeClass.Spec.NetworkInterfaces = []*v1beta1.NetworkInterface{
+					{
+						DeviceIndex: aws.Int64(0),
+					},
+					{
+						DeviceIndex: aws.Int64(1),
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(len(input.LaunchTemplateData.SecurityGroupIds)).To(BeNumerically("==", 0))
+				Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically("==", 2))
+				Expect(input.LaunchTemplateData.NetworkInterfaces[0].Groups).To(Equal(input.LaunchTemplateData.NetworkInterfaces[1].Groups))
+			})
+			It("should match the values of AWSNodeTemplate.NetworkInterfaces", func() {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-2"}}}
+				nodeClass.Spec.NetworkInterfaces = []*v1beta1.NetworkInterface{
+					{
+						AssociatePublicIPAddress: aws.Bool(true),
+						Description:              aws.String("example"),
+						DeviceIndex:              aws.Int64(1),
+					},
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(len(input.LaunchTemplateData.SecurityGroupIds)).To(BeNumerically("==", 0))
+				Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically("==", 1))
+				Expect(input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(HaveValue(BeTrue()))
+
+				Expect(input.LaunchTemplateData.NetworkInterfaces[0].Description).To(HaveValue(Equal("example")))
+				Expect(input.LaunchTemplateData.NetworkInterfaces[0].DeviceIndex).To(HaveValue(BeNumerically("==", 1)))
+				Expect(len(input.LaunchTemplateData.NetworkInterfaces[0].Groups)).To(BeNumerically(">", 0))
 			})
 		})
 		Context("Kubelet Args", func() {
