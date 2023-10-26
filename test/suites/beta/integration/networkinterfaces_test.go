@@ -24,7 +24,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
-var _ = FDescribe("NetworkInterfaces", func() {
+var _ = Describe("NetworkInterfaces", func() {
 	BeforeEach(func() {
 		// Ensure that nodes schedule to private subnets. If a node without a public IP is assigned to a public subnet,
 		// and that subnet does not contain any private endpoints to the cluster, the node will be unable to join the
