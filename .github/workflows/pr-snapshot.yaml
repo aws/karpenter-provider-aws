@@ -16,10 +16,10 @@ jobs:
       - uses: ./.github/actions/download-artifact
       - id: metadata
         run: |
-          pr_number=$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)
-          pr_commit=$(tail -n 1 /tmp/artifacts/metadata.txt)
-          echo "PR_COMMIT=$pr_commit" >> $GITHUB_OUTPUT
-          echo "PR_NUMBER=$pr_number" >> $GITHUB_OUTPUT
+          pr_number="$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)"
+          pr_commit="$(tail -n 1 /tmp/artifacts/metadata.txt)"
+          echo PR_COMMIT="$pr_commit" >> "$GITHUB_OUTPUT"
+          echo PR_NUMBER="$pr_number" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.metadata.outputs.PR_COMMIT }}

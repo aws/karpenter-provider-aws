@@ -79,7 +79,7 @@ jobs:
         run: |
           CLUSTER_NAME="upgrade-$RANDOM$RANDOM"
           echo "Using cluster name \"$CLUSTER_NAME\""
-          echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_OUTPUT
+          echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
       - name: create eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
         uses: ./.github/actions/e2e/create-cluster
         with:

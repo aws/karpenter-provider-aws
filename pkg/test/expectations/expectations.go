@@ -15,7 +15,7 @@ limitations under the License.
 package expectations
 
 import (
-	. "github.com/onsi/gomega" //nolint:revive,stylecheck
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 

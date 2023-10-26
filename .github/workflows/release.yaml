@@ -21,8 +21,8 @@ jobs:
           prerelease: false
       - id: tag
         run: |
-          TAG=$(git describe --tags --exact-match)
-          echo "TAG=${TAG}" >> $GITHUB_OUTPUT
+          TAG="$(git describe --tags --exact-match)"
+          echo TAG="${TAG}" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/install-deps
       - uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
