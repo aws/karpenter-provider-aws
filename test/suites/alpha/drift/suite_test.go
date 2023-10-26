@@ -88,6 +88,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				},
 			},
 		})
+		env.ExpectSettingsRemoved(v1.EnvVar{Name: "FEATURE_GATES"})
 		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "true"})
 	})
 	It("should deprovision nodes that have drifted due to AMIs", func() {

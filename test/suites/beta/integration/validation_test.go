@@ -26,6 +26,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
@@ -50,53 +51,43 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})
 		It("should error when a requirement references a restricted label (karpenter.sh/nodepool)", func() {
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-				{
-					Key:      corev1beta1.NodePoolLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"default"},
-				},
-			}...)
+			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      corev1beta1.NodePoolLabelKey,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"default"},
+			})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when a requirement uses In but has no values", func() {
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-				{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{},
-				},
-			}...)
+			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{},
+			})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when a requirement uses an unknown operator", func() {
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-				{
-					Key:      corev1beta1.CapacityTypeLabelKey,
-					Operator: "within",
-					Values:   []string{corev1beta1.CapacityTypeSpot},
-				},
-			}...)
+			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      corev1beta1.CapacityTypeLabelKey,
+				Operator: "within",
+				Values:   []string{corev1beta1.CapacityTypeSpot},
+			})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when Gt is used with multiple integer values", func() {
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-				{
-					Key:      v1beta1.LabelInstanceMemory,
-					Operator: v1.NodeSelectorOpGt,
-					Values:   []string{"1000000", "2000000"},
-				},
-			}...)
+			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceMemory,
+				Operator: v1.NodeSelectorOpGt,
+				Values:   []string{"1000000", "2000000"},
+			})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when Lt is used with multiple integer values", func() {
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-				{
-					Key:      v1beta1.LabelInstanceMemory,
-					Operator: v1.NodeSelectorOpLt,
-					Values:   []string{"1000000", "2000000"},
-				},
-			}...)
+			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceMemory,
+				Operator: v1.NodeSelectorOpLt,
+				Values:   []string{"1000000", "2000000"},
+			})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when ttlSecondAfterEmpty is negative", func() {

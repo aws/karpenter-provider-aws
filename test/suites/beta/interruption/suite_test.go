@@ -21,6 +21,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -32,6 +33,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -53,35 +55,13 @@ func TestInterruption(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
+	env.Context = options.ToContext(env.Context, test.Options(test.OptionsFields{
+		InterruptionQueue: lo.ToPtr(env.InterruptionQueue),
+	}))
 	env.BeforeEach()
 	env.ExpectQueueExists()
-	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-		Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily: &v1beta1.AMIFamilyAL2,
-			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			Role: fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName),
-		},
-	})
-	nodePool = coretest.NodePool(corev1beta1.NodePool{
-		Spec: corev1beta1.NodePoolSpec{
-			Template: corev1beta1.NodeClaimTemplate{
-				Spec: corev1beta1.NodeClaimSpec{
-					NodeClassRef: &corev1beta1.NodeClassReference{
-						Name: nodeClass.Name,
-					},
-				},
-			},
-		},
-	})
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
@@ -89,7 +69,7 @@ var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
+		nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
 			Key:      corev1beta1.CapacityTypeLabelKey,
 			Operator: v1.NodeSelectorOpIn,
 			Values:   []string{corev1beta1.CapacityTypeSpot},
@@ -128,11 +108,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
-			Key:      corev1beta1.CapacityTypeLabelKey,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{corev1beta1.CapacityTypeOnDemand},
-		})
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -159,11 +134,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
-			Key:      corev1beta1.CapacityTypeLabelKey,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{corev1beta1.CapacityTypeOnDemand},
-		})
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -190,11 +160,6 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node when receiving a scheduled change health event", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
-			Key:      corev1beta1.CapacityTypeLabelKey,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{corev1beta1.CapacityTypeOnDemand},
-		})
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),

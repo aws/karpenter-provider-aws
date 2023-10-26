@@ -156,18 +156,13 @@ var _ = Describe("AMI", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
 			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
 			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter/issues/4472)
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-				{
+			nodePool = coretest.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceFamily,
 					Operator: v1.NodeSelectorOpNotIn,
 					Values:   awsenv.ExcludedInstanceFamilies,
 				},
-				{
-					Key:      v1beta1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"c", "m", "r"},
-				},
-			}...)
+			)
 			pod := coretest.Pod()
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
@@ -286,23 +281,18 @@ var _ = Describe("AMI", func() {
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 
 			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-				{
-					Key:      v1.LabelOSStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{string(v1.Windows)},
-				},
-				{
+			nodePool = coretest.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceFamily,
 					Operator: v1.NodeSelectorOpNotIn,
 					Values:   awsenv.ExcludedInstanceFamilies,
 				},
-				{
-					Key:      v1beta1.LabelInstanceCategory,
+				v1.NodeSelectorRequirement{
+					Key:      v1.LabelOSStable,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"c", "m", "r"},
+					Values:   []string{string(v1.Windows)},
 				},
-			}...)
+			)
 			pod := coretest.Pod(coretest.PodOptions{
 				Image: awsenv.WindowsDefaultImage,
 				NodeSelector: map[string]string{

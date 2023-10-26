@@ -31,7 +31,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
 
-	awstest "github.com/aws/karpenter/pkg/test"
 	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 
@@ -55,14 +54,7 @@ func TestConsolidation(t *testing.T) {
 var nodeClass *v1beta1.EC2NodeClass
 
 var _ = BeforeEach(func() {
-	nodeClass = awstest.EC2NodeClass(v1beta1.EC2NodeClass{
-		Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily:                  &v1beta1.AMIFamilyAL2,
-			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName}}},
-			SubnetSelectorTerms:        []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName}}},
-			Role:                       fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName),
-		},
-	})
+	nodeClass = env.DefaultEC2NodeClass()
 	env.BeforeEach()
 })
 var _ = AfterEach(func() { env.Cleanup() })
@@ -324,18 +316,17 @@ var _ = Describe("Beta/Consolidation", func() {
 		// Expect the node to consolidate to a spot instance as it will be a cheaper
 		// instance than on-demand
 		nodePool.Spec.Disruption.ConsolidateAfter = nil
-		nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
-			{
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
 				Key:      corev1beta1.CapacityTypeLabelKey,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1beta1.CapacityTypeOnDemand, corev1beta1.CapacityTypeSpot},
+				Operator: v1.NodeSelectorOpExists,
 			},
-			{
+			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"large"},
 			},
-		}
+		)
 		env.ExpectUpdated(nodePool)
 
 		// Eventually expect the on-demand nodes to be consolidated into
