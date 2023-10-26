@@ -96,13 +96,23 @@ Add `~/go/bin` to your $PATH, if you have not already done so.
     export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
     ```
 
+   {{% alert title="Warning" color="warning" %}}
+   If you open a new shell to run steps in this procedure, you need to set some or all of the environment variables again.
+   To remind yourself of these values, type:
+
+    ```bash
+    echo $KARPENTER_VERSION $AWS_PARTITION $CLUSTER_NAME $AWS_REGION $AWS_ACCOUNT_ID $KARPENTER_IAM_ROLE_ARN $CLUSTER_ENDPOINT $TEMPOUT
+    ```
+    
+    {{% /alert %}}
+
 4. Apply the new Karpenter policy and assign it to the existing Karpenter role:
 
     ```bash
     TEMPOUT=$(mktemp)
     curl -fsSL https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
     
-    AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION}
+    AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION} # use the default region if AWS_REGION isn't defined
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
     POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
