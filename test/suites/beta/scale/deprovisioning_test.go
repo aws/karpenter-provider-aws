@@ -427,7 +427,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			// Add in a instance type size requirement that's larger than the smallest that fits the pods.
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, v1.NodeSelectorRequirement{
+			test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"2xlarge"},

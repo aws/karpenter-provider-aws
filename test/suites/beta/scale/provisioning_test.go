@@ -114,13 +114,12 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 		}
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements,
-			v1.NodeSelectorRequirement{
-				// With Prefix Delegation enabled, .large instances can have 434 pods.
-				Key:      v1beta1.LabelInstanceSize,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"large"},
-			},
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			// With Prefix Delegation enabled, .large instances can have 434 pods.
+			Key:      v1beta1.LabelInstanceSize,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"large"},
+		},
 		)
 
 		env.MeasureProvisioningDurationFor(func() {
