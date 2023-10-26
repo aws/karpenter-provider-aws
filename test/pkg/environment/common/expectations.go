@@ -149,6 +149,26 @@ func (env *Environment) ExpectSettingsOverridden(vars ...v1.EnvVar) {
 	}
 }
 
+func (env *Environment) ExpectSettingsRemoved(vars ...v1.EnvVar) {
+	GinkgoHelper()
+
+	varNames := sets.New[string](lo.Map(vars, func(v v1.EnvVar, _ int) string { return v.Name })...)
+
+	d := &appsv1.Deployment{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+	stored := d.DeepCopy()
+	d.Spec.Template.Spec.Containers[0].Env = lo.Reject(d.Spec.Template.Spec.Containers[0].Env, func(v v1.EnvVar, _ int) bool {
+		return varNames.Has(v.Name)
+	})
+	if !equality.Semantic.DeepEqual(d, stored) {
+		By("removing environment variables for karpenter deployment")
+		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		env.EventuallyExpectKarpenterRestarted()
+	}
+}
+
 // ExpectSettingsLegacy gets the karpenter-global-settings ConfigMap
 func (env *Environment) ExpectSettingsLegacy() *v1.ConfigMap {
 	GinkgoHelper()
@@ -384,14 +404,17 @@ func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*
 	return lo.ToSlicePtr(podList.Items)
 }
 
-func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
+func (env *Environment) EventuallyExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
 	GinkgoHelper()
-	pods := env.Monitor.RunningPods(selector)
-	nodeNames := sets.NewString()
-	for _, pod := range pods {
-		nodeNames.Insert(pod.Spec.NodeName)
-	}
-	Expect(len(nodeNames)).To(BeNumerically("==", uniqueNames))
+
+	Eventually(func(g Gomega) {
+		pods := env.Monitor.RunningPods(selector)
+		nodeNames := sets.NewString()
+		for _, pod := range pods {
+			nodeNames.Insert(pod.Spec.NodeName)
+		}
+		g.Expect(len(nodeNames)).To(BeNumerically("==", uniqueNames))
+	}).Should(Succeed())
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {

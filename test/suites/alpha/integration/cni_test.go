@@ -21,7 +21,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -72,8 +71,8 @@ var _ = Describe("CNITests", func() {
 		Expect(allocatablePods).To(Equal(eniLimitedPodsFor(node.Labels["node.kubernetes.io/instance-type"])))
 	})
 	It("should set maxPods when reservedENIs is set", func() {
+		env.ExpectSettingsRemoved(corev1.EnvVar{Name: "RESERVED_ENIS"})
 		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.reservedENIs": "1"})
-		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "RESERVED_ENIS", Value: "1"})
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
 			AWS: v1alpha1.AWS{
 				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -109,9 +108,9 @@ func reservedENIsFor(instanceType string) int64 {
 	Expect(err).ToNot(HaveOccurred())
 	networkInfo := *instance.InstanceTypes[0].NetworkInfo
 	reservedENIs := 0
-	reservedENIsVar, ok := lo.Find(env.ExpectSettings(), func(v corev1.EnvVar) bool { return v.Name == "RESERVED_ENIS" })
+	reservedENIsStr, ok := env.ExpectSettingsLegacy().Data["aws.reservedENIs"]
 	if ok {
-		reservedENIs, err = strconv.Atoi(reservedENIsVar.Value)
+		reservedENIs, err = strconv.Atoi(reservedENIsStr)
 		Expect(err).ToNot(HaveOccurred())
 	}
 	return (*networkInfo.MaximumNetworkInterfaces-int64(reservedENIs))*(*networkInfo.Ipv4AddressesPerInterface-1) + 2

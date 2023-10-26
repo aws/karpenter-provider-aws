@@ -82,27 +82,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
-				// Need to enable nodepool-level OS-scoping for now since DS evaluation is done off of the nodepool
-				// requirements, not off of the instance type options so scheduling can fail if nodepools aren't
-				// properly scoped
-				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-					{
-						Key:      v1beta1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   aws.ExcludedInstanceFamilies,
-					},
-					{
-						Key:      v1beta1.LabelInstanceCategory,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"c", "m", "r"},
-					},
-					{
-						Key:      v1.LabelOSStable,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{string(v1.Linux)},
-					},
-				}...)
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
 						v1.LabelOSStable:   string(v1.Linux),
@@ -129,23 +108,18 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				// requirements, not off of the instance type options so scheduling can fail if nodepool aren't
 				// properly scoped
 				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.*, c7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-				nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-					{
+				test.ReplaceRequirements(nodePool,
+					v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
 						Values:   aws.ExcludedInstanceFamilies,
 					},
-					{
-						Key:      v1beta1.LabelInstanceCategory,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"c", "m", "r"},
-					},
-					{
+					v1.NodeSelectorRequirement{
 						Key:      v1.LabelOSStable,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{string(v1.Windows)},
 					},
-				}...)
+				)
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
 					NodeSelector: map[string]string{
@@ -162,15 +136,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		)
 	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
-		// MaxPods needs to account for the daemonsets that will run on the nodes
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-			{
-				Key:      v1.LabelOSStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{string(v1.Linux)},
-			},
-		}...)
-
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
 		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
@@ -194,23 +159,18 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 3)
-		env.ExpectUniqueNodeNames(selector, 3)
+		env.EventuallyExpectUniqueNodeNames(selector, 3)
 	})
 	It("should schedule pods onto separate nodes when podsPerCore is set", func() {
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-			{
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceCPU,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"2"},
 			},
-			{
-				Key:      v1.LabelOSStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{string(v1.Linux)},
-			},
-		}...)
+		)
 		numPods := 4
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -241,24 +201,20 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 2)
-		env.ExpectUniqueNodeNames(selector, 2)
+		env.EventuallyExpectUniqueNodeNames(selector, 2)
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-			{
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceCPU,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"2"},
 			},
-			{
-				Key:      v1.LabelOSStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{string(v1.Linux)},
-			},
-		}...)
+		)
+
 		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}
 		numPods := 6
 		dep := test.Deployment(test.DeploymentOptions{
@@ -277,6 +233,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
-		env.ExpectUniqueNodeNames(selector, 1)
+		env.EventuallyExpectUniqueNodeNames(selector, 1)
 	})
 })

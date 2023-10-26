@@ -98,13 +98,11 @@ var _ = Describe("Subnets", func() {
 		Expect(len(subnets)).ToNot(Equal(0))
 		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-			{
-				Key:      v1.LabelZoneFailureDomainStable,
-				Operator: "In",
-				Values:   []string{shuffledAZs[0]},
-			},
-		}...)
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      v1.LabelZoneFailureDomainStable,
+			Operator: "In",
+			Values:   []string{shuffledAZs[0]},
+		})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)

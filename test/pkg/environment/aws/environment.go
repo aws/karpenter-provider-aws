@@ -15,6 +15,7 @@ limitations under the License.
 package aws
 
 import (
+	"fmt"
 	"os"
 	"testing"
 
@@ -36,7 +37,9 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/utils/env"
 
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
+	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
@@ -102,4 +105,21 @@ func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamW
 		return timestreamwrite.New(session, &aws.Config{Region: aws.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
 	}
 	return &NoOpTimeStreamAPI{}
+}
+
+func (env *Environment) DefaultEC2NodeClass() *v1beta1.EC2NodeClass {
+	nodeClass := test.EC2NodeClass()
+	nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+	nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		{
+			Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		},
+	}
+	nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+		{
+			Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		},
+	}
+	nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
+	return nodeClass
 }

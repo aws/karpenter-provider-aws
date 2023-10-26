@@ -15,16 +15,13 @@ limitations under the License.
 package nodeclaim_test
 
 import (
-	"fmt"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
@@ -45,33 +42,8 @@ func TestNodeClaim(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	env.BeforeEach()
-	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-		Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily: &v1beta1.AMIFamilyAL2,
-			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			Role: fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName),
-		},
-	})
-	nodePool = coretest.NodePool(corev1beta1.NodePool{
-		Spec: corev1beta1.NodePoolSpec{
-			Template: corev1beta1.NodeClaimTemplate{
-				Spec: corev1beta1.NodeClaimSpec{
-					NodeClassRef: &corev1beta1.NodeClassReference{
-						Name: nodeClass.Name,
-					},
-				},
-			},
-		},
-	})
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })

@@ -37,6 +37,19 @@ import (
 var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	var selectors sets.Set[string]
 
+	BeforeEach(func() {
+		// Make the NodePool requirements fully flexible, so we can match well-known label keys
+		nodePool = test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpExists,
+			},
+			v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceGeneration,
+				Operator: v1.NodeSelectorOpExists,
+			},
+		)
+	})
 	BeforeAll(func() {
 		selectors = sets.New[string]()
 	})
@@ -234,34 +247,28 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		}})
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
 		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-			{
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceFamily,
 				Operator: v1.NodeSelectorOpNotIn,
 				Values:   aws.ExcludedInstanceFamilies,
 			},
-			{
-				Key:      v1beta1.LabelInstanceCategory,
+			v1.NodeSelectorRequirement{
+				Key:      v1.LabelOSStable,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"c", "m", "r"},
+				Values:   []string{string(v1.Windows)},
 			},
-		}...)
+		)
 		env.ExpectCreated(nodeClass, nodePool, deployment)
 		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
 	It("should support the node-restriction.kubernetes.io label domain", func() {
 		// Assign labels to the nodepool so that it has known values
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, []v1.NodeSelectorRequirement{
-			{
-				Key:      v1.LabelNamespaceNodeRestriction + "/team",
-				Operator: v1.NodeSelectorOpExists,
-			},
-			{
-				Key:      v1.LabelNamespaceNodeRestriction + "/custom-label",
-				Operator: v1.NodeSelectorOpExists,
-			},
-		}...)
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{Key: v1.LabelNamespaceNodeRestriction + "/team", Operator: v1.NodeSelectorOpExists},
+			v1.NodeSelectorRequirement{Key: v1.LabelNamespaceNodeRestriction + "/custom-label", Operator: v1.NodeSelectorOpExists},
+		)
 		nodeSelector := map[string]string{
 			v1.LabelNamespaceNodeRestriction + "/team":         "team-1",
 			v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
@@ -349,6 +356,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 						},
 						Requirements: []v1.NodeSelectorRequirement{
 							{
+								Key:      v1.LabelOSStable,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{string(v1.Linux)},
+							},
+							{
 								Key:      v1.LabelInstanceTypeStable,
 								Operator: v1.NodeSelectorOpIn,
 								Values:   []string{"t3.nano"},
@@ -367,6 +379,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 							Name: nodeClass.Name,
 						},
 						Requirements: []v1.NodeSelectorRequirement{
+							{
+								Key:      v1.LabelOSStable,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{string(v1.Linux)},
+							},
 							{
 								Key:      v1.LabelInstanceTypeStable,
 								Operator: v1.NodeSelectorOpIn,

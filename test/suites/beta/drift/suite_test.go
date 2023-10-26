@@ -17,7 +17,6 @@ package drift_test
 import (
 	"fmt"
 	"sort"
-	"strings"
 	"testing"
 	"time"
 
@@ -34,7 +33,6 @@ import (
 	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
@@ -45,7 +43,9 @@ import (
 )
 
 var env *aws.Environment
-var customAMI string
+var amdAMI string
+var nodeClass *v1beta1.EC2NodeClass
+var nodePool *corev1beta1.NodePool
 
 func TestDrift(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -60,6 +60,8 @@ func TestDrift(t *testing.T) {
 
 var _ = BeforeEach(func() {
 	env.BeforeEach()
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
 })
 
 var _ = AfterEach(func() { env.Cleanup() })
@@ -67,34 +69,8 @@ var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Beta/Drift", Label("AWS"), func() {
 	var pod *v1.Pod
-	var nodeClass *v1beta1.EC2NodeClass
-	var nodePool *corev1beta1.NodePool
 	BeforeEach(func() {
-		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
-		nodeClass = awstest.EC2NodeClass(v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily: &v1beta1.AMIFamilyAL2,
-			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
-				{
-					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
-				},
-			},
-			Role: fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName),
-		}})
-		nodePool = test.NodePool(corev1beta1.NodePool{
-			Spec: corev1beta1.NodePoolSpec{
-				Template: corev1beta1.NodeClaimTemplate{
-					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []v1.NodeSelectorRequirement{{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeOnDemand}}},
-						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
-					},
-				},
-			},
-		})
+		amdAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 		// Add a do-not-disrupt pod so that we can check node metadata before we disrupt
 		pod = test.Pod(test.PodOptions{
 			ObjectMeta: metav1.ObjectMeta{
@@ -122,7 +98,34 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectNodeCount("==", 1)[0]
-		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: customAMI}}
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMI}}
+		env.ExpectCreatedOrUpdated(nodeClass)
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
+
+		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, nodeClaim, node)
+	})
+	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
+		armParameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
+			Name: awssdk.String("/aws/service/eks/optimized-ami/1.28/amazon-linux-2-arm64/recommended/image_id"),
+		})
+		Expect(err).To(BeNil())
+		armAMI := *armParameter.Parameter.Value
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: armAMI}}
+
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		node := env.EventuallyExpectNodeCount("==", 1)[0]
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMI}}
 		env.ExpectCreatedOrUpdated(nodeClass)
 
 		Eventually(func(g Gomega) {
@@ -152,7 +155,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		node := env.Monitor.CreatedNodes()[0]
-		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: customAMI}}
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMI}}
 		env.ExpectUpdated(nodeClass)
 
 		// We should consistently get the same node existing for a minute
@@ -510,44 +513,3 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		})
 	})
 })
-
-func ExpectInstanceProfileCreated(instanceProfileName *string) {
-	By("creating an instance profile")
-	createInstanceProfile := &iam.CreateInstanceProfileInput{
-		InstanceProfileName: instanceProfileName,
-		Tags: []*iam.Tag{
-			{
-				Key:   awssdk.String(test.DiscoveryLabel),
-				Value: awssdk.String(env.ClusterName),
-			},
-		},
-	}
-	By("adding the karpenter role to new instance profile")
-	_, err := env.IAMAPI.CreateInstanceProfile(createInstanceProfile)
-	Expect(ignoreAlreadyExists(err)).ToNot(HaveOccurred())
-	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
-		InstanceProfileName: instanceProfileName,
-		RoleName:            awssdk.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
-	}
-	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
-	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
-}
-
-func ignoreAlreadyExists(err error) error {
-	if err != nil {
-		if strings.Contains(err.Error(), "EntityAlreadyExists") {
-			return nil
-		}
-	}
-	return err
-}
-
-func ignoreAlreadyContainsRole(err error) error {
-	if err != nil {
-		if strings.Contains(err.Error(), "Cannot exceed quota for InstanceSessionsPerInstanceProfile") {
-			return nil
-		}
-	}
-
-	return err
-}

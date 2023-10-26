@@ -40,12 +40,13 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var env *aws.Environment
-var customAMI string
+var amdAMI string
 
 func TestDrift(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -70,7 +71,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 	var nodeTemplate *v1alpha1.AWSNodeTemplate
 	var provisioner *v1alpha5.Provisioner
 	BeforeEach(func() {
-		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		amdAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 		nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
@@ -87,6 +88,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				},
 			},
 		})
+		env.ExpectSettingsRemoved(v1.EnvVar{Name: "FEATURE_GATES"})
 		env.ExpectSettingsOverriddenLegacy(map[string]string{"featureGates.driftEnabled": "true"})
 	})
 	It("should deprovision nodes that have drifted due to AMIs", func() {
@@ -106,12 +108,40 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
 		node := env.EventuallyExpectNodeCount("==", 1)[0]
-		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": customAMI}
+		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": amdAMI}
 		env.ExpectCreatedOrUpdated(nodeTemplate)
 
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted)).ToNot(BeNil())
+			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
+
+		delete(pod.Annotations, v1alpha5.DoNotEvictPodAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, machine, node)
+	})
+	It("should return drifted if the AMI no longer matches the existing machine instance type", func() {
+		armParameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
+			Name: awssdk.String("/aws/service/eks/optimized-ami/1.28/amazon-linux-2-arm64/recommended/image_id"),
+		})
+		Expect(err).To(BeNil())
+		armAMI := *armParameter.Parameter.Value
+		nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyAL2
+		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": armAMI}
+		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpExists})
+
+		env.ExpectCreated(pod, nodeTemplate, provisioner)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		node := env.EventuallyExpectNodeCount("==", 1)[0]
+		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": amdAMI}
+		env.ExpectCreatedOrUpdated(nodeTemplate)
+
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
 			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
@@ -136,7 +166,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectCreatedNodeCount("==", 1)
 
 		node := env.Monitor.CreatedNodes()[0]
-		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": customAMI}
+		nodeTemplate.Spec.AMISelector = map[string]string{"aws-ids": amdAMI}
 		env.ExpectUpdated(nodeTemplate)
 
 		// We should consistently get the same node existing for a minute

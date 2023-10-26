@@ -12,38 +12,38 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package integration_test
+package scale_test
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var env *aws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
 
-func TestIntegration(t *testing.T) {
+func TestScale(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
+		SetDefaultEventuallyTimeout(time.Hour)
 	})
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Integration")
+	RunSpecs(t, "Beta/Scale")
 }
 
 var _ = BeforeEach(func() {
+	env.ExpectPrefixDelegationEnabled()
 	env.BeforeEach()
-	nodeClass = env.DefaultEC2NodeClass()
-	nodePool = env.DefaultNodePool(nodeClass)
 })
 var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
+var _ = AfterEach(func() {
+	env.AfterEach()
+	env.ExpectPrefixDelegationDisabled()
+})

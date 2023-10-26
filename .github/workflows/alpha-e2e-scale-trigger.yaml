@@ -1,4 +1,4 @@
-name: E2EScaleTrigger
+name: AlphaE2EScaleTrigger
 on:
   schedule:
     - cron: '7 18 * * *'
@@ -6,38 +6,21 @@ on:
     workflows: [ApprovalComment]
     types: [completed]
   workflow_dispatch:
-    inputs:
-      region:
-        required: true
-        default: 'us-west-2'
-        type: choice
-        options:
-          - "us-east-1"
-          - "us-west-2"
-      cleanup:
-        required: true
-        default: true
-        type: boolean
-      enable_metrics:
-        required: true
-        default: false
-        type: boolean
 jobs:
   resolve:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/resolve-args.yaml
     with:
-      allowed_comment: "scale"
-  scale:
+      allowed_comment: "alpha-scale"
+  alpha-scale:
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e.yaml
     with:
-      suite: Beta/Scale
+      suite: Alpha/Scale
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
-      region: ${{ inputs.region || 'us-west-2' }}
-      enable_metrics: ${{ inputs.enable_metrics || true }}
-      workflow_trigger: "scale"
-      cleanup: ${{ inputs.cleanup || true }}
+      region: "us-west-2"
+      enable_metrics: true
+      workflow_trigger: "alpha-scale"
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
