@@ -146,7 +146,7 @@ jobs:
             INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
-        if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'conformance'
+        if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: ${{ inputs.suite }}
