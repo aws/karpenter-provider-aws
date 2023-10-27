@@ -1,0 +1,79 @@
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    expireAfter: Never
+  template:
+    metadata:
+      annotations:
+        example.com/owner: my-team
+      labels:
+        billing-team: my-team
+    spec:
+      nodeClassRef:
+        name: default
+      requirements:
+        - key: kubernetes.io/arch
+          operator: Exists
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values:
+            - spot
+            - on-demand
+        - key: kubernetes.io/os
+          operator: In
+          values:
+            - linux
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values:
+            - c
+            - m
+            - r
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values:
+            - "2"
+      startupTaints:
+        - effect: NoSchedule
+          key: example.com/another-taint
+      taints:
+        - effect: NoSchedule
+          key: example.com/special-taint
+---
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: AL2
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        deleteOnTermination: true
+        encrypted: true
+        iops: 10000
+        kmsKeyID: arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab
+        snapshotID: snap-0123456789
+        throughput: 125
+        volumeSize: 100Gi
+        volumeType: gp3
+  context: test-context-id
+  metadataOptions:
+    httpEndpoint: disabled
+    httpProtocolIPv6: enabled
+    httpPutResponseHopLimit: 2
+    httpTokens: required
+  role: $KARPENTER_NODE_ROLE
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: karpenter-demo
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: karpenter-demo
+  tags:
+    app.kubernetes.io/created-by: karpenter-demo
+    aws-node-termination-handler/managed: "true"

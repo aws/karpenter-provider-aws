@@ -75,7 +75,6 @@ func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Comm
 	rootCmd.Flags().BoolVar(&o.IgnoreDefaults, "ignore-defaults", o.IgnoreDefaults, "Ignore defining default requirements when migrating Provisioners to NodePool.")
 	cmdutil.AddJsonFilenameFlag(rootCmd.Flags(), &o.Filenames, "Filename, directory, or URL to files to need to get converted.")
 	rootCmd.Flags().BoolVarP(&o.Recursive, "recursive", "R", o.Recursive, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
-
 	o.PrintFlags.AddFlags(rootCmd)
 	return rootCmd
 }
@@ -132,18 +131,21 @@ func (o *Context) RunConvert() error {
 		if info.Object == nil {
 			continue
 		}
-		obj, err := convert(info.Object, o)
+
+		objs, err := convert(info.Object, o)
 		if err != nil {
 			return err
 		}
-		var buffer bytes.Buffer
-		writer := io.Writer(&buffer)
-		if err = o.Printer.PrintObj(obj, writer); err != nil {
-			return err
-		}
-		output := dropFields(buffer)
-		if _, err = o.Out.Write([]byte(output)); err != nil {
-			return err
+		for _, obj := range objs {
+			var buffer bytes.Buffer
+			writer := io.Writer(&buffer)
+			if err = o.Printer.PrintObj(obj, writer); err != nil {
+				return err
+			}
+			output := dropFields(buffer)
+			if _, err = o.Out.Write([]byte(output)); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -154,37 +156,47 @@ func dropFields(buffer bytes.Buffer) string {
 	output = strings.Replace(output, "status: {}\n", "", -1)
 	output = strings.Replace(output, "  creationTimestamp: null\n", "", -1)
 	output = strings.Replace(output, "      resources: {}\n", "", -1)
-
 	return output
 }
 
 // Convert a Provisioner into a NodePool and an AWSNodeTemplate into a NodeClass.
 // If the input is of a different kind, returns an error
-func convert(resource runtime.Object, o *Context) (runtime.Object, error) {
+func convert(resource runtime.Object, o *Context) ([]runtime.Object, error) {
 	kind := resource.GetObjectKind().GroupVersionKind().Kind
 	switch kind {
 	case "Provisioner":
-		return convertProvisioner(resource, o), nil
+		provisioner := resource.(*corev1alpha5.Provisioner)
+
+		var providerObj runtime.Object
+		var err error
+		if provider := provisioner.Spec.Provider; provider != nil {
+			providerObj, err = convertProvider(provider.Raw, provisioner.Name)
+			if err != nil {
+				return nil, fmt.Errorf("converting spec.provider for Provisioner, %w", err)
+			}
+			provisioner.Spec.ProviderRef = &corev1alpha5.MachineTemplateRef{
+				Name: provisioner.Name,
+			}
+		}
+		return lo.WithoutEmpty([]runtime.Object{convertProvisioner(provisioner, o), providerObj}), nil
 	case "AWSNodeTemplate":
-		return convertNodeTemplate(resource)
+		nodeTemplate := resource.(*v1alpha1.AWSNodeTemplate)
+		return convertNodeTemplate(nodeTemplate)
 	default:
 		return nil, fmt.Errorf("unknown kind. expected one of Provisioner, AWSNodeTemplate. got %s", kind)
 	}
 }
 
-func convertNodeTemplate(resource runtime.Object) (runtime.Object, error) {
-	nodetemplate := resource.(*v1alpha1.AWSNodeTemplate)
-
-	if nodetemplate.Spec.LaunchTemplateName != nil {
+func convertNodeTemplate(nodeTemplate *v1alpha1.AWSNodeTemplate) ([]runtime.Object, error) {
+	if nodeTemplate.Spec.LaunchTemplateName != nil {
 		return nil, fmt.Errorf(`cannot convert AWSNodeTemplate with "spec.launchTemplate"`)
 	}
-
 	// If the AMIFamily wasn't specified, then we know that it should be AL2 for the conversion
-	if nodetemplate.Spec.AMIFamily == nil {
-		nodetemplate.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+	if nodeTemplate.Spec.AMIFamily == nil {
+		nodeTemplate.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 	}
 
-	nodeclass := nodeclassutil.New(nodetemplate)
+	nodeclass := nodeclassutil.New(nodeTemplate)
 	nodeclass.TypeMeta = metav1.TypeMeta{
 		Kind:       "EC2NodeClass",
 		APIVersion: v1beta1.SchemeGroupVersion.String(),
@@ -192,10 +204,10 @@ func convertNodeTemplate(resource runtime.Object) (runtime.Object, error) {
 
 	// From the input NodeTemplate, keep only name, labels, annotations and finalizers
 	nodeclass.ObjectMeta = metav1.ObjectMeta{
-		Name:        nodetemplate.Name,
-		Labels:      nodetemplate.Labels,
-		Annotations: nodetemplate.Annotations,
-		Finalizers:  nodetemplate.Finalizers,
+		Name:        nodeTemplate.Name,
+		Labels:      nodeTemplate.Labels,
+		Annotations: nodeTemplate.Annotations,
+		Finalizers:  nodeTemplate.Finalizers,
 	}
 
 	// Cleanup the status provided in input
@@ -206,31 +218,41 @@ func convertNodeTemplate(resource runtime.Object) (runtime.Object, error) {
 	return nodeclass, nil
 }
 
-func convertProvisioner(resource runtime.Object, o *Context) runtime.Object {
-	coreprovisioner := resource.(*corev1alpha5.Provisioner)
-
+func convertProvisioner(coreProvisioner *corev1alpha5.Provisioner, o *Context) runtime.Object {
 	if !o.IgnoreDefaults {
-		provisioner := lo.ToPtr(v1alpha5.Provisioner(lo.FromPtr(coreprovisioner)))
+		provisioner := lo.ToPtr(v1alpha5.Provisioner(lo.FromPtr(coreProvisioner)))
 		provisioner.SetDefaults(context.Background())
-		coreprovisioner = lo.ToPtr(corev1alpha5.Provisioner(lo.FromPtr(provisioner)))
+		coreProvisioner = lo.ToPtr(corev1alpha5.Provisioner(lo.FromPtr(provisioner)))
 	}
-
-	nodepool := nodepoolutil.New(coreprovisioner)
-	nodepool.TypeMeta = metav1.TypeMeta{
+	nodePool := nodepoolutil.New(coreProvisioner)
+	nodePool.TypeMeta = metav1.TypeMeta{
 		Kind:       "NodePool",
 		APIVersion: corev1beta1.SchemeGroupVersion.String(),
 	}
 
 	// From the input Provisioner, keep only name, labels, annotations and finalizers
-	nodepool.ObjectMeta = metav1.ObjectMeta{
-		Name:        coreprovisioner.Name,
-		Labels:      coreprovisioner.Labels,
-		Annotations: coreprovisioner.Annotations,
-		Finalizers:  coreprovisioner.Finalizers,
+	nodePool.ObjectMeta = metav1.ObjectMeta{
+		Name:        coreProvisioner.Name,
+		Labels:      coreProvisioner.Labels,
+		Annotations: coreProvisioner.Annotations,
+		Finalizers:  coreProvisioner.Finalizers,
 	}
 
 	// Cleanup the status provided in input
-	nodepool.Status = corev1beta1.NodePoolStatus{}
+	nodePool.Status = corev1beta1.NodePoolStatus{}
+	return nodePool
+}
 
-	return nodepool
+func convertProvider(provider []byte, provisionerName string) (runtime.Object, error) {
+	aws, err := v1alpha1.DeserializeProvider(provider)
+	if err != nil {
+		return nil, fmt.Errorf("converting provider, %w", err)
+	}
+	nodeTemplate := &v1alpha1.AWSNodeTemplate{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: provisionerName,
+		},
+	}
+	nodeTemplate.Spec.AWS = *aws
+	return convertNodeTemplate(nodeTemplate), nil
 }
