@@ -7,7 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.46.4
-	github.com/aws/karpenter-core v0.31.1-0.20231025165859-8c11172ed8cf
+	github.com/aws/karpenter-core v0.31.1-0.20231027184301-fb39cb45cab7
 	github.com/aws/karpenter/tools/kompat v0.0.0-20231010173459-62c25a3ea85c
 	github.com/go-logr/zapr v1.2.4
 	github.com/imdario/mergo v0.3.16
@@ -115,3 +115,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.3.0 // indirect
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
+
+replace github.com/aws/karpenter-core => /Users/nichotr/workplace/go/src/github.com/aws/karpenter-core
