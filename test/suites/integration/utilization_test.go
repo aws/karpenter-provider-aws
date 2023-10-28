@@ -35,7 +35,7 @@ var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), fun
 			v1.NodeSelectorRequirement{
 				Key:      v1.LabelInstanceTypeStable,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"t3a.small"},
+				Values:   []string{"t3.small"},
 			},
 			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceCategory,

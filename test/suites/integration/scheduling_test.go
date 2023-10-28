@@ -405,7 +405,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 							{
 								Key:      v1.LabelInstanceTypeStable,
 								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{"c4.large"},
+								Values:   []string{"c5.large"},
 							},
 						},
 					},
@@ -416,7 +416,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		env.ExpectCreated(pod, nodeClass, nodePoolLowPri, nodePoolHighPri)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
-		Expect(ptr.StringValue(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c4.large"))
+		Expect(ptr.StringValue(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
 		Expect(env.GetNode(pod.Spec.NodeName).Labels[corev1beta1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 	})
 })

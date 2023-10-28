@@ -16,8 +16,10 @@ package resourcetypes
 
 import (
 	"context"
+	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -47,6 +49,10 @@ func (o *OIDC) GetExpired(ctx context.Context, expirationTime time.Time) (names 
 
 	errs := make([]error, len(out.OpenIDConnectProviderList))
 	for i := range out.OpenIDConnectProviderList {
+		// Checking to make sure we are only list resources in the given region
+		if !strings.Contains(lo.FromPtr(out.OpenIDConnectProviderList[i].Arn), lo.Must(config.LoadDefaultConfig(ctx)).Region) {
+			continue
+		}
 		oicd, err := o.iamClient.GetOpenIDConnectProvider(ctx, &iam.GetOpenIDConnectProviderInput{
 			OpenIDConnectProviderArn: out.OpenIDConnectProviderList[i].Arn,
 		})

@@ -11,7 +11,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        region: [us-east-2, us-west-2, eu-west-1]
+        region: [us-east-2, us-west-2, eu-west-1, eu-north-1]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -25,6 +25,12 @@ jobs:
           go-version-file: test/hack/resource/go.mod
           check-latest: true
           cache-dependency-path: "test/hack/resource/go.sum"
-      - run: go run main.go
+      # eu-north-1 contains the soak tests and resources should be swept if they are older than 8 days
+      - run: |
+          if [[ "${{ matrix.region }}" == "eu-north-1" ]]; then
+            go run main.go --expiration 192h
+          else
+            go run main.go --expiration 12h
+          fi
         working-directory: ./test/hack/resource/clean
         name: "Run cleanup script"
