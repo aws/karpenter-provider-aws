@@ -1,0 +1,7 @@
+apiVersion: test.sh/v1
+kind: Test
+metadata:
+  name: default
+spec:
+  testKey: testValue
+  testKey2: testValue2

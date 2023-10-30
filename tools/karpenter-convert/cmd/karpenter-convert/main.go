@@ -30,6 +30,5 @@ func main() {
 	kubeConfigFlags := genericclioptions.NewConfigFlags(false).WithDeprecatedPasswordFlag()
 	f := cmdutil.NewFactory(kubeConfigFlags)
 	cmd := convert.NewCmd(f, genericiooptions.IOStreams{In: os.Stdin, Out: os.Stdout, ErrOut: os.Stderr})
-	code := cli.Run(cmd)
-	os.Exit(code)
+	os.Exit(cli.Run(cmd))
 }
