@@ -4,13 +4,12 @@
   "dependencies": {
     "ansi-regex": ">=5.0.1",
     "autoprefixer": "^10.4.16",
-    "docsy": "file:themes/docsy",
     "lunr": "^2.3.9",
     "postcss": "^8.4.31",
-    "postcss-cli": "^10.1.0"
+    "postcss-cli": "^10.1.0",
+    "hugo-extended": "0.119.0"
   },
   "scripts": {
-    "postinstall": "git submodule update --init --recursive && npm install themes/docsy/",
-    "clean": "rm -rf node_modules && rm -rf themes/docsy/node_modules"
+    "clean": "rm -rf node_modules"
   }
 }
