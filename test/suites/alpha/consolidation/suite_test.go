@@ -123,7 +123,7 @@ var _ = Describe("Consolidation", func() {
 
 		env.ExpectDeleted(dep)
 	})
-	FIt("should consolidate on-demand nodes (replace)", func() {
+	It("should consolidate on-demand nodes (replace)", func() {
 		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
 			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 			SubnetSelector:        map[string]string{"karpenter.sh/discovery": env.ClusterName},
