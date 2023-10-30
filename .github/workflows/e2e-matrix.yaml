@@ -16,6 +16,8 @@ on:
       workflow_trigger:
         type: string
         required: true
+      parallelism:
+        type: number
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -51,6 +53,7 @@ jobs:
   e2e:
     strategy:
       fail-fast: false
+      max-parallel: ${{ inputs.parallelism || 100 }}
       matrix:
         suite:
           - Beta/Integration
