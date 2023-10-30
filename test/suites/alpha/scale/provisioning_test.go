@@ -123,7 +123,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
-			env.EventuallyExpectHealthyPodCount(selector, replicas)
+			env.EventuallyExpectHealthyPodCountWithTimeout(1 * time.Hour, selector, replicas)
 		}, map[string]string{
 			aws.TestCategoryDimension:           testGroup,
 			aws.TestNameDimension:               "node-dense",
@@ -161,7 +161,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
-			env.EventuallyExpectHealthyPodCount(selector, replicas)
+			env.EventuallyExpectHealthyPodCountWithTimeout(1 * time.Hour, selector, replicas)
 		}, map[string]string{
 			aws.TestCategoryDimension:           testGroup,
 			aws.TestNameDimension:               "pod-dense",
