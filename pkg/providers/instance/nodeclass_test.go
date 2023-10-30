@@ -15,10 +15,16 @@ limitations under the License.
 package instance_test
 
 import (
+	"fmt"
+	"time"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
@@ -27,6 +33,8 @@ import (
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/test"
 )
 
@@ -40,7 +48,7 @@ var _ = Describe("NodeClass/InstanceProvider", func() {
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},
@@ -54,7 +62,7 @@ var _ = Describe("NodeClass/InstanceProvider", func() {
 				},
 			},
 			Spec: corev1beta1.NodeClaimSpec{
-				NodeClass: &corev1beta1.NodeClassReference{
+				NodeClassRef: &corev1beta1.NodeClassReference{
 					Name: nodeClass.Name,
 				},
 			},
@@ -78,5 +86,69 @@ var _ = Describe("NodeClass/InstanceProvider", func() {
 		instance, err := awsEnv.InstanceProvider.Create(ctx, nodeClass, nodeClaim, instanceTypes)
 		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(instance).To(BeNil())
+	})
+	It("should return all NodePool-owned instances from List", func() {
+		ids := sets.New[string]()
+		// Provision instances that have the karpenter.sh/nodepool key
+		for i := 0; i < 20; i++ {
+			instanceID := fake.InstanceID()
+			awsEnv.EC2API.Instances.Store(
+				instanceID,
+				&ec2.Instance{
+					State: &ec2.InstanceState{
+						Name: aws.String(ec2.InstanceStateNameRunning),
+					},
+					Tags: []*ec2.Tag{
+						{
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
+							Value: aws.String("owned"),
+						},
+						{
+							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Value: aws.String("default"),
+						},
+						{
+							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+							Value: aws.String(options.FromContext(ctx).ClusterName),
+						},
+					},
+					PrivateDnsName: aws.String(fake.PrivateDNSName()),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String(fake.DefaultRegion),
+					},
+					// Launch time was 1m ago
+					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
+					InstanceId:   aws.String(instanceID),
+					InstanceType: aws.String("m5.large"),
+				},
+			)
+			ids.Insert(instanceID)
+		}
+		// Provision instances that do not have this tag key
+		for i := 0; i < 20; i++ {
+			instanceID := fake.InstanceID()
+			awsEnv.EC2API.Instances.Store(
+				instanceID,
+				&ec2.Instance{
+					State: &ec2.InstanceState{
+						Name: aws.String(ec2.InstanceStateNameRunning),
+					},
+					PrivateDnsName: aws.String(fake.PrivateDNSName()),
+					Placement: &ec2.Placement{
+						AvailabilityZone: aws.String(fake.DefaultRegion),
+					},
+					// Launch time was 1m ago
+					LaunchTime:   aws.Time(time.Now().Add(-time.Minute)),
+					InstanceId:   aws.String(instanceID),
+					InstanceType: aws.String("m5.large"),
+				},
+			)
+		}
+		instances, err := awsEnv.InstanceProvider.List(ctx)
+		Expect(err).To(BeNil())
+		Expect(instances).To(HaveLen(20))
+
+		retrievedIDs := sets.New[string](lo.Map(instances, func(i *instance.Instance, _ int) string { return i.ID })...)
+		Expect(ids.Equal(retrievedIDs)).To(BeTrue())
 	})
 })

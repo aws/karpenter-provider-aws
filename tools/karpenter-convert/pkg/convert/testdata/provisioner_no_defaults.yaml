@@ -1,0 +1,26 @@
+apiVersion: karpenter.sh/v1alpha5
+kind: Provisioner
+metadata:
+  name: default
+spec:
+  providerRef:
+    name: default
+  taints:
+    - key: example.com/special-taint
+      effect: NoSchedule
+  startupTaints:
+    - key: example.com/another-taint
+      effect: NoSchedule
+  labels:
+    billing-team: my-team
+  annotations:
+    example.com/owner: "my-team"
+  limits:
+    resources:
+      cpu: "1000"
+      memory: 1000Gi
+  consolidation:
+    enabled: false
+  ttlSecondsUntilExpired: 2592000 # 30 Days = 60 * 60 * 24 * 30 Seconds;
+  ttlSecondsAfterEmpty: 30
+  weight: 10

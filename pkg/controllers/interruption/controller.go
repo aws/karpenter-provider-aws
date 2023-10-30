@@ -32,12 +32,12 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/aws/karpenter-core/pkg/events"
@@ -80,8 +80,8 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", settings.FromContext(ctx).InterruptionQueueName))
-	if c.cm.HasChanged(settings.FromContext(ctx).InterruptionQueueName, nil) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", options.FromContext(ctx).InterruptionQueue))
+	if c.cm.HasChanged(options.FromContext(ctx).InterruptionQueue, nil) {
 		logging.FromContext(ctx).Debugf("watching interruption queue")
 	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
@@ -114,7 +114,10 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		}
 		errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 	})
-	return reconcile.Result{}, multierr.Combine(errs...)
+	if err = multierr.Combine(errs...); err != nil {
+		return reconcile.Result{}, err
+	}
+	return reconcile.Result{}, nil
 }
 
 func (c *Controller) Name() string {

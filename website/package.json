@@ -6,7 +6,7 @@
     "autoprefixer": "^10.4.16",
     "docsy": "file:themes/docsy",
     "lunr": "^2.3.9",
-    "postcss": "^8.4.30",
+    "postcss": "^8.4.31",
     "postcss-cli": "^10.1.0"
   },
   "scripts": {

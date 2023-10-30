@@ -5,9 +5,9 @@ on:
     - cron: '0 13 * * MON'
 
 permissions:
-  id-token: write
-  pull-requests: write
-  contents: write
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+  pull-requests: write # name: Create Pull Request
+  contents: write # name: Create Pull Request
 
 jobs:
   codegen:
@@ -21,14 +21,18 @@ jobs:
           git config user.email "APICodeGen@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git config pull.rebase false
-      - uses: ./.github/actions/authenticate-aws
+      - uses: aws-actions/configure-aws-credentials@v4.0.1
+        with:
+          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.ECR_REGION }}
       - run: make codegen
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_GIT_PUSH: true
-      - run: export APICodeGenUpdate=$((cat /tmp/codegen-updates && echo "APICodeGenUpdate=true" >> $GITHUB_ENV) || echo "false")
+      - id: detect-changes
+        run: cat /tmp/codegen-updates && echo APICodeGenUpdate=true >> $GITHUB_OUTPUT
       - name: Create Pull Request
-        if: env.APICodeGenUpdate == 'true'
+        if: steps.detect-changes.outputs.APICodeGenUpdate == 'true'
         uses: actions/github-script@v6
         with:
           script: |

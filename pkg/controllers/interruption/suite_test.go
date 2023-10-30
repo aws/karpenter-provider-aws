@@ -37,10 +37,10 @@ import (
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/events"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -53,6 +53,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 )
@@ -91,10 +92,11 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
-	ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-		InterruptionQueueName: lo.ToPtr("test-cluster"),
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+		InterruptionQueue: lo.ToPtr("test-cluster"),
 	}))
+	ctx = settings.ToContext(ctx, test.Settings())
 	unavailableOfferingsCache.Flush()
 	sqsapi.Reset()
 	sqsProvider.Reset()

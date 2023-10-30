@@ -15,6 +15,8 @@ limitations under the License.
 package aws
 
 import (
+	"fmt"
+	"os"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,11 +37,17 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/utils/env"
 
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
+	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
 
 const WindowsDefaultImage = "mcr.microsoft.com/oss/kubernetes/pause:3.9"
+
+// ExcludedInstanceFamilies denotes instance families that have issues during resource registration due to compatibility
+// issues with versions of the VPR Resource Controller
+var ExcludedInstanceFamilies = []string{"m7a", "r7a", "c7a", "r7i"}
 
 type Environment struct {
 	*common.Environment
@@ -54,6 +62,10 @@ type Environment struct {
 	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
 
 	SQSProvider *interruption.SQSProvider
+
+	ClusterName       string
+	ClusterEndpoint   string
+	InterruptionQueue string
 }
 
 func NewEnvironment(t *testing.T) *Environment {
@@ -80,6 +92,10 @@ func NewEnvironment(t *testing.T) *Environment {
 		EKSAPI:        eks.New(session),
 		SQSProvider:   interruption.NewSQSProvider(sqs.New(session)),
 		TimeStreamAPI: GetTimeStreamAPI(session),
+
+		ClusterName:       lo.Must(os.LookupEnv("CLUSTER_NAME")),
+		ClusterEndpoint:   lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
+		InterruptionQueue: lo.Must(os.LookupEnv("INTERRUPTION_QUEUE")),
 	}
 }
 
@@ -89,4 +105,21 @@ func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamW
 		return timestreamwrite.New(session, &aws.Config{Region: aws.String(env.GetString("METRICS_REGION", metricsDefaultRegion))})
 	}
 	return &NoOpTimeStreamAPI{}
+}
+
+func (env *Environment) DefaultEC2NodeClass() *v1beta1.EC2NodeClass {
+	nodeClass := test.EC2NodeClass()
+	nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+	nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		{
+			Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		},
+	}
+	nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+		{
+			Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
+		},
+	}
+	nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
+	return nodeClass
 }

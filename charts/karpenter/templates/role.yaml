@@ -33,10 +33,16 @@ rules:
     verbs: ["patch", "update"]
     resourceNames:
       - "karpenter-leader-election"
+{{- if .Values.webhook.enabled }}
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["patch", "update"]
+    resourceNames:
       - "webhook.configmapwebhook.00-of-01"
       - "webhook.defaultingwebhook.00-of-01"
       - "webhook.validationwebhook.00-of-01"
       - "webhook.webhookcertificates.00-of-01"
+{{- end }}
   # Cannot specify resourceNames on create
   # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
   - apiGroups: ["coordination.k8s.io"]

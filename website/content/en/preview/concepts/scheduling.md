@@ -15,10 +15,10 @@ Reasons for constraining where your pods run could include:
 * Wanting to use techniques like topology spread to help ensure high availability
 
 Your Cloud Provider defines the first layer of constraints, including all instance types, architectures, zones, and purchase types available to its cloud.
-The cluster administrator adds the next layer of constraints by creating one or more provisioners.
+The cluster administrator adds the next layer of constraints by creating one or more NodePools.
 The final layer comes from you adding specifications to your Kubernetes pod deployments.
-Pod scheduling constraints must fall within a provisioner's constraints or the pods will not deploy.
-For example, if the provisioner sets limits that allow only a particular zone to be used, and a pod asks for a different zone, it will not be scheduled.
+Pod scheduling constraints must fall within a NodePool's constraints or the pods will not deploy.
+For example, if the NodePool sets limits that allow only a particular zone to be used, and a pod asks for a different zone, it will not be scheduled.
 
 Constraints you can request include:
 
@@ -62,7 +62,7 @@ Its limits are set to 256MiB of memory and 1 CPU.
 Instance type selection math only uses `requests`, but `limits` may be configured to enable resource oversubscription.
 
 
-See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [Provisioner Configuration]({{<ref "./provisioners" >}}) for a list of supported resources.
+See [Managing Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/) for details on resource types supported by Kubernetes, [Specify a memory request and a memory limit](https://kubernetes.io/docs/tasks/configure-pod-container/assign-memory-resource/#specify-a-memory-request-and-a-memory-limit) for examples of memory requests, and [NodePools]({{<ref "./nodepools" >}}) for a list of supported resources.
 
 ### Accelerators/GPU Resources
 
@@ -129,7 +129,7 @@ This can include well-known labels or custom labels you create yourself.
 You can use `affinity` to define more complicated constraints, see [Node Affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#node-affinity) for the complete specification.
 
 ### Labels
-Well-known labels may be specified as provisioner requirements or pod scheduling constraints. You can also define your own custom labels by specifying `requirements` or `labels` on your Provisioner and select them using `nodeAffinity` or `nodeSelectors` on your Pods.
+Well-known labels may be specified as NodePool requirements or pod scheduling constraints. You can also define your own custom labels by specifying `requirements` or `labels` on your NodePool and select them using `nodeAffinity` or `nodeSelectors` on your Pods.
 
 {{% alert title="Warning" color="warning" %}}
 Take care to ensure the label domains are correct. A well known label like `karpenter.k8s.aws/instance-family` will enforce node properties, but may be confused with `node.kubernetes.io/instance-family`, which is unknown to Karpenter, and treated as a custom label which will not enforce node properties.
@@ -163,7 +163,7 @@ Take care to ensure the label domains are correct. A well known label like `karp
 
 #### User-Defined Labels
 
-Karpenter is aware of several well-known labels, deriving them from instance type details. If you specify a `nodeSelector` or a required `nodeAffinity` using a label that is not well-known to Karpenter, it will not launch nodes with these labels and pods will remain pending. For Karpenter to become aware that it can schedule for these labels, you must specify the label in the Provisioner requirements with the `Exists` operator:
+Karpenter is aware of several well-known labels, deriving them from instance type details. If you specify a `nodeSelector` or a required `nodeAffinity` using a label that is not well-known to Karpenter, it will not launch nodes with these labels and pods will remain pending. For Karpenter to become aware that it can schedule for these labels, you must specify the label in the NodePool requirements with the `Exists` operator:
 
 ```yaml
 requirements:
@@ -182,7 +182,7 @@ nodeSelector:
 ```
 This example features a well-known label (`topology.kubernetes.io/zone`) and a label that is well known to Karpenter (`karpenter.sh/capacity-type`).
 
-If you want to create a custom label, you should do that at the provisioner level.
+If you want to create a custom label, you should do that at the NodePool level.
 Then the pod can declare that custom label.
 
 
@@ -200,8 +200,7 @@ When setting rules, the following Node affinity types define how hard or soft ea
 The `IgnoredDuringExecution` part of each tells the pod to keep running, even if conditions change on the node so the rules no longer matched.
 You can think of these concepts as `required` and `preferred`, since Kubernetes never implemented other variants of these rules.
 
-All examples below assume that the provisioner doesn't have constraints to prevent those zones from being used.
-The first constraint says you could use `us-west-2a` or `us-west-2b`, the second constraint makes it so only `us-west-2b` can be used.
+All examples below assume that the NodePool doesn't have constraints to prevent those zones from being used. The first constraint says you could use `us-west-2a` or `us-west-2b`, the second constraint makes it so only `us-west-2b` can be used.
 
 ```yaml
  affinity:
@@ -261,28 +260,28 @@ So if capacity becomes available, it will schedule the pod without user interven
 ## Taints and tolerations
 
 Taints are the opposite of affinity.
-Setting a taint on a node tells the scheduler to not run a pod on it unless the pod has explicitly said it can tolerate that taint.
-This example shows a Provisioner that was set up with a taint for only running pods that require a GPU, such as the following:
-
+Setting a taint on a node tells the scheduler to not run a pod on it unless the pod has explicitly said it can tolerate that taint. This example shows a NodePool that was set up with a taint for only running pods that require a GPU, such as the following:
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
 metadata:
   name: gpu
 spec:
-  requirements:
-  - key: karpenter.k8s.aws/instance-family
-    operator: In
-    values:
-      - p3
-  taints:
-  - key: nvidia.com/gpu
-    value: true
-    effect: "NoSchedule"
+  template:
+    spec:
+      requirements:
+      - key: karpenter.k8s.aws/instance-family
+        operator: In
+        values:
+          - p3
+      taints:
+      - key: nvidia.com/gpu
+        value: true
+        effect: "NoSchedule"
 ```
 
-For a pod to request to run on a node that has provisioner, it could set a toleration as follows:
+For a pod to request to run on a node that has this NodePool, it could set a toleration as follows:
 
 ```yaml
 apiVersion: v1
@@ -307,8 +306,7 @@ See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-evic
 
 ## Topology Spread
 
-By using the Kubernetes `topologySpreadConstraints` you can ask the provisioner to have pods push away from each other to limit the blast radius of an outage.
-Think of it as the Kubernetes evolution for pod affinity: it lets you relate pods with respect to nodes while still allowing spread.
+By using the Kubernetes `topologySpreadConstraints` you can ask the NodePool to have pods push away from each other to limit the blast radius of an outage. Think of it as the Kubernetes evolution for pod affinity: it lets you relate pods with respect to nodes while still allowing spread.
 For example:
 
 ```yaml
@@ -352,7 +350,7 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 
 ## Pod affinity/anti-affinity
 
-By using the `podAffinity` and `podAntiAffinity` configuration on a pod spec, you can inform the provisioner of your desire for pods to schedule together or apart with respect to different topology domains. For example:
+By using the `podAffinity` and `podAntiAffinity` configuration on a pod spec, you can inform the Karpenter scheduler of your desire for pods to schedule together or apart with respect to different topology domains. For example:
 
 ```yaml
 spec:
@@ -437,165 +435,172 @@ The EBS CSI driver uses `topology.ebs.csi.aws.com/zone` instead of the standard 
 The topology key `topology.kubernetes.io/region` is not supported. Legacy in-tree CSI providers specify this label. Instead, install an out-of-tree CSI provider. [Learn more about moving to CSI providers.](https://kubernetes.io/blog/2021/12/10/storage-in-tree-to-csi-migration-status-update/#quick-recap-what-is-csi-migration-and-why-migrate)
 {{% /alert %}}
 
-## Weighting Provisioners
+## Weighted NodePools
 
-Karpenter allows you to order your provisioners using the `.spec.weight` field so that the node scheduler will deterministically attempt to schedule with one provisioner before another. Below are a few example use-cases that are now supported with the provisioner weighting semantic.
+Karpenter allows you to order your NodePools using the `.spec.weight` field so that the Karpenter scheduler will attempt to schedule one NodePool before another.
 
 ### Savings Plans and Reserved Instances
 
 If you have purchased a [Savings Plan](https://aws.amazon.com/savingsplans/) or [Reserved Instances](https://aws.amazon.com/ec2/pricing/reserved-instances/), you may want to tell Karpenter to prioritize this reserved capacity ahead of other instance types.
 
-To enable this, you will need to tell the Karpenter controllers which instance types to prioritize and what is the maximum amount of capacity that should be provisioned using those instance types. We can set the `.spec.limits` on the provisioner to limit the capacity that can be launched by this provisioner. Combined with the `.spec.weight` value, we can tell Karpenter to pull from instance types in the reserved provisioner before defaulting to generic instance types.
-
-#### Reserved Instance Provisioner
+To enable this, you will need to tell the Karpenter controllers which instance types to prioritize and what is the maximum amount of capacity that should be provisioned using those instance types. We can set the `.spec.limits` field on the NodePool to limit the capacity that can be launched by this NodePool. Combined with the `.spec.weight` value, we can tell Karpenter to pull from instance types in the reserved NodePool before defaulting to generic instance types.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
 metadata:
   name: reserved-instance
 spec:
   weight: 50
-  requirements:
-  - key: "node.kubernetes.io/instance-type"
-    operator: In
-    values: ["c4.large"]
   limits:
-    resources:
-      cpu: 100
-```
-
-#### Default Provisioner
-
-```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
+    cpu: 100
+  template:
+    spec:
+      requirements:
+      - key: "node.kubernetes.io/instance-type"
+        operator: In
+        values: ["c4.large"]
+---
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
 metadata:
   name: default
 spec:
-  requirements:
-  - key: karpenter.sh/capacity-type
-    operator: In
-    values: ["spot", "on-demand"]
-  - key: kubernetes.io/arch
-    operator: In
-    values: ["amd64"]
+  template:
+    spec:
+      requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["spot", "on-demand"]
+      - key: kubernetes.io/arch
+        operator: In
+        values: ["amd64"]
 ```
 
-### Default Node Configuration
+### Fallback
 
 Pods that do not specify node selectors or affinities can potentially be assigned to any node with any configuration. There may be cases where you require these pods to schedule to a specific capacity type or architecture but assigning the relevant node selectors or affinities to all these workload pods may be too tedious or infeasible. Instead, we want to define a cluster-wide default configuration for nodes launched using Karpenter.
 
-By assigning a higher `.spec.weight` value and restricting a provisioner to a specific capacity type or architecture, we can set default configuration for the nodes launched by pods that don't have node configuration restrictions.
-
-#### Default Provisioner
+By assigning a higher `.spec.weight` value and restricting a NodePool to a specific capacity type or architecture, we can set default configuration for the nodes launched by pods that don't have node configuration restrictions.
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
 metadata:
   name: default
 spec:
   weight: 50
-  requirements:
-  - key: karpenter.sh/capacity-type
-    operator: In
-    values: ["spot", "on-demand"]
-  - key: kubernetes.io/arch
-    operator: In
-    values: ["amd64"]
-```
-
-#### ARM-64 Specific Provisioner
-
-```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
+  template:
+    spec:
+      requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["spot", "on-demand"]
+      - key: kubernetes.io/arch
+        operator: In
+        values: ["amd64"]
+---
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
 metadata:
   name: arm64-specific
 spec:
-  requirements:
-  - key: karpenter.sh/capacity-type
-    operator: In
-    values: ["spot", "on-demand"]
-  - key: kubernetes.io/arch
-    operator: In
-    values: ["arm64"]
-  - key: node.kubernetes.io/instance-type
-    operator: In
-    values: ["a1.large", "a1.xlarge"]
+  template:
+    spec:
+      requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["spot", "on-demand"]
+      - key: kubernetes.io/arch
+        operator: In
+        values: ["arm64"]
+      - key: node.kubernetes.io/instance-type
+        operator: In
+        values: ["a1.large", "a1.xlarge"]
 ```
 
 {{% alert title="Note" color="primary" %}}
-Based on the way that Karpenter performs pod batching and bin packing, it is not guaranteed that Karpenter will always choose the highest priority provisioner given specific requirements. For example, if a pod can't be scheduled with the highest priority provisioner it will force creation of a node using a lower priority provisioner which may allow other pods from that batch to also schedule on that node. The behavior may also occur if existing capacity is available, as the kube-scheduler will schedule the pods instead of allowing Karpenter to provision a new node.
+Based on the way that Karpenter performs pod batching and bin packing, it is not guaranteed that Karpenter will always choose the highest priority NodePool given specific requirements. For example, if a pod can't be scheduled with the highest priority NodePool, it will force creation of a node using a lower priority NodePool, allowing other pods from that batch to also schedule on that node. The behavior may also occur if existing capacity is available, as the kube-scheduler will schedule the pods instead of allowing Karpenter to provision a new node.
 {{% /alert %}}
 
 ## Advanced Scheduling Techniques
 
 ### `Exists` Operator
 
-The `Exists` operator can be used on a provisioner to provide workload segregation across nodes.
+The `Exists` operator can be used on a NodePool to provide workload segregation across nodes.
 
 ```yaml
 ...
-  requirements:
-  - key: company.com/team
-    operator: Exists
+requirements:
+- key: company.com/team
+  operator: Exists
 ...
 ```
 
-With the requirement on the provisioner in place, workloads can optionally specify a custom value as a required node affinity or node selector.  Karpenter will then label the nodes it launches for these pods which prevents `kube-scheduler` from scheduling conflicting pods to those nodes.  This provides a way to more dynamically isolate workloads without requiring a unique provisioner for each workload subset.
+With the requirement on the NodePool, workloads can optionally specify a custom value as a required node affinity or node selector.  Karpenter will then label the nodes it launches for these pods which prevents `kube-scheduler` from scheduling conflicting pods to those nodes.  This provides a way to more dynamically isolate workloads without requiring a unique NodePool for each workload subset.
 
 ```yaml
-  nodeSelector:
-    company.com/team: team-a
+nodeSelector:
+  company.com/team: team-a
 ```
 {{% alert title="Note" color="primary" %}}
-If a workload matches the provisioner but doesn't specify a label, Karpenter will generate a random label for the node.
+If a workload matches the NodePool but doesn't specify a label, Karpenter will generate a random label for the node.
 {{% /alert %}}
 
 ### On-Demand/Spot Ratio Split
 
 Taking advantage of Karpenter's ability to assign labels to node and using a topology spread across those labels enables a crude method for splitting a workload across on-demand and spot instances in a desired ratio.
 
-To do this, we create a provisioner each for spot and on-demand with disjoint values for a unique new label called `capacity-spread`.  In the example below, we provide four unique values for the spot provisioner and one value for the on-demand provisioner.  When we spread across our new label evenly, we'll end up with a ratio of 4:1 spot to on-demand nodes.
+To do this, we create one NodePool each for spot and on-demand with disjoint values for a unique new label called `capacity-spread`.  In the example below, we provide four unique values for the spot NodePool and one value for the on-demand NodePool.  When we spread across our new label evenly, we'll end up with a ratio of 4:1 spot to on-demand nodes.
 
 {{% alert title="Warning" color="warning" %}}
 This is not identical to a topology spread with a specified ratio.  We are constructing 'virtual domains' to spread evenly across and the ratio of those 'virtual domains' to spot and on-demand happen to coincide with the desired spot to on-demand ratio.  As an example, if you launch pods using the provided example, Karpenter will launch nodes with `capacity-spread` labels of 1, 2, 3, 4, and 5. `kube-scheduler` will then schedule evenly across those nodes to give the desired ratio.
 {{% /alert %}}
 
-#### Spot Provisioner
-```yaml
-  requirements:
-  - key: "karpenter.sh/capacity-type"
-    operator: In
-    values: [ "spot"]
-  - key: capacity-spread
-    operator: In
-    values:
-    - "2"
-    - "3"
-    - "4"
-    - "5"
-```
+#### NodePools
 
-#### On-Demand Provisioner
 ```yaml
-  requirements:
-  - key: "karpenter.sh/capacity-type"
-    operator: In
-    values: [ "on-demand"]
-  - key: capacity-spread
-    operator: In
-    values:
-    - "1"
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: spot
+spec:
+  template:
+    spec:
+      requirements:
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["spot"]
+      - key: capacity-spread
+        operator: In
+        values:
+        - "2"
+        - "3"
+        - "4"
+        - "5"
+---
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: on-demand
+spec:
+  template:
+    spec:
+      requirements:
+      - key: "karpenter.sh/capacity-type"
+        operator: In
+        values: ["on-demand"]
+      - key: capacity-spread
+        operator: In
+        values:
+        - "1"
 ```
 
 #### Workload Topology Spread Constraint
 
 ```yaml
-      topologySpreadConstraints:
-      - maxSkew: 1
-        topologyKey: capacity-spread
-        whenUnsatisfiable: DoNotSchedule
+topologySpreadConstraints:
+- maxSkew: 1
+  topologyKey: capacity-spread
+  whenUnsatisfiable: DoNotSchedule
 ```

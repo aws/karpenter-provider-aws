@@ -4,8 +4,7 @@ on:
     - cron: '0 */12 * * *'
   workflow_dispatch:
 permissions:
-  id-token: write # This is required for requesting the JWT
-  contents: read  # This is required for actions/checkout
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   sweeper:
     if: vars.ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
@@ -17,7 +16,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
           aws-region: ${{ matrix.region }}

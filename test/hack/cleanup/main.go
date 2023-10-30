@@ -372,7 +372,7 @@ func (o *oidc) Get(ctx context.Context, expirationTime time.Time) (names []strin
 	return names, multierr.Combine(errs...)
 }
 
-// Terminate any old OIDC providers that were are remaining as part of testing
+// Cleanup any old OIDC providers that were are remaining as part of testing
 // We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 func (o *oidc) Cleanup(ctx context.Context, arns []string) ([]string, error) {
 	var errs error
@@ -415,7 +415,10 @@ func (ip *instanceProfile) Get(ctx context.Context, expirationTime time.Time) (n
 		}
 
 		for _, t := range profiles.Tags {
-			if lo.FromPtr(t.Key) == karpenterTestingTag || lo.FromPtr(t.Key) == karpenterTestingTagLegacy && out.InstanceProfiles[i].CreateDate.Before(expirationTime) {
+			// Since we can only get the date of the instance profile (not the exact time the instance profile was created)
+			// we add a day to the time that it was created to account for the worst-case of the instance profile being created
+			// at 23:59:59 and being marked with a time of 00:00:00 due to only capturing the date and not the time
+			if lo.FromPtr(t.Key) == karpenterTestingTag && out.InstanceProfiles[i].CreateDate.Add(time.Hour*24).Before(expirationTime) {
 				names = append(names, lo.FromPtr(out.InstanceProfiles[i].InstanceProfileName))
 			}
 		}

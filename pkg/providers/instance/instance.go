@@ -39,6 +39,7 @@ import (
 	"github.com/aws/karpenter/pkg/batcher"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter/pkg/providers/subnet"
@@ -104,7 +105,7 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 
 func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
 	if err := p.CreateTags(ctx, id, map[string]string{
-		v1alpha5.MachineManagedByAnnotationKey: settings.FromContext(ctx).ClusterName,
+		v1alpha5.MachineManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
 		v1alpha5.ProvisionerNameLabelKey:       provisionerName,
 	}); err != nil {
 		return fmt.Errorf("linking tags, %w", err)
@@ -143,7 +144,7 @@ func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
 			},
 			{
 				Name:   aws.String("tag-key"),
-				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName)}),
+				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)}),
 			},
 			instanceStateFilter,
 		},
@@ -257,15 +258,16 @@ func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *co
 			"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey]),
 		}
 		staticTags = map[string]string{
-			fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
-			v1alpha5.ProvisionerNameLabelKey:                                               nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey],
-			v1alpha5.MachineManagedByAnnotationKey:                                         settings.FromContext(ctx).ClusterName,
+			fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
+			v1alpha5.ProvisionerNameLabelKey:                                              nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey],
+			v1alpha5.MachineManagedByAnnotationKey:                                        options.FromContext(ctx).ClusterName,
 		}
 	} else {
 		staticTags = map[string]string{
-			fmt.Sprintf("kubernetes.io/cluster/%s", settings.FromContext(ctx).ClusterName): "owned",
+			fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
 			corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
-			corev1beta1.ManagedByAnnotationKey: settings.FromContext(ctx).ClusterName,
+			corev1beta1.ManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
+			v1beta1.LabelNodeClass:             nodeClass.Name,
 		}
 	}
 	return lo.Assign(overridableTags, settings.FromContext(ctx).Tags, nodeClass.Spec.Tags, staticTags)
@@ -301,11 +303,11 @@ func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1be
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
-	for launchTemplateName, instanceTypes := range launchTemplates {
+	for _, launchTemplate := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(instanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType, launchTemplate.ImageID),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
-				LaunchTemplateName: aws.String(launchTemplateName),
+				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
 			},
 		}
@@ -321,7 +323,7 @@ func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1be
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, zones *scheduling.Requirement, capacityType string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*ec2.Subnet, zones *scheduling.Requirement, capacityType string, image string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
@@ -354,6 +356,7 @@ func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zon
 		overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
 			InstanceType: aws.String(offering.parentInstanceTypeName),
 			SubnetId:     subnet.SubnetId,
+			ImageId:      aws.String(image),
 			// This is technically redundant, but is useful if we have to parse insufficient capacity errors from
 			// CreateFleet so that we can figure out the zone rather than additional API calls to look up the subnet
 			AvailabilityZone: subnet.AvailabilityZone,

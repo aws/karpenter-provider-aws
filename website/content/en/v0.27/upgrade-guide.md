@@ -9,11 +9,21 @@ description: >
 Karpenter is a controller that runs in your cluster, but it is not tied to a specific Kubernetes version, as the Cluster Autoscaler is.
 Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes and keep Karpenter up to date on bug fixes and new features.
 
-To make upgrading easier we aim to minimize introduction of breaking changes with the followings:
+To make upgrading easier we aim to minimize introduction of breaking changes with the following:
 
-# Compatibility issues
+## Compatibility Matrix
 
-To make upgrading easier, we aim to minimize the introduction of breaking changes with the followings components:
+[comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
+
+| KUBERNETES |  1.23   |  1.24   |  1.25   | 
+|------------|---------|---------|---------|
+| karpenter  | 0.21.x+ | 0.21.x+ | 0.25.x+ |
+
+[comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
+
+## Compatibility issues
+
+To make upgrading easier, we aim to minimize the introduction of breaking changes with the following components:
 
 * Provisioner API
 * Helm Chart

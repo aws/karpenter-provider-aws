@@ -9,15 +9,15 @@ description: >
 Karpenter is a controller that runs in your cluster, but it is not tied to a specific Kubernetes version, as the Cluster Autoscaler is.
 Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes and keep Karpenter up to date on bug fixes and new features.
 
-To make upgrading easier we aim to minimize introduction of breaking changes with the followings:
+To make upgrading easier we aim to minimize introduction of breaking changes with the following:
 
 ## Compatibility Matrix 
 
 [comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
 
-| KUBERNETES |  1.24   |  1.25   |  1.26   |  1.27   |  1.28  |
-|------------|---------|---------|---------|---------|--------|
-| karpenter  | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ | 0.31.0 |
+| KUBERNETES |  1.23   |  1.24   |  1.25   |  1.26   |  1.27   |  1.28  |
+|------------|---------|---------|---------|---------|---------|--------|
+| karpenter  | 0.21.x+ | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ | 0.31.x |
 
 [comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
 
@@ -29,9 +29,10 @@ Karpenter currently does not support the following [new `topologySpreadConstrain
 
 For more information on Karpenter's support for these keys, view [this tracking issue](https://github.com/aws/karpenter-core/issues/430).
 {{% /alert %}}
+
 ## Compatibility issues
 
-To make upgrading easier, we aim to minimize the introduction of breaking changes with the followings components:
+To make upgrading easier, we aim to minimize the introduction of breaking changes with the following components:
 
 * Provisioner API
 * Helm Chart

@@ -157,7 +157,7 @@ var _ = Describe("Machine/CloudProvider", func() {
 		})
 	})
 	Context("Machine Drift", func() {
-		var validAMI string
+		var armAMIID, amdAMIID string
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
@@ -165,19 +165,25 @@ var _ = Describe("Machine/CloudProvider", func() {
 		var validSubnet1 string
 		var validSubnet2 string
 		BeforeEach(func() {
-			validAMI = fake.ImageID()
+			armAMIID, amdAMIID = fake.ImageID(), fake.ImageID()
 			validSecurityGroup = fake.SecurityGroupID()
 			validSubnet1 = fake.SubnetID()
 			validSubnet2 = fake.SubnetID()
 			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
-				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
+				Parameter: &ssm.Parameter{Value: aws.String(armAMIID)},
 			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
-						ImageId:      aws.String(validAMI),
+						ImageId:      aws.String(armAMIID),
 						Architecture: aws.String("arm64"),
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					},
+					{
+						Name:         aws.String(coretest.RandomName()),
+						ImageId:      aws.String(amdAMIID),
+						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				},
@@ -205,7 +211,7 @@ var _ = Describe("Machine/CloudProvider", func() {
 
 			// Create the instance we want returned from the EC2 API
 			instance = &ec2.Instance{
-				ImageId:               aws.String(validAMI),
+				ImageId:               aws.String(armAMIID),
 				InstanceType:          aws.String(selectedInstanceType.Name),
 				SubnetId:              aws.String(validSubnet1),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
@@ -368,6 +374,13 @@ var _ = Describe("Machine/CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeclaimutil.New(machine))
 			Expect(err).To(HaveOccurred())
 		})
+		It("should return drifted if the AMI no longer matches the existing machine instance type", func() {
+			nodeTemplate.Spec.AMISelector = map[string]string{"aws::ids": amdAMIID}
+			ExpectApplied(ctx, env.Client, nodeTemplate)
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeclaimutil.New(machine))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
+		})
 		Context("Static Drift Detection", func() {
 			BeforeEach(func() {
 				provisioner = test.Provisioner(coretest.ProvisionerOptions{
@@ -420,7 +433,7 @@ var _ = Describe("Machine/CloudProvider", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 				},
-				Entry("AMISelector Drift", v1alpha1.AWSNodeTemplateSpec{AMISelector: map[string]string{"aws::ids": validAMI}}),
+				Entry("AMISelector Drift", v1alpha1.AWSNodeTemplateSpec{AMISelector: map[string]string{"aws::ids": armAMIID}}),
 				Entry("SubnetSelector Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SubnetSelector: map[string]string{"aws-ids": "subnet-test1"}}}),
 				Entry("SecurityGroupSelector Drift", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SecurityGroupSelector: map[string]string{"sg-key": "sg-value"}}}),
 			)
@@ -572,9 +585,9 @@ var _ = Describe("Machine/CloudProvider", func() {
 					if *ov.InstanceType == "m5.large" {
 						foundNonGPULT = true
 						Expect(v.Overrides).To(ContainElements(
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
 						))
 					}
 				}
@@ -666,12 +679,12 @@ var _ = Describe("Machine/CloudProvider", func() {
 				// select nothing!
 				AMISelector: map[string]string{"Name": "nothing"},
 			})
+			misconfiguredNodeTemplate.Name = "misconfigured"
 			prov2 := test.Provisioner(coretest.ProvisionerOptions{
 				ProviderRef: &v1alpha5.MachineTemplateRef{
 					APIVersion: misconfiguredNodeTemplate.APIVersion,
 					Kind:       misconfiguredNodeTemplate.Kind,
-					// select nothing!
-					Name: "nothing",
+					Name:       "misconfigured",
 				},
 			})
 			ExpectApplied(ctx, env.Client, provisioner, prov2, nodeTemplate, misconfiguredNodeTemplate)

@@ -1,12 +1,8 @@
 export K8S_VERSION ?= 1.27.x
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
-## Inject the app version into project.Version
-ifdef SNAPSHOT_TAG
-LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(SNAPSHOT_TAG)
-else
-LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)
-endif
+## Inject the app version into operator.Version
+LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter-core/pkg/operator.Version=$(shell git describe --tags --always)
 
 GOFLAGS ?= $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
@@ -16,11 +12,11 @@ CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
-      		--set settings.aws.clusterName=${CLUSTER_NAME} \
-			--set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
+      		--set settings.clusterName=${CLUSTER_NAME} \
+			--set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
-			--set settings.featureGates.driftEnabled=true \
+			--set settings.interruptionQueue=${CLUSTER_NAME} \
+			--set settings.featureGates.drift=true \
 			--set controller.resources.requests.cpu=1 \
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
@@ -52,15 +48,18 @@ ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
 run: ## Run Karpenter controller binary against your local cluster
 	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
-		--from-literal=aws.clusterName=${CLUSTER_NAME} \
-		--from-literal=aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-		--from-literal=aws.interruptionQueueName=${CLUSTER_NAME} \
-		--from-literal=featureGates.driftEnabled=true \
 		--dry-run=client -o yaml | kubectl apply -f -
 
 
-	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} KUBERNETES_MIN_VERSION="1.19.0-0" LEADER_ELECT=false DISABLE_WEBHOOK=true \
+	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} \
+		KUBERNETES_MIN_VERSION="1.19.0-0" \
+		LEADER_ELECT=false \
+		DISABLE_WEBHOOK=true \
+		CLUSTER_NAME=${CLUSTER_NAME} \
+		CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
+		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		FEATURE_GATES="Drift=true" \
 		go run ./cmd/controller/main.go
 
 clean-run: ## Clean resources deployed by the run target
@@ -68,6 +67,7 @@ clean-run: ## Clean resources deployed by the run target
 
 test: ## Run tests
 	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
+	cd tools/karpenter-convert && go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
 
 battletest: ## Run randomized, racing, code-covered tests
 	go test -v ./pkg/... \
@@ -79,7 +79,10 @@ battletest: ## Run randomized, racing, code-covered tests
 		-tags random_test_delay
 
 e2etests: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test \
+	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
+		CLUSTER_NAME=${CLUSTER_NAME} \
+		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		go test \
 		-p 1 \
 		-count 1 \
 		-timeout ${TEST_TIMEOUT} \
@@ -121,6 +124,8 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
+	hack/validation/requirements.sh
+	hack/validation/labels.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -161,7 +166,7 @@ delete: ## Delete the controller from your ~/.kube/config cluster
 	helm uninstall karpenter --namespace karpenter
 
 docgen: ## Generate docs
-	$(WITH_GOFLAGS) ./hack/docgen.sh
+	KARPENTER_CORE_DIR=$(KARPENTER_CORE_DIR) $(WITH_GOFLAGS) ./hack/docgen.sh
 
 codegen: ## Auto generate files based on AWS APIs response
 	$(WITH_GOFLAGS) ./hack/codegen.sh
@@ -169,7 +174,10 @@ codegen: ## Auto generate files based on AWS APIs response
 stable-release-pr: ## Generate PR for stable release
 	$(WITH_GOFLAGS) ./hack/release/stable-pr.sh
 
-release: ## Builds and publishes stable release if env var RELEASE_VERSION is set, or a snapshot release otherwise
+snapshot: ## Builds and publishes snapshot release
+	$(WITH_GOFLAGS) ./hack/release/snapshot.sh
+
+release: ## Builds and publishes stable release
 	$(WITH_GOFLAGS) ./hack/release/release.sh
 
 release-crd: ## Packages and publishes a karpenter-crd helm chart

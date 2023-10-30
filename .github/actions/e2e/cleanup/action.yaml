@@ -17,32 +17,26 @@ inputs:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.160.0-rc.0
+    default: v0.163.0
 runs:
   using: "composite"
   steps:
-    - name: configure aws credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
-        aws-region: ${{ inputs.region }}
-        role-duration-seconds: 21600
     - uses: actions/checkout@v4
       with:
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-eksctl
       with:
-        eksctl_version: ${{ inputs.eksctl_version }}
+        version: ${{ inputs.eksctl_version }}
     - name: delete-instance-profiles
       shell:
       run: |
         for name in $(aws iam list-instance-profiles --query "InstanceProfiles[*].{Name:InstanceProfileName}" --output text); do
           tags=$(aws iam list-instance-profile-tags --instance-profile-name $name --output json || true)
           if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "testing/cluster") | .Value') == "${{ inputs.cluster_name }}" ]]; then
+              echo "Deleting instance profile '$name'..."
               roleName=$(aws iam get-instance-profile --instance-profile-name $name --query "InstanceProfile.Roles[*].{Name:RoleName}" --output text)
               aws iam remove-role-from-instance-profile --instance-profile-name $name --role-name $roleName
               aws iam delete-instance-profile --instance-profile-name $name
-              break
           fi
         done
     - name: delete-cluster
@@ -75,6 +69,10 @@ runs:
           -r \
           aws ec2 delete-security-group \
             --group-id
+    - name: delete-iam-alpha-policy
+      shell: bash
+      run: |
+        aws iam delete-policy --policy-arn "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-Alpha-${{ inputs.cluster_name }}" || true
     - name: delete-iam-policies-stack
       shell: bash
       run: |

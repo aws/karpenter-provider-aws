@@ -18,12 +18,15 @@ import (
 	"context"
 	"sync"
 
+	"github.com/go-logr/zapr"
 	"github.com/samber/lo"
 	"k8s.io/client-go/rest"
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	ctrl "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
@@ -38,6 +41,7 @@ type Monitor struct {
 
 func New(ctx context.Context, config *rest.Config, kubeClient client.Client) *Monitor {
 	logger := logging.FromContext(ctx)
+	ctrl.SetLogger(zapr.NewLogger(logger.Desugar()))
 	mgr := lo.Must(controllerruntime.NewManager(config, controllerruntime.Options{
 		Scheme: scheme.Scheme,
 		BaseContext: func() context.Context {
@@ -46,7 +50,9 @@ func New(ctx context.Context, config *rest.Config, kubeClient client.Client) *Mo
 			logger.WithOptions()
 			return ctx
 		},
-		MetricsBindAddress: "0",
+		Metrics: server.Options{
+			BindAddress: "0",
+		},
 	}))
 	for _, c := range newControllers(kubeClient) {
 		lo.Must0(c.Builder(ctx, mgr).Complete(c), "failed to register controller")
@@ -77,6 +83,7 @@ func (m *Monitor) Stop() {
 func newControllers(kubeClient client.Client) []controller.Controller {
 	return []controller.Controller{
 		NewMachineController(kubeClient),
+		NewNodeClaimController(kubeClient),
 		NewNodeController(kubeClient),
 		NewPodController(kubeClient),
 	}

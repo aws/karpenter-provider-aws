@@ -52,7 +52,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 						Requirements: []v1.NodeSelectorRequirement{
@@ -67,7 +67,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 				Labels: map[string]string{corev1beta1.NodePoolLabelKey: nodePool.Name},
 			},
 			Spec: corev1beta1.NodeClaimSpec{
-				NodeClass: &corev1beta1.NodeClassReference{
+				NodeClassRef: &corev1beta1.NodeClassReference{
 					Name: nodeClass.Name,
 				},
 			},
@@ -79,13 +79,20 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 			{
 				Key:      v1.LabelInstanceTypeStable,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{},
+				Values:   []string{"test-instance-type"},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(corecloudproivder.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(cloudProviderNodeClaim).To(BeNil())
+	})
+	It("should set ImageID in the status field of the nodeClaim", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderNodeClaim).ToNot(BeNil())
+		Expect(cloudProviderNodeClaim.Status.ImageID).ToNot(BeEmpty())
 	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -117,26 +124,32 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 		})
 	})
 	Context("NodeClaim Drift", func() {
-		var validAMI string
+		var armAMIID, amdAMIID string
 		var validSecurityGroup string
 		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
 		var validSubnet1 string
 		var validSubnet2 string
 		BeforeEach(func() {
-			validAMI = fake.ImageID()
+			armAMIID, amdAMIID = fake.ImageID(), fake.ImageID()
 			validSecurityGroup = fake.SecurityGroupID()
 			validSubnet1 = fake.SubnetID()
 			validSubnet2 = fake.SubnetID()
 			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
-				Parameter: &ssm.Parameter{Value: aws.String(validAMI)},
+				Parameter: &ssm.Parameter{Value: aws.String(armAMIID)},
 			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
-						ImageId:      aws.String(validAMI),
+						ImageId:      aws.String(armAMIID),
 						Architecture: aws.String("arm64"),
+						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+					},
+					{
+						Name:         aws.String(coretest.RandomName()),
+						ImageId:      aws.String(amdAMIID),
+						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				},
@@ -164,7 +177,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 
 			// Create the instance we want returned from the EC2 API
 			instance = &ec2.Instance{
-				ImageId:               aws.String(validAMI),
+				ImageId:               aws.String(armAMIID),
 				InstanceType:          aws.String(selectedInstanceType.Name),
 				SubnetId:              aws.String(validSubnet1),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
@@ -298,6 +311,13 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
+		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMIID}}
+			ExpectApplied(ctx, env.Client, nodeClass)
+			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
+		})
 		Context("Static Drift Detection", func() {
 			DescribeTable("should return drifted if the spec is updated",
 				func(changes v1beta1.EC2NodeClass) {
@@ -314,10 +334,9 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
 				},
-				Entry("InstanceProfile Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Role: "role-2"}}),
 				Entry("UserData Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
 				Entry("Tags Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
-				Entry("MetadataOptions Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}),
+				Entry("MetadataOptions Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("disabled")}}}),
 				Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
 				Entry("Context Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
 				Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
@@ -338,7 +357,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 				},
-				Entry("AMI Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMISelectorTerms: []v1beta1.AMISelectorTerm{{ID: validAMI}}}}),
+				Entry("AMI Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMISelectorTerms: []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}}}),
 				Entry("Subnet Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{ID: "subnet-test1"}}}}),
 				Entry("SecurityGroup Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"sg-key": "sg-value"}}}}}),
 			)
@@ -373,9 +392,9 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 					if *ov.InstanceType == "m5.large" {
 						foundNonGPULT = true
 						Expect(v.Overrides).To(ContainElements(
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
+							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
 						))
 					}
 				}
@@ -463,7 +482,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							NodeClass: &corev1beta1.NodeClassReference{
+							NodeClassRef: &corev1beta1.NodeClassReference{
 								Name: nodeClass2.Name,
 							},
 						},
@@ -504,7 +523,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							NodeClass: &corev1beta1.NodeClassReference{
+							NodeClassRef: &corev1beta1.NodeClassReference{
 								Name: misconfiguredNodeClass.Name,
 							},
 						},

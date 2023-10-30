@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/aws/karpenter/tools/kompat/pkg/kompat"
@@ -54,5 +55,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("unable to open %s to write generated output: %v", outputFileName, err)
 	}
-	f.WriteString(topDoc + baseText.Markdown(kompat.Options{LastN: 5}) + bottomDoc)
+	numOfk8sVersion, _ := strconv.Atoi(os.Args[3])
+	f.WriteString(topDoc + baseText.Markdown(kompat.Options{LastN: numOfk8sVersion}) + bottomDoc)
 }

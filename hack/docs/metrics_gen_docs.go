@@ -79,10 +79,6 @@ description: >
 		"These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8000/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)\n")
 	previousSubsystem := ""
 
-	// Ignore nodeClaimSubsystem and nodePoolSubsystem metrics until NodeClaims are released
-	allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
-		return m.subsystem == "nodeclaims" || m.subsystem == "nodepools"
-	})
 	for _, metric := range allMetrics {
 		// Controller Runtime naming is different in that they don't specify a namespace or subsystem
 		// Getting the metrics requires special parsing logic
@@ -275,6 +271,7 @@ func getIdentMapping(identName string) (string, error) {
 		"interruptionSubsystem":   "interruption",
 		"nodeTemplateSubsystem":   "nodetemplate",
 		"deprovisioningSubsystem": "deprovisioning",
+		"disruptionSubsystem":     "disruption",
 		"consistencySubsystem":    "consistency",
 		"batcherSubsystem":        "cloudprovider_batcher",
 		"cloudProviderSubsystem":  "cloudprovider",

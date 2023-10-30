@@ -1,0 +1,23 @@
+apiVersion: karpenter.k8s.aws/v1alpha1
+kind: AWSNodeTemplate
+metadata:
+  name: default
+spec:
+  subnetSelector:
+    karpenter.sh/discovery: karpenter-demo
+  securityGroupSelector:
+    karpenter.sh/discovery: karpenter-demo
+  blockDeviceMappings:
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeSize: 100Gi
+        volumeType: gp3
+        deleteOnTermination: true
+  tags:
+    MyTag: "1234"
+    MyBackupTag: "yes"
+  userData:  |
+    [settings.kubernetes]
+    kube-api-qps = 30
+    [settings.kubernetes.eviction-hard]
+    "memory.available" = "10%"

@@ -8,20 +8,33 @@ on:
     workflows: [ApprovalComment]
     types: [completed]
   workflow_dispatch:
+    inputs:
+      region:
+        required: true
+        default: 'us-east-2'
+        type: choice
+        options:
+          - "us-east-1"
+          - "us-east-2"
+      cleanup:
+        required: true
+        default: true
+        type: boolean
 jobs:
   resolve:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/resolve-args.yaml
     with:
       allowed_comment: "snapshot"
-      event_name: ${{ github.event_name }}
   e2e-matrix:
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e-matrix.yaml
     with:
-      event_name: ${{ github.event_name }}
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
+      region: ${{ inputs.region || 'us-east-2' }}
       workflow_trigger: "matrix"
+      # Default to true unless using a workflow_dispatch
+      cleanup: ${{ github.event_name != 'workflow_dispatch' && true || inputs.cleanup }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

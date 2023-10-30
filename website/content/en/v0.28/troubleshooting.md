@@ -105,14 +105,14 @@ Karpenter v0.26.1+ introduced the `karpenter-crd` helm chart. When installing th
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
 
 ```shell
-kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
+kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
 ```
 
 - In the case of `annotation validation error: missing key "meta.helm.sh/release-namespace": must be set to "karpenter"` run:
 
 ```shell
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
+kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
+kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
 ```
 
 ## Uninstallation
@@ -178,6 +178,17 @@ This is especially relevant if you have used `terraform-eks-module` version `>=1
 approach, and now it's much more restrictive.
 
 ## Provisioning
+
+### Instances with swap volumes fail to register with control plane
+
+Some instance types (c1.medium and m1.small) are given limited amount of memory (see [Instance Store swap volumes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-store-swap-volumes.html)). They are subsequently configured to use a swap volume, which will cause the kubelet to fail on launch. The following error can be seen in the systemd logs:
+
+```bash
+"command failed" err="failed to run Kubelet: running with swap on is not supported, please disable swap!..."
+```
+
+##### Solutions
+Disabling swap will allow kubelet to join the cluster successfully, however users should be mindful of performance, and consider adjusting the Provisioner requirements to use larger instance types.
 
 ### DaemonSets can result in deployment failures
 

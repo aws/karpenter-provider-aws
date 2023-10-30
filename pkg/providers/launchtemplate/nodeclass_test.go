@@ -42,6 +42,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter/pkg/providers/instancetype"
 	"github.com/aws/karpenter/pkg/test"
@@ -55,7 +56,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
-					ObjectMeta: metav1.ObjectMeta{
+					ObjectMeta: corev1beta1.ObjectMeta{
 						// TODO @joinnis: Move this into the coretest.NodePool function
 						Labels: map[string]string{coretest.DiscoveryLabel: "unspecified"},
 					},
@@ -67,7 +68,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 								Values:   []string{corev1beta1.CapacityTypeOnDemand},
 							},
 						},
-						NodeClass: &corev1beta1.NodeClassReference{
+						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
 					},
@@ -692,7 +693,10 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+			}))
+
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
@@ -703,7 +707,10 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+			}))
+
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
@@ -740,9 +747,9 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		})
 
 		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(true),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+			ctx = settings.ToContext(ctx, test.Settings())
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
@@ -753,7 +760,10 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		It("should calculate memory overhead based on max pods when not ENI limited", func() {
 			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
 				EnableENILimitedPodDensity: lo.ToPtr(false),
-				VMMemoryOverheadPercent:    lo.ToPtr[float64](0),
+			}))
+
+			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
@@ -877,6 +887,11 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					"nodefs.available":  "15%",
 					"nodefs.inodesFree": "5%",
 				},
+				EvictionSoftGracePeriod: map[string]metav1.Duration{
+					"memory.available":  {Duration: time.Minute},
+					"nodefs.available":  {Duration: time.Second * 180},
+					"nodefs.inodesFree": {Duration: time.Minute * 5},
+				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -903,6 +918,11 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					"memory.available":  {Duration: time.Minute},
 					"nodefs.available":  {Duration: time.Second * 180},
 					"nodefs.inodesFree": {Duration: time.Minute * 5},
+				},
+				EvictionSoft: map[string]string{
+					"memory.available":  "10%",
+					"nodefs.available":  "15%",
+					"nodefs.inodesFree": "5%",
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1099,7 +1119,7 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 					EnableENILimitedPodDensity: lo.ToPtr(false),
 				}))
 
-				nodePool.Spec.Template.Spec.NodeClass = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
+				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
 				ExpectApplied(ctx, env.Client, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1435,24 +1455,12 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String(v1.LabelInstanceTypeStable),
-								Value: aws.String("m5.large"),
-							},
-						},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
-						Architecture: aws.String("x86_64"),
-						Tags: []*ec2.Tag{
-							{
-								Key:   aws.String(v1.LabelInstanceTypeStable),
-								Value: aws.String("m5.xlarge"),
-							},
-						},
+						Architecture: aws.String("arm64"),
 						CreationDate: aws.String("2022-08-10T12:00:00Z"),
 					},
 				}})
@@ -1462,11 +1470,11 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
-				expectedImageIds := sets.NewString("ami-123", "ami-456")
-				actualImageIds := sets.NewString(
-					*awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
-					*awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop().LaunchTemplateData.ImageId,
-				)
+				expectedImageIds := sets.New[string]("ami-123", "ami-456")
+				actualImageIds := sets.New[string]()
+				awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+					actualImageIds.Insert(*ltInput.LaunchTemplateData.ImageId)
+				})
 				Expect(expectedImageIds.Equal(actualImageIds)).To(BeTrue())
 			})
 			It("should create a launch template with the newest compatible AMI when multiple amis are discovered", func() {
