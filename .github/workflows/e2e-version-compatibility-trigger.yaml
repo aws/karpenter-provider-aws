@@ -1,4 +1,4 @@
-name: E2EConformanceTrigger
+name: E2EVersionCompatibilityTrigger
 on:
   schedule:
     # The test will run every Monday at 12:07 AM UTC
@@ -24,8 +24,8 @@ jobs:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/resolve-args.yaml
     with:
-      allowed_comment: "conformance"
-  conformance:
+      allowed_comment: "versionCompatibility"
+  versionCompatibility:
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     strategy:
@@ -36,7 +36,9 @@ jobs:
     with:
       region: ${{ inputs.region || 'eu-west-1' }}
       k8s_version: ${{ matrix.k8s_version }}
-      workflow_trigger: "conformance"
-      cleanup: ${{ inputs.cleanup || true }}
+      workflow_trigger: "versionCompatibility"
+      # Default to true unless using a workflow_dispatch
+      cleanup: ${{ github.event_name != 'workflow_dispatch' && true || inputs.cleanup }}
+      parallelism: 2
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
