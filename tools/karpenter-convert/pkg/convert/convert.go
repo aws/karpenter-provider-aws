@@ -167,7 +167,7 @@ func convert(resource runtime.Object, o *Context) ([]runtime.Object, error) {
 	case "Provisioner":
 		provisioner := resource.(*corev1alpha5.Provisioner)
 
-		var providerObj runtime.Object
+		var providerObj *v1beta1.EC2NodeClass
 		var err error
 		if provider := provisioner.Spec.Provider; provider != nil {
 			providerObj, err = convertProvider(provider.Raw, provisioner.Name)
@@ -175,21 +175,25 @@ func convert(resource runtime.Object, o *Context) ([]runtime.Object, error) {
 				return nil, fmt.Errorf("converting spec.provider for Provisioner, %w", err)
 			}
 			provisioner.Spec.ProviderRef = &corev1alpha5.MachineTemplateRef{
-				Name: provisioner.Name,
+				Name: providerObj.Name,
 			}
 		}
 		return lo.WithoutEmpty([]runtime.Object{convertProvisioner(provisioner, o), providerObj}), nil
 	case "AWSNodeTemplate":
 		nodeTemplate := resource.(*v1alpha1.AWSNodeTemplate)
-		return convertNodeTemplate(nodeTemplate)
+		nodeClass, err := convertNodeTemplate(nodeTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("converting AWSNodeTemplate, %w", err)
+		}
+		return []runtime.Object{nodeClass}, nil
 	default:
 		return nil, fmt.Errorf("unknown kind. expected one of Provisioner, AWSNodeTemplate. got %s", kind)
 	}
 }
 
-func convertNodeTemplate(nodeTemplate *v1alpha1.AWSNodeTemplate) ([]runtime.Object, error) {
+func convertNodeTemplate(nodeTemplate *v1alpha1.AWSNodeTemplate) (*v1beta1.EC2NodeClass, error) {
 	if nodeTemplate.Spec.LaunchTemplateName != nil {
-		return nil, fmt.Errorf(`cannot convert AWSNodeTemplate with "spec.launchTemplate"`)
+		return nil, fmt.Errorf(`cannot convert with "spec.launchTemplate"`)
 	}
 	// If the AMIFamily wasn't specified, then we know that it should be AL2 for the conversion
 	if nodeTemplate.Spec.AMIFamily == nil {
@@ -218,7 +222,7 @@ func convertNodeTemplate(nodeTemplate *v1alpha1.AWSNodeTemplate) ([]runtime.Obje
 	return nodeclass, nil
 }
 
-func convertProvisioner(coreProvisioner *corev1alpha5.Provisioner, o *Context) runtime.Object {
+func convertProvisioner(coreProvisioner *corev1alpha5.Provisioner, o *Context) *corev1beta1.NodePool {
 	if !o.IgnoreDefaults {
 		provisioner := lo.ToPtr(v1alpha5.Provisioner(lo.FromPtr(coreProvisioner)))
 		provisioner.SetDefaults(context.Background())
@@ -243,7 +247,7 @@ func convertProvisioner(coreProvisioner *corev1alpha5.Provisioner, o *Context) r
 	return nodePool
 }
 
-func convertProvider(provider []byte, provisionerName string) (runtime.Object, error) {
+func convertProvider(provider []byte, provisionerName string) (*v1beta1.EC2NodeClass, error) {
 	aws, err := v1alpha1.DeserializeProvider(provider)
 	if err != nil {
 		return nil, fmt.Errorf("converting provider, %w", err)
@@ -254,5 +258,5 @@ func convertProvider(provider []byte, provisionerName string) (runtime.Object, e
 		},
 	}
 	nodeTemplate.Spec.AWS = *aws
-	return convertNodeTemplate(nodeTemplate), nil
+	return convertNodeTemplate(nodeTemplate)
 }
