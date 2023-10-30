@@ -1,3 +1,4 @@
+{{- if .Values.manageConfigMap }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -58,4 +59,4 @@ data:
 {{- with .Values.settings.featureGates.driftEnabled }}
   featureGates.driftEnabled: "{{ . }}"
 {{- end }}
-
+{{- end }}

@@ -40,6 +40,14 @@ make apply # Install Karpenter
 make delete # Uninstall Karpenter
 ```
 
+#### Helm chart testing
+
+Linting and testing of the helm charts is performed for all Pull Requests.
+
+If you're adding new functionality or fixing a templating issue, consider adding a new templating/installation test in the `ci` directory of the chart.
+
+_Note_: Values files for the ci **must** have the `-values.yaml` suffix in the filename for the chart-testing tool to use them.
+
 ### Developer Loop
 
 * Make sure dependencies are installed
@@ -106,8 +114,8 @@ stern -n karpenter -l app.kubernetes.io/name=karpenter
 ### AWS
 
 For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
-You can use the following command to provision an ECR repository. We recommend using a single "dev" repository for 
-development across multiple projects, and to use specific image hashes instead of image tags. 
+You can use the following command to provision an ECR repository. We recommend using a single "dev" repository for
+development across multiple projects, and to use specific image hashes instead of image tags.
 
 ```bash
 aws ecr create-repository \

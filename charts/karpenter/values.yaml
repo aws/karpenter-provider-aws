@@ -164,6 +164,10 @@ logConfig:
     controller: debug
     # -- Error log level, defaults to 'error'
     webhook: error
+
+# -- Set this to false if you want to manage the ConfigMap separately from this chart
+manageConfigMap: true
+
 # -- Global Settings to configure Karpenter
 settings:
   # -- AWS-specific settings (Deprecated: The AWS block inside of settings was flattened into settings)

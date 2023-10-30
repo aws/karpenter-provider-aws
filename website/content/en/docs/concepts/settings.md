@@ -29,7 +29,9 @@ There are two main configuration mechanisms that can be used to configure Karpen
 
 ## ConfigMap
 
-Karpenter installs a default configuration via its Helm chart that should work for most.  Additional configuration can be performed by editing the `karpenter-global-settings` configmap within the namespace that Karpenter was installed in.
+Karpenter installs a default configuration via its Helm chart that should work for most. Additional configuration can be performed by editing the `karpenter-global-settings` configmap within the namespace that Karpenter was installed in.
+
+If you want to manage the ConfigMap separately from the helm chart, set `manageConfigMap: false` in the helm values. This can be useful to e.g. manage the IAM roles, the corresponding ServiceAccount and the ConfigMap with tools like terraform or pulumi.
 
 ```yaml
 apiVersion: v1
