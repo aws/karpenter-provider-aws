@@ -52,7 +52,7 @@ type Context struct {
 	PrintFlags *genericclioptions.PrintFlags
 	Printer    printers.ResourcePrinter
 
-	builder func() *resource.Builder
+	Builder func() *resource.Builder
 
 	resource.FilenameOptions
 	genericiooptions.IOStreams
@@ -65,7 +65,6 @@ func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Comm
 		PrintFlags: genericclioptions.NewPrintFlags("converted").WithDefaultOutput("yaml"),
 		IOStreams:  ioStreams,
 	}
-
 	var rootCmd = &cobra.Command{
 		Use: "karpenter-convert",
 		Run: func(cmd *cobra.Command, args []string) {
@@ -73,13 +72,11 @@ func NewCmd(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Comm
 			cmdutil.CheckErr(o.RunConvert())
 		},
 	}
-
 	rootCmd.Flags().BoolVar(&o.IgnoreDefaults, "ignore-defaults", o.IgnoreDefaults, "Ignore defining default requirements when migrating Provisioners to NodePool.")
 	cmdutil.AddJsonFilenameFlag(rootCmd.Flags(), &o.Filenames, "Filename, directory, or URL to files to need to get converted.")
 	rootCmd.Flags().BoolVarP(&o.Recursive, "recursive", "R", o.Recursive, "Process the directory used in -f, --filename recursively. Useful when you want to manage related manifests organized within the same directory.")
 
 	o.PrintFlags.AddFlags(rootCmd)
-
 	return rootCmd
 }
 
@@ -87,8 +84,7 @@ func (o *Context) Complete(f cmdutil.Factory, _ *cobra.Command) (err error) {
 	if len(o.Filenames) == 0 {
 		return fmt.Errorf("must specify -f")
 	}
-
-	o.builder = f.NewBuilder
+	o.Builder = f.NewBuilder
 	o.Printer, err = o.PrintFlags.ToPrinter()
 	return err
 }
@@ -103,7 +99,7 @@ func (o *Context) RunConvert() error {
 		return err
 	}
 
-	b := o.builder().
+	b := o.Builder().
 		WithScheme(scheme, v1alpha1.SchemeGroupVersion, corev1alpha5.SchemeGroupVersion).
 		LocalParam(true)
 
@@ -114,13 +110,7 @@ func (o *Context) RunConvert() error {
 		Do().
 		IgnoreErrors(func(err error) bool {
 			regexPattern := `no kind ".*" is registered for version`
-			regex := regexp.MustCompile(regexPattern)
-			if regex.MatchString(err.Error()) {
-				fmt.Fprintln(o.IOStreams.ErrOut, "#warning:", err.Error())
-				return true
-			}
-
-			return false
+			return regexp.MustCompile(regexPattern).MatchString(err.Error())
 		})
 
 	err := r.Err()
@@ -142,23 +132,18 @@ func (o *Context) RunConvert() error {
 		if info.Object == nil {
 			continue
 		}
-
 		obj, err := convert(info.Object, o)
 		if err != nil {
-			fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
-		} else {
-			var buffer bytes.Buffer
-			writer := io.Writer(&buffer)
-
-			if err := o.Printer.PrintObj(obj, writer); err != nil {
-				fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
-			}
-
-			output := dropFields(buffer)
-
-			if _, err := o.Out.Write([]byte(output)); err != nil {
-				fmt.Fprintln(o.IOStreams.ErrOut, err.Error())
-			}
+			return err
+		}
+		var buffer bytes.Buffer
+		writer := io.Writer(&buffer)
+		if err = o.Printer.PrintObj(obj, writer); err != nil {
+			return err
+		}
+		output := dropFields(buffer)
+		if _, err = o.Out.Write([]byte(output)); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -181,14 +166,19 @@ func convert(resource runtime.Object, o *Context) (runtime.Object, error) {
 	case "Provisioner":
 		return convertProvisioner(resource, o), nil
 	case "AWSNodeTemplate":
-		return convertNodeTemplate(resource), nil
+		return convertNodeTemplate(resource)
 	default:
 		return nil, fmt.Errorf("unknown kind. expected one of Provisioner, AWSNodeTemplate. got %s", kind)
 	}
 }
 
-func convertNodeTemplate(resource runtime.Object) runtime.Object {
+func convertNodeTemplate(resource runtime.Object) (runtime.Object, error) {
 	nodetemplate := resource.(*v1alpha1.AWSNodeTemplate)
+
+	if nodetemplate.Spec.LaunchTemplateName != nil {
+		return nil, fmt.Errorf(`cannot convert AWSNodeTemplate with "spec.launchTemplate"`)
+	}
+
 	// If the AMIFamily wasn't specified, then we know that it should be AL2 for the conversion
 	if nodetemplate.Spec.AMIFamily == nil {
 		nodetemplate.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
@@ -213,7 +203,7 @@ func convertNodeTemplate(resource runtime.Object) runtime.Object {
 
 	// Leave a placeholder for the role. This can be substituted with `envsubst` or other means
 	nodeclass.Spec.Role = karpenterNodeRolePlaceholder
-	return nodeclass
+	return nodeclass, nil
 }
 
 func convertProvisioner(resource runtime.Object, o *Context) runtime.Object {
