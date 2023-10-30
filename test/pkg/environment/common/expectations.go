@@ -611,7 +611,7 @@ func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, 
 	Eventually(func(g Gomega) {
 		nodes = env.Monitor.CreatedNodes()
 		nodes = lo.Filter(nodes, func(n *v1.Node, _ int) bool {
-			return n.Labels[v1alpha5.LabelNodeInitialized] == "true"
+			return n.Labels[corev1beta1.NodeInitializedLabelKey] == "true"
 		})
 		g.Expect(len(nodes)).To(BeNumerically(comparator, count))
 	}).Should(Succeed())
