@@ -3,7 +3,7 @@ name: helm chart
 on:
   pull_request:
     paths:
-      - charts
+      - charts/**
 
 jobs:
   lint:
