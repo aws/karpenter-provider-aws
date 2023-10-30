@@ -33,7 +33,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
-	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
 	"k8s.io/utils/env"
 

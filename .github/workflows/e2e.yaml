@@ -102,12 +102,12 @@ jobs:
       - name: add jitter on cluster creation
         run: |
           # Creating jitter so that we can stagger cluster creation to avoid throttling
-          sleep $(( $RANDOM % 300 + 1 ))
+          sleep $(( RANDOM % 300 + 1 ))
       - id: generate-cluster-name
         run: |
-          CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}' | tr / -)
-          echo "Using cluster name \"$CLUSTER_NAME\""
-          echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_OUTPUT
+          CLUSTER_NAME="$(echo ${{ inputs.suite }}-"$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)"
+          echo Using cluster name "$CLUSTER_NAME"
+          echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
       - name: create eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
         uses: ./.github/actions/e2e/create-cluster
         with:
