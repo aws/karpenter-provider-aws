@@ -181,14 +181,19 @@ func convert(resource runtime.Object, o *Context) (runtime.Object, error) {
 	case "Provisioner":
 		return convertProvisioner(resource, o), nil
 	case "AWSNodeTemplate":
-		return convertNodeTemplate(resource), nil
+		return convertNodeTemplate(resource)
 	default:
 		return nil, fmt.Errorf("unknown kind. expected one of Provisioner, AWSNodeTemplate. got %s", kind)
 	}
 }
 
-func convertNodeTemplate(resource runtime.Object) runtime.Object {
+func convertNodeTemplate(resource runtime.Object) (runtime.Object, error) {
 	nodetemplate := resource.(*v1alpha1.AWSNodeTemplate)
+
+	if nodetemplate.Spec.LaunchTemplateName != nil {
+		return nil, fmt.Errorf(`cannot convert AWSNodeTemplate with "spec.launchTemplateName"`)
+	}
+
 	// If the AMIFamily wasn't specified, then we know that it should be AL2 for the conversion
 	if nodetemplate.Spec.AMIFamily == nil {
 		nodetemplate.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
@@ -213,7 +218,7 @@ func convertNodeTemplate(resource runtime.Object) runtime.Object {
 
 	// Leave a placeholder for the role. This can be substituted with `envsubst` or other means
 	nodeclass.Spec.Role = karpenterNodeRolePlaceholder
-	return nodeclass
+	return nodeclass, nil
 }
 
 func convertProvisioner(resource runtime.Object, o *Context) runtime.Object {
