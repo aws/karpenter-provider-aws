@@ -141,6 +141,9 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 				price, ok = p.pricingProvider.SpotPrice(*instanceType.InstanceType, zone)
 			case ec2.UsageClassTypeOnDemand:
 				price, ok = p.pricingProvider.OnDemandPrice(*instanceType.InstanceType)
+			case "capacity-block":
+				// ignore since karpenter doesn't support it yet, but do not log an unknown capacity type error
+				continue
 			default:
 				logging.FromContext(ctx).Errorf("Received unknown capacity type %s for instance type %s", capacityType, *instanceType.InstanceType)
 				continue
