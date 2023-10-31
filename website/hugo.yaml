@@ -1,8 +1,8 @@
 module:
   hugoVersion:
     extended: true
-    max: "0.120.1"
-    min: "0.119.0"
+    max: "v0.119.0"
+    min: "v0.119.0"
   imports:
     - path: github.com/google/docsy
     - path: github.com/google/docsy/dependencies
