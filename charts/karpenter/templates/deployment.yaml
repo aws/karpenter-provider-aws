@@ -160,13 +160,13 @@ spec:
           {{- if .Values.webhook.enabled }}
             - name: webhook-metrics
               containerPort: {{ .Values.webhook.metrics.port }}
-          {{- end }}
-              protocol: TCP
-            - name: http
-              containerPort: {{ .Values.controller.healthProbe.port }}
               protocol: TCP
             - name: https-webhook
               containerPort: {{ .Values.webhook.port }}
+              protocol: TCP
+          {{- end }}
+            - name: http
+              containerPort: {{ .Values.controller.healthProbe.port }}
               protocol: TCP
           livenessProbe:
             initialDelaySeconds: 30
