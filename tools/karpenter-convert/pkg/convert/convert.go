@@ -167,18 +167,19 @@ func convert(resource runtime.Object, o *Context) ([]runtime.Object, error) {
 	case "Provisioner":
 		provisioner := resource.(*corev1alpha5.Provisioner)
 
-		var providerObj *v1beta1.EC2NodeClass
-		var err error
 		if provider := provisioner.Spec.Provider; provider != nil {
-			providerObj, err = convertProvider(provider.Raw, provisioner.Name)
+			providerObj, err := convertProvider(provider.Raw, provisioner.Name)
 			if err != nil {
 				return nil, fmt.Errorf("converting spec.provider for Provisioner, %w", err)
 			}
 			provisioner.Spec.ProviderRef = &corev1alpha5.MachineTemplateRef{
 				Name: providerObj.Name,
 			}
+
+			return []runtime.Object{convertProvisioner(provisioner, o), providerObj}, nil
 		}
-		return lo.WithoutEmpty([]runtime.Object{convertProvisioner(provisioner, o), providerObj}), nil
+
+		return []runtime.Object{convertProvisioner(provisioner, o)}, nil
 	case "AWSNodeTemplate":
 		nodeTemplate := resource.(*v1alpha1.AWSNodeTemplate)
 		nodeClass, err := convertNodeTemplate(nodeTemplate)
