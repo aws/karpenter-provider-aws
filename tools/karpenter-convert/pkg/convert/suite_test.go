@@ -105,7 +105,7 @@ var _ = Describe("Convert", func() {
 		context.FilenameOptions.Filenames = []string{"./testdata/nodetemplate_launch_template_name.yaml"}
 		err := context.RunConvert()
 		Expect(err).To(HaveOccurred())
-		Expect(err.Error()).To(Equal(`cannot convert AWSNodeTemplate with "spec.launchTemplate"`))
+		Expect(err.Error()).To(Equal(`converting AWSNodeTemplate, cannot convert with "spec.launchTemplate"`))
 	})
 	It("should ignore errors when converting an unknown kind alongside a valid kind", func() {
 		context.FilenameOptions.Filenames = []string{"./testdata/unknown_kind.yaml", "./testdata/provisioner.yaml"}
