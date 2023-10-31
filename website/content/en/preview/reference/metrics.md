@@ -130,12 +130,12 @@ Number of nodeclaims registered in total by Karpenter. Labeled by the owning nod
 ### `karpenter_nodeclaims_terminated`
 Number of nodeclaims terminated in total by Karpenter. Labeled by reason the nodeclaim was terminated and the owning nodepool.
 
-## Nodepools Metrics
+## Nodepool Metrics
 
-### `karpenter_nodepools_limit`
+### `karpenter_nodepool_limit`
 The nodepool limits are the limits specified on the provisioner that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
 
-### `karpenter_nodepools_usage`
+### `karpenter_nodepool_usage`
 The nodepool usage is the amount of resources that have been provisioned by a particular nodepool. Labeled by nodepool name and resource type.
 
 ## Provisioner Metrics
