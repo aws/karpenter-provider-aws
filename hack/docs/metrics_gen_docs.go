@@ -263,13 +263,14 @@ func getIdentMapping(identName string) (string, error) {
 		"metrics.Namespace": metrics.Namespace,
 		"Namespace":         metrics.Namespace,
 
-		"NodeSubsystem":           "nodes",
-		"metrics.NodeSubsystem":   "nodes",
-		"machineSubsystem":        "machines",
-		"nodeClaimSubsystem":      "nodeclaims",
-		"nodePoolSubsystem":       "nodepools",
+		"NodeSubsystem":         "nodes",
+		"metrics.NodeSubsystem": "nodes",
+		"machineSubsystem":      "machines",
+		"nodeClaimSubsystem":    "nodeclaims",
+		// TODO @joinnis: We should eventually change this subsystem to be
+		// plural so that it aligns with the other subsystems
+		"nodePoolSubsystem":       "nodepool",
 		"interruptionSubsystem":   "interruption",
-		"nodeTemplateSubsystem":   "nodetemplate",
 		"deprovisioningSubsystem": "deprovisioning",
 		"disruptionSubsystem":     "disruption",
 		"consistencySubsystem":    "consistency",
