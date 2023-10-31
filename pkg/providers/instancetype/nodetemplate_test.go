@@ -393,7 +393,7 @@ var _ = Describe("NodeTemplate/InstanceTypes", func() {
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		for _, ltc := range call.LaunchTemplateConfigs {
 			for _, ovr := range ltc.Overrides {
-				Expect(strings.HasSuffix(aws.StringValue(ovr.InstanceType), "metal")).To(BeFalse())
+				Expect(strings.Contains(aws.StringValue(ovr.InstanceType), "metal")).To(BeFalse())
 			}
 		}
 	})
