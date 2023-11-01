@@ -110,6 +110,9 @@ func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamW
 func (env *Environment) DefaultEC2NodeClass() *v1beta1.EC2NodeClass {
 	nodeClass := test.EC2NodeClass()
 	nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+	nodeClass.Spec.Tags = map[string]string{
+		"testing/cluster": env.ClusterName,
+	}
 	nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
 		{
 			Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
