@@ -155,7 +155,10 @@ var _ = Describe("NodeClassController", func() {
 		It("Should resolve a valid selectors for Subnet by tags", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 				{
-					Tags: map[string]string{`Name`: `test-subnet-1,test-subnet-2`},
+					Tags: map[string]string{`Name`: `test-subnet-1`},
+				},
+				{
+					Tags: map[string]string{`Name`: `test-subnet-2`},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodeClass)
