@@ -41,6 +41,7 @@ const (
 	karpenterMetricTableName = "sweeperCleanedResources"
 
 	karpenterProvisionerNameTag = "karpenter.sh/provisioner-name"
+	karpenterNodePoolTag        = "karpenter.sh/nodepool"
 	karpenterLaunchTemplateTag  = "karpenter.k8s.aws/cluster"
 	karpenterSecurityGroupTag   = "karpenter.sh/discovery"
 	// TODO @joinnis: Remove this karpenterTestingTagLegacy field after running this cleanup script for a few days
@@ -123,7 +124,7 @@ func (i *instance) Get(ctx context.Context, expirationTime time.Time) (ids []str
 				},
 				{
 					Name:   lo.ToPtr("tag-key"),
-					Values: []string{karpenterProvisionerNameTag},
+					Values: []string{karpenterProvisionerNameTag, karpenterNodePoolTag},
 				},
 			},
 			NextToken: nextToken,
