@@ -193,6 +193,12 @@ spec:
                 description: DetailedMonitoring controls if detailed monitoring is
                   enabled for instances that are launched
                 type: boolean
+              instanceProfile:
+                description: InstanceProfile is the AWS identity that instances use.
+                type: string
+                x-kubernetes-validations:
+                - message: instanceProfile cannot be empty
+                  rule: self != ''
               metadataOptions:
                 default:
                   httpEndpoint: enabled
@@ -374,7 +380,6 @@ spec:
                 type: string
             required:
             - amiFamily
-            - role
             - securityGroupSelectorTerms
             - subnetSelectorTerms
             type: object
@@ -382,6 +387,10 @@ spec:
             - message: amiSelectorTerms is required when amiFamily == 'Custom'
               rule: 'self.amiFamily == ''Custom'' ? self.amiSelectorTerms.size() !=
                 0 : true'
+            - message: role cannot be specified with instanceProfile
+              rule: '!(has(self.role) && has(self.instanceProfile))'
+            - message: expected at least one, got none, ['role', 'instanceProfile']
+              rule: has(self.role) || has(self.instanceProfile)
           status:
             description: EC2NodeClassStatus contains the resolved state of the EC2NodeClass
             properties:

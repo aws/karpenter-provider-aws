@@ -21,6 +21,7 @@ import (
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
@@ -39,6 +40,7 @@ var _ = Describe("Webhook/Validation", func() {
 		nc = &v1beta1.EC2NodeClass{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec: v1beta1.EC2NodeClassSpec{
+				Role: "test-role",
 				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
 					{
 						Tags: map[string]string{
@@ -57,6 +59,22 @@ var _ = Describe("Webhook/Validation", func() {
 		}
 	})
 
+	It("should succeed if just specifying role", func() {
+		Expect(nc.Validate(ctx)).To(Succeed())
+	})
+	It("should succeed if just specifying instance profile", func() {
+		nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+		nc.Spec.Role = ""
+		Expect(nc.Validate(ctx)).To(Succeed())
+	})
+	It("should fail if specifying both instance profile and role", func() {
+		nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+		Expect(nc.Validate(ctx)).ToNot(Succeed())
+	})
+	It("should fail if not specifying none of instance profile and role", func() {
+		nc.Spec.Role = ""
+		Expect(nc.Validate(ctx)).ToNot(Succeed())
+	})
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
 			Expect(nc.Validate(ctx)).To(Succeed())

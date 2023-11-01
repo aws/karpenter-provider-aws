@@ -62,8 +62,12 @@ type EC2NodeClassSpec struct {
 	// for the old instance profiles on an update.
 	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="immutable field changed"
-	// +required
-	Role string `json:"role"`
+	// +optional
+	Role string `json:"role,omitempty"`
+	// InstanceProfile is the AWS identity that instances use.
+	// +kubebuilder:validation:XValidation:rule="self != ''",message="instanceProfile cannot be empty"
+	// +optional
+	InstanceProfile *string `json:"instanceProfile,omitempty"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +kubebuilder:validation:XValidation:message="empty tag keys aren't supported",rule="self.all(k, k != '')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching kubernetes.io/cluster/",rule="self.all(k, !k.startsWith('kubernetes.io/cluster') )"
@@ -107,10 +111,6 @@ type EC2NodeClassSpec struct {
 	// as `launchTemplate` for backwards compatibility.
 	// +optional
 	LaunchTemplateName *string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// InstanceProfile is the AWS identity that instances use.
-	// +optional
-	InstanceProfile *string `json:"-" hash:"ignore"`
 	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
 	// OriginalSubnetSelector is the original subnet selector that was used by the v1alpha5 representation of this API.
 	// DO NOT USE THIS VALUE when performing business logic in code
@@ -321,6 +321,8 @@ type EC2NodeClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +kubebuilder:validation:XValidation:message="amiSelectorTerms is required when amiFamily == 'Custom'",rule="self.amiFamily == 'Custom' ? self.amiSelectorTerms.size() != 0 : true"
+	// +kubebuilder:validation:XValidation:message="role cannot be specified with instanceProfile",rule="!(has(self.role) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['role', 'instanceProfile']",rule="has(self.role) || has(self.instanceProfile)"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 

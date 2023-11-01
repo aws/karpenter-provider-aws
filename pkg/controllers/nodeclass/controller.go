@@ -113,8 +113,10 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
-	if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
-		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
+	if nodeClass.Spec.Role != "" {
+		if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
+			return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
+		}
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
@@ -201,11 +203,15 @@ func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1be
 	if nodeClass.IsNodeTemplate {
 		return nil
 	}
-	name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
-	if err != nil {
-		return fmt.Errorf("resolving instance profile, %w", err)
+	if nodeClass.Spec.Role != "" {
+		name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
+		if err != nil {
+			return fmt.Errorf("resolving instance profile, %w", err)
+		}
+		nodeClass.Status.InstanceProfile = name
+	} else {
+		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
-	nodeClass.Status.InstanceProfile = name
 	return nil
 }
 

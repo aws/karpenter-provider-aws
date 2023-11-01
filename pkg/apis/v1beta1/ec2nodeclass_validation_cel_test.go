@@ -21,6 +21,7 @@ import (
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -59,6 +60,22 @@ var _ = Describe("CEL/Validation", func() {
 				},
 			},
 		}
+	})
+	It("should succeed if just specifying role", func() {
+		Expect(env.Client.Create(ctx, nc)).To(Succeed())
+	})
+	It("should succeed if just specifying instance profile", func() {
+		nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+		nc.Spec.Role = ""
+		Expect(env.Client.Create(ctx, nc)).To(Succeed())
+	})
+	It("should fail if specifying both instance profile and role", func() {
+		nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+		Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+	})
+	It("should fail if not specifying none of instance profile and role", func() {
+		nc.Spec.Role = ""
+		Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 	})
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
