@@ -68,7 +68,7 @@ echo $KARPENTER_VERSION $K8S_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCO
 Create a basic cluster with `eksctl`.
 The following cluster configuration will:
 
-* Use CloudFormation to set up the infrastructure needed by the EKS cluster.
+* Use CloudFormation to set up the infrastructure needed by the EKS cluster. See [CloudFormation]({{< relref "../../reference/cloudformation/" >}}) for a complete description of what `cloudformation.yaml` does for Karpenter.
 * Create a Kubernetes service account and AWS IAM Role, and associate them using IRSA to let Karpenter launch instances.
 * Add the Karpenter node role to the aws-auth configmap to allow nodes to connect.
 * Use [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces. Uncomment fargateProfiles settings (and comment out managedNodeGroups settings) to use Fargate for both namespaces instead.
