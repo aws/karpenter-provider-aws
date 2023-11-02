@@ -73,8 +73,8 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if err := c.kubeClient.List(ctx, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
-	resolvedProviderIDs := sets.New[string](lo.Map(nodeClaimList.Items, func(n v1beta1.NodeClaim, _ int) string {
-		return n.Status.ProviderID
+	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n v1beta1.NodeClaim, _ int) (string, bool) {
+		return n.Status.ProviderID, n.Status.ProviderID != ""
 	})...)
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 100, len(managedRetrieved), func(i int) {

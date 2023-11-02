@@ -88,7 +88,7 @@ func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance
 	}
 }
 
-// Create a nodeClaim given the constraints.
+// Create a NodeClaim given the constraints.
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*corev1beta1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
@@ -117,7 +117,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 	return nc, nil
 }
 
-// Link adds a tag to the cloudprovider nodeClai to tell the cloudprovider that it's now owned by a nodeClaim
+// Link adds a tag to the cloudprovider NodeClaim to tell the cloudprovider that it's now owned by a nodeClaim
 func (c *CloudProvider) Link(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(lo.Ternary(nodeClaim.IsMachine, "machine", "nodeclaim"), nodeClaim.Name))
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
@@ -320,10 +320,6 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
 	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType
-	if v, ok := i.Tags[v1alpha5.ProvisionerNameLabelKey]; ok {
-		labels[v1alpha5.ProvisionerNameLabelKey] = v
-		nodeClaim.IsMachine = true
-	}
 	if v, ok := i.Tags[corev1beta1.NodePoolLabelKey]; ok {
 		labels[corev1beta1.NodePoolLabelKey] = v
 	}
