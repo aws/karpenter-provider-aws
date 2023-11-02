@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/patrickmn/go-cache"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -36,9 +35,7 @@ import (
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/metrics"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
-	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
@@ -109,40 +106,7 @@ func (c *Controller) link(ctx context.Context, retrieved *v1beta1.NodeClaim, exi
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
 		return client.IgnoreNotFound(err)
 	}
-	if c.shouldCreateLinkedMachine(retrieved, existingMachines) {
-		machine := machineutil.New(&v1.Node{}, provisioner)
-		machine.GenerateName = fmt.Sprintf("%s-", provisioner.Name)
-		// This annotation communicates to the machine controller that this is a machine linking scenario, not
-		// a case where we want to provision a new machine
-		machine.Annotations = lo.Assign(machine.Annotations, map[string]string{
-			v1alpha5.MachineLinkedAnnotationKey: retrieved.Status.ProviderID,
-		})
-		if err := c.kubeClient.Create(ctx, machine); err != nil {
-			return err
-		}
-		logging.FromContext(ctx).With("machine", machine.Name).Debugf("generated cluster machine from cloudprovider")
-		metrics.MachinesCreatedCounter.With(prometheus.Labels{
-			metrics.ReasonLabel:      creationReasonLabel,
-			metrics.ProvisionerLabel: machine.Labels[v1alpha5.ProvisionerNameLabelKey],
-		}).Inc()
-		c.Cache.SetDefault(retrieved.Status.ProviderID, nil)
-	}
 	return corecloudprovider.IgnoreNodeClaimNotFoundError(c.cloudProvider.Link(ctx, retrieved))
-}
-
-func (c *Controller) shouldCreateLinkedMachine(retrieved *v1beta1.NodeClaim, existingMachines []v1alpha5.Machine) bool {
-	// Machine was already created but controller-runtime cache didn't update
-	if _, ok := c.Cache.Get(retrieved.Status.ProviderID); ok {
-		return false
-	}
-	// We have a machine registered for this, so no need to hydrate it
-	if _, ok := lo.Find(existingMachines, func(m v1alpha5.Machine) bool {
-		return m.Annotations[v1alpha5.MachineLinkedAnnotationKey] == retrieved.Status.ProviderID ||
-			m.Status.ProviderID == retrieved.Status.ProviderID
-	}); ok {
-		return false
-	}
-	return true
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) controller.Builder {
