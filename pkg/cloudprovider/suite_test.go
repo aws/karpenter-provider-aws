@@ -36,6 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
@@ -107,7 +108,6 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
-
 
 var _ = Describe("CloudProvider", func() {
 	var nodeClass *v1beta1.EC2NodeClass
