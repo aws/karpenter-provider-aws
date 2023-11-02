@@ -106,7 +106,6 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-
 var _ = Describe("InstanceTypes", func() {
 	var nodeClass, windowsNodeClass *v1beta1.EC2NodeClass
 	var nodePool, windowsNodePool *corev1beta1.NodePool
@@ -1555,7 +1554,6 @@ var _ = Describe("InstanceTypes", func() {
 		})
 	})
 })
-
 
 // generateSpotPricing creates a spot price history output for use in a mock that has all spot offerings discounted by 50%
 // vs the on-demand offering.

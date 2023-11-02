@@ -110,7 +110,6 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-
 var _ = Describe("LaunchTemplates", func() {
 	var nodePool *corev1beta1.NodePool
 	var nodeClass *v1beta1.EC2NodeClass
@@ -1726,7 +1725,6 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 	})
 })
-
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
 func ExpectTags(tags []*ec2.Tag, expected map[string]string) {

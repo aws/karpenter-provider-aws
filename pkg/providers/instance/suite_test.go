@@ -80,7 +80,6 @@ var _ = BeforeEach(func() {
 	awsEnv.Reset()
 })
 
-
 var _ = Describe("InstanceProvider", func() {
 	var nodeClass *v1beta1.EC2NodeClass
 	var nodePool *corev1beta1.NodePool
