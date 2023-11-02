@@ -24,7 +24,6 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
 	"knative.dev/pkg/logging"
@@ -39,8 +38,6 @@ import (
 	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 )
-
-const creationReasonLabel = "linking"
 
 type Controller struct {
 	kubeClient    client.Client
@@ -91,7 +88,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	})
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 100, len(retrieved), func(i int) {
-		errs[i] = c.link(ctx, retrieved[i], machineList.Items)
+		errs[i] = c.link(ctx, retrieved[i])
 	})
 	if err = multierr.Combine(errs...); err != nil {
 		return reconcile.Result{}, err
@@ -100,12 +97,8 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	return reconcile.Result{RequeueAfter: math.MaxInt64}, nil
 }
 
-func (c *Controller) link(ctx context.Context, retrieved *v1beta1.NodeClaim, existingMachines []v1alpha5.Machine) error {
+func (c *Controller) link(ctx context.Context, retrieved *v1beta1.NodeClaim) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", retrieved.Status.ProviderID, "provisioner", retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]))
-	provisioner := &v1alpha5.Provisioner{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: retrieved.Labels[v1alpha5.ProvisionerNameLabelKey]}, provisioner); err != nil {
-		return client.IgnoreNotFound(err)
-	}
 	return corecloudprovider.IgnoreNodeClaimNotFoundError(c.cloudProvider.Link(ctx, retrieved))
 }
 
