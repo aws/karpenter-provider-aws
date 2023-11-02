@@ -117,7 +117,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 	return nc, nil
 }
 
-// Link adds a tag to the cloudprovider NodeClaim to tell the cloudprovider that it's now owned by a nodeClaim
+// Link adds a tag to the cloudprovider NodeClaim to tell the cloudprovider that it's now owned by a NodeClaim
 func (c *CloudProvider) Link(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(lo.Ternary(nodeClaim.IsMachine, "machine", "nodeclaim"), nodeClaim.Name))
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
