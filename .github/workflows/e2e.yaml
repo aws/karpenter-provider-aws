@@ -25,16 +25,6 @@ on:
           - Beta/Chaos
           - Beta/IPv6
           - Beta/Scale
-          - Alpha/Integration
-          - Alpha/Machine
-          - Alpha/Consolidation
-          - Alpha/Utilization
-          - Alpha/Interruption
-          - Alpha/Drift
-          - Alpha/Expiration
-          - Alpha/Chaos
-          - Alpha/IPv6
-          - Alpha/Scale
       k8s_version:
         type: choice
         options:

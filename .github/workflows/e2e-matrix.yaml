@@ -64,14 +64,6 @@ jobs:
           - Beta/Expiration
           - Beta/Chaos
           - Beta/IPv6
-          - Alpha/Integration
-          - Alpha/Machine
-          - Alpha/Consolidation
-          - Alpha/Interruption
-          - Alpha/Drift
-          - Alpha/Expiration
-          - Alpha/Chaos
-          - Alpha/IPv6
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
