@@ -36,6 +36,7 @@ runs:
         go-version-file: test/hack/cleanup/go.mod
         cache-dependency-path: test/hack/cleanup/go.sum
         check-latest: true
+        cache: false
     - name: "Run cleanup script"
       run: |
         go run main.go ${{ inputs.cluster_name }}
