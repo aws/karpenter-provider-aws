@@ -135,8 +135,7 @@ status:
   licenses:
   - arn:aws:license-manager:us-west-2:111122223333:license/lic-123456789
   hostResourceGroup:
-    name: my-hrg
-    arn:aws:resource-groups:us-west-2:111122223333:group/my-hrg
+    arn: arn:aws:resource-groups:us-west-2:111122223333:group/my-hrg
   placementGroup:
   - arn:aws:ec2:us-west-2:111122223333:group/my-placement-group
 ```
@@ -940,8 +939,7 @@ spec:
   - name: my-hrg
 status:
   hostResourceGroup:
-    name: my-hrg
-    arn:aws:resource-groups:us-west-2:111122223333:group/my-hrg
+    arn: arn:aws:resource-groups:us-west-2:111122223333:group/my-hrg
 ```
 
 

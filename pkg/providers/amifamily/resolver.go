@@ -205,7 +205,7 @@ func (r Resolver) resolvePlacement(nodeClass *v1beta1.EC2NodeClass) *Placement {
 		}
 
 		if hrg != nil {
-			placement.HostResourceGroup = hrg.Name
+			placement.HostResourceGroup = hrg.ARN
 		}
 	}
 

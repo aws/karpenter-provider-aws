@@ -282,6 +282,7 @@ func generatePlacement(placement *amifamily.Placement) *ec2.LaunchTemplatePlacem
 		return nil
 	}
 	return &ec2.LaunchTemplatePlacementRequest{
+		GroupName:            aws.String(placement.PlacementGroup),
 		HostResourceGroupArn: aws.String(placement.HostResourceGroup),
 	}
 

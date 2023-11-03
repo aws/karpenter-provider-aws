@@ -70,7 +70,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*v
 		for i := range page.GroupIdentifiers {
 			for x := range selectors {
 				if *page.GroupIdentifiers[i].GroupName == selectors[x].Name {
-					match = &v1beta1.HostResourceGroup{ARN: *page.GroupIdentifiers[i].GroupArn, Name: *page.GroupIdentifiers[i].GroupName}
+					match = &v1beta1.HostResourceGroup{ARN: *page.GroupIdentifiers[i].GroupArn}
 					p.cache.SetDefault(fmt.Sprint(hash), match)
 					return false
 				}

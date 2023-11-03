@@ -483,9 +483,6 @@ spec:
                   arn:
                     description: Arn of the HRG
                     type: string
-                  name:
-                    description: Name of the HRG
-                    type: string
                 type: object
               instanceProfile:
                 description: InstanceProfile contains the resolved instance profile

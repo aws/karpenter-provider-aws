@@ -92,26 +92,27 @@ var _ = AfterEach(func() {
 var _ = Describe("HostResourceGroupProvider", func() {
 	Context("Get", func() {
 		It("should discover host resource groups by name", func() {
-			expected := &v1beta1.HostResourceGroup{ARN: "expected-group-arn", Name: "expected-group-name"}
+			expectedArn := "arn:aws:resource-groups:us-west-2:111122223333:group/my-hrg"
+			expectedName := "my-hrg"
 			awsEnv.ResourceGroupsAPI.ListGroupsBehavior.Output.Set(&resourcegroups.ListGroupsOutput{
 				GroupIdentifiers: []*resourcegroups.GroupIdentifier{
-					{GroupArn: aws.String(expected.ARN), GroupName: aws.String(expected.Name)},
+					{GroupArn: aws.String(expectedArn), GroupName: aws.String(expectedName)},
 				},
 			})
 			nodeClass.Spec.HostResourceGroupSelectorTerms = []v1beta1.HostResourceGroupSelectorTerm{
 				{
-					Name: expected.Name,
+					Name: expectedName,
 				},
 			}
 			hrgs, err := awsEnv.HostResourceGroupProvider.Get(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			Expect(hrgs).To(Equal(expected))
+			Expect(hrgs.ARN).To(Equal(expectedArn))
 		})
 		It("should filter only matching groups", func() {
-			expected := &v1beta1.HostResourceGroup{ARN: "expected-group-arn", Name: "expected-group-name"}
+			expected := &v1beta1.HostResourceGroup{ARN: "expected-group-arn"}
 			awsEnv.ResourceGroupsAPI.ListGroupsBehavior.Output.Set(&resourcegroups.ListGroupsOutput{
 				GroupIdentifiers: []*resourcegroups.GroupIdentifier{
-					{GroupArn: aws.String(expected.ARN), GroupName: aws.String(expected.Name)},
+					{GroupArn: aws.String(expected.ARN), GroupName: aws.String("")},
 				},
 			})
 			nodeClass.Spec.HostResourceGroupSelectorTerms = []v1beta1.HostResourceGroupSelectorTerm{

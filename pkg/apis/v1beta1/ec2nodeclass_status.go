@@ -51,9 +51,6 @@ type AMI struct {
 
 // HostResourceGroup contains the resolved host resource group name and arn for node launch
 type HostResourceGroup struct {
-	// Name of the HRG
-	// +optional
-	Name string `json:"name,omitempty"`
 	// Arn of the HRG
 	// +optional
 	ARN string `json:"arn,omitempty"`
