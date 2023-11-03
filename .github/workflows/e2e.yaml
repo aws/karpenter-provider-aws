@@ -16,15 +16,15 @@ on:
         type: choice
         required: true
         options:
-          - Beta/Integration
-          - Beta/NodeClaim
-          - Beta/Consolidation
-          - Beta/Interruption
-          - Beta/Drift
-          - Beta/Expiration
-          - Beta/Chaos
-          - Beta/IPv6
-          - Beta/Scale
+          - Integration
+          - NodeClaim
+          - Consolidation
+          - Interruption
+          - Drift
+          - Expiration
+          - Chaos
+          - IPv6
+          - Scale
       k8s_version:
         type: choice
         options:
