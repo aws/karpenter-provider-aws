@@ -121,7 +121,7 @@ func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string
 	var instanceProfile iam.InstanceProfile
 	Eventually(func(g Gomega) {
 		instanceProfile = env.ExpectInstanceProfileExists(profileName)
-	}).WithTimeout(2 * time.Minute).Should(Succeed())
+	}).WithTimeout(20 * time.Second).Should(Succeed())
 	Expect(instanceProfile.InstanceProfileName).ToNot(BeNil())
 }
 
