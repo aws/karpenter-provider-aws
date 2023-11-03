@@ -56,14 +56,14 @@ jobs:
       max-parallel: ${{ inputs.parallelism || 100 }}
       matrix:
         suite:
-          - Beta/Integration
-          - Beta/NodeClaim
-          - Beta/Consolidation
-          - Beta/Interruption
-          - Beta/Drift
-          - Beta/Expiration
-          - Beta/Chaos
-          - Beta/IPv6
+          - Integration
+          - NodeClaim
+          - Consolidation
+          - Interruption
+          - Drift
+          - Expiration
+          - Chaos
+          - IPv6
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
