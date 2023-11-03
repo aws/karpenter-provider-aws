@@ -35,7 +35,7 @@ import (
 var _ = Describe("Tags", func() {
 	Context("Static Tags", func() {
 		It("should tag all associated resources", func() {
-			nodeClass.Spec.Tags = map[string]string{"TestTag": "TestVal"}
+			nodeClass.Spec.Tags["TestTag"] = "TestVal"
 			pod := coretest.Pod()
 
 			env.ExpectCreated(pod, nodeClass, nodePool)
@@ -72,7 +72,7 @@ var _ = Describe("Tags", func() {
 
 		It("shouldn't overwrite custom Name tags", func() {
 			nodeClass = test.EC2NodeClass(*nodeClass, v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
-				Tags: map[string]string{"Name": "custom-name"},
+				Tags: map[string]string{"Name": "custom-name", "testing/cluster": env.ClusterName},
 			}})
 			nodePool = coretest.NodePool(*nodePool, corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{

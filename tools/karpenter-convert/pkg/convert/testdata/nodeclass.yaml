@@ -34,10 +34,10 @@ spec:
   role: $KARPENTER_NODE_ROLE
   securityGroupSelectorTerms:
   - tags:
-      karpenter.sh/discovery: $MY_CLUSTER_NAME
+      karpenter.sh/discovery: karpenter-demo
   subnetSelectorTerms:
   - tags:
-      karpenter.sh/discovery: $MY_CLUSTER_NAME
+      karpenter.sh/discovery: karpenter-demo
   tags:
     MyBackupTag: "yes"
     MyTag: "1234"

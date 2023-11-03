@@ -19,7 +19,7 @@ inputs:
     default: "1.28"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.163.0
+    default: v0.164.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     required: false
@@ -30,12 +30,6 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - name: configure aws credentials
-    uses: aws-actions/configure-aws-credentials@v4.0.1
-    with:
-      role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
-      aws-region: ${{ inputs.region }}
-      role-duration-seconds: 21600
   - uses: actions/checkout@v4
     with:
       ref: ${{ inputs.git_ref }}

@@ -33,11 +33,12 @@ jobs:
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e.yaml
     with:
-      suite: Scale
+      suite: Beta/Scale
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
       region: ${{ inputs.region || 'us-west-2' }}
       enable_metrics: ${{ inputs.enable_metrics || true }}
       workflow_trigger: "scale"
-      cleanup: ${{ inputs.cleanup || true }}
+      # Default to true unless using a workflow_dispatch
+      cleanup: ${{ github.event_name != 'workflow_dispatch' && true || inputs.cleanup }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

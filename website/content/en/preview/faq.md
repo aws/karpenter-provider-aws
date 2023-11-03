@@ -31,6 +31,9 @@ All the required RBAC rules can be found in the helm chart template. See [cluste
 ### Can I run Karpenter outside of a Kubernetes cluster?
 Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes API and your provider API.
 
+### What do I do if I encounter a security issue with Karpenter?
+Refer to [Reporting Security Issues](https://github.com/aws/karpenter/security/policy) for information on how to report Karpenter security issues. Do not create a public GitHub issue.
+
 ## Compatibility
 
 ### Which versions of Kubernetes does Karpenter support?

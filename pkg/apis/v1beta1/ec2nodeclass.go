@@ -70,6 +70,7 @@ type EC2NodeClassSpec struct {
 	// Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
 	// This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
 	// for the old instance profiles on an update.
+	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="immutable field changed"
 	// +required
 	Role string `json:"role"`

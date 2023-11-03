@@ -37,6 +37,14 @@ linters-settings:
     min-complexity: 11
   govet:
     check-shadowing: true
+  revive:
+    rules:
+    - name: dot-imports
+      disabled: true
+  stylecheck:
+    dot-import-whitelist:
+      - "github.com/onsi/ginkgo/v2"
+      - "github.com/onsi/gomega"
   misspell:
     locale: US
     ignore-words: []

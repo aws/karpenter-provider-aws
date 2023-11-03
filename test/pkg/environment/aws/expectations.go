@@ -28,8 +28,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/mitchellh/hashstructure/v2"
-	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
-	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -270,7 +270,7 @@ func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 		go func(m interface{}) {
 			defer wg.Done()
 			defer GinkgoRecover()
-			_, e := env.SQSProvider.SendMessage(env.Environment.Context, m)
+			_, e := env.SQSProvider.SendMessage(env.Context, m)
 			if e != nil {
 				mu.Lock()
 				err = multierr.Append(err, e)

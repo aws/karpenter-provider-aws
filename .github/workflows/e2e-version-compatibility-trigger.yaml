@@ -1,0 +1,44 @@
+name: E2EVersionCompatibilityTrigger
+on:
+  schedule:
+    # The test will run every Monday at 12:07 AM UTC
+    - cron: '7 0 * * 1'
+  workflow_run:
+    workflows: [ApprovalComment]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      region:
+        required: true
+        default: 'eu-west-1'
+        type: choice
+        options:
+          - "us-east-1"
+          - "eu-west-1"
+      cleanup:
+        required: true
+        default: true
+        type: boolean
+jobs:
+  resolve:
+    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
+    uses: ./.github/workflows/resolve-args.yaml
+    with:
+      allowed_comment: "versionCompatibility"
+  versionCompatibility:
+    needs: [resolve]
+    if: needs.resolve.outputs.SHOULD_RUN == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        k8s_version: [ "1.23", "1.24", "1.25", "1.26", "1.27", "1.28" ]
+    uses: ./.github/workflows/e2e-matrix.yaml
+    with:
+      region: ${{ inputs.region || 'eu-west-1' }}
+      k8s_version: ${{ matrix.k8s_version }}
+      workflow_trigger: "versionCompatibility"
+      # Default to true unless using a workflow_dispatch
+      cleanup: ${{ github.event_name != 'workflow_dispatch' && true || inputs.cleanup }}
+      parallelism: 2
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

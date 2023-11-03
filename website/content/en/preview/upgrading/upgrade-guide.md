@@ -13,11 +13,10 @@ This guide contains information needed to upgrade to the latest release of Karpe
 ### CRD Upgrades
 
 Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are published:
-* As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs.
-    * To upgrade or install `karpenter-crd` run:
-      ```
-      helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
-      ```
+* As an independent helm chart [karpenter-crd](https://gallery.ecr.aws/karpenter/karpenter-crd) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter-crd) that can be used by Helm to manage the lifecycle of these CRDs. To upgrade or install `karpenter-crd` run:
+  ```bash
+  helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version vx.y.z --namespace karpenter --create-namespace
+  ```
 
 {{% alert title="Note" color="warning" %}}
 If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-upgrading-from-older-karpenter-version" >}}) for details on how to resolve these errors.
@@ -35,198 +34,18 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 
 ### Upgrading to v0.32.0+
 
-#### v1beta1 Migration
+{{% alert title="Warning" color="warning" %}}
+Karpenter v0.32.0 introduces v1beta1 APIs, including _significant_ changes to the API and installation procedures for the Karpenter controllers. Do not upgrade to v0.32.0+ without referencing the [v1beta1 Migration Upgrade Procedure]({{<ref "v1beta1-migration#upgrade-procedure" >}}).
 
-Here is some information you should know about upgrading the Karpenter controller to v0.32.x:
-
-* **Towards a v1 release**: The latest version of Karpenter sets the stage for Karpenter v1. Karpenter v0.32.x implements the Karpenter v1beta1 API spec. The intention is to have v1beta1 be used as the v1 spec, with only minimal changes needed.
-* **Path to upgrading**: This procedure assumes that you are upgrading from Karpenter v0.31.x to v0.32.x. If you are on an earlier version of Karpenter, review the [Release Upgrade Notes]({{< relref "#release-upgrade-notes" >}}) for earlier versions' breaking changes.
-* **Enhancing and renaming components**: For v1beta1, APIs have been enhanced to improve and solidify Karpenter APIs. Part of these enhancements includes renaming the Kinds for all Karpenter CustomResources. The following name changes have been made:
-   * Provisioner -> NodePool
-   * Machine -> NodeClaim
-   * AWSNodeTemplate -> EC2NodeClass
-* **Running v1alpha1 alongside v1beta1**: Having different Kind names for v1alpha5 and v1beta1 allows them to coexist for the same Karpenter controller for v0.32.x. This gives you time to transition to the new v1beta1 APIs while existing Provisioners and other objects stay in place. Keep in mind that there is no guarantee that the two versions will be able to coexist in future Karpenter versions.
-
-Some things that will help you with this upgrade include:
-
-* **[v1beta1 Upgrade Reference]({{< relref "v1beta1-reference" >}})**: Provides a complete reference to help you transition your Provisioner, Machine, and AWSNodeTemplate manifests, as well as other components, to be able to work with the new v1beta1 names, labels, and other elements.
-* **[Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert)**: Simplifies the creation of NodePool and EC2NodeClass manifests.
-
-##### Procedure
-
-This procedure assumes you are running the Karpenter controller on cluster and want to upgrade that cluster to v0.32.x.
-
-**NOTE**: Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so you should carefully evaluate your cluster and workloads before proceeding.
-
-
-#### Prerequisites
-
-To upgrade your provisioner and AWSNodeTemplate YAML files to be compatible with v1beta1, you can either update them manually or use the [karpenter-convert](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert) CLI tool. To install that tool:
-
-```bash
-go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@latest
-```
-Add `~/go/bin` to your $PATH, if you have not already done so.
-
-1. Determine the current cluster version: Run the following to make sure that your Karpenter version is v0.31.x:
-   ```bash
-   kubectl get pod -A | grep karpenter
-   kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image: | grep v0.....
-   ```
-   Sample output:
-   ```bash
-   Image: public.ecr.aws/karpenter/controller:v0.31.0@sha256:d29767fa9c5c0511a3812397c932f5735234f03a7a875575422b712d15e54a77
-   ```
-
-   {{% alert title="Warning" color="primary" %}}
-   v0.31.2 introduces minor changes to Karpenter so that rollback from v0.32.0 is supported. If you are coming from some other patch version of minor version v0.31.x, note that v0.31.2 is the _only_ patch version that supports rollback.
-   {{% /alert %}}
-
-2. Review for breaking changes: If you are already running Karpenter v0.31.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the upgrade notes for each minor release.
-
-3. Set environment variables for your cluster:
-
-    ```bash
-    export KARPENTER_VERSION=v0.32.0
-    export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
-    export CLUSTER_NAME="${USER}-karpenter-demo"
-    export AWS_REGION="us-west-2"
-    export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-    export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
-    export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
-    ```
-
-4. Apply the new Karpenter policy and assign it to the existing Karpenter role:
-
-    ```bash
-    TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
-    
-    AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION}
-    POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
-    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
-    ROLE_NAME="${CLUSTER_NAME}-karpenter"
-    
-    POLICY_ARN=$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "${POLICY_DOCUMENT}" | jq -r .Policy.Arn)
-    aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
-    ```
-
-5. Apply the v0.32.0 Custom Resource Definitions (CRDs):
-
-   ```bash
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodepools.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
-    ```
-
-6. Upgrade Karpenter to the new version:
-
-    ```bash
-    helm registry logout public.ecr.aws
-    
-    helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace karpenter --create-namespace \
-      --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
-      --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-      --set settings.clusterName=${CLUSTER_NAME} \
-      --set settings.interruptionQueue=${CLUSTER_NAME} \
-      --set controller.resources.requests.cpu=1 \
-      --set controller.resources.requests.memory=1Gi \
-      --set controller.resources.limits.cpu=1 \
-      --set controller.resources.limits.memory=1Gi \
-      --wait
-    ```
-
-   {{% alert title="Note" color="warning" %}}
-   Karpenter has deprecated and moved a number of Helm values as part of the v1beta1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1beta1. You can find detail for all the settings that were moved in the [v1beta1 Upgrade Reference]({{<ref "v1beta1-reference#helm-values" >}}).
-   {{% /alert %}}
-
-7. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [Karpenter conversion tool](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert).
-   See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-reference#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects. Here is an example of how to use the `karpenter-convert` CLI to convert an AWSNodeTemplate file to a EC2NodeClass file:
-
-    ```bash
-    karpenter-convert -f awsnodetemplate.yaml > ec2nodeclass.yaml
-    ```
-
-8. Edit the converted EC2NodeClass file manually:
-
-   * Specify your AWS role where there is a `$KARPENTER_NODE_ROLE` placeholder. For example, if you created your cluster using the [Getting Started with Karpenter](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/) guide, you would use the name `KarpenterNodeRole-$CLUSTER_NAME`, substituting your cluster name for `$CLUSTER_NAME`.
-   * Otherwise, check the file for accuracy.
-
-9. When you are satisfied with your EC2NodeClass file, apply it as follows:
-
-    ```bash
-    kubectl apply -f ec2nodeclass.yaml
-    ```
-
-10. Convert each Provisioner to a NodePool. Again, either manually update your Provisioner manifests or use the karpenter-convert CLI tool:
-
-    ```bash
-    karpenter-convert -f provisioner.yaml > nodepool.yaml
-    ```
-
-11. When you are satisfied with your NodePool file, apply it as follows:
-
-    ```bash
-    kubectl apply -f nodepool.yaml
-    ```
-
-12. Roll over nodes: With the new NodePool yaml in hand, there are several ways you can begin to roll over your nodes to use the new NodePool:
-
-   * Periodic Rolling with [Drift]({{< relref "../concepts/disruption#drift" >}}): Enable [drift]({{< relref "../concepts/disruption#drift" >}}) in your NodePool file, then do the following:
-      - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
-      - Wait as Karpenter marks all machines owned by that Provisioner as having drifted.
-      - Watch as replacement nodes are launched from the new NodePool resource.
-
-     Because Karpenter will only roll of one node at a time, it may take some time for Karpenter to completely roll all nodes under a Provisioner.
-
-   * Forced Deletion: For each Provisioner in your cluster:
-
-      - Delete the old Provisioner with: `kubectl delete provisioner <provisioner-name> --cascade=foreground`
-      - Wait as Karpenter deletes all the Provisioner's nodes. All nodes will drain simultaneously. New nodes are launched after the old ones have been drained.
-
-   * Manual Rolling: For each Provisioner in your cluster:
-      - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
-      - For all the nodes owned by the Provisioner, delete one at a time as follows: `kubectl delete node <node-name>`
-
-13. Update workload labels: Old alpha labels (`karpenter.sh/do-not-consolidate` and `karpenter.sh/do-not-evict`) are deprecated, but will not be dropped until Karpenter v1. However, you can begin updating those labels at any time with `karpenter.sh/do-not-disrupt`. Any pods that specified a `karpenter.sh/provisioner-name:DoesNotExist` requirement also need to add a `karpenter.sh/nodepool:DoesNotExist` requirement to ensure that the pods continue to not schedule to nodes unmanaged by Karpenter while migrating to v1beta1.
-
-14. Check that there are no more Provisioner, AWSNodeTemplate, or Machine resources on your cluster. at which time you can delete the old CRDs. To validate this, run the following command and ensure that there are no outputs to any of them:
-
-    ```bash
-    kubectl get machines
-    kubectl get awsnodetemplates
-    kubectl get provisioners
-    ```
-
-15. Remove the alpha Karpenter CRDs from the cluster.
-
-    ```bash
-    kubectl delete crd machines.karpenter.sh
-    kubectl delete crd awsnodetemplates.karpenter.k8s.aws
-    kubectl delete crd provisioners.karpenter.sh
-    ```
-   
-16. Finally, remove the alpha policy from the controller role: This will remove any remaining permissions from the alpha APIs. You can orchestrate the removal of this policy with the following command:
-
-    ```bash
-    ROLE_NAME="${CLUSTER_NAME}-karpenter"
-    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}"
-    POLICY_ARN=$(aws iam list-policies --query 'Policies[?PolicyName==`KarpenterControllerPolicy-scale-test`].Arn' --output text)
-    aws iam detach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
-    ```
-
-{{% alert title="Note" color="warning" %}}
-
-If you are using some IaC for managing your policy documents attached to the controller role, you may want to attach this new beta policy to the same CloudFormation stack. You can do this by removing the old alpha policy, ensuring that the Karpenter controller continues to work with just the beta policy, and then updating the stack to contain the new beta policy rather than having that policy managed separately.
-
+Additionally, if rolling back after upgrading to v0.32.0, note that v0.31.2 is the only version that supports handling rollback after you have deployed the v1beta1 APIs to your cluster.
 {{% /alert %}}
-   
-#### Additional Release Notes
 
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
 * Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
 * Karpenter now moves all logging configuration for the Zap logger into the `logConfig` values block. Configuring Karpenter logging with this mechanism _is_ deprecated and will be dropped at v1. Karpenter now only surfaces logLevel through the `logLevel` helm value. If you need more advanced configuration due to log parsing constraints, we recommend configuring your log parser to handle Karpenter's Zap JSON logging.
 * The default log encoding changed from `console` to `json`. If you were previously not setting the type of log encoding, this default will change with the helm chart. If you were setting the value through `logEncoding`, this value will continue to work until v0.33.x but it is deprecated in favor of `logConfig.logEncoding`
+* Karpenter now uses the `karpenter.sh/disruption:NoSchedule=disrupting` taint instead of the upstream `node.kubernetes.io/unschedulable` taint for nodes spawned with a NodePool to prevent pods from scheduling to nodes being disrupted. Pods that previously tolerated the `node.kubernetes.io/unschedulable` taint that previously weren't evicted during temrination will now be evicted. This most notably affects DaemonSets, which have the `node.kubernetes.io/unschedulable` toleration by default, where Karpenter will now remove these pods during termination. If you want your specific pods to not be evicted when nodes are scaled down, you should add a toleration to the pods with the following: `Key=karpenter.sh/disruption, Effect=NoSchedule, Operator=Equals, Values=disrupting`.
+  * Note: Karpenter will continue to use the old `node.kubernetes.io/unschedulable` taint for nodes spawned with a Provisioner.
 
 ### Upgrading to v0.31.0+
 
@@ -235,8 +54,8 @@ If you are using some IaC for managing your policy documents attached to the con
 ### Upgrading to v0.30.0+
 
 * Karpenter will now [statically drift]({{<ref "../concepts/disruption#drift" >}}) on both Provisioner and AWSNodeTemplate Fields. For Provisioner Static Drift, the `karpenter.sh/provisioner-hash` annotation must be present on both the Provisioner and Machine. For AWSNodeTemplate drift, the `karpenter.k8s.aws/nodetemplate-hash` annotation must be present on the AWSNodeTemplate and Machine. Karpenter will not add these annotations to pre-existing nodes, so each of these nodes will need to be recycled one time for the annotations to be added.
-* Karpenter will now fail validation on AWSNodeTemplates and Provisioner `spec.provider` that have `amiSelectors`, `subnetSelectors`, or `securityGroupSelectors` set with a combination of id selectors (`aws-ids`, `aws::ids`) and other selectors. 
-* Karpenter now statically sets the `securityContext` at both the pod and container-levels and doesn't allow override values to be passed through the helm chart. This change was made to adhere to [Restricted Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted), which follows pod hardening best practices. 
+* Karpenter will now fail validation on AWSNodeTemplates and Provisioner `spec.provider` that have `amiSelectors`, `subnetSelectors`, or `securityGroupSelectors` set with a combination of id selectors (`aws-ids`, `aws::ids`) and other selectors.
+* Karpenter now statically sets the `securityContext` at both the pod and container-levels and doesn't allow override values to be passed through the helm chart. This change was made to adhere to [Restricted Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted), which follows pod hardening best practices.
 
 {{% alert title="Note" color="primary" %}}
 If you have sidecar containers configured to run alongside Karpenter that cannot tolerate the [pod-wide `securityContext` constraints](https://github.com/aws/karpenter/blob/v0.30.0/charts/karpenter/templates/deployment.yaml#L40), you will need to specify overrides to the sidecar `securityContext` in your deployment.
@@ -338,7 +157,7 @@ kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
 
 ### Upgrading to v0.19.0+
 * The karpenter webhook and controller containers are combined into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
-* Karpenter now supports native interruption handling. If you were previously using Node Termination Handler for spot interruption handling and health events, you will need to remove the component from your cluster before enabling `aws.interruptionQueueName`. For more details on Karpenter's interruption handling, see the [Interruption Handling Docs]({{< ref "../concepts/disruption/#interruption" >}}). 
+* Karpenter now supports native interruption handling. If you were previously using Node Termination Handler for spot interruption handling and health events, you will need to remove the component from your cluster before enabling `aws.interruptionQueueName`. For more details on Karpenter's interruption handling, see the [Interruption Handling Docs]({{< ref "../concepts/disruption/#interruption" >}}).
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
 * Karpenter CRD raw YAML URLs have migrated from `https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}charts/karpenter/crds/...` to `https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/...`. If you reference static Karpenter CRDs or rely on `kubectl replace -f` to apply these CRDs from their remote location, you will need to migrate to the new location.
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: "true"` annotation to the pods in question.
@@ -414,7 +233,7 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
 * v0.14.0 deprecates the `AWS_ENI_LIMITED_POD_DENSITY` environment variable in-favor of specifying `spec.kubeletConfiguration.maxPods` on the Provisioner. `AWS_ENI_LIMITED_POD_DENSITY` will continue to work when `maxPods` is not set on the Provisioner. If `maxPods` is set, it will override `AWS_ENI_LIMITED_POD_DENSITY` on that specific Provisioner.
 
 ### Upgrading to v0.13.0+
-* v0.13.0 introduces a new CRD named `AWSNodeTemplate` which can be used to specify AWS Cloud Provider parameters. Everything that was previously specified under `spec.provider` in the Provisioner resource, can now be specified in the spec of the new resource. The use of `spec.provider` is deprecated but will continue to function to maintain backwards compatibility for the current API version (v1alpha5) of the Provisioner resource. v0.13.0 also introduces support for custom user data that doesn't require the use of a custom launch template. The user data can be specified in-line in the AWSNodeTemplate resource. 
+* v0.13.0 introduces a new CRD named `AWSNodeTemplate` which can be used to specify AWS Cloud Provider parameters. Everything that was previously specified under `spec.provider` in the Provisioner resource, can now be specified in the spec of the new resource. The use of `spec.provider` is deprecated but will continue to function to maintain backwards compatibility for the current API version (v1alpha5) of the Provisioner resource. v0.13.0 also introduces support for custom user data that doesn't require the use of a custom launch template. The user data can be specified in-line in the AWSNodeTemplate resource.
 
   If you are upgrading from v0.10.1 - v0.11.1, a new CRD `awsnodetemplate` was added. In v0.12.0, this crd was renamed to `awsnodetemplates`. Since helm does not manage the lifecycle of CRDs, you will need to perform a few manual steps for this CRD upgrade:
   1. Make sure any `awsnodetemplate` manifests are saved somewhere so that they can be reapplied to the cluster.
@@ -422,7 +241,7 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
   3. `kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.13.2/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml`
   4. Perform the Karpenter upgrade to v0.13.x, which will install the new `awsnodetemplates` CRD.
   5. Reapply the `awsnodetemplate` manifests you saved from step 1, if applicable.
-* v0.13.0 also adds EC2/spot price fetching to Karpenter to allow making more accurate decisions regarding node deployments.  Our getting started guide documents this, but if you are upgrading Karpenter you will need to modify your Karpenter controller policy to add the `pricing:GetProducts` and `ec2:DescribeSpotPriceHistory` permissions.
+* v0.13.0 also adds EC2/spot price fetching to Karpenter to allow making more accurate decisions regarding node deployments.  Our [getting started guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}) documents this, but if you are upgrading Karpenter you will need to modify your Karpenter controller policy to add the `pricing:GetProducts` and `ec2:DescribeSpotPriceHistory` permissions.
 
 
 ### Upgrading to v0.12.0+

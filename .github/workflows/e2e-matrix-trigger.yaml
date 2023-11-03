@@ -8,17 +8,18 @@ on:
     workflows: [ApprovalComment]
     types: [completed]
   workflow_dispatch:
-    region:
-      required: true
-      default: 'us-east-2'
-      type: choice
-      options:
-        - "us-east-1"
-        - "us-east-2"
-    cleanup:
-      required: true
-      default: true
-      type: boolean
+    inputs:
+      region:
+        required: true
+        default: 'us-east-2'
+        type: choice
+        options:
+          - "us-east-1"
+          - "us-east-2"
+      cleanup:
+        required: true
+        default: true
+        type: boolean
 jobs:
   resolve:
     if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
@@ -33,6 +34,7 @@ jobs:
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
       region: ${{ inputs.region || 'us-east-2' }}
       workflow_trigger: "matrix"
-      cleanup: ${{ inputs.cleanup || true }}
+      # Default to true unless using a workflow_dispatch
+      cleanup: ${{ github.event_name != 'workflow_dispatch' && true || inputs.cleanup }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

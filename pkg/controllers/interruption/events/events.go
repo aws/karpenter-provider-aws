@@ -19,28 +19,16 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/events"
-	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
 )
 
 func SpotInterrupted(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
-	if nodeClaim.IsMachine {
-		machine := machineutil.NewFromNodeClaim(nodeClaim)
-		evts = append(evts, events.Event{
-			InvolvedObject: machine,
-			Type:           v1.EventTypeWarning,
-			Reason:         "SpotInterrupted",
-			Message:        "Spot interruption warning was triggered",
-			DedupeValues:   []string{string(machine.UID)},
-		})
-	} else {
-		evts = append(evts, events.Event{
-			InvolvedObject: nodeClaim,
-			Type:           v1.EventTypeWarning,
-			Reason:         "SpotInterrupted",
-			Message:        "Spot interruption warning was triggered",
-			DedupeValues:   []string{string(nodeClaim.UID)},
-		})
-	}
+	evts = append(evts, events.Event{
+		InvolvedObject: nodeClaim,
+		Type:           v1.EventTypeWarning,
+		Reason:         "SpotInterrupted",
+		Message:        "Spot interruption warning was triggered",
+		DedupeValues:   []string{string(nodeClaim.UID)},
+	})
 	if node != nil {
 		evts = append(evts, events.Event{
 			InvolvedObject: node,
@@ -54,24 +42,13 @@ func SpotInterrupted(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events
 }
 
 func RebalanceRecommendation(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
-	if nodeClaim.IsMachine {
-		machine := machineutil.NewFromNodeClaim(nodeClaim)
-		evts = append(evts, events.Event{
-			InvolvedObject: machine,
-			Type:           v1.EventTypeNormal,
-			Reason:         "SpotRebalanceRecommendation",
-			Message:        "Spot rebalance recommendation was triggered",
-			DedupeValues:   []string{string(machine.UID)},
-		})
-	} else {
-		evts = append(evts, events.Event{
-			InvolvedObject: nodeClaim,
-			Type:           v1.EventTypeNormal,
-			Reason:         "SpotRebalanceRecommendation",
-			Message:        "Spot rebalance recommendation was triggered",
-			DedupeValues:   []string{string(nodeClaim.UID)},
-		})
-	}
+	evts = append(evts, events.Event{
+		InvolvedObject: nodeClaim,
+		Type:           v1.EventTypeNormal,
+		Reason:         "SpotRebalanceRecommendation",
+		Message:        "Spot rebalance recommendation was triggered",
+		DedupeValues:   []string{string(nodeClaim.UID)},
+	})
 	if node != nil {
 		evts = append(evts, events.Event{
 			InvolvedObject: node,
@@ -85,24 +62,13 @@ func RebalanceRecommendation(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts 
 }
 
 func Stopping(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
-	if nodeClaim.IsMachine {
-		machine := machineutil.NewFromNodeClaim(nodeClaim)
-		evts = append(evts, events.Event{
-			InvolvedObject: machine,
-			Type:           v1.EventTypeWarning,
-			Reason:         "InstanceStopping",
-			Message:        "Instance is stopping",
-			DedupeValues:   []string{string(machine.UID)},
-		})
-	} else {
-		evts = append(evts, events.Event{
-			InvolvedObject: nodeClaim,
-			Type:           v1.EventTypeWarning,
-			Reason:         "InstanceStopping",
-			Message:        "Instance is stopping",
-			DedupeValues:   []string{string(nodeClaim.UID)},
-		})
-	}
+	evts = append(evts, events.Event{
+		InvolvedObject: nodeClaim,
+		Type:           v1.EventTypeWarning,
+		Reason:         "InstanceStopping",
+		Message:        "Instance is stopping",
+		DedupeValues:   []string{string(nodeClaim.UID)},
+	})
 	if node != nil {
 		evts = append(evts, events.Event{
 			InvolvedObject: node,
@@ -116,24 +82,13 @@ func Stopping(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event)
 }
 
 func Terminating(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
-	if nodeClaim.IsMachine {
-		machine := machineutil.NewFromNodeClaim(nodeClaim)
-		evts = append(evts, events.Event{
-			InvolvedObject: machine,
-			Type:           v1.EventTypeWarning,
-			Reason:         "InstanceTerminating",
-			Message:        "Instance is terminating",
-			DedupeValues:   []string{string(machine.UID)},
-		})
-	} else {
-		evts = append(evts, events.Event{
-			InvolvedObject: nodeClaim,
-			Type:           v1.EventTypeWarning,
-			Reason:         "InstanceTerminating",
-			Message:        "Instance is terminating",
-			DedupeValues:   []string{string(nodeClaim.UID)},
-		})
-	}
+	evts = append(evts, events.Event{
+		InvolvedObject: nodeClaim,
+		Type:           v1.EventTypeWarning,
+		Reason:         "InstanceTerminating",
+		Message:        "Instance is terminating",
+		DedupeValues:   []string{string(nodeClaim.UID)},
+	})
 	if node != nil {
 		evts = append(evts, events.Event{
 			InvolvedObject: node,
@@ -147,24 +102,13 @@ func Terminating(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Eve
 }
 
 func Unhealthy(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
-	if nodeClaim.IsMachine {
-		machine := machineutil.NewFromNodeClaim(nodeClaim)
-		evts = append(evts, events.Event{
-			InvolvedObject: machine,
-			Type:           v1.EventTypeWarning,
-			Reason:         "InstanceUnhealthy",
-			Message:        "An unhealthy warning was triggered for the instance",
-			DedupeValues:   []string{string(machine.UID)},
-		})
-	} else {
-		evts = append(evts, events.Event{
-			InvolvedObject: nodeClaim,
-			Type:           v1.EventTypeWarning,
-			Reason:         "InstanceUnhealthy",
-			Message:        "An unhealthy warning was triggered for the instance",
-			DedupeValues:   []string{string(nodeClaim.UID)},
-		})
-	}
+	evts = append(evts, events.Event{
+		InvolvedObject: nodeClaim,
+		Type:           v1.EventTypeWarning,
+		Reason:         "InstanceUnhealthy",
+		Message:        "An unhealthy warning was triggered for the instance",
+		DedupeValues:   []string{string(nodeClaim.UID)},
+	})
 	if node != nil {
 		evts = append(evts, events.Event{
 			InvolvedObject: node,
@@ -178,24 +122,13 @@ func Unhealthy(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event
 }
 
 func TerminatingOnInterruption(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
-	if nodeClaim.IsMachine {
-		machine := machineutil.NewFromNodeClaim(nodeClaim)
-		evts = append(evts, events.Event{
-			InvolvedObject: machine,
-			Type:           v1.EventTypeWarning,
-			Reason:         "TerminatingOnInterruption",
-			Message:        "Interruption triggered termination for the Machine",
-			DedupeValues:   []string{string(machine.UID)},
-		})
-	} else {
-		evts = append(evts, events.Event{
-			InvolvedObject: nodeClaim,
-			Type:           v1.EventTypeWarning,
-			Reason:         "TerminatingOnInterruption",
-			Message:        "Interruption triggered termination for the NodeClaim",
-			DedupeValues:   []string{string(nodeClaim.UID)},
-		})
-	}
+	evts = append(evts, events.Event{
+		InvolvedObject: nodeClaim,
+		Type:           v1.EventTypeWarning,
+		Reason:         "TerminatingOnInterruption",
+		Message:        "Interruption triggered termination for the NodeClaim",
+		DedupeValues:   []string{string(nodeClaim.UID)},
+	})
 	if node != nil {
 		evts = append(evts, events.Event{
 			InvolvedObject: node,

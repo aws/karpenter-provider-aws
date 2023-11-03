@@ -29,7 +29,6 @@ import (
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	nodeclaimgarbagecollection "github.com/aws/karpenter/pkg/controllers/nodeclaim/garbagecollection"
-	nodeclaimlink "github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
 	nodeclaimtagging "github.com/aws/karpenter/pkg/controllers/nodeclaim/tagging"
 	"github.com/aws/karpenter/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter/pkg/operator/options"
@@ -50,12 +49,9 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 	pricingProvider *pricing.Provider, amiProvider *amifamily.Provider,
 	licenseProvider *license.Provider, hostResourceGroupProvider *hostresourcegroup.Provider, placementGroupProvider *placementgroup.Provider) []controller.Controller {
 
-	linkController := nodeclaimlink.NewController(kubeClient, cloudProvider)
 	controllers := []controller.Controller{
-		nodeclass.NewNodeTemplateController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, licenseProvider, hostResourceGroupProvider, placementGroupProvider),
 		nodeclass.NewNodeClassController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, licenseProvider, hostResourceGroupProvider, placementGroupProvider),
-		linkController,
-		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider, linkController),
+		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {

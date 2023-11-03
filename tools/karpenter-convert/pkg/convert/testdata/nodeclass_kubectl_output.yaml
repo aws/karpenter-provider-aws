@@ -7,10 +7,10 @@ spec:
   role: $KARPENTER_NODE_ROLE
   securityGroupSelectorTerms:
   - tags:
-      karpenter.sh/discovery: eks-workshop-camigration
+      karpenter.sh/discovery: karpenter-demo
   subnetSelectorTerms:
   - tags:
-      karpenter.sh/discovery: eks-workshop-camigration
+      karpenter.sh/discovery: karpenter-demo
   tags:
-    app.kubernetes.io/created-by: eks-workshop
+    app.kubernetes.io/created-by: karpenter-demo
     aws-node-termination-handler/managed: "true"
