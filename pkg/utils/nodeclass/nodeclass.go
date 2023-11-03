@@ -193,6 +193,7 @@ func NewMetadataOptions(mo *v1alpha1.MetadataOptions) *v1beta1.MetadataOptions {
 		HTTPProtocolIPv6:        mo.HTTPProtocolIPv6,
 		HTTPPutResponseHopLimit: mo.HTTPPutResponseHopLimit,
 		HTTPTokens:              mo.HTTPTokens,
+		InstanceMetadataTags:    mo.InstanceMetadataTags,
 	}
 }
 

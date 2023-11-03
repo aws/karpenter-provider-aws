@@ -310,6 +310,27 @@ var _ = Describe("Provisioner", func() {
 					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
 				})
 			})
+			Context("InstanceMetadataTags", func() {
+				It("should allow enum values", func() {
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
+					Expect(err).ToNot(HaveOccurred())
+					for _, value := range ec2.LaunchTemplateInstanceMetadataTags_Values() {
+						provider.MetadataOptions = &v1alpha1.MetadataOptions{
+							InstanceMetadataTags: aws.String(value),
+						}
+						provisioner = test.Provisioner(test.ProvisionerOptions{Provider: provider})
+						Expect(provisioner.Validate(ctx)).To(Succeed())
+					}
+				})
+				It("should not allow non-enum values", func() {
+					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)
+					Expect(err).ToNot(HaveOccurred())
+					provider.MetadataOptions = &v1alpha1.MetadataOptions{
+						InstanceMetadataTags: aws.String(randomdata.SillyName()),
+					}
+					Expect(Validate(ctx, test.Provisioner(test.ProvisionerOptions{Provider: provider}))).ToNot(Succeed())
+				})
+			})
 			Context("BlockDeviceMappings", func() {
 				It("should not allow with a custom launch template", func() {
 					provider, err := v1alpha1.DeserializeProvider(provisioner.Spec.Provider.Raw)

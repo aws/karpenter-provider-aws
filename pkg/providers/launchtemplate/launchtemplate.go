@@ -255,6 +255,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
+				InstanceMetadataTags:    options.MetadataOptions.InstanceMetadataTags,
 			},
 			NetworkInterfaces: networkInterface,
 			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{

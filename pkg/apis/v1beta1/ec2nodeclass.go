@@ -233,6 +233,15 @@ type MetadataOptions struct {
 	// +kubebuilder:validation:Enum:={required,optional}
 	// +optional
 	HTTPTokens *string `json:"httpTokens,omitempty"`
+
+	// InstanceMetadataTags allow access to instance tags from the instance metadata.
+	// By accessing tags from the instance metadata, you no longer need to use the DescribeInstances
+	// or DescribeTags API calls to retrieve tag information, which reduces your API transactions per second,
+	// and lets your tag retrievals scale with the number of instances that you control. Furthermore,
+	// local processes that are running on an instance can view the instance's tag information directly
+	// from the instance metadata. This is disabled by default.
+	// +optional
+	InstanceMetadataTags *string `json:"instanceMetadataTags,omitempty"`
 }
 
 type BlockDeviceMapping struct {

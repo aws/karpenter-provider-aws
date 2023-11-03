@@ -195,6 +195,14 @@ func (in *EC2NodeClassSpec) validateHTTPTokens() *apis.FieldError {
 	return in.validateStringEnum(*in.MetadataOptions.HTTPTokens, "httpTokens", ec2.LaunchTemplateHttpTokensState_Values())
 }
 
+func (in *EC2NodeClassSpec) validateInstanceMetadataTags() *apis.FieldError {
+	if in.MetadataOptions.InstanceMetadataTags == nil {
+		return nil
+	}
+	allowedValues := []string{"enabled", "disabled"}
+	return in.validateStringEnum(*in.MetadataOptions.InstanceMetadataTags, "instanceMetadataTags", allowedValues)
+}
+
 func (in *EC2NodeClassSpec) validateStringEnum(value, field string, validValues []string) *apis.FieldError {
 	for _, validValue := range validValues {
 		if value == validValue {
