@@ -1,1 +1,0 @@
-Write-Host "Running custom user data script"
