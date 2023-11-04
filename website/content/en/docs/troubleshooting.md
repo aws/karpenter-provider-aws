@@ -37,6 +37,17 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
   ...
 ```
 
+#### Check AWS resources with Karpenter Discovery tag
+
+You can use AWS Resource Groups Tagging API to find all resources tagged with `karpenter.sh/discovery`.
+
+```
+aws resourcegroupstaggingapi get-resources \
+    --tag-filters "Key=karpenter.sh/discovery,Values=${CLUSTER_NAME}" \
+    --query 'ResourceTagMappingList[]' --output text \
+    | sed 's/arn:/\n----------\narn:/g'
+```
+
 ## Installation
 
 ### Missing Service Linked Role
