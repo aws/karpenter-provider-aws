@@ -10,9 +10,9 @@ spec:
     aws::name: "test name"
     MyTag: '*'
   subnetSelector:
-    karpenter.sh/discovery: $MY_CLUSTER_NAME
+    karpenter.sh/discovery: karpenter-demo
   securityGroupSelector:
-    karpenter.sh/discovery: $MY_CLUSTER_NAME
+    karpenter.sh/discovery: karpenter-demo
   blockDeviceMappings:
     - deviceName: /dev/xvdb
       ebs:

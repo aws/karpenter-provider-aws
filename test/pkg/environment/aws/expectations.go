@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -28,8 +29,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/mitchellh/hashstructure/v2"
-	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
-	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -112,6 +113,16 @@ func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
 		Id: aws.String(id),
 	})
 	Expect(err).ToNot(HaveOccurred())
+}
+
+func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting instance profile %s to exist", profileName))
+	var instanceProfile iam.InstanceProfile
+	Eventually(func(g Gomega) {
+		instanceProfile = env.ExpectInstanceProfileExists(profileName)
+	}).WithTimeout(20 * time.Second).Should(Succeed())
+	Expect(instanceProfile.InstanceProfileName).ToNot(BeNil())
 }
 
 func (env *Environment) ExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
@@ -307,6 +318,7 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 
 func (env *Environment) ExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
 	GinkgoHelper()
+	env.EventuallyExpectInstanceProfileExists(aws.StringValue(instanceInput.IamInstanceProfile.Name))
 	// implement IMDSv2
 	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptionsRequest{
 		HttpEndpoint: aws.String("enabled"),

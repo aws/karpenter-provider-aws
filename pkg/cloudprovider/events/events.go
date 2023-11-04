@@ -19,20 +19,9 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/events"
-	machineutil "github.com/aws/karpenter-core/pkg/utils/machine"
-	provisionerutil "github.com/aws/karpenter-core/pkg/utils/provisioner"
 )
 
 func NodePoolFailedToResolveNodeClass(nodePool *v1beta1.NodePool) events.Event {
-	if nodePool.IsProvisioner {
-		provisioner := provisionerutil.New(nodePool)
-		return events.Event{
-			InvolvedObject: provisioner,
-			Type:           v1.EventTypeWarning,
-			Message:        "Failed resolving AWSNodeTemplate",
-			DedupeValues:   []string{string(provisioner.UID)},
-		}
-	}
 	return events.Event{
 		InvolvedObject: nodePool,
 		Type:           v1.EventTypeWarning,
@@ -42,15 +31,6 @@ func NodePoolFailedToResolveNodeClass(nodePool *v1beta1.NodePool) events.Event {
 }
 
 func NodeClaimFailedToResolveNodeClass(nodeClaim *v1beta1.NodeClaim) events.Event {
-	if nodeClaim.IsMachine {
-		machine := machineutil.NewFromNodeClaim(nodeClaim)
-		return events.Event{
-			InvolvedObject: machine,
-			Type:           v1.EventTypeWarning,
-			Message:        "Failed resolving AWSNodeTemplate",
-			DedupeValues:   []string{string(machine.UID)},
-		}
-	}
 	return events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeWarning,

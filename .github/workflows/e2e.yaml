@@ -16,25 +16,15 @@ on:
         type: choice
         required: true
         options:
-          - Beta/Integration
-          - Beta/NodeClaim
-          - Beta/Consolidation
-          - Beta/Interruption
-          - Beta/Drift
-          - Beta/Expiration
-          - Beta/Chaos
-          - Beta/IPv6
-          - Beta/Scale
-          - Alpha/Integration
-          - Alpha/Machine
-          - Alpha/Consolidation
-          - Alpha/Utilization
-          - Alpha/Interruption
-          - Alpha/Drift
-          - Alpha/Expiration
-          - Alpha/Chaos
-          - Alpha/IPv6
-          - Alpha/Scale
+          - Integration
+          - NodeClaim
+          - Consolidation
+          - Interruption
+          - Drift
+          - Expiration
+          - Chaos
+          - IPv6
+          - Scale
       k8s_version:
         type: choice
         options:
@@ -102,12 +92,12 @@ jobs:
       - name: add jitter on cluster creation
         run: |
           # Creating jitter so that we can stagger cluster creation to avoid throttling
-          sleep $(( $RANDOM % 300 + 1 ))
+          sleep $(( RANDOM % 300 + 1 ))
       - id: generate-cluster-name
         run: |
-          CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}' | tr / -)
-          echo "Using cluster name \"$CLUSTER_NAME\""
-          echo CLUSTER_NAME=$CLUSTER_NAME >> $GITHUB_OUTPUT
+          CLUSTER_NAME="$(echo ${{ inputs.suite }}-"$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)"
+          echo Using cluster name "$CLUSTER_NAME"
+          echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
       - name: create eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
         uses: ./.github/actions/e2e/create-cluster
         with:
@@ -116,7 +106,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.163.0
+          eksctl_version: v0.164.0
           ip_family: ${{ contains(inputs.suite, 'IPv6') && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
@@ -169,7 +159,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
-          eksctl_version: v0.163.0
+          eksctl_version: v0.164.0
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:

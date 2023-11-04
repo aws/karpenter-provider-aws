@@ -140,48 +140,36 @@ data:
   ...
 ```
 
-## Drift
+### Drift
+Drift handles changes to the NodePool/EC2NodeClass. For Drift, values in the NodePool/EC2NodeClass are reflected in the NodeClaimTemplateSpec/EC2NodeClassSpec in the same way that they’re set. A NodeClaim will be detected as drifted if the values in its owning NodePool/EC2NodeClass do not match the values in the NodeClaim. Similar to the upstream `deployment.spec.template` relationship to pods, Karpenter will annotate the owning NodePool and EC2NodeClass with a hash of the NodeClaimTemplateSpec to check for drift. Some special cases will be discovered either from Karpenter or through the CloudProvider interface, triggered by NodeClaim/Instance/NodePool/EC2NodeClass changes.
 
-Drift on most fields are only triggered by changes to the owning CustomResource. Some special cases will be reconciled two-ways, triggered by Machine/Node/Instance changes or Provisioner/AWSNodeTemplate changes. For one-way reconciliation, values in the CustomResource are reflected in the Machine in the same way that they’re set. A machine will be detected as drifted if the values in the CRDs do not match the values in the Machine. By default, fields are drifted using one-way reconciliation. 
+#### Special Cases on Drift
+In special cases, drift can correspond to multiple values and must be handled differently. Drift on resolved fields can create cases where drift occurs without changes to CRDs, or where CRD changes do not result in drift. For example, if a NodeClaim has `node.kubernetes.io/instance-type: m5.large`, and requirements change from `node.kubernetes.io/instance-type In [m5.large]` to `node.kubernetes.io/instance-type In [m5.large, m5.2xlarge]`, the NodeClaim will not be drifted because its value is still compatible with the new requirements. Conversely, if a NodeClaim is using a NodeClaim image `ami: ami-abc`, but a new image is published, Karpenter's `EC2NodeClass.spec.amiSelectorTerms` will discover that the new correct value is `ami: ami-xyz`, and detect the NodeClaim as drifted.
 
-### Two-way Reconciliation
-Two-way reconciliation can correspond to multiple values and must be handled differently. Two-way reconciliation can create cases where drift occurs without changes to CRDs, or where CRD changes do not result in drift. For example, if a machine has `node.kubernetes.io/instance-type: m5.large`, and requirements change from `node.kubernetes.io/instance-type In [m5.large]` to `node.kubernetes.io/instance-type In [m5.large, m5.2xlarge]`, the machine will not be drifted because its value is still compatible with the new requirements. Conversely, for an AWS Installation, if a machine is using a machine image `ami: ami-abc`, but a new image is published, Karpenter's `AWSNodeTemplate.amiSelector` will discover that the new correct value is `ami: ami-xyz`, and detect the machine as drifted.
+##### NodePool
+| Fields         |
+|----------------|
+| Requirements   |
 
-### Behavioral Fields
-Behavioral Fields are treated as over-arching settings on the Provisioner to dictate how Karpenter behaves. These fields don’t correspond to settings on the machine or instance. They’re set by the user to control Karpenter’s Provisioning and Deprovisioning logic. Since these don’t map to a desired state of machines, __behavioral fields are not considered for Drift__.
+##### EC2NodeClass
+| Fields                        |
+|-------------------------------|
+| Subnet Selector Terms         |
+| Security Group Selector Terms |
+| AMI Selector Terms            |
 
-Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
-
-#### Provisioner
-| Fields                     | One-way | Two-way | 
-|----------------------------|  :---:  |  :---:  |    
-| Startup Taints             |    x    |         |      
-| Taints                     |    x    |         |      
-| Labels                     |    x    |         |      
-| Annotations                |    x    |         |      
-| Node Requirements          |         |    x    |      
-| Kubelet Configuration      |    x    |         |
+#### Behavioral Fields
+Behavioral Fields are treated as over-arching settings on the NodePool to dictate how Karpenter behaves. These fields don’t correspond to settings on the NodeClaim or instance. They’re set by the user to control Karpenter’s Provisioning and disruption logic. Since these don’t map to a desired state of NodeClaims, __behavioral fields are not considered for Drift__.
 
 __Behavioral Fields__
 - Weight                      
 - Limits                      
-- Consolidation               
-- TTLSecondsUntilExpired      
-- TTLSecondsAfterEmpty  
+- ConsolidationPolicy               
+- ConsolidateAfter      
+- ExpireAfter  
 ---      
-#### AWSNodeTemplate
-| Fields                     | One-way | Two-way  |
-|----------------------------|  :---:  |  :---:   |
-| Subnet Selector            |         |    x     |
-| Security Group Selector    |         |    x     |
-| Instance Profile           |    x    |          |
-| AMI Family                 |    x    |          |
-| AMI Selector               |         |    x     |
-| UserData                   |    x    |          |
-| Tags                       |    x    |          |
-| Metadata Options           |    x    |          |
-| Block Device Mappings      |    x    |          |
-| Detailed Monitoring        |    x    |          |
+
+Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
 
 To enable the drift feature flag, refer to the [Settings Feature Gates]({{<ref "./settings#feature-gates" >}}).
 

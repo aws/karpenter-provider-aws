@@ -8,11 +8,11 @@ metadata:
   uid: 1da65734-30f3-47c2-9bec-8b671a71fb67
 spec:
   securityGroupSelector:
-    karpenter.sh/discovery: eks-workshop-camigration
+    karpenter.sh/discovery: karpenter-demo
   subnetSelector:
-    karpenter.sh/discovery: eks-workshop-camigration
+    karpenter.sh/discovery: karpenter-demo
   tags:
-    app.kubernetes.io/created-by: eks-workshop
+    app.kubernetes.io/created-by: karpenter-demo
     aws-node-termination-handler/managed: "true"
 status:
   securityGroups:

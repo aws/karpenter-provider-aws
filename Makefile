@@ -42,7 +42,7 @@ help: ## Display help
 
 presubmit: verify test ## Run all steps in the developer loop
 
-ci-test: battletest coverage ## Runs tests and submits coverage
+ci-test: test coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
@@ -66,17 +66,15 @@ clean-run: ## Clean resources deployed by the run target
 	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
 
 test: ## Run tests
-	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
-	cd tools/karpenter-convert && go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
-
-battletest: ## Run randomized, racing, code-covered tests
-	go test -v ./pkg/... \
-		-race \
-		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
+	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
+		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
-		--ginkgo.vv \
-		-tags random_test_delay
+		--ginkgo.vv
+	cd tools/karpenter-convert && go test -v ./pkg/... \
+		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.randomize-all \
+		--ginkgo.vv
 
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
@@ -106,7 +104,7 @@ benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
 deflake: ## Run randomized, racing, code-covered tests to deflake failures
-	for i in $(shell seq 1 5); do make battletest || exit 1; done
+	for i in $(shell seq 1 5); do make test || exit 1; done
 
 deflake-until-it-fails: ## Run randomized, racing tests until the test fails to catch flakes
 	ginkgo \
@@ -134,6 +132,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -print0 | xargs -0 -I {} go build -o /dev/null {}
+	actionlint -oneline
 
 vulncheck: ## Verify code vulnerabilities
 	@govulncheck ./pkg/...
@@ -208,7 +207,7 @@ update-core: ## Update karpenter-core to latest
 	go get -u github.com/aws/karpenter-core@HEAD
 	go mod tidy
 
-.PHONY: help dev ci release test battletest e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
+.PHONY: help dev ci release test e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
 
 define newline
 
