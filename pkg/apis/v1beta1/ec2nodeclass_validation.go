@@ -133,8 +133,6 @@ func (in *AMISelectorTerm) validate() (errs *apis.FieldError) {
 		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id", "name"))
 	} else if in.ID != "" && (len(in.Tags) > 0 || in.Name != "" || in.Owner != "") {
 		errs = errs.Also(apis.ErrGeneric(`"id" is mutually exclusive, cannot be set with a combination of other fields in`))
-	} else if in.Owner != "" && len(in.Tags) > 0 {
-		errs = errs.Also(apis.ErrGeneric(`"owner" cannot be set with "tags" in`))
 	}
 	return errs
 }
