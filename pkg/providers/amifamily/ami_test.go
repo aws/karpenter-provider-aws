@@ -287,7 +287,9 @@ var _ = Describe("AMIProvider", func() {
 		})
 	})
 	Context("AMI Selectors", func() {
-		It("should have default owners and use tags when prefixes aren't set", func() {
+		// When you tag public or shared resources, the tags you assign are available only to your AWS account; no other AWS account will have access to those tags
+		// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
+		It("should have empty owners and use tags when prefixes aren't set", func() {
 			amiSelectorTerms := []v1beta1.AMISelectorTerm{
 				{
 					Tags: map[string]string{
@@ -304,10 +306,7 @@ var _ = Describe("AMIProvider", func() {
 							Values: aws.StringSlice([]string{"my-ami"}),
 						},
 					},
-					Owners: []string{
-						"amazon",
-						"self",
-					},
+					Owners: []string{},
 				},
 			}, filterAndOwnersSets)
 		})
