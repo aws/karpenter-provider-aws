@@ -118,6 +118,7 @@ func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
 func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
 	GinkgoHelper()
 	By(fmt.Sprintf("eventually expecting instance profile %s to exist", profileName))
+	var instanceProfile iam.InstanceProfile
 	Eventually(func(g Gomega) {
 		out, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
 			InstanceProfileName: aws.String(profileName),
@@ -125,8 +126,9 @@ func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string
 		g.Expect(err).ToNot(HaveOccurred())
 		g.Expect(out.InstanceProfile).ToNot(BeNil())
 		g.Expect(out.InstanceProfile.InstanceProfileName).ToNot(BeNil())
+		instanceProfile = lo.FromPtr(out.InstanceProfile)
 	}).WithTimeout(20 * time.Second).Should(Succeed())
-	return lo.FromPtr(out.InstanceProfile)
+	return instanceProfile
 }
 
 // GetInstanceProfileName gets the string for the profile name based on the cluster name, region and the NodeClass name.
