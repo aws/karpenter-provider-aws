@@ -6,9 +6,7 @@ description: >
   Configure Karpenter with NodePools
 ---
 
-When you first installed Karpenter, you set up a default NodePool.
-The NodePool sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes.
-The NodePool can be set to do things like:
+When you first installed Karpenter, you set up a default NodePool. The NodePool sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes. The NodePool can be set to do things like:
 
 * Define taints to limit the pods that can run on nodes Karpenter creates
 * Define any startup taints to inform Karpenter that it should taint the node initially, but that the taint is temporary.
@@ -86,7 +84,7 @@ spec:
         - key: "kubernetes.io/arch"
           operator: In
           values: ["arm64", "amd64"]
-        - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
+        - key: "karpenter.sh/capacity-type"
           operator: In
           values: ["spot", "on-demand"]
 
