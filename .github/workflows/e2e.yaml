@@ -25,6 +25,7 @@ on:
           - Chaos
           - IPv6
           - Scale
+          - PrivateCluster
       k8s_version:
         type: choice
         options:
@@ -108,6 +109,7 @@ jobs:
           k8s_version: ${{ inputs.k8s_version }}
           eksctl_version: v0.164.0
           ip_family: ${{ contains(inputs.suite, 'IPv6') && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
+          private_cluster: ${{ inputs.suite == 'PrivateCluster' }}
           git_ref: ${{ inputs.git_ref }}
       - name: install prometheus
         uses: ./.github/actions/e2e/install-prometheus
@@ -130,8 +132,13 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
       - name: run the ${{ inputs.suite }} test suite
         run: |
+          TEST_SUITE="${{ inputs.suite }}"
+          # If we are performing the PrivateCluster test suite, then we should just run the 'Integration' test suite
+          if [[ inputs.suite == 'PrivateCluster' ]]; then
+            TEST_SUITE="Integration"
+          fi
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
-          TEST_SUITE="${{ inputs.suite }}" ENABLE_METRICS=${{ inputs.enable_metrics }} METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
+          TEST_SUITE="$TEST_SUITE" ENABLE_METRICS=${{ inputs.enable_metrics }} METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
             CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
             INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
       - name: notify slack of success or failure
