@@ -55,6 +55,11 @@ runs:
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides "ClusterName=${{ inputs.cluster_name }}" \
         --tags "testing/type=e2e" "testing/cluster=${{ inputs.cluster_name }}" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
+  - name: deploy instance profile
+    shell: bash
+    run: |
+      aws iam create-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${{ inputs.cluster_name }}" --tags Key=testing/type,Value=e2e Key=testing/cluster,Value=${{ inputs.cluster_name }} || true
+      aws iam add-role-to-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${{ inputs.cluster_name }}" --role-name "KarpenterNodeRole-${{ inputs.cluster_name }}" || true
   - name: create or upgrade cluster
     shell: bash
     run: |

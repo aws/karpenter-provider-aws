@@ -115,23 +115,17 @@ func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
 	Expect(err).ToNot(HaveOccurred())
 }
 
-func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string) {
+func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
 	GinkgoHelper()
-	By(fmt.Sprintf("expecting instance profile %s to exist", profileName))
-	var instanceProfile iam.InstanceProfile
+	By(fmt.Sprintf("eventually expecting instance profile %s to exist", profileName))
 	Eventually(func(g Gomega) {
-		instanceProfile = env.ExpectInstanceProfileExists(profileName)
+		out, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
+			InstanceProfileName: aws.String(profileName),
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(out.InstanceProfile).ToNot(BeNil())
+		g.Expect(out.InstanceProfile.InstanceProfileName).ToNot(BeNil())
 	}).WithTimeout(20 * time.Second).Should(Succeed())
-	Expect(instanceProfile.InstanceProfileName).ToNot(BeNil())
-}
-
-func (env *Environment) ExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
-	GinkgoHelper()
-	out, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
-		InstanceProfileName: aws.String(profileName),
-	})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(out.InstanceProfile).ToNot(BeNil())
 	return lo.FromPtr(out.InstanceProfile)
 }
 
@@ -318,7 +312,7 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 
 func (env *Environment) ExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
 	GinkgoHelper()
-	env.EventuallyExpectInstanceProfileExists(aws.StringValue(instanceInput.IamInstanceProfile.Name))
+	_ = env.EventuallyExpectInstanceProfileExists(aws.StringValue(instanceInput.IamInstanceProfile.Name))
 	// implement IMDSv2
 	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptionsRequest{
 		HttpEndpoint: aws.String("enabled"),
