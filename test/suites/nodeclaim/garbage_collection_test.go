@@ -18,16 +18,20 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-core/pkg/test"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
@@ -147,3 +151,46 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 		env.EventuallyExpectNotFound(node)
 	})
 })
+
+
+func ExpectInstanceProfileCreated(instanceProfileName *string) {
+	By("creating an instance profile")
+	createInstanceProfile := &iam.CreateInstanceProfileInput{
+		InstanceProfileName: instanceProfileName,
+		Tags: []*iam.Tag{
+			{
+				Key:   awssdk.String(test.DiscoveryLabel),
+				Value: awssdk.String(env.ClusterName),
+			},
+		},
+	}
+	By("adding the karpenter role to new instance profile")
+	_, err := env.IAMAPI.CreateInstanceProfile(createInstanceProfile)
+	Expect(ignoreAlreadyExists(err)).ToNot(HaveOccurred())
+	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
+		InstanceProfileName: instanceProfileName,
+		RoleName:            awssdk.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
+	}
+	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
+	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
+}
+
+
+func ignoreAlreadyExists(err error) error {
+	if err != nil {
+		if strings.Contains(err.Error(), "EntityAlreadyExists") {
+			return nil
+		}
+	}
+	return err
+}
+
+func ignoreAlreadyContainsRole(err error) error {
+	if err != nil {
+		if strings.Contains(err.Error(), "Cannot exceed quota for InstanceSessionsPerInstanceProfile") {
+			return nil
+		}
+	}
+
+	return err
+}
