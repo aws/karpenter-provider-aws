@@ -39,7 +39,6 @@ import (
 	coreoperator "github.com/aws/karpenter-core/pkg/operator"
 	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator"
@@ -112,20 +111,7 @@ func main() {
 	if err := enc.Encode(provider); err != nil {
 		log.Fatalf("encoding provider, %s", err)
 	}
-	prov := &v1alpha5.Provisioner{
-		Spec: v1alpha5.ProvisionerSpec{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpExists,
-				},
-			},
-			Provider: &v1alpha5.Provider{
-				Raw: buf.Bytes(),
-			},
-		},
-	}
-	instanceTypes, err := cp.GetInstanceTypes(ctx, nodepoolutil.New(prov))
+	instanceTypes, err := cp.GetInstanceTypes(ctx, nil)
 	if err != nil {
 		log.Fatalf("listing instance types, %s", err)
 	}

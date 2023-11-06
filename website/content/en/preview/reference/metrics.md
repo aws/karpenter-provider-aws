@@ -140,20 +140,11 @@ The nodepool usage is the amount of resources that have been provisioned by a pa
 
 ## Provisioner Metrics
 
-### `karpenter_provisioner_limit`
-The Provisioner Limits are the limits specified on the provisioner that restrict the quantity of resources provisioned. Labeled by provisioner name and resource type.
-
 ### `karpenter_provisioner_scheduling_duration_seconds`
 Duration of scheduling process in seconds.
 
 ### `karpenter_provisioner_scheduling_simulation_duration_seconds`
 Duration of scheduling simulations used for deprovisioning and provisioning in seconds.
-
-### `karpenter_provisioner_usage`
-The Provisioner Usage is the amount of resources that have been provisioned by a particular provisioner. Labeled by provisioner name and resource type.
-
-### `karpenter_provisioner_usage_pct`
-The Provisioner Usage Percentage is the percentage of each resource used based on the resources provisioned and the limits that have been configured in the range [0,100].  Labeled by provisioner name and resource type.
 
 ## Nodes Metrics
 
