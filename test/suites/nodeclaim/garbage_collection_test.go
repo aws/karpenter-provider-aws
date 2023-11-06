@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
-	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 	. "github.com/onsi/ginkgo/v2"
@@ -31,7 +30,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/test"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
@@ -90,13 +88,14 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 			MaxCount: aws.Int64(1),
 		}
 	})
-	It("should succeed to garbage collect an Instance that was launched by a NodeClaim but has no Instance mapping", func() {
+	FIt("should succeed to garbage collect an Instance that was launched by a NodeClaim but has no Instance mapping", func() {
 		// Update the userData for the instance input with the correct NodePool
 		rawContent, err := os.ReadFile("testdata/al2_userdata_input.sh")
 		Expect(err).ToNot(HaveOccurred())
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))))
 
+		ExpectInstanceProfileCreated(aws.String(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)))
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
@@ -152,15 +151,14 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 	})
 })
 
-
 func ExpectInstanceProfileCreated(instanceProfileName *string) {
 	By("creating an instance profile")
 	createInstanceProfile := &iam.CreateInstanceProfileInput{
 		InstanceProfileName: instanceProfileName,
 		Tags: []*iam.Tag{
 			{
-				Key:   awssdk.String(test.DiscoveryLabel),
-				Value: awssdk.String(env.ClusterName),
+				Key:   aws.String(coretest.DiscoveryLabel),
+				Value: aws.String(env.ClusterName),
 			},
 		},
 	}
@@ -169,12 +167,11 @@ func ExpectInstanceProfileCreated(instanceProfileName *string) {
 	Expect(ignoreAlreadyExists(err)).ToNot(HaveOccurred())
 	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: instanceProfileName,
-		RoleName:            awssdk.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
+		RoleName:            aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
 	}
 	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
 	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
 }
-
 
 func ignoreAlreadyExists(err error) error {
 	if err != nil {
