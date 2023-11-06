@@ -15,15 +15,16 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    required: false
     default: "1.28"
   eksctl_version:
     description: "Version of eksctl to install"
     default: v0.164.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
-    required: false
     default: "IPv4"
+  private_cluster:
+    description: "Whether to create a private cluster which does not add access to the public internet. Valid values are 'true' or 'false'"
+    default: 'false'
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
     required: false
@@ -126,12 +127,35 @@ runs:
         wellKnownPolicies:
           ebsCSIController: true
       EOF
+      
+      if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
+        yq -i '.privateCluster.enabled=true' clusterconfig.yaml
+        yq -i '.managedNodeGroups[0].privateNetworking=true' clusterconfig.yaml
+      fi
 
       eksctl ${cmd} cluster -f clusterconfig.yaml
 
       # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
       # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
       eksctl update iamserviceaccount -f clusterconfig.yaml --approve
+      
+      # Add the SQS and SSM VPC endpoints if we are creating a private cluster
+      # We need to grab all of the VPC details for the cluster in order to add the endpoint
+      if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
+        VPC_CONFIG=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query "cluster.resourcesVpcConfig")
+        VPC_ID=$(echo $VPC_CONFIG | jq .vpcId -r)
+        SUBNET_IDS=($(echo $VPC_CONFIG | jq '.subnetIds | join(" ")' -r))
+        SECURITY_GROUP_IDS=($(echo $VPC_CONFIG | jq '.securityGroupIds | join(" ")' -r))
+        
+        for SERVICE in "com.amazonaws.${{ inputs.region }}.ssm" "com.amazonaws.${{ inputs.region }}.sqs"; do
+          aws ec2 create-vpc-endpoint \
+            --vpc-id "${VPC_ID}" \
+            --vpc-endpoint-type Interface \
+            --service-name "${SERVICE}" \
+            --subnet-ids ${SUBNET_IDS[@]} \
+            --security-group-ids ${SECURITY_GROUP_IDS[@]}
+        done
+      fi
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash
