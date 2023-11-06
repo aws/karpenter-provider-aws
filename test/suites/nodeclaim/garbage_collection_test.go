@@ -37,7 +37,7 @@ import (
 	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
-var _ = Describe("NodeClaimGarbageCollection", func() {
+var _ = Describe("GarbageCollection", func() {
 	var customAMI string
 	var instanceInput *ec2.RunInstancesInput
 
