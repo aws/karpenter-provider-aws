@@ -782,19 +782,21 @@ The v1beta1 specification removes the `karpenter-global-settings` ConfigMap in f
 |-----------------------------------------------|----------------------------|------------------------------|
 | batchMaxDuration                              | BATCH_MAX_DURATION         | --batch-max-duration         |
 | batchIdleDuration                             | BATCH_IDLE_DURATION        | --batch-idle-duration        |
-| assumeRoleARN                                 | ASSUME_ROLE_ARN            | --assume-role-arn            |
-| assumeRoleDuration                            | ASSUME_ROLE_DURATION       | --assume-role-duration       |
-| clusterCABundle                               | CLUSTER_CA_BUNDLE          | --cluster-ca-bundle          |
-| clusterName                                   | CLUSTER_NAME               | --cluster-name               |
-| clusterEndpoint                               | CLUSTER_ENDPOINT           | --cluster-endpoint           |
-| isolatedVPC                                   | ISOLATED_VPC               | --isolated-vpc               |
-| vmMemoryOverheadPercent                       | VM_MEMORY_OVERHEAD_PERCENT | --vm-memory-overhead-percent |
-| interruptionQueueName                         | INTERRUPTION_QUEUE         | --interruption-queue         |
-| reservedENIs                                  | RESERVED_ENIS              | --reserved-enis              |
+| aws.assumeRoleARN                             | ASSUME_ROLE_ARN            | --assume-role-arn            |
+| aws.assumeRoleDuration                        | ASSUME_ROLE_DURATION       | --assume-role-duration       |
+| aws.clusterCABundle                           | CLUSTER_CA_BUNDLE          | --cluster-ca-bundle          |
+| aws.clusterName                               | CLUSTER_NAME               | --cluster-name               |
+| aws.clusterEndpoint                           | CLUSTER_ENDPOINT           | --cluster-endpoint           |
+| aws.isolatedVPC                               | ISOLATED_VPC               | --isolated-vpc               |
+| aws.vmMemoryOverheadPercent                   | VM_MEMORY_OVERHEAD_PERCENT | --vm-memory-overhead-percent |
+| aws.interruptionQueueName                     | INTERRUPTION_QUEUE         | --interruption-queue         |
+| aws.reservedENIs                              | RESERVED_ENIS              | --reserved-enis              |
 | featureGates.driftEnabled                     | FEATURE_GATE="Drift=true"  | --feature-gates Drift=true   |
-| defaultInstanceProfile                        | **Dropped**                | **Dropped**                  |
-| enablePodENI                                  | **Dropped**                | **Dropped**                  |
-| enableENILimitedPodDensity                    | **Dropped**                | **Dropped**                  |
+| aws.defaultInstanceProfile                    | **Dropped**                | **Dropped**                  |
+| aws.enablePodENI                              | **Dropped**                | **Dropped**                  |
+| aws.enableENILimitedPodDensity                | **Dropped**                | **Dropped**                  |
+
+> NOTE: The `aws.defaultInstanceProfile` was dropped because Karpenter no longer utilizes instance profiles but creates a managed version of an instance profile based on an EC2NodeClass role. The `aws.enablePodENI` was dropped since Karpenter will now _always_ assume that `vpc.amazonaws.com/pod-eni` resource exists. The `aws.enableENILimitedPodDensity` was dropped since you can now override the `--max-pods` value for kubelet in the `spec.kubelet.maxPods` for NodeClaims or NodeClaimTemplates.
 
 ### Helm Values
 

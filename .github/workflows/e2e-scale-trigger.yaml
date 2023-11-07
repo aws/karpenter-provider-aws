@@ -33,7 +33,7 @@ jobs:
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e.yaml
     with:
-      suite: Beta/Scale
+      suite: Scale
       git_ref: ${{ needs.resolve.outputs.GIT_REF }}
       region: ${{ inputs.region || 'us-west-2' }}
       enable_metrics: ${{ inputs.enable_metrics || true }}
