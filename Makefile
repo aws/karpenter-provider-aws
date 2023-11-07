@@ -124,7 +124,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
-	MOD_DIRS_VERIFY=$(shell echo $(MOD_DIRS) | sed 's/.\/website//g')
+	MOD_DIRS_VERIFY=`echo "${MOD_DIRS}" | sed 's/.\/website//g'`
 	$(foreach dir,$(MOD_DIRS_VERIFY),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
