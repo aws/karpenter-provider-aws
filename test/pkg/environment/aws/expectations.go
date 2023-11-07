@@ -324,7 +324,7 @@ func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInsta
 	Eventually(func(g Gomega) {
 		out, err = env.EC2API.RunInstances(instanceInput)
 		g.Expect(err).ToNot(HaveOccurred())
-	}).WithTimeout(5 * time.Minute).Should(Succeed())
+	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
 	return out
 }
 
