@@ -98,7 +98,7 @@ var _ = Describe("GarbageCollection", func() {
 		instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
 		ExpectInstanceProfileCreated(instanceProfileName)
 		DeferCleanup(func() {
-			defer ExpectInstanceProfileDeleted(instanceProfileName)
+			ExpectInstanceProfileDeleted(instanceProfileName)
 		})
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.EventuallyExpectRunInstances(instanceInput)
