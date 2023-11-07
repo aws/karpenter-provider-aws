@@ -178,7 +178,7 @@ func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
 	return providerSet{
 		kubeClient:  kubeClient,
 		sqsAPI:      sqsAPI,
-		sqsProvider: sqs.NewProvider(ctx, sqsAPI),
+		sqsProvider: sqs.NewProvider(ctx, sqsAPI, "test-cluster"),
 	}
 }
 

@@ -52,7 +52,6 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
@@ -79,14 +78,11 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-		InterruptionQueue: lo.ToPtr("test-cluster"),
-	}))
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	fakeClock = &clock.FakeClock{}
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	sqsapi = &fake.SQSAPI{}
-	sqsProvider = lo.Must(sqs.NewProvider(ctx, sqsapi))
+	sqsProvider = lo.Must(sqs.NewProvider(ctx, sqsapi, "test-cluster"))
 	controller = interruption.NewController(env.Client, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, unavailableOfferingsCache)
 })
 

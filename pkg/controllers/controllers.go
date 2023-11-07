@@ -53,7 +53,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
-		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewProvider(ctx, servicesqs.New(sess))), unavailableOfferings))
+		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewProvider(ctx, servicesqs.New(sess), options.FromContext(ctx).InterruptionQueue)), unavailableOfferings))
 	}
 	if options.FromContext(ctx).IsolatedVPC {
 		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
