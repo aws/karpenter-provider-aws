@@ -95,7 +95,13 @@ var _ = Describe("GarbageCollection", func() {
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))))
 
-		ExpectInstanceProfileCreated(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName))
+		instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
+		ExpectInstanceProfileCreated(instanceProfileName)
+		// Sleep 10 seconds to allow the instance profile to handle eventual consistency delays.
+		time.Sleep(10 * time.Second)
+		DeferCleanup(func() {
+			defer ExpectInstanceProfileDeleted(instanceProfileName)
+		})
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
@@ -171,6 +177,22 @@ func ExpectInstanceProfileCreated(instanceProfileName string) {
 	}
 	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
 	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
+}
+
+func ExpectInstanceProfileDeleted(instanceProfileName string) {
+	By("deleting an instance profile")
+	removeRoleFromInstanceProfile := &iam.RemoveRoleFromInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+		RoleName: aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
+	}
+	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(removeRoleFromInstanceProfile)
+	Expect(err).To(BeNil())
+
+	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+	}
+	_, err = env.IAMAPI.DeleteInstanceProfile(deleteInstanceProfile)
+	Expect(ignoreAlreadyExists(err)).ToNot(HaveOccurred())
 }
 
 func ignoreAlreadyExists(err error) error {

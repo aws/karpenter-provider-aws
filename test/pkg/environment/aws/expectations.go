@@ -314,7 +314,6 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 
 func (env *Environment) ExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
 	GinkgoHelper()
-	_ = env.EventuallyExpectInstanceProfileExists(aws.StringValue(instanceInput.IamInstanceProfile.Name))
 	// implement IMDSv2
 	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptionsRequest{
 		HttpEndpoint: aws.String("enabled"),
