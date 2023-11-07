@@ -32,6 +32,10 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
 
+### Upgrading to v0.33.0+
+
+* Karpenter now tags `spot-instances-request` with the same tags that it tags instances, volumes, and primary ENIs. Practically, this means that you can further scope your controller policy for the `ec2:RunInstances` and `ec2:CreateTags` actions to require that it launches the `spot-instance-request` with specific tags. You can view an example of scoping these actions in the [Getting Started Guide's default CloudFormation controller policy](https://github.com/aws/karpenter/blob/v0.33.0/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml#L61).
+
 ### Upgrading to v0.32.0+
 
 {{% alert title="Warning" color="warning" %}}
