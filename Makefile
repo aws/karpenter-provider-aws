@@ -30,7 +30,7 @@ KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-karpenter/scripts
 
 # Common Directories
-MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
+MOD_DIRS = $(shell find . -path "./website" -prune -o -name go.mod -type f -print | xargs dirname)
 KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' github.com/aws/karpenter-core)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
@@ -195,7 +195,7 @@ issues: ## Run GitHub issue analysis scripts
 	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
 website: ## Serve the docs website locally
-	cd website && npm install && git submodule update --init --recursive && hugo server
+	cd website && npm install && hugo mod tidy && hugo server
 
 tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod tidy $(newline))
