@@ -95,7 +95,7 @@ var _ = Describe("GarbageCollection", func() {
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))))
 
-		ExpectInstanceProfileCreated(aws.String(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)))
+		ExpectInstanceProfileCreated(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName))
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
@@ -151,10 +151,10 @@ var _ = Describe("GarbageCollection", func() {
 	})
 })
 
-func ExpectInstanceProfileCreated(instanceProfileName *string) {
+func ExpectInstanceProfileCreated(instanceProfileName string) {
 	By("creating an instance profile")
 	createInstanceProfile := &iam.CreateInstanceProfileInput{
-		InstanceProfileName: instanceProfileName,
+		InstanceProfileName: aws.String(instanceProfileName),
 		Tags: []*iam.Tag{
 			{
 				Key:   aws.String(coretest.DiscoveryLabel),
@@ -166,7 +166,7 @@ func ExpectInstanceProfileCreated(instanceProfileName *string) {
 	_, err := env.IAMAPI.CreateInstanceProfile(createInstanceProfile)
 	Expect(ignoreAlreadyExists(err)).ToNot(HaveOccurred())
 	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
-		InstanceProfileName: instanceProfileName,
+		InstanceProfileName: aws.String(instanceProfileName),
 		RoleName:            aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
 	}
 	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
@@ -174,10 +174,8 @@ func ExpectInstanceProfileCreated(instanceProfileName *string) {
 }
 
 func ignoreAlreadyExists(err error) error {
-	if err != nil {
-		if strings.Contains(err.Error(), "EntityAlreadyExists") {
-			return nil
-		}
+	if awserrors.IsAlreadyExists(err) {
+		return nil
 	}
 	return err
 }
