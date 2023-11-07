@@ -756,8 +756,6 @@ var _ = Describe("NodeClassController", func() {
 	Context("NodeClass Termination", func() {
 		var profileName string
 		BeforeEach(func() {
-			nodeClass.Spec.Role = "test-role"
-			ExpectApplied(ctx, env.Client, nodeClass)
 			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
 		})
 		It("should succeed to delete the instance profile with no NodeClaims", func() {
@@ -772,6 +770,7 @@ var _ = Describe("NodeClassController", func() {
 					},
 				},
 			}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
@@ -786,6 +785,7 @@ var _ = Describe("NodeClassController", func() {
 					InstanceProfileName: aws.String(profileName),
 				},
 			}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
@@ -796,6 +796,7 @@ var _ = Describe("NodeClassController", func() {
 		})
 		It("should succeed to delete the NodeClass when the instance profile doesn't exist", func() {
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(0))
+			ExpectApplied(ctx, env.Client, nodeClass)
 
 			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
@@ -826,6 +827,7 @@ var _ = Describe("NodeClassController", func() {
 					},
 				},
 			}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 
@@ -881,7 +883,6 @@ var _ = Describe("NodeClassController", func() {
 	Context("Instance Profile Status", func() {
 		var profileName string
 		BeforeEach(func() {
-			ExpectApplied(ctx, env.Client, nodeClass)
 			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
 		})
 		It("should create the instance profile when it doesn't exist", func() {

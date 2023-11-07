@@ -98,7 +98,7 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 			env.ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))))
 
 		// Create an instance manually to mock Karpenter launching an instance
-		out := env.ExpectRunInstances(instanceInput)
+		out := env.EventuallyExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance

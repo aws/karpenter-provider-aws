@@ -63,7 +63,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
 		Expect(instance.IamInstanceProfile.Arn).To(ContainSubstring(nodeClass.Spec.Role))
 
-		instanceProfile := env.ExpectInstanceProfileExists(instanceprofile.GetProfileName(env.Context, env.Region, nodeClass))
+		instanceProfile := env.EventuallyExpectInstanceProfileExists(instanceprofile.GetProfileName(env.Context, env.Region, nodeClass))
 		Expect(instanceProfile.Roles).To(HaveLen(1))
 		Expect(lo.FromPtr(instanceProfile.Roles[0].RoleName)).To(Equal(nodeClass.Spec.Role))
 	})
