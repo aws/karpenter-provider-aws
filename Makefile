@@ -31,6 +31,7 @@ GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-
 
 # Common Directories
 MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
+MOD_DIRS=`echo "${MOD_DIRS}" | sed 's/.\/website//g'`
 KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' github.com/aws/karpenter-core)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
@@ -124,6 +125,9 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
+	if [ "${CI}" = true ]; then\
+		hack/validation/validate.sh;\
+	fi
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
