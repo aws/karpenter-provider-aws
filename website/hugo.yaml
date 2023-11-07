@@ -9,6 +9,7 @@ module:
 baseURL: /
 disableKinds:
   - taxonomy
+  - term
 enableRobotsTXT: true
 contentDir: content/en
 defaultContentLanguage: en
