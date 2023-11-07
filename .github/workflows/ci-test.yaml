@@ -17,6 +17,8 @@ jobs:
         k8sVersion: ${{ matrix.k8sVersion }}
     - run: K8S_VERSION=${{ matrix.k8sVersion }} make ci-test
     - name: Send coverage
+      # should only send converage once https://docs.coveralls.io/parallel-builds
+      if: matrix.k8sVersion == '1.28.x'
       env:
         COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       run: goveralls -coverprofile=coverage.out -service=github
