@@ -1,0 +1,122 @@
+// Search
+// This file is a copy of https://github.com/google/docsy/blob/v0.6.0/assets/scss/_search.scss
+// with an edit to the width of the "td-search" class to ensure that the search bar is rendered correctly
+
+.td-search {
+    background: transparent;
+    position: relative;
+    width: 100%; // This line was overriden from Docsy v0.6.0 to make sure text isn't truncated
+
+    // Search icon
+    &__icon {
+        // Vertically center the content.
+        display: flex;
+        align-items: center;
+        height: 100%;
+
+        // Position this on the left of the input.
+        position: absolute;
+        left: 0.75em;
+
+        // Click-through to the underlying input.
+        pointer-events: none;
+
+        &:before {
+            @extend .fa;
+            content: fa-content($fa-var-search);
+        }
+
+        // Styling adjustments for the navbar
+        @at-root {
+            .td-navbar & {
+                color: $navbar-dark-color;
+            }
+        }
+    }
+
+    // Search input element
+    &__input {
+        width: 100%;
+        text-indent: 1.25em;
+
+        @if $enable-rounded {
+            border-radius: 1rem;
+        }
+
+        &:not(:focus) {
+            background: transparent;
+        }
+
+        &.form-control:focus {
+            border-color: lighten($primary, 60%);
+            box-shadow: 0 0 0 2px lighten($primary, 30%);
+            color: inherit;
+        }
+
+        // Styling adjustments for the navbar
+        @at-root {
+            .td-navbar & {
+                border: none;
+                color: $navbar-dark-color;
+
+                @include placeholder {
+                    color: $navbar-dark-color;
+                }
+            }
+        }
+
+    }
+
+    // Hide icon on focus
+    &:focus-within {
+
+        .td-search__icon {
+            display: none;
+        }
+
+        .td-search-input {
+            text-indent: 0px;
+        }
+    }
+
+    &:not(:focus-within) {
+        color: $input-placeholder-color;
+    }
+}
+
+// Offline search
+
+.td-search--offline {
+
+    &:focus-within {
+        // Don't hide the search icon on focus: this gives better UX when user
+        // explores content of search-results popup and focus is lost.
+
+        .td-search__icon {
+            display: flex;
+            color: $input-placeholder-color;
+        }
+    }
+}
+
+.td-offline-search-results {
+    max-width: 90%;
+
+    .card {
+        margin-bottom: $spacer * .5;
+
+        .card-header {
+            font-weight: bold;
+        }
+    }
+
+    &__close-button {
+        // cursor: pointer;
+        float: right;
+
+        &:after {
+            @extend .fas;
+            content: fa-content($fa-var-times);
+        }
+    }
+}
