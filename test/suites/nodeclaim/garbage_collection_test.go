@@ -88,7 +88,7 @@ var _ = Describe("GarbageCollection", func() {
 			MaxCount: aws.Int64(1),
 		}
 	})
-	FIt("should succeed to garbage collect an Instance that was launched by a NodeClaim but has no Instance mapping", func() {
+	It("should succeed to garbage collect an Instance that was launched by a NodeClaim but has no Instance mapping", func() {
 		// Update the userData for the instance input with the correct NodePool
 		rawContent, err := os.ReadFile("testdata/al2_userdata_input.sh")
 		Expect(err).ToNot(HaveOccurred())
