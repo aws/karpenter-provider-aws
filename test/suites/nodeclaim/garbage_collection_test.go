@@ -183,7 +183,7 @@ func ExpectInstanceProfileDeleted(instanceProfileName string) {
 	By("deleting an instance profile")
 	removeRoleFromInstanceProfile := &iam.RemoveRoleFromInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
-		RoleName: aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
+		RoleName:            aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
 	}
 	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(removeRoleFromInstanceProfile)
 	Expect(err).To(BeNil())
