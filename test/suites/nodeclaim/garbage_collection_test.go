@@ -97,13 +97,11 @@ var _ = Describe("GarbageCollection", func() {
 
 		instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
 		ExpectInstanceProfileCreated(instanceProfileName)
-		// Sleep 10 seconds to allow the instance profile to handle eventual consistency delays.
-		time.Sleep(10 * time.Second)
 		DeferCleanup(func() {
 			defer ExpectInstanceProfileDeleted(instanceProfileName)
 		})
 		// Create an instance manually to mock Karpenter launching an instance
-		out := env.ExpectRunInstances(instanceInput)
+		out := env.EventuallyExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))
 
 		// Always ensure that we cleanup the instance
@@ -170,7 +168,7 @@ func ExpectInstanceProfileCreated(instanceProfileName string) {
 	}
 	By("adding the karpenter role to new instance profile")
 	_, err := env.IAMAPI.CreateInstanceProfile(createInstanceProfile)
-	Expect(ignoreAlreadyExists(err)).ToNot(HaveOccurred())
+	Expect(awserrors.IgnoreAlreadyExists(err)).ToNot(HaveOccurred())
 	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
 		RoleName:            aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
@@ -186,20 +184,13 @@ func ExpectInstanceProfileDeleted(instanceProfileName string) {
 		RoleName:            aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
 	}
 	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(removeRoleFromInstanceProfile)
-	Expect(err).To(BeNil())
+	Expect(awserrors.IgnoreNotFound(err)).To(BeNil())
 
 	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
 		InstanceProfileName: aws.String(instanceProfileName),
 	}
 	_, err = env.IAMAPI.DeleteInstanceProfile(deleteInstanceProfile)
-	Expect(ignoreAlreadyExists(err)).ToNot(HaveOccurred())
-}
-
-func ignoreAlreadyExists(err error) error {
-	if awserrors.IsAlreadyExists(err) {
-		return nil
-	}
-	return err
+	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
 }
 
 func ignoreAlreadyContainsRole(err error) error {
@@ -208,6 +199,5 @@ func ignoreAlreadyContainsRole(err error) error {
 			return nil
 		}
 	}
-
 	return err
 }
