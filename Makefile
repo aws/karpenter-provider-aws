@@ -30,7 +30,7 @@ KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-karpenter/scripts
 
 # Common Directories
-MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
+MOD_DIRS = $(shell find . -path "./website" -prune -o -name go.mod -type f -print | xargs dirname)
 KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' github.com/aws/karpenter-core)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
@@ -124,7 +124,6 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
-	MOD_DIRS=$(shell echo $(MOD_DIRS) | sed 's/.\/website//g')
 	$(foreach dir,$(MOD_DIRS_VERIFY),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
