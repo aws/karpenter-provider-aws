@@ -72,9 +72,10 @@ runs:
         region: ${{ inputs.region }}
         version: "${{ inputs.k8s_version }}"
         tags:
-          karpenter.sh/discovery: ${{ inputs.cluster_name }}
+          karpenter.sh/discovery: "${{ inputs.cluster_name }}"
           github.com/run-url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           testing/type: "e2e"
+          testing/cluster: "${{ inputs.cluster_name }}"
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:
@@ -153,7 +154,8 @@ runs:
             --vpc-endpoint-type Interface \
             --service-name "${SERVICE}" \
             --subnet-ids ${SUBNET_IDS[@]} \
-            --security-group-ids ${SECURITY_GROUP_IDS[@]}
+            --security-group-ids ${SECURITY_GROUP_IDS[@]} \
+            --tags "testing/type=e2e" "testing/cluster=${{ inputs.cluster_name }}" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
         done
       fi
   - name: tag oidc provider of the cluster
@@ -163,7 +165,7 @@ runs:
       oidc_id=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
       arn="arn:aws:iam::${{ inputs.account_id }}:oidc-provider/${oidc_id}"
       aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
-         --tags Key=testing/type,Value=e2e  Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+         --tags Key=testing/type,Value=e2e Key=testing/cluster,Value=${{ inputs.cluster_name }} Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - name: give KarpenterNodeRole permission to bootstrap
     shell: bash
     run: |
