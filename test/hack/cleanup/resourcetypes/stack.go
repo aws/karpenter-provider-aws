@@ -1,8 +1,21 @@
-package resource
+/*
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package resourcetypes
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
@@ -19,7 +32,7 @@ func NewStack(cloudFormationClient *cloudformation.Client) *Stack {
 	return &Stack{cloudFormationClient: cloudFormationClient}
 }
 
-func (s *Stack) Type() string {
+func (s *Stack) String() string {
 	return "CloudformationStacks"
 }
 
@@ -39,7 +52,7 @@ func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time) (names
 		})
 		for _, stack := range stacks {
 			if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
-				return lo.FromPtr(t.Key) == githubRunURLTag
+				return lo.FromPtr(t.Key) == karpenterTestingTag || lo.FromPtr(t.Key) == githubRunURLTag
 			}); found && lo.FromPtr(stack.CreationTime).Before(expirationTime) {
 				names = append(names, lo.FromPtr(stack.StackName))
 			}
@@ -53,8 +66,28 @@ func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time) (names
 	return names, err
 }
 
-func (s *Stack) Get(_ context.Context, clusterName string) (names []string, err error) {
-	return []string{fmt.Sprintf("iam-%s", clusterName), fmt.Sprintf("eksctl-%s-cluster", clusterName)}, nil
+func (s *Stack) Get(ctx context.Context, clusterName string) (names []string, err error) {
+	var nextToken *string
+	for {
+		out, err := s.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return names, err
+		}
+		for _, stack := range out.Stacks {
+			if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
+				return lo.FromPtr(t.Key) == karpenterTestingTag && lo.FromPtr(t.Value) == clusterName
+			}); found {
+				names = append(names, lo.FromPtr(stack.StackName))
+			}
+		}
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return names, nil
 }
 
 // Cleanup any old stacks that were provisioned as part of testing

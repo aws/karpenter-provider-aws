@@ -28,7 +28,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/aws/karpenter/test/hack/cleanup/metrics"
-	"github.com/aws/karpenter/test/hack/cleanup/resource"
+	"github.com/aws/karpenter/test/hack/cleanup/resourcetypes"
 )
 
 const expirationTTL = time.Hour * 12
@@ -45,7 +45,7 @@ func main() {
 
 	expirationTime := time.Now().Add(-expirationTTL)
 
-	logger.With("expiration-time", expirationTime.String()).Infof("resolved expiration time for all resources")
+	logger.With("expiration-time", expirationTime.String()).Infof("resolved expiration time for all resourceTypes")
 
 	ec2Client := ec2.NewFromConfig(cfg)
 	cloudFormationClient := cloudformation.NewFromConfig(cfg)
@@ -57,39 +57,39 @@ func main() {
 	// will be cleaned before ENIs are attempted to be cleaned up. Likewise, instances and ENIs
 	// are cleaned up before security groups are cleaned up to ensure that everything is detached and doesn't
 	// prevent deletion
-	resources := []resource.Resource{
-		resource.NewInstance(ec2Client),
-		resource.NewVPCEndpoint(ec2Client),
-		resource.NewENI(ec2Client),
-		resource.NewSecurityGroup(ec2Client),
-		resource.NewLaunchTemplate(ec2Client),
-		resource.NewOIDC(iamClient),
-		resource.NewInstanceProfile(iamClient),
-		resource.NewStack(cloudFormationClient),
+	resourceTypes := []resourcetypes.Type{
+		resourcetypes.NewInstance(ec2Client),
+		resourcetypes.NewVPCEndpoint(ec2Client),
+		resourcetypes.NewENI(ec2Client),
+		resourcetypes.NewSecurityGroup(ec2Client),
+		resourcetypes.NewLaunchTemplate(ec2Client),
+		resourcetypes.NewOIDC(iamClient),
+		resourcetypes.NewInstanceProfile(iamClient),
+		resourcetypes.NewStack(cloudFormationClient),
 	}
 
-	for i := range resources {
-		resourceLogger := logger.With("type", resources[i].Type())
+	for i := range resourceTypes {
+		resourceLogger := logger.With("type", resourceTypes[i].String())
 		var ids []string
 		var err error
 		if clusterName == "" {
-			ids, err = resources[i].GetExpired(ctx, expirationTime)
+			ids, err = resourceTypes[i].GetExpired(ctx, expirationTime)
 		} else {
-			ids, err = resources[i].Get(ctx, clusterName)
+			ids, err = resourceTypes[i].Get(ctx, clusterName)
 		}
 		if err != nil {
 			resourceLogger.Errorf("%v", err)
 		}
-		resourceLogger.With("ids", ids, "count", len(ids)).Infof("discovered resources")
+		resourceLogger.With("ids", ids, "count", len(ids)).Infof("discovered resourceTypes")
 		if len(ids) > 0 {
-			cleaned, err := resources[i].Cleanup(ctx, ids)
+			cleaned, err := resourceTypes[i].Cleanup(ctx, ids)
 			if err != nil {
 				resourceLogger.Errorf("%v", err)
 			}
-			if err = metricsClient.FireMetric(ctx, fmt.Sprintf("%sDeleted", resources[i].Type()), float64(len(cleaned)), cfg.Region); err != nil {
+			if err = metricsClient.FireMetric(ctx, fmt.Sprintf("%sDeleted", resourceTypes[i].String()), float64(len(cleaned)), cfg.Region); err != nil {
 				resourceLogger.Errorf("%v", err)
 			}
-			resourceLogger.With("ids", cleaned, "count", len(cleaned)).Infof("deleted resources")
+			resourceLogger.With("ids", cleaned, "count", len(cleaned)).Infof("deleted resourceTypes")
 		}
 	}
 }
