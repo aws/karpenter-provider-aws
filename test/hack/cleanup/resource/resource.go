@@ -11,11 +11,9 @@ const (
 	karpenterNodePoolTag        = "karpenter.sh/nodepool"
 	karpenterLaunchTemplateTag  = "karpenter.k8s.aws/cluster"
 	karpenterSecurityGroupTag   = "karpenter.sh/discovery"
-	// TODO @joinnis: Remove this karpenterTestingTagLegacy field after running this cleanup script for a few days
-	karpenterTestingTagLegacy = "testing.karpenter.sh/cluster"
-	karpenterTestingTag       = "testing/cluster"
-	k8sClusterTag             = "cluster.k8s.amazonaws.com/name"
-	githubRunURLTag           = "github.com/run-url"
+	karpenterTestingTag         = "testing/cluster"
+	k8sClusterTag               = "cluster.k8s.amazonaws.com/name"
+	githubRunURLTag             = "github.com/run-url"
 )
 
 // Resource is a resource type that can be cleaned through a cluster clean-up operation

@@ -59,6 +59,7 @@ func main() {
 	// prevent deletion
 	resources := []resource.Resource{
 		resource.NewInstance(ec2Client),
+		resource.NewVPCEndpoint(ec2Client),
 		resource.NewENI(ec2Client),
 		resource.NewSecurityGroup(ec2Client),
 		resource.NewLaunchTemplate(ec2Client),
