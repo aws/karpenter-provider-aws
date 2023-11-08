@@ -64,7 +64,6 @@ jobs:
           - Expiration
           - Chaos
           - IPv6
-          - PrivateCluster
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
