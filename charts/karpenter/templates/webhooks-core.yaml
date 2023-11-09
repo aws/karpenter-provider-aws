@@ -38,7 +38,6 @@ webhooks:
         operations:
           - CREATE
           - UPDATE
-          - DELETE
         resources:
           - nodeclaims
           - nodeclaims/status
