@@ -38,6 +38,7 @@ func init() {
 		LabelInstanceCPU,
 		LabelInstanceMemory,
 		LabelInstanceNetworkBandwidth,
+		LabelInstancePods,
 		LabelInstanceGPUName,
 		LabelInstanceGPUManufacturer,
 		LabelInstanceGPUCount,
@@ -103,6 +104,7 @@ var (
 	LabelInstanceSize                         = Group + "/instance-size"
 	LabelInstanceCPU                          = Group + "/instance-cpu"
 	LabelInstanceMemory                       = Group + "/instance-memory"
+	LabelInstancePods                         = Group + "/instance-pods"
 	LabelInstanceNetworkBandwidth             = Group + "/instance-network-bandwidth"
 	LabelInstanceGPUName                      = Group + "/instance-gpu-name"
 	LabelInstanceGPUManufacturer              = Group + "/instance-gpu-manufacturer"
