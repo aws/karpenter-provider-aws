@@ -93,8 +93,8 @@ func (s *Stack) Get(ctx context.Context, clusterName string) (names []string, er
 // Cleanup any old stacks that were provisioned as part of testing
 // We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 func (s *Stack) Cleanup(ctx context.Context, names []string) ([]string, error) {
+	var deleted []string
 	var errs error
-	deleted := []string{}
 	for i := range names {
 		_, err := s.cloudFormationClient.DeleteStack(ctx, &cloudformation.DeleteStackInput{
 			StackName: lo.ToPtr(names[i]),

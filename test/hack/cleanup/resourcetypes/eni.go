@@ -60,11 +60,11 @@ func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time) (ids []s
 			if !found {
 				continue
 			}
-			time, err := time.Parse(time.RFC3339, *creationDate.Value)
+			creationTime, err := time.Parse(time.RFC3339, *creationDate.Value)
 			if err != nil {
 				continue
 			}
-			if ni.Status == ec2types.NetworkInterfaceStatusAvailable && time.Before(expirationTime) {
+			if ni.Status == ec2types.NetworkInterfaceStatusAvailable && creationTime.Before(expirationTime) {
 				ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
 			}
 		}
@@ -105,8 +105,10 @@ func (e *ENI) Get(ctx context.Context, clusterName string) (ids []string, err er
 	return ids, err
 }
 
+// Cleanup any old ENIs that were managed by Karpenter or were provisioned as part of testing
+// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 func (e *ENI) Cleanup(ctx context.Context, ids []string) ([]string, error) {
-	deleted := []string{}
+	var deleted []string
 	var errs error
 	for i := range ids {
 		_, err := e.ec2Client.DeleteNetworkInterface(ctx, &ec2.DeleteNetworkInterfaceInput{

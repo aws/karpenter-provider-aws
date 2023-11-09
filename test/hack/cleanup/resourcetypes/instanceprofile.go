@@ -90,9 +90,11 @@ func (ip *InstanceProfile) Get(ctx context.Context, clusterName string) (names [
 	return names, multierr.Combine(errs...)
 }
 
+// Cleanup any old instance profiles that were managed by Karpenter or were provisioned as part of testing
+// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 func (ip *InstanceProfile) Cleanup(ctx context.Context, names []string) ([]string, error) {
+	var deleted []string
 	var errs error
-	deleted := []string{}
 	for i := range names {
 		out, _ := ip.iamClient.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: lo.ToPtr(names[i])})
 		if len(out.InstanceProfile.Roles) != 0 {

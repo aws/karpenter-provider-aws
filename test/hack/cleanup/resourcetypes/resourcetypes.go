@@ -20,21 +20,26 @@ import (
 )
 
 const (
-	karpenterClusterNameTag     = "karpenter.sh/managed-by"
-	karpenterProvisionerNameTag = "karpenter.sh/provisioner-name"
-	karpenterNodePoolTag        = "karpenter.sh/nodepool"
-	karpenterLaunchTemplateTag  = "karpenter.k8s.aws/cluster"
-	karpenterSecurityGroupTag   = "karpenter.sh/discovery"
-	karpenterTestingTag         = "testing/cluster"
-	k8sClusterTag               = "cluster.k8s.amazonaws.com/name"
-	githubRunURLTag             = "github.com/run-url"
+	karpenterClusterNameTag    = "karpenter.sh/managed-by"
+	karpenterNodePoolTag       = "karpenter.sh/nodepool"
+	karpenterLaunchTemplateTag = "karpenter.k8s.aws/cluster"
+	karpenterSecurityGroupTag  = "karpenter.sh/discovery"
+	karpenterTestingTag        = "testing/cluster"
+	k8sClusterTag              = "cluster.k8s.amazonaws.com/name"
+	githubRunURLTag            = "github.com/run-url"
 )
 
 // Type is a resource type that can be cleaned through a cluster clean-up operation
 // and through an expiration-based cleanup operation
 type Type interface {
+	// String is the string representation of the type
 	String() string
+	// Get returns all resources of the type associated with the clusterName
 	Get(ctx context.Context, clusterName string) (ids []string, err error)
+	// GetExpired returns all resources of the type that were provisioned before the expirationTime
 	GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error)
+	// Cleanup deletes all resources of the type by id and returns the resource ids it succeeded to delete
+	// In general, if all resources can't be deleted by id with a single API call (like with DeleteInstances)
+	// you should call the requests synchronously to avoid rate limiting against the number of requests made
 	Cleanup(ctx context.Context, ids []string) (cleaned []string, err error)
 }

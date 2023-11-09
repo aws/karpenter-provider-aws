@@ -68,8 +68,8 @@ func (o *OIDC) Get(ctx context.Context, clusterName string) (names []string, err
 // Cleanup any old OIDC providers that were are remaining as part of testing
 // We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 func (o *OIDC) Cleanup(ctx context.Context, arns []string) ([]string, error) {
+	var deleted []string
 	var errs error
-	deleted := []string{}
 	for i := range arns {
 		_, err := o.iamClient.DeleteOpenIDConnectProvider(ctx, &iam.DeleteOpenIDConnectProviderInput{
 			OpenIDConnectProviderArn: lo.ToPtr(arns[i]),

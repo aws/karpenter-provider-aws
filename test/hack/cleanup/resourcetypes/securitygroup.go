@@ -79,7 +79,6 @@ func (sg *SecurityGroup) GetExpired(ctx context.Context, expirationTime time.Tim
 
 func (sg *SecurityGroup) Get(ctx context.Context, clusterName string) (ids []string, err error) {
 	var nextToken *string
-
 	for {
 		out, err := sg.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
 			Filters: []ec2types.Filter{
@@ -106,8 +105,10 @@ func (sg *SecurityGroup) Get(ctx context.Context, clusterName string) (ids []str
 	return ids, err
 }
 
+// Cleanup any old security groups that were provisioned as part of testing
+// We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 func (sg *SecurityGroup) Cleanup(ctx context.Context, ids []string) ([]string, error) {
-	deleted := []string{}
+	var deleted []string
 	var errs error
 	for i := range ids {
 		_, err := sg.ec2Client.DeleteSecurityGroup(ctx, &ec2.DeleteSecurityGroupInput{
