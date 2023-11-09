@@ -246,13 +246,19 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
 		default:
 			elem := FiltersAndOwners{
-				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
+				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
 			}
 			if term.Name != "" {
+				// Default owners to self,amazon to ensure Karpenter only discovers cross-account AMIs if the user specifically allows it.
+				// Removing this default would cause Karpenter to discover publicly shared AMIs passing the name filter.
+				elem = FiltersAndOwners{
+					Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
+				}
 				elem.Filters = append(elem.Filters, &ec2.Filter{
 					Name:   aws.String("name"),
 					Values: aws.StringSlice([]string{term.Name}),
 				})
+
 			}
 			for k, v := range term.Tags {
 				if v == "*" {

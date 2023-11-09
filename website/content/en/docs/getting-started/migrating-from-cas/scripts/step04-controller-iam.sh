@@ -70,6 +70,68 @@ cat << EOF > controller-policy.json
             "Action": "eks:DescribeCluster",
             "Resource": "arn:${AWS_PARTITION}:eks:${AWS_REGION}:${AWS_ACCOUNT_ID}:cluster/${CLUSTER_NAME}",
             "Sid": "EKSClusterEndpointLookup"
+        },
+        {
+            "Sid": "AllowScopedInstanceProfileCreationActions",
+            "Effect": "Allow",
+            "Resource": "*",
+            "Action": [
+            "iam:CreateInstanceProfile"
+            ],
+            "Condition": {
+            "StringEquals": {
+                "aws:RequestTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
+                "aws:RequestTag/topology.kubernetes.io/region": "${AWS_REGION}"
+            },
+            "StringLike": {
+                "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+            }
+            }
+        },
+        {
+            "Sid": "AllowScopedInstanceProfileTagActions",
+            "Effect": "Allow",
+            "Resource": "*",
+            "Action": [
+            "iam:TagInstanceProfile"
+            ],
+            "Condition": {
+            "StringEquals": {
+                "aws:ResourceTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
+                "aws:ResourceTag/topology.kubernetes.io/region": "${AWS_REGION}",
+                "aws:RequestTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
+                "aws:RequestTag/topology.kubernetes.io/region": "${AWS_REGION}"
+            },
+            "StringLike": {
+                "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",
+                "aws:RequestTag/karpenter.k8s.aws/ec2nodeclass": "*"
+            }
+            }
+        },
+        {
+            "Sid": "AllowScopedInstanceProfileActions",
+            "Effect": "Allow",
+            "Resource": "*",
+            "Action": [
+            "iam:AddRoleToInstanceProfile",
+            "iam:RemoveRoleFromInstanceProfile",
+            "iam:DeleteInstanceProfile"
+            ],
+            "Condition": {
+            "StringEquals": {
+                "aws:ResourceTag/kubernetes.io/cluster/${CLUSTER_NAME}": "owned",
+                "aws:ResourceTag/topology.kubernetes.io/region": "${AWS_REGION}"
+            },
+            "StringLike": {
+                "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*"
+            }
+            }
+        },
+        {
+            "Sid": "AllowInstanceProfileReadActions",
+            "Effect": "Allow",
+            "Resource": "*",
+            "Action": "iam:GetInstanceProfile"
         }
     ],
     "Version": "2012-10-17"

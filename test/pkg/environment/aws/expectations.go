@@ -115,24 +115,20 @@ func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
 	Expect(err).ToNot(HaveOccurred())
 }
 
-func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string) {
+func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
 	GinkgoHelper()
-	By(fmt.Sprintf("expecting instance profile %s to exist", profileName))
+	By(fmt.Sprintf("eventually expecting instance profile %s to exist", profileName))
 	var instanceProfile iam.InstanceProfile
 	Eventually(func(g Gomega) {
-		instanceProfile = env.ExpectInstanceProfileExists(profileName)
+		out, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
+			InstanceProfileName: aws.String(profileName),
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(out.InstanceProfile).ToNot(BeNil())
+		g.Expect(out.InstanceProfile.InstanceProfileName).ToNot(BeNil())
+		instanceProfile = lo.FromPtr(out.InstanceProfile)
 	}).WithTimeout(20 * time.Second).Should(Succeed())
-	Expect(instanceProfile.InstanceProfileName).ToNot(BeNil())
-}
-
-func (env *Environment) ExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
-	GinkgoHelper()
-	out, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
-		InstanceProfileName: aws.String(profileName),
-	})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(out.InstanceProfile).ToNot(BeNil())
-	return lo.FromPtr(out.InstanceProfile)
+	return instanceProfile
 }
 
 // GetInstanceProfileName gets the string for the profile name based on the cluster name, region and the NodeClass name.
@@ -316,18 +312,19 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 	return *parameter.Parameter.Value
 }
 
-func (env *Environment) ExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
+func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
 	GinkgoHelper()
-	env.EventuallyExpectInstanceProfileExists(aws.StringValue(instanceInput.IamInstanceProfile.Name))
 	// implement IMDSv2
 	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptionsRequest{
 		HttpEndpoint: aws.String("enabled"),
 		HttpTokens:   aws.String("required"),
 	}
-
-	out, err := env.EC2API.RunInstances(instanceInput)
-	Expect(err).ToNot(HaveOccurred())
-
+	var out *ec2.Reservation
+	var err error
+	Eventually(func(g Gomega) {
+		out, err = env.EC2API.RunInstances(instanceInput)
+		g.Expect(err).ToNot(HaveOccurred())
+	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
 	return out
 }
 
