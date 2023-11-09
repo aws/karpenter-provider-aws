@@ -94,11 +94,11 @@ func (lt *LaunchTemplate) Get(ctx context.Context, clusterName string) (names []
 	return names, err
 }
 
-// Cleanup any old launch templates that were managed by Karpenter and were provisioned as part of testing
+// Cleanup any old launch templates that were managed by Karpenter or were provisioned as part of testing
 // We execute these in serial since we will most likely get rate limited if we try to delete these too aggressively
 func (lt *LaunchTemplate) Cleanup(ctx context.Context, names []string) ([]string, error) {
+	var deleted []string
 	var errs error
-	deleted := []string{}
 	for i := range names {
 		_, err := lt.ec2Client.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{
 			LaunchTemplateName: lo.ToPtr(names[i]),

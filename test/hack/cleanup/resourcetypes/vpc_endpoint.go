@@ -89,6 +89,7 @@ func (v *VPCEndpoint) GetExpired(ctx context.Context, expirationTime time.Time) 
 	return ids, err
 }
 
+// Cleanup any old VPC endpoints that were provisioned as part of testing
 func (v *VPCEndpoint) Cleanup(ctx context.Context, ids []string) ([]string, error) {
 	if _, err := v.ec2Client.DeleteVpcEndpoints(ctx, &ec2.DeleteVpcEndpointsInput{
 		VpcEndpointIds: ids,

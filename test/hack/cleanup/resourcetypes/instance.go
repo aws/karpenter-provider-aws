@@ -46,7 +46,7 @@ func (i *Instance) GetExpired(ctx context.Context, expirationTime time.Time) (id
 				},
 				{
 					Name:   lo.ToPtr("tag-key"),
-					Values: []string{karpenterProvisionerNameTag, karpenterNodePoolTag},
+					Values: []string{karpenterNodePoolTag},
 				},
 			},
 			NextToken: nextToken,
@@ -106,6 +106,7 @@ func (i *Instance) Get(ctx context.Context, clusterName string) (ids []string, e
 	return ids, err
 }
 
+// Cleanup any old instances that were managed by Karpenter or were provisioned as part of testing
 func (i *Instance) Cleanup(ctx context.Context, ids []string) ([]string, error) {
 	if _, err := i.ec2Client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
 		InstanceIds: ids,
