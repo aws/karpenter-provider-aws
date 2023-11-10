@@ -199,10 +199,11 @@ If you are using some IaC for managing your policy documents attached to the con
 
 Karpenter v1beta1 introduces changes to some common labels, annotations, and status conditions that are present in the project. The tables below lists the v1alpha5 values and their v1beta1 equivalent.
 
-| Karpenter Labels                |                             |
-|---------------------------------|-----------------------------|
-| **v1alpha5**                    | **v1beta1**                 |
-| karpenter.sh/provisioner-name   | karpenter.sh/nodepool       |
+| Karpenter Labels                |                       |
+|---------------------------------|-----------------------|
+| **v1alpha5**                    | **v1beta1**           |
+| karpenter.sh/provisioner-name   | karpenter.sh/nodepool |
+| karpenter.k8s.aws/instance-pods | **Dropped**           |
 
 > **Note**: Previously, you could use the `karpenter.sh/provisioner-name:DoesNotExist` requirement on pods to specify that pods should schedule to nodes unmanaged by Karpenter. With the addition of the `karpenter.sh/nodepool` label key, you now need to specify the `karpenter.sh/nodepool:DoesNotExist` requirement on these pods as well to ensure they don't schedule to nodes provisioned by the new NodePool resources.
 
