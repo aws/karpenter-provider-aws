@@ -36,7 +36,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
-	"github.com/aws/karpenter/pkg/operator/options"
 	awstest "github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/debug"
@@ -667,11 +666,6 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 	})
 	Context("Interruption", func() {
 		It("should interrupt all nodes due to scheduledChange", func(_ context.Context) {
-			env.Context = options.ToContext(env.Context, awstest.Options(awstest.OptionsFields{
-				InterruptionQueue: lo.ToPtr(env.InterruptionQueue),
-			}))
-			env.ExpectQueueExists() // Ensure the queue exists before sending messages
-
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 200

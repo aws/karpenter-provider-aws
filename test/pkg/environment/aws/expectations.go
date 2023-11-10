@@ -285,13 +285,6 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 	return securityGroups
 }
 
-func (env *Environment) ExpectQueueExists() {
-	GinkgoHelper()
-	exists, err := env.SQSProvider.QueueExists(env.Context)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(exists).To(BeTrue())
-}
-
 func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 	GinkgoHelper()
 	wg := &sync.WaitGroup{}
