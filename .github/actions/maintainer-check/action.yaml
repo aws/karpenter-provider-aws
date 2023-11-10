@@ -9,7 +9,7 @@ runs:
   steps:
     - shell: bash
       run: |
-        MAINTAINERS="tzneal,spring1843,ellistarn,akestner,bwagner5,billrayburn,suket22,njtran,chrisnegus,jonathan-innis,rtripat,engedaam,jmdeal"
+        MAINTAINERS="tzneal,spring1843,ellistarn,akestner,bwagner5,billrayburn,suket22,njtran,chrisnegus,jonathan-innis,rtripat,engedaam"
         USERNAME=${{ inputs.username }}
 
         if [[ "$MAINTAINERS" != *"$USERNAME"* ]]; then
