@@ -2,18 +2,19 @@
 set -euo pipefail
 
 GIT_TAG=$(git describe --exact-match --tags || echo "no tag")
+if [[ "$GIT_TAG" == "no tag" ]]; then
+    echo "Failed to release: commit is untagged"
+    exit 1
+fi
 HEAD_HASH=$(git rev-parse HEAD)
 
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
 source "${SCRIPT_DIR}/common.sh"
-
 config
-release $HEAD_HASH #release a snapshot version
-## Reset changes if it's a snapshot since we don't need to track these changes
-## and results in a -dirty commit hash for a stable release
-git reset --hard
 
-if [[ $(releaseType $GIT_TAG) == $RELEASE_TYPE_STABLE ]]; then
-  release $GIT_TAG
+# Don't release with a dirty commit!
+if [[ "$(git status --porcelain)" != "" ]]; then
+    exit 1
 fi
 
+release "$GIT_TAG"
