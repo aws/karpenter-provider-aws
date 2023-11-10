@@ -2,8 +2,6 @@ module github.com/aws/karpenter/test
 
 go 1.21
 
-toolchain go1.21.3
-
 require (
 	github.com/aws/amazon-ec2-spot-interrupter v0.0.10
 	github.com/aws/aws-sdk-go v1.44.234
