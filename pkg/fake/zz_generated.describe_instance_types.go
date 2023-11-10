@@ -90,6 +90,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				TotalSizeInGB: aws.Int64(4000),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
+				EfaInfo: &ec2.EfaInfo{
+					MaximumEfaInterfaces: aws.Int64(4),
+				},
 				MaximumNetworkInterfaces:     aws.Int64(60),
 				Ipv4AddressesPerInterface:    aws.Int64(50),
 				EncryptionInTransitSupported: aws.Bool(true),
@@ -147,6 +150,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				TotalSizeInGB: aws.Int64(900),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
+				EfaInfo: &ec2.EfaInfo{
+					MaximumEfaInterfaces: aws.Int64(1),
+				},
 				MaximumNetworkInterfaces:     aws.Int64(4),
 				Ipv4AddressesPerInterface:    aws.Int64(15),
 				EncryptionInTransitSupported: aws.Bool(true),
@@ -348,6 +354,9 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				TotalSizeInGB: aws.Int64(7600),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
+				EfaInfo: &ec2.EfaInfo{
+					MaximumEfaInterfaces: aws.Int64(2),
+				},
 				MaximumNetworkInterfaces:     aws.Int64(14),
 				Ipv4AddressesPerInterface:    aws.Int64(50),
 				EncryptionInTransitSupported: aws.Bool(true),

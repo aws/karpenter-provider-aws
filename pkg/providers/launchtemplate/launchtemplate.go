@@ -243,6 +243,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 		launchTemplateDataTags = append(launchTemplateDataTags, &ec2.LaunchTemplateTagSpecificationRequest{ResourceType: aws.String(ec2.ResourceTypeSpotInstancesRequest), Tags: utils.MergeTags(options.Tags)})
 	}
 	networkInterface := p.generateNetworkInterface(options)
+	logging.FromContext(ctx).Debugf("Network Interfaces: %d", len(networkInterface))
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -286,16 +287,23 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 // This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
 // https://github.com/aws/karpenter/issues/3815
 func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-	if options.AssociatePublicIPAddress != nil {
-		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-			{
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-				DeviceIndex:              aws.Int64(0),
-				Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
-			},
+	interfaces := lo.Times(options.EFACount, func(i int) *ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+		return &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+			AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+			NetworkCardIndex:         lo.ToPtr(int64(i)),
+			DeviceIndex:              lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
+			InterfaceType:            lo.ToPtr("efa"),
+			Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 		}
+	})
+	if len(interfaces) == 0 && options.AssociatePublicIPAddress != nil {
+		interfaces = append(interfaces, &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+			AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+			DeviceIndex:              aws.Int64(0),
+			Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+		})
 	}
-	return nil
+	return interfaces
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1beta1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {

@@ -69,6 +69,7 @@ type LaunchTemplate struct {
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
+	EFACount            int
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -130,13 +131,24 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
-		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
-			return int(instanceType.Capacity.Pods().Value())
+		type launchTemplateParams struct {
+			efaCount int
+			maxPods  int
+		}
+		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) launchTemplateParams {
+			return launchTemplateParams{
+				efaCount: lo.Ternary(
+					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1beta1.ResourceEFA),
+					int(lo.ToPtr(instanceType.Capacity[v1beta1.ResourceEFA]).Value()),
+					0,
+				),
+				maxPods: int(instanceType.Capacity.Pods().Value()),
+			}
 		})
 		// In order to support reserved ENIs for CNI custom networking setups,
 		// we need to pass down the max-pods calculation to the kubelet.
 		// This requires that we resolve a unique launch template per max-pods value.
-		for maxPods, instanceTypes := range maxPodsToInstanceTypes {
+		for params, instanceTypes := range paramsToInstanceTypes {
 			kubeletConfig := &corev1beta1.KubeletConfiguration{}
 			if nodeClaim.Spec.Kubelet != nil {
 				if err := mergo.Merge(kubeletConfig, nodeClaim.Spec.Kubelet); err != nil {
@@ -144,7 +156,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 				}
 			}
 			if kubeletConfig.MaxPods == nil {
-				kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
+				kubeletConfig.MaxPods = lo.ToPtr(int32(params.maxPods))
 			}
 			resolved := &LaunchTemplate{
 				Options: options,
@@ -161,6 +173,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 				DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 				AMIID:               amiID,
 				InstanceTypes:       instanceTypes,
+				EFACount:            params.efaCount,
 			}
 			if len(resolved.BlockDeviceMappings) == 0 {
 				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

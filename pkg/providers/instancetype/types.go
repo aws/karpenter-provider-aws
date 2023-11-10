@@ -181,6 +181,7 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1beta1.ResourceAMDGPU:      *amdGPUs(info),
 		v1beta1.ResourceAWSNeuron:   *awsNeurons(info),
 		v1beta1.ResourceHabanaGaudi: *habanaGaudis(info),
+		v1beta1.ResourceEFA:         *efas(info),
 	}
 	return resourceList
 }
@@ -292,6 +293,14 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 				count += *gpu.Count
 			}
 		}
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
+func efas(info *ec2.InstanceTypeInfo) *resource.Quantity {
+	count := int64(0)
+	if info.NetworkInfo != nil && info.NetworkInfo.EfaInfo != nil {
+		count = lo.FromPtr(info.NetworkInfo.EfaInfo.MaximumEfaInterfaces)
 	}
 	return resources.Quantity(fmt.Sprint(count))
 }

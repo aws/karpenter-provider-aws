@@ -311,8 +311,14 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 				labels[key] = req.Values()[0]
 			}
 		}
-		nodeClaim.Status.Capacity = functional.FilterMap(instanceType.Capacity, func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
-		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
+		resourceFilter := func(n v1.ResourceName, v resource.Quantity) bool {
+			if !i.EFAEnabled && n == v1beta1.ResourceEFA {
+				return false
+			}
+			return !resources.IsZero(v)
+		}
+		nodeClaim.Status.Capacity = functional.FilterMap(instanceType.Capacity, resourceFilter)
+		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), resourceFilter)
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
 	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType

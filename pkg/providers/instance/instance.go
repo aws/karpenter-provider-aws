@@ -100,7 +100,8 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if err != nil {
 		return nil, err
 	}
-	return NewInstanceFromFleet(fleetInstance, tags), nil
+	efaEnabled := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1beta1.ResourceEFA)
+	return NewInstanceFromFleet(fleetInstance, tags, efaEnabled), nil
 }
 
 func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
