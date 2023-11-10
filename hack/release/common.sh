@@ -8,12 +8,13 @@ config(){
   RELEASE_REPO_ECR=${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
-  MAIN_GITHUB_ACCOUNT="aws"
-  PRIVATE_PULL_THROUGH_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
-  SNS_TOPIC_ARN="arn:aws:sns:us-east-1:${AWS_ACCOUNT_ID}:KarpenterReleases"
+  PRIVATE_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
+  SNAPSHOT_REPO_ECR=${SNAPSHOT_REPO_ECR:-${PRIVATE_HOST}/karpenter/snapshot/}
+
   CURRENT_MAJOR_VERSION="0"
   RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
 
+  MAIN_GITHUB_ACCOUNT="aws"
   RELEASE_TYPE_STABLE="stable"
   RELEASE_TYPE_SNAPSHOT="snapshot"
 }
@@ -27,26 +28,35 @@ versionData(){
   RELEASE_VERSION_MINOR="${VERSION#*.}"
   RELEASE_VERSION_MINOR="${RELEASE_VERSION_MINOR%.*}"
   RELEASE_VERSION_PATCH="${VERSION##*.}"
+  RELEASE_MINOR_VERSION="v${RELEASE_VERSION_MAJOR}.${RELEASE_VERSION_MINOR}"
 }
 
-release() {
+snapshot() {
   RELEASE_VERSION=$1
-  echo "Release Type: $(releaseType "${RELEASE_VERSION}")
+  echo "Release Type: snapshot
 Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
-  PR_NUMBER=${GH_PR_NUMBER:-}
-  if [ "${GH_PR_NUMBER+defined}" != defined ]; then
-   PR_NUMBER="none"
-  fi
+  authenticatePrivateRepo
+  buildImages ${SNAPSHOT_REPO_ECR}
+  cosignImages
+  publishHelmChart "karpenter" "${RELEASE_VERSION}" "${SNAPSHOT_REPO_ECR}"
+  publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${SNAPSHOT_REPO_ECR}"
+}
+
+release() {
+  RELEASE_VERSION=$1
+  echo "Release Type: stable
+Release Version: ${RELEASE_VERSION}
+Commit: $(git rev-parse HEAD)
+Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
   authenticate
-  buildImages
+  buildImages ${RELEASE_REPO_ECR}
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
-  notifyRelease "$RELEASE_VERSION" $PR_NUMBER
   pullPrivateReplica "$RELEASE_VERSION"
 }
 
@@ -55,11 +65,14 @@ authenticate() {
 }
 
 authenticatePrivateRepo() {
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PRIVATE_PULL_THROUGH_HOST}
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PRIVATE_HOST}
 }
 
 buildImages() {
-    CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} KO_DOCKER_REPO=${RELEASE_REPO_ECR} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
+    RELEASE_REPO=$1
+    # Set the SOURCE_DATE_EPOCH and KO_DATA_DATE_EPOCH values for reproducable builds with timestamps
+    # https://ko.build/advanced/faq/
+    CONTROLLER_IMG=$(GOFLAGS=${GOFLAGS} SOURCE_DATE_EPOCH=$(git log -1 --format='%ct') KO_DATA_DATE_EPOCH=$(git log -1 --format='%ct') KO_DOCKER_REPO=${RELEASE_REPO} ko publish -B -t "${RELEASE_VERSION}" "${RELEASE_PLATFORM}" ./cmd/controller)
     HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
     IMG_REPOSITORY=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 1)
     IMG_TAG=$(echo "$CONTROLLER_IMG" | cut -d "@" -f 1 | cut -d ":" -f 2 -s)
@@ -85,23 +98,21 @@ releaseType(){
 
 helmChartVersion(){
     RELEASE_VERSION=$1
-    if [[ $(releaseType $RELEASE_VERSION) == $RELEASE_TYPE_STABLE ]]; then
-      echo $RELEASE_VERSION
+    if [[ $(releaseType "$RELEASE_VERSION") == "$RELEASE_TYPE_STABLE" ]]; then
+      echo "$RELEASE_VERSION"
     fi
 
-    if [[ $(releaseType $RELEASE_VERSION) == $RELEASE_TYPE_SNAPSHOT ]]; then
+    if [[ $(releaseType "$RELEASE_VERSION") == "$RELEASE_TYPE_SNAPSHOT" ]]; then
       echo "v${CURRENT_MAJOR_VERSION}-${RELEASE_VERSION}"
     fi
 }
 
 buildDate(){
-    # TODO restore https://reproducible-builds.org/docs/source-date-epoch/
+    # Set the SOURCE_DATE_EPOCH and KO_DATA_DATE_EPOCH values for reproducable builds with timestamps
+    # https://ko.build/advanced/faq/
     DATE_FMT="+%Y-%m-%dT%H:%M:%SZ"
-    if [ -z "${SOURCE_DATE_EPOCH-}" ]; then
-        echo $(date -u ${DATE_FMT})
-    else
-        echo$(date -u -d "${SOURCE_DATE_EPOCH}" "${DATE_FMT}" 2>/dev/null || date -u -r "${SOURCE_DATE_EPOCH}" "$(DATE_FMT)" 2>/dev/null || date -u "$(DATE_FMT)")
-    fi
+    SOURCE_DATE_EPOCH=$(git log -1 --format='%ct')
+    echo "$(date -u -r "${SOURCE_DATE_EPOCH}" $DATE_FMT 2>/dev/null)"
 }
 
 cosignImages() {
@@ -112,22 +123,10 @@ cosignImages() {
         "${CONTROLLER_IMG}"
 }
 
-notifyRelease() {
-    RELEASE_VERSION=$1
-    PR_NUMBER=$2
-    RELEASE_TYPE=$(releaseType $RELEASE_VERSION)
-    LAST_STABLE_RELEASE_TAG=$(git describe --tags --abbrev=0)
-    MESSAGE="{\"releaseType\":\"${RELEASE_TYPE}\",\"releaseIdentifier\":\"${RELEASE_VERSION}\",\"prNumber\":\"${PR_NUMBER}\",\"githubAccount\":\"${GITHUB_ACCOUNT}\",\"lastStableReleaseTag\":\"${LAST_STABLE_RELEASE_TAG}\"}"
-    aws sns publish \
-        --topic-arn ${SNS_TOPIC_ARN} \
-        --message ${MESSAGE} \
-        --no-cli-pager
-}
-
 pullPrivateReplica(){
   authenticatePrivateRepo
   RELEASE_IDENTIFIER=$1
-  PULL_THROUGH_CACHE_PATH="${PRIVATE_PULL_THROUGH_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
+  PULL_THROUGH_CACHE_PATH="${PRIVATE_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
   HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
   docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
   helm pull "oci://${PULL_THROUGH_CACHE_PATH}karpenter" --version "${HELM_CHART_VERSION}"
@@ -138,13 +137,13 @@ publishHelmChart() {
     CHART_NAME=$1
     RELEASE_VERSION=$2
     RELEASE_REPO=$3
-    HELM_CHART_VERSION=$(helmChartVersion $RELEASE_VERSION)
+    HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
     HELM_CHART_FILE_NAME="${CHART_NAME}-${HELM_CHART_VERSION}.tgz"
 
     cd charts
     helm dependency update "${CHART_NAME}"
     helm lint "${CHART_NAME}"
-    helm package "${CHART_NAME}" --version $HELM_CHART_VERSION
+    helm package "${CHART_NAME}" --version "$HELM_CHART_VERSION"
     helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
@@ -152,38 +151,47 @@ publishHelmChart() {
 
 createNewWebsiteDirectory() {
     RELEASE_VERSION=$1
-    mkdir -p website/content/en/${RELEASE_VERSION}
-    cp -r website/content/en/preview/* website/content/en/${RELEASE_VERSION}/
-    find website/content/en/${RELEASE_VERSION}/ -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
-    find website/content/en/${RELEASE_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_VERSION}/g;"
+    versionData "${RELEASE_VERSION}"
+
+    mkdir -p "website/content/en/${RELEASE_MINOR_VERSION}"
+    cp -r website/content/en/preview/* "website/content/en/${RELEASE_MINOR_VERSION}/"
+    find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
+    find website/content/en/${RELEASE_MINOR_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_MINOR_VERSION}/g;"
+    find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< githubRelRef >}}/\/${RELEASE_VERSION}\//g;"
+
+    rm -rf website/content/en/docs
+    mkdir -p website/content/en/docs
+    cp -r website/content/en/${RELEASE_MINOR_VERSION}/* website/content/en/docs/
+}
+
+removeOldWebsiteDirectories() {
+  local n=5
+  # Get all the directories except the last n directories sorted from earliest to latest version
+  last_n_versions=$(find website/content/en/* -type d -name "*" -maxdepth 0 | grep -v "preview\|docs" | sort | tail -n "$n")
+  last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
+  last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
+  all=$(find website/content/en/* -type d -name "*" -maxdepth 0)
+  ## symmetric difference
+  comm -3 <(sort <<< $last_n_versions) <(sort <<< $all) | tr -d '\t' | xargs -r -n 1 rm -r
 }
 
 editWebsiteConfig() {
   RELEASE_VERSION=$1
-
-  # sed has a different syntax on mac
-  if [[ "$OSTYPE" == "darwin"* ]]; then
-    sed -i '' '/^\/docs\/\*/d' website/static/_redirects
-  else
-    sed -i '/^\/docs\/\*/d' website/static/_redirects
-  fi
-
-  echo "/docs/*     	                /${RELEASE_VERSION}/:splat" >>website/static/_redirects
-
   yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
-  yq -i ".menu.main[] |=select(.name == \"Docs\") .url = \"${RELEASE_VERSION}\"" website/config.yaml
 }
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
 # without increasing the size of the set.
-# TODO: We need to maintain a list of latest minors here only. This is not currently
-# easy to achieve, however when we have a major release and we decide to maintain
-# a selected minor releases we can maintain that list in the repo and use it in here
 editWebsiteVersionsMenu() {
   RELEASE_VERSION=$1
-  VERSIONS=(${RELEASE_VERSION})
+  versionData "${RELEASE_VERSION}"
+  VERSIONS=("${RELEASE_MINOR_VERSION}")
   while IFS= read -r LINE; do
     SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
+    # Bail from this config.yaml update if the version is already in the existing list
+    if [[ "${RELEASE_MINOR_VERSION}" == "${SANITIZED_VERSION}" ]]; then
+      return
+    fi
     VERSIONS+=("${SANITIZED_VERSION}")
   done < <(yq '.params.versions' website/config.yaml)
   unset VERSIONS[${#VERSIONS[@]}-2]

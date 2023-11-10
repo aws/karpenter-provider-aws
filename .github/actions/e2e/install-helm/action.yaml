@@ -1,0 +1,20 @@
+name: InstallHelm
+description: 'Installs helm'
+inputs:
+  version:
+    description: "Version of Helm to install"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - name: install helm
+      shell: bash
+      run: |
+        TEMPDIR=$(mktemp -d)
+        curl -fsSL -o "${TEMPDIR}/get_helm.sh" https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+        chmod 700 "${TEMPDIR}/get_helm.sh"
+        "${TEMPDIR}/get_helm.sh" --version ${{ inputs.version }}
+    - name: install helm-diff
+      shell: bash
+      run: |
+        helm plugin install https://github.com/databus23/helm-diff || true
