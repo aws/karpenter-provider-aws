@@ -11,7 +11,7 @@ cat << EOF > controller-trust-policy.json
             "Condition": {
                 "StringEquals": {
                     "${OIDC_ENDPOINT#*//}:aud": "sts.amazonaws.com",
-                    "${OIDC_ENDPOINT#*//}:sub": "system:serviceaccount:karpenter:karpenter"
+                    "${OIDC_ENDPOINT#*//}:sub": "system:serviceaccount:kube-system:karpenter"
                 }
             }
         }

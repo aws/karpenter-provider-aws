@@ -1,4 +1,4 @@
-{{ if .Values.flowSchema.leaderElection.create }}
+{{ if .Values.flowSchema.create }}
 ---
 apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
 kind: FlowSchema
@@ -13,7 +13,7 @@ metadata:
 spec:
   distinguisherMethod:
     type: ByUser
-  matchingPrecedence: {{ .Values.flowSchema.leaderElection.matchingPrecedence }}
+  matchingPrecedence: 200
   priorityLevelConfiguration:
     name: leader-election
   rules:
@@ -33,8 +33,6 @@ spec:
           serviceAccount:
             name: {{ include "karpenter.serviceAccountName" . }}
             namespace: {{ .Release.Namespace }}
-{{- end -}}
-{{ if .Values.flowSchema.workload.create }}
 ---
 apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
 kind: FlowSchema
@@ -49,7 +47,7 @@ metadata:
 spec:
   distinguisherMethod:
     type: ByUser
-  matchingPrecedence: {{ .Values.flowSchema.workload.matchingPrecedence }}
+  matchingPrecedence: 1000
   priorityLevelConfiguration:
     name: workload-high
   rules:

@@ -70,7 +70,7 @@ runs:
   - name: diff-karpenter
     shell: bash
     run: |
-      helm diff upgrade --namespace karpenter \
+      helm diff upgrade --namespace kube-system \
         karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
         --version v0-$(git rev-parse HEAD) \
         --reuse-values --three-way-merge --detailed-exitcode
