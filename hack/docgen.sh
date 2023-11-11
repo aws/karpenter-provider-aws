@@ -11,5 +11,6 @@ compatibilitymatrix
 go run hack/docs/metrics_gen_docs.go pkg/ "${KARPENTER_CORE_DIR}/pkg" website/content/en/preview/reference/metrics.md
 go run hack/docs/instancetypes_gen_docs.go website/content/en/preview/reference/instance-types.md
 go run hack/docs/configuration_gen_docs.go website/content/en/preview/reference/settings.md
+crd-ref-docs --source-path "${KARPENTER_CORE_DIR}/pkg/apis/v1beta1" --config ./hack/docs/apis/config.yaml --output-path website/content/en/preview/reference/apis/core.md --renderer markdown
+crd-ref-docs --source-path "pkg/apis/v1beta1" --config ./hack/docs/apis/config.yaml --output-path website/content/en/preview/reference/apis/aws.md --renderer markdown
 cd charts/karpenter && helm-docs
-gen-crd-api-reference-docs --api-dir "${KARPENTER_CORE_DIR}/pkg/apis" -config ./hack/docs/apis/config.json -template-dir ./hack/docs/apis/template -out-file website/content/en/preview/reference/core-apis.md
