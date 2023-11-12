@@ -29,7 +29,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/scheduling"
@@ -246,27 +246,6 @@ var _ = Describe("AMIProvider", func() {
 				},
 			})
 		})
-		It("should succeed to resolve tags as requirements for NodeTemplates", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
-				{
-					Tags: map[string]string{"*": "*"},
-				},
-			}
-			nodeClass.IsNodeTemplate = true
-			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
-			Expect(err).ToNot(HaveOccurred())
-			Expect(amis).To(HaveLen(1))
-			Expect(amis).To(ConsistOf(amifamily.AMI{
-				Name:         aws.StringValue(img.Name),
-				AmiID:        aws.StringValue(img.ImageId),
-				CreationDate: aws.StringValue(img.CreationDate),
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
-					scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, "m5.large"),
-					scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, "test-zone-1a"),
-				),
-			}))
-		})
 		It("should succeed to not resolve tags as requirements for NodeClasses", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
@@ -281,7 +260,7 @@ var _ = Describe("AMIProvider", func() {
 				AmiID:        aws.StringValue(img.ImageId),
 				CreationDate: aws.StringValue(img.CreationDate),
 				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, v1alpha5.ArchitectureAmd64),
+					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
 				),
 			}))
 		})

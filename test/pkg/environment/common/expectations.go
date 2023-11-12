@@ -44,7 +44,6 @@ import (
 	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -767,27 +766,6 @@ func (env *Environment) ExpectCABundle() string {
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }
 
-func (env *Environment) GetDaemonSetCountLegacy(prov *v1alpha5.Provisioner) int {
-	GinkgoHelper()
-
-	// Performs the same logic as the scheduler to get the number of daemonset
-	// pods that we estimate we will need to schedule as overhead to each node
-	daemonSetList := &appsv1.DaemonSetList{}
-	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
-
-	return lo.CountBy(daemonSetList.Items, func(d appsv1.DaemonSet) bool {
-		p := &v1.Pod{Spec: d.Spec.Template.Spec}
-		nodeTemplate := pscheduling.NewNodeClaimTemplate(nodepoolutil.New(prov))
-		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
-			return false
-		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabelsV1Alpha5); err != nil {
-			return false
-		}
-		return true
-	})
-}
-
 func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 	GinkgoHelper()
 
@@ -802,7 +780,7 @@ func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
 			return false
 		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabelsV1Beta1); err != nil {
+		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
 			return false
 		}
 		return true
