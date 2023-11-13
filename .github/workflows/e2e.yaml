@@ -74,6 +74,7 @@ jobs:
   run-suite:
     name: suite-${{ inputs.suite }}
     runs-on: ubuntu-latest
+    container: public.ecr.aws/karpenter/tools:latest
     steps:
       - uses: actions/checkout@v4
         with:
@@ -83,7 +84,6 @@ jobs:
         with:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (${{ inputs.suite }})
           git_ref: ${{ inputs.git_ref }}
-      - uses: ./.github/actions/install-deps
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@v4.0.1
         with:
