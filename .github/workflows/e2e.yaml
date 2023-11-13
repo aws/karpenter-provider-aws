@@ -90,10 +90,10 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
           aws-region: ${{ inputs.region }}
           role-duration-seconds: 21600
-      - name: add jitter on cluster creation
-        run: |
-          # Creating jitter so that we can stagger cluster creation to avoid throttling
-          sleep $(( RANDOM % 300 + 1 ))
+      # - name: add jitter on cluster creation
+      #   run: |
+      #     # Creating jitter so that we can stagger cluster creation to avoid throttling
+      #     sleep $(( RANDOM % 300 + 1 ))
       - id: generate-cluster-name
         run: |
           CLUSTER_NAME="$(echo ${{ inputs.suite }}-"$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)"
