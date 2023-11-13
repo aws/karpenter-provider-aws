@@ -111,8 +111,9 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
+		version := env.GetK8sVersion(1)
 		armParameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.28/amazon-linux-2-arm64/recommended/image_id"),
+			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version)),
 		})
 		Expect(err).To(BeNil())
 		armAMI := *armParameter.Parameter.Value
@@ -139,10 +140,11 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
 	})
 	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
+		version := env.GetK8sVersion(1)
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 		// choose an old static image
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
+			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version)),
 		})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value

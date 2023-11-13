@@ -315,7 +315,7 @@ func (env *Environment) ExpectParsedProviderID(providerID string) string {
 	return providerIDSplit[len(providerIDSplit)-1]
 }
 
-func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
+func (env *Environment) GetK8sVersion(offset int) string {
 	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
 	Expect(err).To(BeNil())
 	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
@@ -323,7 +323,11 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
 	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
 	// ensures that we aren't violating version skew.
-	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
+	return fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-offset)
+}
+
+func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
+	version := env.GetK8sVersion(versionOffset)
 	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 		Name: aws.String(fmt.Sprintf(amiPath, version)),
 	})
