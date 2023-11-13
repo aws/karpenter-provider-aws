@@ -17,6 +17,7 @@ package drift_test
 import (
 	"fmt"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -431,12 +432,12 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 				}
 			}).Should(Succeed())
 
-			// Expect nodes To get tainted
-			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
+			// Expect nodes to get tainted
+			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 2)
 
 			// Drift should fail and the original node should be untainted
-			// TODO: reduce timeouts when disruption waits are factored out
-			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, taintedNodes...)
+			var wg sync.WaitGroup
+			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute,  &wg, taintedNodes...)
 
 			// We give another 6 minutes here to handle the deletion at the 15m registration timeout
 			Eventually(func(g Gomega) {
@@ -491,8 +492,8 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
 			// Drift should fail and original node should be untainted
-			// TODO: reduce timeouts when disruption waits are factored out
-			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, taintedNodes...)
+			var wg sync.WaitGroup
+			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute,  &wg, taintedNodes...)
 
 			// Expect that the new nodeClaim/node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}

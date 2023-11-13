@@ -15,6 +15,7 @@ limitations under the License.
 package expiration_test
 
 import (
+	"sync"
 	"testing"
 	"time"
 
@@ -229,12 +230,13 @@ var _ = Describe("Expiration", func() {
 				}
 			}).Should(Succeed())
 
-			// Expect nodes To get tainted
-			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
+			// Expect nodes to get tainted
+			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 2)
+
 
 			// Expire should fail and the original node should be untainted
-			// TODO: reduce timeouts when deprovisioning waits are factored out
-			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, taintedNodes...)
+			var wg sync.WaitGroup
+			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, &wg, taintedNodes...)
 
 			// The nodeclaims that never registers will be removed
 			Eventually(func(g Gomega) {
@@ -298,8 +300,8 @@ var _ = Describe("Expiration", func() {
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
 			// Expire should fail and original node should be untainted and no NodeClaims should be removed
-			// TODO: reduce timeouts when deprovisioning waits are factored out
-			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, taintedNodes...)
+			var wg sync.WaitGroup
+			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute,  &wg, taintedNodes...)
 
 			// Expect that the new NodeClaim/Node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}

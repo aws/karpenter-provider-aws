@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -494,15 +495,27 @@ func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, coun
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
+// EventuallyExpectNodesUntaintedWithTimeout will asynchronously check if a taint is removed from the list of nodes. It succeeds
+// if each of the nodes at one point have not been tainted with the karpenter.sh/disruption taint.
+func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.Duration, wg *sync.WaitGroup, nodes ...*v1.Node) {
 	GinkgoHelper()
 	By(fmt.Sprintf("waiting for %d nodes to be untainted", len(nodes)))
-	nodeList := &v1.NodeList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
-		taintedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
-		g.Expect(taintedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
-	}).WithTimeout(timeout).Should(Succeed())
+	totalUntainted := 0
+	for i := range nodes {
+		wg.Add(1)
+		go func(nodeName string) {
+			defer GinkgoRecover()
+			defer wg.Done()
+			node := &v1.Node{}
+			Eventually(func(g Gomega) {
+				g.Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, node)).To(Succeed())
+				g.Expect(node.Spec.Taints).ToNot(ContainElement(corev1beta1.DisruptionNoScheduleTaint))
+			}).WithTimeout(timeout).Should(Succeed())
+			totalUntainted++
+		}(nodes[i].Name)
+	}
+	wg.Wait()
+	Expect(totalUntainted).To(Equal(len(nodes)))
 }
 
 func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) []*v1.Node {
