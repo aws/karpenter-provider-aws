@@ -47,7 +47,7 @@ COPY --from=installer /aws-cli-bin/ /usr/local/bin/
 RUN aws --version
 
 # Install eksctl
-RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/v0.116.0/eksctl_$(uname -s)_$(go env GOARCH).tar.gz" | tar xz -C /tmp
+RUN curl --silent --location "https://github.com/weaveworks/eksctl/releases/download/v0.164.0/eksctl_$(uname -s)_$(go env GOARCH).tar.gz" | tar xz -C /tmp
 RUN mv /tmp/eksctl /usr/local/bin
 
 # Install helm diff
