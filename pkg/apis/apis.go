@@ -18,16 +18,19 @@ package apis
 import (
 	_ "embed"
 
+	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/apis"
+	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
@@ -50,7 +53,7 @@ var (
 	AWSNodeTemplateCRD []byte
 	//go:embed crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 	EC2NodeClassCRD []byte
-	CRDs            = append(apis.CRDs,
+	CRDs            = append(coreapis.CRDs,
 		lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](AWSNodeTemplateCRD)),
 		lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](EC2NodeClassCRD)),
 	)
@@ -58,4 +61,7 @@ var (
 
 func init() {
 	lo.Must0(AddToScheme(scheme.Scheme))
+	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	coreapis.Settings = append(coreapis.Settings, Settings...)
 }

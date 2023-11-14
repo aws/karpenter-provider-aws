@@ -29,7 +29,6 @@ import (
 	"github.com/aws/karpenter-core/pkg/events"
 	"github.com/aws/karpenter-core/pkg/utils/functional"
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
-	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/utils"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
@@ -52,16 +51,9 @@ import (
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 
-	coreapis "github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 )
-
-func init() {
-	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
-	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
-	coreapis.Settings = append(coreapis.Settings, apis.Settings...)
-}
 
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
