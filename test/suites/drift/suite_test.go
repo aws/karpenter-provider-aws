@@ -23,9 +23,11 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -67,17 +69,29 @@ var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Drift", Label("AWS"), func() {
-	var pod *v1.Pod
+	var dep *appsv1.Deployment
+	var selector labels.Selector
+	var numPods int
 	BeforeEach(func() {
 		amdAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
-		// Add a do-not-disrupt pod so that we can check node metadata before we disrupt
-		pod = coretest.Pod(coretest.PodOptions{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					corev1beta1.DoNotDisruptAnnotationKey: "true",
+		numPods = 1
+		// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
+		dep = coretest.Deployment(coretest.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "my-app",
+					},
+					Annotations: map[string]string{
+						corev1beta1.DoNotDisruptAnnotationKey: "true",
+					},
 				},
+				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
 			},
 		})
+		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
@@ -91,8 +105,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
 		nodeClass.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
 
-		env.ExpectCreated(pod, nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		env.ExpectCreatedNodeCount("==", 1)
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
@@ -108,6 +122,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 		version := env.GetK8sVersion(1)
@@ -119,8 +134,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: armAMI}}
 
-		env.ExpectCreated(pod, nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		env.ExpectCreatedNodeCount("==", 1)
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
@@ -137,6 +152,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
 		version := env.GetK8sVersion(1)
@@ -151,8 +167,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
 		nodeClass.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
 
-		env.ExpectCreated(pod, nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 
 		node := env.Monitor.CreatedNodes()[0]
@@ -220,10 +236,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		}
 		nodeClass.Spec.SecurityGroupSelectorTerms = sgTerms
 
-		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		sgTerms = lo.Reject(sgTerms, func(t v1beta1.SecurityGroupSelectorTerm, _ int) bool {
 			return t.ID == awssdk.StringValue(testSecurityGroup.GroupId)
@@ -241,6 +257,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, nodeClaim, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should disrupt nodes that have drifted due to subnets", func() {
 		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": env.ClusterName})
@@ -248,10 +265,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{ID: subnets[0].ID}}
 
-		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{ID: subnets[1].ID}}
 		env.ExpectCreatedOrUpdated(nodeClass)
@@ -266,6 +283,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	DescribeTable("NodePool Drift", func(fieldName string, nodeClaimTemplate corev1beta1.NodeClaimTemplate) {
 		updatedNodePool := coretest.NodePool(
@@ -286,10 +304,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		)
 		updatedNodePool.ObjectMeta = nodePool.ObjectMeta
 
-		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		env.ExpectCreatedOrUpdated(updatedNodePool)
 
@@ -319,7 +337,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}).Should(Succeed())
 		}
 		env.EventuallyExpectNotFound(pod, node)
-		env.EventuallyExpectHealthy(pod)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	},
 		Entry("Annotation Drift", "Annotation", corev1beta1.NodeClaimTemplate{
 			ObjectMeta: corev1beta1.ObjectMeta{
@@ -359,10 +377,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		updatedNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{Spec: *nodeClass.Spec.DeepCopy()}, v1beta1.EC2NodeClass{Spec: nodeClassSpec})
 		updatedNodeClass.ObjectMeta = nodeClass.ObjectMeta
 
-		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		env.ExpectCreatedOrUpdated(updatedNodeClass)
 
@@ -376,7 +394,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, node)
-		env.EventuallyExpectHealthy(pod)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	},
 		Entry("UserData Drift", v1beta1.EC2NodeClassSpec{UserData: awssdk.String("#!/bin/bash\n/etc/eks/bootstrap.sh")}),
 		Entry("Tags Drift", v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-coretest-3": "valueTag-coretest-3"}}),
@@ -409,10 +427,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr(instanceProfileName)
 
-		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
 
 		nodeClass.Spec.InstanceProfile = lo.ToPtr(instanceProfileDriftName)
 		env.ExpectCreatedOrUpdated(nodeClass)
@@ -427,7 +445,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(pod)
 		env.EventuallyExpectNotFound(pod, node)
-		env.EventuallyExpectHealthy(pod)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	Context("Drift Failure", func() {
 		It("should not continue to drift if a node never registers", func() {
