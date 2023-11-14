@@ -387,10 +387,14 @@ spec:
             - message: amiSelectorTerms is required when amiFamily == 'Custom'
               rule: 'self.amiFamily == ''Custom'' ? self.amiSelectorTerms.size() !=
                 0 : true'
-            - message: role cannot be specified with instanceProfile
-              rule: '!(has(self.role) && has(self.instanceProfile))'
             - message: expected at least one, got none, ['role', 'instanceProfile']
               rule: has(self.role) || has(self.instanceProfile)
+            - message: role cannot be specified with instanceProfile
+              rule: '!(has(self.role) && has(self.instanceProfile))'
+            - message: changing from an unmanaged instance profile to a managed instance
+                profile is not supported
+              rule: (has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile)
+                && has(self.instanceProfile))
           status:
             description: EC2NodeClassStatus contains the resolved state of the EC2NodeClass
             properties:

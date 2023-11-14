@@ -1011,14 +1011,14 @@ var _ = Describe("NodeClassController", func() {
 			Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
 			Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())
 		})
-		It("should resolve the specified instance profile into the status when using instanceProfile field", func() {
+		It("should not resolve the specified instance profile into the status when using instanceProfile field", func() {
 			nodeClass.Spec.Role = ""
 			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Status.InstanceProfile).To(Equal(lo.FromPtr(nodeClass.Spec.InstanceProfile)))
+			Expect(nodeClass.Status.InstanceProfile).To(Equal(""))
 		})
 		It("should not call the the IAM API when specifying an instance profile", func() {
 			nodeClass.Spec.Role = ""

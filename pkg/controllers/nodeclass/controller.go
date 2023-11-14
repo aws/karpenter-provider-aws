@@ -210,7 +210,7 @@ func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1be
 		}
 		nodeClass.Status.InstanceProfile = name
 	} else {
-		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
+		nodeClass.Status.InstanceProfile = ""
 	}
 	return nil
 }

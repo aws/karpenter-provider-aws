@@ -182,5 +182,23 @@ var _ = Describe("Validation", func() {
 			nodeClass.Spec.InstanceProfile = nil
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
+		It("should fail to switch between an unmanaged and managed instance profile", func() {
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+
+			nodeClass.Spec.Role = "test-role"
+			nodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail to switch between a managed and unmanaged instance profile", func() {
+			nodeClass.Spec.Role = "test-role"
+			nodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+		})
 	})
 })

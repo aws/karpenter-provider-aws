@@ -321,8 +321,9 @@ type EC2NodeClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +kubebuilder:validation:XValidation:message="amiSelectorTerms is required when amiFamily == 'Custom'",rule="self.amiFamily == 'Custom' ? self.amiSelectorTerms.size() != 0 : true"
-	// +kubebuilder:validation:XValidation:message="role cannot be specified with instanceProfile",rule="!(has(self.role) && has(self.instanceProfile))"
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['role', 'instanceProfile']",rule="has(self.role) || has(self.instanceProfile)"
+	// +kubebuilder:validation:XValidation:message="role cannot be specified with instanceProfile",rule="!(has(self.role) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="changing from an unmanaged instance profile to a managed instance profile is not supported",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 

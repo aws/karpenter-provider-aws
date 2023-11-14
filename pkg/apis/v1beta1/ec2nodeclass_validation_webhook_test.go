@@ -15,14 +15,10 @@ limitations under the License.
 package v1beta1_test
 
 import (
-	"strings"
-
-	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,28 +31,8 @@ var _ = Describe("Webhook/Validation", func() {
 	var nc *v1beta1.EC2NodeClass
 
 	BeforeEach(func() {
-		nc = &v1beta1.EC2NodeClass{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
-			Spec: v1beta1.EC2NodeClassSpec{
-				Role: "test-role",
-				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
-					{
-						Tags: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
-					{
-						Tags: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-			},
-		}
+		nc = test.EC2NodeClass()
 	})
-
 	It("should succeed if just specifying role", func() {
 		Expect(nc.Validate(ctx)).To(Succeed())
 	})
@@ -514,6 +490,26 @@ var _ = Describe("Webhook/Validation", func() {
 
 			updateCtx := apis.WithinUpdate(ctx, nc.DeepCopy())
 			nc.Spec.Role = "test-role2"
+			Expect(nc.Validate(updateCtx)).ToNot(Succeed())
+		})
+		It("should fail to switch between an unmanaged and managed instance profile", func() {
+			nc.Spec.Role = ""
+			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+
+			updateCtx := apis.WithinUpdate(ctx, nc.DeepCopy())
+			nc.Spec.Role = "test-role"
+			nc.Spec.InstanceProfile = nil
+			Expect(nc.Validate(updateCtx)).ToNot(Succeed())
+		})
+		It("should fail to switch between a managed and unmanaged instance profile", func() {
+			nc.Spec.Role = "test-role"
+			nc.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+
+			updateCtx := apis.WithinUpdate(ctx, nc.DeepCopy())
+			nc.Spec.Role = ""
+			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			Expect(nc.Validate(updateCtx)).ToNot(Succeed())
 		})
 	})

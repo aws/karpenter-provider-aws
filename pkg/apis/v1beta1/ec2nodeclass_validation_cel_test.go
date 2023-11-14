@@ -15,16 +15,11 @@ limitations under the License.
 package v1beta1_test
 
 import (
-	"strings"
-
-	"github.com/Pallinder/go-randomdata"
+	"github.com/aws/aws-sdk-go/aws"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
@@ -38,27 +33,7 @@ var _ = Describe("CEL/Validation", func() {
 		if env.Version.Minor() < 25 {
 			Skip("CEL Validation is for 1.25>")
 		}
-		nc = &v1beta1.EC2NodeClass{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
-			Spec: v1beta1.EC2NodeClassSpec{
-				Role:      "test-role",
-				AMIFamily: &v1beta1.AMIFamilyAL2,
-				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
-					{
-						Tags: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
-					{
-						Tags: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-			},
-		}
+		nc = test.EC2NodeClass()
 	})
 	It("should succeed if just specifying role", func() {
 		Expect(env.Client.Create(ctx, nc)).To(Succeed())
@@ -648,6 +623,24 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 
 			nc.Spec.Role = "test-role2"
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail to switch between an unmanaged and managed instance profile", func() {
+			nc.Spec.Role = ""
+			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+
+			nc.Spec.Role = "test-role"
+			nc.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail to switch between a managed and unmanaged instance profile", func() {
+			nc.Spec.Role = "test-role"
+			nc.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+
+			nc.Spec.Role = ""
+			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
