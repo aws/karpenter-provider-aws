@@ -437,7 +437,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 
 			// Drift should fail and the original node should be untainted
 			var wg sync.WaitGroup
-			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute,  &wg, taintedNodes...)
+			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, &wg, taintedNodes...)
 
 			// We give another 6 minutes here to handle the deletion at the 15m registration timeout
 			Eventually(func(g Gomega) {
@@ -493,7 +493,7 @@ var _ = Describe("Beta/Drift", Label("AWS"), func() {
 
 			// Drift should fail and original node should be untainted
 			var wg sync.WaitGroup
-			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute,  &wg, taintedNodes...)
+			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, &wg, taintedNodes...)
 
 			// Expect that the new nodeClaim/node is kept around after the un-cordon
 			nodeList := &v1.NodeList{}
