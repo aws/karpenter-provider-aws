@@ -21,6 +21,8 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
+
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
 
@@ -52,7 +54,7 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType, zone, capacityType st
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logging.FromContext(ctx).With(
 		"reason", unavailableReason,
@@ -64,13 +66,13 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 	atomic.AddUint64(&u.SeqNum, 1)
 
 	// Add a k8s event for the instance type and zone without the involved object which has an ICE error
-	u.recorder.Publish(UnavailableOfferingEvent(instanceType, zone, capacityType))
+	u.recorder.Publish(UnavailableOfferingEvent(nodeClass, instanceType, zone, capacityType))
 }
 
-func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, fleetErr *ec2.CreateFleetError, capacityType string) {
 	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
 	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	u.MarkUnavailable(ctx, aws.StringValue(fleetErr.ErrorCode), instanceType, zone, capacityType)
+	u.MarkUnavailable(ctx, nodeClass, aws.StringValue(fleetErr.ErrorCode), instanceType, zone, capacityType)
 }
 
 func (u *UnavailableOfferings) Delete(instanceType string, zone string, capacityType string) {

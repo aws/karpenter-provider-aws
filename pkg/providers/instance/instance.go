@@ -36,8 +36,9 @@ import (
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/batcher"
+
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/cache"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/operator/options"
@@ -245,7 +246,7 @@ func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.EC2Nod
 		}
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
-	p.updateUnavailableOfferingsCache(ctx, createFleetOutput.Errors, capacityType)
+	p.updateUnavailableOfferingsCache(ctx, nodeClass, createFleetOutput.Errors, capacityType)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
@@ -366,10 +367,10 @@ func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zon
 	return overrides
 }
 
-func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
+func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, errors []*ec2.CreateFleetError, capacityType string) {
 	for _, err := range errors {
 		if awserrors.IsUnfulfillableCapacity(err) {
-			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
+			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, nodeClass, err, capacityType)
 		}
 	}
 }
