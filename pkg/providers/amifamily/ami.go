@@ -32,8 +32,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/version"
 
@@ -95,7 +93,7 @@ func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, is
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range a {
-			if err := instanceType.Requirements.Compatible(ami.Requirements, lo.Ternary(isMachine, scheduling.AllowUndefinedWellKnownLabelsV1Alpha5, scheduling.AllowUndefinedWellKnownLabelsV1Beta1)); err == nil {
+			if err := instanceType.Requirements.Compatible(ami.Requirements, scheduling.AllowUndefinedWellKnownLabels); err == nil {
 				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
 				break
 			}
@@ -201,7 +199,7 @@ func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm,
 			MaxResults: aws.Int64(500),
 		}, func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for i := range page.Images {
-				reqs := p.getRequirementsFromImage(page.Images[i], isNodeTemplate)
+				reqs := p.getRequirementsFromImage(page.Images[i])
 				if !v1beta1.WellKnownArchitectures.Has(reqs.Get(v1.LabelArchStable).Any()) {
 					continue
 				}
@@ -282,17 +280,8 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 	return res
 }
 
-func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image, isNodeTemplate bool) scheduling.Requirements {
+func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
 	requirements := scheduling.NewRequirements()
-	// Only allow tag-based AMI requirements for NodeTemplates
-	// TODO @joinnis: Remove this section for tag-based AMI requirements when dropping v1alpha5
-	if isNodeTemplate {
-		for _, tag := range ec2Image.Tags {
-			if v1alpha5.WellKnownLabels.Has(*tag.Key) || corev1beta1.WellKnownLabels.Has(*tag.Key) {
-				requirements.Add(scheduling.NewRequirement(*tag.Key, v1.NodeSelectorOpIn, *tag.Value))
-			}
-		}
-	}
 	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
 	architecture := *ec2Image.Architecture
 	if value, ok := v1beta1.AWSToKubeArchitectures[architecture]; ok {

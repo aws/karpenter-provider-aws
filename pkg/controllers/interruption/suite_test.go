@@ -23,7 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -52,7 +52,7 @@ import (
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/spotinterruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 )
@@ -66,7 +66,7 @@ const (
 var ctx context.Context
 var env *coretest.Environment
 var sqsapi *fake.SQSAPI
-var sqsProvider *interruption.SQSProvider
+var sqsProvider *sqs.Provider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var fakeClock *clock.FakeClock
 var controller *interruption.Controller
@@ -82,7 +82,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	sqsapi = &fake.SQSAPI{}
-	sqsProvider = interruption.NewSQSProvider(sqsapi)
+	sqsProvider = lo.Must(sqs.NewProvider(ctx, sqsapi, "test-cluster"))
 	controller = interruption.NewController(env.Client, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, unavailableOfferingsCache)
 })
 
@@ -92,13 +92,9 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-		InterruptionQueue: lo.ToPtr("test-cluster"),
-	}))
 	ctx = settings.ToContext(ctx, test.Settings())
 	unavailableOfferingsCache.Flush()
 	sqsapi.Reset()
-	sqsProvider.Reset()
 })
 
 var _ = AfterEach(func() {
@@ -195,7 +191,7 @@ var _ = Describe("InterruptionHandling", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
 		})
 		It("should delete a message when the message can't be parsed", func() {
-			badMessage := &sqs.Message{
+			badMessage := &servicesqs.Message{
 				Body: aws.String(string(lo.Must(json.Marshal(map[string]string{
 					"field1": "value1",
 					"field2": "value2",
@@ -240,7 +236,7 @@ var _ = Describe("InterruptionHandling", func() {
 
 var _ = Describe("Error Handling", func() {
 	It("should send an error on polling when QueueNotExists", func() {
-		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(sqs.ErrCodeQueueDoesNotExist), fake.MaxCalls(0))
+		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(servicesqs.ErrCodeQueueDoesNotExist), fake.MaxCalls(0))
 		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
 	})
 	It("should send an error on polling when AccessDenied", func() {
@@ -254,14 +250,14 @@ var _ = Describe("Error Handling", func() {
 })
 
 func ExpectMessagesCreated(messages ...interface{}) {
-	raw := lo.Map(messages, func(m interface{}, _ int) *sqs.Message {
-		return &sqs.Message{
+	raw := lo.Map(messages, func(m interface{}, _ int) *servicesqs.Message {
+		return &servicesqs.Message{
 			Body:      aws.String(string(lo.Must(json.Marshal(m)))),
 			MessageId: aws.String(string(uuid.NewUUID())),
 		}
 	})
 	sqsapi.ReceiveMessageBehavior.Output.Set(
-		&sqs.ReceiveMessageOutput{
+		&servicesqs.ReceiveMessageOutput{
 			Messages: raw,
 		},
 	)

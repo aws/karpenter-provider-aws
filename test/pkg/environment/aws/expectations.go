@@ -172,12 +172,38 @@ func (env *Environment) GetInstanceByID(instanceID string) ec2.Instance {
 	return *instance.Reservations[0].Instances[0]
 }
 
-func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
+func (env *Environment) GetVolume(id *string) *ec2.Volume {
+	volumes := env.GetVolumes(id)
+	Expect(volumes).To(HaveLen(1))
+	return volumes[0]
+}
+
+func (env *Environment) GetVolumes(ids ...*string) []*ec2.Volume {
 	GinkgoHelper()
-	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
+	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: ids})
 	Expect(err).ToNot(HaveOccurred())
-	Expect(len(dvo.Volumes)).To(Equal(1))
-	return *dvo.Volumes[0]
+	return dvo.Volumes
+}
+
+func (env *Environment) GetNetworkInterface(id *string) *ec2.NetworkInterface {
+	networkInterfaces := env.GetNetworkInterfaces(id)
+	Expect(networkInterfaces).To(HaveLen(1))
+	return networkInterfaces[0]
+}
+
+func (env *Environment) GetNetworkInterfaces(ids ...*string) []*ec2.NetworkInterface {
+	GinkgoHelper()
+	dnio, err := env.EC2API.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: ids})
+	Expect(err).ToNot(HaveOccurred())
+	return dnio.NetworkInterfaces
+}
+
+func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequest {
+	GinkgoHelper()
+	siro, err := env.EC2API.DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{SpotInstanceRequestIds: []*string{id}})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(siro.SpotInstanceRequests).To(HaveLen(1))
+	return siro.SpotInstanceRequests[0]
 }
 
 // GetSubnets returns all subnets matching the label selector
@@ -259,13 +285,6 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 	return securityGroups
 }
 
-func (env *Environment) ExpectQueueExists() {
-	GinkgoHelper()
-	exists, err := env.SQSProvider.QueueExists(env.Context)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(exists).To(BeTrue())
-}
-
 func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 	GinkgoHelper()
 	wg := &sync.WaitGroup{}
@@ -296,7 +315,7 @@ func (env *Environment) ExpectParsedProviderID(providerID string) string {
 	return providerIDSplit[len(providerIDSplit)-1]
 }
 
-func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
+func (env *Environment) GetK8sVersion(offset int) string {
 	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
 	Expect(err).To(BeNil())
 	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
@@ -304,7 +323,11 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
 	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
 	// ensures that we aren't violating version skew.
-	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
+	return fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-offset)
+}
+
+func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
+	version := env.GetK8sVersion(versionOffset)
 	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 		Name: aws.String(fmt.Sprintf(amiPath, version)),
 	})

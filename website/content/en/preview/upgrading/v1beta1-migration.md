@@ -195,38 +195,6 @@ If you are using some IaC for managing your policy documents attached to the con
 
 ## Changelog
 
-### Annotations, Labels, and Status Conditions
-
-Karpenter v1beta1 introduces changes to some common labels, annotations, and status conditions that are present in the project. The tables below lists the v1alpha5 values and their v1beta1 equivalent.
-
-| Karpenter Labels                |                             |
-|---------------------------------|-----------------------------|
-| **v1alpha5**                    | **v1beta1**                 |
-| karpenter.sh/provisioner-name   | karpenter.sh/nodepool       |
-
-> **Note**: Previously, you could use the `karpenter.sh/provisioner-name:DoesNotExist` requirement on pods to specify that pods should schedule to nodes unmanaged by Karpenter. With the addition of the `karpenter.sh/nodepool` label key, you now need to specify the `karpenter.sh/nodepool:DoesNotExist` requirement on these pods as well to ensure they don't schedule to nodes provisioned by the new NodePool resources.
-
-
-| Karpenter Annotations               |                                     |
-|-------------------------------------|-------------------------------------|
-| **v1alpha5**                        | **v1beta1**                         |
-| karpenter.sh/provisioner-hash       | karpenter.sh/nodepool-hash          |
-| karpenter.k8s.aws/nodetemplate-hash | karpenter.k8s.aws/ec2nodeclass-hash |
-| karpenter.sh/do-not-consolidate     | karpenter.sh/do-not-disrupt         |
-| karpenter.sh/do-not-evict           | karpenter.sh/do-not-disrupt         |
-
-> **Note**: Karpenter dropped the `karpenter.sh/do-not-consolidate` annotation in favor of the `karpenter.sh/do-not-disrupt` annotation on nodes. This annotation specifies that no voluntary disruption should be performed by Karpenter against this node.
-
-| StatusCondition Types           |                |
-|---------------------------------|----------------|
-| **v1alpha5**                    | **v1beta1**    |
-| MachineLaunched                 | Launched       |
-| MachineRegistered               | Registered     |
-| MachineInitialized              | Initialized    |
-| MachineEmpty                    | Empty          |
-| MachineExpired                  | Expired        |
-| MachineDrifted                  | Drifted        |
-
 ### Provisioner -> NodePool
 
 Karpenter v1beta1 moves almost all top-level fields under the `NodePool` template field. Similar to Deployments (which template Pods that are orchestrated by the deployment controller), Karpenter NodePool templates NodeClaims (that are orchestrated by the Karpenter controller). Here is an example of a `Provisioner` (v1alpha5) migrated to a `NodePool` (v1beta1):
@@ -367,7 +335,7 @@ spec:
 
 #### TTLSecondsAfterEmpty
 
-The Karpenter `spec.ttlSecondsAfterEmpty` field has been removed in favor of a `consolidationPolicy` and `consolidateAfter` field. 
+The Karpenter `spec.ttlSecondsAfterEmpty` field has been removed in favor of a `consolidationPolicy` and `consolidateAfter` field.
 
 As part of the v1beta1 migration, Karpenter has chosen to collapse the concepts of emptiness and underutilization into a single concept: `consolidation`.
 You can now define the types of consolidation that you want to support in your `consolidationPolicy` field.
@@ -524,7 +492,7 @@ To configure AWS-specific settings, AWSNodeTemplate (v1alpha) is being changed t
 Tag-based [AMI Selection](https://karpenter.sh/v0.31/concepts/node-templates/#ami-selection) is no longer supported for the new v1beta1 `EC2NodeClass` API. That feature allowed users to tag their AMIs using EC2 tags to express “In” requirements on selected. We recommend using different NodePools with different EC2NodeClasses with your various AMI requirement constraints to appropriately constrain your AMIs based on the instance types you’ve selected for a given NodePool.
 {{% /alert %}}
 
-{{% alert title="Note" color="primary" %}} 
+{{% alert title="Note" color="primary" %}}
 Karpenter will now tag EC2 instances with their node name instead of with `karpenter.sh/provisioner-name: $PROVISIONER_NAME`. This makes it easier to map nodes to instances if you are not currently using [resource-based naming](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-naming.html).
 {{% /alert %}}
 
@@ -740,12 +708,45 @@ spec:
 
 #### LaunchTemplateName
 
-The `spec.launchTemplateName` field for referencing unmanaged launch templates within Karpenter has been removed. 
+The `spec.launchTemplateName` field for referencing unmanaged launch templates within Karpenter has been removed.
 Find a discussion of the decision to remove `spec.launchTemplateName`, see [RFC: Unmanaged LaunchTemplate Removal](https://github.com/aws/karpenter/blob/main/designs/unmanaged-launch-template-removal.md).
 
 #### AMIFamily
 
 The AMIFamily field is now required. If you were previously not specifying the AMIFamily field, having Karpenter default the AMIFamily to AL2, you will now have to specify AL2 explicitly.
+
+### Annotations, Labels, and Status Conditions
+
+Karpenter v1beta1 introduces changes to some common labels, annotations, and status conditions that are present in the project. The tables below lists the v1alpha5 values and their v1beta1 equivalent.
+
+| Karpenter Labels                |                       |
+|---------------------------------|-----------------------|
+| **v1alpha5**                    | **v1beta1**           |
+| karpenter.sh/provisioner-name   | karpenter.sh/nodepool |
+| karpenter.k8s.aws/instance-pods | **Dropped**           |
+
+> **Note**: Previously, you could use the `karpenter.sh/provisioner-name:DoesNotExist` requirement on pods to specify that pods should schedule to nodes unmanaged by Karpenter. With the addition of the `karpenter.sh/nodepool` label key, you now need to specify the `karpenter.sh/nodepool:DoesNotExist` requirement on these pods as well to ensure they don't schedule to nodes provisioned by the new NodePool resources.
+
+
+| Karpenter Annotations               |                                     |
+|-------------------------------------|-------------------------------------|
+| **v1alpha5**                        | **v1beta1**                         |
+| karpenter.sh/provisioner-hash       | karpenter.sh/nodepool-hash          |
+| karpenter.k8s.aws/nodetemplate-hash | karpenter.k8s.aws/ec2nodeclass-hash |
+| karpenter.sh/do-not-consolidate     | karpenter.sh/do-not-disrupt         |
+| karpenter.sh/do-not-evict           | karpenter.sh/do-not-disrupt         |
+
+> **Note**: Karpenter dropped the `karpenter.sh/do-not-consolidate` annotation in favor of the `karpenter.sh/do-not-disrupt` annotation on nodes. This annotation specifies that no voluntary disruption should be performed by Karpenter against this node.
+
+| StatusCondition Types           |                |
+|---------------------------------|----------------|
+| **v1alpha5**                    | **v1beta1**    |
+| MachineLaunched                 | Launched       |
+| MachineRegistered               | Registered     |
+| MachineInitialized              | Initialized    |
+| MachineEmpty                    | Empty          |
+| MachineExpired                  | Expired        |
+| MachineDrifted                  | Drifted        |
 
 ### Metrics
 

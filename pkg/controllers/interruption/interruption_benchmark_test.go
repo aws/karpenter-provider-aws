@@ -30,7 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -43,16 +43,17 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	"github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/fake"
+	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/test"
 
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 )
 
@@ -80,9 +81,9 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	fakeClock = &clock.FakeClock{}
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-		ClusterName:           lo.ToPtr("karpenter-notification-benchmarking"),
-		IsolatedVPC:           lo.ToPtr(true),
-		InterruptionQueueName: lo.ToPtr("test-cluster"),
+		ClusterName:       lo.ToPtr("karpenter-notification-benchmarking"),
+		IsolatedVPC:       lo.ToPtr(true),
+		InterruptionQueue: lo.ToPtr("test-cluster"),
 	}))
 	ctx = settings.ToContext(ctx, test.Settings())
 	env = coretest.NewEnvironment(scheme.Scheme)
@@ -95,7 +96,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 		}
 	}()
 
-	providers := newProviders(env.Client)
+	providers := newProviders(env.Context, env.Client)
 	if err := providers.makeInfrastructure(ctx); err != nil {
 		b.Fatalf("standing up infrastructure, %v", err)
 	}
@@ -162,33 +163,33 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 type providerSet struct {
 	kubeClient  client.Client
-	sqsAPI      *sqs.SQS
-	sqsProvider *interruption.SQSProvider
+	sqsAPI      *servicesqs.SQS
+	sqsProvider *sqs.Provider
 }
 
-func newProviders(kubeClient client.Client) providerSet {
+func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
 	sess := session.Must(session.NewSession(
 		request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
 			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
 		),
 	))
-	sqsAPI := sqs.New(sess)
+	sqsAPI := servicesqs.New(sess)
 	return providerSet{
 		kubeClient:  kubeClient,
 		sqsAPI:      sqsAPI,
-		sqsProvider: interruption.NewSQSProvider(sqsAPI),
+		sqsProvider: sqs.NewProvider(ctx, sqsAPI, "test-cluster"),
 	}
 }
 
 func (p *providerSet) makeInfrastructure(ctx context.Context) error {
-	if _, err := p.sqsAPI.CreateQueueWithContext(ctx, &sqs.CreateQueueInput{
+	if _, err := p.sqsAPI.CreateQueueWithContext(ctx, &servicesqs.CreateQueueInput{
 		QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueueName),
 		Attributes: map[string]*string{
-			sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
+			servicesqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
 		},
 	}); err != nil {
-		return fmt.Errorf("creating sqs queue, %w", err)
+		return fmt.Errorf("creating servicesqs queue, %w", err)
 	}
 	return nil
 }
@@ -198,10 +199,10 @@ func (p *providerSet) cleanupInfrastructure(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("discovering queue url for deletion, %w", err)
 	}
-	if _, err = p.sqsAPI.DeleteQueueWithContext(ctx, &sqs.DeleteQueueInput{
+	if _, err = p.sqsAPI.DeleteQueueWithContext(ctx, &servicesqs.DeleteQueueInput{
 		QueueUrl: lo.ToPtr(queueURL),
 	}); err != nil {
-		return fmt.Errorf("deleting sqs queue, %w", err)
+		return fmt.Errorf("deleting servicesqs queue, %w", err)
 	}
 	return nil
 }

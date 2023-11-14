@@ -28,20 +28,33 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/fis"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite"
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/env"
 
+	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/controllers/interruption"
+	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 )
+
+func init() {
+	lo.Must0(apis.AddToScheme(scheme.Scheme))
+	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	coreapis.Settings = append(coreapis.Settings, apis.Settings...)
+}
 
 const WindowsDefaultImage = "mcr.microsoft.com/oss/kubernetes/pause:3.9"
 
@@ -61,7 +74,7 @@ type Environment struct {
 	EKSAPI        *eks.EKS
 	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
 
-	SQSProvider *interruption.SQSProvider
+	SQSProvider *sqs.Provider
 
 	ClusterName       string
 	ClusterEndpoint   string
@@ -80,7 +93,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		},
 	))
 
-	return &Environment{
+	awsEnv := &Environment{
 		Region:      *session.Config.Region,
 		Environment: env,
 
@@ -90,13 +103,16 @@ func NewEnvironment(t *testing.T) *Environment {
 		IAMAPI:        iam.New(session),
 		FISAPI:        fis.New(session),
 		EKSAPI:        eks.New(session),
-		SQSProvider:   interruption.NewSQSProvider(sqs.New(session)),
 		TimeStreamAPI: GetTimeStreamAPI(session),
 
-		ClusterName:       lo.Must(os.LookupEnv("CLUSTER_NAME")),
-		ClusterEndpoint:   lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
-		InterruptionQueue: lo.Must(os.LookupEnv("INTERRUPTION_QUEUE")),
+		ClusterName:     lo.Must(os.LookupEnv("CLUSTER_NAME")),
+		ClusterEndpoint: lo.Must(os.LookupEnv("CLUSTER_ENDPOINT")),
 	}
+	// Initialize the provider only if the INTERRUPTION_QUEUE environment variable is defined
+	if v, ok := os.LookupEnv("INTERRUPTION_QUEUE"); ok {
+		awsEnv.SQSProvider = lo.Must(sqs.NewProvider(env.Context, servicesqs.New(session), v))
+	}
+	return awsEnv
 }
 
 func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamWriteAPI {

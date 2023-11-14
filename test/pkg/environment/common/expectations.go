@@ -44,7 +44,6 @@ import (
 	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -483,49 +482,26 @@ func (env *Environment) ConsistentlyExpectMachineCount(comparator string, count 
 	return lo.ToSlicePtr(machineList.Items)
 }
 
-func (env *Environment) EventuallyExpectCordonedNodeCountLegacy(comparator string, count int) []*v1.Node {
+func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {
 	GinkgoHelper()
-	By(fmt.Sprintf("waiting for cordoned nodes to be %s to %d", comparator, count))
-	nodeList := &v1.NodeList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.unschedulable": "true"})).To(Succeed())
-		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d cordoned nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
-	}).Should(Succeed())
-	return lo.ToSlicePtr(nodeList.Items)
-}
-
-func (env *Environment) EventuallyExpectNodesUncordonedLegacyWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for %d nodes to be uncordoned", len(nodes)))
-	nodeList := &v1.NodeList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.unschedulable": "true"})).To(Succeed())
-		cordonedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
-		g.Expect(cordonedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
-	}).WithTimeout(timeout).Should(Succeed())
-}
-
-func (env *Environment) EventuallyExpectCordonedNodeCount(comparator string, count int) []*v1.Node {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for cordoned nodes to be %s to %d", comparator, count))
+	By(fmt.Sprintf("waiting for tainted nodes to be %s to %d", comparator, count))
 	nodeList := &v1.NodeList{}
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
 		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d cordoned nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+			fmt.Sprintf("expected %d tainted nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) EventuallyExpectNodesUncordonedWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
+func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
 	GinkgoHelper()
-	By(fmt.Sprintf("waiting for %d nodes to be uncordoned", len(nodes)))
+	By(fmt.Sprintf("waiting for %d nodes to be untainted", len(nodes)))
 	nodeList := &v1.NodeList{}
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
-		cordonedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
-		g.Expect(cordonedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
+		taintedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
+		g.Expect(taintedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
 	}).WithTimeout(timeout).Should(Succeed())
 }
 
@@ -767,27 +743,6 @@ func (env *Environment) ExpectCABundle() string {
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }
 
-func (env *Environment) GetDaemonSetCountLegacy(prov *v1alpha5.Provisioner) int {
-	GinkgoHelper()
-
-	// Performs the same logic as the scheduler to get the number of daemonset
-	// pods that we estimate we will need to schedule as overhead to each node
-	daemonSetList := &appsv1.DaemonSetList{}
-	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
-
-	return lo.CountBy(daemonSetList.Items, func(d appsv1.DaemonSet) bool {
-		p := &v1.Pod{Spec: d.Spec.Template.Spec}
-		nodeTemplate := pscheduling.NewNodeClaimTemplate(nodepoolutil.New(prov))
-		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
-			return false
-		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabelsV1Alpha5); err != nil {
-			return false
-		}
-		return true
-	})
-}
-
 func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 	GinkgoHelper()
 
@@ -802,7 +757,7 @@ func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
 			return false
 		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabelsV1Beta1); err != nil {
+		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
 			return false
 		}
 		return true
