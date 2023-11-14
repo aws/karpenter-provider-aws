@@ -96,7 +96,6 @@ jobs:
           ecr_region: ${{ vars.ECR_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
-          create_cluster: true
       - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.to_git_ref }}
@@ -115,32 +114,12 @@ jobs:
           ecr_region: ${{ vars.ECR_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
-          create_cluster: false
-      - name: upgrade prometheus
-        uses: ./.github/actions/e2e/install-prometheus
-        with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
-          region: ${{ vars.PROMETHEUS_REGION }}
-          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
-          workspace_id: ${{ vars.WORKSPACE_ID }}
-          git_ref: ${{ inputs.to_git_ref }}
       - name: upgrade crds
         uses: ./.github/actions/e2e/upgrade-crds
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
           region: ${{ inputs.region }}
-          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
-          git_ref: ${{ inputs.to_git_ref }}
-      - name: upgrade karpenter
-        uses: ./.github/actions/e2e/install-karpenter
-        with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
-          region: ${{ inputs.region }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-          ecr_region: ${{ vars.ECR_REGION }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: run the Upgrade test suite

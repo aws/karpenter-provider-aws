@@ -40,8 +40,6 @@ inputs:
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
     required: false
-  create_cluster:
-    required: true
 runs:
   using: "composite"
   steps:
@@ -200,7 +198,6 @@ runs:
       done
   - name: install prometheus
     uses: ./.github/actions/e2e/install-prometheus
-    if: always() && inputs.create_cluster
     with:
       account_id: ${{ inputs.account_id }}
       role: ${{ inputs.role }}
@@ -210,7 +207,6 @@ runs:
       git_ref: ${{ inputs.git_ref }}
   - name: install karpenter
     uses: ./.github/actions/e2e/install-karpenter
-    if: always() && inputs.create_cluster
     with:
       account_id: ${{ inputs.account_id  }}
       role: ${{ inputs.role }}
