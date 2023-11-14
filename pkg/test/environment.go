@@ -18,10 +18,17 @@ import (
 	"context"
 	"net"
 
+	"github.com/samber/lo"
+	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/ptr"
 
 	"github.com/patrickmn/go-cache"
 
+	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	"github.com/aws/karpenter/pkg/apis"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
@@ -38,6 +45,13 @@ import (
 
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )
+
+func init() {
+	lo.Must0(apis.AddToScheme(scheme.Scheme))
+	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	coreapis.Settings = append(coreapis.Settings, apis.Settings...)
+}
 
 type Environment struct {
 	// API
