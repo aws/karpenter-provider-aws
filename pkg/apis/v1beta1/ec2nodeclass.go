@@ -57,6 +57,7 @@ type EC2NodeClassSpec struct {
 	// +optional
 	UserData *string `json:"userData,omitempty"`
 	// Role is the AWS identity that nodes use. This field is immutable.
+	// This field is mutually exclusive from instanceProfile.
 	// Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
 	// This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
 	// for the old instance profiles on an update.
@@ -64,7 +65,10 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="immutable field changed"
 	// +optional
 	Role string `json:"role,omitempty"`
-	// InstanceProfile is the AWS identity that instances use.
+	// InstanceProfile is the AWS entity that instances use.
+	// This field is mutually exclusive from role.
+	// The instance profile should already have a role assigned to it that Karpenter
+	//  has PassRole permission on for instance launch using this instanceProfile to succeed.
 	// +kubebuilder:validation:XValidation:rule="self != ''",message="instanceProfile cannot be empty"
 	// +optional
 	InstanceProfile *string `json:"instanceProfile,omitempty"`
@@ -323,7 +327,7 @@ type EC2NodeClass struct {
 	// +kubebuilder:validation:XValidation:message="amiSelectorTerms is required when amiFamily == 'Custom'",rule="self.amiFamily == 'Custom' ? self.amiSelectorTerms.size() != 0 : true"
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['role', 'instanceProfile']",rule="has(self.role) || has(self.instanceProfile)"
 	// +kubebuilder:validation:XValidation:message="role cannot be specified with instanceProfile",rule="!(has(self.role) && has(self.instanceProfile))"
-	// +kubebuilder:validation:XValidation:message="changing from an unmanaged instance profile to a managed instance profile is not supported",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="changing from an unmanaged instance profile to a managed instance profile is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 

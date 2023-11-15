@@ -189,7 +189,7 @@ var _ = Describe("Validation", func() {
 
 			nodeClass.Spec.Role = "test-role"
 			nodeClass.Spec.InstanceProfile = nil
-			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should fail to switch between a managed and unmanaged instance profile", func() {
 			nodeClass.Spec.Role = "test-role"
@@ -198,7 +198,7 @@ var _ = Describe("Validation", func() {
 
 			nodeClass.Spec.Role = ""
 			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
 		})
 	})
 })

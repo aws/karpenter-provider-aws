@@ -47,7 +47,7 @@ var _ = Describe("CEL/Validation", func() {
 		nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 	})
-	It("should fail if not specifying none of instance profile and role", func() {
+	It("should fail if not specifying one of instance profile and role", func() {
 		nc.Spec.Role = ""
 		Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 	})
@@ -632,7 +632,7 @@ var _ = Describe("CEL/Validation", func() {
 
 			nc.Spec.Role = "test-role"
 			nc.Spec.InstanceProfile = nil
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			Expect(env.Client.Update(ctx, nc)).ToNot(Succeed())
 		})
 		It("should fail to switch between a managed and unmanaged instance profile", func() {
 			nc.Spec.Role = "test-role"
@@ -641,7 +641,7 @@ var _ = Describe("CEL/Validation", func() {
 
 			nc.Spec.Role = ""
 			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			Expect(env.Client.Update(ctx, nc)).ToNot(Succeed())
 		})
 	})
 })

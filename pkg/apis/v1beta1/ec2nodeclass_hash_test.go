@@ -137,7 +137,7 @@ var _ = Describe("Hash", func() {
 		updatedHash := nodeClass.Hash()
 		Expect(hash).To(Equal(updatedHash))
 	})
-	It("should expect two provisioner with the same spec to have the same provisioner hash", func() {
+	It("should expect two EC2NodeClasses with the same spec to have the same provisioner hash", func() {
 		otherNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: nodeClass.Spec,
 		})

@@ -45,7 +45,7 @@ var _ = Describe("Webhook/Validation", func() {
 		nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		Expect(nc.Validate(ctx)).ToNot(Succeed())
 	})
-	It("should fail if not specifying none of instance profile and role", func() {
+	It("should fail if not specifying one of instance profile and role", func() {
 		nc.Spec.Role = ""
 		Expect(nc.Validate(ctx)).ToNot(Succeed())
 	})
@@ -495,7 +495,7 @@ var _ = Describe("Webhook/Validation", func() {
 		It("should fail to switch between an unmanaged and managed instance profile", func() {
 			nc.Spec.Role = ""
 			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
-			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			Expect(nc.Validate(ctx)).To(Succeed())
 
 			updateCtx := apis.WithinUpdate(ctx, nc.DeepCopy())
 			nc.Spec.Role = "test-role"
@@ -505,7 +505,7 @@ var _ = Describe("Webhook/Validation", func() {
 		It("should fail to switch between a managed and unmanaged instance profile", func() {
 			nc.Spec.Role = "test-role"
 			nc.Spec.InstanceProfile = nil
-			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			Expect(nc.Validate(ctx)).To(Succeed())
 
 			updateCtx := apis.WithinUpdate(ctx, nc.DeepCopy())
 			nc.Spec.Role = ""

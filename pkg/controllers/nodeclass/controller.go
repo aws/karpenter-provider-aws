@@ -115,7 +115,7 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	}
 	if nodeClass.Spec.Role != "" {
 		if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
-			return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
+			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 		}
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
@@ -206,7 +206,7 @@ func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1be
 	if nodeClass.Spec.Role != "" {
 		name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
 		if err != nil {
-			return fmt.Errorf("resolving instance profile, %w", err)
+			return fmt.Errorf("creating instance profile, %w", err)
 		}
 		nodeClass.Status.InstanceProfile = name
 	} else {

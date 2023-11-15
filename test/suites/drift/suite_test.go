@@ -57,7 +57,7 @@ func TestDrift(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Beta/Drift")
+	RunSpecs(t, "Drift")
 }
 
 var _ = BeforeEach(func() {
@@ -188,7 +188,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		By("creating new security group")
 		createSecurityGroup := &ec2.CreateSecurityGroupInput{
 			GroupName:   awssdk.String("security-group-drift"),
-			Description: awssdk.String("End-to-end Drift Test, should delete after drift coretest is completed"),
+			Description: awssdk.String("End-to-end Drift Test, should delete after drift test is completed"),
 			VpcId:       output.Cluster.ResourcesVpcConfig.VpcId,
 			TagSpecifications: []*ec2.TagSpecification{
 				{
@@ -285,7 +285,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
-	DescribeTable("NodePool Drift", func(fieldName string, nodeClaimTemplate corev1beta1.NodeClaimTemplate) {
+	DescribeTable("NodePool Drift", func(nodeClaimTemplate corev1beta1.NodeClaimTemplate) {
 		updatedNodePool := coretest.NodePool(
 			corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
@@ -322,7 +322,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectUpdated(pod)
 
 		// Nodes will need to have the start-up taint removed before the node can be considered as initialized
-		if fieldName == "Start-up Taint" {
+		fmt.Println(CurrentSpecReport().LeafNodeText)
+		if CurrentSpecReport().LeafNodeText == "Start-up Taints" {
 			nodes := env.EventuallyExpectCreatedNodeCount("==", 2)
 			sort.Slice(nodes, func(i int, j int) bool {
 				return nodes[i].CreationTimestamp.Before(&nodes[j].CreationTimestamp)
@@ -339,22 +340,22 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	},
-		Entry("Annotation Drift", "Annotation", corev1beta1.NodeClaimTemplate{
+		Entry("Annotations", corev1beta1.NodeClaimTemplate{
 			ObjectMeta: corev1beta1.ObjectMeta{
 				Annotations: map[string]string{"keyAnnotationTest": "valueAnnotationTest"},
 			},
 		}),
-		Entry("Labels Drift", "Labels", corev1beta1.NodeClaimTemplate{
+		Entry("Labels", corev1beta1.NodeClaimTemplate{
 			ObjectMeta: corev1beta1.ObjectMeta{
 				Labels: map[string]string{"keyLabelTest": "valueLabelTest"},
 			},
 		}),
-		Entry("Taints Drift", "Taints", corev1beta1.NodeClaimTemplate{
+		Entry("Taints", corev1beta1.NodeClaimTemplate{
 			Spec: corev1beta1.NodeClaimSpec{
 				Taints: []v1.Taint{{Key: "example.com/another-taint-2", Effect: v1.TaintEffectPreferNoSchedule}},
 			},
 		}),
-		Entry("KubeletConfiguration Drift", "KubeletConfiguration", corev1beta1.NodeClaimTemplate{
+		Entry("KubeletConfiguration", corev1beta1.NodeClaimTemplate{
 			Spec: corev1beta1.NodeClaimSpec{
 				Kubelet: &corev1beta1.KubeletConfiguration{
 					EvictionSoft:            map[string]string{"memory.available": "5%"},
@@ -362,18 +363,18 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				},
 			},
 		}),
-		Entry("Start-up Taints Drift", "Start-up Taint", corev1beta1.NodeClaimTemplate{
+		Entry("Start-up Taints", corev1beta1.NodeClaimTemplate{
 			Spec: corev1beta1.NodeClaimSpec{
 				StartupTaints: []v1.Taint{{Key: "example.com/another-taint-2", Effect: v1.TaintEffectPreferNoSchedule}},
 			},
 		}),
-		Entry("NodeRequirement Drift", "NodeRequirement", corev1beta1.NodeClaimTemplate{
+		Entry("NodeRequirements", corev1beta1.NodeClaimTemplate{
 			Spec: corev1beta1.NodeClaimSpec{
 				Requirements: []v1.NodeSelectorRequirement{{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot}}},
 			},
 		}),
 	)
-	DescribeTable("EC2NodeClass Drift", func(nodeClassSpec v1beta1.EC2NodeClassSpec) {
+	DescribeTable("EC2NodeClass", func(nodeClassSpec v1beta1.EC2NodeClassSpec) {
 		updatedNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{Spec: *nodeClass.Spec.DeepCopy()}, v1beta1.EC2NodeClass{Spec: nodeClassSpec})
 		updatedNodeClass.ObjectMeta = nodeClass.ObjectMeta
 
@@ -396,10 +397,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	},
-		Entry("UserData Drift", v1beta1.EC2NodeClassSpec{UserData: awssdk.String("#!/bin/bash\n/etc/eks/bootstrap.sh")}),
-		Entry("Tags Drift", v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-coretest-3": "valueTag-coretest-3"}}),
-		Entry("MetadataOptions Drift", v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPTokens: awssdk.String("required"), HTTPPutResponseHopLimit: awssdk.Int64(10)}}),
-		Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
+		Entry("UserData", v1beta1.EC2NodeClassSpec{UserData: awssdk.String("#!/bin/bash\n/etc/eks/bootstrap.sh")}),
+		Entry("Tags", v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}),
+		Entry("MetadataOptions", v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPTokens: awssdk.String("required"), HTTPPutResponseHopLimit: awssdk.Int64(10)}}),
+		Entry("BlockDeviceMappings", v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 			{
 				DeviceName: awssdk.String("/dev/xvda"),
 				EBS: &v1beta1.BlockDevice{
@@ -408,8 +409,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 					Encrypted:  awssdk.Bool(true),
 				},
 			}}}),
-		Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClassSpec{DetailedMonitoring: awssdk.Bool(true)}),
-		Entry("AMIFamily Drift", v1beta1.EC2NodeClassSpec{AMIFamily: awssdk.String(v1beta1.AMIFamilyBottlerocket)}),
+		Entry("DetailedMonitoring", v1beta1.EC2NodeClassSpec{DetailedMonitoring: awssdk.Bool(true)}),
+		Entry("AMIFamily", v1beta1.EC2NodeClassSpec{AMIFamily: awssdk.String(v1beta1.AMIFamilyBottlerocket)}),
 	)
 	It("should drift the EC2NodeClass on InstanceProfile", func() {
 		// Create a separate test case for this one since we can't use the default NodeClass that's created due to it having
@@ -447,7 +448,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
-	Context("Drift Failure", func() {
+	Context("Failure", func() {
 		It("should not continue to drift if a node never registers", func() {
 			// launch a new nodeClaim
 			var numPods int32 = 2
