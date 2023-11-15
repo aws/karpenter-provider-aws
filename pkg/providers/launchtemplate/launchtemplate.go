@@ -375,7 +375,7 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC
 	}
 	if nodeClass.Spec.Role != "" {
 		if nodeClass.Status.InstanceProfile == "" {
-			return "", cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("instance profile hasn't resolved for role"))
+			return "", cloudprovider.NewInsufficientCapacityError(fmt.Errorf("instance profile hasn't resolved for role"))
 		}
 		return nodeClass.Status.InstanceProfile, nil
 	}

@@ -38,7 +38,7 @@ spec:
             metadata:
               type: object
             spec:
-              description: NodePoolSpec is the top level provisioner specification. Provisioners launch nodes in response to pods that are unschedulable. A single provisioner is capable of managing a diverse set of nodes. Node properties are determined from a combination of provisioner and pod scheduling constraints.
+              description: NodePoolSpec is the top level nodepool specification. Nodepools launch nodes in response to pods that are unschedulable. A single nodepool is capable of managing a diverse set of nodes. Node properties are determined from a combination of nodepool and pod scheduling constraints.
               properties:
                 disruption:
                   default:
@@ -46,6 +46,36 @@ spec:
                     expireAfter: 720h
                   description: Disruption contains the parameters that relate to Karpenter's disruption logic
                   properties:
+                    budgets:
+                      default:
+                        - maxUnavailable: 10%
+                      description: Budgets is a list of Budgets. If there are multiple active budgets, Karpenter uses the most restrictive maxUnavailable. If left undefined, this will default to one budget with a maxUnavailable to 10%.
+                      items:
+                        description: Budget defines when Karpenter will restrict the number of Node Claims that can be terminating simultaneously.
+                        properties:
+                          crontab:
+                            description: Crontab specifies when a budget begins being active, using the upstream cronjob syntax. If omitted, the budget is always active. Currently timezones are not supported. This is required if Duration is set.
+                            pattern: ^(@(annually|yearly|monthly|weekly|daily|midnight|hourly))|((.*)\s(.*)\s(.*)\s(.*)\s(.*))$
+                            type: string
+                          duration:
+                            description: Duration determines how long a Budget is active since each Crontab hit. If omitted, the budget is always active. This is required if Crontab is set.
+                            pattern: ^(([0-9]+(s|m|h))+)|(Never)$
+                            type: string
+                          maxUnavailable:
+                            anyOf:
+                              - type: integer
+                              - type: string
+                            default: 10%
+                            description: MaxUnavailable dictates how many NodeClaims owned by this NodePool can be terminating at once. It must be set. This only considers NodeClaims with the karpenter.sh/disruption taint.
+                            x-kubernetes-int-or-string: true
+                        required:
+                          - maxUnavailable
+                        type: object
+                      maxItems: 50
+                      type: array
+                      x-kubernetes-validations:
+                        - message: '''crontab'' must be set with ''duration'''
+                          rule: '!self.all(x, (has(x.crontab) && !has(x.duration)) || (!has(x.crontab) && has(x.duration)))'
                     consolidateAfter:
                       description: ConsolidateAfter is the duration the controller will wait before attempting to terminate nodes that are underutilized. Refer to ConsolidationPolicy for how underutilization is considered.
                       pattern: ^(([0-9]+(s|m|h))+)|(Never)$
@@ -358,7 +388,7 @@ spec:
                     - spec
                   type: object
                 weight:
-                  description: Weight is the priority given to the provisioner during scheduling. A higher numerical weight indicates that this provisioner will be ordered ahead of other provisioners with lower weights. A provisioner with no weight will be treated as if it is a provisioner with a weight of 0.
+                  description: Weight is the priority given to the nodepool during scheduling. A higher numerical weight indicates that this nodepool will be ordered ahead of other nodepools with lower weights. A nodepool with no weight will be treated as if it is a nodepool with a weight of 0.
                   format: int32
                   maximum: 100
                   minimum: 1

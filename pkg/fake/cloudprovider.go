@@ -68,6 +68,10 @@ func (c *CloudProvider) IsDrifted(_ context.Context, nodeClaim *v1beta1.NodeClai
 	return "drifted", nil
 }
 
+func (c *CloudProvider) IsReady(context.Context, *v1beta1.NodePool) error {
+	return nil
+}
+
 func (c *CloudProvider) Get(context.Context, string) (*v1beta1.NodeClaim, error) {
 	return nil, nil
 }

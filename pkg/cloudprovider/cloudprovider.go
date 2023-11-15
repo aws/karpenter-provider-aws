@@ -82,8 +82,8 @@ func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance
 
 // Create a NodeClaim given the constraints.
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*corev1beta1.NodeClaim, error) {
-	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
-	if err != nil {
+	nodeClass := &v1beta1.EC2NodeClass{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
 		if errors.IsNotFound(err) {
 			c.recorder.Publish(cloudproviderevents.NodeClaimFailedToResolveNodeClass(nodeClaim))
 		}
@@ -162,8 +162,8 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 	if nodePool == nil {
 		return c.instanceTypeProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
 	}
-	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
-	if err != nil {
+	nodeClass := &v1beta1.EC2NodeClass{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
 		if errors.IsNotFound(err) {
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 		}
@@ -201,8 +201,8 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *corev1beta1.No
 	if nodePool.Spec.Template.Spec.NodeClassRef == nil {
 		return "", nil
 	}
-	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
-	if err != nil {
+	nodeClass := &v1beta1.EC2NodeClass{}
+	if err = c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
 		if errors.IsNotFound(err) {
 			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
 		}
@@ -215,33 +215,26 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *corev1beta1.No
 	return driftReason, nil
 }
 
+func (c *CloudProvider) IsReady(ctx context.Context, nodePool *corev1beta1.NodePool) error {
+	nodeClass := &v1beta1.EC2NodeClass{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
+		if errors.IsNotFound(err) {
+			c.recorder.Publish(cloudproviderevents.NodePoolFailedToResolveNodeClass(nodePool))
+		}
+		return fmt.Errorf("resolving node class, %w", err)
+	}
+	if !nodeClass.DeletionTimestamp.IsZero() {
+		return fmt.Errorf("nodeclass is deleting")
+	}
+	if nodeClass.Spec.Role != "" && nodeClass.Status.InstanceProfile == "" {
+		return fmt.Errorf("generated instance profile is not ready")
+	}
+	return nil
+}
+
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
-}
-
-func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*v1beta1.EC2NodeClass, error) {
-	nodeClass := &v1beta1.EC2NodeClass{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
-		return nil, err
-	}
-	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound
-	if !nodeClass.DeletionTimestamp.IsZero() {
-		return nil, errors.NewNotFound(v1beta1.SchemeGroupVersion.WithResource("ec2nodeclasses").GroupResource(), nodeClass.Name)
-	}
-	return nodeClass, nil
-}
-
-func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePool *corev1beta1.NodePool) (*v1beta1.EC2NodeClass, error) {
-	nodeClass := &v1beta1.EC2NodeClass{}
-	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
-		return nil, err
-	}
-	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound
-	if !nodeClass.DeletionTimestamp.IsZero() {
-		return nil, errors.NewNotFound(v1beta1.SchemeGroupVersion.WithResource("ec2nodeclasses").GroupResource(), nodeClass.Name)
-	}
-	return nodeClass, nil
 }
 
 func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
