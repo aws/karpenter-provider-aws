@@ -52,7 +52,7 @@ cat << EOF > controller-policy.json
             "Action": "ec2:TerminateInstances",
             "Condition": {
                 "StringLike": {
-                    "ec2:ResourceTag/karpenter.sh/provisioner-name": "*"
+                    "ec2:ResourceTag/karpenter.sh/nodepool": "*"
                 }
             },
             "Effect": "Allow",
