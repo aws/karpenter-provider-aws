@@ -20,12 +20,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 )
 
-func UnavailableOfferingEvent(nodeClass *v1beta1.EC2NodeClass, instanceType, availabilityZone, capacityType string) events.Event {
+func UnavailableOfferingEvent(nodeClaim *corev1beta1.NodeClaim, instanceType, availabilityZone, capacityType string) events.Event {
 	return events.Event{
-		InvolvedObject: nodeClass,
+		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeWarning,
 		Reason:         "UnavailableOffering",
 		Message:        fmt.Sprintf(`UnavailableOffering for {"instanceType": %q, "availabilityZone": %q, "capacityType": %q}`, instanceType, availabilityZone, capacityType),

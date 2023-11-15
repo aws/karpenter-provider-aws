@@ -246,7 +246,7 @@ func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.EC2Nod
 		}
 		return nil, fmt.Errorf("creating fleet %w", err)
 	}
-	p.updateUnavailableOfferingsCache(ctx, nodeClass, createFleetOutput.Errors, capacityType)
+	p.updateUnavailableOfferingsCache(ctx, nodeClaim, createFleetOutput.Errors, capacityType)
 	if len(createFleetOutput.Instances) == 0 || len(createFleetOutput.Instances[0].InstanceIds) == 0 {
 		return nil, combineFleetErrors(createFleetOutput.Errors)
 	}
@@ -367,10 +367,10 @@ func (p *Provider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zon
 	return overrides
 }
 
-func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, errors []*ec2.CreateFleetError, capacityType string) {
+func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, errors []*ec2.CreateFleetError, capacityType string) {
 	for _, err := range errors {
 		if awserrors.IsUnfulfillableCapacity(err) {
-			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, nodeClass, err, capacityType)
+			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, nodeClaim, err, capacityType)
 		}
 	}
 }
