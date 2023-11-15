@@ -66,6 +66,26 @@ func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time) (names
 	return names, err
 }
 
+func (s *Stack) CountAll(ctx context.Context) (count int, err error) {
+	var nextToken *string
+	for {
+		out, err := s.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return count, err
+		}
+
+		count += len(out.Stacks)
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return count, nil
+}
+
 func (s *Stack) Get(ctx context.Context, clusterName string) (names []string, err error) {
 	var nextToken *string
 	for {

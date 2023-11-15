@@ -10,6 +10,9 @@ Parameters:
   SweeperTableName:
     Type: String
     Description: "Timestream table to forward leaked resources to"
+  ResourceCountTableName:
+    Type: String
+    Description: "Timestream table to count number of resources to"
   BackupDisasterRecoveryRegion:
     Type: String
     Default: "us-east-1"
@@ -34,6 +37,16 @@ Resources:
     Properties:
       DatabaseName: !Ref "TimestreamDatabase"
       TableName: !Sub "${SweeperTableName}"
+      MagneticStoreWriteProperties:
+        EnableMagneticStoreWrites: true
+      RetentionProperties:
+        MemoryStoreRetentionPeriodInHours: "2160" # Three months of memory store retention
+        MagneticStoreRetentionPeriodInDays: "1825" # 5 years of magnetic store retention
+  ResourceCountTimestreamTable:
+    Type: "AWS::Timestream::Table"
+    Properties:
+      DatabaseName: !Ref "TimestreamDatabase"
+      TableName: !Sub "${ResourceCountTableName}"
       MagneticStoreWriteProperties:
         EnableMagneticStoreWrites: true
       RetentionProperties:
@@ -65,6 +78,7 @@ Resources:
         Resources:
           - !GetAtt "TimestreamTable.Arn"
           - !GetAtt "SweeperTimestreamTable.Arn"
+          - !GetAtt "ResourceCountTimestreamTable.Arn"
       BackupPlanId: !Ref "TimestreamBackupPlan"
 Outputs:
   ScaleTimestreamTable:

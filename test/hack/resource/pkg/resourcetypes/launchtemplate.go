@@ -66,6 +66,26 @@ func (lt *LaunchTemplate) GetExpired(ctx context.Context, expirationTime time.Ti
 	return names, err
 }
 
+func (lt *LaunchTemplate) CountAll(ctx context.Context) (count int, err error) {
+	var nextToken *string
+	for {
+		out, err := lt.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return count, err
+		}
+
+		count += len(out.LaunchTemplates)
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return count, err
+}
+
 func (lt *LaunchTemplate) Get(ctx context.Context, clusterName string) (names []string, err error) {
 	var nextToken *string
 	for {
