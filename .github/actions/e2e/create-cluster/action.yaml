@@ -4,11 +4,23 @@ inputs:
   account_id:
     description: "Account ID to access AWS"
     required: true
+  ecr_account_id:
+    description: "Account ID to access ECR Repository"
+    required: true
+  prometheus_workspace_id:
+    description: Workspace ID for the Prometheus workspace
+    required: true
   role:
     description: "Role to access AWS"
     required: true
   region:
     description: "Region to access AWS"
+    required: true
+  ecr_region:
+    description: "Region to access ECR Repository"
+    required: true
+  prometheus_region:
+    description: Region to access Prometheus 
     required: true
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
@@ -184,3 +196,22 @@ runs:
         echo "Stack Events for $stack_name:"
         aws cloudformation describe-stack-events --stack-name $stack_name
       done
+  - name: install prometheus
+    uses: ./.github/actions/e2e/install-prometheus
+    with:
+      account_id: ${{ inputs.account_id }}
+      role: ${{ inputs.role }}
+      region: ${{ inputs.prometheus_region }}
+      cluster_name: ${{ inputs.cluster_name }}
+      workspace_id: ${{ inputs.prometheus_workspace_id }}
+      git_ref: ${{ inputs.git_ref }}
+  - name: install karpenter
+    uses: ./.github/actions/e2e/install-karpenter
+    with:
+      account_id: ${{ inputs.account_id  }}
+      role: ${{ inputs.role }}
+      region: ${{ inputs.region }}
+      ecr_account_id: ${{ inputs.ecr_account_id }}
+      ecr_region: ${{ inputs.ecr_region }}
+      cluster_name: ${{ inputs.cluster_name }}
+      git_ref: ${{ inputs.git_ref }}

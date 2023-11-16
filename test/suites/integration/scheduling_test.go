@@ -145,9 +145,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: env.Region,
 			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
-			"beta.kubernetes.io/arch":       "amd64",
-			"beta.kubernetes.io/os":         "linux",
-			v1.LabelInstanceType:            "c5.large",
+			"topology.ebs.csi.aws.com/zone": fmt.Sprintf("%sa", env.Region),
+
+			"beta.kubernetes.io/arch": "amd64",
+			"beta.kubernetes.io/os":   "linux",
+			v1.LabelInstanceType:      "c5.large",
 		}
 		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {

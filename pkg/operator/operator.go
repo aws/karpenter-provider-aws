@@ -37,6 +37,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/samber/lo"
@@ -47,8 +48,12 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
+	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/operator"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	"github.com/aws/karpenter/pkg/apis"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
@@ -61,6 +66,13 @@ import (
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/providers/version"
 )
+
+func init() {
+	lo.Must0(apis.AddToScheme(scheme.Scheme))
+	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	coreapis.Settings = append(coreapis.Settings, apis.Settings...)
+}
 
 // Operator is injected into the AWS CloudProvider's factories
 type Operator struct {
