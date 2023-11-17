@@ -44,6 +44,12 @@ Karpenter v0.32.0 introduces v1beta1 APIs, including _significant_ changes to th
 Additionally, if rolling back after upgrading to v0.32.0, note that v0.31.2 is the only version that supports handling rollback after you have deployed the v1beta1 APIs to your cluster.
 {{% /alert %}}
 
+{{% alert title="Warning" color="warning" %}}
+As part of the v1beta1 APIs, v0.32.0 and v0.32.1 removed the InstanceProfile field, where Karpenter allows users to set a Role instead. This role is used to create/delete an instance profile for the user. This unintentionally removed support for clusters that do not have access to a private IAM endpoint. Karpenter is exploring options here to add back in support in and will release v0.32.2 to include that.
+
+Track https://github.com/aws/karpenter/issues/4985 for more.
+{{% /alert %}}
+
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
 * Karpenter now exposes the ability to disable webhooks through the `webhook.enabled=false` value. This value will disable the webhook server and will prevent any permissions, mutating or validating webhook configurations from being deployed to the cluster.
 * Karpenter now moves all logging configuration for the Zap logger into the `logConfig` values block. Configuring Karpenter logging with this mechanism _is_ deprecated and will be dropped at v1. Karpenter now only surfaces logLevel through the `logLevel` helm value. If you need more advanced configuration due to log parsing constraints, we recommend configuring your log parser to handle Karpenter's Zap JSON logging.
