@@ -145,6 +145,106 @@ The new stack has only one user, `admin`, and the password is stored in a secret
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step11-grafana-get-password.sh" language="bash"%}}
 
+## Advanced Installation
+
+Below covers advanced installation techniques for installing Karpenter. This includes things such as running Karpenter on a cluster without public internet access and ensuring that Karpenter runs in the correct [FlowSchemas](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#flowschema) and [PriorityLevelConfigurations](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration) on your cluster.
+
+### Private Clusters
+
+<TODO: Get more details on installing Karpenter on a private cluster>
+
+You can optionally install Karpenter on a private cluster using the `eksctl` installation. Private clusters have no outbound access to the internet. This means that in order for Karpenter to reach out to the services that it needs to access to run successfully, you need to enable specific VPC private endpoints in your VPC. Below shows the endpoints that you need to enable to run Karpenter in a private cluster:
+
+```text
+com.amazonaws.<region>.ec2
+com.amazonaws.<region>.ecr.api
+com.amazonaws.<region>.ecr.dkr
+com.amazonaws.<region>.s3 – For pulling container images
+com.amazonaws.<region>.sts – For IAM roles for service accounts
+com.amazonaws.<region>.ssm - If using Karpenter
+```
+
+If you do not currently have these endpoints surfaced in your VPC, you can add the endpoints by running
+
+```bash
+aws ec2 create-vpc-endpoint --vpc-id ${VPC_ID} --service-name ${SERVICE_NAME} --vpc-endpoint-type Interface --subnet-ids ${SUBNET_IDS} --security-group-ids ${SECURITY_GROUP_IDS}
+```
+
+{{% alert title="Warning" color="warning" %}}
+
+There is currently no VPC private endpoint for the [Price List Query API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-price-list-query-api.html). As a result, pricing data can go stale over time. By default, Karpenter ships a static price list that is updated when each binary is released.
+
+// TODO: Write more information on the price list API
+
+{{% /alert %}}
+
+### FlowSchemas
+
+By default, Karpenter is installed into the `kube-system` namespace, which leverages the `system-leader-election` and `kube-system-service-accounts` FlowSchemas to map calls from the `kube-system` namespace to `leader-election` and `workload-high` PriorityLevelConfigurations respectively. By putting Karpenter in these PriorityLevelConfigurations, we ensure that Karpenter and other critical cluster components are able to run even if other components on the cluster are throttled in other PriorityLevelConfigurations.
+
+If you install Karpenter in a different namespace than the default `kube-system` namespace, Karpenter will not be put into these FlowSchemas by default. Instead, you will need to create custom `FlowSchemas` for Karpenter to ensure that requests are put into a higher PriorityLevelConfiguration.
+
+```yaml
+kind: FlowSchema
+metadata:
+  name: karpenter-leader-election
+spec:
+  distinguisherMethod:
+    type: ByUser
+  matchingPrecedence: 200
+  priorityLevelConfiguration:
+    name: karpenter-leader-election
+  rules:
+  - resourceRules:
+    - apiGroups:
+        - coordination.k8s.io
+      namespaces:
+        - '*'
+      resources:
+        - leases
+      verbs:
+        - get
+        - create
+        - update
+    subjects:
+      - kind: ServiceAccount
+        serviceAccount:
+          name: karpenter
+          namespace: ${KARPENTER_NAMESPACE}
+---
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
+kind: FlowSchema
+metadata:
+  name: karpenter-workload
+spec:
+  distinguisherMethod:
+    type: ByUser
+  matchingPrecedence: 1000
+  priorityLevelConfiguration:
+    name: workload-high
+  rules:
+    - nonResourceRules:
+        - nonResourceURLs:
+            - '*'
+          verbs:
+            - '*'
+      resourceRules:
+        - apiGroups:
+            - '*'
+          clusterScope: true
+          namespaces:
+            - '*'
+          resources:
+            - '*'
+          verbs:
+            - '*'
+      subjects:
+        - kind: ServiceAccount
+          serviceAccount:
+            name: karpenter
+            namespace: ${KARPENTER_NAMESPACE}
+```
+
 ## Cleanup
 
 ### Delete Karpenter nodes manually
