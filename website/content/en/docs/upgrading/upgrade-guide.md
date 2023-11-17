@@ -22,12 +22,6 @@ Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are pu
 If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-upgrading-from-older-karpenter-version" >}}) for details on how to resolve these errors.
 {{% /alert %}}
 
-{{% alert title="Warning" color="warning" %}}
-As part of the v1beta1 APIs, v0.32.0 and v0.32.1 removed the InstanceProfile field, where Karpenter allows users to set a Role instead. This role is used to create/delete an instance profile for the user. This unintentionally removed support for clusters that do not have access to a private IAM endpoint. Karpenter is exploring options here to add back in support in and will release v0.32.2 to include that.
-
-Track https://github.com/aws/karpenter/issues/4985 for more.
-{{% /alert %}}
-
 * As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
 
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
@@ -44,6 +38,12 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/api
 Karpenter v0.32.0 introduces v1beta1 APIs, including _significant_ changes to the API and installation procedures for the Karpenter controllers. Do not upgrade to v0.32.0+ without referencing the [v1beta1 Migration Upgrade Procedure]({{<ref "v1beta1-migration#upgrade-procedure" >}}).
 
 Additionally, if rolling back after upgrading to v0.32.0, note that v0.31.2 is the only version that supports handling rollback after you have deployed the v1beta1 APIs to your cluster.
+{{% /alert %}}
+
+{{% alert title="Warning" color="warning" %}}
+As part of the v1beta1 APIs, v0.32.0 and v0.32.1 removed the InstanceProfile field, where Karpenter allows users to set a Role instead. This role is used to create/delete an instance profile for the user. This unintentionally removed support for clusters that do not have access to a private IAM endpoint. Karpenter is exploring options here to add back in support in and will release v0.32.2 to include that.
+
+Track https://github.com/aws/karpenter/issues/4985 for more.
 {{% /alert %}}
 
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
