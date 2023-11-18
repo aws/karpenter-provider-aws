@@ -60,6 +60,8 @@ RUN go version
 RUN git clone https://github.com/aws/karpenter.git /karpenter
 WORKDIR /karpenter
 
+RUN echo "#!/bin/bash\n\$@" > /usr/bin/sudo
+RUN chmod +x /usr/bin/sudo
 RUN K8S_VERSION="1.28.x" make toolchain
 
 RUN GOPROXY=direct go mod tidy
