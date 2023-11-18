@@ -27,4 +27,4 @@ jobs:
         env:
           DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
           DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-          DOCKER_REPOSITORY: ${{ env.DOCKER_REPOSITORY }}
+          DOCKER_REPOSITORY: ${{ vars.DOCKER_REPOSITORY }}
