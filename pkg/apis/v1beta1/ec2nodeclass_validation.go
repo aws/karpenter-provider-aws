@@ -33,6 +33,8 @@ const (
 	tagsPath                       = "tags"
 	metadataOptionsPath            = "metadataOptions"
 	blockDeviceMappingsPath        = "blockDeviceMappings"
+	rolePath                       = "role"
+	instanceProfilePath            = "instanceProfile"
 )
 
 var (
@@ -65,6 +67,12 @@ func (in *EC2NodeClass) validateImmutableFields(original *EC2NodeClass) (errs *a
 }
 
 func (in *EC2NodeClassSpec) validate(_ context.Context) (errs *apis.FieldError) {
+	if in.Role != "" && in.InstanceProfile != nil {
+		errs = errs.Also(apis.ErrMultipleOneOf(rolePath, instanceProfilePath))
+	}
+	if in.Role == "" && in.InstanceProfile == nil {
+		errs = errs.Also(apis.ErrMissingOneOf(rolePath, instanceProfilePath))
+	}
 	return errs.Also(
 		in.validateSubnetSelectorTerms().ViaField(subnetSelectorTermsPath),
 		in.validateSecurityGroupSelectorTerms().ViaField(securityGroupSelectorTermsPath),

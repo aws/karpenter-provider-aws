@@ -93,6 +93,12 @@ var _ = Describe("NodeClaimGarbageCollection", func() {
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))))
 
+		instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
+		roleName := fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
+		env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
+		DeferCleanup(func() {
+			env.ExpectInstanceProfileDeleted(instanceProfileName, roleName)
+		})
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.ExpectRunInstances(instanceInput)
 		Expect(out.Instances).To(HaveLen(1))

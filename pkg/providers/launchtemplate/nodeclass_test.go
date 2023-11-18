@@ -102,6 +102,18 @@ var _ = Describe("EC2NodeClass/LaunchTemplates", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
+	It("should use the instance profile on the EC2NodeClass when specified", func() {
+		nodeClass.Spec.Role = ""
+		nodeClass.Spec.InstanceProfile = aws.String("overridden-profile")
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod()
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+		awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+			Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
+		})
+	})
 	Context("Cache", func() {
 		It("should use same launch template for equivalent constraints", func() {
 			t1 := v1.Toleration{

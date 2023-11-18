@@ -35,7 +35,7 @@ func TestScale(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Beta/Scale")
+	RunSpecs(t, "Scale")
 }
 
 var _ = BeforeEach(func() {

@@ -55,7 +55,7 @@ func TestChaos(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Beta/Chaos")
+	RunSpecs(t, "Chaos")
 }
 
 var _ = BeforeEach(func() {

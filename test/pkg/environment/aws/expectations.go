@@ -36,7 +36,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	awserrors "github.com/aws/karpenter/pkg/errors"
 )
 
 // Spot Interruption experiment details partially copied from
@@ -345,4 +347,51 @@ func (env *Environment) ExpectAccountID() string {
 	identity, err := env.STSAPI.GetCallerIdentityWithContext(env.Context, &sts.GetCallerIdentityInput{})
 	Expect(err).ToNot(HaveOccurred())
 	return aws.StringValue(identity.Account)
+}
+
+func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleName string) {
+	By("creating an instance profile")
+	createInstanceProfile := &iam.CreateInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+		Tags: []*iam.Tag{
+			{
+				Key:   aws.String(coretest.DiscoveryLabel),
+				Value: aws.String(env.ClusterName),
+			},
+		},
+	}
+	By("adding the karpenter role to new instance profile")
+	_, err := env.IAMAPI.CreateInstanceProfile(createInstanceProfile)
+	Expect(awserrors.IgnoreAlreadyExists(err)).ToNot(HaveOccurred())
+	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+		RoleName:            aws.String(roleName),
+	}
+	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
+	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
+}
+
+func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName, roleName string) {
+	By("deleting an instance profile")
+	removeRoleFromInstanceProfile := &iam.RemoveRoleFromInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+		RoleName:            aws.String(roleName),
+	}
+	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(removeRoleFromInstanceProfile)
+	Expect(awserrors.IgnoreNotFound(err)).To(BeNil())
+
+	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+	}
+	_, err = env.IAMAPI.DeleteInstanceProfile(deleteInstanceProfile)
+	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+}
+
+func ignoreAlreadyContainsRole(err error) error {
+	if err != nil {
+		if strings.Contains(err.Error(), "Cannot exceed quota for InstanceSessionsPerInstanceProfile") {
+			return nil
+		}
+	}
+	return err
 }

@@ -172,5 +172,33 @@ var _ = Describe("Validation", func() {
 			}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
+		It("should fail when specifying role and instanceProfile at the same time", func() {
+			nodeClass.Spec.Role = "test-role"
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail when specifying none of role and instanceProfile", func() {
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail to switch between an unmanaged and managed instance profile", func() {
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+
+			nodeClass.Spec.Role = "test-role"
+			nodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail to switch between a managed and unmanaged instance profile", func() {
+			nodeClass.Spec.Role = "test-role"
+			nodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
+		})
 	})
 })

@@ -15,6 +15,8 @@ limitations under the License.
 package integration_test
 
 import (
+	"fmt"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	. "github.com/onsi/ginkgo/v2"
@@ -53,5 +55,24 @@ var _ = Describe("InstanceProfile Generation", func() {
 			})
 			g.Expect(awserrors.IsNotFound(err)).To(BeTrue())
 		}).Should(Succeed())
+	})
+	It("should use the unmanaged instance profile", func() {
+		instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
+		roleName := fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
+		env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
+		DeferCleanup(func() {
+			env.ExpectInstanceProfileDeleted(instanceProfileName, roleName)
+		})
+
+		pod := coretest.Pod()
+		nodeClass.Spec.Role = ""
+		nodeClass.Spec.InstanceProfile = lo.ToPtr(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName))
+		env.ExpectCreated(nodePool, nodeClass, pod)
+		env.EventuallyExpectHealthy(pod)
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		instance := env.GetInstance(node.Name)
+		Expect(instance.IamInstanceProfile).ToNot(BeNil())
+		Expect(lo.FromPtr(instance.IamInstanceProfile.Arn)).To(ContainSubstring(nodeClass.Status.InstanceProfile))
 	})
 })
