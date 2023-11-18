@@ -383,17 +383,20 @@ func (env *Environment) EventuallyExpectPendingPodCount(selector labels.Selector
 	}).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
+func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) []*v1.Pod {
 	By(fmt.Sprintf("waiting for %d pods matching selector %s to be ready", numPods, selector.String()))
 	GinkgoHelper()
-	env.EventuallyExpectHealthyPodCountWithTimeout(-1, selector, numPods)
+	return env.EventuallyExpectHealthyPodCountWithTimeout(-1, selector, numPods)
 }
 
-func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.Duration, selector labels.Selector, numPods int) {
+func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.Duration, selector labels.Selector, numPods int) []*v1.Pod {
 	GinkgoHelper()
+	var pods []*v1.Pod
 	Eventually(func(g Gomega) {
-		g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
+		pods = env.Monitor.RunningPods(selector)
+		g.Expect(pods).To(HaveLen(numPods))
 	}).WithTimeout(timeout).Should(Succeed())
+	return pods
 }
 
 func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*v1.Pod {

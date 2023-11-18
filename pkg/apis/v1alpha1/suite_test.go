@@ -268,9 +268,9 @@ var _ = Describe("Validation", func() {
 			Entry("Reorder BlockDeviceMapping", "8218109239399812816", v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}}}),
 
 			// Behavior / Dynamic fields, expect same hash as base
-			Entry("Modified AMISelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AMISelector: map[string]string{"subnet-test-key": "subnet-test-value"}}),
-			Entry("Modified SubnetSelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SecurityGroupSelector: map[string]string{"subnet-test-key": "subnet-test-value"}}}),
-			Entry("Modified SecurityGroupSelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SecurityGroupSelector: map[string]string{"subnet-test-key": "subnet-test-value"}}}),
+			Entry("Modified AMISelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AMISelector: map[string]string{"ami-test-key": "ami-test-value"}}),
+			Entry("Modified SubnetSelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SubnetSelector: map[string]string{"subnet-test-key": "subnet-test-value"}}}),
+			Entry("Modified SecurityGroupSelector", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{SecurityGroupSelector: map[string]string{"security-group-test-key": "security-group-test-value"}}}),
 			Entry("Modified LaunchTemplateName", awsnodetemplateStaticHash, v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{LaunchTemplate: v1alpha1.LaunchTemplate{LaunchTemplateName: aws.String("foobar")}}}),
 		)
 		DescribeTable("should change hash when static fields are updated", func(awsnodetemplatespec v1alpha1.AWSNodeTemplateSpec) {

@@ -57,13 +57,21 @@ type EC2NodeClassSpec struct {
 	// +optional
 	UserData *string `json:"userData,omitempty"`
 	// Role is the AWS identity that nodes use. This field is immutable.
+	// This field is mutually exclusive from instanceProfile.
 	// Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
 	// This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
 	// for the old instance profiles on an update.
 	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="immutable field changed"
-	// +required
-	Role string `json:"role"`
+	// +optional
+	Role string `json:"role,omitempty"`
+	// InstanceProfile is the AWS entity that instances use.
+	// This field is mutually exclusive from role.
+	// The instance profile should already have a role assigned to it that Karpenter
+	//  has PassRole permission on for instance launch using this instanceProfile to succeed.
+	// +kubebuilder:validation:XValidation:rule="self != ''",message="instanceProfile cannot be empty"
+	// +optional
+	InstanceProfile *string `json:"instanceProfile,omitempty"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +kubebuilder:validation:XValidation:message="empty tag keys aren't supported",rule="self.all(k, k != '')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching kubernetes.io/cluster/",rule="self.all(k, !k.startsWith('kubernetes.io/cluster') )"
@@ -107,10 +115,6 @@ type EC2NodeClassSpec struct {
 	// as `launchTemplate` for backwards compatibility.
 	// +optional
 	LaunchTemplateName *string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// InstanceProfile is the AWS identity that instances use.
-	// +optional
-	InstanceProfile *string `json:"-" hash:"ignore"`
 	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
 	// OriginalSubnetSelector is the original subnet selector that was used by the v1alpha5 representation of this API.
 	// DO NOT USE THIS VALUE when performing business logic in code
@@ -321,6 +325,8 @@ type EC2NodeClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +kubebuilder:validation:XValidation:message="amiSelectorTerms is required when amiFamily == 'Custom'",rule="self.amiFamily == 'Custom' ? self.amiSelectorTerms.size() != 0 : true"
+	// +kubebuilder:validation:XValidation:message="must specify exactly one of ['role', 'instanceProfile']",rule="(has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 

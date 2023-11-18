@@ -220,6 +220,7 @@ func convertNodeTemplate(nodeTemplate *v1alpha1.AWSNodeTemplate) (*v1beta1.EC2No
 
 	// Leave a placeholder for the role. This can be substituted with `envsubst` or other means
 	nodeclass.Spec.Role = karpenterNodeRolePlaceholder
+	nodeclass.Spec.InstanceProfile = nil
 	return nodeclass, nil
 }
 

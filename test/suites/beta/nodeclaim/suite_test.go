@@ -37,7 +37,7 @@ func TestNodeClaim(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Beta/NodeClaim")
+	RunSpecs(t, "NodeClaim")
 }
 
 var _ = BeforeEach(func() {

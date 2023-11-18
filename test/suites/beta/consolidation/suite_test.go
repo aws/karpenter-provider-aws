@@ -48,7 +48,7 @@ func TestConsolidation(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Beta/Consolidation")
+	RunSpecs(t, "Consolidation")
 }
 
 var nodeClass *v1beta1.EC2NodeClass
@@ -60,7 +60,7 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("Beta/Consolidation", func() {
+var _ = Describe("Consolidation", func() {
 	It("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 		nodePool := test.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
