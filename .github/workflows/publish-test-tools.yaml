@@ -24,3 +24,6 @@ jobs:
       #   aws-region: ${{ vars.ECR_REGION }}
       - run: ./push-docker.sh
         working-directory: ./test
+        env:
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
