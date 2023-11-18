@@ -5,7 +5,9 @@ FROM python:3.9-alpine as installer
 RUN set -ex; \
     apk add --no-cache \
     git unzip groff \
-    build-base libffi-dev cmake
+    build-base libffi-dev cmake sudo
+
+RUN sudo ls
 
 ENV AWS_CLI_VERSION=2.7.1
 RUN set -eux; \
