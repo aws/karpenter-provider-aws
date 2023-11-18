@@ -2,10 +2,10 @@ name: PublishTestTools
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    paths:
-      - test/Dockerfile
-      - test/push-docker.sh
+    # branches: [main, docker-image-for-tests]
+    # paths:
+    #   - test/Dockerfile
+    #   - test/push-docker.sh
   schedule:
     - cron: "0 13 * * MON"
 permissions:
