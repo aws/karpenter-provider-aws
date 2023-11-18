@@ -5,9 +5,7 @@ FROM python:3.9-alpine as installer
 RUN set -ex; \
     apk add --no-cache \
     git unzip groff \
-    build-base libffi-dev cmake sudo
-
-RUN sudo ls
+    build-base libffi-dev cmake
 
 ENV AWS_CLI_VERSION=2.7.1
 RUN set -eux; \
@@ -62,6 +60,7 @@ RUN go version
 # Cache modules to speed up test execution
 RUN git clone https://github.com/aws/karpenter.git /karpenter
 WORKDIR /karpenter
+
 
 RUN K8S_VERSION="1.28.x" make toolchain
 
