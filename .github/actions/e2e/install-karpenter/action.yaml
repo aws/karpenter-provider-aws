@@ -24,7 +24,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
     with:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-helm
@@ -37,7 +37,7 @@ runs:
       kubectl label ns karpenter scrape=enabled --overwrite=true
       kubectl label ns karpenter pod-security.kubernetes.io/enforce=restricted --overwrite=true
   - name: login to ecr via docker
-    uses: docker/login-action@v3
+    uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3
     with:
       registry: ${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com
       logout: true

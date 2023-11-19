@@ -4,18 +4,18 @@ on:
     tags: [ 'v*.*.*' ]
 permissions:
   id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-  contents: write # marvinpinto/action-automatic-releases@latest
+  contents: write # marvinpinto/action-automatic-releases@v1.2.1
   pull-requests: write # name: Create PR
 jobs:
   release:
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
           fetch-depth: 0
       - name: Create GitHub Release
-        uses: 'marvinpinto/action-automatic-releases@latest'
+        uses: marvinpinto/action-automatic-releases@919008cf3f741b179569b7a6fb4d8860689ab7f0 # v1.2.1
         with:
           repo_token: '${{ secrets.GITHUB_TOKEN }}'
           prerelease: false
@@ -27,7 +27,7 @@ jobs:
       - uses: ./.github/actions/e2e/install-helm
         with:
           version: v3.12.3 # Pinned to this version since v3.13.0 has issues with pushing to public ECR: https://github.com/helm/helm/issues/12442
-      - uses: aws-actions/configure-aws-credentials@v4.0.1
+      - uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_RELEASE_ROLE_NAME }}'
           aws-region: ${{ vars.ECR_REGION }}
@@ -40,7 +40,7 @@ jobs:
           GITHUB_REPO: ${{ github.repository }}
       - name: Create PR
         if: steps.tag.outputs.TAG != 'no tag'
-        uses: actions/github-script@v6
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410 # v6
         with:
           script: |
             const { repo, owner } = context.repo;
