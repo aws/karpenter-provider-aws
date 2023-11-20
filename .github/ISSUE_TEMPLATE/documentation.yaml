@@ -1,11 +1,13 @@
 name: Documentation
 description: How the docs be improved?
-labels: documentation
-body: 
+labels:
+- documentation
+- needs-triage
+body:
 - type: textarea
   attributes:
     label: Description
-    value: | 
+    value: |
       **How can the docs be improved?**
 
       * Please vote on this issue by adding a 👍 [reaction](https://blog.github.com/2016-03-10-add-reactions-to-pull-requests-issues-and-comments/) to the original issue to help the community and maintainers prioritize this request
