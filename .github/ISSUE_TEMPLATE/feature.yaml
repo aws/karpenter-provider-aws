@@ -1,7 +1,9 @@
 name: Feature
 description: Suggest an idea for a new feature
-labels: feature
-body: 
+labels:
+- feature
+- needs-triage
+body:
 - type: textarea
   attributes:
     label: Description
