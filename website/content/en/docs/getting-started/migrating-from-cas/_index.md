@@ -22,6 +22,7 @@ You can also perform many of these steps in the console, but we will use the com
 Set a variable for your cluster name.
 
 ```bash
+KARPENTER_NAMESPACE=karpenter
 CLUSTER_NAME=<your cluster name>
 ```
 
