@@ -114,23 +114,34 @@ Note: This NodePool will create capacity as long as the sum of all created capac
 
 Karpenter is now active and ready to begin provisioning nodes.
 
-## First Use
-
-Create some pods using a deployment and watch Karpenter provision nodes in response.
-
-### Scale up deployment
+### 6. Scale up deployment
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
 
-### Scale down deployment
+### 7. Scale down deployment
 
 Now, delete the deployment. After a short amount of time, Karpenter should terminate the empty nodes due to consolidation.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step14-deprovisioning.sh" language="bash"%}}
 
-## Add optional monitoring with Grafana
+### 8. Delete Karpenter nodes manually
+
+If you delete a node with kubectl, Karpenter will gracefully cordon, drain,
+and shutdown the corresponding instance. Under the hood, Karpenter adds a
+finalizer to the node object, which blocks deletion until all pods are
+drained and the instance is terminated. Keep in mind, this only works for
+nodes provisioned by Karpenter.
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step16-delete-node.sh" language="bash"%}}
+
+### 9. Delete the cluster
+To avoid additional charges, remove the demo infrastructure from your AWS account.
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step17-cleanup.sh" language="bash"%}}
+
+## Monitoring with Grafana (optional)
 
 This section describes optional ways to configure Karpenter to enhance its capabilities.
 In particular, the following commands deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
@@ -206,20 +217,3 @@ By default, Karpenter is placed in the `workload-low` PriorityLevelConfiguration
 To ensure that Karpenter is unaffected by these other, lower priority components, we can place Karpenter into a higher-priority PriorityLevelConfiguration using a custom FlowSchema.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step15-apply-flowschemas.sh" language="bash"%}}
-
-## Cleanup
-
-### Delete Karpenter nodes manually
-
-If you delete a node with kubectl, Karpenter will gracefully cordon, drain,
-and shutdown the corresponding instance. Under the hood, Karpenter adds a
-finalizer to the node object, which blocks deletion until all pods are
-drained and the instance is terminated. Keep in mind, this only works for
-nodes provisioned by Karpenter.
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step16-delete-node.sh" language="bash"%}}
-
-### Delete the cluster
-To avoid additional charges, remove the demo infrastructure from your AWS account.
-
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step17-cleanup.sh" language="bash"%}}
