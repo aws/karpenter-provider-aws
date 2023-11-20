@@ -1,4 +1,4 @@
-kubectl apply -f - <<EOF
+cat <<EOF | envsubst | kubectl apply -f -
 ---
 kind: FlowSchema
 metadata:

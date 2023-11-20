@@ -45,7 +45,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE=karpenter
-export KARPENTER_VERSION={{< param "latest_release_version" >}}
+export KARPENTER_VERSION=v0.32.1
 export K8S_VERSION={{< param "latest_k8s_version" >}}
 ```
 
@@ -163,7 +163,7 @@ The section below covers advanced installation techniques for installing Karpent
 
 ### Private Clusters
 
-You can optionally install Karpenter on a [private cluster](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html#private-cluster-requirements) using the `eksctl` installation by setting `privateCluster.enabled` to true in your [ClusterConfig](https://eksctl.io/usage/eks-private-cluster/#eks-fully-private-cluster)
+You can optionally install Karpenter on a [private cluster](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html#private-cluster-requirements) using the `eksctl` installation by setting `privateCluster.enabled` to true in your [ClusterConfig](https://eksctl.io/usage/eks-private-cluster/#eks-fully-private-cluster) and by setting `--set settings.isolatedVPC=true` when installing the `karpenter` helm chart.
 
 ```bash
 privateCluster:
@@ -179,7 +179,7 @@ com.amazonaws.<region>.ecr.dkr
 com.amazonaws.<region>.s3 – For pulling container images
 com.amazonaws.<region>.sts – For IAM roles for service accounts
 com.amazonaws.<region>.ssm - For resolving default AMIs
-com.amazonaws.<region>.sqs - If using the [interruption handling]({{< ref "../../concepts/disruption#interruption" >}}), to access interruption messages
+com.amazonaws.<region>.sqs - For accessing SQS if using interruption handling
 ```
 
 If you do not currently have these endpoints surfaced in your VPC, you can add the endpoints by running
@@ -194,7 +194,7 @@ Karpenter (controller and webhook deployment) container images must be in or cop
 
 {{% /alert %}}
 
-{{% alert title="Warning" color="warning" %}}
+{{% alert title="Note" color="primary" %}}
 
 There is currently no VPC private endpoint for the [Price List Query API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-price-list-query-api.html). As a result, pricing data can go stale over time. By default, Karpenter ships a static price list that is updated when each binary is released.
 
