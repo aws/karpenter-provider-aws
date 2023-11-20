@@ -270,10 +270,12 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		test.ReplaceRequirements(nodePool,
 			v1.NodeSelectorRequirement{Key: v1.LabelNamespaceNodeRestriction + "/team", Operator: v1.NodeSelectorOpExists},
 			v1.NodeSelectorRequirement{Key: v1.LabelNamespaceNodeRestriction + "/custom-label", Operator: v1.NodeSelectorOpExists},
+			v1.NodeSelectorRequirement{Key: "subdomain" + v1.LabelNamespaceNodeRestriction + "/custom-label", Operator: v1.NodeSelectorOpExists},
 		)
 		nodeSelector := map[string]string{
-			v1.LabelNamespaceNodeRestriction + "/team":         "team-1",
-			v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+			v1.LabelNamespaceNodeRestriction + "/team":                       "team-1",
+			v1.LabelNamespaceNodeRestriction + "/custom-label":               "custom-value",
+			"subdomain" + v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
 		}
 		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {

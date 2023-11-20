@@ -1167,8 +1167,9 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should not pass any labels prefixed with the node-restriction.kubernetes.io domain", func() {
 			nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
-				v1.LabelNamespaceNodeRestriction + "/team":         "team-1",
-				v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+				v1.LabelNamespaceNodeRestriction + "/team":                        "team-1",
+				v1.LabelNamespaceNodeRestriction + "/custom-label":                "custom-value",
+				"subdomain." + v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
 			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()

@@ -156,7 +156,8 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" since the kubelet can't
 	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
 	for k := range labels {
-		if strings.HasPrefix(k, v1.LabelNamespaceNodeRestriction) {
+		labelDomain := corev1beta1.GetLabelDomain(k)
+		if strings.HasSuffix(labelDomain, v1.LabelNamespaceNodeRestriction) {
 			delete(labels, k)
 		}
 	}
