@@ -242,8 +242,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 	if capacityType == corev1beta1.CapacityTypeSpot {
 		launchTemplateDataTags = append(launchTemplateDataTags, &ec2.LaunchTemplateTagSpecificationRequest{ResourceType: aws.String(ec2.ResourceTypeSpotInstancesRequest), Tags: utils.MergeTags(options.Tags)})
 	}
-	networkInterface := p.generateNetworkInterface(options)
-	logging.FromContext(ctx).Debugf("Network Interfaces: %d", len(networkInterface))
+	networkInterfaces := p.generateNetworkInterface(options)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -255,7 +254,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
 			// If the network interface is defined, the security groups are defined within it
-			SecurityGroupIds: lo.Ternary(networkInterface != nil, nil, lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) })),
+			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) })),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
@@ -264,7 +263,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
-			NetworkInterfaces: networkInterface,
+			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
 		},
 		TagSpecifications: []*ec2.TagSpecification{
@@ -287,23 +286,28 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 // This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
 // https://github.com/aws/karpenter/issues/3815
 func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-	interfaces := lo.Times(options.EFACount, func(i int) *ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-		return &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-			AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-			NetworkCardIndex:         lo.ToPtr(int64(i)),
-			DeviceIndex:              lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
-			InterfaceType:            lo.ToPtr("efa"),
-			Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
-		}
-	})
-	if len(interfaces) == 0 && options.AssociatePublicIPAddress != nil {
-		interfaces = append(interfaces, &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
-			AssociatePublicIpAddress: options.AssociatePublicIPAddress,
-			DeviceIndex:              aws.Int64(0),
-			Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+	if options.EFACount != 0 {
+		return lo.Times(options.EFACount, func(i int) *ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+			return &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				// You may only associate a public IP if there is a single network interface.
+				AssociatePublicIpAddress: lo.Ternary(options.EFACount == 1, options.AssociatePublicIPAddress, nil),
+				NetworkCardIndex:         lo.ToPtr(int64(i)),
+				DeviceIndex:              lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
+				InterfaceType:            lo.ToPtr("efa"),
+				Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+			}
 		})
 	}
-	return interfaces
+	if options.AssociatePublicIPAddress != nil {
+		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+			{
+				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+				DeviceIndex:              aws.Int64(0),
+				Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+			},
+		}
+	}
+	return nil
 }
 
 func (p *Provider) blockDeviceMappings(blockDeviceMappings []*v1beta1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
