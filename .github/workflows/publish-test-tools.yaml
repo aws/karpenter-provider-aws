@@ -1,7 +1,9 @@
 name: PublishTestTools
 on:
   push:
-    branches: [ main ]
+    branches:
+      - 'main'
+      - 'release-v*'
     paths:
       - test/Dockerfile
       - test/push-docker.sh
