@@ -21,5 +21,6 @@ spec:
             requests:
               cpu: 1
 EOF
+
 kubectl scale deployment inflate --replicas 5
-kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
+kubectl logs -f -n "${KARPENTER_NAMESPACE}" -l app.kubernetes.io/name=karpenter -c controller

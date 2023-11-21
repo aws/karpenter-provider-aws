@@ -1,5 +1,6 @@
 cat <<EOF | envsubst | kubectl apply -f -
 ---
+apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
 kind: FlowSchema
 metadata:
   name: karpenter-leader-election
@@ -8,7 +9,7 @@ spec:
     type: ByUser
   matchingPrecedence: 200
   priorityLevelConfiguration:
-    name: karpenter-leader-election
+    name: leader-election
   rules:
   - resourceRules:
     - apiGroups:
@@ -25,7 +26,7 @@ spec:
       - kind: ServiceAccount
         serviceAccount:
           name: karpenter
-          namespace: ${KARPENTER_NAMESPACE}
+          namespace: "${KARPENTER_NAMESPACE}"
 ---
 apiVersion: flowcontrol.apiserver.k8s.io/v1beta3
 kind: FlowSchema
@@ -57,5 +58,5 @@ spec:
         - kind: ServiceAccount
           serviceAccount:
             name: karpenter
-            namespace: ${KARPENTER_NAMESPACE}
+            namespace: "${KARPENTER_NAMESPACE}"
 EOF
