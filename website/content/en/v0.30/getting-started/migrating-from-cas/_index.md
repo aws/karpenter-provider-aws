@@ -80,6 +80,9 @@ Replace the `${AWS_PARTITION}` variable with the account partition, `${AWS_ACCOU
 - groups:
   - system:bootstrappers
   - system:nodes
+  ## If you intend to run Windows workloads, the kube-proxy group should be specified.
+  # For more information, see https://github.com/aws/karpenter/issues/5099.
+  # - eks:kube-proxy-windows
   rolearn: arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
   username: system:node:{{EC2PrivateDNSName}}
 ```

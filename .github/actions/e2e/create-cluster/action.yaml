@@ -186,7 +186,8 @@ runs:
       --cluster "${{ inputs.cluster_name }}" \
       --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
       --group system:bootstrappers \
-      --group system:nodes
+      --group system:nodes \
+      --group eks:kube-proxy-windows
   - name: cloudformation describe stack events
     shell: bash
     if: failure()
