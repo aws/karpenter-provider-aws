@@ -21,7 +21,7 @@ iam:
   serviceAccounts:
   - metadata:
       name: karpenter
-      namespace: karpenter
+      namespace: "${KARPENTER_NAMESPACE}"
     roleName: ${CLUSTER_NAME}-karpenter
     attachPolicyARNs:
     - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
@@ -46,7 +46,7 @@ managedNodeGroups:
 # fargateProfiles:
 # - name: karpenter
 #  selectors:
-#  - namespace: karpenter
+#  - namespace: "${KARPENTER_NAMESPACE}"
 EOF
 
 export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"

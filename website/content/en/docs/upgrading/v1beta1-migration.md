@@ -46,7 +46,8 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 3. Set environment variables for your cluster:
 
     ```bash
-    export KARPENTER_VERSION=v0.32.0
+    export KARPENTER_NAMESPACE=karpenter
+    export KARPENTER_VERSION=v0.32.1
     export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
     export CLUSTER_NAME="${USER}-karpenter-demo"
     export AWS_REGION="us-west-2"
@@ -70,9 +71,12 @@ This procedure assumes you are running the Karpenter controller on cluster and w
     aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
     ```
 
-5. Apply the v0.32.0 Custom Resource Definitions (CRDs):
+5. Apply the v0.32.1 Custom Resource Definitions (CRDs):
 
    ```bash
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.sh_provisioners.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.sh_machines.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.sh_nodepools.yaml
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
     kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml

@@ -1,2 +1,2 @@
 kubectl delete deployment inflate
-kubectl logs -f -n karpenter -l app.kubernetes.io/name=karpenter -c controller
+kubectl logs -f -n "${KARPENTER_NAMESPACE}" -l app.kubernetes.io/name=karpenter -c controller
