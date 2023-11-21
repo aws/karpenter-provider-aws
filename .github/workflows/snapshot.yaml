@@ -1,7 +1,9 @@
 name: Snapshot
 on:
   push:
-    branches: [ main ]
+    branches:
+      - 'main'
+      - 'release-v*'
 permissions:
   id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:

@@ -2,7 +2,9 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - 'main'
+      - 'release-v*'
   schedule:
     - cron: '0 12 * * *'
 
