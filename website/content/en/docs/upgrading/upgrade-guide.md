@@ -28,12 +28,12 @@ If you get the error `invalid ownership metadata; label validation error:` while
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.sh_provisioners.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.sh_machines.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.sh_nodepools.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.sh_provisioners.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.sh_machines.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.sh_nodepools.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
 
 ### Upgrading to v0.32.0+
@@ -42,12 +42,6 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/api
 Karpenter v0.32.0 introduces v1beta1 APIs, including _significant_ changes to the API and installation procedures for the Karpenter controllers. Do not upgrade to v0.32.0+ without referencing the [v1beta1 Migration Upgrade Procedure]({{<ref "v1beta1-migration#upgrade-procedure" >}}).
 
 Additionally, if rolling back after upgrading to v0.32.0, note that v0.31.2 is the only version that supports handling rollback after you have deployed the v1beta1 APIs to your cluster.
-{{% /alert %}}
-
-{{% alert title="Warning" color="warning" %}}
-As part of the v1beta1 APIs, v0.32.0 and v0.32.1 removed the InstanceProfile field, where Karpenter allows users to set a Role instead. This role is used to create/delete an instance profile for the user. This unintentionally removed support for clusters that do not have access to a private IAM endpoint. Karpenter is exploring options here to add back in support in and will release v0.32.2 to include that.
-
-Track https://github.com/aws/karpenter/issues/4985 for more.
 {{% /alert %}}
 
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
@@ -169,7 +163,7 @@ kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
 * The karpenter webhook and controller containers are combined into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
 * Karpenter now supports native interruption handling. If you were previously using Node Termination Handler for spot interruption handling and health events, you will need to remove the component from your cluster before enabling `aws.interruptionQueueName`. For more details on Karpenter's interruption handling, see the [Interruption Handling Docs]({{< ref "../concepts/disruption/#interruption" >}}).
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
-* Karpenter CRD raw YAML URLs have migrated from `https://raw.githubusercontent.com/aws/karpenter/v0.32.1/charts/karpenter/crds/...` to `https://raw.githubusercontent.com/aws/karpenter/v0.32.1/pkg/apis/crds/...`. If you reference static Karpenter CRDs or rely on `kubectl replace -f` to apply these CRDs from their remote location, you will need to migrate to the new location.
+* Karpenter CRD raw YAML URLs have migrated from `https://raw.githubusercontent.com/aws/karpenter/v0.19.3/charts/karpenter/crds/...` to `https://raw.githubusercontent.com/aws/karpenter/v0.19.3/pkg/apis/crds/...`. If you reference static Karpenter CRDs or rely on `kubectl replace -f` to apply these CRDs from their remote location, you will need to migrate to the new location.
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: "true"` annotation to the pods in question.
 * The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the [`karpenter-global-settings`]({{<ref "../reference/settings#configmap" >}}) ConfigMap. See the [Settings docs]({{<ref "../reference/settings/#environment-variables--cli-flags" >}}) for more details on configuring the new values in the ConfigMap.
 
