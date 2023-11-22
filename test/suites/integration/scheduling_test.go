@@ -265,15 +265,17 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
-	It("should support the node-restriction.kubernetes.io label domain", func() {
+	DescribeTable("should support restricted label domain exceptions", func(domain string) {
 		// Assign labels to the nodepool so that it has known values
 		test.ReplaceRequirements(nodePool,
-			v1.NodeSelectorRequirement{Key: v1.LabelNamespaceNodeRestriction + "/team", Operator: v1.NodeSelectorOpExists},
-			v1.NodeSelectorRequirement{Key: v1.LabelNamespaceNodeRestriction + "/custom-label", Operator: v1.NodeSelectorOpExists},
+			v1.NodeSelectorRequirement{Key: domain + "/team", Operator: v1.NodeSelectorOpExists},
+			v1.NodeSelectorRequirement{Key: domain + "/custom-label", Operator: v1.NodeSelectorOpExists},
+			v1.NodeSelectorRequirement{Key: "subdomain." + domain + "/custom-label", Operator: v1.NodeSelectorOpExists},
 		)
 		nodeSelector := map[string]string{
-			v1.LabelNamespaceNodeRestriction + "/team":         "team-1",
-			v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+			domain + "/team":                        "team-1",
+			domain + "/custom-label":                "custom-value",
+			"subdomain." + domain + "/custom-label": "custom-value",
 		}
 		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
@@ -286,8 +288,16 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		}})
 		env.ExpectCreated(nodeClass, nodePool, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-		env.ExpectCreatedNodeCount("==", 1)
-	})
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+		// Ensure that the requirements/labels specified above are propagated onto the node
+		for k, v := range nodeSelector {
+			Expect(node.Labels).To(HaveKeyWithValue(k, v))
+		}
+	},
+		Entry("node-restriction.kuberentes.io", "node-restriction.kuberentes.io"),
+		Entry("node.kubernetes.io", "node.kubernetes.io"),
+		Entry("kops.k8s.io", "kops.k8s.io"),
+	)
 	It("should provision a node for naked pods", func() {
 		pod := test.Pod()
 

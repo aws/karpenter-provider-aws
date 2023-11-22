@@ -50,6 +50,12 @@ var _ = Describe("Validation", func() {
 			}
 			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})
+		It("should allow a restricted label exception to be used in labels ([*].node-restriction.kubernetes.io/custom-label)", func() {
+			nodePool.Spec.Template.Labels = map[string]string{
+				"subdomain" + v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+			}
+			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
+		})
 		It("should error when a requirement references a restricted label (karpenter.sh/nodepool)", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
 				Key:      corev1beta1.NodePoolLabelKey,
