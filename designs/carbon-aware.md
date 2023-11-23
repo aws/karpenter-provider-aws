@@ -55,7 +55,7 @@ Single Machine Consolidation (`singlemachineconsolidation.go`) and Multi Machine
 ### Changes to Provisioning
 Currently, provisioning (roughly) filter instances based on requirements, sort instances by price, and launch the cheapest instance. We want to change this when Carbon Aware is enabled. It should sort instances by carbon emissions and launch the instance which has the lowest Global Warming Potential[^1].
 
-### Option 1: Use Carbon Aware provisioning and concolidation methods
+### Option 1: Use Carbon Aware provisioning and consolidation methods
 
 #### Consolidation
 Create two new consolidation methods `carbonawaresinglemachineconsolidation.go` and `carbonawaremultimachineconsolidation.go` that will be used when Carbon Aware is enabled.
