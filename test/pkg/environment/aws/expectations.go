@@ -20,6 +20,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -27,12 +28,17 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
-	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
-	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	"github.com/mitchellh/hashstructure/v2"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	awserrors "github.com/aws/karpenter/pkg/errors"
 )
 
 // Spot Interruption experiment details partially copied from
@@ -111,57 +117,95 @@ func (env *Environment) ExpectExperimentTemplateDeleted(id string) {
 	Expect(err).ToNot(HaveOccurred())
 }
 
-func (env *Environment) ExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
+func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string) iam.InstanceProfile {
 	GinkgoHelper()
-	out, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
-		InstanceProfileName: aws.String(profileName),
-	})
-	Expect(err).ToNot(HaveOccurred())
-	Expect(out.InstanceProfile).ToNot(BeNil())
-	return lo.FromPtr(out.InstanceProfile)
+	By(fmt.Sprintf("eventually expecting instance profile %s to exist", profileName))
+	var instanceProfile iam.InstanceProfile
+	Eventually(func(g Gomega) {
+		out, err := env.IAMAPI.GetInstanceProfileWithContext(env.Context, &iam.GetInstanceProfileInput{
+			InstanceProfileName: aws.String(profileName),
+		})
+		g.Expect(err).ToNot(HaveOccurred())
+		g.Expect(out.InstanceProfile).ToNot(BeNil())
+		g.Expect(out.InstanceProfile.InstanceProfileName).ToNot(BeNil())
+		instanceProfile = lo.FromPtr(out.InstanceProfile)
+	}).WithTimeout(20 * time.Second).Should(Succeed())
+	return instanceProfile
+}
+
+// GetInstanceProfileName gets the string for the profile name based on the cluster name, region and the NodeClass name.
+// The length of this string can never exceed the maximum instance profile name limit of 128 characters.
+func (env *Environment) GetInstanceProfileName(nodeClass *v1beta1.EC2NodeClass) string {
+	return fmt.Sprintf("%s_%d", env.ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", env.Region, nodeClass.Name), hashstructure.FormatV2, nil)))
 }
 
 func (env *Environment) GetInstance(nodeName string) ec2.Instance {
 	node := env.Environment.GetNode(nodeName)
-	return env.GetInstanceByIDWithOffset(1, env.ExpectParsedProviderID(node.Spec.ProviderID))
+	return env.GetInstanceByID(env.ExpectParsedProviderID(node.Spec.ProviderID))
 }
 
 func (env *Environment) ExpectInstanceStopped(nodeName string) {
+	GinkgoHelper()
 	node := env.Environment.GetNode(nodeName)
 	_, err := env.EC2API.StopInstances(&ec2.StopInstancesInput{
 		Force:       aws.Bool(true),
 		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
 	})
-	ExpectWithOffset(1, err).To(Succeed())
+	Expect(err).To(Succeed())
 }
 
 func (env *Environment) ExpectInstanceTerminated(nodeName string) {
+	GinkgoHelper()
 	node := env.Environment.GetNode(nodeName)
 	_, err := env.EC2API.TerminateInstances(&ec2.TerminateInstancesInput{
 		InstanceIds: aws.StringSlice([]string{env.ExpectParsedProviderID(node.Spec.ProviderID)}),
 	})
-	ExpectWithOffset(1, err).To(Succeed())
+	Expect(err).To(Succeed())
 }
 
 func (env *Environment) GetInstanceByID(instanceID string) ec2.Instance {
-	return env.GetInstanceByIDWithOffset(1, instanceID)
-}
-
-func (env *Environment) GetInstanceByIDWithOffset(offset int, instanceID string) ec2.Instance {
+	GinkgoHelper()
 	instance, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{instanceID}),
 	})
-	ExpectWithOffset(offset+1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(offset+1, instance.Reservations).To(HaveLen(1))
-	ExpectWithOffset(offset+1, instance.Reservations[0].Instances).To(HaveLen(1))
+	Expect(err).ToNot(HaveOccurred())
+	Expect(instance.Reservations).To(HaveLen(1))
+	Expect(instance.Reservations[0].Instances).To(HaveLen(1))
 	return *instance.Reservations[0].Instances[0]
 }
 
-func (env *Environment) GetVolume(volumeID *string) ec2.Volume {
-	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: []*string{volumeID}})
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, len(dvo.Volumes)).To(Equal(1))
-	return *dvo.Volumes[0]
+func (env *Environment) GetVolume(id *string) *ec2.Volume {
+	volumes := env.GetVolumes(id)
+	Expect(volumes).To(HaveLen(1))
+	return volumes[0]
+}
+
+func (env *Environment) GetVolumes(ids ...*string) []*ec2.Volume {
+	GinkgoHelper()
+	dvo, err := env.EC2API.DescribeVolumes(&ec2.DescribeVolumesInput{VolumeIds: ids})
+	Expect(err).ToNot(HaveOccurred())
+	return dvo.Volumes
+}
+
+func (env *Environment) GetNetworkInterface(id *string) *ec2.NetworkInterface {
+	networkInterfaces := env.GetNetworkInterfaces(id)
+	Expect(networkInterfaces).To(HaveLen(1))
+	return networkInterfaces[0]
+}
+
+func (env *Environment) GetNetworkInterfaces(ids ...*string) []*ec2.NetworkInterface {
+	GinkgoHelper()
+	dnio, err := env.EC2API.DescribeNetworkInterfaces(&ec2.DescribeNetworkInterfacesInput{NetworkInterfaceIds: ids})
+	Expect(err).ToNot(HaveOccurred())
+	return dnio.NetworkInterfaces
+}
+
+func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequest {
+	GinkgoHelper()
+	siro, err := env.EC2API.DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{SpotInstanceRequestIds: []*string{id}})
+	Expect(err).ToNot(HaveOccurred())
+	Expect(siro.SpotInstanceRequests).To(HaveLen(1))
+	return siro.SpotInstanceRequests[0]
 }
 
 // GetSubnets returns all subnets matching the label selector
@@ -243,13 +287,8 @@ func (env *Environment) GetSecurityGroups(tags map[string]string) []SecurityGrou
 	return securityGroups
 }
 
-func (env *Environment) ExpectQueueExists() {
-	exists, err := env.SQSProvider.QueueExists(env.Context)
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
-	ExpectWithOffset(1, exists).To(BeTrue())
-}
-
 func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
+	GinkgoHelper()
 	wg := &sync.WaitGroup{}
 	mu := &sync.Mutex{}
 
@@ -259,7 +298,7 @@ func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 		go func(m interface{}) {
 			defer wg.Done()
 			defer GinkgoRecover()
-			_, e := env.SQSProvider.SendMessage(env.Environment.Context, m)
+			_, e := env.SQSProvider.SendMessage(env.Context, m)
 			if e != nil {
 				mu.Lock()
 				err = multierr.Append(err, e)
@@ -268,16 +307,17 @@ func (env *Environment) ExpectMessagesCreated(msgs ...interface{}) {
 		}(msg)
 	}
 	wg.Wait()
-	ExpectWithOffset(1, err).To(Succeed())
+	Expect(err).To(Succeed())
 }
 
 func (env *Environment) ExpectParsedProviderID(providerID string) string {
+	GinkgoHelper()
 	providerIDSplit := strings.Split(providerID, "/")
-	ExpectWithOffset(1, len(providerIDSplit)).ToNot(Equal(0))
+	Expect(len(providerIDSplit)).ToNot(Equal(0))
 	return providerIDSplit[len(providerIDSplit)-1]
 }
 
-func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
+func (env *Environment) GetK8sVersion(offset int) string {
 	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
 	Expect(err).To(BeNil())
 	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
@@ -285,7 +325,11 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 	// Choose a minor version one lesser than the server's minor version. This ensures that we choose an AMI for
 	// this test that wouldn't be selected as Karpenter's SSM default (therefore avoiding false positives), and also
 	// ensures that we aren't violating version skew.
-	version := fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-versionOffset)
+	return fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-offset)
+}
+
+func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
+	version := env.GetK8sVersion(versionOffset)
 	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
 		Name: aws.String(fmt.Sprintf(amiPath, version)),
 	})
@@ -293,17 +337,19 @@ func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 	return *parameter.Parameter.Value
 }
 
-func (env *Environment) ExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
+func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
 	GinkgoHelper()
 	// implement IMDSv2
 	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptionsRequest{
 		HttpEndpoint: aws.String("enabled"),
 		HttpTokens:   aws.String("required"),
 	}
-
-	out, err := env.EC2API.RunInstances(instanceInput)
-	Expect(err).ToNot(HaveOccurred())
-
+	var out *ec2.Reservation
+	var err error
+	Eventually(func(g Gomega) {
+		out, err = env.EC2API.RunInstances(instanceInput)
+		g.Expect(err).ToNot(HaveOccurred())
+	}).WithTimeout(30 * time.Second).WithPolling(5 * time.Second).Should(Succeed())
 	return out
 }
 
@@ -321,4 +367,51 @@ func (env *Environment) ExpectAccountID() string {
 	identity, err := env.STSAPI.GetCallerIdentityWithContext(env.Context, &sts.GetCallerIdentityInput{})
 	Expect(err).ToNot(HaveOccurred())
 	return aws.StringValue(identity.Account)
+}
+
+func (env *Environment) ExpectInstanceProfileCreated(instanceProfileName, roleName string) {
+	By("creating an instance profile")
+	createInstanceProfile := &iam.CreateInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+		Tags: []*iam.Tag{
+			{
+				Key:   aws.String(coretest.DiscoveryLabel),
+				Value: aws.String(env.ClusterName),
+			},
+		},
+	}
+	By("adding the karpenter role to new instance profile")
+	_, err := env.IAMAPI.CreateInstanceProfile(createInstanceProfile)
+	Expect(awserrors.IgnoreAlreadyExists(err)).ToNot(HaveOccurred())
+	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+		RoleName:            aws.String(roleName),
+	}
+	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
+	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
+}
+
+func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName, roleName string) {
+	By("deleting an instance profile")
+	removeRoleFromInstanceProfile := &iam.RemoveRoleFromInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+		RoleName:            aws.String(roleName),
+	}
+	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(removeRoleFromInstanceProfile)
+	Expect(awserrors.IgnoreNotFound(err)).To(BeNil())
+
+	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
+		InstanceProfileName: aws.String(instanceProfileName),
+	}
+	_, err = env.IAMAPI.DeleteInstanceProfile(deleteInstanceProfile)
+	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+}
+
+func ignoreAlreadyContainsRole(err error) error {
+	if err != nil {
+		if strings.Contains(err.Error(), "Cannot exceed quota for InstanceSessionsPerInstanceProfile") {
+			return nil
+		}
+	}
+	return err
 }

@@ -69,7 +69,6 @@ make build # build and push the karpenter images
 
 ```bash
 make test       # E2E correctness tests
-make battletest # More rigorous tests run in CI environment
 ```
 
 ### Change Log Level

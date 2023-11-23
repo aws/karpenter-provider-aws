@@ -1,3 +1,4 @@
+{{- if .Values.webhook.enabled }}
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
@@ -23,12 +24,35 @@ webhooks:
           - karpenter.sh
         apiVersions:
           - v1alpha5
-        resources:
-          - provisioners
-          - provisioners/status
         operations:
           - CREATE
           - UPDATE
+        resources:
+          - provisioners
+          - provisioners/status
+        scope: '*'
+      - apiGroups:
+          - karpenter.sh
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - nodeclaims
+          - nodeclaims/status
+        scope: '*'
+      - apiGroups:
+          - karpenter.sh
+        apiVersions:
+          - v1beta1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - nodepools
+          - nodepools/status
+        scope: '*'
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -53,3 +77,4 @@ webhooks:
     objectSelector:
       matchLabels:
         app.kubernetes.io/part-of: {{ template "karpenter.name" . }}
+{{- end }}

@@ -23,15 +23,15 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awstest "github.com/aws/karpenter/pkg/test"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var env *aws.Environment
+var nodeClass *v1beta1.EC2NodeClass
+var nodePool *corev1beta1.NodePool
 
 func TestIPv6(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -44,32 +44,29 @@ func TestIPv6(t *testing.T) {
 	RunSpecs(t, "IPv6")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = BeforeEach(func() {
+	env.BeforeEach()
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
+	nodePool = coretest.ReplaceRequirements(nodePool,
+		v1.NodeSelectorRequirement{
+			Key:      v1beta1.LabelInstanceCategory,
+			Operator: v1.NodeSelectorOpExists,
+		},
+		v1.NodeSelectorRequirement{
+			Key:      v1.LabelInstanceTypeStable,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"t3a.small"},
+		},
+	)
+})
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("IPv6", func() {
 	It("should provision an IPv6 node by discovering kube-dns IPv6", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}, Requirements: []v1.NodeSelectorRequirement{
-			{
-				Key:      v1.LabelInstanceTypeStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"t3a.small"},
-			},
-			{
-				Key:      v1alpha5.LabelCapacityType,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"on-demand"},
-			},
-		}})
-
-		pod := test.Pod()
-		env.ExpectCreated(pod, provider, provisioner)
+		pod := coretest.Pod()
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		node := env.GetNode(pod.Spec.NodeName)
@@ -80,26 +77,9 @@ var _ = Describe("IPv6", func() {
 	})
 	It("should provision an IPv6 node by discovering kubeletConfig kube-dns IP", func() {
 		clusterDNSAddr := env.ExpectIPv6ClusterDNS()
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}, Requirements: []v1.NodeSelectorRequirement{
-			{
-				Key:      v1.LabelInstanceTypeStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"t3a.small"},
-			},
-			{
-				Key:      v1alpha5.LabelCapacityType,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"on-demand"},
-			},
-		}, Kubelet: &v1alpha5.KubeletConfiguration{ClusterDNS: []string{clusterDNSAddr}}})
-
-		pod := test.Pod()
-		env.ExpectCreated(pod, provider, provisioner)
+		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{ClusterDNS: []string{clusterDNSAddr}}
+		pod := coretest.Pod()
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		node := env.GetNode(pod.Spec.NodeName)

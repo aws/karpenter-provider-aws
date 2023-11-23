@@ -1,3 +1,4 @@
+{{- if .Values.logConfig.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,7 +14,7 @@ data:
   # https://github.com/uber-go/zap/blob/aa3e73ec0896f8b066ddf668597a02f89628ee50/config.go
   zap-logger-config: |
     {
-      "level": "{{ .Values.logLevel }}",
+      "level": "{{ .Values.logConfig.logLevel.global }}",
       "development": false,
       "disableStacktrace": true,
       "disableCaller": true,
@@ -21,9 +22,9 @@ data:
         "initial": 100,
         "thereafter": 100
       },
-      "outputPaths": [{{ include "karpenter.controller.outputPathsList" . }}],
-      "errorOutputPaths": [{{ include "karpenter.controller.errorOutputPathsList" . }}],
-      "encoding": "{{ .Values.logEncoding }}",
+      "outputPaths": [{{ include "karpenter.outputPathsList" . }}],
+      "errorOutputPaths": [{{ include "karpenter.errorOutputPathsList" . }}],
+      "encoding": "{{ or .Values.logEncoding .Values.logConfig.logEncoding }}",
       "encoderConfig": {
         "timeKey": "time",
         "levelKey": "level",
@@ -35,9 +36,6 @@ data:
         "timeEncoder": "iso8601"
       }
     }
-{{- with .Values.controller.logLevel }}
-  loglevel.controller: {{ . | quote }}
-{{- end }}
-{{- with .Values.webhook.logLevel }}
-  loglevel.webhook: {{ . | quote }}
+  loglevel.controller: {{ or .Values.controller.logLevel .Values.logConfig.logLevel.controller }}
+  loglevel.webhook: {{ or .Values.webhook.logLevel .Values.logConfig.logLevel.webhook }}
 {{- end }}

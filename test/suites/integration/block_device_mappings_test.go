@@ -19,41 +19,28 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-
-	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 var _ = Describe("BlockDeviceMappings", func() {
 	It("should use specified block device mappings", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				LaunchTemplate: v1alpha1.LaunchTemplate{
-					BlockDeviceMappings: []*v1alpha1.BlockDeviceMapping{
-						{
-							DeviceName: aws.String("/dev/xvda"),
-							EBS: &v1alpha1.BlockDevice{
-								VolumeSize:          resources.Quantity("10G"),
-								VolumeType:          aws.String("io2"),
-								IOPS:                aws.Int64(1000),
-								Encrypted:           aws.Bool(true),
-								DeleteOnTermination: aws.Bool(true),
-							},
-						},
-					},
+		nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
+			{
+				DeviceName: aws.String("/dev/xvda"),
+				EBS: &v1beta1.BlockDevice{
+					VolumeSize:          resources.Quantity("10G"),
+					VolumeType:          aws.String("io2"),
+					IOPS:                aws.Int64(1000),
+					Encrypted:           aws.Bool(true),
+					DeleteOnTermination: aws.Bool(true),
 				},
 			},
-		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+		}
 		pod := test.Pod()
 
-		env.ExpectCreated(pod, provider, provisioner)
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		instance := env.GetInstance(pod.Spec.NodeName)

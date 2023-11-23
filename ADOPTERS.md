@@ -28,6 +28,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Cordial   | Using Karpenter to scale multiple EKS clusters quickly | `@dschaaff` | [Cordial](https://cordial.com) |
 | Dig Security | Protecting our customers data - Using Karpenter to manage production and development workloads on EKS, We are using only Spot Instances in production. | `@Shahar Danus` | [Dig Security](https://dig.security/) |
 | Docker | Using Karpenter to scale Docker Hub on our EKS clusters | N/A | [Docker](https://www.docker.com) |
+| Grafana Labs | Using Karpenter as our Autoscaling tool on EKS | `@paulajulve`, `@logyball` | [Homepage](https://grafana.com/) & [Blog](https://grafana.com/blog/2023/11/09/how-grafana-labs-switched-to-karpenter-to-reduce-costs-and-complexities-in-amazon-eks/) |
 | H2O.ai | Dynamically scaling CPU and GPU nodes for AI workloads  | `@Ophir Zahavi`, `@Asaf Oren` | [H2O.ai](https://h2o.ai/) |
 | idealo | Scaling multi-arch IPv6 clusters hosting web and event-driven applications | `@Heiko Rothe` | [Homepage](https://www.idealo.de) |
 | Livspace | Replacement for cluster autoscaler on production and staging EKS clusters | `@praveen-livspace` | [Homepage](https://www.livspace.com) |
@@ -38,6 +39,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | PITS Global Data Recovery Services | Used to manage continuous integration and continuous delivery/deployment workflows. | N/A | [PITS Global Data Recovery Services](https://www.pitsdatarecovery.net/) |
 | PlanetScale | Leveraging Karpenter to dynamically deploy serverless MySQL workloads. | `@jtcunning` | [Homepage](https://www.planetscale.com/) |
 | QuestDB | Using Karpenter for the service nodes of the QuestBD Cloud (time-series database). | [questdb slack group](https://slack.questdb.io/) | [QuestDB](https://questdb.io/) |
+| Rapid7 | Using Karpenter across all of our Kubernetes infrastructure for efficient autoscaling, both in terms of speed and cost | `@arobinson`, `@Ross Kirk`, `@Ryan Williams` | [Homepage](https://www.rapid7.com/) |
 | Sendcloud | Using Karpenter to scale our k8s clusters for Europe’s #1 shipping automation platform  | N/A | [Homepage](https://www.sendcloud.com/) |
 | Sentra | Using Karpenter to scale our EKS clusters, running our platform and workflows while maximizing cost-efficiency with minimal operational overhead | `@Roei Jacobovich` | [Homepage](https://sentra.io/) |
 | Stone Pagamentos | Using Karpenter to do smart sizing of our clusters  | `@fabiano-amaral` | [Stone Pagamentos](https://www.stone.com.br/) |

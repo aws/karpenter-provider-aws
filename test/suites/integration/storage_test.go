@@ -26,14 +26,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-
-	awstest "github.com/aws/karpenter/pkg/test"
-
 	. "github.com/onsi/ginkgo/v2"
+
+	"github.com/aws/karpenter-core/pkg/test"
 )
 
 // This test requires the EBS CSI driver to be installed
@@ -51,14 +46,6 @@ var _ = Describe("Dynamic PVC", func() {
 				Fail(fmt.Sprintf("determining EBS driver status, %s", err))
 			}
 		}
-
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-
 		storageClassName := "ebs-sc-test"
 		bindMode := storagev1.VolumeBindingWaitForFirstConsumer
 		sc := test.StorageClass(test.StorageClassOptions{
@@ -81,7 +68,7 @@ var _ = Describe("Dynamic PVC", func() {
 			PersistentVolumeClaims: []string{pvc.Name},
 		})
 
-		env.ExpectCreated(provisioner, provider, sc, pvc, pod)
+		env.ExpectCreated(nodeClass, nodePool, sc, pvc, pod)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectDeleted(pod)
@@ -90,13 +77,6 @@ var _ = Describe("Dynamic PVC", func() {
 
 var _ = Describe("Static PVC", func() {
 	It("should run a pod with a static persistent volume", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-
 		storageClassName := "nfs-test"
 		bindMode := storagev1.VolumeBindingWaitForFirstConsumer
 		sc := test.StorageClass(test.StorageClassOptions{
@@ -131,7 +111,7 @@ var _ = Describe("Static PVC", func() {
 			PersistentVolumeClaims: []string{pvc.Name},
 		})
 
-		env.ExpectCreated(provisioner, provider, sc, pv, pvc, pod)
+		env.ExpectCreated(nodeClass, nodePool, sc, pv, pvc, pod)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectDeleted(pod)

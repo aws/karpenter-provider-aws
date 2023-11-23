@@ -21,25 +21,27 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
-	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/test"
 	"github.com/aws/karpenter/pkg/utils"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var env *aws.Environment
-var provider *v1alpha1.AWSNodeTemplate
+var nodeClass *v1beta1.EC2NodeClass
+var nodePool *corev1beta1.NodePool
 
 func TestInterruption(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -53,8 +55,12 @@ func TestInterruption(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
+	env.Context = options.ToContext(env.Context, test.Options(test.OptionsFields{
+		InterruptionQueue: lo.ToPtr(env.InterruptionQueue),
+	}))
 	env.BeforeEach()
-	env.ExpectQueueExists()
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
@@ -62,24 +68,15 @@ var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("Interruption", Label("AWS"), func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{v1alpha5.CapacityTypeSpot},
-				},
-			},
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+		nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      corev1beta1.CapacityTypeLabelKey,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{corev1beta1.CapacityTypeSpot},
 		})
 		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
+		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
+			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "my-app"},
 				},
@@ -88,7 +85,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provider, provisioner, dep)
+		env.ExpectCreated(nodeClass, nodePool, dep)
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -110,24 +107,10 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is stopped", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{v1alpha5.CapacityTypeOnDemand},
-				},
-			},
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-		})
 		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
+		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
+			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "my-app"},
 				},
@@ -136,7 +119,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provider, provisioner, dep)
+		env.ExpectCreated(nodeClass, nodePool, dep)
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -150,24 +133,10 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{v1alpha5.CapacityTypeOnDemand},
-				},
-			},
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-		})
 		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
+		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
+			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "my-app"},
 				},
@@ -176,7 +145,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provider, provisioner, dep)
+		env.ExpectCreated(nodeClass, nodePool, dep)
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -190,24 +159,10 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 	})
 	It("should terminate the node when receiving a scheduled change health event", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{v1alpha5.CapacityTypeOnDemand},
-				},
-			},
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-		})
 		numPods := 1
-		dep := test.Deployment(test.DeploymentOptions{
+		dep := coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
-			PodOptions: test.PodOptions{
+			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "my-app"},
 				},
@@ -216,7 +171,7 @@ var _ = Describe("Interruption", Label("AWS"), func() {
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 
-		env.ExpectCreated(provider, provisioner, dep)
+		env.ExpectCreated(nodeClass, nodePool, dep)
 
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)

@@ -19,104 +19,70 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"fmt"
 	"time"
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/test"
 )
 
+const createdAtTag = "node.k8s.amazonaws.com/createdAt"
+
 var _ = Describe("Tags", func() {
 	Context("Static Tags", func() {
 		It("should tag all associated resources", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-				AWS: v1alpha1.AWS{
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					Tags:                  map[string]string{"TestTag": "TestVal"},
-				},
-			})
-			provisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+			nodeClass.Spec.Tags["TestTag"] = "TestVal"
 			pod := coretest.Pod()
 
-			env.ExpectCreated(pod, provider, provisioner)
+			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 			instance := env.GetInstance(pod.Spec.NodeName)
-			volumeTags := tagMap(env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId).Tags)
-			instanceTags := tagMap(instance.Tags)
+			volumes := env.GetVolumes(lo.Map(instance.BlockDeviceMappings, func(bdm *ec2.InstanceBlockDeviceMapping, _ int) *string {
+				return bdm.Ebs.VolumeId
+			})...)
+			networkInterfaces := env.GetNetworkInterfaces(lo.Map(instance.NetworkInterfaces, func(ni *ec2.InstanceNetworkInterface, _ int) *string {
+				return ni.NetworkInterfaceId
+			})...)
 
-			Expect(instanceTags).To(HaveKeyWithValue("TestTag", "TestVal"))
-			Expect(volumeTags).To(HaveKeyWithValue("TestTag", "TestVal"))
+			Expect(tagMap(instance.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
+			for _, volume := range volumes {
+				Expect(tagMap(volume.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
+			}
+			for _, networkInterface := range networkInterfaces {
+				// Any ENI that contains this createdAt tag was created by the VPC CNI DaemonSet
+				if _, ok := tagMap(networkInterface.TagSet)[createdAtTag]; !ok {
+					Expect(tagMap(networkInterface.TagSet)).To(HaveKeyWithValue("TestTag", "TestVal"))
+				}
+			}
 		})
-		It("should tag all associated resources with global tags", func() {
-			provider := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-				AWS: v1alpha1.AWS{
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				},
+		It("should tag spot instance requests when creating resources", func() {
+			coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      corev1beta1.CapacityTypeLabelKey,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{corev1beta1.CapacityTypeSpot},
 			})
-
-			env.ExpectSettingsOverridden(map[string]string{
-				"aws.tags": `{"TestTag": "TestVal", "example.com/tag": "custom-value"}`,
-			})
-			provisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
+			nodeClass.Spec.Tags = map[string]string{"TestTag": "TestVal"}
 			pod := coretest.Pod()
 
-			env.ExpectCreated(pod, provider, provisioner)
+			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 			instance := env.GetInstance(pod.Spec.NodeName)
-			volumeTags := tagMap(env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId).Tags)
-			instanceTags := tagMap(instance.Tags)
-
-			Expect(instanceTags).To(HaveKeyWithValue("TestTag", "TestVal"))
-			Expect(volumeTags).To(HaveKeyWithValue("TestTag", "TestVal"))
-			Expect(instanceTags).To(HaveKeyWithValue("example.com/tag", "custom-value"))
-			Expect(volumeTags).To(HaveKeyWithValue("example.com/tag", "custom-value"))
+			Expect(instance.SpotInstanceRequestId).ToNot(BeNil())
+			spotInstanceRequest := env.GetSpotInstanceRequest(instance.SpotInstanceRequestId)
+			Expect(tagMap(spotInstanceRequest.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
 		})
 	})
 
 	Context("Tagging Controller", func() {
-		var nodeClass *v1beta1.EC2NodeClass
-		var nodePool *corev1beta1.NodePool
-
-		BeforeEach(func() {
-			nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
-				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{
-					Tags: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				}},
-				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{
-					Tags: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				}},
-			}})
-
-			nodePool = coretest.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClass: &corev1beta1.NodeClassReference{
-								Name: nodeClass.Name,
-							},
-						},
-					},
-					Limits: corev1beta1.Limits{},
-				},
-			})
-		})
-
-		It("should tag with karpenter.k8s.aws/nodeclaim and Name tag", func() {
-			Skip("NodeClaim tagging tests disabled until v1beta1")
+		It("should tag with karpenter.sh/nodeclaim and Name tag", func() {
 			pod := coretest.Pod()
 
 			env.ExpectCreated(nodePool, nodeClass, pod)
@@ -136,15 +102,14 @@ var _ = Describe("Tags", func() {
 		})
 
 		It("shouldn't overwrite custom Name tags", func() {
-			Skip("NodeClaim tagging tests disabled until v1beta1")
 			nodeClass = test.EC2NodeClass(*nodeClass, v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
-				Tags: map[string]string{"Name": "custom-name"},
+				Tags: map[string]string{"Name": "custom-name", "testing/cluster": env.ClusterName},
 			}})
 			nodePool = coretest.NodePool(*nodePool, corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							NodeClass: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
 						},
 					},
 				},
@@ -166,29 +131,6 @@ var _ = Describe("Tags", func() {
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", "custom-name"))
 			Expect(nodeInstance.Tags).To(HaveKey("karpenter.sh/nodeclaim"))
 		})
-
-		It("shouldn't tag nodes provisioned by v1alpha5 provisioner", func() {
-			nodeTemplate := test.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			}})
-
-			provisioner := coretest.Provisioner(coretest.ProvisionerOptions{
-				ProviderRef: &v1alpha5.MachineTemplateRef{
-					Name: nodeTemplate.Name,
-				},
-			})
-
-			pod := coretest.Pod()
-			env.ExpectCreated(nodeTemplate, provisioner, pod)
-			env.EventuallyExpectCreatedNodeCount("==", 1)
-			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
-
-			nodeInstance := instance.NewInstance(lo.ToPtr(env.GetInstance(node.Name)))
-			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", fmt.Sprintf("karpenter.sh/provisioner-name/%s", provisioner.Name)))
-			Expect(nodeInstance.Tags).NotTo(HaveKey("karpenter.sh/nodeclaim"))
-		})
-
 	})
 })
 

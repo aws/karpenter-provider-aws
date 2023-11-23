@@ -35,22 +35,22 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/test"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	coretest "github.com/aws/karpenter-core/pkg/test"
 	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
-	"github.com/aws/karpenter/test/pkg/environment/common"
+	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
-var env *common.Environment
+var env *aws.Environment
+var nodeClass *v1beta1.EC2NodeClass
+var nodePool *corev1beta1.NodePool
 
 func TestChaos(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
-		env = common.NewEnvironment(t)
+		env = aws.NewEnvironment(t)
 	})
 	AfterSuite(func() {
 		env.Stop()
@@ -58,7 +58,11 @@ func TestChaos(t *testing.T) {
 	RunSpecs(t, "Chaos")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = BeforeEach(func() {
+	env.BeforeEach()
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
+})
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
@@ -68,27 +72,18 @@ var _ = Describe("Chaos", func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1alpha5.LabelCapacityType,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{v1alpha5.CapacityTypeSpot},
-					},
-				},
-				Consolidation: &v1alpha5.Consolidation{
-					Enabled: lo.ToPtr(true),
-				},
-				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
+			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      corev1beta1.CapacityTypeLabelKey,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{corev1beta1.CapacityTypeSpot},
 			})
+			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+			nodePool.Spec.Disruption.ConsolidateAfter = nil
+
 			numPods := 1
-			dep := test.Deployment(test.DeploymentOptions{
+			dep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: int32(numPods),
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{"app": "my-app"},
 					},
@@ -100,38 +95,25 @@ var _ = Describe("Chaos", func() {
 			startNodeCountMonitor(ctx, env.Client)
 
 			// Create a deployment with a single pod
-			env.ExpectCreated(provider, provisioner, dep)
+			env.ExpectCreated(nodeClass, nodePool, dep)
 
 			// Expect that we never get over a high number of nodes
 			Consistently(func(g Gomega) {
 				list := &v1.NodeList{}
-				g.Expect(env.Client.List(env.Context, list, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+				g.Expect(env.Client.List(env.Context, list, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
 				g.Expect(len(list.Items)).To(BeNumerically("<", 35))
 			}, time.Minute*5).Should(Succeed())
 		})
-		It("should not produce a runaway scale-up when ttlSecondsAfterEmpty is enabled", Label(debug.NoWatch), Label(debug.NoEvents), func() {
+		It("should not produce a runaway scale-up when emptiness is enabled", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1alpha5.LabelCapacityType,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{v1alpha5.CapacityTypeSpot},
-					},
-				},
-				TTLSecondsAfterEmpty: lo.ToPtr[int64](30),
-				ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			})
+			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
+			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
 			numPods := 1
-			dep := test.Deployment(test.DeploymentOptions{
+			dep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: int32(numPods),
-				PodOptions: test.PodOptions{
+				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{"app": "my-app"},
 					},
@@ -143,12 +125,12 @@ var _ = Describe("Chaos", func() {
 			startNodeCountMonitor(ctx, env.Client)
 
 			// Create a deployment with a single pod
-			env.ExpectCreated(provider, provisioner, dep)
+			env.ExpectCreated(nodeClass, nodePool, dep)
 
 			// Expect that we never get over a high number of nodes
 			Consistently(func(g Gomega) {
 				list := &v1.NodeList{}
-				g.Expect(env.Client.List(env.Context, list, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+				g.Expect(env.Client.List(env.Context, list, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
 				g.Expect(len(list.Items)).To(BeNumerically("<", 35))
 			}, time.Minute*5).Should(Succeed())
 		})
@@ -184,7 +166,7 @@ func (t *taintAdder) Builder(mgr manager.Manager) *controllerruntime.Builder {
 		For(&v1.Node{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(obj client.Object) bool {
 			node := obj.(*v1.Node)
-			if _, ok := node.Labels[test.DiscoveryLabel]; !ok {
+			if _, ok := node.Labels[coretest.DiscoveryLabel]; !ok {
 				return false
 			}
 			return true
@@ -211,7 +193,7 @@ func startNodeCountMonitor(ctx context.Context, kubeClient client.Client) {
 	deletedNodes := atomic.Int64{}
 
 	factory := informers.NewSharedInformerFactoryWithOptions(env.KubeClient, time.Second*30,
-		informers.WithTweakListOptions(func(l *metav1.ListOptions) { l.LabelSelector = v1alpha5.ProvisionerNameLabelKey }))
+		informers.WithTweakListOptions(func(l *metav1.ListOptions) { l.LabelSelector = corev1beta1.NodePoolLabelKey }))
 	nodeInformer := factory.Core().V1().Nodes().Informer()
 	_ = lo.Must(nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(_ interface{}) {
@@ -225,7 +207,7 @@ func startNodeCountMonitor(ctx context.Context, kubeClient client.Client) {
 	go func() {
 		for {
 			list := &v1.NodeList{}
-			if err := kubeClient.List(ctx, list, client.HasLabels{test.DiscoveryLabel}); err == nil {
+			if err := kubeClient.List(ctx, list, client.HasLabels{coretest.DiscoveryLabel}); err == nil {
 				readyCount := lo.CountBy(list.Items, func(n v1.Node) bool {
 					return nodeutils.GetCondition(&n, v1.NodeReady).Status == v1.ConditionTrue
 				})

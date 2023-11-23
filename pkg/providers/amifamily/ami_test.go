@@ -26,15 +26,18 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	. "knative.dev/pkg/logging/testing"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/test"
 )
@@ -59,7 +62,8 @@ const (
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coresettings.ToContext(ctx, coretest.Settings())
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = options.ToContext(ctx, test.Options())
 	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 })
@@ -183,45 +187,88 @@ var _ = Describe("AMIProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(0))
 	})
-
-	It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Al2)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
-		// No GPU AMI exists here
-		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       amd64AMI,
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): arm64AMI,
-		}
-		// Only 2 of the requirements sets for the SSM aliases will resolve
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(amis).To(HaveLen(2))
+	Context("SSM Alias Missing", func() {
+		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Al2)", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			// No GPU AMI exists here
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       amd64AMI,
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): arm64AMI,
+			}
+			// Only 2 of the requirements sets for the SSM aliases will resolve
+			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(2))
+		})
+		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Bottlerocket)", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			// No GPU AMI exists for AM64 here
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version):        amd64AMI,
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version): amd64NvidiaAMI,
+				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMI,
+			}
+			// Only 4 of the requirements sets for the SSM aliases will resolve
+			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(4))
+		})
+		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Ubuntu)", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+			// No AMD64 AMI exists here
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
+			}
+			// Only 1 of the requirements sets for the SSM aliases will resolve
+			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+		})
 	})
-	It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Bottlerocket)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-		// No GPU AMI exists for AM64 here
-		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version):        amd64AMI,
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version): amd64NvidiaAMI,
-			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMI,
-		}
-		// Only 4 of the requirements sets for the SSM aliases will resolve
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(amis).To(HaveLen(4))
-	})
-	It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Ubuntu)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
-		// No AMD64 AMI exists here
-		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
-		}
-		// Only 1 of the requirements sets for the SSM aliases will resolve
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(amis).To(HaveLen(1))
+	Context("AMI Tag Requirements", func() {
+		var img *ec2.Image
+		BeforeEach(func() {
+			img = &ec2.Image{
+				Name:         aws.String(amd64AMI),
+				ImageId:      aws.String("amd64-ami-id"),
+				CreationDate: aws.String(time.Now().Format(time.RFC3339)),
+				Architecture: aws.String("x86_64"),
+				Tags: []*ec2.Tag{
+					{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
+					{Key: aws.String("foo"), Value: aws.String("bar")},
+					{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")},
+					{Key: aws.String(v1.LabelTopologyZone), Value: aws.String("test-zone-1a")},
+				},
+			}
+			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+				Images: []*ec2.Image{
+					img,
+				},
+			})
+		})
+		It("should succeed to not resolve tags as requirements for NodeClasses", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					Tags: map[string]string{"*": "*"},
+				},
+			}
+			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+			Expect(amis).To(ConsistOf(amifamily.AMI{
+				Name:         aws.StringValue(img.Name),
+				AmiID:        aws.StringValue(img.ImageId),
+				CreationDate: aws.StringValue(img.CreationDate),
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+				),
+			}))
+		})
 	})
 	Context("AMI Selectors", func() {
-		It("should have default owners and use tags when prefixes aren't set", func() {
+		// When you tag public or shared resources, the tags you assign are available only to your AWS account; no other AWS account will have access to those tags
+		// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
+		It("should have empty owners and use tags when prefixes aren't set", func() {
 			amiSelectorTerms := []v1beta1.AMISelectorTerm{
 				{
 					Tags: map[string]string{
@@ -238,10 +285,7 @@ var _ = Describe("AMIProvider", func() {
 							Values: aws.StringSlice([]string{"my-ami"}),
 						},
 					},
-					Owners: []string{
-						"amazon",
-						"self",
-					},
+					Owners: []string{},
 				},
 			}, filterAndOwnersSets)
 		})

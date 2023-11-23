@@ -30,12 +30,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-
-	awstest "github.com/aws/karpenter/pkg/test"
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awsenv "github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
@@ -45,19 +41,14 @@ var _ = Describe("AMI", func() {
 		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 	})
 
-	It("should use the AMI defined by the AMI Selector", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             &v1alpha1.AMIFamilyAL2,
+	It("should use the AMI defined by the AMI Selector Terms", func() {
+		pod := coretest.Pod()
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				ID: customAMI,
 			},
-			AMISelector: map[string]string{"aws-ids": customAMI},
-		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-		pod := test.Pod()
-
-		env.ExpectCreated(pod, provider, provisioner)
+		}
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -70,84 +61,77 @@ var _ = Describe("AMI", func() {
 		})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			AMIFamily:             &v1alpha1.AMIFamilyCustom,
-		},
-			AMISelector: map[string]string{"aws-ids": fmt.Sprintf("%s,%s", customAMI, oldCustomAMI)},
-			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
-		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-		pod := test.Pod()
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				ID: customAMI,
+			},
+			{
+				ID: oldCustomAMI,
+			},
+		}
+		nodeClass.Spec.UserData = aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
+		pod := coretest.Pod()
 
-		env.ExpectCreated(pod, provider, provisioner)
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
-	It("should support ami selector aws::name but fail with incorrect owners", func() {
+	It("should support AMI Selector Terms for Name but fail with incorrect owners", func() {
 		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
 			ImageIds: []*string{aws.String(customAMI)},
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				Name:  *output.Images[0].Name,
+				Owner: "fakeOwnerValue",
+			},
+		}
+		nodeClass.Spec.UserData = aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
+		pod := coretest.Pod()
 
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			AMIFamily:             &v1alpha1.AMIFamilyCustom,
-		},
-			AMISelector: map[string]string{"aws::name": *output.Images[0].Name, "aws::owners": "fakeOwnerValue"},
-			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
-		})
-
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-		pod := test.Pod()
-
-		env.ExpectCreated(pod, provider, provisioner)
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.ExpectCreatedNodeCount("==", 0)
 		Expect(pod.Spec.NodeName).To(Equal(""))
 	})
-	It("should support ami selector aws::name with default owners", func() {
+	It("should support ami selector Name with default owners", func() {
 		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
 			ImageIds: []*string{aws.String(customAMI)},
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
 
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			AMIFamily:             &v1alpha1.AMIFamilyCustom,
-		},
-			AMISelector: map[string]string{"aws::name": *output.Images[0].Name},
-			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
-		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				Name: *output.Images[0].Name,
+			},
+		}
+		nodeClass.Spec.UserData = aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
+		pod := coretest.Pod()
 
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-		pod := test.Pod()
-
-		env.ExpectCreated(pod, provider, provisioner)
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
-	It("should support ami selector aws::ids", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			AMIFamily:             &v1alpha1.AMIFamilyCustom,
-		},
-			AMISelector: map[string]string{"aws::ids": customAMI},
-			UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
-		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-		pod := test.Pod()
+	It("should support ami selector ids", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				ID: customAMI,
+			},
+		}
+		nodeClass.Spec.UserData = aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
+		pod := coretest.Pod()
 
-		env.ExpectCreated(pod, provider, provisioner)
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -156,105 +140,70 @@ var _ = Describe("AMI", func() {
 
 	Context("AMIFamily", func() {
 		It("should provision a node using the AL2 family", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			})
-			pod := test.Pod()
-			env.ExpectCreated(provider, provisioner, pod)
+			pod := coretest.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should provision a node using the Bottlerocket family", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			})
-			pod := test.Pod()
-			env.ExpectCreated(provider, provisioner, pod)
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			pod := coretest.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should provision a node using the Ubuntu family", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             &v1alpha1.AMIFamilyUbuntu,
-			}})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-				// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
-				// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter/issues/4472)
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1alpha1.LabelInstanceGeneration,
-						Operator: v1.NodeSelectorOpLt,
-						Values:   []string{"7"},
-					},
-					{
-						Key:      v1.LabelOSStable,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{string(v1.Linux)},
-					},
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
+			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter/issues/4472)
+			nodePool = coretest.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceFamily,
+					Operator: v1.NodeSelectorOpNotIn,
+					Values:   awsenv.ExcludedInstanceFamilies,
 				},
-			})
-			pod := test.Pod()
-			env.ExpectCreated(provider, provisioner, pod)
+			)
+			pod := coretest.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support Custom AMIFamily with AMI Selectors", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             &v1alpha1.AMIFamilyCustom,
-			},
-				AMISelector: map[string]string{"aws-ids": customAMI},
-				UserData:    aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", settings.FromContext(env.Context).ClusterName)),
-			})
-			provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-			pod := test.Pod()
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					ID: customAMI,
+				},
+			}
+			nodeClass.Spec.UserData = aws.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
+			pod := coretest.Pod()
 
-			env.ExpectCreated(pod, provider, provisioner)
+			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 
 			env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 		})
-		It("should have the AWSNodeTemplateStatus for AMIs using wildcard", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-				AWS: v1alpha1.AWS{
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		It("should have the EC2NodeClass status for AMIs using wildcard", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					Name: "*",
 				},
-				AMISelector: map[string]string{"aws::name": "*"},
-			})
-
-			env.ExpectCreated(provider)
-			ant := EventuallyExpectAMIsToExist(provider)
-			Expect(len(ant.Status.AMIs)).To(BeNumerically("<", 10))
+			}
+			env.ExpectCreated(nodeClass)
+			nc := EventuallyExpectAMIsToExist(nodeClass)
+			Expect(len(nc.Status.AMIs)).To(BeNumerically("<", 10))
 		})
-		It("should have the AWSNodeTemplateStatus for AMIs using tags", func() {
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-				AWS: v1alpha1.AWS{
-					SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-					SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		It("should have the EC2NodeClass status for AMIs using tags", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					ID: customAMI,
 				},
-				AMISelector: map[string]string{"aws-ids": customAMI},
-			})
-
-			env.ExpectCreated(provider)
-			ant := EventuallyExpectAMIsToExist(provider)
-
-			Expect(len(ant.Status.AMIs)).To(BeNumerically("==", 1))
-			Expect(ant.Status.AMIs[0].ID).To(Equal(customAMI))
+			}
+			env.ExpectCreated(nodeClass)
+			nc := EventuallyExpectAMIsToExist(nodeClass)
+			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
+			Expect(nc.Status.AMIs[0].ID).To(Equal(customAMI))
 		})
 	})
 
@@ -262,21 +211,12 @@ var _ = Describe("AMI", func() {
 		It("should merge UserData contents for AL2 AMIFamily", func() {
 			content, err := os.ReadFile("testdata/al2_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             &v1alpha1.AMIFamilyAL2,
-			},
-				UserData: aws.String(string(content)),
-			})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
-				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
-				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
-			})
-			pod := test.Pod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
+			nodeClass.Spec.UserData = aws.String(string(content))
+			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
+			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
+			pod := coretest.Pod(coretest.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
 
-			env.ExpectCreated(pod, provider, provisioner)
+			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
 				v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
@@ -291,21 +231,12 @@ var _ = Describe("AMI", func() {
 		It("should merge non-MIME UserData contents for AL2 AMIFamily", func() {
 			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             &v1alpha1.AMIFamilyAL2,
-			},
-				UserData: aws.String(string(content)),
-			})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
-				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
-				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
-			})
-			pod := test.Pod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
+			nodeClass.Spec.UserData = aws.String(string(content))
+			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
+			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
+			pod := coretest.Pod(coretest.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
 
-			env.ExpectCreated(pod, provider, provisioner)
+			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
 				v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
@@ -320,21 +251,13 @@ var _ = Describe("AMI", func() {
 		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
 			content, err := os.ReadFile("testdata/br_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
-			},
-				UserData: aws.String(string(content)),
-			})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
-				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
-				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
-			})
-			pod := test.Pod(test.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.UserData = aws.String(string(content))
+			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
+			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
+			pod := coretest.Pod(coretest.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
 
-			env.ExpectCreated(pod, provider, provisioner)
+			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
 				v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
@@ -352,42 +275,25 @@ var _ = Describe("AMI", func() {
 
 			content, err := os.ReadFile("testdata/windows_userdata_input.ps1")
 			Expect(err).ToNot(HaveOccurred())
-			provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				AMIFamily:             &v1alpha1.AMIFamilyWindows2022,
-			},
-				UserData: aws.String(string(content)),
-			})
-			provisioner := test.Provisioner(test.ProvisionerOptions{
-				ProviderRef:   &v1alpha5.MachineTemplateRef{Name: provider.Name},
-				Taints:        []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}},
-				StartupTaints: []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}},
-				Requirements: []v1.NodeSelectorRequirement{
-					{
-						Key:      v1.LabelOSStable,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{string(v1.Windows)},
-					},
-					// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-					{
-						Key:      v1alpha1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   []string{"m7a", "r7a"},
-					},
-					{
-						Key:      v1alpha1.LabelInstanceCategory,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"c", "m", "r"},
-					},
-					{
-						Key:      v1alpha1.LabelInstanceGeneration,
-						Operator: v1.NodeSelectorOpGt,
-						Values:   []string{"2"},
-					},
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+			nodeClass.Spec.UserData = aws.String(string(content))
+			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
+			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
+
+			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+			nodePool = coretest.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceFamily,
+					Operator: v1.NodeSelectorOpNotIn,
+					Values:   awsenv.ExcludedInstanceFamilies,
 				},
-			})
-			pod := test.Pod(test.PodOptions{
+				v1.NodeSelectorRequirement{
+					Key:      v1.LabelOSStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{string(v1.Windows)},
+				},
+			)
+			pod := coretest.Pod(coretest.PodOptions{
 				Image: awsenv.WindowsDefaultImage,
 				NodeSelector: map[string]string{
 					v1.LabelOSStable:     string(v1.Windows),
@@ -396,7 +302,7 @@ var _ = Describe("AMI", func() {
 				Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}},
 			})
 
-			env.ExpectCreated(pod, provider, provisioner)
+			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod) // Wait 15 minutes because Windows nodes/containers take longer to spin up
 			Expect(env.GetNode(pod.Spec.NodeName).Spec.Taints).To(ContainElements(
 				v1.Taint{Key: "example.com", Value: "value", Effect: "NoExecute"},
@@ -424,12 +330,11 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	return instanceAttribute
 }
 
-func EventuallyExpectAMIsToExist(provider *v1alpha1.AWSNodeTemplate) v1alpha1.AWSNodeTemplate {
-	var ant v1alpha1.AWSNodeTemplate
+func EventuallyExpectAMIsToExist(nodeClass *v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
+	nc := &v1beta1.EC2NodeClass{}
 	Eventually(func(g Gomega) {
-		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(provider), &ant)).To(Succeed())
-		g.Expect(ant.Status.AMIs).ToNot(BeNil())
+		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)).To(Succeed())
+		g.Expect(nc.Status.AMIs).ToNot(BeNil())
 	}).WithTimeout(30 * time.Second).Should(Succeed())
-
-	return ant
+	return nc
 }

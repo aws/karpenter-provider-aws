@@ -4,8 +4,7 @@ on:
     - cron: '0 */12 * * *'
   workflow_dispatch:
 permissions:
-  id-token: write # This is required for requesting the JWT
-  contents: read  # This is required for actions/checkout
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   sweeper:
     if: vars.ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
@@ -15,13 +14,13 @@ jobs:
         region: [us-east-2, us-west-2, eu-west-1]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - name: configure aws credentials
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
           aws-region: ${{ matrix.region }}
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4
         with:
           go-version-file: test/hack/cleanup/go.mod
           check-latest: true

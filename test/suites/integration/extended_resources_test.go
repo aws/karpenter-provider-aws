@@ -28,31 +28,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-
-	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	awsenv "github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
 		ExpectNvidiaDevicePluginCreated()
 
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpExists,
-				},
-			},
-		})
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -71,27 +55,18 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(provisioner, provider, dep)
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      v1beta1.LabelInstanceCategory,
+			Operator: v1.NodeSelectorOpExists,
+		})
+		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
 	It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
 		// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			AMIFamily:             &v1alpha1.AMIFamilyBottlerocket,
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpExists,
-				},
-			},
-		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -110,7 +85,11 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(provisioner, provider, dep)
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      v1beta1.LabelInstanceCategory,
+			Operator: v1.NodeSelectorOpExists,
+		})
+		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
@@ -120,28 +99,14 @@ var _ = Describe("Extended Resources", func() {
 		DeferCleanup(func() {
 			env.ExpectPodENIDisabled()
 		})
-		env.ExpectSettingsOverridden(map[string]string{
-			"aws.enablePodENI": "true",
-		})
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpExists,
-				},
-				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
-				{
-					Key:      v1alpha1.LabelInstanceFamily,
-					Operator: v1.NodeSelectorOpNotIn,
-					Values:   []string{"m7a", "r7a"},
-				},
+		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceFamily,
+				Operator: v1.NodeSelectorOpNotIn,
+				Values:   awsenv.ExcludedInstanceFamilies,
 			},
-		})
+		)
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -160,7 +125,7 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(provisioner, provider, dep)
+		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
@@ -175,28 +140,14 @@ var _ = Describe("Extended Resources", func() {
 		// We use a Custom AMI so that we can reboot after we start the kubelet service
 		rawContent, err := os.ReadFile("testdata/amd_driver_input.sh")
 		Expect(err).ToNot(HaveOccurred())
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				AMIFamily:             &v1alpha1.AMIFamilyCustom,
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				ID: customAMI,
 			},
-			AMISelector: map[string]string{
-				"aws-ids": customAMI,
-			},
-		},
-		)
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpExists,
-				},
-			},
-		})
-		provider.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), settings.FromContext(env.Context).ClusterName,
-			settings.FromContext(env.Context).ClusterEndpoint, env.ExpectCABundle(), provisioner.Name))
+		}
+		nodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName,
+			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))
 
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
@@ -216,7 +167,7 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(provisioner, provider, dep)
+		env.ExpectCreated(nodeClass, nodePool, dep)
 		Eventually(func(g Gomega) {
 			g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
 		}).WithTimeout(15 * time.Minute).Should(Succeed()) // The node needs additional time to install the AMD GPU driver
@@ -229,28 +180,11 @@ var _ = Describe("Extended Resources", func() {
 		Skip("skipping test on an exotic instance type")
 		ExpectHabanaDevicePluginCreated()
 
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				ID: "ami-0fae925f94979981f",
 			},
-			AMISelector: map[string]string{"aws-ids": "ami-0fae925f94979981f"},
-		})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{v1alpha5.CapacityTypeOnDemand},
-				},
-				{
-					Key:      v1alpha1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"c", "m", "r", "p", "g", "dl"},
-				},
-			},
-		})
+		}
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -269,7 +203,7 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreated(provisioner, provider, dep)
+		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
@@ -279,10 +213,10 @@ var _ = Describe("Extended Resources", func() {
 func ExpectNvidiaDevicePluginCreated() {
 	GinkgoHelper()
 	env.ExpectCreated(&appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "nvidia-device-plugin-daemonset",
 			Namespace: "kube-system",
-		},
+		}),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -293,11 +227,11 @@ func ExpectNvidiaDevicePluginCreated() {
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Labels: map[string]string{
 						"name": "nvidia-device-plugin-ds",
 					},
-				},
+				}),
 				Spec: v1.PodSpec{
 					Tolerations: []v1.Toleration{
 						{
@@ -350,10 +284,10 @@ func ExpectNvidiaDevicePluginCreated() {
 func ExpectAMDDevicePluginCreated() {
 	GinkgoHelper()
 	env.ExpectCreated(&appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "amdgpu-device-plugin-daemonset",
 			Namespace: "kube-system",
-		},
+		}),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -361,11 +295,11 @@ func ExpectAMDDevicePluginCreated() {
 				},
 			},
 			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Labels: map[string]string{
 						"name": "amdgpu-dp-ds",
 					},
-				},
+				}),
 				Spec: v1.PodSpec{
 					PriorityClassName: "system-node-critical",
 					Tolerations: []v1.Toleration{
@@ -424,15 +358,15 @@ func ExpectAMDDevicePluginCreated() {
 func ExpectHabanaDevicePluginCreated() {
 	GinkgoHelper()
 	env.ExpectCreated(&v1.Namespace{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name: "habana-system",
-		},
+		}),
 	})
 	env.ExpectCreated(&appsv1.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name:      "habanalabs-device-plugin-daemonset",
 			Namespace: "habana-system",
-		},
+		}),
 		Spec: appsv1.DaemonSetSpec{
 			Selector: &metav1.LabelSelector{
 				MatchLabels: map[string]string{
@@ -443,14 +377,14 @@ func ExpectHabanaDevicePluginCreated() {
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
 			Template: v1.PodTemplateSpec{
-				ObjectMeta: metav1.ObjectMeta{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"scheduler.alpha.kubernetes.io/critical-pod": "",
 					},
 					Labels: map[string]string{
 						"name": "habanalabs-device-plugin-ds",
 					},
-				},
+				}),
 				Spec: v1.PodSpec{
 					Tolerations: []v1.Toleration{
 						{

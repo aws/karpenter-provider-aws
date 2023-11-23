@@ -30,9 +30,10 @@ import (
 	"knative.dev/pkg/ptr"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	awssettings "github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
@@ -53,7 +54,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1
 	region string, nodeClass *v1beta1.EC2NodeClass, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
 	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
-	return &cloudprovider.InstanceType{
+	it := &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
 		Requirements: computeRequirements(ctx, info, offerings, region, amiFamily, kc, nodeClass),
 		Offerings:    offerings,
@@ -64,6 +65,10 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1
 			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeClass.Spec.BlockDeviceMappings), amiFamily, kc),
 		},
 	}
+	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)))) == nil {
+		it.Capacity[v1beta1.ResourcePrivateIPv4Address] = *privateIPv4Address(info)
+	}
+	return it
 }
 
 //nolint:gocyclo
@@ -176,15 +181,11 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1.ResourceMemory:           *memory(ctx, info),
 		v1.ResourceEphemeralStorage: *ephemeralStorage(amiFamily, blockDeviceMappings),
 		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
-		v1beta1.ResourceAWSPodENI:   *awsPodENI(ctx, aws.StringValue(info.InstanceType)),
+		v1beta1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
 		v1beta1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
 		v1beta1.ResourceAMDGPU:      *amdGPUs(info),
 		v1beta1.ResourceAWSNeuron:   *awsNeurons(info),
 		v1beta1.ResourceHabanaGaudi: *habanaGaudis(info),
-	}
-	if _, ok := amiFamily.(*amifamily.Windows); ok {
-		//ResourcePrivateIPv4Address is the same as ENILimitedPods on Windows node
-		resourceList[v1beta1.ResourcePrivateIPv4Address] = *privateIPv4Address(info)
 	}
 	return resourceList
 }
@@ -201,7 +202,7 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 	}
 	mem := resources.Quantity(fmt.Sprintf("%dMi", sizeInMib))
 	// Account for VM overhead in calculation
-	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*awssettings.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
+	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*options.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
 	return mem
 }
 
@@ -237,10 +238,10 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1be
 	return amifamily.DefaultEBS.VolumeSize
 }
 
-func awsPodENI(ctx context.Context, name string) *resource.Quantity {
+func awsPodENI(name string) *resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
 	limits, ok := Limits[name]
-	if awssettings.FromContext(ctx).EnablePodENI && ok && limits.IsTrunkingCompatible {
+	if ok && limits.IsTrunkingCompatible {
 		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}
 	return resources.Quantity("0")
@@ -308,7 +309,7 @@ func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Q
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
-	usableNetworkInterfaces := lo.Max([]int64{(networkInterfaces - int64(awssettings.FromContext(ctx).ReservedENIs)), 0})
+	usableNetworkInterfaces := lo.Max([]int64{(networkInterfaces - int64(options.FromContext(ctx).ReservedENIs)), 0})
 	if usableNetworkInterfaces == 0 {
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
@@ -317,7 +318,6 @@ func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Q
 }
 
 func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
-
 	//https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/ecbd6965a0100d9a070110233762593b16023287/pkg/provider/ip/provider.go#L297
 	capacity := aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1
 	return resources.Quantity(fmt.Sprint(capacity))
@@ -403,7 +403,7 @@ func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.A
 	switch {
 	case kc != nil && kc.MaxPods != nil:
 		count = int64(ptr.Int32Value(kc.MaxPods))
-	case awssettings.FromContext(ctx).EnableENILimitedPodDensity && amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
+	case settings.FromContext(ctx).EnableENILimitedPodDensity && amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info).Value()
 	default:
 		count = 110

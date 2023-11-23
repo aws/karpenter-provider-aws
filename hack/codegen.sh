@@ -12,21 +12,29 @@ bandwidth() {
   NO_UPDATE=''
   SUBJECT="Bandwidth"
 
-  go run hack/code/bandwidth_gen.go -- "${GENERATED_FILE}"
+  go run hack/code/bandwidth_gen/main.go -- "${GENERATED_FILE}"
 
   GIT_DIFF=$(git diff --stat "${GENERATED_FILE}")
   checkForUpdates "${GIT_DIFF}" "${NO_UPDATE}" "${SUBJECT}" "${GENERATED_FILE}"
 }
 
 pricing() {
-  GENERATED_FILE="pkg/providers/pricing/zz_generated.pricing.go"
-  NO_UPDATE=$' pkg/providers/pricing/zz_generated.pricing.go | 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
-  SUBJECT="Pricing"
+  declare -a PARTITIONS=(
+    "aws"
+    "aws-us-gov"
+    # "aws-cn"
+  )
 
-  go run hack/code/prices_gen.go -- "${GENERATED_FILE}"
+  for partition in "${PARTITIONS[@]}"; do
+    GENERATED_FILE="pkg/providers/pricing/zz_generated.pricing_${partition//-/_}.go"
+    NO_UPDATE=" ${GENERATED_FILE} "$'| 4 ++--\n 1 file changed, 2 insertions(+), 2 deletions(-)'
+    SUBJECT="Pricing"
 
-  GIT_DIFF=$(git diff --stat "${GENERATED_FILE}")
-  checkForUpdates "${GIT_DIFF}" "${NO_UPDATE}" "${SUBJECT} beside timestamps since last update" "${GENERATED_FILE}"
+    go run hack/code/prices_gen/main.go --partition "$partition" --output "$GENERATED_FILE"
+
+    GIT_DIFF=$(git diff --stat "${GENERATED_FILE}")
+    checkForUpdates "${GIT_DIFF}" "${NO_UPDATE}" "${SUBJECT} beside timestamps since last update" "${GENERATED_FILE}"
+  done
 }
 
 vpcLimits() {
@@ -34,7 +42,7 @@ vpcLimits() {
   NO_UPDATE=''
   SUBJECT="VPC Limits"
 
-  go run hack/code/vpc_limits_gen.go -- \
+  go run hack/code/vpc_limits_gen/main.go -- \
     --url=https://raw.githubusercontent.com/aws/amazon-vpc-resource-controller-k8s/master/pkg/aws/vpc/limits.go \
     --output="${GENERATED_FILE}"
 
@@ -47,7 +55,7 @@ instanceTypeTestData() {
   NO_UPDATE=''
   SUBJECT="Instance Type Test Data"
 
-  go run hack/code/instancetype_testdata_gen.go --out-file ${GENERATED_FILE} \
+  go run hack/code/instancetype_testdata_gen/main.go --out-file ${GENERATED_FILE} \
     --instance-types t3.large,m5.large,m5.xlarge,p3.8xlarge,g4dn.8xlarge,c6g.large,inf1.2xlarge,inf1.6xlarge,trn1.2xlarge,m5.metal,dl1.24xlarge,m6idn.32xlarge,t4g.small,t4g.xlarge,t4g.medium
 
   GIT_DIFF=$(git diff --stat "${GENERATED_FILE}")

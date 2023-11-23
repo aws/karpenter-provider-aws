@@ -15,6 +15,9 @@ limitations under the License.
 package integration_test
 
 import (
+	"time"
+
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/ptr"
 
@@ -23,49 +26,39 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("Emptiness", func() {
 	It("should terminate an empty node", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			TTLSecondsAfterEmpty: ptr.Int64(1e6), // A really long timeframe so that we set the Empty Status Condition
-		})
+		nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
+		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Hour * 300)}
 
 		const numPods = 1
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
 
 		By("kicking off provisioning for a deployment")
-		env.ExpectCreated(provider, provisioner, deployment)
-		machine := env.EventuallyExpectCreatedMachineCount("==", 1)[0]
+		env.ExpectCreated(nodeClass, nodePool, deployment)
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), numPods)
 
-		By("making the machine empty")
+		By("making the nodeclaim empty")
 		persisted := deployment.DeepCopy()
 		deployment.Spec.Replicas = ptr.Int32(0)
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
 
-		By("waiting for the machine emptiness status condition to propagate")
-		EventuallyWithOffset(1, func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(machine), machine)).To(Succeed())
-			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineEmpty)).ToNot(BeNil())
-			g.Expect(machine.StatusConditions().GetCondition(v1alpha5.MachineEmpty).IsTrue()).To(BeTrue())
+		By("waiting for the nodeclaim emptiness status condition to propagate")
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Empty).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
-		By("waiting for the machine to deprovision when past its TTLSecondsAfterEmpty of 0")
-		provisioner.Spec.TTLSecondsAfterEmpty = ptr.Int64(0)
-		env.ExpectUpdated(provisioner)
+		By("waiting for the nodeclaim to deprovision when past its ConsolidateAfter timeout of 0")
+		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
+		env.ExpectUpdated(nodePool)
 
-		env.EventuallyExpectNotFound(machine, node)
+		env.EventuallyExpectNotFound(nodeClaim, node)
 	})
 })

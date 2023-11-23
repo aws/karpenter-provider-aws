@@ -26,13 +26,11 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
 
-	awstest "github.com/aws/karpenter/pkg/test"
 	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
 	"github.com/aws/karpenter/test/pkg/environment/common"
 
@@ -53,40 +51,50 @@ func TestConsolidation(t *testing.T) {
 	RunSpecs(t, "Consolidation")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach() })
+var nodeClass *v1beta1.EC2NodeClass
+
+var _ = BeforeEach(func() {
+	nodeClass = env.DefaultEC2NodeClass()
+	env.BeforeEach()
+})
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Consolidation", func() {
 	It("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents), func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					// we don't replace spot nodes, so this forces us to only delete nodes
-					Values: []string{"spot"},
+		nodePool := test.NodePool(corev1beta1.NodePool{
+			Spec: corev1beta1.NodePoolSpec{
+				Disruption: corev1beta1.Disruption{
+					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+					// Disable Consolidation until we're ready
+					ConsolidateAfter: &corev1beta1.NillableDuration{},
 				},
-				{
-					Key:      v1alpha1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"medium", "large", "xlarge"},
-				},
-				{
-					Key:      v1alpha1.LabelInstanceFamily,
-					Operator: v1.NodeSelectorOpNotIn,
-					// remove some cheap burstable and the odd c1 instance types so we have
-					// more control over what gets provisioned
-					Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
+				Template: corev1beta1.NodeClaimTemplate{
+					Spec: corev1beta1.NodeClaimSpec{
+						Requirements: []v1.NodeSelectorRequirement{
+							{
+								Key:      corev1beta1.CapacityTypeLabelKey,
+								Operator: v1.NodeSelectorOpIn,
+								// we don't replace spot nodes, so this forces us to only delete nodes
+								Values: []string{corev1beta1.CapacityTypeSpot},
+							},
+							{
+								Key:      v1beta1.LabelInstanceSize,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{"medium", "large", "xlarge"},
+							},
+							{
+								Key:      v1beta1.LabelInstanceFamily,
+								Operator: v1.NodeSelectorOpNotIn,
+								// remove some cheap burstable and the odd c1 instance types so we have
+								// more control over what gets provisioned
+								Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
+							},
+						},
+						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+					},
 				},
 			},
-			// prevent emptiness from deleting the nodes
-			TTLSecondsAfterEmpty: aws.Int64(99999),
-			ProviderRef:          &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 
 		var numPods int32 = 100
@@ -104,7 +112,7 @@ var _ = Describe("Consolidation", func() {
 
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		env.ExpectCreatedNodeCount("==", 0)
-		env.ExpectCreated(provisioner, provider, dep)
+		env.ExpectCreated(nodePool, nodeClass, dep)
 
 		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 
@@ -113,11 +121,9 @@ var _ = Describe("Consolidation", func() {
 		env.ExpectUpdated(dep)
 		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, "<", 0.5)
 
-		provisioner.Spec.TTLSecondsAfterEmpty = nil
-		provisioner.Spec.Consolidation = &v1alpha5.Consolidation{
-			Enabled: aws.Bool(true),
-		}
-		env.ExpectUpdated(provisioner)
+		// Enable consolidation as WhenUnderutilized doesn't allow a consolidateAfter value
+		nodePool.Spec.Disruption.ConsolidateAfter = nil
+		env.ExpectUpdated(nodePool)
 
 		// With consolidation enabled, we now must delete nodes
 		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, ">", 0.6)
@@ -125,24 +131,32 @@ var _ = Describe("Consolidation", func() {
 		env.ExpectDeleted(dep)
 	})
 	It("should consolidate on-demand nodes (replace)", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"on-demand"},
+		nodePool := test.NodePool(corev1beta1.NodePool{
+			Spec: corev1beta1.NodePoolSpec{
+				Disruption: corev1beta1.Disruption{
+					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+					// Disable Consolidation until we're ready
+					ConsolidateAfter: &corev1beta1.NillableDuration{},
 				},
-				{
-					Key:      v1alpha1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"large", "2xlarge"},
+				Template: corev1beta1.NodeClaimTemplate{
+					Spec: corev1beta1.NodeClaimSpec{
+						Requirements: []v1.NodeSelectorRequirement{
+							{
+								Key:      corev1beta1.CapacityTypeLabelKey,
+								Operator: v1.NodeSelectorOpIn,
+								// we don't replace spot nodes, so this forces us to only delete nodes
+								Values: []string{corev1beta1.CapacityTypeOnDemand},
+							},
+							{
+								Key:      v1beta1.LabelInstanceSize,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{"large", "2xlarge"},
+							},
+						},
+						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+					},
 				},
 			},
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 
 		var numPods int32 = 3
@@ -195,7 +209,7 @@ var _ = Describe("Consolidation", func() {
 
 		selector := labels.SelectorFromSet(largeDep.Spec.Selector.MatchLabels)
 		env.ExpectCreatedNodeCount("==", 0)
-		env.ExpectCreated(provisioner, provider, largeDep, smallDep)
+		env.ExpectCreated(nodePool, nodeClass, largeDep, smallDep)
 
 		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 
@@ -207,11 +221,8 @@ var _ = Describe("Consolidation", func() {
 		env.ExpectUpdated(largeDep)
 		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, "<", 0.5)
 
-		provisioner.Spec.TTLSecondsAfterEmpty = nil
-		provisioner.Spec.Consolidation = &v1alpha5.Consolidation{
-			Enabled: aws.Bool(true),
-		}
-		env.ExpectUpdated(provisioner)
+		nodePool.Spec.Disruption.ConsolidateAfter = nil
+		env.ExpectUpdated(nodePool)
 
 		// With consolidation enabled, we now must replace each node in turn to consolidate due to the anti-affinity
 		// rules on the smaller deployment.  The 2xl nodes should go to a large
@@ -223,7 +234,7 @@ var _ = Describe("Consolidation", func() {
 		numOtherNodes := 0
 		for _, n := range nodes.Items {
 			// only count the nodes created by the provisoiner
-			if n.Labels[v1alpha5.ProvisionerNameLabelKey] != provisioner.Name {
+			if n.Labels[corev1beta1.NodePoolLabelKey] != nodePool.Name {
 				continue
 			}
 			if strings.HasSuffix(n.Labels[v1.LabelInstanceTypeStable], ".large") {
@@ -241,24 +252,32 @@ var _ = Describe("Consolidation", func() {
 		env.ExpectDeleted(largeDep, smallDep)
 	})
 	It("should consolidate on-demand nodes to spot (replace)", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"on-demand"},
+		nodePool := test.NodePool(corev1beta1.NodePool{
+			Spec: corev1beta1.NodePoolSpec{
+				Disruption: corev1beta1.Disruption{
+					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+					// Disable Consolidation until we're ready
+					ConsolidateAfter: &corev1beta1.NillableDuration{},
 				},
-				{
-					Key:      v1alpha1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"large"},
+				Template: corev1beta1.NodeClaimTemplate{
+					Spec: corev1beta1.NodeClaimSpec{
+						Requirements: []v1.NodeSelectorRequirement{
+							{
+								Key:      corev1beta1.CapacityTypeLabelKey,
+								Operator: v1.NodeSelectorOpIn,
+								// we don't replace spot nodes, so this forces us to only delete nodes
+								Values: []string{corev1beta1.CapacityTypeOnDemand},
+							},
+							{
+								Key:      v1beta1.LabelInstanceSize,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{"large"},
+							},
+						},
+						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+					},
 				},
 			},
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
 		})
 
 		var numPods int32 = 2
@@ -288,7 +307,7 @@ var _ = Describe("Consolidation", func() {
 
 		selector := labels.SelectorFromSet(smallDep.Spec.Selector.MatchLabels)
 		env.ExpectCreatedNodeCount("==", 0)
-		env.ExpectCreated(provisioner, provider, smallDep)
+		env.ExpectCreated(nodePool, nodeClass, smallDep)
 
 		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 		env.ExpectCreatedNodeCount("==", int(numPods))
@@ -296,23 +315,19 @@ var _ = Describe("Consolidation", func() {
 		// Enable spot capacity type after the on-demand node is provisioned
 		// Expect the node to consolidate to a spot instance as it will be a cheaper
 		// instance than on-demand
-		provisioner.Spec.TTLSecondsAfterEmpty = nil
-		provisioner.Spec.Consolidation = &v1alpha5.Consolidation{
-			Enabled: aws.Bool(true),
-		}
-		provisioner.Spec.Requirements = []v1.NodeSelectorRequirement{
-			{
-				Key:      v1alpha5.LabelCapacityType,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"on-demand", "spot"},
+		nodePool.Spec.Disruption.ConsolidateAfter = nil
+		test.ReplaceRequirements(nodePool,
+			v1.NodeSelectorRequirement{
+				Key:      corev1beta1.CapacityTypeLabelKey,
+				Operator: v1.NodeSelectorOpExists,
 			},
-			{
-				Key:      v1alpha1.LabelInstanceSize,
+			v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"large"},
 			},
-		}
-		env.ExpectUpdated(provisioner)
+		)
+		env.ExpectUpdated(nodePool)
 
 		// Eventually expect the on-demand nodes to be consolidated into
 		// spot nodes after some time
@@ -322,11 +337,11 @@ var _ = Describe("Consolidation", func() {
 			var spotNodes []*v1.Node
 			var otherNodes []*v1.Node
 			for i, n := range nodes.Items {
-				// only count the nodes created by the provisioner
-				if n.Labels[v1alpha5.ProvisionerNameLabelKey] != provisioner.Name {
+				// only count the nodes created by the nodePool
+				if n.Labels[corev1beta1.NodePoolLabelKey] != nodePool.Name {
 					continue
 				}
-				if n.Labels[v1alpha5.LabelCapacityType] == v1alpha5.CapacityTypeSpot {
+				if n.Labels[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeSpot {
 					spotNodes = append(spotNodes, &nodes.Items[i])
 				} else {
 					otherNodes = append(otherNodes, &nodes.Items[i])

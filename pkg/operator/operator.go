@@ -37,6 +37,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,9 +48,14 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
+	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/operator"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	"github.com/aws/karpenter/pkg/apis"
 	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instanceprofile"
@@ -58,8 +65,14 @@ import (
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/providers/version"
-	"github.com/aws/karpenter/pkg/utils/project"
 )
+
+func init() {
+	lo.Must0(apis.AddToScheme(scheme.Scheme))
+	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	coreapis.Settings = append(coreapis.Settings, apis.Settings...)
+}
 
 // Operator is injected into the AWS CloudProvider's factories
 type Operator struct {
@@ -85,7 +98,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
 	}
 
-	if assumeRoleARN := settings.FromContext(ctx).AssumeRoleARN; assumeRoleARN != "" {
+	if assumeRoleARN := options.FromContext(ctx).AssumeRoleARN; assumeRoleARN != "" {
 		config.Credentials = stscreds.NewCredentials(session.Must(session.NewSession()), assumeRoleARN,
 			func(provider *stscreds.AssumeRoleProvider) { setDurationAndExpiry(ctx, provider) })
 	}
@@ -167,6 +180,14 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		launchTemplateProvider,
 	)
 
+	lo.Must0(operator.Manager.GetFieldIndexer().IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClassRef.name", func(o client.Object) []string {
+		nc := o.(*corev1beta1.NodeClaim)
+		if nc.Spec.NodeClassRef == nil {
+			return []string{}
+		}
+		return []string{nc.Spec.NodeClassRef.Name}
+	}), "failed to setup nodeclaim indexer")
+
 	return ctx, &Operator{
 		Operator:                  operator,
 		Session:                   sess,
@@ -187,7 +208,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 // withUserAgent adds a karpenter specific user-agent string to AWS session
 func withUserAgent(sess *session.Session) *session.Session {
-	userAgent := fmt.Sprintf("karpenter.sh-%s", project.Version)
+	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
 	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
 	return sess
 }
@@ -204,12 +225,12 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 }
 
 func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
-	clusterEndpointFromSettings := settings.FromContext(ctx).ClusterEndpoint
-	if clusterEndpointFromSettings != "" {
-		return clusterEndpointFromSettings, nil // cluster endpoint is explicitly set
+	clusterEndpointFromOptions := options.FromContext(ctx).ClusterEndpoint
+	if clusterEndpointFromOptions != "" {
+		return clusterEndpointFromOptions, nil // cluster endpoint is explicitly set
 	}
 	out, err := eksAPI.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
-		Name: aws.String(settings.FromContext(ctx).ClusterName),
+		Name: aws.String(options.FromContext(ctx).ClusterName),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
@@ -222,7 +243,7 @@ func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
 	// within the same cluster it's managing.
-	if caBundle := settings.FromContext(ctx).ClusterCABundle; caBundle != "" {
+	if caBundle := options.FromContext(ctx).ClusterCABundle; caBundle != "" {
 		return lo.ToPtr(caBundle), nil
 	}
 	transportConfig, err := restConfig.TransportConfig()
@@ -252,6 +273,6 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 }
 
 func setDurationAndExpiry(ctx context.Context, provider *stscreds.AssumeRoleProvider) {
-	provider.Duration = settings.FromContext(ctx).AssumeRoleDuration
+	provider.Duration = options.FromContext(ctx).AssumeRoleDuration
 	provider.ExpiryWindow = time.Duration(10) * time.Second
 }

@@ -5,11 +5,10 @@ on:
 
 jobs:
   approval-comment:
-    if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale') || startsWith(github.event.review.body, '/karpenter conformance')
-    permissions: write-all
+    if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale') || startsWith(github.event.review.body, '/karpenter versionCompatibility')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
           fetch-depth: 0
       - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
@@ -17,8 +16,9 @@ jobs:
           REVIEW_BODY: ${{ github.event.review.body }}
         run: |
           mkdir -p /tmp/artifacts
-          echo $REVIEW_BODY >> /tmp/artifacts/metadata.txt
-          echo ${{ github.event.pull_request.number }} >> /tmp/artifacts/metadata.txt
-          echo ${{ github.event.review.commit_id }} >> /tmp/artifacts/metadata.txt
+          { echo "$REVIEW_BODY"; echo ${{ github.event.pull_request.number }}; echo ${{ github.event.review.commit_id }}; } >> /tmp/artifacts/metadata.txt
           cat /tmp/artifacts/metadata.txt
-      - uses: ./.github/actions/upload-artifact
+      - uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3
+        with:
+          name: artifacts
+          path: /tmp/artifacts

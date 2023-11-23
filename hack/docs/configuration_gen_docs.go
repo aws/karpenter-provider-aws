@@ -21,7 +21,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/karpenter-core/pkg/operator/options"
+	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
+	"github.com/aws/karpenter/pkg/operator/options"
 )
 
 func main() {
@@ -48,17 +49,20 @@ func main() {
 	topDoc := fmt.Sprintf("%s%s\n\n", startDocSections[0], genStart)
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
-	opts := options.New()
+	fs := &coreoptions.FlagSet {
+		FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
+	}
+	(&coreoptions.Options{}).AddFlags(fs)
+	(&options.Options{}).AddFlags(fs)
 
 	envVarsBlock := "| Environment Variable | CLI Flag | Description |\n"
 	envVarsBlock += "|--|--|--|\n"
-	opts.VisitAll(func(f *flag.Flag) {
+	fs.VisitAll(func(f *flag.Flag) {
 		if f.DefValue == "" {
 			envVarsBlock += fmt.Sprintf("| %s | %s | %s|\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), "\\-\\-"+f.Name, f.Usage)
 		} else {
 			envVarsBlock += fmt.Sprintf("| %s | %s | %s (default = %s)|\n", strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_"), "\\-\\-"+f.Name, f.Usage, f.DefValue)
 		}
-
 	})
 
 	log.Println("writing output to", outputFileName)

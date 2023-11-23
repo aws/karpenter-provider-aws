@@ -4,12 +4,12 @@ Kompat is a simple CLI tool to interact with `compatibility.yaml` files which ho
 
 ## Installation 
 
-```
-go install github.com/aws/karpenter/tools/kompat
+```console
+go install github.com/aws/karpenter/tools/kompat/cmd/kompat@latest
 ```
 
 ## Usage:
 
-```
+```console
 kompat hack/compatibility-karpenter.yaml -n 5
 ```

@@ -39,6 +39,7 @@ import (
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
@@ -53,6 +54,12 @@ const (
 	launchTemplateNameFormat = "karpenter.k8s.aws/%s"
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
+
+type LaunchTemplate struct {
+	Name          string
+	InstanceTypes []*cloudprovider.InstanceType
+	ImageID       string
+}
 
 type Provider struct {
 	sync.Mutex
@@ -97,15 +104,16 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 }
 
 func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim,
-	instanceTypes []*cloudprovider.InstanceType, additionalLabels map[string]string, tags map[string]string) (map[string][]*cloudprovider.InstanceType, error) {
+	instanceTypes []*cloudprovider.InstanceType, capacityType string, tags map[string]string) ([]*LaunchTemplate, error) {
 
 	p.Lock()
 	defer p.Unlock()
 	// If Launch Template is directly specified then just use it
 	if nodeClass.Spec.LaunchTemplateName != nil {
-		return map[string][]*cloudprovider.InstanceType{ptr.StringValue(nodeClass.Spec.LaunchTemplateName): instanceTypes}, nil
+		return []*LaunchTemplate{{Name: ptr.StringValue(nodeClass.Spec.LaunchTemplateName), InstanceTypes: instanceTypes}}, nil
 	}
-	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, additionalLabels), tags)
+
+	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}), tags)
 	if err != nil {
 		return nil, err
 	}
@@ -113,14 +121,14 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 	if err != nil {
 		return nil, err
 	}
-	launchTemplates := map[string][]*cloudprovider.InstanceType{}
+	var launchTemplates []*LaunchTemplate
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
-		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
+		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, capacityType, resolvedLaunchTemplate)
 		if err != nil {
 			return nil, err
 		}
-		launchTemplates[*ec2LaunchTemplate.LaunchTemplateName] = resolvedLaunchTemplate.InstanceTypes
+		launchTemplates = append(launchTemplates, &LaunchTemplate{Name: *ec2LaunchTemplate.LaunchTemplateName, InstanceTypes: resolvedLaunchTemplate.InstanceTypes, ImageID: resolvedLaunchTemplate.AMIID})
 	}
 	return launchTemplates, nil
 }
@@ -145,10 +153,11 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 }
 
 func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
-	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" since the kubelet can't
+	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" or "kops.k8s.io" since the kubelet can't
 	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
 	for k := range labels {
-		if strings.HasPrefix(k, v1.LabelNamespaceNodeRestriction) {
+		labelDomain := corev1beta1.GetLabelDomain(k)
+		if strings.HasSuffix(labelDomain, v1.LabelNamespaceNodeRestriction) || strings.HasSuffix(labelDomain, "kops.k8s.io") {
 			delete(labels, k)
 		}
 	}
@@ -165,7 +174,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	options := &amifamily.Options{
-		ClusterName:             settings.FromContext(ctx).ClusterName,
+		ClusterName:             options.FromContext(ctx).ClusterName,
 		ClusterEndpoint:         p.ClusterEndpoint,
 		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
 		InstanceProfile:         instanceProfile,
@@ -189,7 +198,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	return options, nil
 }
 
-func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) ensureLaunchTemplate(ctx context.Context, capacityType string, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
@@ -204,7 +213,7 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.
 	})
 	// Create LT if one doesn't exist
 	if awserrors.IsNotFound(err) {
-		launchTemplate, err = p.createLaunchTemplate(ctx, options)
+		launchTemplate, err = p.createLaunchTemplate(ctx, capacityType, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
 		}
@@ -222,10 +231,17 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.
 	return launchTemplate, nil
 }
 
-func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	userData, err := options.UserData.Script()
 	if err != nil {
 		return nil, err
+	}
+	launchTemplateDataTags := []*ec2.LaunchTemplateTagSpecificationRequest{
+		{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
+	}
+	// Add the spot-instances-request tag if trying to launch spot capacity
+	if capacityType == corev1beta1.CapacityTypeSpot {
+		launchTemplateDataTags = append(launchTemplateDataTags, &ec2.LaunchTemplateTagSpecificationRequest{ResourceType: aws.String(ec2.ResourceTypeSpotInstancesRequest), Tags: utils.MergeTags(options.Tags)})
 	}
 	networkInterface := p.generateNetworkInterface(options)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
@@ -249,9 +265,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
 			NetworkInterfaces: networkInterface,
-			TagSpecifications: []*ec2.LaunchTemplateTagSpecificationRequest{
-				{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
-			},
+			TagSpecifications: launchTemplateDataTags,
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{
@@ -321,7 +335,7 @@ func (p *Provider) volumeSize(quantity *resource.Quantity) *int64 {
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *Provider) hydrateCache(ctx context.Context) {
-	clusterName := settings.FromContext(ctx).ClusterName
+	clusterName := options.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},

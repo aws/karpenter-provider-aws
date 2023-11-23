@@ -12,7 +12,7 @@ kind: ClusterConfig
 metadata:
   name: ${CLUSTER_NAME}
   region: ${AWS_DEFAULT_REGION}
-  version: "1.27"
+  version: "${K8S_VERSION}"
   tags:
     karpenter.sh/discovery: ${CLUSTER_NAME}
 
@@ -21,7 +21,7 @@ iam:
   serviceAccounts:
   - metadata:
       name: karpenter
-      namespace: karpenter
+      namespace: "${KARPENTER_NAMESPACE}"
     roleName: ${CLUSTER_NAME}-karpenter
     attachPolicyARNs:
     - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
@@ -33,6 +33,9 @@ iamIdentityMappings:
   groups:
   - system:bootstrappers
   - system:nodes
+  ## If you intend to run Windows workloads, the kube-proxy group should be specified.
+  # For more information, see https://github.com/aws/karpenter/issues/5099.
+  # - eks:kube-proxy-windows
 
 managedNodeGroups:
 - instanceType: m5.large
@@ -46,7 +49,7 @@ managedNodeGroups:
 # fargateProfiles:
 # - name: karpenter
 #  selectors:
-#  - namespace: karpenter
+#  - namespace: "${KARPENTER_NAMESPACE}"
 EOF
 
 export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"

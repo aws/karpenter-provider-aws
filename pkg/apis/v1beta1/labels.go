@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -39,7 +38,6 @@ func init() {
 		LabelInstanceCPU,
 		LabelInstanceMemory,
 		LabelInstanceNetworkBandwidth,
-		LabelInstancePods,
 		LabelInstanceGPUName,
 		LabelInstanceGPUManufacturer,
 		LabelInstanceGPUCount,
@@ -56,8 +54,6 @@ const (
 )
 
 var (
-	CapacityTypeSpot       = ec2.DefaultTargetCapacityTypeSpot
-	CapacityTypeOnDemand   = ec2.DefaultTargetCapacityTypeOnDemand
 	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                  v1beta1.ArchitectureAmd64,
 		v1beta1.ArchitectureArm64: v1beta1.ArchitectureArm64,
@@ -78,20 +74,12 @@ var (
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.NodePoolLabelKey))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.ManagedByAnnotationKey))),
 	}
-	AMIFamilyBottlerocket = "Bottlerocket"
-	AMIFamilyAL2          = "AL2"
-	AMIFamilyUbuntu       = "Ubuntu"
-	AMIFamilyWindows2019  = "Windows2019"
-	AMIFamilyWindows2022  = "Windows2022"
-	AMIFamilyCustom       = "Custom"
-	SupportedAMIFamilies  = []string{
-		AMIFamilyBottlerocket,
-		AMIFamilyAL2,
-		AMIFamilyUbuntu,
-		AMIFamilyWindows2019,
-		AMIFamilyWindows2022,
-		AMIFamilyCustom,
-	}
+	AMIFamilyBottlerocket                      = "Bottlerocket"
+	AMIFamilyAL2                               = "AL2"
+	AMIFamilyUbuntu                            = "Ubuntu"
+	AMIFamilyWindows2019                       = "Windows2019"
+	AMIFamilyWindows2022                       = "Windows2022"
+	AMIFamilyCustom                            = "Custom"
 	Windows2019                                = "2019"
 	Windows2022                                = "2022"
 	WindowsCore                                = "Core"
@@ -104,7 +92,7 @@ var (
 	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 
-	LabelNodeClass = Group + "/nodeclass"
+	LabelNodeClass = Group + "/ec2nodeclass"
 
 	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"
@@ -116,7 +104,6 @@ var (
 	LabelInstanceCPU                          = Group + "/instance-cpu"
 	LabelInstanceMemory                       = Group + "/instance-memory"
 	LabelInstanceNetworkBandwidth             = Group + "/instance-network-bandwidth"
-	LabelInstancePods                         = Group + "/instance-pods"
 	LabelInstanceGPUName                      = Group + "/instance-gpu-name"
 	LabelInstanceGPUManufacturer              = Group + "/instance-gpu-manufacturer"
 	LabelInstanceGPUCount                     = Group + "/instance-gpu-count"
@@ -124,6 +111,6 @@ var (
 	LabelInstanceAcceleratorName              = Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = Group + "/instance-accelerator-count"
-	AnnotationNodeClassHash                   = Group + "/nodeclass-hash"
+	AnnotationNodeClassHash                   = Group + "/ec2nodeclass-hash"
 	AnnotationInstanceTagged                  = Group + "/tagged"
 )

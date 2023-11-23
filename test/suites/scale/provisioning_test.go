@@ -26,11 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awstest "github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
@@ -38,41 +36,20 @@ import (
 const testGroup = "provisioning"
 
 var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
-	var provisioner *v1alpha5.Provisioner
-	var nodeTemplate *v1alpha1.AWSNodeTemplate
+	var nodePool *corev1beta1.NodePool
+	var nodeClass *v1beta1.EC2NodeClass
 	var deployment *appsv1.Deployment
 	var selector labels.Selector
 	var dsCount int
 
 	BeforeEach(func() {
-		nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner = test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{
-				Name: nodeTemplate.Name,
-			},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{v1alpha1.CapacityTypeOnDemand},
-				},
-				{
-					Key:      v1.LabelOSStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{string(v1.Linux)},
-				},
-				{
-					Key:      "karpenter.k8s.aws/instance-hypervisor",
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"nitro"},
-				},
-			},
-			// No limits!!!
-			// https://tenor.com/view/chaos-gif-22919457
-			Limits: v1.ResourceList{},
+		nodeClass = env.DefaultEC2NodeClass()
+		nodePool = env.DefaultNodePool(nodeClass)
+		nodePool.Spec.Limits = nil
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      v1beta1.LabelInstanceHypervisor,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"nitro"},
 		})
 		deployment = test.Deployment(test.DeploymentOptions{
 			PodOptions: test.PodOptions{
@@ -87,7 +64,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		})
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
 		// Get the DS pod count and use it to calculate the DS pod overhead
-		dsCount = env.GetDaemonSetCount(provisioner)
+		dsCount = env.GetDaemonSetCount(nodePool)
 	})
 	It("should scale successfully on a node-dense scale-up", Label(debug.NoEvents), func(_ context.Context) {
 		// Disable Prefix Delegation for the node-dense scale-up to not exhaust the IPs
@@ -118,10 +95,10 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		env.EventuallyExpectPendingPodCount(selector, replicas)
 
 		env.MeasureProvisioningDurationFor(func() {
-			By("kicking off provisioning by applying the provisioner and nodeTemplate")
-			env.ExpectCreated(provisioner, nodeTemplate)
+			By("kicking off provisioning by applying the nodePool and nodeClass")
+			env.ExpectCreated(nodePool, nodeClass)
 
-			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
@@ -139,16 +116,15 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		expectedNodeCount := 60
 		replicas := replicasPerNode * expectedNodeCount
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-		provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 		}
-		provisioner.Spec.Requirements = append(provisioner.Spec.Requirements,
-			v1.NodeSelectorRequirement{
-				// With Prefix Delegation enabled, .large instances can have 434 pods.
-				Key:      v1alpha1.LabelInstanceSize,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"large"},
-			},
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			// With Prefix Delegation enabled, .large instances can have 434 pods.
+			Key:      v1beta1.LabelInstanceSize,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"large"},
+		},
 		)
 
 		env.MeasureProvisioningDurationFor(func() {
@@ -156,10 +132,10 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			env.ExpectCreated(deployment)
 			env.EventuallyExpectPendingPodCount(selector, replicas)
 
-			By("kicking off provisioning by applying the provisioner and nodeTemplate")
-			env.ExpectCreated(provisioner, nodeTemplate)
+			By("kicking off provisioning by applying the nodePool and nodeClass")
+			env.ExpectCreated(nodePool, nodeClass)
 
-			env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)

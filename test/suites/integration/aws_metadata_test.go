@@ -20,35 +20,21 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-
-	awstest "github.com/aws/karpenter/pkg/test"
+	coretest "github.com/aws/karpenter-core/pkg/test"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 var _ = Describe("MetadataOptions", func() {
 	It("should use specified metadata options", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{
-			AWS: v1alpha1.AWS{
-				SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-				LaunchTemplate: v1alpha1.LaunchTemplate{
-					MetadataOptions: &v1alpha1.MetadataOptions{
-						HTTPEndpoint:            aws.String("enabled"),
-						HTTPProtocolIPv6:        aws.String("enabled"),
-						HTTPPutResponseHopLimit: aws.Int64(1),
-						HTTPTokens:              aws.String("required"),
-					},
-				},
-			},
-		})
+		nodeClass.Spec.MetadataOptions = &v1beta1.MetadataOptions{
+			HTTPEndpoint:            aws.String("enabled"),
+			HTTPProtocolIPv6:        aws.String("enabled"),
+			HTTPPutResponseHopLimit: aws.Int64(1),
+			HTTPTokens:              aws.String("required"),
+		}
+		pod := coretest.Pod()
 
-		provisioner := test.Provisioner(test.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name}})
-		pod := test.Pod()
-
-		env.ExpectCreated(pod, provider, provisioner)
+		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("MetadataOptions", HaveValue(Equal(ec2.InstanceMetadataOptionsResponse{

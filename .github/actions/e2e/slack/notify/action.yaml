@@ -14,26 +14,27 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       with:
         ref: ${{ inputs.git_ref }}
-    - shell: bash
+    - id: get-run-name
+      shell: bash
       run: |
         if [[ ${{ github.event_name }} == "schedule" ]]; then
           RUN_NAME="${{ inputs.suite }}-periodic"
         else
           RUN_NAME="${{ inputs.suite }}-${GITHUB_SHA::7}"
         fi
-        
+
         # Convert the RUN_NAME to all lowercase
-        echo RUN_NAME=${RUN_NAME,,} >> $GITHUB_ENV
+        echo RUN_NAME=${RUN_NAME,,} >> $GITHUB_OUTPUT
     - uses: ./.github/actions/e2e/slack/send-message
       if: ${{ job.status == 'success' }}
       with:
         url: ${{ inputs.url }}
-        message: ":white_check_mark: ${{ env.RUN_NAME }} (https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})"
+        message: ":white_check_mark: ${{ steps.get-run-name.outputs.RUN_NAME }} (https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})"
     - uses: ./.github/actions/e2e/slack/send-message
       if: ${{ job.status == 'failure' }}
       with:
         url: ${{ inputs.url }}
-        message: ":x: ${{ env.RUN_NAME }} (https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})"
+        message: ":x: ${{ steps.get-run-name.outputs.RUN_NAME }} (https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})"

@@ -22,38 +22,23 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/samber/lo"
-
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awstest "github.com/aws/karpenter/pkg/test"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-core/pkg/test"
 )
 
 var _ = Describe("DaemonSet", func() {
-	var provider *v1alpha1.AWSNodeTemplate
-	var provisioner *v1alpha5.Provisioner
 	var limitrange *v1.LimitRange
 	var priorityclass *schedulingv1.PriorityClass
 	var daemonset *appsv1.DaemonSet
 	var dep *appsv1.Deployment
 
 	BeforeEach(func() {
-		provider = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner = test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-			Consolidation: &v1alpha5.Consolidation{
-				Enabled: lo.ToPtr(true),
-			},
-		})
+		nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+		nodePool.Spec.Disruption.ConsolidateAfter = nil
 		priorityclass = &schedulingv1.PriorityClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "high-priority-daemonsets",
@@ -100,7 +85,7 @@ var _ = Describe("DaemonSet", func() {
 
 		podSelector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		daemonSetSelector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
-		env.ExpectCreated(provisioner, provider, limitrange, priorityclass, daemonset, dep)
+		env.ExpectCreated(nodeClass, nodePool, limitrange, priorityclass, daemonset, dep)
 
 		// Eventually expect a single node to exist and both the deployment pod and the daemonset pod to schedule to it
 		Eventually(func(g Gomega) {
@@ -131,7 +116,7 @@ var _ = Describe("DaemonSet", func() {
 
 		podSelector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		daemonSetSelector := labels.SelectorFromSet(daemonset.Spec.Selector.MatchLabels)
-		env.ExpectCreated(provisioner, provider, limitrange, priorityclass, daemonset, dep)
+		env.ExpectCreated(nodeClass, nodePool, limitrange, priorityclass, daemonset, dep)
 
 		// Eventually expect a single node to exist and both the deployment pod and the daemonset pod to schedule to it
 		Eventually(func(g Gomega) {

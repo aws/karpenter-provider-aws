@@ -1,12 +1,8 @@
 export K8S_VERSION ?= 1.27.x
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
-## Inject the app version into project.Version
-ifdef SNAPSHOT_TAG
-LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(SNAPSHOT_TAG)
-else
-LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter/pkg/utils/project.Version=$(shell git describe --tags --always)
-endif
+## Inject the app version into operator.Version
+LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter-core/pkg/operator.Version=$(shell git describe --tags --always)
 
 GOFLAGS ?= $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
@@ -16,11 +12,11 @@ CLUSTER_ENDPOINT ?= $(shell kubectl config view --minify -o jsonpath='{.clusters
 AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output text)
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
-      		--set settings.aws.clusterName=${CLUSTER_NAME} \
-			--set settings.aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
+      		--set settings.clusterName=${CLUSTER_NAME} \
+			--set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
 			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-			--set settings.aws.interruptionQueueName=${CLUSTER_NAME} \
-			--set settings.featureGates.driftEnabled=true \
+			--set settings.interruptionQueue=${CLUSTER_NAME} \
+			--set settings.featureGates.drift=true \
 			--set controller.resources.requests.cpu=1 \
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
@@ -34,7 +30,7 @@ KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-karpenter/scripts
 
 # Common Directories
-MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
+MOD_DIRS = $(shell find . -path "./website" -prune -o -name go.mod -type f -print | xargs dirname)
 KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' github.com/aws/karpenter-core)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
@@ -46,40 +42,45 @@ help: ## Display help
 
 presubmit: verify test ## Run all steps in the developer loop
 
-ci-test: battletest coverage ## Runs tests and submits coverage
+ci-test: test coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
 run: ## Run Karpenter controller binary against your local cluster
 	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
-		--from-literal=aws.clusterName=${CLUSTER_NAME} \
-		--from-literal=aws.clusterEndpoint=${CLUSTER_ENDPOINT} \
 		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-		--from-literal=aws.interruptionQueueName=${CLUSTER_NAME} \
-		--from-literal=featureGates.driftEnabled=true \
 		--dry-run=client -o yaml | kubectl apply -f -
 
 
-	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} KUBERNETES_MIN_VERSION="1.19.0-0" LEADER_ELECT=false DISABLE_WEBHOOK=true \
+	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} \
+		KUBERNETES_MIN_VERSION="1.19.0-0" \
+		LEADER_ELECT=false \
+		DISABLE_WEBHOOK=true \
+		CLUSTER_NAME=${CLUSTER_NAME} \
+		CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
+		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		FEATURE_GATES="Drift=true" \
 		go run ./cmd/controller/main.go
 
 clean-run: ## Clean resources deployed by the run target
 	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
 
 test: ## Run tests
-	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
-
-battletest: ## Run randomized, racing, code-covered tests
-	go test -v ./pkg/... \
-		-race \
-		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
+	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
+		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
-		--ginkgo.vv \
-		-tags random_test_delay
+		--ginkgo.vv
+	cd tools/karpenter-convert && go test -v ./pkg/... \
+		--ginkgo.focus="${FOCUS}" \
+		--ginkgo.randomize-all \
+		--ginkgo.vv
 
 e2etests: ## Run the e2e suite against your local cluster
-	cd test && CLUSTER_NAME=${CLUSTER_NAME} go test \
+	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
+		CLUSTER_NAME=${CLUSTER_NAME} \
+		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		go test \
 		-p 1 \
 		-count 1 \
 		-timeout ${TEST_TIMEOUT} \
@@ -103,7 +104,7 @@ benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
 deflake: ## Run randomized, racing, code-covered tests to deflake failures
-	for i in $(shell seq 1 5); do make battletest || exit 1; done
+	for i in $(shell seq 1 5); do make test || exit 1; done
 
 deflake-until-it-fails: ## Run randomized, racing tests until the test fails to catch flakes
 	ginkgo \
@@ -121,6 +122,8 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
+	hack/validation/requirements.sh
+	hack/validation/labels.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -129,6 +132,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -print0 | xargs -0 -I {} go build -o /dev/null {}
+	actionlint -oneline
 
 vulncheck: ## Verify code vulnerabilities
 	@govulncheck ./pkg/...
@@ -169,7 +173,10 @@ codegen: ## Auto generate files based on AWS APIs response
 stable-release-pr: ## Generate PR for stable release
 	$(WITH_GOFLAGS) ./hack/release/stable-pr.sh
 
-release: ## Builds and publishes stable release if env var RELEASE_VERSION is set, or a snapshot release otherwise
+snapshot: ## Builds and publishes snapshot release
+	$(WITH_GOFLAGS) ./hack/release/snapshot.sh
+
+release: ## Builds and publishes stable release
 	$(WITH_GOFLAGS) ./hack/release/release.sh
 
 release-crd: ## Packages and publishes a karpenter-crd helm chart
@@ -188,7 +195,7 @@ issues: ## Run GitHub issue analysis scripts
 	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
 website: ## Serve the docs website locally
-	cd website && npm install && git submodule update --init --recursive && hugo server
+	cd website && npm install && hugo mod tidy && hugo server
 
 tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod tidy $(newline))
@@ -200,7 +207,7 @@ update-core: ## Update karpenter-core to latest
 	go get -u github.com/aws/karpenter-core@HEAD
 	go mod tidy
 
-.PHONY: help dev ci release test battletest e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
+.PHONY: help dev ci release test e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
 
 define newline
 

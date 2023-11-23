@@ -19,19 +19,19 @@ jobs:
     steps:
       # Download the artifact and resolve the commit if initiated by PR snapshot
       # Otherwise, use the currently checked-out branch to run the E2E tests against
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - if: github.event_name == 'workflow_run'
         uses: ./.github/actions/download-artifact
       - id: resolve-step
         run: |
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            if [[ $(head -n 1 /tmp/artifacts/metadata.txt) == *"${{ inputs.allowed_comment }}"* ]]; then
-               echo SHOULD_RUN=true >> $GITHUB_OUTPUT
+            if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" == *"${{ inputs.allowed_comment }}"* ]]; then
+               echo SHOULD_RUN=true >> "$GITHUB_OUTPUT"
             else
-               echo SHOULD_RUN=false >> $GITHUB_OUTPUT
+               echo SHOULD_RUN=false >> "$GITHUB_OUTPUT"
             fi
-            echo GIT_REF=$(tail -n 1 /tmp/artifacts/metadata.txt  ) >> $GITHUB_OUTPUT
+            echo GIT_REF="$(tail -n 1 /tmp/artifacts/metadata.txt)" >> "$GITHUB_OUTPUT"
           else
-            echo SHOULD_RUN=true >> $GITHUB_OUTPUT
-            echo GIT_REF="" >> $GITHUB_OUTPUT
+            echo SHOULD_RUN=true >> "$GITHUB_OUTPUT"
+            echo GIT_REF="" >> "$GITHUB_OUTPUT"
           fi

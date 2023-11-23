@@ -22,8 +22,8 @@ import (
 	"strings"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
-	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -40,10 +40,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
 	"github.com/aws/karpenter-core/pkg/scheduling"
 	"github.com/aws/karpenter-core/pkg/test"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -96,24 +96,96 @@ func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
 	}
 }
 
-// ExpectSettings gets the karpenter-global-settings ConfigMap
-func (env *Environment) ExpectSettings() *v1.ConfigMap {
+func (env *Environment) ExpectSettings() (res []v1.EnvVar) {
+	GinkgoHelper()
+
+	d := &appsv1.Deployment{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+	return lo.Map(d.Spec.Template.Spec.Containers[0].Env, func(v v1.EnvVar, _ int) v1.EnvVar {
+		return *v.DeepCopy()
+	})
+}
+
+func (env *Environment) ExpectSettingsReplaced(vars ...v1.EnvVar) {
+	GinkgoHelper()
+
+	d := &appsv1.Deployment{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+	stored := d.DeepCopy()
+	d.Spec.Template.Spec.Containers[0].Env = vars
+
+	if !equality.Semantic.DeepEqual(d, stored) {
+		By("replacing environment variables for karpenter deployment")
+		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		env.EventuallyExpectKarpenterRestarted()
+	}
+}
+
+func (env *Environment) ExpectSettingsOverridden(vars ...v1.EnvVar) {
+	GinkgoHelper()
+
+	d := &appsv1.Deployment{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+	stored := d.DeepCopy()
+	for _, v := range vars {
+		if _, i, ok := lo.FindIndexOf(d.Spec.Template.Spec.Containers[0].Env, func(e v1.EnvVar) bool {
+			return e.Name == v.Name
+		}); ok {
+			d.Spec.Template.Spec.Containers[0].Env[i] = v
+		} else {
+			d.Spec.Template.Spec.Containers[0].Env = append(d.Spec.Template.Spec.Containers[0].Env, v)
+		}
+	}
+	if !equality.Semantic.DeepEqual(d, stored) {
+		By("overriding environment variables for karpenter deployment")
+		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		env.EventuallyExpectKarpenterRestarted()
+	}
+}
+
+func (env *Environment) ExpectSettingsRemoved(vars ...v1.EnvVar) {
+	GinkgoHelper()
+
+	varNames := sets.New[string](lo.Map(vars, func(v v1.EnvVar, _ int) string { return v.Name })...)
+
+	d := &appsv1.Deployment{}
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
+
+	stored := d.DeepCopy()
+	d.Spec.Template.Spec.Containers[0].Env = lo.Reject(d.Spec.Template.Spec.Containers[0].Env, func(v v1.EnvVar, _ int) bool {
+		return varNames.Has(v.Name)
+	})
+	if !equality.Semantic.DeepEqual(d, stored) {
+		By("removing environment variables for karpenter deployment")
+		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		env.EventuallyExpectKarpenterRestarted()
+	}
+}
+
+// ExpectSettingsLegacy gets the karpenter-global-settings ConfigMap
+func (env *Environment) ExpectSettingsLegacy() *v1.ConfigMap {
 	GinkgoHelper()
 	return env.ExpectConfigMapExists(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"})
 }
 
-// ExpectSettingsReplaced performs a full replace of the settings, replacing the existing data
+// ExpectSettingsReplacedLegacy performs a full replace of the settings, replacing the existing data
 // with the data passed through
-func (env *Environment) ExpectSettingsReplaced(data ...map[string]string) {
+func (env *Environment) ExpectSettingsReplacedLegacy(data ...map[string]string) {
 	GinkgoHelper()
 	if env.ExpectConfigMapDataReplaced(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
 		env.EventuallyExpectKarpenterRestarted()
 	}
 }
 
-// ExpectSettingsOverridden overrides specific values specified through data. It only overrides
+// ExpectSettingsOverriddenLegacy overrides specific values specified through data. It only overrides
 // or inserts the specific values specified and does not upsert any of the existing data
-func (env *Environment) ExpectSettingsOverridden(data ...map[string]string) {
+func (env *Environment) ExpectSettingsOverriddenLegacy(data ...map[string]string) {
 	GinkgoHelper()
 	if env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
 		env.EventuallyExpectKarpenterRestarted()
@@ -188,13 +260,13 @@ func (env *Environment) ExpectPodENIDisabled() {
 func (env *Environment) ExpectPrefixDelegationEnabled() {
 	GinkgoHelper()
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_PREFIX_DELEGATION", "true")
+		"ENABLE_PREFIX_DELEGATION", "true", "aws-node")
 }
 
 func (env *Environment) ExpectPrefixDelegationDisabled() {
 	GinkgoHelper()
 	env.ExpectDaemonSetEnvironmentVariableUpdated(types.NamespacedName{Namespace: "kube-system", Name: "aws-node"},
-		"ENABLE_PREFIX_DELEGATION", "false")
+		"ENABLE_PREFIX_DELEGATION", "false", "aws-node")
 }
 
 func (env *Environment) ExpectExists(obj client.Object) {
@@ -226,6 +298,11 @@ func (env *Environment) EventuallyExpectKarpenterRestarted() {
 	GinkgoHelper()
 	By("rolling out the new karpenter deployment")
 	env.EventuallyExpectRollout("karpenter", "karpenter")
+	env.ExpectKarpenterLeaseOwnerChanged()
+}
+
+func (env *Environment) ExpectKarpenterLeaseOwnerChanged() {
+	GinkgoHelper()
 
 	By("waiting for a new karpenter pod to hold the lease")
 	pods := env.ExpectKarpenterPods()
@@ -299,22 +376,26 @@ func (env *Environment) ExpectActiveKarpenterPod() *v1.Pod {
 }
 
 func (env *Environment) EventuallyExpectPendingPodCount(selector labels.Selector, numPods int) {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.PendingPodsCount(selector)).To(Equal(numPods))
 	}).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
+func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) []*v1.Pod {
 	By(fmt.Sprintf("waiting for %d pods matching selector %s to be ready", numPods, selector.String()))
 	GinkgoHelper()
-	env.EventuallyExpectHealthyPodCountWithTimeout(-1, selector, numPods)
+	return env.EventuallyExpectHealthyPodCountWithTimeout(-1, selector, numPods)
 }
 
-func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.Duration, selector labels.Selector, numPods int) {
+func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.Duration, selector labels.Selector, numPods int) []*v1.Pod {
 	GinkgoHelper()
-	EventuallyWithOffset(1, func(g Gomega) {
-		g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
+	var pods []*v1.Pod
+	Eventually(func(g Gomega) {
+		pods = env.Monitor.RunningPods(selector)
+		g.Expect(pods).To(HaveLen(numPods))
 	}).WithTimeout(timeout).Should(Succeed())
+	return pods
 }
 
 func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*v1.Pod {
@@ -325,36 +406,34 @@ func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*
 	return lo.ToSlicePtr(podList.Items)
 }
 
-func (env *Environment) ExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
-	pods := env.Monitor.RunningPods(selector)
-	nodeNames := sets.NewString()
-	for _, pod := range pods {
-		nodeNames.Insert(pod.Spec.NodeName)
-	}
-	ExpectWithOffset(1, len(nodeNames)).To(BeNumerically("==", uniqueNames))
+func (env *Environment) EventuallyExpectUniqueNodeNames(selector labels.Selector, uniqueNames int) {
+	GinkgoHelper()
+
+	Eventually(func(g Gomega) {
+		pods := env.Monitor.RunningPods(selector)
+		nodeNames := sets.NewString()
+		for _, pod := range pods {
+			nodeNames.Insert(pod.Spec.NodeName)
+		}
+		g.Expect(len(nodeNames)).To(BeNumerically("==", uniqueNames))
+	}).Should(Succeed())
 }
 
 func (env *Environment) eventuallyExpectScaleDown() {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		// expect the current node count to be what it was when the test started
 		g.Expect(env.Monitor.NodeCount()).To(Equal(env.StartingNodeCount))
 	}).Should(Succeed(), fmt.Sprintf("expected scale down to %d nodes, had %d", env.StartingNodeCount, env.Monitor.NodeCount()))
 }
 
 func (env *Environment) EventuallyExpectNotFound(objects ...client.Object) {
-	env.EventuallyExpectNotFoundWithOffset(1, objects...)
-}
-
-func (env *Environment) EventuallyExpectNotFoundWithOffset(offset int, objects ...client.Object) {
-	env.EventuallyExpectNotFoundAssertionWithOffset(offset+1, objects...).Should(Succeed())
+	GinkgoHelper()
+	env.EventuallyExpectNotFoundAssertion(objects...).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectNotFoundAssertion(objects ...client.Object) AsyncAssertion {
-	return env.EventuallyExpectNotFoundAssertionWithOffset(1, objects...)
-}
-
-func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, objects ...client.Object) AsyncAssertion {
-	return EventuallyWithOffset(offset, func(g Gomega) {
+	return Eventually(func(g Gomega) {
 		for _, object := range objects {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(object), object)
 			g.Expect(errors.IsNotFound(err)).To(BeTrue())
@@ -363,8 +442,9 @@ func (env *Environment) EventuallyExpectNotFoundAssertionWithOffset(offset int, 
 }
 
 func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
 	createdNodes := env.Monitor.CreatedNodes()
-	ExpectWithOffset(1, len(createdNodes)).To(BeNumerically(comparator, count),
+	Expect(len(createdNodes)).To(BeNumerically(comparator, count),
 		fmt.Sprintf("expected %d created nodes, had %d (%v)", count, len(createdNodes), NodeNames(createdNodes)))
 	return createdNodes
 }
@@ -405,16 +485,27 @@ func (env *Environment) ConsistentlyExpectMachineCount(comparator string, count 
 	return lo.ToSlicePtr(machineList.Items)
 }
 
-func (env *Environment) EventuallyExpectCordonedNodeCount(comparator string, count int) []*v1.Node {
+func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {
 	GinkgoHelper()
-	By(fmt.Sprintf("waiting for cordoned nodes to be %s to %d", comparator, count))
+	By(fmt.Sprintf("waiting for tainted nodes to be %s to %d", comparator, count))
 	nodeList := &v1.NodeList{}
 	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.unschedulable": "true"})).To(Succeed())
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
 		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d cordoned nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+			fmt.Sprintf("expected %d tainted nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
+}
+
+func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for %d nodes to be untainted", len(nodes)))
+	nodeList := &v1.NodeList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
+		taintedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
+		g.Expect(taintedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
+	}).WithTimeout(timeout).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) []*v1.Node {
@@ -454,9 +545,10 @@ func (env *Environment) EventuallyExpectNodeCountWithSelector(comparator string,
 }
 
 func (env *Environment) EventuallyExpectCreatedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
 	By(fmt.Sprintf("waiting for created nodes to be %s to %d", comparator, count))
 	var createdNodes []*v1.Node
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		createdNodes = env.Monitor.CreatedNodes()
 		g.Expect(len(createdNodes)).To(BeNumerically(comparator, count),
 			fmt.Sprintf("expected %d created nodes, had %d (%v)", count, len(createdNodes), NodeNames(createdNodes)))
@@ -492,12 +584,13 @@ func (env *Environment) EventuallyExpectDeletedNodeCountWithSelector(comparator 
 }
 
 func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, count int) []*v1.Node {
+	GinkgoHelper()
 	By(fmt.Sprintf("waiting for initialized nodes to be %s to %d", comparator, count))
 	var nodes []*v1.Node
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		nodes = env.Monitor.CreatedNodes()
 		nodes = lo.Filter(nodes, func(n *v1.Node, _ int) bool {
-			return n.Labels[v1alpha5.LabelNodeInitialized] == "true"
+			return n.Labels[corev1beta1.NodeInitializedLabelKey] == "true"
 		})
 		g.Expect(len(nodes)).To(BeNumerically(comparator, count))
 	}).Should(Succeed())
@@ -505,9 +598,10 @@ func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, 
 }
 
 func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, count int) []*v1alpha5.Machine {
+	GinkgoHelper()
 	By(fmt.Sprintf("waiting for created machines to be %s to %d", comparator, count))
 	machineList := &v1alpha5.MachineList{}
-	EventuallyWithOffset(1, func(g Gomega) {
+	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env.Context, machineList)).To(Succeed())
 		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count))
 	}).Should(Succeed())
@@ -526,17 +620,42 @@ func (env *Environment) EventuallyExpectMachinesReady(machines ...*v1alpha5.Mach
 	}).Should(Succeed())
 }
 
+func (env *Environment) EventuallyExpectCreatedNodeClaimCount(comparator string, count int) []*corev1beta1.NodeClaim {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for created nodeclaims to be %s to %d", comparator, count))
+	nodeClaimList := &corev1beta1.NodeClaimList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env.Context, nodeClaimList)).To(Succeed())
+		g.Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
+	}).Should(Succeed())
+	return lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) *corev1beta1.NodeClaim {
+		return &nc
+	})
+}
+
+func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1beta1.NodeClaim) {
+	Eventually(func(g Gomega) {
+		for _, nc := range nodeClaims {
+			temp := &corev1beta1.NodeClaim{}
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), temp)).Should(Succeed())
+			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
+		}
+	}).Should(Succeed())
+}
+
 func (env *Environment) GetNode(nodeName string) v1.Node {
+	GinkgoHelper()
 	var node v1.Node
-	ExpectWithOffset(1, env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: nodeName}, &node)).To(Succeed())
 	return node
 }
 
 func (env *Environment) ExpectNoCrashes() {
+	GinkgoHelper()
 	_, crashed := lo.Find(lo.Values(env.Monitor.RestartCount()), func(restartCount int) bool {
 		return restartCount > 0
 	})
-	ExpectWithOffset(1, crashed).To(BeFalse(), "expected karpenter containers to not crash")
+	Expect(crashed).To(BeFalse(), "expected karpenter containers to not crash")
 }
 
 var (
@@ -573,13 +692,15 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 }
 
 func (env *Environment) EventuallyExpectMinUtilization(resource v1.ResourceName, comparator string, value float64) {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.MinUtilization(resource)).To(BeNumerically(comparator, value))
 	}).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName, comparator string, value float64) {
-	EventuallyWithOffset(1, func(g Gomega) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
 	}, 10*time.Minute).Should(Succeed())
 }
@@ -616,15 +737,18 @@ func (env *Environment) ExpectCABundle() string {
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
 	// within the same cluster it's managing.
+	GinkgoHelper()
 	transportConfig, err := env.Config.TransportConfig()
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	Expect(err).ToNot(HaveOccurred())
 	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
-	ExpectWithOffset(1, err).ToNot(HaveOccurred())
+	Expect(err).ToNot(HaveOccurred())
 	logging.FromContext(env.Context).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }
 
-func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
+func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
+	GinkgoHelper()
+
 	// Performs the same logic as the scheduler to get the number of daemonset
 	// pods that we estimate we will need to schedule as overhead to each node
 	daemonSetList := &appsv1.DaemonSetList{}
@@ -632,11 +756,11 @@ func (env *Environment) GetDaemonSetCount(prov *v1alpha5.Provisioner) int {
 
 	return lo.CountBy(daemonSetList.Items, func(d appsv1.DaemonSet) bool {
 		p := &v1.Pod{Spec: d.Spec.Template.Spec}
-		nodeTemplate := pscheduling.NewNodeClaimTemplate(nodepoolutil.New(prov))
+		nodeTemplate := pscheduling.NewNodeClaimTemplate(np)
 		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
 			return false
 		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabelsV1Alpha5); err != nil {
+		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
 			return false
 		}
 		return true

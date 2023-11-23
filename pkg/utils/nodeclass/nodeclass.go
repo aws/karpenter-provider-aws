@@ -72,7 +72,7 @@ func NewSubnetSelectorTerms(subnetSelector map[string]string) (terms []v1beta1.S
 	for k, v := range subnetSelector {
 		switch k {
 		case "aws-ids", "aws::ids":
-			ids = strings.Split(strings.Trim(v, " "), ",")
+			ids = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
 			tags[k] = v
 		}
@@ -97,7 +97,7 @@ func NewSecurityGroupSelectorTerms(securityGroupSelector map[string]string) (ter
 	for k, v := range securityGroupSelector {
 		switch k {
 		case "aws-ids", "aws::ids":
-			ids = strings.Split(strings.Trim(v, " "), ",")
+			ids = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
 			tags[k] = v
 		}
@@ -124,11 +124,11 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 	for k, v := range amiSelector {
 		switch k {
 		case "aws-ids", "aws::ids":
-			ids = strings.Split(strings.Trim(v, " "), ",")
+			ids = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		case "aws::name":
-			names = strings.Split(strings.Trim(v, " "), ",")
+			names = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		case "aws::owners":
-			owners = strings.Split(strings.Trim(v, " "), ",")
+			owners = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
 			tags[k] = v
 		}

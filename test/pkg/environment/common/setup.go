@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2" //nolint:revive,stylecheck
-	. "github.com/onsi/gomega"    //nolint:revive,stylecheck
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -34,9 +34,12 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/apis"
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
 	"github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter-core/pkg/utils/pod"
+	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
 )
 
@@ -50,10 +53,12 @@ var (
 		&v1.PersistentVolume{},
 		&storagev1.StorageClass{},
 		&v1alpha5.Provisioner{},
+		&corev1beta1.NodePool{},
 		&v1.LimitRange{},
 		&schedulingv1.PriorityClass{},
 		&v1.Node{},
 		&v1alpha5.Machine{},
+		&corev1beta1.NodeClaim{},
 	}
 )
 
@@ -65,9 +70,6 @@ func (env *Environment) BeforeEach() {
 	// Expect this cluster to be clean for test runs to execute successfully
 	env.ExpectCleanCluster()
 
-	var provisioners v1alpha5.ProvisionerList
-	Expect(env.Client.List(env.Context, &provisioners)).To(Succeed())
-	Expect(provisioners.Items).To(HaveLen(0), "expected no provisioners to exist")
 	env.Monitor.Reset()
 	env.StartingNodeCount = env.Monitor.NodeCountAtReset()
 }
@@ -87,6 +89,13 @@ func (env *Environment) ExpectCleanCluster() {
 			fmt.Sprintf("expected to have no provisionable pods, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
 		Expect(pods.Items[i].Namespace).ToNot(Equal("default"),
 			fmt.Sprintf("expected no pods in the `default` namespace, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
+	}
+	for _, obj := range []client.Object{&v1alpha5.Provisioner{}, &v1alpha1.AWSNodeTemplate{}, &corev1beta1.NodePool{}, &v1beta1.EC2NodeClass{}} {
+		metaList := &metav1.PartialObjectMetadataList{}
+		gvk := lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme()))
+		metaList.SetGroupVersionKind(gvk)
+		Expect(env.Client.List(env.Context, metaList, client.Limit(1))).To(Succeed())
+		Expect(metaList.Items).To(HaveLen(0), fmt.Sprintf("expected no %s to exist", gvk.Kind))
 	}
 }
 

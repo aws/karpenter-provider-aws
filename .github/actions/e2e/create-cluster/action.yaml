@@ -4,44 +4,51 @@ inputs:
   account_id:
     description: "Account ID to access AWS"
     required: true
+  ecr_account_id:
+    description: "Account ID to access ECR Repository"
+    required: true
+  prometheus_workspace_id:
+    description: Workspace ID for the Prometheus workspace
+    required: true
   role:
     description: "Role to access AWS"
     required: true
   region:
     description: "Region to access AWS"
     required: true
+  ecr_region:
+    description: "Region to access ECR Repository"
+    required: true
+  prometheus_region:
+    description: Region to access Prometheus
+    required: true
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    required: false
     default: "1.28"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.160.0-rc.0
+    default: v0.164.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
-    required: false
     default: "IPv4"
+  private_cluster:
+    description: "Whether to create a private cluster which does not add access to the public internet. Valid values are 'true' or 'false'"
+    default: 'false'
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
     required: false
 runs:
   using: "composite"
   steps:
-  - name: configure aws credentials
-    uses: aws-actions/configure-aws-credentials@v4
-    with:
-      role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
-      aws-region: ${{ inputs.region }}
-      role-duration-seconds: 21600
-  - uses: actions/checkout@v4
+  - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
     with:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-eksctl
     with:
-      eksctl_version: ${{ inputs.eksctl_version }}
+      version: ${{ inputs.eksctl_version }}
   - name: create iam policies
     shell: bash
     run: |
@@ -60,7 +67,7 @@ runs:
         --template-file $CLOUDFORMATION_PATH \
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides "ClusterName=${{ inputs.cluster_name }}" \
-        --tags "testing/type=e2e" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
+        --tags "testing/type=e2e" "testing/cluster=${{ inputs.cluster_name }}" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
   - name: create or upgrade cluster
     shell: bash
     run: |
@@ -68,7 +75,7 @@ runs:
       cmd="create"
       eksctl get cluster --name ${{ inputs.cluster_name }} && cmd="upgrade"
 
-      eksctl ${cmd} cluster -f - <<EOF
+      cat << EOF >> clusterconfig.yaml
       ---
       apiVersion: eksctl.io/v1alpha5
       kind: ClusterConfig
@@ -77,9 +84,10 @@ runs:
         region: ${{ inputs.region }}
         version: "${{ inputs.k8s_version }}"
         tags:
-          karpenter.sh/discovery: ${{ inputs.cluster_name }}
+          karpenter.sh/discovery: "${{ inputs.cluster_name }}"
           github.com/run-url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           testing/type: "e2e"
+          testing/cluster: "${{ inputs.cluster_name }}"
       kubernetesNetworkConfig:
         ipFamily: ${{ inputs.ip_family }}
       managedNodeGroups:
@@ -96,6 +104,10 @@ runs:
           - key: CriticalAddonsOnly
             value: "true"
             effect: NoSchedule
+      cloudWatch:
+        clusterLogging:
+          enableTypes: ["*"]
+          logRetentionInDays: 30
       iam:
         serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
         serviceAccounts:
@@ -128,6 +140,36 @@ runs:
         wellKnownPolicies:
           ebsCSIController: true
       EOF
+
+      if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
+        yq -i '.privateCluster.enabled=true' clusterconfig.yaml
+        yq -i '.managedNodeGroups[0].privateNetworking=true' clusterconfig.yaml
+      fi
+
+      eksctl ${cmd} cluster -f clusterconfig.yaml
+
+      # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
+      # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
+      eksctl update iamserviceaccount -f clusterconfig.yaml --approve
+
+      # Add the SQS and SSM VPC endpoints if we are creating a private cluster
+      # We need to grab all of the VPC details for the cluster in order to add the endpoint
+      if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
+        VPC_CONFIG=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query "cluster.resourcesVpcConfig")
+        VPC_ID=$(echo $VPC_CONFIG | jq .vpcId -r)
+        SUBNET_IDS=($(echo $VPC_CONFIG | jq '.subnetIds | join(" ")' -r))
+        SECURITY_GROUP_IDS=($(echo $VPC_CONFIG | jq '.securityGroupIds | join(" ")' -r))
+
+        for SERVICE in "com.amazonaws.${{ inputs.region }}.ssm" "com.amazonaws.${{ inputs.region }}.sqs"; do
+          aws ec2 create-vpc-endpoint \
+            --vpc-id "${VPC_ID}" \
+            --vpc-endpoint-type Interface \
+            --service-name "${SERVICE}" \
+            --subnet-ids ${SUBNET_IDS[@]} \
+            --security-group-ids ${SECURITY_GROUP_IDS[@]} \
+            --tags "testing/type=e2e" "testing/cluster=${{ inputs.cluster_name }}" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
+        done
+      fi
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash
@@ -135,7 +177,7 @@ runs:
       oidc_id=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
       arn="arn:aws:iam::${{ inputs.account_id }}:oidc-provider/${oidc_id}"
       aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
-         --tags Key=testing/type,Value=e2e  Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+         --tags Key=testing/type,Value=e2e Key=testing/cluster,Value=${{ inputs.cluster_name }} Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - name: give KarpenterNodeRole permission to bootstrap
     shell: bash
     run: |
@@ -144,7 +186,8 @@ runs:
       --cluster "${{ inputs.cluster_name }}" \
       --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
       --group system:bootstrappers \
-      --group system:nodes
+      --group system:nodes \
+      --group eks:kube-proxy-windows
   - name: cloudformation describe stack events
     shell: bash
     if: failure()
@@ -154,3 +197,22 @@ runs:
         echo "Stack Events for $stack_name:"
         aws cloudformation describe-stack-events --stack-name $stack_name
       done
+  - name: install prometheus
+    uses: ./.github/actions/e2e/install-prometheus
+    with:
+      account_id: ${{ inputs.account_id }}
+      role: ${{ inputs.role }}
+      region: ${{ inputs.prometheus_region }}
+      cluster_name: ${{ inputs.cluster_name }}
+      workspace_id: ${{ inputs.prometheus_workspace_id }}
+      git_ref: ${{ inputs.git_ref }}
+  - name: install karpenter
+    uses: ./.github/actions/e2e/install-karpenter
+    with:
+      account_id: ${{ inputs.account_id  }}
+      role: ${{ inputs.role }}
+      region: ${{ inputs.region }}
+      ecr_account_id: ${{ inputs.ecr_account_id }}
+      ecr_region: ${{ inputs.ecr_region }}
+      cluster_name: ${{ inputs.cluster_name }}
+      git_ref: ${{ inputs.git_ref }}

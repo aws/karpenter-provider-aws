@@ -77,9 +77,21 @@ spec:
                       description: Tags is a map of key/value tags used to select
                         subnets Specifying '*' for a value selects all values for
                         a given tag key.
+                      maxProperties: 20
                       type: object
+                      x-kubernetes-validations:
+                      - message: empty tag keys or values aren't supported
+                        rule: self.all(k, k != '' && self[k] != '')
                   type: object
+                maxItems: 30
                 type: array
+                x-kubernetes-validations:
+                - message: expected at least one, got none, ['tags', 'id', 'name']
+                  rule: self.all(x, has(x.tags) || has(x.id) || has(x.name))
+                - message: '''id'' is mutually exclusive, cannot be set with a combination
+                    of other fields in amiSelectorTerms'
+                  rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.name) ||
+                    has(x.owner)))'
               blockDeviceMappings:
                 description: BlockDeviceMappings to be applied to provisioned nodes.
                 items:
@@ -133,29 +145,47 @@ spec:
                           format: int64
                           type: integer
                         volumeSize:
+                          allOf:
+                          - pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          - pattern: ^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$
                           anyOf:
                           - type: integer
                           - type: string
-                          description: "VolumeSize in GiBs. You must specify either
-                            a snapshot ID or a volume size. The following are the
-                            supported volumes sizes for each volume type: \n * gp2
-                            and gp3: 1-16,384 \n * io1 and io2: 4-16,384 \n * st1
-                            and sc1: 125-16,384 \n * standard: 1-1,024"
-                          pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                          description: "VolumeSize in `Gi`, `G`, `Ti`, or `T`. You
+                            must specify either a snapshot ID or a volume size. The
+                            following are the supported volumes sizes for each volume
+                            type: \n * gp2 and gp3: 1-16,384 \n * io1 and io2: 4-16,384
+                            \n * st1 and sc1: 125-16,384 \n * standard: 1-1,024"
                           x-kubernetes-int-or-string: true
                         volumeType:
                           description: VolumeType of the block device. For more information,
                             see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)
                             in the Amazon Elastic Compute Cloud User Guide.
+                          enum:
+                          - standard
+                          - io1
+                          - io2
+                          - gp2
+                          - sc1
+                          - st1
+                          - gp3
                           type: string
                       type: object
+                      x-kubernetes-validations:
+                      - message: snapshotID or volumeSize must be defined
+                        rule: has(self.snapshotID) || has(self.volumeSize)
                     rootVolume:
                       description: RootVolume is a flag indicating if this device
                         is mounted as kubelet root dir. You can configure at most
                         one root volume in BlockDeviceMappings.
                       type: boolean
                   type: object
+                maxItems: 50
                 type: array
+                x-kubernetes-validations:
+                - message: must have only one blockDeviceMappings with rootVolume
+                  rule: self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size()
+                    <= 1
               context:
                 description: Context is a Reserved field in EC2 APIs https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
                 type: string
@@ -163,6 +193,16 @@ spec:
                 description: DetailedMonitoring controls if detailed monitoring is
                   enabled for instances that are launched
                 type: boolean
+              instanceProfile:
+                description: InstanceProfile is the AWS entity that instances use.
+                  This field is mutually exclusive from role. The instance profile
+                  should already have a role assigned to it that Karpenter has PassRole
+                  permission on for instance launch using this instanceProfile to
+                  succeed.
+                type: string
+                x-kubernetes-validations:
+                - message: instanceProfile cannot be empty
+                  rule: self != ''
               metadataOptions:
                 default:
                   httpEndpoint: enabled
@@ -186,6 +226,9 @@ spec:
                       but this parameter is not specified, the default state is \"enabled\".
                       \n If you specify a value of \"disabled\", instance metadata
                       will not be accessible on the node."
+                    enum:
+                    - enabled
+                    - disabled
                     type: string
                   httpProtocolIPv6:
                     default: disabled
@@ -193,6 +236,9 @@ spec:
                       for the instance metadata service on provisioned nodes. If metadata
                       options is non-nil, but this parameter is not specified, the
                       default state is "disabled".
+                    enum:
+                    - enabled
+                    - disabled
                     type: string
                   httpPutResponseHopLimit:
                     default: 2
@@ -202,6 +248,8 @@ spec:
                       values are integers from 1 to 64. If metadata options is non-nil,
                       but this parameter is not specified, the default value is 2.
                     format: int64
+                    maximum: 64
+                    minimum: 1
                     type: integer
                   httpTokens:
                     default: required
@@ -218,16 +266,25 @@ spec:
                       retrieval requests. In this state, retrieving the IAM role credentials
                       always returns the version 2.0 credentials; the version 1.0
                       credentials are not available."
+                    enum:
+                    - required
+                    - optional
                     type: string
                 type: object
               role:
                 description: Role is the AWS identity that nodes use. This field is
-                  immutable. Marking this field as immutable avoids concerns around
-                  terminating managed instance profiles from running instances. This
-                  field may be made mutable in the future, assuming the correct garbage
-                  collection and drift handling is implemented for the old instance
-                  profiles on an update.
+                  immutable. This field is mutually exclusive from instanceProfile.
+                  Marking this field as immutable avoids concerns around terminating
+                  managed instance profiles from running instances. This field may
+                  be made mutable in the future, assuming the correct garbage collection
+                  and drift handling is implemented for the old instance profiles
+                  on an update.
                 type: string
+                x-kubernetes-validations:
+                - message: role cannot be empty
+                  rule: self != ''
+                - message: immutable field changed
+                  rule: self == oldSelf
               securityGroupSelectorTerms:
                 description: SecurityGroupSelectorTerms is a list of or security group
                   selector terms. The terms are ORed.
@@ -250,9 +307,25 @@ spec:
                       description: Tags is a map of key/value tags used to select
                         subnets Specifying '*' for a value selects all values for
                         a given tag key.
+                      maxProperties: 20
                       type: object
+                      x-kubernetes-validations:
+                      - message: empty tag keys or values aren't supported
+                        rule: self.all(k, k != '' && self[k] != '')
                   type: object
+                maxItems: 30
                 type: array
+                x-kubernetes-validations:
+                - message: securityGroupSelectorTerms cannot be empty
+                  rule: self.size() != 0
+                - message: expected at least one, got none, ['tags', 'id', 'name']
+                  rule: self.all(x, has(x.tags) || has(x.id) || has(x.name))
+                - message: '''id'' is mutually exclusive, cannot be set with a combination
+                    of other fields in securityGroupSelectorTerms'
+                  rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.name)))'
+                - message: '''name'' is mutually exclusive, cannot be set with a combination
+                    of other fields in securityGroupSelectorTerms'
+                  rule: '!self.all(x, has(x.name) && (has(x.tags) || has(x.id)))'
               subnetSelectorTerms:
                 description: SubnetSelectorTerms is a list of or subnet selector terms.
                   The terms are ORed.
@@ -271,15 +344,39 @@ spec:
                       description: Tags is a map of key/value tags used to select
                         subnets Specifying '*' for a value selects all values for
                         a given tag key.
+                      maxProperties: 20
                       type: object
+                      x-kubernetes-validations:
+                      - message: empty tag keys or values aren't supported
+                        rule: self.all(k, k != '' && self[k] != '')
                   type: object
+                maxItems: 30
                 type: array
+                x-kubernetes-validations:
+                - message: subnetSelectorTerms cannot be empty
+                  rule: self.size() != 0
+                - message: expected at least one, got none, ['tags', 'id']
+                  rule: self.all(x, has(x.tags) || has(x.id))
+                - message: '''id'' is mutually exclusive, cannot be set with a combination
+                    of other fields in subnetSelectorTerms'
+                  rule: '!self.all(x, has(x.id) && has(x.tags))'
               tags:
                 additionalProperties:
                   type: string
                 description: Tags to be applied on ec2 resources like instances and
                   launch templates.
                 type: object
+                x-kubernetes-validations:
+                - message: empty tag keys aren't supported
+                  rule: self.all(k, k != '')
+                - message: tag contains a restricted tag matching kubernetes.io/cluster/
+                  rule: self.all(k, !k.startsWith('kubernetes.io/cluster') )
+                - message: tag contains a restricted tag matching karpenter.sh/provisioner-name
+                  rule: self.all(k, k != 'karpenter.sh/provisioner-name')
+                - message: tag contains a restricted tag matching karpenter.sh/nodepool
+                  rule: self.all(k, k != 'karpenter.sh/nodepool')
+                - message: tag contains a restricted tag matching karpenter.sh/managed-by
+                  rule: self.all(k, k !='karpenter.sh/managed-by')
               userData:
                 description: UserData to be applied to the provisioned nodes. It must
                   be in the appropriate format based on the AMIFamily in use. Karpenter
@@ -288,10 +385,21 @@ spec:
                 type: string
             required:
             - amiFamily
-            - role
             - securityGroupSelectorTerms
             - subnetSelectorTerms
             type: object
+            x-kubernetes-validations:
+            - message: amiSelectorTerms is required when amiFamily == 'Custom'
+              rule: 'self.amiFamily == ''Custom'' ? self.amiSelectorTerms.size() !=
+                0 : true'
+            - message: must specify exactly one of ['role', 'instanceProfile']
+              rule: (has(self.role) && !has(self.instanceProfile)) || (!has(self.role)
+                && has(self.instanceProfile))
+            - message: changing from 'instanceProfile' to 'role' is not supported.
+                You must delete and recreate this node class if you want to change
+                this.
+              rule: (has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile)
+                && has(self.instanceProfile))
           status:
             description: EC2NodeClassStatus contains the resolved state of the EC2NodeClass
             properties:

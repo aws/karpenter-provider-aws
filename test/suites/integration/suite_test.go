@@ -20,10 +20,14 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var env *aws.Environment
+var nodeClass *v1beta1.EC2NodeClass
+var nodePool *corev1beta1.NodePool
 
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -36,6 +40,10 @@ func TestIntegration(t *testing.T) {
 	RunSpecs(t, "Integration")
 }
 
-var _ = BeforeEach(func() { env.BeforeEach() })
+var _ = BeforeEach(func() {
+	env.BeforeEach()
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
+})
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })

@@ -33,6 +33,9 @@ iamIdentityMappings:
   groups:
   - system:bootstrappers
   - system:nodes
+  ## If you intend to run Windows workloads, the kube-proxy group should be specified.
+  # For more information, see https://github.com/aws/karpenter/issues/5099.
+  # - eks:kube-proxy-windows
 
 managedNodeGroups:
 - instanceType: m5.large

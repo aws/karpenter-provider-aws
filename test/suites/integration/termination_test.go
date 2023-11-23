@@ -21,25 +21,13 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	awstest "github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("Termination", func() {
 	It("should terminate the node and the instance on deletion", func() {
-		provider := awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisioner := test.Provisioner(test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{Name: provider.Name},
-		})
-
 		pod := test.Pod()
-		env.ExpectCreated(provisioner, provider, pod)
+		env.ExpectCreated(nodeClass, nodePool, pod)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
 
@@ -48,8 +36,8 @@ var _ = Describe("Termination", func() {
 		env.GetInstance(nodes[0].Name)
 
 		// Pod is deleted so that we don't re-provision after node deletion
-		// NOTE: We have to do this right now to deal with a race condition in provisioner ownership
-		// This can be removed once this race is resolved with the Machine
+		// NOTE: We have to do this right now to deal with a race condition in nodepool ownership
+		// This can be removed once this race is resolved with the NodePool
 		env.ExpectDeleted(pod)
 
 		// Node is deleted and now should be not found

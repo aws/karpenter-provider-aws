@@ -73,8 +73,19 @@ spec:
               value: "1.19.0-0"
             - name: KARPENTER_SERVICE
               value: {{ include "karpenter.fullname" . }}
+          {{- if .Values.webhook.enabled }}
             - name: WEBHOOK_PORT
               value: "{{ .Values.webhook.port }}"
+            - name: WEBHOOK_METRICS_PORT
+              value: "{{ .Values.webhook.metrics.port }}"
+          {{- else }}
+            - name: DISABLE_WEBHOOK
+              value: "true"
+          {{- end }}
+          {{- with .Values.logLevel }}
+            - name: LOG_LEVEL
+              value: "{{ . }}"
+          {{- end }}
             - name: METRICS_PORT
               value: "{{ .Values.controller.metrics.port }}"
             - name: HEALTH_PROBE_PORT
@@ -89,6 +100,52 @@ spec:
                   containerName: controller
                   divisor: "0"
                   resource: limits.memory
+            - name: FEATURE_GATES
+              value: "Drift={{ or .Values.settings.featureGates.driftEnabled .Values.settings.featureGates.drift }}"
+          {{- with .Values.settings.batchMaxDuration }}
+            - name: BATCH_MAX_DURATION
+              value: "{{ . }}"
+          {{- end }}
+          {{- with .Values.settings.batchIdleDuration }}
+            - name: BATCH_IDLE_DURATION
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.assumeRoleARN .Values.settings.assumeRoleARN }}
+            - name: ASSUME_ROLE_ARN
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.assumeRoleDuration .Values.settings.assumeRoleDuration }}
+            - name: ASSUME_ROLE_DURATION
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.clusterCABundle .Values.settings.clusterCABundle }}
+            - name: CLUSTER_CA_BUNDLE
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.clusterName .Values.settings.clusterName }}
+            - name: CLUSTER_NAME
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.clusterEndpoint .Values.settings.clusterEndpoint }}
+            - name: CLUSTER_ENDPOINT
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.isolatedVPC .Values.settings.isolatedVPC }}
+            - name: ISOLATED_VPC
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.vmMemoryOverheadPercent .Values.settings.vmMemoryOverheadPercent }}
+            - name: VM_MEMORY_OVERHEAD_PERCENT
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.interruptionQueueName .Values.settings.interruptionQueue }}
+            - name: INTERRUPTION_QUEUE
+              value: "{{ . }}"
+          {{- end }}
+          {{- with or .Values.settings.aws.reservedENIs .Values.settings.reservedENIs }}
+            - name: RESERVED_ENIS
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -100,11 +157,16 @@ spec:
             - name: http-metrics
               containerPort: {{ .Values.controller.metrics.port }}
               protocol: TCP
-            - name: http
-              containerPort: {{ .Values.controller.healthProbe.port }}
+          {{- if .Values.webhook.enabled }}
+            - name: webhook-metrics
+              containerPort: {{ .Values.webhook.metrics.port }}
               protocol: TCP
             - name: https-webhook
               containerPort: {{ .Values.webhook.port }}
+              protocol: TCP
+          {{- end }}
+            - name: http
+              containerPort: {{ .Values.controller.healthProbe.port }}
               protocol: TCP
           livenessProbe:
             initialDelaySeconds: 30
@@ -122,22 +184,28 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.controller.extraVolumeMounts }}
+        {{- if or (.Values.logConfig.enabled) (.Values.controller.extraVolumeMounts) }}
           volumeMounts:
+          {{- if .Values.logConfig.enabled }}
+            - name: config-logging
+              mountPath: /etc/karpenter/logging
+          {{- end }}
+          {{- with .Values.controller.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
+        {{- end }}
         {{- with .Values.controller.sidecarContainer }}
-        {{- toYaml . | nindent 8 }}
+          {{- toYaml . | nindent 8 }}
         {{- end }}
         {{- if and (.Values.controller.sidecarContainer) (or .Values.controller.extraVolumeMounts .Values.controller.sidecarVolumeMounts) }}
           volumeMounts:
           {{- with .Values.controller.extraVolumeMounts }}
-          {{- toYaml . | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.controller.sidecarVolumeMounts }}
-          {{- toYaml . | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
-      {{- end }}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -158,7 +226,14 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- with .Values.extraVolumes }}
+    {{- if or (.Values.logConfig.enabled) (.Values.extraVolumes) }}
       volumes:
+      {{- if .Values.logConfig.enabled }}
+        - name: config-logging
+          configMap:
+            name: config-logging
+      {{- end }}
+      {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
+    {{- end }}

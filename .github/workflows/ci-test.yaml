@@ -1,7 +1,9 @@
 name: CI-TEST
 on:
   push:
-    branches: [main]
+    branches:
+      - 'main'
+      - 'release-v*'
   pull_request:
   workflow_dispatch:
 jobs:
@@ -11,11 +13,14 @@ jobs:
         matrix:
           k8sVersion: ["1.23.x", "1.24.x", "1.25.x", "1.26.x", "1.27.x", "1.28.x"]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
     - uses: ./.github/actions/install-deps
       with:
         k8sVersion: ${{ matrix.k8sVersion }}
     - run: K8S_VERSION=${{ matrix.k8sVersion }} make ci-test
-    - uses: shogo82148/actions-goveralls@v1
-      with:
-        path-to-profile: coverage.out
+    - name: Send coverage
+      # should only send converage once https://docs.coveralls.io/parallel-builds
+      if: matrix.k8sVersion == '1.28.x'
+      env:
+        COVERALLS_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: goveralls -coverprofile=coverage.out -service=github

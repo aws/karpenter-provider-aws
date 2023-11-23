@@ -82,6 +82,13 @@ func IsAlreadyExists(err error) bool {
 	return false
 }
 
+func IgnoreAlreadyExists(err error) error {
+	if IsAlreadyExists(err) {
+		return nil
+	}
+	return err
+}
+
 // IsUnfulfillableCapacity returns true if the Fleet err means
 // capacity is temporarily unavailable for launching.
 // This could be due to account limits, insufficient ec2 capacity, etc.

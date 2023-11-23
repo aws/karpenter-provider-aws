@@ -29,29 +29,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/operator/controller"
 	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
 )
 
 type Controller struct {
 	kubeClient      client.Client
 	cloudProvider   *cloudprovider.CloudProvider
-	successfulCount uint64           // keeps track of successful reconciles for more aggressive requeueing near the start of the controller
-	linkController  *link.Controller // get machines recently linked by this controller
-
+	successfulCount uint64 // keeps track of successful reconciles for more aggressive requeueing near the start of the controller
 }
 
-func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider, linkController *link.Controller) *Controller {
+func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		kubeClient:      kubeClient,
 		cloudProvider:   cloudProvider,
 		successfulCount: 0,
-		linkController:  linkController,
 	}
 }
 
@@ -78,27 +73,21 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if err := c.kubeClient.List(ctx, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
-	resolvedNodeClaims := lo.Filter(nodeClaimList.Items, func(n v1beta1.NodeClaim, _ int) bool {
-		return n.Status.ProviderID != "" || n.Annotations[v1alpha5.MachineLinkedAnnotationKey] != ""
-	})
-	resolvedProviderIDs := sets.New[string](lo.Map(resolvedNodeClaims, func(n v1beta1.NodeClaim, _ int) string {
-		if n.Status.ProviderID != "" {
-			return n.Status.ProviderID
-		}
-		return n.Annotations[v1alpha5.MachineLinkedAnnotationKey]
+	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n v1beta1.NodeClaim, _ int) (string, bool) {
+		return n.Status.ProviderID, n.Status.ProviderID != ""
 	})...)
 	errs := make([]error, len(retrieved))
 	workqueue.ParallelizeUntil(ctx, 100, len(managedRetrieved), func(i int) {
-		_, recentlyLinked := c.linkController.Cache.Get(managedRetrieved[i].Status.ProviderID)
-
-		if !recentlyLinked &&
-			!resolvedProviderIDs.Has(managedRetrieved[i].Status.ProviderID) &&
+		if !resolvedProviderIDs.Has(managedRetrieved[i].Status.ProviderID) &&
 			time.Since(managedRetrieved[i].CreationTimestamp.Time) > time.Second*30 {
 			errs[i] = c.garbageCollect(ctx, managedRetrieved[i], nodeList)
 		}
 	})
+	if err = multierr.Combine(errs...); err != nil {
+		return reconcile.Result{}, err
+	}
 	c.successfulCount++
-	return reconcile.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, multierr.Combine(errs...)
+	return reconcile.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, nil
 }
 
 func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.NodeClaim, nodeList *v1.NodeList) error {

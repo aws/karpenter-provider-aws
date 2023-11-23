@@ -17,83 +17,28 @@ inputs:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.160.0-rc.0
+    default: v0.164.0
 runs:
   using: "composite"
   steps:
-    - name: configure aws credentials
-      uses: aws-actions/configure-aws-credentials@v4
-      with:
-        role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
-        aws-region: ${{ inputs.region }}
-        role-duration-seconds: 21600
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       with:
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-eksctl
       with:
-        eksctl_version: ${{ inputs.eksctl_version }}
-    - name: delete-instance-profiles
-      shell:
-      run: |
-        for name in $(aws iam list-instance-profiles --query "InstanceProfiles[*].{Name:InstanceProfileName}" --output text); do
-          tags=$(aws iam list-instance-profile-tags --instance-profile-name $name --output json || true)
-          if [[ $(echo $tags | jq -r '.Tags[] | select(.Key == "testing/cluster") | .Value') == "${{ inputs.cluster_name }}" ]]; then
-              roleName=$(aws iam get-instance-profile --instance-profile-name $name --query "InstanceProfile.Roles[*].{Name:RoleName}" --output text)
-              aws iam remove-role-from-instance-profile --instance-profile-name $name --role-name $roleName
-              aws iam delete-instance-profile --instance-profile-name $name
-              break
-          fi
-        done
+        version: ${{ inputs.eksctl_version }}
     - name: delete-cluster
       shell: bash
       run: |
         eksctl delete cluster --name ${{ inputs.cluster_name }} --timeout 60m --wait || true
-    - name: delete-network-interfaces
-      shell: bash
+    - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4
+      with:
+        go-version-file: test/hack/cleanup/go.mod
+        cache-dependency-path: test/hack/cleanup/go.sum
+        check-latest: true
+        cache: false
+    - name: "Run cleanup script"
       run: |
-        aws ec2 describe-network-interfaces \
-          --filter Name=tag:cluster.k8s.amazonaws.com/name,Values=${{ inputs.cluster_name }} \
-          --query "NetworkInterfaces[*].NetworkInterfaceId" \
-          --output text |
-        xargs \
-          -n 1 \
-          -r \
-          aws ec2 delete-network-interface \
-            --network-interface-id
-    - name: delete-security-group
+        go run main.go ${{ inputs.cluster_name }}
+      working-directory: ./test/hack/cleanup
       shell: bash
-      # For drift testing, we create a security group and need to clean it up here
-      # to avoid leaks if the tests is not fully completed
-      run: |
-        aws ec2 describe-security-groups \
-          --filters Name=group-name,Values=security-group-drift Name=tag:karpenter.sh/discovery,Values=${{ inputs.cluster_name }} \
-          --query "SecurityGroups[*].{ID:GroupId}" \
-          --output text |
-        xargs \
-          -n 1 \
-          -r \
-          aws ec2 delete-security-group \
-            --group-id
-    - name: delete-iam-policies-stack
-      shell: bash
-      run: |
-        aws cloudformation delete-stack --stack-name iam-${{ inputs.cluster_name }}
-        aws cloudformation wait stack-delete-complete --stack-name iam-${{ inputs.cluster_name }}
-    - name: delete-cluster-stack
-      shell: bash
-      run: |
-        aws cloudformation delete-stack --stack-name eksctl-${{ inputs.cluster_name }}-cluster || true
-        aws cloudformation wait stack-delete-complete --stack-name eksctl-${{ inputs.cluster_name }}-cluster || true
-    - name: delete-launch-templates
-      shell: bash
-      run: |
-        aws ec2 describe-launch-templates \
-          --filter Name=tag:karpenter.k8s.aws/cluster,Values=${{ inputs.cluster_name }} \
-          --query "LaunchTemplates[*].LaunchTemplateId" \
-          --output text |
-        xargs \
-          -n 1 \
-          -r \
-          aws ec2 delete-launch-template \
-            --launch-template-id

@@ -27,13 +27,14 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
 	awstest "github.com/aws/karpenter/pkg/test"
@@ -63,58 +64,31 @@ const (
 	defaultTestName = "default"
 )
 
-// disableProvisioningLimits represents limits that can be applied to a provisioner if you want a provisioner
+// disableProvisioningLimits represents limits that can be applied to a nodePool if you want a nodePool
 // that can deprovision nodes but cannot provision nodes
-var disableProvisioningLimits = &v1alpha5.Limits{
-	Resources: v1.ResourceList{
-		v1.ResourceCPU:    resource.MustParse("0"),
-		v1.ResourceMemory: resource.MustParse("0Gi"),
-	},
+var disableProvisioningLimits = corev1beta1.Limits{
+	v1.ResourceCPU:    resource.MustParse("0"),
+	v1.ResourceMemory: resource.MustParse("0Gi"),
 }
 
 var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
-	var provisioner *v1alpha5.Provisioner
-	var provisionerOptions test.ProvisionerOptions
-	var nodeTemplate *v1alpha1.AWSNodeTemplate
+	var nodePool *corev1beta1.NodePool
+	var nodeClass *v1beta1.EC2NodeClass
 	var deployment *appsv1.Deployment
 	var deploymentOptions test.DeploymentOptions
 	var selector labels.Selector
 	var dsCount int
 
 	BeforeEach(func() {
-		env.ExpectSettingsOverridden(map[string]string{
-			"featureGates.driftEnabled": "true",
+		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=True"})
+		nodeClass = env.DefaultEC2NodeClass()
+		nodePool = env.DefaultNodePool(nodeClass)
+		nodePool.Spec.Limits = nil
+		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+			Key:      v1beta1.LabelInstanceHypervisor,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"nitro"},
 		})
-		nodeTemplate = awstest.AWSNodeTemplate(v1alpha1.AWSNodeTemplateSpec{AWS: v1alpha1.AWS{
-			SecurityGroupSelector: map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-			SubnetSelector:        map[string]string{"karpenter.sh/discovery": settings.FromContext(env.Context).ClusterName},
-		}})
-		provisionerOptions = test.ProvisionerOptions{
-			ProviderRef: &v1alpha5.MachineTemplateRef{
-				Name: nodeTemplate.Name,
-			},
-			Requirements: []v1.NodeSelectorRequirement{
-				{
-					Key:      v1alpha5.LabelCapacityType,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{v1alpha1.CapacityTypeOnDemand},
-				},
-				{
-					Key:      v1.LabelOSStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{string(v1.Linux)},
-				},
-				{
-					Key:      "karpenter.k8s.aws/instance-hypervisor",
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"nitro"},
-				},
-			},
-			// No limits!!!
-			// https://tenor.com/view/chaos-gif-22919457
-			Limits: v1.ResourceList{},
-		}
-		provisioner = test.Provisioner(provisionerOptions)
 		deploymentOptions = test.DeploymentOptions{
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
@@ -128,7 +102,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		}
 		deployment = test.Deployment(deploymentOptions)
 		selector = labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
-		dsCount = env.GetDaemonSetCount(provisioner)
+		dsCount = env.GetDaemonSetCount(nodePool)
 	})
 
 	AfterEach(func() {
@@ -139,20 +113,20 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		It("should run consolidation, emptiness, expiration, and drift simultaneously", func(_ context.Context) {
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
-			nodeCountPerProvisioner := 10
-			replicas := replicasPerNode * nodeCountPerProvisioner
+			nodeCountPerNodePool := 10
+			replicas := replicasPerNode * nodeCountPerNodePool
 
-			deprovisioningTypes := []string{
+			disruptionMethods := []string{
 				consolidationValue,
 				emptinessValue,
 				expirationValue,
 				driftValue,
 			}
-			expectedNodeCount := nodeCountPerProvisioner * len(deprovisioningTypes)
+			expectedNodeCount := nodeCountPerNodePool * len(disruptionMethods)
 
 			deploymentMap := map[string]*appsv1.Deployment{}
 			// Generate all the deployments for multi-deprovisioning
-			for _, v := range deprovisioningTypes {
+			for _, v := range disruptionMethods {
 				deploymentOptions.PodOptions.NodeSelector = map[string]string{
 					deprovisioningTypeKey: v,
 				}
@@ -172,23 +146,25 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				deploymentMap[v] = d
 			}
 
-			provisionerMap := map[string]*v1alpha5.Provisioner{}
-			// Generate all the provisioners for multi-deprovisioning
-			for _, v := range deprovisioningTypes {
-				provisionerOptions.Taints = []v1.Taint{
+			nodePoolMap := map[string]*corev1beta1.NodePool{}
+			// Generate all the nodePools for multi-deprovisioning
+			for _, v := range disruptionMethods {
+				np := test.NodePool()
+				np.Spec = *nodePool.Spec.DeepCopy()
+				np.Spec.Template.Spec.Taints = []v1.Taint{
 					{
 						Key:    deprovisioningTypeKey,
 						Value:  v,
 						Effect: v1.TaintEffectNoSchedule,
 					},
 				}
-				provisionerOptions.Labels = map[string]string{
+				np.Spec.Template.Labels = map[string]string{
 					deprovisioningTypeKey: v,
 				}
-				provisionerOptions.Kubelet = &v1alpha5.KubeletConfiguration{
+				np.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 				}
-				provisionerMap[v] = test.Provisioner(provisionerOptions)
+				nodePoolMap[v] = test.NodePool(*np)
 			}
 
 			By("waiting for the deployment to deploy all of its pods")
@@ -205,21 +181,21 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			}
 			wg.Wait()
 
-			// Create a separate nodeTemplate for drift so that we can change the nodeTemplate later without it affecting
-			// the other provisioners
-			driftNodeTemplate := nodeTemplate.DeepCopy()
-			driftNodeTemplate.Name = test.RandomName()
-			provisionerMap[driftValue].Spec.ProviderRef = &v1alpha5.MachineTemplateRef{
-				Name: driftNodeTemplate.Name,
+			// Create a separate nodeClass for drift so that we can change the nodeClass later without it affecting
+			// the other nodePools
+			driftNodeClass := awstest.EC2NodeClass()
+			driftNodeClass.Spec = *nodeClass.Spec.DeepCopy()
+			nodePoolMap[driftValue].Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
+				Name: driftNodeClass.Name,
 			}
 			env.MeasureProvisioningDurationFor(func() {
-				By("kicking off provisioning by applying the provisioner and nodeTemplate")
-				env.ExpectCreated(driftNodeTemplate, nodeTemplate)
-				for _, p := range provisionerMap {
+				By("kicking off provisioning by applying the nodePool and nodeClass")
+				env.ExpectCreated(driftNodeClass, nodeClass)
+				for _, p := range nodePoolMap {
 					env.ExpectCreated(p)
 				}
 
-				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 
@@ -252,17 +228,18 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				env.ExpectUpdated(d)
 			}
 
-			// Create a provisioner for expiration so that expiration can do replacement
-			provisionerMap[noExpirationValue] = test.Provisioner()
-			provisionerMap[noExpirationValue].Spec = provisionerMap[expirationValue].Spec
+			// Create a nodePool for expiration so that expiration can do replacement
+			nodePoolMap[noExpirationValue] = test.NodePool()
+			nodePoolMap[noExpirationValue].Spec = *nodePoolMap[expirationValue].Spec.DeepCopy()
 
 			// Enable consolidation, emptiness, and expiration
-			provisionerMap[consolidationValue].Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
-			provisionerMap[emptinessValue].Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
-			provisionerMap[expirationValue].Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
-			provisionerMap[expirationValue].Spec.Limits = disableProvisioningLimits
-			// Update the drift NodeTemplate to start drift on Nodes assigned to this NodeTemplate
-			driftNodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
+			nodePoolMap[consolidationValue].Spec.Disruption.ConsolidateAfter = nil
+			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
+			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidateAfter.Duration = ptr.Duration(0)
+			nodePoolMap[expirationValue].Spec.Disruption.ExpireAfter.Duration = ptr.Duration(0)
+			nodePoolMap[expirationValue].Spec.Limits = disableProvisioningLimits
+			// Update the drift NodeClass to start drift on Nodes assigned to this NodeClass
+			driftNodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 
 			// Create test assertions to ensure during the multiple deprovisioner scale-downs
 			type testAssertions struct {
@@ -274,27 +251,27 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			}
 			assertionMap := map[string]testAssertions{
 				consolidationValue: {
-					deletedCount: int(float64(nodeCountPerProvisioner) * 0.8),
-					nodeCount:    int(float64(nodeCountPerProvisioner) * 0.2),
+					deletedCount: int(float64(nodeCountPerNodePool) * 0.8),
+					nodeCount:    int(float64(nodeCountPerNodePool) * 0.2),
 					createdCount: 0,
 				},
 				emptinessValue: {
-					deletedCount: nodeCountPerProvisioner,
+					deletedCount: nodeCountPerNodePool,
 					nodeCount:    0,
 					createdCount: 0,
 				},
 				expirationValue: {
-					deletedCount: nodeCountPerProvisioner,
-					nodeCount:    nodeCountPerProvisioner,
+					deletedCount: nodeCountPerNodePool,
+					nodeCount:    nodeCountPerNodePool,
 					nodeCountSelector: labels.SelectorFromSet(map[string]string{
-						v1alpha5.ProvisionerNameLabelKey: provisionerMap[noExpirationValue].Name,
+						corev1beta1.NodePoolLabelKey: nodePoolMap[noExpirationValue].Name,
 					}),
-					createdCount: nodeCountPerProvisioner,
+					createdCount: nodeCountPerNodePool,
 				},
 				driftValue: {
-					deletedCount: nodeCountPerProvisioner,
-					nodeCount:    nodeCountPerProvisioner,
-					createdCount: nodeCountPerProvisioner,
+					deletedCount: nodeCountPerNodePool,
+					nodeCount:    nodeCountPerNodePool,
+					createdCount: nodeCountPerNodePool,
 				},
 			}
 			totalDeletedCount := lo.Reduce(lo.Values(assertionMap), func(agg int, assertion testAssertions, _ int) int {
@@ -304,11 +281,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				return agg + assertion.createdCount
 			}, 0)
 			env.MeasureDeprovisioningDurationFor(func() {
-				By("enabling deprovisioning across provisioners")
-				for _, p := range provisionerMap {
+				By("enabling deprovisioning across nodePools")
+				for _, p := range nodePoolMap {
 					env.ExpectCreatedOrUpdated(p)
 				}
-				env.ExpectUpdated(driftNodeTemplate)
+				env.ExpectUpdated(driftNodeClass)
 
 				By("waiting for the nodes across all deprovisioners to get deleted")
 				wg = sync.WaitGroup{}
@@ -318,17 +295,17 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 						defer GinkgoRecover()
 						defer wg.Done()
 
-						// Provide a default selector based on the original provisioner name if one isn't specified
+						// Provide a default selector based on the original nodePool name if one isn't specified
 						selector = assertions.deletedNodeCountSelector
 						if selector == nil {
-							selector = labels.SelectorFromSet(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisionerMap[d].Name})
+							selector = labels.SelectorFromSet(map[string]string{corev1beta1.NodePoolLabelKey: nodePoolMap[d].Name})
 						}
 						env.EventuallyExpectDeletedNodeCountWithSelector("==", assertions.deletedCount, selector)
 
-						// Provide a default selector based on the original provisioner name if one isn't specified
+						// Provide a default selector based on the original nodePool name if one isn't specified
 						selector = assertions.nodeCountSelector
 						if selector == nil {
-							selector = labels.SelectorFromSet(map[string]string{v1alpha5.ProvisionerNameLabelKey: provisionerMap[d].Name})
+							selector = labels.SelectorFromSet(map[string]string{corev1beta1.NodePoolLabelKey: nodePoolMap[d].Name})
 						}
 						env.EventuallyExpectNodeCountWithSelector("==", assertions.nodeCount, selector)
 						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[d].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[d].Spec.Replicas)))
@@ -353,7 +330,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -362,10 +339,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectPendingPodCount(selector, replicas)
 
 			env.MeasureProvisioningDurationFor(func() {
-				By("kicking off provisioning by applying the provisioner and nodeTemplate")
-				env.ExpectCreated(provisioner, nodeTemplate)
+				By("kicking off provisioning by applying the nodePool and nodeClass")
+				env.ExpectCreated(nodePool, nodeClass)
 
-				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
@@ -384,9 +361,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectHealthyPodCount(selector, 0)
 
 			env.MeasureDeprovisioningDurationFor(func() {
-				By("kicking off deprovisioning by setting the consolidation enabled value on the provisioner")
-				provisioner.Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
-				env.ExpectUpdated(provisioner)
+				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
+				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = nil
+				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectNodeCount("==", 0)
@@ -405,7 +383,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -414,10 +392,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectPendingPodCount(selector, replicas)
 
 			env.MeasureProvisioningDurationFor(func() {
-				By("kicking off provisioning by applying the provisioner and nodeTemplate")
-				env.ExpectCreated(provisioner, nodeTemplate)
+				By("kicking off provisioning by applying the nodePool and nodeClass")
+				env.ExpectCreated(nodePool, nodeClass)
 
-				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
@@ -437,9 +415,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 
 			env.MeasureDeprovisioningDurationFor(func() {
-				By("kicking off deprovisioning by setting the consolidation enabled value on the provisioner")
-				provisioner.Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
-				env.ExpectUpdated(provisioner)
+				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
+				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = nil
+				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", int(float64(expectedNodeCount)*0.8))
 				env.EventuallyExpectNodeCount("==", int(float64(expectedNodeCount)*0.2))
@@ -458,8 +437,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			// Add in a instance type size requirement that's larger than the smallest that fits the pods.
-			provisioner.Spec.Requirements = append(provisioner.Spec.Requirements, v1.NodeSelectorRequirement{
-				Key:      v1alpha1.LabelInstanceSize,
+			test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"2xlarge"},
 			})
@@ -482,10 +461,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectPendingPodCount(selector, replicas)
 
 			env.MeasureProvisioningDurationFor(func() {
-				By("kicking off provisioning by applying the provisioner and nodeTemplate")
-				env.ExpectCreated(provisioner, nodeTemplate)
+				By("kicking off provisioning by applying the nodePool and nodeClass")
+				env.ExpectCreated(nodePool, nodeClass)
 
-				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
@@ -500,14 +479,15 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
 			env.MeasureDeprovisioningDurationFor(func() {
-				By("kicking off deprovisioning by setting the consolidation enabled value on the provisioner")
-				// The provisioner defaults to a larger instance type than we need so enabling consolidation and making
+				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
+				// The nodePool defaults to a larger instance type than we need so enabling consolidation and making
 				// the requirements wide-open should cause deletes and increase our utilization on the cluster
-				provisioner.Spec.Consolidation = &v1alpha5.Consolidation{Enabled: lo.ToPtr(true)}
-				provisioner.Spec.Requirements = lo.Reject(provisioner.Spec.Requirements, func(r v1.NodeSelectorRequirement, _ int) bool {
-					return r.Key == v1alpha1.LabelInstanceSize
+				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = nil
+				nodePool.Spec.Template.Spec.Requirements = lo.Reject(nodePool.Spec.Template.Spec.Requirements, func(r v1.NodeSelectorRequirement, _ int) bool {
+					return r.Key == v1beta1.LabelInstanceSize
 				})
-				env.ExpectUpdated(provisioner)
+				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount) // every node should delete due to replacement
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
@@ -529,7 +509,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -538,10 +518,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectPendingPodCount(selector, replicas)
 
 			env.MeasureProvisioningDurationFor(func() {
-				By("kicking off provisioning by applying the provisioner and nodeTemplate")
-				env.ExpectCreated(provisioner, nodeTemplate)
+				By("kicking off provisioning by applying the nodePool and nodeClass")
+				env.ExpectCreated(nodePool, nodeClass)
 
-				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
@@ -561,9 +541,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectHealthyPodCount(selector, 0)
 
 			env.MeasureDeprovisioningDurationFor(func() {
-				By("kicking off deprovisioning emptiness by setting the ttlSecondsAfterEmpty value on the provisioner")
-				provisioner.Spec.TTLSecondsAfterEmpty = lo.ToPtr[int64](0)
-				env.ExpectCreatedOrUpdated(provisioner)
+				By("kicking off deprovisioning emptiness by setting the ttlSecondsAfterEmpty value on the nodePool")
+				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
+				nodePool.Spec.Disruption.ConsolidateAfter.Duration = ptr.Duration(0)
+				env.ExpectCreatedOrUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectNodeCount("==", 0)
@@ -584,7 +565,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -593,10 +574,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectPendingPodCount(selector, replicas)
 
 			env.MeasureProvisioningDurationFor(func() {
-				By("kicking off provisioning by applying the provisioner and nodeTemplate")
-				env.ExpectCreated(provisioner, nodeTemplate)
+				By("kicking off provisioning by applying the nodePool and nodeClass")
+				env.ExpectCreated(nodePool, nodeClass)
 
-				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
@@ -611,17 +592,19 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
 			env.MeasureDeprovisioningDurationFor(func() {
-				By("kicking off deprovisioning expiration by setting the ttlSecondsUntilExpired value on the provisioner")
-				// Change Provisioner limits so that replacement nodes will use another provisioner.
-				provisioner.Spec.Limits = disableProvisioningLimits
+				By("kicking off deprovisioning expiration by setting the ttlSecondsUntilExpired value on the nodePool")
+				// Change limits so that replacement nodes will use another nodePool.
+				nodePool.Spec.Limits = disableProvisioningLimits
 				// Enable Expiration
-				provisioner.Spec.TTLSecondsUntilExpired = lo.ToPtr[int64](0)
+				nodePool.Spec.Disruption.ExpireAfter.Duration = ptr.Duration(0)
 
-				noExpireProvisioner := test.Provisioner(provisionerOptions)
-				noExpireProvisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+				noExpireNodePool := test.NodePool(*nodePool.DeepCopy())
+				noExpireNodePool.ObjectMeta = metav1.ObjectMeta{Name: test.RandomName()}
+				noExpireNodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 				}
-				env.ExpectCreatedOrUpdated(provisioner, noExpireProvisioner)
+				noExpireNodePool.Spec.Limits = nil
+				env.ExpectCreatedOrUpdated(nodePool, noExpireNodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
@@ -644,7 +627,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -653,10 +636,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.EventuallyExpectPendingPodCount(selector, replicas)
 
 			env.MeasureProvisioningDurationFor(func() {
-				By("kicking off provisioning by applying the provisioner and nodeTemplate")
-				env.ExpectCreated(provisioner, nodeTemplate)
+				By("kicking off provisioning by applying the nodePool and nodeClass")
+				env.ExpectCreated(nodePool, nodeClass)
 
-				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)
@@ -671,9 +654,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.Monitor.Reset() // Reset the monitor so that we now track the nodes starting at this point in time
 
 			env.MeasureDeprovisioningDurationFor(func() {
-				By("kicking off deprovisioning drift by changing the nodeTemplate AMIFamily")
-				nodeTemplate.Spec.AMIFamily = &v1alpha1.AMIFamilyBottlerocket
-				env.ExpectCreatedOrUpdated(nodeTemplate)
+				By("kicking off deprovisioning drift by changing the nodeClass AMIFamily")
+				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+				env.ExpectCreatedOrUpdated(nodeClass)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectNodeCount("==", expectedNodeCount)
@@ -689,15 +672,13 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 	})
 	Context("Interruption", func() {
 		It("should interrupt all nodes due to scheduledChange", func(_ context.Context) {
-			env.ExpectQueueExists() // Ensure the queue exists before sending messages
-
 			replicasPerNode := 20
 			maxPodDensity := replicasPerNode + dsCount
 			expectedNodeCount := 200
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			provisioner.Spec.KubeletConfiguration = &v1alpha5.KubeletConfiguration{
+			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -707,9 +688,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			var nodes []*v1.Node
 			env.MeasureProvisioningDurationFor(func() {
-				By("kicking off provisioning by applying the provisioner and nodeTemplate")
-				env.ExpectCreated(provisioner, nodeTemplate)
-				env.EventuallyExpectCreatedMachineCount("==", expectedNodeCount)
+				By("kicking off provisioning by applying the nodePool and nodeClass")
+				env.ExpectCreated(nodePool, nodeClass)
+				env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
 				env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
 				nodes = env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 				env.EventuallyExpectHealthyPodCount(selector, replicas)

@@ -18,46 +18,44 @@ import (
 	"context"
 
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/samber/lo"
 	"k8s.io/utils/clock"
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	"github.com/aws/karpenter-core/pkg/operator/controller"
 	"github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
 	nodeclaimgarbagecollection "github.com/aws/karpenter/pkg/controllers/nodeclaim/garbagecollection"
-	nodeclaimlink "github.com/aws/karpenter/pkg/controllers/nodeclaim/link"
+	nodeclaimtagging "github.com/aws/karpenter/pkg/controllers/nodeclaim/tagging"
 	"github.com/aws/karpenter/pkg/controllers/nodeclass"
+	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
+	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter/pkg/providers/pricing"
 	"github.com/aws/karpenter/pkg/providers/securitygroup"
+	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/providers/subnet"
-	"github.com/aws/karpenter/pkg/utils/project"
-
-	"github.com/aws/karpenter-core/pkg/operator/controller"
 )
 
 func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
 	unavailableOfferings *cache.UnavailableOfferings, cloudProvider *cloudprovider.CloudProvider, subnetProvider *subnet.Provider,
-	securityGroupProvider *securitygroup.Provider, instanceProfileProvider *instanceprofile.Provider, pricingProvider *pricing.Provider,
-	amiProvider *amifamily.Provider) []controller.Controller {
+	securityGroupProvider *securitygroup.Provider, instanceProfileProvider *instanceprofile.Provider, instanceProvider *instance.Provider,
+	pricingProvider *pricing.Provider, amiProvider *amifamily.Provider) []controller.Controller {
 
-	logging.FromContext(ctx).With("version", project.Version).Debugf("discovered version")
-
-	linkController := nodeclaimlink.NewController(kubeClient, cloudProvider)
 	controllers := []controller.Controller{
-		nodeclass.NewNodeTemplateController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
-		linkController,
-		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider, linkController),
+		nodeclass.NewNodeClassController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
+		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
+		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 	}
-	if settings.FromContext(ctx).InterruptionQueueName != "" {
-		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, interruption.NewSQSProvider(sqs.New(sess)), unavailableOfferings))
+	if options.FromContext(ctx).InterruptionQueue != "" {
+		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewProvider(ctx, servicesqs.New(sess), options.FromContext(ctx).InterruptionQueue)), unavailableOfferings))
 	}
-	if settings.FromContext(ctx).IsolatedVPC {
+	if options.FromContext(ctx).IsolatedVPC {
 		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
 	} else {
 		controllers = append(controllers, pricing.NewController(pricingProvider))

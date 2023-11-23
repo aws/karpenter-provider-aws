@@ -247,6 +247,104 @@ var _ = Describe("NodeClassUtils", func() {
 		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
 		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
 	})
+	It("should convert a AWSNodeTemplate to a EC2NodeClass (with AMISelector name and owner values set) with spaces", func() {
+		nodeTemplate.Spec.AMISelector = map[string]string{
+			"aws::name":   "ami-name1, ami-name2, test name",
+			"aws::owners": "self, amazon, 123456789, test owner",
+		}
+		nodeClass := nodeclassutil.New(nodeTemplate)
+
+		for k, v := range nodeTemplate.Annotations {
+			Expect(nodeClass.Annotations).To(HaveKeyWithValue(k, v))
+		}
+		for k, v := range nodeTemplate.Labels {
+			Expect(nodeClass.Labels).To(HaveKeyWithValue(k, v))
+		}
+		Expect(nodeClass.Spec.SubnetSelectorTerms).To(HaveLen(1))
+		Expect(nodeClass.Spec.SubnetSelectorTerms[0].Tags).To(Equal(nodeTemplate.Spec.SubnetSelector))
+		Expect(nodeClass.Spec.SecurityGroupSelectorTerms).To(HaveLen(1))
+		Expect(nodeClass.Spec.SecurityGroupSelectorTerms[0].Tags).To(Equal(nodeTemplate.Spec.SecurityGroupSelector))
+
+		// Expect AMISelectorTerms to be exactly what we would expect from the filtering above
+		Expect(nodeClass.Spec.AMISelectorTerms).To(HaveLen(12))
+		Expect(nodeClass.Spec.AMISelectorTerms).To(ConsistOf(
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name1",
+				Owner: "self",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name1",
+				Owner: "amazon",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name1",
+				Owner: "123456789",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name1",
+				Owner: "test owner",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name2",
+				Owner: "self",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name2",
+				Owner: "amazon",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name2",
+				Owner: "123456789",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name2",
+				Owner: "test owner",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "test name",
+				Owner: "self",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "test name",
+				Owner: "amazon",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "test name",
+				Owner: "123456789",
+				Tags:  map[string]string{},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "test name",
+				Owner: "test owner",
+				Tags:  map[string]string{},
+			},
+		))
+
+		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
+		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
+		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
+		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
+		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
+		ExpectMetadataOptionsEqual(nodeTemplate.Spec.MetadataOptions, nodeClass.Spec.MetadataOptions)
+		Expect(nodeClass.Spec.Context).To(Equal(nodeTemplate.Spec.Context))
+		Expect(nodeClass.Spec.LaunchTemplateName).To(Equal(nodeTemplate.Spec.LaunchTemplateName))
+		Expect(nodeClass.Spec.InstanceProfile).To(Equal(nodeTemplate.Spec.InstanceProfile))
+
+		ExpectSubnetStatusEqual(nodeTemplate.Status.Subnets, nodeClass.Status.Subnets)
+		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
+		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
+	})
 	It("should convert a AWSNodeTemplate to a EC2NodeClass (with AMISelector id set)", func() {
 		nodeTemplate.Spec.AMISelector = map[string]string{
 			"aws::ids": "ami-1234,ami-5678,ami-custom-id",

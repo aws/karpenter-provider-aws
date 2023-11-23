@@ -10,4 +10,52 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 data:
-  {{- list .Values.settings "" | include "flattenSettings" | indent 2 }}
+{{- with .Values.settings.batchMaxDuration }}
+  batchMaxDuration: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.batchIdleDuration }}
+  batchIdleDuration: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.assumeRoleARN }}
+  aws.assumeRoleARN: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.assumeRoleDuration }}
+  aws.assumeRoleDuration: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.clusterCABundle }}
+  aws.clusterCABundle: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.clusterName }}
+  aws.clusterName: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.clusterEndpoint }}
+  aws.clusterEndpoint: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.defaultInstanceProfile }}
+  aws.defaultInstanceProfile: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.enablePodENI }}
+  aws.enablePodENI: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.enableENILimitedPodDensity }}
+  aws.enableENILimitedPodDensity: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.isolatedVPC }}
+  aws.isolatedVPC: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.vmMemoryOverheadPercent }}
+  aws.vmMemoryOverheadPercent: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.interruptionQueueName }}
+  aws.interruptionQueueName: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.tags }}
+  aws.tags: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.aws.reservedENIs }}
+  aws.reservedENIs: "{{ . }}"
+{{- end }}
+{{- with .Values.settings.featureGates.driftEnabled }}
+  featureGates.driftEnabled: "{{ . }}"
+{{- end }}
+

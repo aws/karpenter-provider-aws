@@ -1,0 +1,41 @@
+name: E2ECleanup
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_name:
+        type: string
+        required: true
+      git_ref:
+        type: string
+      region:
+        type: choice
+        options:
+          - "us-east-1"
+          - "us-east-2"
+          - "us-west-2"
+          - "eu-west-1"
+permissions:
+  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+jobs:
+  cleanup:
+    name: cleanup-${{ inputs.cluster_name }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+        with:
+          ref: ${{ inputs.git_ref }}
+      - name: configure aws credentials
+        uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
+          aws-region: ${{ inputs.region }}
+          role-duration-seconds: 21600
+      - name: cleanup karpenter and cluster '${{ inputs.cluster_name }}' resources
+        uses: ./.github/actions/e2e/cleanup
+        with:
+          account_id: ${{ vars.ACCOUNT_ID }}
+          role: ${{ vars.ROLE_NAME }}
+          region: ${{ inputs.region }}
+          cluster_name: ${{ inputs.cluster_name }}
+          git_ref: ${{ inputs.git_ref }}
+          eksctl_version: v0.164.0

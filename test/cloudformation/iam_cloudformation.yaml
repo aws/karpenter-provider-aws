@@ -9,7 +9,7 @@ Parameters:
     Description: "The restrictions on which branches have permission to reach out to the OIDC provider. This is useful for security hardening of your github actions as described in https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions"
   Regions:
     Type: CommaDelimitedList
-    Default: "us-east-2,us-west-2,eu-west-1"
+    Default: "us-east-1,us-east-2,us-west-2,eu-west-1"
   PrometheusWorkspaceID:
     Type: String
     Description: "Prometheus workspace to forward cluster prometheus metrics to"
@@ -39,6 +39,112 @@ Resources:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: GithubActionsPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:CreateStack
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeStackResources
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:GetTemplate
+              - cloudformation:GetTemplateSummary
+            Resource:
+              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/iam-*"
+              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/eksctl-*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+             - cloudformation:ListStacks
+             - cloudformation:DescribeStacks
+            Resource: "*"
+          - Effect: Allow
+            Action: logs:PutRetentionPolicy
+            Resource: !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/eks/*"
+          - Effect: Allow
+            Action: fis:CreateExperimentTemplate
+            Resource: !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:action/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - fis:CreateExperimentTemplate
+              - fis:DeleteExperimentTemplate
+              - fis:StartExperiment
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment-template/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - fis:GetExperiment
+              - fis:StartExperiment
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - iam:CreateServiceLinkedRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
+          - Effect: Allow
+            Action:
+              - sqs:CreateQueue
+              - sqs:AddPermission
+              - sqs:TagQueue
+              - sqs:SetQueueAttributes
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:RemovePermission
+              - sqs:DeleteQueue
+              - sqs:UntagQueue
+            Resource: 
+            - !Sub "arn:${AWS::Partition}:sqs:*:${AWS::AccountId}:*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - events:PutRule
+              - events:DeleteRule
+              - events:DescribeRule
+              - events:PutTargets
+              - events:RemoveTargets
+              - events:EnableRule
+            Resource: !Sub "arn:${AWS::Partition}:events:*:${AWS::AccountId}:rule/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action: timestream:WriteRecords
+            Resource:
+              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
+              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${SweeperTableName}"
+          - Effect: Allow
+            Action: timestream:DescribeEndpoints
+            Resource: "*"
+  GithubActionsIAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GithubActionsIAMPolicy
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -116,28 +222,13 @@ Resources:
               - iam:DeletePolicyVersion
               - iam:ListPolicyVersions
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-*"
-          - Effect: Allow
-            Action:
-              - cloudformation:CreateChangeSet
-              - cloudformation:CreateStack
-              - cloudformation:DeleteStack
-              - cloudformation:DescribeChangeSet
-              - cloudformation:DescribeStackEvents
-              - cloudformation:ExecuteChangeSet
-              - cloudformation:GetTemplate
-              - cloudformation:GetTemplateSummary
-            Resource:
-              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/iam-*"
-              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/eksctl-*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-             - cloudformation:ListStacks
-             - cloudformation:DescribeStacks
-            Resource: "*"
+  GithubActionsEKSPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GithubActionsEKSPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
           - Effect: Allow
             Action:
               - eks:CreateCluster
@@ -147,8 +238,8 @@ Resources:
               - eks:ListFargateProfiles
               - eks:TagResource
               - eks:DescribeCluster
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
+              - eks:ListClusters
+            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
             Condition:
               StringEquals:
                 aws:RequestedRegion: 
@@ -168,86 +259,11 @@ Resources:
               - eks:DeleteNodegroup
               - eks:DescribeNodegroup
               - eks:TagResource
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:nodegroup/*"
+            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:nodegroup/*"
             Condition:
               StringEquals:
                 aws:RequestedRegion: 
                   Ref: Regions
-          - Effect: Allow
-            Action: fis:CreateExperimentTemplate
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:action/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - fis:CreateExperimentTemplate
-              - fis:DeleteExperimentTemplate
-              - fis:StartExperiment
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment-template/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - fis:GetExperiment
-              - fis:StartExperiment
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - iam:CreateServiceLinkedRole
-            Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
-          - Effect: Allow
-            Action:
-              - sqs:CreateQueue
-              - sqs:AddPermission
-              - sqs:TagQueue
-              - sqs:SetQueueAttributes
-              - sqs:GetQueueAttributes
-              - sqs:GetQueueUrl
-              - sqs:RemovePermission
-              - sqs:DeleteQueue
-              - sqs:UntagQueue
-            Resource: 
-            - !Sub "arn:${AWS::Partition}:sqs:*:${AWS::AccountId}:*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - events:PutRule
-              - events:DeleteRule
-              - events:DescribeRule
-              - events:PutTargets
-              - events:RemoveTargets
-              - events:EnableRule
-            Resource: !Sub "arn:${AWS::Partition}:events:*:${AWS::AccountId}:rule/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action: timestream:WriteRecords
-            Resource:
-              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
-              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${SweeperTableName}"
-          - Effect: Allow
-            Action: timestream:DescribeEndpoints
-            Resource: "*"
   # GithubActionsPermissionsBoundary includes all permissions needed for all designated roles provisioned by the GithubActions
   # CI task. This includes the cluster ServiceRoles that are generated by EKSCTL and all roles generated with IRSA to interface from the
   # cluster into AWS services through IAM.
@@ -269,116 +285,7 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
-              # Tag Permissions
-              - ec2:DescribeTags
-              # Internet Gateway Permissions
-              - ec2:DescribeEgressOnlyInternetGateways
-              - ec2:DescribeInternetGateways
-              # Elastic IP Permissions
-              - ec2:DescribeAddresses
-              # Instance Permissions
-              - ec2:DescribeInstanceTypeOfferings
-              - ec2:DescribeInstanceTypes
-              - ec2:DescribeInstances
-              - ec2:DescribeKeyPairs
-              # Launch Template Permissions
-              - ec2:DescribeLaunchTemplateVersions
-              - ec2:DescribeLaunchTemplates
-              # NAT Gateway Permissions
-              - ec2:DescribeNatGateways
-              # Network Interface Permissions
-              - ec2:DescribeNetworkInterfaces
-              # Route Table Permissions
-              - ec2:DescribeRouteTables
-              # Security Group Permissions
-              - ec2:DescribeSecurityGroups
-              # Subnet Permissions
-              - ec2:DescribeAvailabilityZones
-              - ec2:DescribeSubnets
-              # Volume Permissions
-              - ec2:DescribeVolumes
-              - ec2:DescribeVolumesModifications
-              - ec2:DescribeSnapshots
-              # Network ACL Permissions
-              - ec2:DescribeNetworkAcls
-              # VPC Permissions
-              - ec2:DescribeVpcs
-              # Image Permissions
-              - ec2:DescribeImages
-              # Tag Permissions
-              - ec2:CreateTags
-              - ec2:DeleteTags
-              # Internet Gateway Permissions
-              - ec2:CreateEgressOnlyInternetGateway
-              - ec2:DeleteEgressOnlyInternetGateway
-              # Elastic IP Permissions
-              - ec2:AllocateAddress
-              - ec2:ReleaseAddress
-              # Instance Permissions
-              - ec2:ModifyInstanceAttribute
-              - ec2:DescribeInstanceAttribute
-              - ec2:RunInstances
-              - ec2:StopInstances
-              - ec2:TerminateInstances
-              - ec2:AttachNetworkInterface
-              - ec2:ModifyNetworkInterfaceAttribute
-              - ec2:DetachNetworkInterface
-              # Internet Gateway Permissions
-              - ec2:AttachInternetGateway
-              - ec2:CreateInternetGateway
-              - ec2:DeleteInternetGateway
-              - ec2:DetachInternetGateway
-              # Launch Template Permissions
-              - ec2:CreateLaunchTemplate
-              - ec2:DeleteLaunchTemplate
-              # Fleet Permissions
-              - ec2:CreateFleet
-              # NAT Gateway Permissions
-              - ec2:CreateNatGateway
-              - ec2:DeleteNatGateway
-              # Network Interface Permissions
-              - ec2:AssignPrivateIpAddresses
-              - ec2:UnassignPrivateIpAddresses
-              - ec2:AssignIpv6Addresses
-              - ec2:UnassignIpv6Addresses
-              - ec2:AttachNetworkInterface
-              - ec2:DetachNetworkInterface
-              - ec2:CreateNetworkInterface
-              - ec2:ModifyNetworkInterfaceAttribute
-              - ec2:DeleteNetworkInterface
-              - ec2:CreateNetworkInterfacePermission
-              # Route Table Permissions
-              - ec2:CreateRoute
-              - ec2:CreateRouteTable
-              - ec2:DeleteRoute
-              - ec2:DeleteRouteTable
-              - ec2:AssociateRouteTable
-              - ec2:DisassociateRouteTable
-              # Security Group Permissions
-              - ec2:AuthorizeSecurityGroupIngress
-              - ec2:CreateSecurityGroup
-              - ec2:DeleteSecurityGroup
-              - ec2:RevokeSecurityGroupIngress
-              # Subnet Permissions
-              - ec2:CreateSubnet
-              - ec2:DeleteSubnet
-              - ec2:ModifySubnetAttribute
-              # Volume Permissions
-              - ec2:CreateSnapshot
-              - ec2:DeleteSnapshot
-              - ec2:CreateVolume
-              - ec2:DeleteVolume
-              - ec2:AttachVolume
-              - ec2:ModifyVolume
-              - ec2:DetachVolume
-              # VPC Permissions
-              - ec2:AssociateVpcCidrBlock
-              - ec2:DisassociateVpcCidrBlock
-              - ec2:CreateVpc
-              - ec2:DeleteVpc
-              - ec2:DescribeVpcAttribute
-              - ec2:ModifyVpcAttribute
-              - ec2:RunInstances
+              - ec2:*
               # Read-Only Permissions to pull ECR images needed by the NodeInstanceRole
               - ecr:GetAuthorizationToken
               - ecr:BatchCheckLayerAvailability
@@ -396,75 +303,22 @@ Resources:
               - autoscaling:DescribeAutoScalingGroups
               - autoscaling:UpdateAutoScalingGroup
               # EKS ServiceRole permissions needed to handle LoadBalancer
-              - elasticloadbalancing:AddTags
-              - elasticloadbalancing:ApplySecurityGroupsToLoadBalancer
-              - elasticloadbalancing:AttachLoadBalancerToSubnets
-              - elasticloadbalancing:ConfigureHealthCheck
-              - elasticloadbalancing:CreateListener
-              - elasticloadbalancing:CreateLoadBalancer
-              - elasticloadbalancing:CreateLoadBalancerListeners
-              - elasticloadbalancing:CreateLoadBalancerPolicy
-              - elasticloadbalancing:CreateTargetGroup
-              - elasticloadbalancing:DeleteListener
-              - elasticloadbalancing:DeleteLoadBalancer
-              - elasticloadbalancing:DeleteLoadBalancerListeners
-              - elasticloadbalancing:DeleteTargetGroup
-              - elasticloadbalancing:DeregisterInstancesFromLoadBalancer
-              - elasticloadbalancing:DeregisterTargets
-              - elasticloadbalancing:DescribeListeners
-              - elasticloadbalancing:DescribeLoadBalancerAttributes
-              - elasticloadbalancing:DescribeLoadBalancerPolicies
-              - elasticloadbalancing:DescribeLoadBalancers
-              - elasticloadbalancing:DescribeTargetGroupAttributes
-              - elasticloadbalancing:DescribeTargetGroups
-              - elasticloadbalancing:DescribeTargetHealth
-              - elasticloadbalancing:DetachLoadBalancerFromSubnets
-              - elasticloadbalancing:ModifyListener
-              - elasticloadbalancing:ModifyLoadBalancerAttributes
-              - elasticloadbalancing:ModifyTargetGroup
-              - elasticloadbalancing:ModifyTargetGroupAttributes
-              - elasticloadbalancing:RegisterInstancesWithLoadBalancer
-              - elasticloadbalancing:RegisterTargets
-              - elasticloadbalancing:SetLoadBalancerPoliciesForBackendServer
-              - elasticloadbalancing:SetLoadBalancerPoliciesOfListener
+              - elasticloadbalancing:*
               - kms:CreateGrant
               - kms:GenerateDataKeyWithoutPlaintext
               - kms:DescribeKey
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
-              - ssm:DescribeAssociation
-              - ssm:GetDeployablePatchSnapshotForInstance
-              - ssm:GetDocument
-              - ssm:DescribeDocument
-              - ssm:GetManifest
-              - ssm:GetParameter
-              - ssm:GetParameters
-              - ssm:ListAssociations
-              - ssm:ListInstanceAssociations
-              - ssm:PutInventory
-              - ssm:PutComplianceItems
-              - ssm:PutConfigurePackageResult
-              - ssm:UpdateAssociationStatus
-              - ssm:UpdateInstanceAssociationStatus
-              - ssm:UpdateInstanceInformation
+              - ssm:*
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
-              - ssmmessages:CreateControlChannel
-              - ssmmessages:CreateDataChannel
-              - ssmmessages:OpenControlChannel
-              - ssmmessages:OpenDataChannel
+              - ssmmessages:*
               # SSM Permissions for AmazonSSMManagedInstanceCore policy applied to the NodeInstanceRole
-              - ec2messages:AcknowledgeMessage
-              - ec2messages:DeleteMessage
-              - ec2messages:FailMessage
-              - ec2messages:GetEndpoint
-              - ec2messages:GetMessages
-              - ec2messages:SendReply
+              - ec2messages:*
               - sqs:DeleteMessage
               - sqs:GetQueueAttributes
               - sqs:GetQueueUrl
               - sqs:SendMessage
               - sqs:ReceiveMessage
               - pricing:GetProducts
-              - ec2:DescribeSpotPriceHistory
               - eks:DescribeCluster
             Resource: "*"
           - Effect: Allow
@@ -472,6 +326,31 @@ Resources:
             Resource:
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
               - !GetAtt FISInterruptionRole.Arn
+          - Effect: Allow
+            Action: iam:CreateInstanceProfile
+            Resource: "*"
+            Condition:
+              StringLike:
+                aws:RequestTag/karpenter.k8s.aws/ec2nodeclass: "*"
+          - Effect: Allow
+            Action: iam:TagInstanceProfile
+            Resource: "*"
+            Condition:
+              StringLike:
+                aws:RequestTag/karpenter.k8s.aws/ec2nodeclass: "*"
+                aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass: "*"
+          - Effect: Allow
+            Action:
+              - iam:AddRoleToInstanceProfile
+              - iam:RemoveRoleFromInstanceProfile
+              - iam:DeleteInstanceProfile
+            Resource: "*"
+            Condition:
+              StringLike:
+                aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass: "*"
+          - Effect: Allow
+            Action: iam:GetInstanceProfile
+            Resource: "*"
           - Effect: Allow
             Action:
               - aps:RemoteWrite
@@ -502,6 +381,8 @@ Resources:
       RoleName: GithubActionsRole
       ManagedPolicyArns:
         - !Ref GithubActionsPolicy
+        - !Ref GithubActionsEKSPolicy
+        - !Ref GithubActionsIAMPolicy
         - !Ref GithubActionsPermissionsBoundary
       MaxSessionDuration: 21600 # 6 hours is the max session for GHA
       AssumeRolePolicyDocument:

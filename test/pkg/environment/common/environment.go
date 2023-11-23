@@ -26,6 +26,7 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -37,9 +38,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	coreapis "github.com/aws/karpenter-core/pkg/apis"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-core/pkg/operator"
 	"github.com/aws/karpenter-core/pkg/operator/injection"
+	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/utils/project"
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 type ContextKey string
@@ -91,7 +95,7 @@ func (env *Environment) Stop() {
 
 func NewConfig() *rest.Config {
 	config := controllerruntime.GetConfigOrDie()
-	config.UserAgent = fmt.Sprintf("testing-%s", project.Version)
+	config.UserAgent = fmt.Sprintf("testing-%s", operator.Version)
 	config.QPS = 1e6
 	config.Burst = 1e6
 	return config
@@ -116,10 +120,16 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 		node := o.(*v1.Node)
 		return []string{strconv.FormatBool(node.Spec.Unschedulable)}
 	}))
-	c := lo.Must(client.NewDelegatingClient(client.NewDelegatingClientInput{
-		CacheReader: cache,
-		Client:      lo.Must(client.New(config, client.Options{Scheme: scheme})),
+	lo.Must0(cache.IndexField(ctx, &v1.Node{}, "spec.taints[*].karpenter.sh/disruption", func(o client.Object) []string {
+		node := o.(*v1.Node)
+		t, _ := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
+			return t.Key == corev1beta1.DisruptionTaintKey
+		})
+		return []string{t.Value}
 	}))
+
+	c := lo.Must(client.New(config, client.Options{Scheme: scheme, Cache: &client.CacheOptions{Reader: cache}}))
+
 	go func() {
 		lo.Must0(cache.Start(ctx))
 	}()
@@ -127,4 +137,40 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 		log.Fatalf("cache failed to sync")
 	}
 	return c
+}
+
+func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1beta1.NodePool {
+	nodePool := coretest.NodePool()
+	nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
+		Name: nodeClass.Name,
+	}
+	nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+		{
+			Key:      v1.LabelOSStable,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{string(v1.Linux)},
+		},
+		{
+			Key:      corev1beta1.CapacityTypeLabelKey,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{corev1beta1.CapacityTypeOnDemand},
+		},
+		{
+			Key:      v1beta1.LabelInstanceCategory,
+			Operator: v1.NodeSelectorOpIn,
+			Values:   []string{"c", "m", "r"},
+		},
+		{
+			Key:      v1beta1.LabelInstanceGeneration,
+			Operator: v1.NodeSelectorOpGt,
+			Values:   []string{"2"},
+		},
+	}
+	nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+	nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+	nodePool.Spec.Limits = corev1beta1.Limits(v1.ResourceList{
+		v1.ResourceCPU:    resource.MustParse("1000"),
+		v1.ResourceMemory: resource.MustParse("1000Gi"),
+	})
+	return nodePool
 }

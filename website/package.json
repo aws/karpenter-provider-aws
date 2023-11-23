@@ -1,11 +1,15 @@
 {
   "name": "website",
   "version": "1.0.0",
-  "dependencies": {
+  "devDependencies": {
     "ansi-regex": ">=5.0.1",
     "autoprefixer": "^10.4.16",
-    "lunr": "^2.3.9",
     "postcss": "^8.4.31",
-    "postcss-cli": "^10.1.0"
+    "postcss-cli": "^10.1.0",
+    "hugo-extended": "0.120.4"
+  },
+
+  "scripts": {
+    "clean": "rm -rf node_modules"
   }
 }

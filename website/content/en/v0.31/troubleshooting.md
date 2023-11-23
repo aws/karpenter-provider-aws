@@ -105,14 +105,14 @@ Karpenter v0.26.1+ introduced the `karpenter-crd` helm chart. When installing th
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
 
 ```shell
-kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
+kubectl label crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh app.kubernetes.io/managed-by=Helm --overwrite
 ```
 
 - In the case of `annotation validation error: missing key "meta.helm.sh/release-namespace": must be set to "karpenter"` run:
 
 ```shell
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
-kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
+kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh meta.helm.sh/release-name=karpenter-crd --overwrite
+kubectl annotate crd awsnodetemplates.karpenter.k8s.aws provisioners.karpenter.sh machines.karpenter.sh meta.helm.sh/release-namespace=karpenter --overwrite
 ```
 
 ## Uninstallation
@@ -178,6 +178,17 @@ This is especially relevant if you have used `terraform-eks-module` version `>=1
 approach, and now it's much more restrictive.
 
 ## Provisioning
+
+### Instances with swap volumes fail to register with control plane
+
+Some instance types (c1.medium and m1.small) are given limited amount of memory (see [Instance Store swap volumes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-store-swap-volumes.html)). They are subsequently configured to use a swap volume, which will cause the kubelet to fail on launch. The following error can be seen in the systemd logs:
+
+```bash
+"command failed" err="failed to run Kubelet: running with swap on is not supported, please disable swap!..."
+```
+
+##### Solutions
+Disabling swap will allow kubelet to join the cluster successfully, however users should be mindful of performance, and consider adjusting the Provisioner requirements to use larger instance types.
 
 ### DaemonSets can result in deployment failures
 
@@ -339,6 +350,24 @@ Windows requires the host OS version to match the container OS version.
 #### Solutions
 
 1. Define your pod's `nodeSelector` to ensure that your containers are scheduled on a compatible OS host version. To learn more, see [Windows container version compatibility](https://learn.microsoft.com/en-us/virtualization/windowscontainers/deploy-containers/version-compatibility).
+
+### Windows pods unable to resolve DNS
+Causes for DNS resolution failure may vary, but in the case where DNS resolution is working for Linux pods but not for Windows pods,
+then the following solution(s) may resolve your issue.
+
+#### Solution(s)
+1. Verify that the instance role of the Windows node includes the RBAC permission group `eks:kube-proxy-windows` as shown below.
+   This group is required for Windows nodes because in Windows, `kube-proxy` runs as a process on the node, and as such, the node requires the necessary RBAC cluster permissions to allow access to the resources required by `kube-proxy`.
+   For more information, see https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html.
+```yaml
+...
+  username: system:node:{{EC2PrivateDNSName}}
+  groups:
+    - system:bootstrappers
+    - system:nodes
+    - eks:kube-proxy-windows # This is required for Windows DNS resolution to work
+...
+```
 
 ## Deprovisioning
 

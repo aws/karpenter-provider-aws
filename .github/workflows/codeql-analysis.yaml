@@ -2,7 +2,9 @@ name: "CodeQL"
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - 'main'
+      - 'release-v*'
   schedule:
     - cron: '0 12 * * *'
 
@@ -12,9 +14,8 @@ jobs:
     name: Analyze
     runs-on: ubuntu-latest
     permissions:
-      actions: read
-      contents: read
-      security-events: write
+      actions: read # github/codeql-action/init@v2
+      security-events: write # github/codeql-action/init@v2
 
     strategy:
       fail-fast: false
@@ -22,11 +23,11 @@ jobs:
         language: [ 'go' ]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - uses: ./.github/actions/install-deps
       - run: make vulncheck
-      - uses: github/codeql-action/init@v2
+      - uses: github/codeql-action/init@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2
         with:
           languages: ${{ matrix.language }}
-      - uses: github/codeql-action/autobuild@v2
-      - uses: github/codeql-action/analyze@v2
+      - uses: github/codeql-action/autobuild@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2
+      - uses: github/codeql-action/analyze@df32e399139a3050671466d7d9b3cbacc1cfd034 # v2
