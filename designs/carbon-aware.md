@@ -123,7 +123,7 @@ In `karpenter`, create a new method `CarbonAwareCreate` in `pkg/providers/instan
 ### Option 2: Use Carbon Aware filtering/sorting methods
 
 #### Consolidation
-Create carbon aware implementations of low-level functions like `filterByPrice`, `filterOutSameType`, `getCandidatePrices`, etc. that is used when Carbon Aware is enabled. Usage of aforementioned functions might assume that it is price that they are getting, but in reality it is data about carbon emissions.
+Create carbon aware implementations of low-level functions like `filterByPrice`, `filterOutSameType`, `getCandidatePrices`, etc. that are used when Carbon Aware is enabled. Usage of aforementioned functions might assume that it is price that they are getting, but in reality it is data about carbon emissions.
 
 #### Provisioning
 Use same changes to provisioning as in [option 1](#option-1-use-carbon-aware-provisioning-and-concolidation-methods).
