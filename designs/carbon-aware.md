@@ -40,7 +40,7 @@ Boaviztapi is licensed under [`GNU Affero General Public License v3.0`](https://
 #### Limitations
 There is a discrepancy between the available instances known to Karpenter and instances know to Boaviztapi. This means that as it is right now, it is not possible to get carbon emissions data for all instances types. This is mostly the case for new instance types such as m7g. Around 290 out of 700 instance types are missing data. See full comparison in [this Gist](https://gist.github.com/JacobValdemar/e1342013c0f5c980126f6a1feb66b4a1).
 
-I will attempt to eleminate this discrepancy, but it might not be possible. It will probably not always be possible to have an updated list of estimated carbon emissions for all instances as AWS continue to release new instance types. We should consider what to do with instance types that we do not have carbon emission estimates for.
+I will attempt to eleminate this discrepancy, but it might not be possible. It will probably not always be possible to have an updated list of estimated carbon emissions for all instances as AWS continues to release new instance types. We should consider what to do with instance types that we do not have carbon emission estimates for.
 
 Approaches to handle this:
 1. Estimate extremely high emissions to effectively filter out unknown instance types (recommended)
