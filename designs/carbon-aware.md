@@ -137,7 +137,7 @@ Use same changes to provisioning as in [option 1](#option-1-use-carbon-aware-pro
 ### Option 3: Override instance price with carbon price (recommended)
 Minimize carbon emissions by defining a price per kgCO₂e and override the instance price with the carbon price (USD/kgCO₂e). Using the `prioritized` launch strategy, carbon emissions will be minimized during provisioning. Consolidation will unknowingly consolidate to minimize carbon emissions.
 
-The carbon price will depend on on `region` and `instanceType` and assume constant resource utilization (e.g. always 80% utilization). The carbon price will be generated in a "hack" and included as consts (same method as used for generating initial pricing[^2]). The carbon price / emission estimates can be updated with new versions.
+The carbon price will depend on `region` and `instanceType` and assume constant resource utilization (e.g. always 80% utilization). The carbon price will be generated in a "hack" and included as consts (same method as used for generating initial pricing[^2]). The carbon price / emission estimates can be updated with new versions.
 
 Another feature (added later) can be to add carbon price to instance price to simulate a [carbon tax](https://en.wikipedia.org/wiki/Carbon_tax). Administrators could configure a custom carbon price or use a default.
 
