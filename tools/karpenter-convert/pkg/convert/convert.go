@@ -97,6 +97,9 @@ func (o *Context) RunConvert() error {
 	if err := corev1alpha5.SchemeBuilder.AddToScheme(scheme); err != nil {
 		return err
 	}
+	if err := v1alpha1.SchemeBuilder.AddToScheme(scheme); err != nil {
+		return err
+	}
 
 	b := o.Builder().
 		WithScheme(scheme, v1alpha1.SchemeGroupVersion, corev1alpha5.SchemeGroupVersion).

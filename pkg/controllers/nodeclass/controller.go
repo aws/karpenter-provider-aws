@@ -72,9 +72,7 @@ func NewController(kubeClient client.Client, recorder events.Recorder, subnetPro
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
-	if !nodeClass.IsNodeTemplate {
-		controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
-	}
+	controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
 	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, nodeclassutil.HashAnnotation(nodeClass))
 	err := multierr.Combine(
 		c.resolveSubnets(ctx, nodeClass),
@@ -99,9 +97,6 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 
 func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
-	if nodeClass.IsNodeTemplate {
-		return reconcile.Result{}, nil
-	}
 	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
@@ -200,9 +195,6 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 }
 
 func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-	if nodeClass.IsNodeTemplate {
-		return nil
-	}
 	if nodeClass.Spec.Role != "" {
 		name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
 		if err != nil {

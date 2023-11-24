@@ -536,16 +536,8 @@ var _ = Describe("NodeClassUtils", func() {
 		nodeClass := test.EC2NodeClass()
 		ExpectApplied(ctx, env.Client, nodeClass)
 
-		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeclassutil.Key{Name: nodeClass.Name, IsNodeTemplate: false})
+		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeClass.Name)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(retrieved.Name).To(Equal(nodeClass.Name))
-	})
-	It("should retrieve a AWSNodeTemplate with a get call", func() {
-		nodeTemplate := test.AWSNodeTemplate()
-		ExpectApplied(ctx, env.Client, nodeTemplate)
-
-		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeclassutil.Key{Name: nodeTemplate.Name, IsNodeTemplate: true})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(retrieved.Name).To(Equal(nodeTemplate.Name))
 	})
 })

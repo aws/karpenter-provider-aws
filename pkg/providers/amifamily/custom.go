@@ -38,7 +38,7 @@ func (c Custom) UserData(_ *corev1beta1.KubeletConfiguration, _ []v1.Taint, _ ma
 	}
 }
 
-func (c Custom) DefaultAMIs(_ string, _ bool) []DefaultAMIOutput {
+func (c Custom) DefaultAMIs(_ string) []DefaultAMIOutput {
 	return nil
 }
 

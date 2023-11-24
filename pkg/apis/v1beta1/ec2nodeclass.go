@@ -329,11 +329,6 @@ type EC2NodeClass struct {
 	// +kubebuilder:validation:XValidation:message="changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
-
-	// IsNodeTemplate tells Karpenter whether the in-memory representation of this object
-	// is actually referring to a AWSNodeTemplate object. This value is not actually part of the v1beta1 public-facing API
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	IsNodeTemplate bool `json:"-" hash:"ignore"`
 }
 
 func (in *EC2NodeClass) Hash() string {

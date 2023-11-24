@@ -42,7 +42,7 @@ type Windows struct {
 	Build   string
 }
 
-func (w Windows) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
+func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
 			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1alpha1.WindowsCore, version),

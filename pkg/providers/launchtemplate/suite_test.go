@@ -40,7 +40,6 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
 	"github.com/aws/karpenter-core/pkg/controllers/state"
@@ -1200,9 +1199,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should not bootstrap on invalid toml user data", func() {
 				nodeClass.Spec.UserData = aws.String("#/bin/bash\n ./not-toml.sh")
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, env.Client, nodeClass)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeClass.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				// This will not be scheduled since userData cannot be generated for the prospective node.
@@ -1602,9 +1599,7 @@ var _ = Describe("LaunchTemplates", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				ExpectApplied(ctx, env.Client, nodeClass)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeClass.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)
