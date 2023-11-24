@@ -26,7 +26,6 @@ rules:
     resources: ["configmaps"]
     verbs: ["update", "patch", "delete"]
     resourceNames:
-      - karpenter-global-settings
       - config-logging
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]

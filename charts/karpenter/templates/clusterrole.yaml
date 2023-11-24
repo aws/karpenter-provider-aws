@@ -30,11 +30,11 @@ metadata:
 rules:
   # Read
   - apiGroups: ["karpenter.k8s.aws"]
-    resources: ["awsnodetemplates", "ec2nodeclasses"]
+    resources: ["ec2nodeclasses"]
     verbs: ["get", "list", "watch"]
   # Write
   - apiGroups: ["karpenter.k8s.aws"]
-    resources: ["awsnodetemplates", "awsnodetemplates/status", "ec2nodeclasses", "ec2nodeclasses/status"]
+    resources: ["ec2nodeclasses", "ec2nodeclasses/status"]
     verbs: ["patch", "update"]
 {{- if .Values.webhook.enabled }}
   - apiGroups: ["admissionregistration.k8s.io"]

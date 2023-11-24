@@ -146,11 +146,6 @@ Flatten the stdout logging outputs from args provided
 */}}
 {{- define "karpenter.outputPathsList" -}}
 {{ $paths := list -}}
-{{- range .Values.controller.outputPaths -}}
-    {{- if not (has (printf "%s" . | quote) $paths) -}}
-        {{- $paths = printf "%s" . | quote  | append $paths -}}
-    {{- end -}}
-{{- end -}}
 {{- range .Values.logConfig.outputPaths -}}
     {{- if not (has (printf "%s" . | quote) $paths) -}}
         {{- $paths = printf "%s" . | quote  | append $paths -}}
@@ -164,11 +159,6 @@ Flatten the stderr logging outputs from args provided
 */}}
 {{- define "karpenter.errorOutputPathsList" -}}
 {{ $paths := list -}}
-{{- range .Values.controller.errorOutputPaths -}}
-    {{- if not (has (printf "%s" . | quote) $paths) -}}
-        {{- $paths = printf "%s" . | quote  | append $paths -}}
-    {{- end -}}
-{{- end -}}
 {{- range .Values.logConfig.errorOutputPaths -}}
     {{- if not (has (printf "%s" . | quote) $paths) -}}
         {{- $paths = printf "%s" . | quote  | append $paths -}}
