@@ -83,7 +83,7 @@ var _ = Describe("Webhook/Validation", func() {
 		})
 		It("should fail if tags contain a restricted domain key", func() {
 			nc.Spec.Tags = map[string]string{
-				"karpenter.sh/provisioner-name": "value",
+				"karpenter.sh/nodepool": "value",
 			}
 			Expect(nc.Validate(ctx)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{

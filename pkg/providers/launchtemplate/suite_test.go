@@ -344,37 +344,6 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
 			ExpectTags(createFleetInput.TagSpecifications[2].Tags, nodeClass.Spec.Tags)
 		})
-		It("should merge global tags into launch template and volume tags", func() {
-			nodeClass.Spec.Tags = map[string]string{
-				"tag1": "tag1value",
-				"tag2": "tag2value",
-			}
-			settingsTags := map[string]string{
-				"customTag1": "value1",
-				"customTag2": "value2",
-			}
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				Tags: settingsTags,
-			}))
-
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
-
-			// tags should be included in instance, volume, and fleet tag specification
-			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
-			ExpectTags(createFleetInput.TagSpecifications[0].Tags, settingsTags)
-
-			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
-			ExpectTags(createFleetInput.TagSpecifications[1].Tags, settingsTags)
-
-			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
-			ExpectTags(createFleetInput.TagSpecifications[2].Tags, settingsTags)
-		})
 		It("should override global tags with provider tags", func() {
 			nodeClass.Spec.Tags = map[string]string{
 				"tag1": "tag1value",
@@ -1623,9 +1592,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should fail if no amis match selector.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				ExpectApplied(ctx, env.Client, nodeClass)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeClass.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)

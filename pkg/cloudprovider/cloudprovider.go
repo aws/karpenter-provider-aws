@@ -110,7 +110,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 
 // Link adds a tag to the cloudprovider NodeClaim to tell the cloudprovider that it's now owned by a NodeClaim
 func (c *CloudProvider) Link(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(lo.Ternary(nodeClaim.IsMachine, "machine", "nodeclaim"), nodeClaim.Name))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name))
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		return fmt.Errorf("getting instance ID, %w", err)
@@ -180,7 +180,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(lo.Ternary(nodeClaim.IsMachine, "machine", "nodeclaim"), nodeClaim.Name))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name))
 
 	providerID := lo.Ternary(nodeClaim.Status.ProviderID != "", nodeClaim.Status.ProviderID, nodeClaim.Annotations[v1alpha5.MachineLinkedAnnotationKey])
 	id, err := utils.ParseInstanceID(providerID)

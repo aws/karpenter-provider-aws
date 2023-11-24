@@ -89,7 +89,7 @@ func (a AMIs) String() string {
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, isMachine bool) map[string][]*cloudprovider.InstanceType {
+func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range a {
