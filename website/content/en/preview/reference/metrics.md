@@ -30,26 +30,6 @@ Total number of reconciliations per controller
 ### `karpenter_consistency_errors`
 Number of consistency checks that have failed.
 
-## Deprovisioning Metrics
-
-### `karpenter_deprovisioning_actions_performed`
-Number of deprovisioning actions performed. Labeled by deprovisioner.
-
-### `karpenter_deprovisioning_consolidation_timeouts`
-Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
-
-### `karpenter_deprovisioning_eligible_machines`
-Number of machines eligible for deprovisioning by Karpenter. Labeled by deprovisioner
-
-### `karpenter_deprovisioning_evaluation_duration_seconds`
-Duration of the deprovisioning evaluation process in seconds.
-
-### `karpenter_deprovisioning_replacement_machine_initialized_seconds`
-Amount of time required for a replacement machine to become initialized.
-
-### `karpenter_deprovisioning_replacement_machine_launch_failure_counter`
-The number of times that Karpenter failed to launch a replacement node for deprovisioning. Labeled by deprovisioner.
-
 ## Disruption Metrics
 
 ### `karpenter_disruption_actions_performed_total`
@@ -63,6 +43,9 @@ Number of nodes eligible for disruption by Karpenter. Labeled by disruption meth
 
 ### `karpenter_disruption_evaluation_duration_seconds`
 Duration of the disruption evaluation process in seconds.
+
+### `karpenter_disruption_queue_depth`
+The number of commands currently being waited on in the disruption orchestration queue.
 
 ### `karpenter_disruption_replacement_nodeclaim_failures_total`
 The number of times that Karpenter failed to launch a replacement node for disruption. Labeled by disruption method.
@@ -83,29 +66,6 @@ Length of time between message creation in queue and an action taken on the mess
 
 ### `karpenter_interruption_received_messages`
 Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.
-
-## Machines Metrics
-
-### `karpenter_machines_created`
-Number of machines created in total by Karpenter. Labeled by reason the machine was created and the owning provisioner.
-
-### `karpenter_machines_disrupted`
-Number of machines disrupted in total by Karpenter. Labeled by disruption type of the machine and the owning provisioner.
-
-### `karpenter_machines_drifted`
-Number of machine drifted reasons in total by Karpenter. Labeled by drift type of the machine and the owning provisioner..
-
-### `karpenter_machines_initialized`
-Number of machines initialized in total by Karpenter. Labeled by the owning provisioner.
-
-### `karpenter_machines_launched`
-Number of machines launched in total by Karpenter. Labeled by the owning provisioner.
-
-### `karpenter_machines_registered`
-Number of machines registered in total by Karpenter. Labeled by the owning provisioner.
-
-### `karpenter_machines_terminated`
-Number of machines terminated in total by Karpenter. Labeled by reason the machine was terminated and the owning provisioner.
 
 ## Nodeclaims Metrics
 
