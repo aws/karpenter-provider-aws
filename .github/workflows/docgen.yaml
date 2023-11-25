@@ -1,16 +1,13 @@
 name: DocGenCI
-
 on:
   push:
     branches:
       - 'main'
       - 'release-v*'
-
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-
 jobs:
   docgen-ci:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:

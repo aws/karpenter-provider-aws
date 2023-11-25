@@ -51,6 +51,9 @@ on:
 #   3. Downstream fork triggered the job through dispatch and has set 'ENABLE_E2E' in repo environment variables
 jobs:
   e2e:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     strategy:
       fail-fast: false
       max-parallel: ${{ inputs.parallelism || 100 }}
@@ -75,6 +78,9 @@ jobs:
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
       # This version matches the steps of the newest version that contains the additional step

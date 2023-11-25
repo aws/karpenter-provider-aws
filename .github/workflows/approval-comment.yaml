@@ -2,7 +2,6 @@ name: ApprovalComment
 on:
   pull_request_review:
     types: [submitted]
-
 jobs:
   approval-comment:
     if: startsWith(github.event.review.body, '/karpenter snapshot') || startsWith(github.event.review.body, '/karpenter scale') || startsWith(github.event.review.body, '/karpenter versionCompatibility')

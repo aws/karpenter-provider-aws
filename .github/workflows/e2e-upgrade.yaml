@@ -48,11 +48,11 @@ on:
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-  statuses: write # ./.github/actions/commit-status/start
 jobs:
   run-suite:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     name: suite-upgrade
     runs-on: ubuntu-latest
     steps:

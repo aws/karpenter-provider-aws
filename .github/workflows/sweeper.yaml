@@ -3,10 +3,10 @@ on:
   schedule:
     - cron: '0 */12 * * *'
   workflow_dispatch:
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   sweeper:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
     if: vars.ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false

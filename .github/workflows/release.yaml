@@ -7,12 +7,12 @@ on:
       - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
       - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-  contents: write # marvinpinto/action-automatic-releases@v1.2.1
-  pull-requests: write # name: Create PR
 jobs:
   release:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      contents: write # marvinpinto/action-automatic-releases@v1.2.1
+      pull-requests: write # name: Create PR
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
