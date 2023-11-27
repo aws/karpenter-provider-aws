@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.32.1](https://img.shields.io/badge/Version-0.32.1-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.32.1](https://img.shields.io/badge/AppVersion-0.32.1-informational?style=flat-square)
+![Version: 0.32.2](https://img.shields.io/badge/Version-0.32.2-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.32.2](https://img.shields.io/badge/AppVersion-0.32.2-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version v0.32.1 \
+  --version v0.32.2 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -35,9 +35,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:9b31039d45613ac22a104b8d48eca9dcdeff93e525bd473c811dfd3502e58c69"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:da893a13f026248a867de8e72d79820f9a1091aabf6d37f28897cdbb3446991d"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"v0.32.1"` | Tag of the controller image. |
+| controller.image.tag | string | `"v0.32.2"` | Tag of the controller image. |
 | controller.metrics.port | int | `8000` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller pod. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
