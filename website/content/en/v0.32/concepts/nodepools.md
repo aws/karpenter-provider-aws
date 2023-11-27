@@ -281,8 +281,6 @@ kubelet:
   maxPods: 20
 ```
 
-* `containerd` is the only valid container runtime when using the `Bottlerocket` AMIFamily or when using Kubernetes version 1.24+ and the `AL2`, `Windows2019`, or `Windows2022` AMIFamilies.
-
 ### Reserved Resources
 
 Karpenter will automatically configure the system and kube reserved resource requests on the fly on your behalf. These requests are used to configure your node and to make scheduling decisions for your pods. If you have specific requirements or know that you will have additional capacity requirements, you can optionally override the `--system-reserved` configuration defaults with the `.spec.template.spec.kubelet.systemReserved` values and the `--kube-reserved` configuration defaults with the `.spec.template.spec.kubelet.kubeReserved` values.
