@@ -24,7 +24,6 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
-	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
@@ -49,7 +48,6 @@ import (
 func init() {
 	lo.Must0(apis.AddToScheme(scheme.Scheme))
 	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
-	coreapis.Settings = append(coreapis.Settings, apis.Settings...)
 }
 
 type Environment struct {

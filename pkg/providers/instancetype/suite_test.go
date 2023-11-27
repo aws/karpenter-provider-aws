@@ -51,7 +51,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/fake"
@@ -80,7 +79,6 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
@@ -96,7 +94,6 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	cluster.Reset()
 	awsEnv.Reset()
 	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
@@ -626,17 +623,6 @@ var _ = Describe("InstanceTypes", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
-	It("should set pods to 110 if not using ENI-based pod density", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-			EnableENILimitedPodDensity: lo.ToPtr(false),
-		}))
-		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
-		Expect(err).To(BeNil())
-		for _, info := range instanceInfo {
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
-			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
-		}
-	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
@@ -645,13 +631,10 @@ var _ = Describe("InstanceTypes", func() {
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
-	It("should set pods to 110 even ENILimitedPodDensity is enabled in awssettings but amifamily doesn't support", func() {
+	It("should set pods to 110 if AMI Family doesn't support", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-			EnableENILimitedPodDensity: lo.ToPtr(true),
-		}))
 		for _, info := range instanceInfo {
 			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, windowsNodeClass, nil)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
@@ -971,7 +954,7 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
-		It("should override max-pods value when AWSENILimitedPodDensity is unset", func() {
+		It("should override max-pods value", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
@@ -1059,19 +1042,21 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
-		It("should take 110 to be the default pods number when pods-per-core is 0 and AWSENILimitedPodDensity is unset", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
-
+		It("should take limited pod density to be the default pods number when pods-per-core is 0", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(0),
 			}
 			for _, info := range instanceInfo {
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
-				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
+				if *info.InstanceType == "t3.large" {
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
+				}
+				if *info.InstanceType == "m6idn.32xlarge" {
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
+				}
 			}
 		})
 		It("shouldn't report more resources than are actually available on instances", func() {

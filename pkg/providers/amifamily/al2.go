@@ -80,14 +80,13 @@ func (a AL2) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []
 	return bootstrap.EKS{
 		ContainerRuntime: *containerRuntime,
 		Options: bootstrap.Options{
-			ClusterName:             a.Options.ClusterName,
-			ClusterEndpoint:         a.Options.ClusterEndpoint,
-			AWSENILimitedPodDensity: a.Options.AWSENILimitedPodDensity,
-			KubeletConfig:           kubeletConfig,
-			Taints:                  taints,
-			Labels:                  labels,
-			CABundle:                caBundle,
-			CustomUserData:          customUserData,
+			ClusterName:     a.Options.ClusterName,
+			ClusterEndpoint: a.Options.ClusterEndpoint,
+			KubeletConfig:   kubeletConfig,
+			Taints:          taints,
+			Labels:          labels,
+			CABundle:        caBundle,
+			CustomUserData:  customUserData,
 		},
 	}
 }

@@ -36,10 +36,10 @@ import (
 	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
 	coreoperator "github.com/aws/karpenter-core/pkg/operator"
 	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator"
+	"github.com/aws/karpenter/pkg/operator/options"
 )
 
 var clusterName string
@@ -60,7 +60,7 @@ func main() {
 	restConfig := config.GetConfigOrDie()
 	kubeClient := lo.Must(client.New(restConfig, client.Options{}))
 	ctx := context.Background()
-	ctx = settings.ToContext(ctx, &settings.Settings{ClusterName: clusterName, IsolatedVPC: true, VMMemoryOverheadPercent: overheadPercent})
+	ctx = options.ToContext(ctx, &options.Options{ClusterName: clusterName, IsolatedVPC: true, VMMemoryOverheadPercent: overheadPercent})
 
 	file := lo.Must(os.OpenFile(outFile, os.O_RDWR|os.O_CREATE, 0777))
 	defer file.Close()

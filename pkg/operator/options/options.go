@@ -27,8 +27,6 @@ import (
 
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/env"
-
-	"github.com/aws/karpenter/pkg/apis/settings"
 )
 
 func init() {
@@ -95,22 +93,6 @@ func (o *Options) ToContext(ctx context.Context) context.Context {
 	return ToContext(ctx, o)
 }
 
-func (o *Options) MergeSettings(ctx context.Context) {
-	s := settings.FromContext(ctx)
-	mergeField(&o.AssumeRoleARN, s.AssumeRoleARN, o.setFlags["assume-role-arn"])
-	mergeField(&o.AssumeRoleDuration, s.AssumeRoleDuration, o.setFlags["assume-role-duration"])
-	mergeField(&o.ClusterCABundle, s.ClusterCABundle, o.setFlags["cluster-ca-bundle"])
-	mergeField(&o.ClusterName, s.ClusterName, o.setFlags["cluster-name"])
-	mergeField(&o.ClusterEndpoint, s.ClusterEndpoint, o.setFlags["cluster-endpoint"])
-	mergeField(&o.IsolatedVPC, s.IsolatedVPC, o.setFlags["isolated-vpc"])
-	mergeField(&o.VMMemoryOverheadPercent, s.VMMemoryOverheadPercent, o.setFlags["vm-memory-overhead-percent"])
-	mergeField(&o.InterruptionQueue, s.InterruptionQueueName, o.setFlags["interruption-queue"])
-	mergeField(&o.ReservedENIs, s.ReservedENIs, o.setFlags["reserved-enis"])
-	if err := o.validateRequiredFields(); err != nil {
-		panic(fmt.Errorf("checking required fields, %w", err))
-	}
-}
-
 func ToContext(ctx context.Context, opts *Options) context.Context {
 	return context.WithValue(ctx, optionsKey{}, opts)
 }
@@ -121,11 +103,4 @@ func FromContext(ctx context.Context) *Options {
 		return nil
 	}
 	return retval.(*Options)
-}
-
-// Note: Separated out to help with cyclomatic complexity check
-func mergeField[T any](dest *T, src T, isDestSet bool) {
-	if !isDestSet {
-		*dest = src
-	}
 }

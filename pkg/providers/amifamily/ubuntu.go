@@ -56,14 +56,13 @@ func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
 func (u Ubuntu) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
-			ClusterName:             u.Options.ClusterName,
-			ClusterEndpoint:         u.Options.ClusterEndpoint,
-			AWSENILimitedPodDensity: u.Options.AWSENILimitedPodDensity,
-			KubeletConfig:           kubeletConfig,
-			Taints:                  taints,
-			Labels:                  labels,
-			CABundle:                caBundle,
-			CustomUserData:          customUserData,
+			ClusterName:     u.Options.ClusterName,
+			ClusterEndpoint: u.Options.ClusterEndpoint,
+			KubeletConfig:   kubeletConfig,
+			Taints:          taints,
+			Labels:          labels,
+			CABundle:        caBundle,
+			CustomUserData:  customUserData,
 		},
 	}
 }

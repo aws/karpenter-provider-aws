@@ -91,14 +91,13 @@ func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
 func (b Bottlerocket) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	return bootstrap.Bottlerocket{
 		Options: bootstrap.Options{
-			ClusterName:             b.Options.ClusterName,
-			ClusterEndpoint:         b.Options.ClusterEndpoint,
-			AWSENILimitedPodDensity: b.Options.AWSENILimitedPodDensity,
-			KubeletConfig:           kubeletConfig,
-			Taints:                  taints,
-			Labels:                  labels,
-			CABundle:                caBundle,
-			CustomUserData:          customUserData,
+			ClusterName:     b.Options.ClusterName,
+			ClusterEndpoint: b.Options.ClusterEndpoint,
+			KubeletConfig:   kubeletConfig,
+			Taints:          taints,
+			Labels:          labels,
+			CABundle:        caBundle,
+			CustomUserData:  customUserData,
 		},
 	}
 }

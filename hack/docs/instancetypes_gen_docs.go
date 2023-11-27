@@ -35,7 +35,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/operator/options"
@@ -93,8 +92,6 @@ func main() {
 		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
 		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
 	}))
-	// TODO @joinnis: Remove this when dropping alpha support
-	ctx = settings.ToContext(ctx, test.Settings())
 
 	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
 		Manager:             &FakeManager{},

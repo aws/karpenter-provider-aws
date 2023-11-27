@@ -30,7 +30,6 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
@@ -49,9 +48,6 @@ var _ = Describe("GarbageCollection", func() {
 		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
 		instanceInput = &ec2.RunInstancesInput{
 			InstanceType: aws.String("c5.large"),
-			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-				Name: aws.String(settings.FromContext(env.Context).DefaultInstanceProfile),
-			},
 			SecurityGroupIds: lo.Map(securityGroups, func(s environmentaws.SecurityGroup, _ int) *string {
 				return s.GroupIdentifier.GroupId
 			}),

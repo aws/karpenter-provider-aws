@@ -37,7 +37,6 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/operator/options"
@@ -162,7 +161,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 			delete(labels, k)
 		}
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, nodeClass)
+	instanceProfile, err := p.getInstanceProfile(nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -175,10 +174,9 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	options := &amifamily.Options{
-		ClusterName:             options.FromContext(ctx).ClusterName,
-		ClusterEndpoint:         p.ClusterEndpoint,
-		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
-		InstanceProfile:         instanceProfile,
+		ClusterName:     options.FromContext(ctx).ClusterName,
+		ClusterEndpoint: p.ClusterEndpoint,
+		InstanceProfile: instanceProfile,
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
 			return v1beta1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
@@ -371,7 +369,7 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 	}
 }
 
-func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
+func (p *Provider) getInstanceProfile(nodeClass *v1beta1.EC2NodeClass) (string, error) {
 	if nodeClass.Spec.InstanceProfile != nil {
 		return aws.StringValue(nodeClass.Spec.InstanceProfile), nil
 	}
@@ -381,9 +379,5 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC
 		}
 		return nodeClass.Status.InstanceProfile, nil
 	}
-	defaultProfile := settings.FromContext(ctx).DefaultInstanceProfile
-	if defaultProfile == "" {
-		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
-	}
-	return defaultProfile, nil
+	return "", errors.New("neither spec.instanceProfile or spec.role is specified")
 }

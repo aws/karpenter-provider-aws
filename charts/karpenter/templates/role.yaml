@@ -18,10 +18,12 @@ rules:
     resources: ["configmaps", "namespaces", "secrets"]
     verbs: ["get", "list", "watch"]
   # Write
+{{- if .Values.webhook.enabled }}
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["update"]
     resourceNames: ["{{ include "karpenter.fullname" . }}-cert"]
+{{- end }}
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["update", "patch", "delete"]
