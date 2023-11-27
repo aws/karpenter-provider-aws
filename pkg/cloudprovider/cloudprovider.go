@@ -43,7 +43,6 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
 	cloudproviderevents "github.com/aws/karpenter/pkg/cloudprovider/events"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
@@ -194,9 +193,13 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *corev1beta1.NodeC
 
 func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (cloudprovider.DriftReason, error) {
 	// Not needed when GetInstanceTypes removes nodepool dependency
-	nodePool, err := nodeclaimutil.Owner(ctx, c.kubeClient, nodeClaim)
-	if err != nil {
-		return "", client.IgnoreNotFound(fmt.Errorf("resolving owner, %w", err))
+	nodePoolName, ok := nodeClaim.Labels[corev1beta1.NodePoolLabelKey]
+	if !ok {
+		return "", nil
+	}
+	nodePool := &corev1beta1.NodePool{}
+	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool); err != nil {
+		return "", client.IgnoreNotFound(err)
 	}
 	if nodePool.Spec.Template.Spec.NodeClassRef == nil {
 		return "", nil

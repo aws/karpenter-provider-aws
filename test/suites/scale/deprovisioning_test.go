@@ -27,6 +27,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"knative.dev/pkg/ptr"
@@ -362,6 +363,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
 				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = nil
 				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
@@ -415,6 +417,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
 				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = nil
 				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", int(float64(expectedNodeCount)*0.8))
@@ -480,6 +483,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				// The nodePool defaults to a larger instance type than we need so enabling consolidation and making
 				// the requirements wide-open should cause deletes and increase our utilization on the cluster
 				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = nil
 				nodePool.Spec.Template.Spec.Requirements = lo.Reject(nodePool.Spec.Template.Spec.Requirements, func(r v1.NodeSelectorRequirement, _ int) bool {
 					return r.Key == v1beta1.LabelInstanceSize
 				})
@@ -595,9 +599,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				nodePool.Spec.Disruption.ExpireAfter.Duration = ptr.Duration(0)
 
 				noExpireNodePool := test.NodePool(*nodePool.DeepCopy())
+				noExpireNodePool.ObjectMeta = metav1.ObjectMeta{Name: test.RandomName()}
 				noExpireNodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 				}
+				noExpireNodePool.Spec.Limits = nil
 				env.ExpectCreatedOrUpdated(nodePool, noExpireNodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
