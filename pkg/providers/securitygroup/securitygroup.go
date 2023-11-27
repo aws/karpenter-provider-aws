@@ -65,7 +65,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([
 	if err != nil {
 		return nil, err
 	}
-	if p.cm.HasChanged(fmt.Sprintf("security-groups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), securityGroups) {
+	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroups) {
 		logging.FromContext(ctx).
 			With("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
 				return aws.StringValue(s.GroupId)

@@ -48,9 +48,6 @@ func (w Windows) Script() (string, error) {
 	if w.KubeletConfig != nil && len(w.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(` -DNSClusterIP '%s'`, w.KubeletConfig.ClusterDNS[0]))
 	}
-	if w.KubeletConfig != nil && w.KubeletConfig.ContainerRuntime != nil {
-		userData.WriteString(fmt.Sprintf(` -ContainerRuntime '%s'`, *w.KubeletConfig.ContainerRuntime))
-	}
 	userData.WriteString("\n</powershell>")
 	return base64.StdEncoding.EncodeToString(userData.Bytes()), nil
 }

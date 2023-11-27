@@ -28,7 +28,6 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
 	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
@@ -224,8 +223,7 @@ func (m *Monitor) nodeUtilization(resource v1.ResourceName) []float64 {
 	for nodeName, requests := range st.nodeRequests {
 		allocatable := st.nodes[nodeName].Status.Allocatable[resource]
 		// skip any nodes we didn't launch
-		if st.nodes[nodeName].Labels[v1alpha5.ProvisionerNameLabelKey] == "" &&
-			st.nodes[nodeName].Labels[v1beta1.NodePoolLabelKey] == "" {
+		if st.nodes[nodeName].Labels[v1beta1.NodePoolLabelKey] == "" {
 			continue
 		}
 		if allocatable.IsZero() {

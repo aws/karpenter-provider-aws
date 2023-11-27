@@ -24,13 +24,7 @@ import (
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	nodetemplateutil "github.com/aws/karpenter/pkg/utils/nodetemplate"
 )
-
-type Key struct {
-	Name           string
-	IsNodeTemplate bool
-}
 
 func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 	return &v1beta1.EC2NodeClass{
@@ -58,7 +52,6 @@ func New(nodeTemplate *v1alpha1.AWSNodeTemplate) *v1beta1.EC2NodeClass {
 			SecurityGroups: NewSecurityGroups(nodeTemplate.Status.SecurityGroups),
 			AMIs:           NewAMIs(nodeTemplate.Status.AMIs),
 		},
-		IsNodeTemplate: true,
 	}
 }
 
@@ -233,43 +226,22 @@ func NewAMIs(amis []v1alpha1.AMI) []v1beta1.AMI {
 	})
 }
 
-func Get(ctx context.Context, c client.Client, key Key) (*v1beta1.EC2NodeClass, error) {
-	if key.IsNodeTemplate {
-		nodeTemplate := &v1alpha1.AWSNodeTemplate{}
-		if err := c.Get(ctx, types.NamespacedName{Name: key.Name}, nodeTemplate); err != nil {
-			return nil, err
-		}
-		return New(nodeTemplate), nil
-	}
+func Get(ctx context.Context, c client.Client, name string) (*v1beta1.EC2NodeClass, error) {
 	nodeClass := &v1beta1.EC2NodeClass{}
-	if err := c.Get(ctx, types.NamespacedName{Name: key.Name}, nodeClass); err != nil {
+	if err := c.Get(ctx, types.NamespacedName{Name: name}, nodeClass); err != nil {
 		return nil, err
 	}
 	return nodeClass, nil
 }
 
 func Patch(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.EC2NodeClass) error {
-	if nodeClass.IsNodeTemplate {
-		storedNodeTemplate := nodetemplateutil.New(stored)
-		nodeTemplate := nodetemplateutil.New(nodeClass)
-		return c.Patch(ctx, nodeTemplate, client.MergeFrom(storedNodeTemplate))
-	}
 	return c.Patch(ctx, nodeClass, client.MergeFrom(stored))
 }
 
 func PatchStatus(ctx context.Context, c client.Client, stored, nodeClass *v1beta1.EC2NodeClass) error {
-	if nodeClass.IsNodeTemplate {
-		storedNodeTemplate := nodetemplateutil.New(stored)
-		nodeTemplate := nodetemplateutil.New(nodeClass)
-		return c.Status().Patch(ctx, nodeTemplate, client.MergeFrom(storedNodeTemplate))
-	}
 	return c.Status().Patch(ctx, nodeClass, client.MergeFrom(stored))
 }
 
 func HashAnnotation(nodeClass *v1beta1.EC2NodeClass) map[string]string {
-	if nodeClass.IsNodeTemplate {
-		nodeTemplate := nodetemplateutil.New(nodeClass)
-		return map[string]string{v1alpha1.AnnotationNodeTemplateHash: nodeTemplate.Hash()}
-	}
-	return map[string]string{v1beta1.AnnotationNodeClassHash: nodeClass.Hash()}
+	return map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()}
 }

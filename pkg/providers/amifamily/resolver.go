@@ -73,7 +73,7 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	DefaultAMIs(version string, isNodeTemplate bool) []DefaultAMIOutput
+	DefaultAMIs(version string) []DefaultAMIOutput
 	UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1beta1.MetadataOptions
@@ -124,7 +124,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if len(amis) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amis.MapToInstanceTypes(instanceTypes, nodeClaim.IsMachine)
+	mappedAMIs := amis.MapToInstanceTypes(instanceTypes)
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}

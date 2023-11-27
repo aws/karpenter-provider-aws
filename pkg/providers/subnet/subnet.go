@@ -84,7 +84,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([
 		}
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
-	if p.cm.HasChanged(fmt.Sprintf("subnets/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), subnets) {
+	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), subnets) {
 		logging.FromContext(ctx).
 			With("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) string {
 				return fmt.Sprintf("%s (%s)", aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone))

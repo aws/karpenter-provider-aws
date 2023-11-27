@@ -18,7 +18,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
@@ -26,7 +25,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 )
 
@@ -36,36 +34,36 @@ type AL2 struct {
 }
 
 // DefaultAMIs returns the AMI name, and Requirements, with an SSM query
-func (a AL2) DefaultAMIs(version string, isNodeTemplate bool) []DefaultAMIOutput {
+func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-				scheduling.NewRequirement(lo.Ternary(isNodeTemplate, v1alpha1.LabelInstanceGPUCount, v1beta1.LabelInstanceGPUCount), v1.NodeSelectorOpDoesNotExist),
-				scheduling.NewRequirement(lo.Ternary(isNodeTemplate, v1alpha1.LabelInstanceAcceleratorCount, v1beta1.LabelInstanceAcceleratorCount), v1.NodeSelectorOpDoesNotExist),
+				scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+				scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
 			),
 		},
 		{
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-				scheduling.NewRequirement(lo.Ternary(isNodeTemplate, v1alpha1.LabelInstanceGPUCount, v1beta1.LabelInstanceGPUCount), v1.NodeSelectorOpExists),
+				scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
 			),
 		},
 		{
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-				scheduling.NewRequirement(lo.Ternary(isNodeTemplate, v1alpha1.LabelInstanceAcceleratorCount, v1beta1.LabelInstanceAcceleratorCount), v1.NodeSelectorOpExists),
+				scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
 			),
 		},
 		{
 			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-%s/recommended/image_id", version, corev1beta1.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-				scheduling.NewRequirement(lo.Ternary(isNodeTemplate, v1alpha1.LabelInstanceGPUCount, v1beta1.LabelInstanceGPUCount), v1.NodeSelectorOpDoesNotExist),
-				scheduling.NewRequirement(lo.Ternary(isNodeTemplate, v1alpha1.LabelInstanceAcceleratorCount, v1beta1.LabelInstanceAcceleratorCount), v1.NodeSelectorOpDoesNotExist),
+				scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+				scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
 			),
 		},
 	}
@@ -77,9 +75,6 @@ func (a AL2) DefaultAMIs(version string, isNodeTemplate bool) []DefaultAMIOutput
 // AL2 userdata also works on Ubuntu
 func (a AL2) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
 	containerRuntime := aws.String("containerd")
-	if kubeletConfig != nil && kubeletConfig.ContainerRuntime != nil {
-		containerRuntime = kubeletConfig.ContainerRuntime
-	}
 	return bootstrap.EKS{
 		ContainerRuntime: *containerRuntime,
 		Options: bootstrap.Options{

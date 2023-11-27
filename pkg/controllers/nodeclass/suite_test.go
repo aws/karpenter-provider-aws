@@ -749,7 +749,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHash := nodeClass.Hash()
-			Expect(nodeClass.ObjectMeta.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
 
@@ -758,7 +758,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHashTwo := nodeClass.Hash()
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHashTwo))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHashTwo))
 			Expect(expectedHash).ToNot(Equal(expectedHashTwo))
 
 		},
@@ -776,7 +776,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHash := nodeClass.Hash()
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 				{
@@ -797,7 +797,7 @@ var _ = Describe("NodeClassController", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 		})
 	})
 	Context("NodeClass Termination", func() {
