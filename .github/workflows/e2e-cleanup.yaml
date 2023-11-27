@@ -14,10 +14,10 @@ on:
           - "us-east-2"
           - "us-west-2"
           - "eu-west-1"
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   cleanup:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
     name: cleanup-${{ inputs.cluster_name }}
     runs-on: ubuntu-latest
     steps:

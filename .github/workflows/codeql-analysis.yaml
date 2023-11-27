@@ -1,5 +1,4 @@
 name: "CodeQL"
-
 on:
   push:
     branches:
@@ -7,7 +6,6 @@ on:
       - 'release-v*'
   schedule:
     - cron: '0 12 * * *'
-
 jobs:
   analyze:
     if: github.repository == 'aws/karpenter'
