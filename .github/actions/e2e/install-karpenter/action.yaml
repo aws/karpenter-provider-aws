@@ -45,12 +45,15 @@ runs:
     shell: bash
     run: |
       aws eks update-kubeconfig --name "${{ inputs.cluster_name }}"
-        helm upgrade --install karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
-        -n karpenter \
+      
+      # Parse minor version to determine whether to enable the webhooks
+      
+      
+      helm upgrade --install karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
+        -n kube-system \
         --version "v0-$(git rev-parse HEAD)" \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/karpenter-irsa-${{ inputs.cluster_name }}" \
         --set settings.clusterName="${{ inputs.cluster_name }}" \
-        --set settings.aws.defaultInstanceProfile="KarpenterNodeInstanceProfile-${{ inputs.cluster_name }}" \
         --set settings.interruptionQueue="${{ inputs.cluster_name }}" \
         --set controller.resources.requests.cpu=3 \
         --set controller.resources.requests.memory=3Gi \

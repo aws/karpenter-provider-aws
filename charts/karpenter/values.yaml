@@ -147,7 +147,7 @@ logLevel: info
 # -- Log configuration (Deprecated: Logging configuration will be dropped by v1, use logLevel instead)
 logConfig:
   # -- Whether to enable provisioning and mounting the log ConfigMap
-  enabled: true
+  enabled: false
   # -- Log outputPaths - defaults to stdout only
   outputPaths:
     - stdout
@@ -159,7 +159,7 @@ logConfig:
   # -- Component-based log configuration
   logLevel:
     # -- Global log level, defaults to 'info'
-    global: info
+    global: debug
     # -- Controller log level, defaults to 'info'
     controller: info
     # -- Error log level, defaults to 'error'

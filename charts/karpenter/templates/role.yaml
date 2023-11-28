@@ -14,21 +14,19 @@ rules:
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["get", "watch"]
+{{- if .Values.webhook.enabled }}
   - apiGroups: [""]
     resources: ["configmaps", "namespaces", "secrets"]
     verbs: ["get", "list", "watch"]
+{{- end }}
   # Write
 {{- if .Values.webhook.enabled }}
   - apiGroups: [""]
     resources: ["secrets"]
     verbs: ["update"]
-    resourceNames: ["{{ include "karpenter.fullname" . }}-cert"]
-{{- end }}
-  - apiGroups: [""]
-    resources: ["configmaps"]
-    verbs: ["update", "patch", "delete"]
     resourceNames:
-      - config-logging
+      - "{{ include "karpenter.fullname" . }}-cert"
+{{- end }}
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
     verbs: ["patch", "update"]
@@ -48,9 +46,6 @@ rules:
   # https://kubernetes.io/docs/reference/access-authn-authz/rbac/#referring-to-resources
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
-    verbs: ["create"]
-  - apiGroups: [""]
-    resources: ["configmaps"]
     verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
