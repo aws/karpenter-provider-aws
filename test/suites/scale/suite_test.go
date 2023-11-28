@@ -30,20 +30,20 @@ func TestScale(t *testing.T) {
 	RegisterFailHandler(Fail)
 	BeforeSuite(func() {
 		env = aws.NewEnvironment(t)
+		env.ExpectPrefixDelegationEnabled()
 		SetDefaultEventuallyTimeout(time.Hour)
 	})
 	AfterSuite(func() {
+		env.ExpectPrefixDelegationDisabled()
 		env.Stop()
 	})
 	RunSpecs(t, "Scale")
 }
 
 var _ = BeforeEach(func() {
-	env.ExpectPrefixDelegationEnabled()
 	env.BeforeEach()
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() {
 	env.AfterEach()
-	env.ExpectPrefixDelegationDisabled()
 })

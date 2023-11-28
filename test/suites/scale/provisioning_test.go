@@ -72,6 +72,9 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		// that will be allocated across this large number of nodes, despite the fact that the ENI CIDR space will
 		// be extremely under-utilized
 		env.ExpectPrefixDelegationDisabled()
+		DeferCleanup(func() {
+			env.ExpectPrefixDelegationEnabled()
+		})
 
 		replicasPerNode := 1
 		expectedNodeCount := 500
