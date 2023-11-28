@@ -21,8 +21,8 @@ import (
 	"os"
 	"strings"
 
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/operator/options"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 )
 
 func main() {
@@ -49,7 +49,7 @@ func main() {
 	topDoc := fmt.Sprintf("%s%s\n\n", startDocSections[0], genStart)
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
-	fs := &coreoptions.FlagSet {
+	fs := &coreoptions.FlagSet{
 		FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
 	}
 	(&coreoptions.Options{}).AddFlags(fs)

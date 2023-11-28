@@ -35,19 +35,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	coreoperator "github.com/aws/karpenter-core/pkg/operator"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	coretest "github.com/aws/karpenter-core/pkg/test"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator"
 	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
+	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 // FakeManager is a manager that takes all the utilized calls from the operator setup

@@ -22,7 +22,7 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"knative.dev/pkg/apis"
 
-	"github.com/aws/karpenter-core/pkg/utils/functional"
+	"sigs.k8s.io/karpenter/pkg/utils/functional"
 )
 
 const (

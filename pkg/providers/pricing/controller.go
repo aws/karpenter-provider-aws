@@ -23,7 +23,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
+	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 )
 
 type Controller struct {

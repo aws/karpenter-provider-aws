@@ -35,9 +35,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	nodeutils "github.com/aws/karpenter-core/pkg/utils/node"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/aws"

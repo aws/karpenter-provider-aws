@@ -22,8 +22,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 

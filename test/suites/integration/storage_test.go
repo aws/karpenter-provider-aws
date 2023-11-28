@@ -28,7 +28,7 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 
-	"github.com/aws/karpenter-core/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/test"
 )
 
 // This test requires the EBS CSI driver to be installed

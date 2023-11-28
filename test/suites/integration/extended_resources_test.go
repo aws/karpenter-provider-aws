@@ -28,7 +28,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	"github.com/aws/karpenter-core/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awsenv "github.com/aws/karpenter/test/pkg/environment/aws"
 )

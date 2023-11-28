@@ -19,8 +19,9 @@ import (
 
 	"github.com/samber/lo"
 
-	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/test"
+	corev1alpha5 "sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
+	"sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha5"
 )
 

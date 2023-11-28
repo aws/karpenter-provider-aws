@@ -23,7 +23,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/configmap"
 
-	coresettings "github.com/aws/karpenter-core/pkg/apis/settings"
+	coresettings "sigs.k8s.io/karpenter/pkg/apis/settings"
 )
 
 type settingsKeyType struct{}

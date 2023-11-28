@@ -7,7 +7,6 @@ require (
 	github.com/PuerkitoBio/goquery v1.8.1
 	github.com/avast/retry-go v3.0.0+incompatible
 	github.com/aws/aws-sdk-go v1.48.4
-	github.com/aws/karpenter-core v0.32.2-0.20231125072327-0a0b0de0e439
 	github.com/aws/karpenter/tools/kompat v0.0.0-20231010173459-62c25a3ea85c
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
@@ -29,6 +28,7 @@ require (
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.16.3
+	sigs.k8s.io/karpenter v0.32.2-0.20231128022149-cd7c3057c6ad
 )
 
 require (

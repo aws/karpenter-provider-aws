@@ -24,9 +24,10 @@ import (
 
 	"github.com/patrickmn/go-cache"
 
-	coreapis "github.com/aws/karpenter-core/pkg/apis"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	coreapis "sigs.k8s.io/karpenter/pkg/apis"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+
 	"github.com/aws/karpenter/pkg/apis"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/fake"
@@ -40,7 +41,7 @@ import (
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/providers/version"
 
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 )

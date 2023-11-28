@@ -42,7 +42,6 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
@@ -51,10 +50,11 @@ import (
 	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 )
 
 var r = rand.New(rand.NewSource(time.Now().Unix()))

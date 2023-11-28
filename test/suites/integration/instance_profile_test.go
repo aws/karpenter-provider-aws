@@ -23,7 +23,8 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	awserrors "github.com/aws/karpenter/pkg/errors"
 )
 

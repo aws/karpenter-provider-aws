@@ -30,8 +30,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
@@ -40,9 +41,9 @@ import (
 	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/events"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
+	"sigs.k8s.io/karpenter/pkg/events"
+	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
+	nodeclaimutil "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 )
 
 type Action string

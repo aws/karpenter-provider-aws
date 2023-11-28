@@ -25,14 +25,15 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	. "knative.dev/pkg/logging/testing"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
@@ -42,9 +43,9 @@ import (
 	"github.com/aws/karpenter/pkg/providers/instance"
 	"github.com/aws/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/operator/controller"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
+	"sigs.k8s.io/karpenter/pkg/operator/controller"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 )
 
 var ctx context.Context

@@ -27,7 +27,8 @@ import (
 	"github.com/samber/lo"
 	. "knative.dev/pkg/logging/testing"
 
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+
 	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/test"

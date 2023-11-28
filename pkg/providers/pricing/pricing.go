@@ -36,7 +36,7 @@ import (
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
 var initialOnDemandPrices = lo.Assign(InitialOnDemandPricesAWS, InitialOnDemandPricesUSGov, InitialOnDemandPricesCN)

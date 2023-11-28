@@ -25,8 +25,9 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/utils/env"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/utils/env"
+
 	"github.com/aws/karpenter/pkg/apis/settings"
 )
 

@@ -9,9 +9,9 @@ updateKarpenterCoreGoMod(){
     echo "not updating go mod for a repo other than the main repo"
     return
   fi
-  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
+  go get -u "sigs.k8s.io/karpenter@${RELEASE_VERSION}"
   cd test
-  go get -u "github.com/aws/karpenter-core@${RELEASE_VERSION}"
+  go get -u "sigs.k8s.io/karpenter@${RELEASE_VERSION}"
   cd ..
   make tidy
 }

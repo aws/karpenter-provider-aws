@@ -2,7 +2,7 @@ export K8S_VERSION ?= 1.27.x
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
 ## Inject the app version into operator.Version
-LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter-core/pkg/operator.Version=$(shell git describe --tags --always)
+LDFLAGS ?= -ldflags=-X=sigs.k8s.io/karpenter/pkg/operator.Version=$(shell git describe --tags --always)
 
 GOFLAGS ?= $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
@@ -31,7 +31,7 @@ GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-
 
 # Common Directories
 MOD_DIRS = $(shell find . -path "./website" -prune -o -name go.mod -type f -print | xargs dirname)
-KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' github.com/aws/karpenter-core)
+KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
 TEST_SUITE ?= "..."
@@ -204,7 +204,7 @@ download: ## Recursively "go mod download" on all directories where go.mod exist
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
 update-core: ## Update karpenter-core to latest
-	go get -u github.com/aws/karpenter-core@HEAD
+	go get -u sigs.k8s.io/karpenter@HEAD
 	go mod tidy
 
 .PHONY: help dev ci release test e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
