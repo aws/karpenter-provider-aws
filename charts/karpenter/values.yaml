@@ -159,7 +159,7 @@ logConfig:
   # -- Component-based log configuration
   logLevel:
     # -- Global log level, defaults to 'info'
-    global: debug
+    global: info
     # -- Controller log level, defaults to 'info'
     controller: info
     # -- Error log level, defaults to 'error'

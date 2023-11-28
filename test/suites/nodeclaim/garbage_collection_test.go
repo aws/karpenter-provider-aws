@@ -38,6 +38,8 @@ import (
 var _ = Describe("GarbageCollection", func() {
 	var customAMI string
 	var instanceInput *ec2.RunInstancesInput
+	var instanceProfileName string
+	var roleName string
 
 	BeforeEach(func() {
 		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
@@ -46,8 +48,13 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(subnets).ToNot(HaveLen(0))
 
 		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		instanceProfileName = fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
+		roleName = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 		instanceInput = &ec2.RunInstancesInput{
 			InstanceType: aws.String("c5.large"),
+			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
+				Name: aws.String(instanceProfileName),
+			},
 			SecurityGroupIds: lo.Map(securityGroups, func(s environmentaws.SecurityGroup, _ int) *string {
 				return s.GroupIdentifier.GroupId
 			}),
@@ -90,8 +97,6 @@ var _ = Describe("GarbageCollection", func() {
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))))
 
-		instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
-		roleName := fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 		env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
 		DeferCleanup(func() {
 			env.ExpectInstanceProfileDeleted(instanceProfileName, roleName)
