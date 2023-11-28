@@ -602,4 +602,6 @@ topologySpreadConstraints:
 - maxSkew: 1
   topologyKey: capacity-spread
   whenUnsatisfiable: DoNotSchedule
+  labelSelector:
+    ...
 ```
