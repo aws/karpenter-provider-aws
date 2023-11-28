@@ -19,6 +19,9 @@ inputs:
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
     required: true
+  k8s_version:
+    description: 'Version of Kubernetes to use for the launched cluster'
+    default: "1.28"
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
@@ -47,12 +50,18 @@ runs:
       aws eks update-kubeconfig --name "${{ inputs.cluster_name }}"
       
       # Parse minor version to determine whether to enable the webhooks
-      
+      VERSION=${{ inputs.k8s_version }}
+      RELEASE_VERSION_MINOR="${VERSION#*.}"
+      WEBHOOK_ENABLED=false
+      if (( RELEASE_VRESION_MINOR < 25 )); then
+        WEBHOOK_ENABLED=true
+      fi
       
       helm upgrade --install karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
         -n kube-system \
         --version "v0-$(git rev-parse HEAD)" \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/karpenter-irsa-${{ inputs.cluster_name }}" \
+        --set webhook.enabled=${WEBHOOK_ENABLED} \
         --set settings.clusterName="${{ inputs.cluster_name }}" \
         --set settings.interruptionQueue="${{ inputs.cluster_name }}" \
         --set controller.resources.requests.cpu=3 \

@@ -215,4 +215,5 @@ runs:
       ecr_account_id: ${{ inputs.ecr_account_id }}
       ecr_region: ${{ inputs.ecr_region }}
       cluster_name: ${{ inputs.cluster_name }}
+      k8s_version: ${{ inputs.k8s_version }}
       git_ref: ${{ inputs.git_ref }}
