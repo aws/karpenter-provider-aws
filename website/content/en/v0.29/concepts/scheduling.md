@@ -594,8 +594,10 @@ This is not identical to a topology spread with a specified ratio.  We are const
 #### Workload Topology Spread Constraint
 
 ```yaml
-      topologySpreadConstraints:
-      - maxSkew: 1
-        topologyKey: capacity-spread
-        whenUnsatisfiable: DoNotSchedule
+topologySpreadConstraints:
+- maxSkew: 1
+  topologyKey: capacity-spread
+  whenUnsatisfiable: DoNotSchedule
+  labelSelector:
+    ...
 ```
