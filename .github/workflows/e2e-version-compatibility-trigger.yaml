@@ -1,8 +1,8 @@
 name: E2EVersionCompatibilityTrigger
 on:
   schedule:
-    # The test will run every Monday at 12:07 AM UTC
-    - cron: '7 0 * * 1'
+    # The test will run every Monday, Thursday at 12:07 AM UTC
+    - cron: '7 0 * * 1,4'
   workflow_run:
     workflows: [ApprovalComment]
     types: [completed]
