@@ -1,4 +1,5 @@
 export K8S_VERSION ?= 1.27.x
+USER ?= $(whoami)
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
 ## Inject the app version into operator.Version
