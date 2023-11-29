@@ -47,7 +47,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
     ```bash
     export KARPENTER_NAMESPACE=karpenter
-    export KARPENTER_VERSION=v0.32.2
+    export KARPENTER_VERSION=v0.32.3
     export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
     export CLUSTER_NAME="${USER}-karpenter-demo"
     export AWS_REGION="us-west-2"
@@ -60,33 +60,33 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
     ```bash
     TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter/v0.32.2/website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
-    
+    curl -fsSL https://raw.githubusercontent.com/aws/karpenter/v0.32.3/website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
+
     AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION} # use the default region if AWS_REGION isn't defined
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
     POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
-    
+
     POLICY_ARN=$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "${POLICY_DOCUMENT}" | jq -r .Policy.Arn)
     aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
     ```
 
-5. Apply the v0.32.2 Custom Resource Definitions (CRDs):
+5. Apply the v0.32.3 Custom Resource Definitions (CRDs):
 
    ```bash
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.sh_provisioners.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.sh_machines.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.sh_nodepools.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.2/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.sh_provisioners.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.sh_machines.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.sh_nodepools.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
     ```
 
 6. Upgrade Karpenter to the new version:
 
     ```bash
     helm registry logout public.ecr.aws
-    
+
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
       --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
@@ -135,7 +135,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
     ```bash
     kubectl apply -f nodepool.yaml
     ```
-    
+
 {{% alert title="Note" color="warning" %}}
 The [`karpenter-convert`](https://github.com/aws/karpenter/tree/main/tools/karpenter-convert) CLI tool will auto-inject the previous requirement defaulting logic that was orchestrated by webhooks in alpha. This defaulting logic set things like the `karpenter.sh/capacity-type`, `karpenter.k8s.aws/instance-generation`, `karpenter.k8s.aws/instance-category`, etc. These defaults are no longer set by the webhooks and need to be explicitly defined by the user in the NodePool.
 {{% /alert %}}
@@ -311,7 +311,7 @@ spec:
   provider:
     amiFamily: Bottlerocket
     tags:
-      test-tag: test-value  
+      test-tag: test-value
 ```
 
 **Nodepool example (v1beta1)**
@@ -520,7 +520,7 @@ apiVersion: karpenter.k8s.aws/v1alpha1
 kind: AWSNodeTemplate
 ...
 spec:
-  instanceProfile: KarpenterNodeInstanceProfile-karpenter-demo 
+  instanceProfile: KarpenterNodeInstanceProfile-karpenter-demo
 ```
 
 **role example (v1beta1)**
@@ -835,7 +835,7 @@ The drift feature will now be enabled by default starting from v0.33.0. If you d
 
 ### Logging Configuration is No Longer Dynamic
 
-As part of this deprecation, Karpenter will no longer call out to the APIServer to discover the ConfigMap. Instead, Karpenter will expect the ConfigMap to be mounted on the filesystem at `/etc/karpenter/logging/zap-logger-config`. You can also still choose to override the individual log level of components of the system (webhook and controller) at the paths `/etc/karpenter/logging/loglevel.webhook` and `/etc/karpenter/logging/loglevel.controller`. 
+As part of this deprecation, Karpenter will no longer call out to the APIServer to discover the ConfigMap. Instead, Karpenter will expect the ConfigMap to be mounted on the filesystem at `/etc/karpenter/logging/zap-logger-config`. You can also still choose to override the individual log level of components of the system (webhook and controller) at the paths `/etc/karpenter/logging/loglevel.webhook` and `/etc/karpenter/logging/loglevel.controller`.
 
 What you do to upgrade this feature depends on how you install Karpenter:
 
@@ -865,6 +865,6 @@ Karpenter will drop support for ConfigMap discovery through the APIServer starti
 
 ### Webhook Support Deprecated in Favor of CEL
 
-Karpenter v1beta1 APIs now support Common Expression Language (CEL) for validaiton directly through the APIServer. This change means that Karpenter’s validating webhooks are no longer needed to ensure that Karpenter’s NodePools and EC2NodeClasses are configured correctly. 
+Karpenter v1beta1 APIs now support Common Expression Language (CEL) for validaiton directly through the APIServer. This change means that Karpenter’s validating webhooks are no longer needed to ensure that Karpenter’s NodePools and EC2NodeClasses are configured correctly.
 
 As a result, Karpenter will now disable webhooks by default by setting the `DISABLE_WEBHOOK` environment variable to `true` starting in v0.33.0. If you are currently on a version of Kubernetes < less than 1.25, CEL validation for Custom Resources is not enabled. We recommend that you enable the webhooks on these versions with `DISABLE_WEBHOOK=false` to get proper validation support for any Karpenter configuration.
