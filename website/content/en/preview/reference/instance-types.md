@@ -1383,6 +1383,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|54|
 ### `c5n.18xlarge`
 #### Labels
@@ -1407,6 +1408,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c5n.metal`
 #### Labels
@@ -1431,6 +1433,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6a Family
 ### `c6a.large`
@@ -1672,6 +1675,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6a.metal`
 #### Labels
@@ -1696,6 +1700,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6g Family
 ### `c6g.medium`
@@ -2332,6 +2337,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6i Family
 ### `c6i.large`
@@ -2549,6 +2555,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6i.metal`
 #### Labels
@@ -2573,6 +2580,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6id Family
 ### `c6id.large`
@@ -2799,6 +2807,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c6id.metal`
 #### Labels
@@ -2824,6 +2833,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## c6in Family
 ### `c6in.large`
@@ -3041,6 +3051,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|238333Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `c6in.metal`
 #### Labels
@@ -3065,6 +3076,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|238333Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## c7a Family
 ### `c7a.medium`
@@ -3309,6 +3321,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ### `c7a.metal-48xl`
 #### Labels
  | Label | Value |
@@ -3331,6 +3344,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## c7g Family
 ### `c7g.medium`
 #### Labels
@@ -3523,6 +3537,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `c7g.metal`
 #### Labels
@@ -3547,6 +3562,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## c7gd Family
 ### `c7gd.medium`
@@ -3748,6 +3764,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## c7gn Family
 ### `c7gn.medium`
@@ -3941,6 +3958,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112720Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## c7i Family
 ### `c7i.large`
@@ -4172,6 +4190,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ### `c7i.metal-48xl`
 #### Labels
  | Label | Value |
@@ -4194,6 +4213,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## d2 Family
 ### `d2.xlarge`
 #### Labels
@@ -4566,6 +4586,7 @@ below are the resources available with some assumptions and after the instance o
  |habana.ai/gaudi|8|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|4|
  |vpc.amazonaws.com/pod-eni|62|
 ## f1 Family
 ### `f1.2xlarge`
@@ -5024,6 +5045,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|120248Mi|
  |nvidia.com/gpu|1|
  |pods|58|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|58|
 ### `g4dn.12xlarge`
 #### Labels
@@ -5054,6 +5076,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|178933Mi|
  |nvidia.com/gpu|4|
  |pods|234|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|54|
 ### `g4dn.16xlarge`
 #### Labels
@@ -5084,6 +5107,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|241490Mi|
  |nvidia.com/gpu|1|
  |pods|58|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|118|
 ### `g4dn.metal`
 #### Labels
@@ -5114,6 +5138,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |nvidia.com/gpu|8|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## g5 Family
 ### `g5.xlarge`
@@ -5235,6 +5260,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|118312Mi|
  |nvidia.com/gpu|1|
  |pods|234|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|84|
 ### `g5.12xlarge`
 #### Labels
@@ -5265,6 +5291,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|173400Mi|
  |nvidia.com/gpu|4|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `g5.16xlarge`
 #### Labels
@@ -5295,6 +5322,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|239554Mi|
  |nvidia.com/gpu|1|
  |pods|234|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|114|
 ### `g5.24xlarge`
 #### Labels
@@ -5325,6 +5353,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |nvidia.com/gpu|4|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `g5.48xlarge`
 #### Labels
@@ -5355,6 +5384,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|723299Mi|
  |nvidia.com/gpu|8|
  |pods|345|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|115|
 ## g5g Family
 ### `g5g.xlarge`
@@ -5648,6 +5678,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118649Mi|
  |pods|198|
+ |vpc.amazonaws.com/efa|1|
 ### `hpc7g.8xlarge`
 #### Labels
  | Label | Value |
@@ -5671,6 +5702,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118649Mi|
  |pods|198|
+ |vpc.amazonaws.com/efa|1|
 ### `hpc7g.16xlarge`
 #### Labels
  | Label | Value |
@@ -5694,6 +5726,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118649Mi|
  |pods|198|
+ |vpc.amazonaws.com/efa|1|
 ## i2 Family
 ### `i2.xlarge`
 #### Labels
@@ -6104,6 +6137,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|54|
 ### `i3en.24xlarge`
 #### Labels
@@ -6129,6 +6163,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `i3en.metal`
 #### Labels
@@ -6154,6 +6189,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## i4g Family
 ### `i4g.large`
@@ -6305,6 +6341,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## i4i Family
 ### `i4i.large`
@@ -6526,6 +6563,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|120|
 ### `i4i.metal`
 #### Labels
@@ -6551,6 +6589,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|120|
 ## im4gn Family
 ### `im4gn.large`
@@ -6702,6 +6741,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## inf1 Family
 ### `inf1.xlarge`
@@ -6815,6 +6855,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|177976Mi|
  |pods|321|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|111|
 ## inf2 Family
 ### `inf2.xlarge`
@@ -8497,6 +8538,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5dn.metal`
 #### Labels
@@ -8522,6 +8564,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5n Family
 ### `m5n.large`
@@ -8715,6 +8758,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5n.metal`
 #### Labels
@@ -8739,6 +8783,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m5zn Family
 ### `m5zn.large`
@@ -8884,6 +8929,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m5zn.metal`
 #### Labels
@@ -8908,6 +8954,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6a Family
 ### `m6a.large`
@@ -9149,6 +9196,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6a.metal`
 #### Labels
@@ -9173,6 +9221,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6g Family
 ### `m6g.medium`
@@ -9833,6 +9882,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6i.metal`
 #### Labels
@@ -9857,6 +9907,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6id Family
 ### `m6id.large`
@@ -10083,6 +10134,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m6id.metal`
 #### Labels
@@ -10108,6 +10160,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m6idn Family
 ### `m6idn.large`
@@ -10334,6 +10387,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|480816Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `m6idn.metal`
 #### Labels
@@ -10359,6 +10413,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|480816Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## m6in Family
 ### `m6in.large`
@@ -10576,6 +10631,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|480816Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `m6in.metal`
 #### Labels
@@ -10600,6 +10656,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|480816Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## m7a Family
 ### `m7a.medium`
@@ -10865,6 +10922,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7a.metal-48xl`
 #### Labels
@@ -10889,6 +10947,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7g Family
 ### `m7g.medium`
@@ -11082,6 +11141,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7g.metal`
 #### Labels
@@ -11106,6 +11166,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7gd Family
 ### `m7gd.medium`
@@ -11307,6 +11368,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|233962Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## m7i Family
 ### `m7i.large`
@@ -11546,6 +11608,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `m7i.metal-48xl`
 #### Labels
@@ -11569,6 +11632,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## m7i-flex Family
 ### `m7i-flex.large`
 #### Labels
@@ -11891,6 +11955,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|718987Mi|
  |nvidia.com/gpu|8|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## p4d Family
 ### `p4d.24xlarge`
@@ -11922,6 +11987,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1082712Mi|
  |nvidia.com/gpu|8|
  |pods|737|
+ |vpc.amazonaws.com/efa|4|
  |vpc.amazonaws.com/pod-eni|62|
 ## p5 Family
 ### `p5.48xlarge`
@@ -11953,6 +12019,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1938410Mi|
  |nvidia.com/gpu|8|
  |pods|100|
+ |vpc.amazonaws.com/efa|32|
  |vpc.amazonaws.com/pod-eni|120|
 ## r3 Family
 ### `r3.large`
@@ -13459,6 +13526,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5dn.metal`
 #### Labels
@@ -13484,6 +13552,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## r5n Family
 ### `r5n.large`
@@ -13677,6 +13746,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r5n.metal`
 #### Labels
@@ -13701,6 +13771,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6a Family
 ### `r6a.large`
@@ -13942,6 +14013,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6a.metal`
 #### Labels
@@ -13966,6 +14038,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6g Family
 ### `r6g.medium`
@@ -14626,6 +14699,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6i.metal`
 #### Labels
@@ -14650,6 +14724,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6id Family
 ### `r6id.large`
@@ -14876,6 +14951,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r6id.metal`
 #### Labels
@@ -14901,6 +14977,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## r6idn Family
 ### `r6idn.large`
@@ -15127,6 +15204,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|965782Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `r6idn.metal`
 #### Labels
@@ -15152,6 +15230,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|965782Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## r6in Family
 ### `r6in.large`
@@ -15369,6 +15448,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|965782Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `r6in.metal`
 #### Labels
@@ -15393,6 +15473,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|965782Mi|
  |pods|345|
+ |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## r7a Family
 ### `r7a.medium`
@@ -15648,6 +15729,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ### `r7a.metal-48xl`
 #### Labels
  | Label | Value |
@@ -15670,6 +15752,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## r7g Family
 ### `r7g.medium`
 #### Labels
@@ -15862,6 +15945,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `r7g.metal`
 #### Labels
@@ -15886,6 +15970,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## r7gd Family
 ### `r7gd.medium`
@@ -16087,6 +16172,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476445Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## r7i Family
 ### `r7i.large`
@@ -16309,6 +16395,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ### `r7i.metal-48xl`
 #### Labels
  | Label | Value |
@@ -16331,6 +16418,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## r7iz Family
 ### `r7iz.large`
 #### Labels
@@ -16538,6 +16626,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ### `r7iz.metal-32xl`
 #### Labels
  | Label | Value |
@@ -16560,6 +16649,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
 ## t1 Family
 ### `t1.micro`
 #### Labels
@@ -17282,6 +17372,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
  |pods|247|
+ |vpc.amazonaws.com/efa|8|
  |vpc.amazonaws.com/pod-eni|82|
 ## trn1n Family
 ### `trn1n.32xlarge`
@@ -17312,6 +17403,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|481894Mi|
  |pods|247|
+ |vpc.amazonaws.com/efa|16|
  |vpc.amazonaws.com/pod-eni|120|
 ## u-12tb1 Family
 ### `u-12tb1.112xlarge`
@@ -17553,6 +17645,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## x1 Family
 ### `x1.16xlarge`
@@ -18041,6 +18134,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1931403Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2idn.metal`
 #### Labels
@@ -18066,6 +18160,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1931403Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## x2iedn Family
 ### `x2iedn.xlarge`
@@ -18242,6 +18337,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3871269Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iedn.metal`
 #### Labels
@@ -18267,6 +18363,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3871269Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## x2iezn Family
 ### `x2iezn.2xlarge`
@@ -18388,6 +18485,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ### `x2iezn.metal`
 #### Labels
@@ -18412,6 +18510,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1446437Mi|
  |pods|737|
+ |vpc.amazonaws.com/efa|1|
  |vpc.amazonaws.com/pod-eni|107|
 ## z1d Family
 ### `z1d.large`

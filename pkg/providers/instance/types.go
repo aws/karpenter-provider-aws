@@ -55,7 +55,7 @@ func NewInstance(out *ec2.Instance) *Instance {
 		SubnetID: aws.StringValue(out.SubnetId),
 		Tags:     lo.SliceToMap(out.Tags, func(t *ec2.Tag) (string, string) { return aws.StringValue(t.Key), aws.StringValue(t.Value) }),
 		EFAEnabled: lo.ContainsBy(out.NetworkInterfaces, func(ni *ec2.InstanceNetworkInterface) bool {
-			return ni != nil && lo.FromPtr(ni.InterfaceType) == "efa"
+			return ni != nil && lo.FromPtr(ni.InterfaceType) == ec2.NetworkInterfaceTypeEfa
 		}),
 	}
 

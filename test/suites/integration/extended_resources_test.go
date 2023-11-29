@@ -222,6 +222,9 @@ var _ = Describe("Extended Resources", func() {
 				Effect: v1.TaintEffectNoSchedule,
 			},
 		}
+		// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
+		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
+
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -237,10 +240,10 @@ var _ = Describe("Extended Resources", func() {
 				},
 				ResourceRequirements: v1.ResourceRequirements{
 					Requests: v1.ResourceList{
-						"vpc.amazonaws.com/efa": resource.MustParse("1"),
+						"vpc.amazonaws.com/efa": resource.MustParse("2"),
 					},
 					Limits: v1.ResourceList{
-						"vpc.amazonaws.com/efa": resource.MustParse("1"),
+						"vpc.amazonaws.com/efa": resource.MustParse("2"),
 					},
 				},
 			},
