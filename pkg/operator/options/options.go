@@ -20,10 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
-
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/utils/env"
@@ -45,8 +42,6 @@ type Options struct {
 	VMMemoryOverheadPercent float64
 	InterruptionQueue       string
 	ReservedENIs            int
-
-	setFlags map[string]bool
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -68,24 +63,9 @@ func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
 		}
 		return fmt.Errorf("parsing flags, %w", err)
 	}
-
-	// Check if each option has been set. This is a little brute force and better options might exist,
-	// but this only needs to be here for one version
-	o.setFlags = map[string]bool{}
-	cliFlags := sets.New[string]()
-	fs.Visit(func(f *flag.Flag) {
-		cliFlags.Insert(f.Name)
-	})
-	fs.VisitAll(func(f *flag.Flag) {
-		envName := strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_")
-		_, ok := os.LookupEnv(envName)
-		o.setFlags[f.Name] = ok || cliFlags.Has(f.Name)
-	})
-
 	if err := o.Validate(); err != nil {
 		return fmt.Errorf("validating options, %w", err)
 	}
-
 	return nil
 }
 
