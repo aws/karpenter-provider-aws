@@ -9,7 +9,7 @@ For full Karpenter documentation please checkout [https://karpenter.sh](https://
 
 ## Installing the Chart
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
@@ -17,7 +17,6 @@ helm upgrade --install --namespace karpenter --create-namespace \
   --version v{{ template "chart.version" . }} \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
-  --set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
   --wait
 ```

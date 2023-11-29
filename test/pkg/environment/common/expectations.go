@@ -167,30 +167,6 @@ func (env *Environment) ExpectSettingsRemoved(vars ...v1.EnvVar) {
 	}
 }
 
-// ExpectSettingsLegacy gets the karpenter-global-settings ConfigMap
-func (env *Environment) ExpectSettingsLegacy() *v1.ConfigMap {
-	GinkgoHelper()
-	return env.ExpectConfigMapExists(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"})
-}
-
-// ExpectSettingsReplacedLegacy performs a full replace of the settings, replacing the existing data
-// with the data passed through
-func (env *Environment) ExpectSettingsReplacedLegacy(data ...map[string]string) {
-	GinkgoHelper()
-	if env.ExpectConfigMapDataReplaced(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
-		env.EventuallyExpectKarpenterRestarted()
-	}
-}
-
-// ExpectSettingsOverriddenLegacy overrides specific values specified through data. It only overrides
-// or inserts the specific values specified and does not upsert any of the existing data
-func (env *Environment) ExpectSettingsOverriddenLegacy(data ...map[string]string) {
-	GinkgoHelper()
-	if env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
-		env.EventuallyExpectKarpenterRestarted()
-	}
-}
-
 func (env *Environment) ExpectConfigMapExists(key types.NamespacedName) *v1.ConfigMap {
 	GinkgoHelper()
 	cm := &v1.ConfigMap{}

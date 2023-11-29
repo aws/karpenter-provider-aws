@@ -10,7 +10,7 @@ For full Karpenter documentation please checkout [https://karpenter.sh](https://
 
 ## Installing the Chart
 
-You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter/#install) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
+You can follow the detailed installation instruction in the [documentation](https://karpenter.sh/docs/getting-started/getting-started-with-karpenter) which covers the Karpenter prerequisites and installation options. The outcome of these instructions should result in something like the following command.
 
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
@@ -18,7 +18,6 @@ helm upgrade --install --namespace karpenter --create-namespace \
   --version v0.32.2 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
-  --set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
   --wait
 ```
@@ -49,16 +48,16 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | hostNetwork | bool | `false` | Bind the pod to the host network. This is required when using a custom CNI. |
 | imagePullPolicy | string | `"IfNotPresent"` | Image pull policy for Docker images. |
 | imagePullSecrets | list | `[]` | Image pull secrets for Docker images. |
-| logConfig | object | `{"enabled":true,"errorOutputPaths":["stderr"],"logEncoding":"json","logLevel":{"controller":"debug","global":"debug","webhook":"error"},"outputPaths":["stdout"]}` | Log configuration (Deprecated: Logging configuration will be dropped by v1, use logLevel instead) |
-| logConfig.enabled | bool | `true` | Whether to enable provisioning and mounting the log ConfigMap |
+| logConfig | object | `{"enabled":false,"errorOutputPaths":["stderr"],"logEncoding":"json","logLevel":{"controller":"info","global":"info","webhook":"error"},"outputPaths":["stdout"]}` | Log configuration (Deprecated: Logging configuration will be dropped by v1, use logLevel instead) |
+| logConfig.enabled | bool | `false` | Whether to enable provisioning and mounting the log ConfigMap |
 | logConfig.errorOutputPaths | list | `["stderr"]` | Log errorOutputPaths - defaults to stderr only |
 | logConfig.logEncoding | string | `"json"` | Log encoding - defaults to json - must be one of 'json', 'console' |
-| logConfig.logLevel | object | `{"controller":"debug","global":"debug","webhook":"error"}` | Component-based log configuration |
-| logConfig.logLevel.controller | string | `"debug"` | Controller log level, defaults to 'debug' |
-| logConfig.logLevel.global | string | `"debug"` | Global log level, defaults to 'debug' |
+| logConfig.logLevel | object | `{"controller":"info","global":"info","webhook":"error"}` | Component-based log configuration |
+| logConfig.logLevel.controller | string | `"info"` | Controller log level, defaults to 'info' |
+| logConfig.logLevel.global | string | `"info"` | Global log level, defaults to 'info' |
 | logConfig.logLevel.webhook | string | `"error"` | Error log level, defaults to 'error' |
 | logConfig.outputPaths | list | `["stdout"]` | Log outputPaths - defaults to stdout only |
-| logLevel | string | `"debug"` | Global log level |
+| logLevel | string | `"info"` | Global log level, defaults to 'info' |
 | nameOverride | string | `""` | Overrides the chart's name. |
 | nodeSelector | object | `{"kubernetes.io/os":"linux"}` | Node selectors to schedule the pod to nodes with labels. |
 | podAnnotations | object | `{}` | Additional annotations for the pod. |
@@ -74,17 +73,16 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels for the ServiceMonitor. |
 | serviceMonitor.enabled | bool | `false` | Specifies whether a ServiceMonitor should be created. |
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
-| settings | object | `{"assumeRoleARN":"","assumeRoleDuration":"15m","aws":{},"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","featureGates":{"drift":false},"interruptionQueue":"","isolatedVPC":false,"reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
+| settings | object | `{"assumeRoleARN":"","assumeRoleDuration":"15m","batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","featureGates":{"drift":true},"interruptionQueue":"","isolatedVPC":false,"reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
 | settings.assumeRoleARN | string | `""` | Role to assume for calling AWS services. |
 | settings.assumeRoleDuration | string | `"15m"` | Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless assumeRoleARN set. |
-| settings.aws | object | `{}` | AWS-specific settings (Deprecated: The AWS block inside of settings was flattened into settings) |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
 | settings.batchMaxDuration | string | `"10s"` | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. |
 | settings.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
 | settings.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.clusterName | string | `""` | Cluster name. |
-| settings.featureGates | object | `{"drift":false}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features |
-| settings.featureGates.drift | bool | `false` | drift is in ALPHA and is disabled by default. Setting drift to true enables the drift disruption method to watch for drift between currently deployed nodes and the desired state of nodes set in provisioners and node templates |
+| settings.featureGates | object | `{"drift":true}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features |
+| settings.featureGates.drift | bool | `true` | drift is in BETA and is enabled by default. Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes and the desired state of nodes set in provisioners and node templates |
 | settings.interruptionQueue | string | `""` | interruptionQueue is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint This also has the effect of disabling look-ups to the AWS pricing endpoint |
 | settings.reservedENIs | string | `"0"` | Reserved ENIs are not included in the calculations for max-pods or kube-reserved This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html |
@@ -93,7 +91,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | terminationGracePeriodSeconds | string | `nil` | Override the default termination grace period for the pod. |
 | tolerations | list | `[{"key":"CriticalAddonsOnly","operator":"Exists"}]` | Tolerations to allow the pod to be scheduled to nodes with taints. |
 | topologySpreadConstraints | list | `[{"maxSkew":1,"topologyKey":"topology.kubernetes.io/zone","whenUnsatisfiable":"ScheduleAnyway"}]` | Topology spread constraints to increase the controller resilience by distributing pods across the cluster zones. If an explicit label selector is not provided one will be created from the pod selector labels. |
-| webhook.enabled | bool | `true` | Whether to enable the webhooks and webhook permissions. |
+| webhook.enabled | bool | `false` | Whether to enable the webhooks and webhook permissions. |
 | webhook.metrics.port | int | `8001` | The container port to use for webhook metrics. |
 | webhook.port | int | `8443` | The container port to use for the webhook. |
 

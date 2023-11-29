@@ -13,10 +13,7 @@ AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output t
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
       		--set settings.clusterName=${CLUSTER_NAME} \
-			--set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
-			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 			--set settings.interruptionQueue=${CLUSTER_NAME} \
-			--set settings.featureGates.drift=true \
 			--set controller.resources.requests.cpu=1 \
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
@@ -24,7 +21,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--create-namespace
 
 # CR for local builds of Karpenter
-SYSTEM_NAMESPACE ?= karpenter
+KARPENTER_NAMESPACE ?= karpenter
 KARPENTER_VERSION ?= $(shell git tag --sort=committerdate | tail -1)
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/dev
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-karpenter/scripts
@@ -47,23 +44,14 @@ ci-test: test coverage ## Runs tests and submits coverage
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
 run: ## Run Karpenter controller binary against your local cluster
-	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
-		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-		--dry-run=client -o yaml | kubectl apply -f -
-
-
-	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} \
+	SYSTEM_NAMESPACE=${KARPENTER_NAMESPACE} \
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
 		LEADER_ELECT=false \
 		DISABLE_WEBHOOK=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
-		CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
 		FEATURE_GATES="Drift=true" \
 		go run ./cmd/controller/main.go
-
-clean-run: ## Clean resources deployed by the run target
-	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
 
 test: ## Run tests
 	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
@@ -150,7 +138,7 @@ image: ## Build the Karpenter controller images using ko build
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
 
 apply: image ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
-	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
+	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
 		$(HELM_OPTS) \
 		--set controller.image.repository=$(IMG_REPOSITORY) \
 		--set controller.image.tag=$(IMG_TAG) \
@@ -158,7 +146,7 @@ apply: image ## Deploy the controller from the current state of your git reposit
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to ${KARPENTER_VERSION}
-	helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace ${SYSTEM_NAMESPACE} \
+	helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace ${KARPENTER_NAMESPACE} \
 		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
