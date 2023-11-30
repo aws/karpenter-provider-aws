@@ -311,8 +311,19 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 				labels[key] = req.Values()[0]
 			}
 		}
-		nodeClaim.Status.Capacity = functional.FilterMap(instanceType.Capacity, func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
-		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), func(_ v1.ResourceName, v resource.Quantity) bool { return !resources.IsZero(v) })
+		resourceFilter := func(n v1.ResourceName, v resource.Quantity) bool {
+			if resources.IsZero(v) {
+				return false
+			}
+			// The nodeclaim should only advertise an EFA resource if it was requested. EFA network interfaces are only
+			// added to the launch template if they're requested, otherwise the instance is launched with a normal ENI.
+			if n == v1beta1.ResourceEFA {
+				return i.EFAEnabled
+			}
+			return true
+		}
+		nodeClaim.Status.Capacity = functional.FilterMap(instanceType.Capacity, resourceFilter)
+		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), resourceFilter)
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
 	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType

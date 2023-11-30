@@ -88,6 +88,7 @@ var (
 	ResourceHabanaGaudi        v1.ResourceName = "habana.ai/gaudi"
 	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
+	ResourceEFA                v1.ResourceName = "vpc.amazonaws.com/efa"
 
 	LabelNodeClass = Group + "/ec2nodeclass"
 
