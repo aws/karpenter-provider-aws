@@ -98,9 +98,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.32.1
+    tag: v0.32.3
     # -- SHA256 digest of the controller image.
-    digest: sha256:9b31039d45613ac22a104b8d48eca9dcdeff93e525bd473c811dfd3502e58c69
+    digest: sha256:afa0d0fd5ac375859dc3d239ec992f197cdf01f6c8e3413e3845a43c2434621e
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -136,18 +136,18 @@ controller:
     port: 8081
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
-  enabled: true
+  enabled: false
   # -- The container port to use for the webhook.
   port: 8443
   metrics:
     # -- The container port to use for webhook metrics.
     port: 8001
-# -- Global log level
-logLevel: debug
+# -- Global log level, defaults to 'info'
+logLevel: info
 # -- Log configuration (Deprecated: Logging configuration will be dropped by v1, use logLevel instead)
 logConfig:
   # -- Whether to enable provisioning and mounting the log ConfigMap
-  enabled: true
+  enabled: false
   # -- Log outputPaths - defaults to stdout only
   outputPaths:
     - stdout
@@ -158,16 +158,14 @@ logConfig:
   logEncoding: json
   # -- Component-based log configuration
   logLevel:
-    # -- Global log level, defaults to 'debug'
-    global: debug
-    # -- Controller log level, defaults to 'debug'
-    controller: debug
+    # -- Global log level, defaults to 'info'
+    global: info
+    # -- Controller log level, defaults to 'info'
+    controller: info
     # -- Error log level, defaults to 'error'
     webhook: error
 # -- Global Settings to configure Karpenter
 settings:
-  # -- AWS-specific settings (Deprecated: The AWS block inside of settings was flattened into settings)
-  aws: {}
   # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
   batchMaxDuration: 10s
@@ -199,7 +197,7 @@ settings:
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
   featureGates:
-    # -- drift is in ALPHA and is disabled by default.
-    # Setting drift to true enables the drift disruption method to watch for drift between currently deployed nodes
+    # -- drift is in BETA and is enabled by default.
+    # Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes
     # and the desired state of nodes set in provisioners and node templates
-    drift: false
+    drift: true

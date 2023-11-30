@@ -1,4 +1,4 @@
-kubectl create namespace karpenter
+kubectl create namespace "${KARPENTER_NAMESPACE}" || true
 kubectl create -f \
     https://raw.githubusercontent.com/aws/karpenter/${KARPENTER_VERSION}/pkg/apis/crds/karpenter.sh_nodepools.yaml
 kubectl create -f \

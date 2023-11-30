@@ -26,12 +26,13 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
 var DefaultEBS = v1beta1.BlockDevice{
@@ -47,11 +48,10 @@ type Resolver struct {
 
 // Options define the static launch template parameters
 type Options struct {
-	ClusterName             string
-	ClusterEndpoint         string
-	AWSENILimitedPodDensity bool
-	InstanceProfile         string
-	CABundle                *string `hash:"ignore"`
+	ClusterName     string
+	ClusterEndpoint string
+	InstanceProfile string
+	CABundle        *string `hash:"ignore"`
 	// Level-triggered fields that may change out of sync.
 	SecurityGroups           []v1beta1.SecurityGroup
 	Tags                     map[string]string
@@ -73,7 +73,7 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	DefaultAMIs(version string, isNodeTemplate bool) []DefaultAMIOutput
+	DefaultAMIs(version string) []DefaultAMIOutput
 	UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1beta1.MetadataOptions
@@ -124,7 +124,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if len(amis) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amis.MapToInstanceTypes(instanceTypes, nodeClaim.IsMachine)
+	mappedAMIs := amis.MapToInstanceTypes(instanceTypes)
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}

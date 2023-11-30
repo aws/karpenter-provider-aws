@@ -38,7 +38,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/fake"
 	"github.com/aws/karpenter/pkg/operator/options"
@@ -46,15 +45,15 @@ import (
 
 	"github.com/aws/karpenter/pkg/cloudprovider"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	corecloudproivder "github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/events"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corecloudproivder "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
+	"sigs.k8s.io/karpenter/pkg/controllers/state"
+	"sigs.k8s.io/karpenter/pkg/events"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -77,7 +76,6 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = clock.NewFakeClock(time.Now())
@@ -96,7 +94,6 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 
 	cluster.Reset()
 	awsEnv.Reset()
@@ -166,7 +163,7 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationNodeClassHash]
+		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHash]
 		Expect(ok).To(BeTrue())
 	})
 	Context("EC2 Context", func() {
@@ -261,10 +258,10 @@ var _ = Describe("CloudProvider", func() {
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1beta1.AnnotationNodeClassHash: nodeClass.Hash(),
+				v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
 			})
 			nodeClaim.Status.ProviderID = fake.ProviderID(lo.FromPtr(instance.InstanceId))
-			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1beta1.AnnotationNodeClassHash: nodeClass.Hash()})
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{v1.LabelInstanceTypeStable: selectedInstanceType.Name})
 		})
 		It("should not fail if NodeClass does not exist", func() {
@@ -293,7 +290,7 @@ var _ = Describe("CloudProvider", func() {
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			// Assign a fake hash
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1beta1.AnnotationNodeClassHash: "abcdefghijkl",
+				v1beta1.AnnotationEC2NodeClassHash: "abcdefghijkl",
 			})
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -394,7 +391,7 @@ var _ = Describe("CloudProvider", func() {
 					Expect(isDrifted).To(BeEmpty())
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride))
-					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationNodeClassHash: nodeClass.Hash()})
+					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -417,7 +414,7 @@ var _ = Describe("CloudProvider", func() {
 					Expect(isDrifted).To(BeEmpty())
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride))
-					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationNodeClassHash: nodeClass.Hash()})
+					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)

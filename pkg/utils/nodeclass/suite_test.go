@@ -26,14 +26,16 @@ import (
 	v1 "k8s.io/api/core/v1"
 	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+
 	"github.com/aws/karpenter/pkg/apis"
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	. "github.com/aws/karpenter/pkg/test/expectations"
 
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/test"
 	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
 	nodetemplateutil "github.com/aws/karpenter/pkg/utils/nodetemplate"
@@ -536,16 +538,8 @@ var _ = Describe("NodeClassUtils", func() {
 		nodeClass := test.EC2NodeClass()
 		ExpectApplied(ctx, env.Client, nodeClass)
 
-		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeclassutil.Key{Name: nodeClass.Name, IsNodeTemplate: false})
+		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeClass.Name)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(retrieved.Name).To(Equal(nodeClass.Name))
-	})
-	It("should retrieve a AWSNodeTemplate with a get call", func() {
-		nodeTemplate := test.AWSNodeTemplate()
-		ExpectApplied(ctx, env.Client, nodeTemplate)
-
-		retrieved, err := nodeclassutil.Get(ctx, env.Client, nodeclassutil.Key{Name: nodeTemplate.Name, IsNodeTemplate: true})
-		Expect(err).ToNot(HaveOccurred())
-		Expect(retrieved.Name).To(Equal(nodeTemplate.Name))
 	})
 })

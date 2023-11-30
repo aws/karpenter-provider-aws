@@ -11,7 +11,7 @@ cat << EOF > controller-trust-policy.json
             "Condition": {
                 "StringEquals": {
                     "${OIDC_ENDPOINT#*//}:aud": "sts.amazonaws.com",
-                    "${OIDC_ENDPOINT#*//}:sub": "system:serviceaccount:karpenter:karpenter"
+                    "${OIDC_ENDPOINT#*//}:sub": "system:serviceaccount:${KARPENTER_NAMESPACE}:karpenter"
                 }
             }
         }
@@ -52,7 +52,7 @@ cat << EOF > controller-policy.json
             "Action": "ec2:TerminateInstances",
             "Condition": {
                 "StringLike": {
-                    "ec2:ResourceTag/karpenter.sh/provisioner-name": "*"
+                    "ec2:ResourceTag/karpenter.sh/nodepool": "*"
                 }
             },
             "Effect": "Allow",

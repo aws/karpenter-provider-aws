@@ -92,7 +92,6 @@ spec:
       # These are all optional and provide support for additional customization and use cases.
       kubelet:
         clusterDNS: ["10.0.1.100"]
-        containerRuntime: containerd
         systemReserved:
           cpu: 100m
           memory: 100Mi
@@ -254,7 +253,6 @@ additional customization and use cases. Adjust these only if you know you need t
 ```yaml
 kubelet:
   clusterDNS: ["10.0.1.100"]
-  containerRuntime: containerd
   systemReserved:
     cpu: 100m
     memory: 100Mi
@@ -282,10 +280,6 @@ kubelet:
   podsPerCore: 2
   maxPods: 20
 ```
-
-You can specify the container runtime to be either `dockerd` or `containerd`. By default, `containerd` is used.
-
-* `containerd` is the only valid container runtime when using the `Bottlerocket` AMIFamily or when using Kubernetes version 1.24+ and the `AL2`, `Windows2019`, or `Windows2022` AMIFamilies.
 
 ### Reserved Resources
 

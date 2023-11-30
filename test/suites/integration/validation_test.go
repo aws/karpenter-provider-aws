@@ -25,8 +25,9 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
@@ -47,6 +48,12 @@ var _ = Describe("Validation", func() {
 		It("should allow a restricted label exception to be used in labels (node-restriction.kubernetes.io/custom-label)", func() {
 			nodePool.Spec.Template.Labels = map[string]string{
 				v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+			}
+			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
+		})
+		It("should allow a restricted label exception to be used in labels ([*].node-restriction.kubernetes.io/custom-label)", func() {
+			nodePool.Spec.Template.Labels = map[string]string{
+				"subdomain" + v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
 			}
 			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})
@@ -171,6 +178,34 @@ var _ = Describe("Validation", func() {
 				},
 			}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail when specifying role and instanceProfile at the same time", func() {
+			nodeClass.Spec.Role = "test-role"
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail when specifying none of role and instanceProfile", func() {
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail to switch between an unmanaged and managed instance profile", func() {
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+
+			nodeClass.Spec.Role = "test-role"
+			nodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
+		})
+		It("should fail to switch between a managed and unmanaged instance profile", func() {
+			nodeClass.Spec.Role = "test-role"
+			nodeClass.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(env.Context, nodeClass)).To(Succeed())
+
+			nodeClass.Spec.Role = ""
+			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Update(env.Context, nodeClass)).ToNot(Succeed())
 		})
 	})
 })

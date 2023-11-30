@@ -26,8 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -72,6 +73,9 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		// that will be allocated across this large number of nodes, despite the fact that the ENI CIDR space will
 		// be extremely under-utilized
 		env.ExpectPrefixDelegationDisabled()
+		DeferCleanup(func() {
+			env.ExpectPrefixDelegationEnabled()
+		})
 
 		replicasPerNode := 1
 		expectedNodeCount := 500

@@ -28,8 +28,9 @@ import (
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/utils/functional"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
@@ -65,7 +66,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([
 	if err != nil {
 		return nil, err
 	}
-	if p.cm.HasChanged(fmt.Sprintf("security-groups/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), securityGroups) {
+	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroups) {
 		logging.FromContext(ctx).
 			With("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
 				return aws.StringValue(s.GroupId)

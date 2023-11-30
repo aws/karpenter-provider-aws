@@ -44,80 +44,6 @@ Resources:
         Statement:
           - Effect: Allow
             Action:
-              - iam:AttachRolePolicy
-              - iam:CreateRole
-              - iam:DeleteRolePolicy
-              - iam:DetachRolePolicy
-              - iam:PutRolePolicy
-            Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
-            Condition:
-              ArnEquals:
-                "iam:PermissionsBoundary": !Ref GithubActionsPermissionsBoundary
-          - Effect: Allow
-            Action: iam:DeleteRole
-            Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
-          - Effect: Allow
-            Action:
-              - iam:GetRole
-              - iam:GetRolePolicy
-              - iam:ListAttachedRolePolicies
-            Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
-              - !GetAtt FISInterruptionRole.Arn
-          - Effect: Allow
-            Action: iam:PassRole
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
-          - Effect: Allow
-            Action:
-              - iam:ListInstanceProfiles
-              - iam:ListInstanceProfileTags
-            Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*" 
-          - Effect: Allow
-            Action:
-              - iam:AddRoleToInstanceProfile
-              - iam:CreateInstanceProfile
-              - iam:TagInstanceProfile
-              - iam:RemoveRoleFromInstanceProfile
-              - iam:DeleteInstanceProfile
-              - iam:GetInstanceProfile
-            Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/KarpenterNodeInstanceProfile-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/KarpenterNodeInstanceProfile-Drift-*"
-          - Effect: Allow
-            Action:
-              - iam:CreateOpenIDConnectProvider
-              - iam:DeleteOpenIDConnectProvider
-              - iam:ListOpenIDConnectProviders
-              - iam:ListOpenIDConnectProviderTags
-              - iam:TagOpenIDConnectProvider
-              - iam:GetOpenIDConnectProvider
-              - iam:TagOpenIDConnectProvider
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/*"
-          - Effect: Allow
-            Action:
-              - iam:CreatePolicy
-              - iam:DeletePolicy
-              - iam:GetPolicy
-              - iam:CreatePolicyVersion
-              - iam:DeletePolicyVersion
-              - iam:ListPolicyVersions
-            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-*"
-          - Effect: Allow
-            Action:
               - cloudformation:CreateChangeSet
               - cloudformation:CreateStack
               - cloudformation:DeleteStack
@@ -139,40 +65,6 @@ Resources:
              - cloudformation:ListStacks
              - cloudformation:DescribeStacks
             Resource: "*"
-          - Effect: Allow
-            Action:
-              - eks:CreateCluster
-              - eks:CreateAddon
-              - eks:CreateNodegroup
-              - eks:DeleteCluster
-              - eks:ListFargateProfiles
-              - eks:TagResource
-              - eks:DescribeCluster
-            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - eks:DeleteAddon
-              - eks:DescribeAddon
-            Resource:
-              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:addon/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - eks:DeleteNodegroup
-              - eks:DescribeNodegroup
-              - eks:TagResource
-            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:nodegroup/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
           - Effect: Allow
             Action: logs:PutRetentionPolicy
             Resource: !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/eks/*"
@@ -249,6 +141,129 @@ Resources:
           - Effect: Allow
             Action: timestream:DescribeEndpoints
             Resource: "*"
+  GithubActionsIAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GithubActionsIAMPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - iam:AttachRolePolicy
+              - iam:CreateRole
+              - iam:DeleteRolePolicy
+              - iam:DetachRolePolicy
+              - iam:PutRolePolicy
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
+            Condition:
+              ArnEquals:
+                "iam:PermissionsBoundary": !Ref GithubActionsPermissionsBoundary
+          - Effect: Allow
+            Action: iam:DeleteRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
+          - Effect: Allow
+            Action:
+              - iam:GetRole
+              - iam:GetRolePolicy
+              - iam:ListAttachedRolePolicies
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
+              - !GetAtt FISInterruptionRole.Arn
+          - Effect: Allow
+            Action: iam:PassRole
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/eksctl-*"
+          - Effect: Allow
+            Action:
+              - iam:ListInstanceProfiles
+              - iam:ListInstanceProfileTags
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*" 
+          - Effect: Allow
+            Action:
+              - iam:AddRoleToInstanceProfile
+              - iam:CreateInstanceProfile
+              - iam:TagInstanceProfile
+              - iam:RemoveRoleFromInstanceProfile
+              - iam:DeleteInstanceProfile
+              - iam:GetInstanceProfile
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/KarpenterNodeInstanceProfile-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/KarpenterNodeInstanceProfile-Drift-*"
+          - Effect: Allow
+            Action:
+              - iam:CreateOpenIDConnectProvider
+              - iam:DeleteOpenIDConnectProvider
+              - iam:ListOpenIDConnectProviders
+              - iam:ListOpenIDConnectProviderTags
+              - iam:TagOpenIDConnectProvider
+              - iam:GetOpenIDConnectProvider
+              - iam:TagOpenIDConnectProvider
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:oidc-provider/*"
+          - Effect: Allow
+            Action:
+              - iam:CreatePolicy
+              - iam:DeletePolicy
+              - iam:GetPolicy
+              - iam:CreatePolicyVersion
+              - iam:DeletePolicyVersion
+              - iam:ListPolicyVersions
+            Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-*"
+  GithubActionsEKSPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GithubActionsEKSPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - eks:CreateCluster
+              - eks:CreateAddon
+              - eks:CreateNodegroup
+              - eks:DeleteCluster
+              - eks:ListFargateProfiles
+              - eks:TagResource
+              - eks:DescribeCluster
+              - eks:ListClusters
+            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - eks:DeleteAddon
+              - eks:DescribeAddon
+            Resource:
+              - !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:addon/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - eks:DeleteNodegroup
+              - eks:DescribeNodegroup
+              - eks:TagResource
+            Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:nodegroup/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
   # GithubActionsPermissionsBoundary includes all permissions needed for all designated roles provisioned by the GithubActions
   # CI task. This includes the cluster ServiceRoles that are generated by EKSCTL and all roles generated with IRSA to interface from the
   # cluster into AWS services through IAM.
@@ -366,6 +381,8 @@ Resources:
       RoleName: GithubActionsRole
       ManagedPolicyArns:
         - !Ref GithubActionsPolicy
+        - !Ref GithubActionsEKSPolicy
+        - !Ref GithubActionsIAMPolicy
         - !Ref GithubActionsPermissionsBoundary
       MaxSessionDuration: 21600 # 6 hours is the max session for GHA
       AssumeRolePolicyDocument:

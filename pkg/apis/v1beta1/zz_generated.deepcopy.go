@@ -240,6 +240,11 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 		*out = new(string)
 		**out = **in
 	}
+	if in.InstanceProfile != nil {
+		in, out := &in.InstanceProfile, &out.InstanceProfile
+		*out = new(string)
+		**out = **in
+	}
 	if in.Tags != nil {
 		in, out := &in.Tags, &out.Tags
 		*out = make(map[string]string, len(*in))
@@ -275,11 +280,6 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 	}
 	if in.LaunchTemplateName != nil {
 		in, out := &in.LaunchTemplateName, &out.LaunchTemplateName
-		*out = new(string)
-		**out = **in
-	}
-	if in.InstanceProfile != nil {
-		in, out := &in.InstanceProfile, &out.InstanceProfile
 		*out = new(string)
 		**out = **in
 	}

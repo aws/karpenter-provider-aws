@@ -32,10 +32,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/batcher"
 	"github.com/aws/karpenter/pkg/cache"
@@ -46,9 +45,9 @@ import (
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
 var (
@@ -253,25 +252,13 @@ func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.EC2Nod
 }
 
 func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim) map[string]string {
-	var overridableTags, staticTags map[string]string
-	if nodeClaim.IsMachine {
-		overridableTags = map[string]string{
-			"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey]),
-		}
-		staticTags = map[string]string{
-			fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
-			v1alpha5.ProvisionerNameLabelKey:                                              nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey],
-			v1alpha5.MachineManagedByAnnotationKey:                                        options.FromContext(ctx).ClusterName,
-		}
-	} else {
-		staticTags = map[string]string{
-			fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
-			corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
-			corev1beta1.ManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
-			v1beta1.LabelNodeClass:             nodeClass.Name,
-		}
+	staticTags := map[string]string{
+		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
+		corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
+		corev1beta1.ManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
+		v1beta1.LabelNodeClass:             nodeClass.Name,
 	}
-	return lo.Assign(overridableTags, settings.FromContext(ctx).Tags, nodeClass.Spec.Tags, staticTags)
+	return lo.Assign(nodeClass.Spec.Tags, staticTags)
 }
 
 func (p *Provider) checkODFallback(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
@@ -414,7 +401,7 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
 // that make the most sense given our specific AWS cloudprovider.
 func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
-	instanceTypes = filterExoticInstanceTypes(instanceTypes, nodeClaim.IsMachine)
+	instanceTypes = filterExoticInstanceTypes(instanceTypes)
 	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
 	// are more expensive than the cheapest on-demand type.
 	if p.isMixedCapacityLaunch(nodeClaim, instanceTypes) {
@@ -479,18 +466,18 @@ func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType) []*cloudpro
 // filterExoticInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
 // a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
 // of instance types are returned.
-func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType, isMachine bool) []*cloudprovider.InstanceType {
+func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
 	var genericInstanceTypes []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
 		// requirement
-		if _, ok := lo.Find(it.Requirements.Get(lo.Ternary(isMachine, v1alpha1.LabelInstanceSize, v1beta1.LabelInstanceSize)).Values(), func(size string) bool { return strings.Contains(size, "metal") }); ok {
+		if _, ok := lo.Find(it.Requirements.Get(v1beta1.LabelInstanceSize).Values(), func(size string) bool { return strings.Contains(size, "metal") }); ok {
 			continue
 		}
-		if !resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceAWSNeuron, v1beta1.ResourceAWSNeuron)]) ||
-			!resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceAMDGPU, v1beta1.ResourceAMDGPU)]) ||
-			!resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceNVIDIAGPU, v1beta1.ResourceNVIDIAGPU)]) ||
-			!resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceHabanaGaudi, v1beta1.ResourceHabanaGaudi)]) {
+		if !resources.IsZero(it.Capacity[v1beta1.ResourceAWSNeuron]) ||
+			!resources.IsZero(it.Capacity[v1beta1.ResourceAMDGPU]) ||
+			!resources.IsZero(it.Capacity[v1beta1.ResourceNVIDIAGPU]) ||
+			!resources.IsZero(it.Capacity[v1beta1.ResourceHabanaGaudi]) {
 			continue
 		}
 		genericInstanceTypes = append(genericInstanceTypes, it)

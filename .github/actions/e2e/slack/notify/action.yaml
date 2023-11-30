@@ -14,7 +14,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       with:
         ref: ${{ inputs.git_ref }}
     - id: get-run-name
@@ -25,7 +25,7 @@ runs:
         else
           RUN_NAME="${{ inputs.suite }}-${GITHUB_SHA::7}"
         fi
-        
+
         # Convert the RUN_NAME to all lowercase
         echo RUN_NAME=${RUN_NAME,,} >> $GITHUB_OUTPUT
     - uses: ./.github/actions/e2e/slack/send-message

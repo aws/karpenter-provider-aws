@@ -27,8 +27,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/ptr"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
 	"github.com/aws/karpenter/test/pkg/environment/aws"
@@ -145,9 +146,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: env.Region,
 			v1.LabelFailureDomainBetaZone:   fmt.Sprintf("%sa", env.Region),
-			"beta.kubernetes.io/arch":       "amd64",
-			"beta.kubernetes.io/os":         "linux",
-			v1.LabelInstanceType:            "c5.large",
+			"topology.ebs.csi.aws.com/zone": fmt.Sprintf("%sa", env.Region),
+
+			"beta.kubernetes.io/arch": "amd64",
+			"beta.kubernetes.io/os":   "linux",
+			v1.LabelInstanceType:      "c5.large",
 		}
 		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
@@ -263,15 +266,17 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*15, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 		env.ExpectCreatedNodeCount("==", 1)
 	})
-	It("should support the node-restriction.kubernetes.io label domain", func() {
+	DescribeTable("should support restricted label domain exceptions", func(domain string) {
 		// Assign labels to the nodepool so that it has known values
 		test.ReplaceRequirements(nodePool,
-			v1.NodeSelectorRequirement{Key: v1.LabelNamespaceNodeRestriction + "/team", Operator: v1.NodeSelectorOpExists},
-			v1.NodeSelectorRequirement{Key: v1.LabelNamespaceNodeRestriction + "/custom-label", Operator: v1.NodeSelectorOpExists},
+			v1.NodeSelectorRequirement{Key: domain + "/team", Operator: v1.NodeSelectorOpExists},
+			v1.NodeSelectorRequirement{Key: domain + "/custom-label", Operator: v1.NodeSelectorOpExists},
+			v1.NodeSelectorRequirement{Key: "subdomain." + domain + "/custom-label", Operator: v1.NodeSelectorOpExists},
 		)
 		nodeSelector := map[string]string{
-			v1.LabelNamespaceNodeRestriction + "/team":         "team-1",
-			v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+			domain + "/team":                        "team-1",
+			domain + "/custom-label":                "custom-value",
+			"subdomain." + domain + "/custom-label": "custom-value",
 		}
 		selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 		requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
@@ -284,8 +289,16 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		}})
 		env.ExpectCreated(nodeClass, nodePool, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
-		env.ExpectCreatedNodeCount("==", 1)
-	})
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+		// Ensure that the requirements/labels specified above are propagated onto the node
+		for k, v := range nodeSelector {
+			Expect(node.Labels).To(HaveKeyWithValue(k, v))
+		}
+	},
+		Entry("node-restriction.kuberentes.io", "node-restriction.kuberentes.io"),
+		Entry("node.kubernetes.io", "node.kubernetes.io"),
+		Entry("kops.k8s.io", "kops.k8s.io"),
+	)
 	It("should provision a node for naked pods", func() {
 		pod := test.Pod()
 
@@ -336,6 +349,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 						TopologyKey:       v1.LabelTopologyZone,
 						WhenUnsatisfiable: v1.DoNotSchedule,
 						LabelSelector:     &metav1.LabelSelector{MatchLabels: podLabels},
+						MinDomains:        lo.ToPtr(int32(3)),
 					},
 				},
 			},
@@ -343,7 +357,10 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 
 		env.ExpectCreated(nodeClass, nodePool, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
-		env.ExpectCreatedNodeCount("==", 3)
+		// Karpenter will launch three nodes, however if all three nodes don't get register with the cluster at the same time, two pods will be placed on one node.
+		// This can result in a case where all 3 pods are healthy, while there are only two created nodes.
+		// In that case, we still expect to eventually have three nodes.
+		env.EventuallyExpectNodeCount("==", 3)
 	})
 	It("should provision a node using a NodePool with higher priority", func() {
 		nodePoolLowPri := test.NodePool(corev1beta1.NodePool{

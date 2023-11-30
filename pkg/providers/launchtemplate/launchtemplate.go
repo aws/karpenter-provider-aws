@@ -35,8 +35,8 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/operator/options"
@@ -46,8 +46,8 @@ import (
 	"github.com/aws/karpenter/pkg/providers/subnet"
 	"github.com/aws/karpenter/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
 const (
@@ -153,14 +153,15 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 }
 
 func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
-	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" since the kubelet can't
+	// Remove any labels passed into userData that are prefixed with "node-restriction.kubernetes.io" or "kops.k8s.io" since the kubelet can't
 	// register the node with any labels from this domain: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#noderestriction
 	for k := range labels {
-		if strings.HasPrefix(k, v1.LabelNamespaceNodeRestriction) {
+		labelDomain := corev1beta1.GetLabelDomain(k)
+		if strings.HasSuffix(labelDomain, v1.LabelNamespaceNodeRestriction) || strings.HasSuffix(labelDomain, "kops.k8s.io") {
 			delete(labels, k)
 		}
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, nodeClass)
+	instanceProfile, err := p.getInstanceProfile(nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -173,10 +174,9 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	options := &amifamily.Options{
-		ClusterName:             options.FromContext(ctx).ClusterName,
-		ClusterEndpoint:         p.ClusterEndpoint,
-		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
-		InstanceProfile:         instanceProfile,
+		ClusterName:     options.FromContext(ctx).ClusterName,
+		ClusterEndpoint: p.ClusterEndpoint,
+		InstanceProfile: instanceProfile,
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
 			return v1beta1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
@@ -369,7 +369,7 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 	}
 }
 
-func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
+func (p *Provider) getInstanceProfile(nodeClass *v1beta1.EC2NodeClass) (string, error) {
 	if nodeClass.Spec.InstanceProfile != nil {
 		return aws.StringValue(nodeClass.Spec.InstanceProfile), nil
 	}
@@ -379,9 +379,5 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC
 		}
 		return nodeClass.Status.InstanceProfile, nil
 	}
-	defaultProfile := settings.FromContext(ctx).DefaultInstanceProfile
-	if defaultProfile == "" {
-		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
-	}
-	return defaultProfile, nil
+	return "", errors.New("neither spec.instanceProfile or spec.role is specified")
 }

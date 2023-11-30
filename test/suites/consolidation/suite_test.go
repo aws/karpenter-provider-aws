@@ -26,8 +26,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/test/pkg/debug"
 
@@ -48,7 +49,7 @@ func TestConsolidation(t *testing.T) {
 	AfterSuite(func() {
 		env.Stop()
 	})
-	RunSpecs(t, "Beta/Consolidation")
+	RunSpecs(t, "Consolidation")
 }
 
 var nodeClass *v1beta1.EC2NodeClass
@@ -60,7 +61,7 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("Beta/Consolidation", func() {
+var _ = Describe("Consolidation", func() {
 	It("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 		nodePool := test.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{

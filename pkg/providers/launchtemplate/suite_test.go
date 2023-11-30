@@ -40,17 +40,16 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/events"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
+	"sigs.k8s.io/karpenter/pkg/controllers/state"
+	"sigs.k8s.io/karpenter/pkg/events"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+
 	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/fake"
@@ -79,7 +78,6 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 
@@ -98,7 +96,6 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	cluster.Reset()
 	awsEnv.Reset()
 
@@ -163,6 +160,18 @@ var _ = Describe("LaunchTemplates", func() {
 		pod := coretest.UnschedulablePod()
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should use the instance profile on the EC2NodeClass when specified", func() {
+		nodeClass.Spec.Role = ""
+		nodeClass.Spec.InstanceProfile = aws.String("overridden-profile")
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod()
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+		Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+		awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+			Expect(*ltInput.LaunchTemplateData.IamInstanceProfile.Name).To(Equal("overridden-profile"))
+		})
 	})
 	Context("Cache", func() {
 		It("should use same launch template for equivalent constraints", func() {
@@ -331,70 +340,6 @@ var _ = Describe("LaunchTemplates", func() {
 
 			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
 			ExpectTags(createFleetInput.TagSpecifications[2].Tags, nodeClass.Spec.Tags)
-		})
-		It("should merge global tags into launch template and volume tags", func() {
-			nodeClass.Spec.Tags = map[string]string{
-				"tag1": "tag1value",
-				"tag2": "tag2value",
-			}
-			settingsTags := map[string]string{
-				"customTag1": "value1",
-				"customTag2": "value2",
-			}
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				Tags: settingsTags,
-			}))
-
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
-
-			// tags should be included in instance, volume, and fleet tag specification
-			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
-			ExpectTags(createFleetInput.TagSpecifications[0].Tags, settingsTags)
-
-			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
-			ExpectTags(createFleetInput.TagSpecifications[1].Tags, settingsTags)
-
-			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
-			ExpectTags(createFleetInput.TagSpecifications[2].Tags, settingsTags)
-		})
-		It("should override global tags with provider tags", func() {
-			nodeClass.Spec.Tags = map[string]string{
-				"tag1": "tag1value",
-				"tag2": "tag2value",
-			}
-			settingsTags := map[string]string{
-				"tag1": "custom1",
-				"tag2": "custom2",
-			}
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				Tags: settingsTags,
-			}))
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(createFleetInput.TagSpecifications).To(HaveLen(3))
-
-			// tags should be included in instance, volume, and fleet tag specification
-			Expect(*createFleetInput.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeInstance))
-			ExpectTags(createFleetInput.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
-			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settingsTags)
-
-			Expect(*createFleetInput.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeVolume))
-			ExpectTags(createFleetInput.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
-			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settingsTags)
-
-			Expect(*createFleetInput.TagSpecifications[2].ResourceType).To(Equal(ec2.ResourceTypeFleet))
-			ExpectTags(createFleetInput.TagSpecifications[2].Tags, nodeClass.Spec.Tags)
-			ExpectTagsNotFound(createFleetInput.TagSpecifications[0].Tags, settingsTags)
 		})
 	})
 	Context("Block Device Mappings", func() {
@@ -779,25 +724,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(ok).To(BeTrue())
 		})
 
-		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
-
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-			}))
-
-			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
-			overhead := it.Overhead.Total()
-			Expect(overhead.Memory().String()).To(Equal("993Mi"))
-		})
-		It("should calculate memory overhead based on eni limited pods when not ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
-
+		It("should calculate memory overhead based on eni limited pods", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
@@ -835,8 +762,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Expect(ok).To(BeTrue())
 		})
 
-		It("should calculate memory overhead based on eni limited pods when ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings())
+		It("should calculate memory overhead based on eni limited pods", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
@@ -846,16 +772,13 @@ var _ = Describe("LaunchTemplates", func() {
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
-		It("should calculate memory overhead based on max pods when not ENI limited", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
-
+		It("should calculate memory overhead based on max pods", func() {
 			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1565Mi"))
@@ -868,17 +791,6 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false")
-		})
-		It("should specify --use-max-pods=false when not using ENI-based pod density", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
-
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=110")
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(10)}
@@ -1155,8 +1067,9 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should not pass any labels prefixed with the node-restriction.kubernetes.io domain", func() {
 			nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
-				v1.LabelNamespaceNodeRestriction + "/team":         "team-1",
-				v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+				v1.LabelNamespaceNodeRestriction + "/team":                        "team-1",
+				v1.LabelNamespaceNodeRestriction + "/custom-label":                "custom-value",
+				"subdomain." + v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
 			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -1165,14 +1078,14 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(v1.LabelNamespaceNodeRestriction)
 		})
 		Context("Bottlerocket", func() {
+			BeforeEach(func() {
+				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+			})
 			It("should merge in custom user data", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
 				content, err := os.ReadFile("testdata/br_userdata_input.golden")
 				Expect(err).To(BeNil())
 				nodeClass.Spec.UserData = aws.String(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey))
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
 				nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1186,10 +1099,6 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
 				nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1204,10 +1113,6 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should not bootstrap when provider ref points to a non-existent resource", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
-
 				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
 				ExpectApplied(ctx, env.Client, nodePool)
 				pod := coretest.UnschedulablePod()
@@ -1217,17 +1122,13 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 			It("should not bootstrap on invalid toml user data", func() {
 				nodeClass.Spec.UserData = aws.String("#/bin/bash\n ./not-toml.sh")
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-				ExpectApplied(ctx, env.Client, nodeClass)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeClass.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				// This will not be scheduled since userData cannot be generated for the prospective node.
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should override system reserved values in user data", func() {
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeClass)
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					SystemReserved: v1.ResourceList{
@@ -1253,7 +1154,6 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeClass)
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					KubeReserved: v1.ResourceList{
@@ -1279,7 +1179,6 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodeClass)
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					EvictionHard: map[string]string{
@@ -1305,7 +1204,6 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					MaxPods: aws.Int32(10),
 				}
@@ -1324,7 +1222,6 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 			It("should pass ImageGCHighThresholdPercent when specified", func() {
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					ImageGCHighThresholdPercent: aws.Int32(50),
 				}
@@ -1345,7 +1242,6 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 			It("should pass ImageGCLowThresholdPercent when specified", func() {
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					ImageGCLowThresholdPercent: aws.Int32(50),
 				}
@@ -1366,7 +1262,6 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 			It("should pass ClusterDNSIP when discovered", func() {
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1382,7 +1277,6 @@ var _ = Describe("LaunchTemplates", func() {
 				})
 			})
 			It("should pass CPUCFSQuota when specified", func() {
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					CPUCFSQuota: aws.Bool(false),
 				}
@@ -1402,11 +1296,10 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 		})
 		Context("AL2 Custom UserData", func() {
+			BeforeEach(func() {
+				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+			})
 			It("should merge in custom user data", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
-
 				content, err := os.ReadFile("testdata/al2_userdata_input.golden")
 				Expect(err).To(BeNil())
 				nodeClass.Spec.UserData = aws.String(string(content))
@@ -1420,10 +1313,6 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data when Content-Type is before MIME-Version", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
-
 				content, err := os.ReadFile("testdata/al2_userdata_content_type_first_input.golden")
 				Expect(err).To(BeNil())
 				nodeClass.Spec.UserData = aws.String(string(content))
@@ -1437,10 +1326,6 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data not in multi-part mime format", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
-
 				content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.golden")
 				Expect(err).To(BeNil())
 				nodeClass.Spec.UserData = aws.String(string(content))
@@ -1454,9 +1339,6 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should handle empty custom user data", func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
 				nodeClass.Spec.UserData = nil
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
@@ -1610,9 +1492,7 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should fail if no amis match selector.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				ExpectApplied(ctx, env.Client, nodeClass)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeClass.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)
@@ -1622,9 +1502,7 @@ var _ = Describe("LaunchTemplates", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				ExpectApplied(ctx, env.Client, nodeClass)
-				newProvisioner := test.Provisioner(coretest.ProvisionerOptions{ProviderRef: &v1alpha5.MachineTemplateRef{Name: nodeClass.Name}})
-				ExpectApplied(ctx, env.Client, newProvisioner)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectNotScheduled(ctx, env.Client, pod)
@@ -1688,11 +1566,9 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Windows Custom UserData", func() {
 			BeforeEach(func() {
-				ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-					EnableENILimitedPodDensity: lo.ToPtr(false),
-				}))
 				nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
 			It("should merge and bootstrap with custom user data", func() {
 				content, err := os.ReadFile("testdata/windows_userdata_input.golden")

@@ -19,7 +19,8 @@ import (
 
 	"github.com/imdario/mergo"
 
-	"github.com/aws/karpenter-core/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 

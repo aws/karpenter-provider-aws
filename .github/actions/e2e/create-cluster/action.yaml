@@ -4,11 +4,23 @@ inputs:
   account_id:
     description: "Account ID to access AWS"
     required: true
+  ecr_account_id:
+    description: "Account ID to access ECR Repository"
+    required: true
+  prometheus_workspace_id:
+    description: Workspace ID for the Prometheus workspace
+    required: true
   role:
     description: "Role to access AWS"
     required: true
   region:
     description: "Region to access AWS"
+    required: true
+  ecr_region:
+    description: "Region to access ECR Repository"
+    required: true
+  prometheus_region:
+    description: Region to access Prometheus
     required: true
   cluster_name:
     description: "Name of the cluster to be launched by eksctl"
@@ -30,18 +42,17 @@ inputs:
     required: false
 runs:
   using: "composite"
-  steps:
-    - uses: actions/checkout@v4
-      with:
-        ref: ${{ inputs.git_ref }}
-    - name: create iam policies
-      shell: bash
-      run: |
-        # Resolve the cloudformation path with fallback
-        CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
-        if [ ! -f $CLOUDFORMATION_PATH ]; then
-          CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml
-        fi
+  - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+    with:
+      ref: ${{ inputs.git_ref }}
+  - name: create iam policies
+    shell: bash
+    run: |
+      # Resolve the cloudformation path with fallback
+      CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
+      if [ ! -f $CLOUDFORMATION_PATH ]; then
+        CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml
+      fi
 
         # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
         yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
@@ -59,7 +70,6 @@ runs:
         # Create or Upgrade the cluster based on whether the cluster already exists
         cmd="create"
         eksctl get cluster --name ${{ inputs.cluster_name }} && cmd="upgrade"
-
         cat << EOF >> clusterconfig.yaml
         ---
         apiVersion: eksctl.io/v1alpha5
@@ -131,8 +141,11 @@ runs:
           yq -i '.managedNodeGroups[0].privateNetworking=true' clusterconfig.yaml
         fi
 
-        eksctl ${cmd} cluster -f clusterconfig.yaml
-
+        if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
+          yq -i '.privateCluster.enabled=true' clusterconfig.yaml
+          yq -i '.managedNodeGroups[0].privateNetworking=true' clusterconfig.yaml
+        fi
+       
         # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
         # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
         eksctl update iamserviceaccount -f clusterconfig.yaml --approve
@@ -144,7 +157,7 @@ runs:
           VPC_ID=$(echo $VPC_CONFIG | jq .vpcId -r)
           SUBNET_IDS=($(echo $VPC_CONFIG | jq '.subnetIds | join(" ")' -r))
           SECURITY_GROUP_IDS=($(echo $VPC_CONFIG | jq '.securityGroupIds | join(" ")' -r))
-          
+
           for SERVICE in "com.amazonaws.${{ inputs.region }}.ssm" "com.amazonaws.${{ inputs.region }}.sqs"; do
             aws ec2 create-vpc-endpoint \
               --vpc-id "${VPC_ID}" \
@@ -171,7 +184,8 @@ runs:
         --cluster "${{ inputs.cluster_name }}" \
         --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
         --group system:bootstrappers \
-        --group system:nodes
+        --group system:nodes \
+        --group eks:kube-proxy-windows
     - name: cloudformation describe stack events
       shell: bash
       if: failure()
@@ -181,3 +195,23 @@ runs:
           echo "Stack Events for $stack_name:"
           aws cloudformation describe-stack-events --stack-name $stack_name
         done
+    - name: install prometheus
+      uses: ./.github/actions/e2e/install-prometheus
+      with:
+        account_id: ${{ inputs.account_id }}
+        role: ${{ inputs.role }}
+        region: ${{ inputs.prometheus_region }}
+        cluster_name: ${{ inputs.cluster_name }}
+        workspace_id: ${{ inputs.prometheus_workspace_id }}
+        git_ref: ${{ inputs.git_ref }}
+    - name: install karpenter
+      uses: ./.github/actions/e2e/install-karpenter
+      with:
+        account_id: ${{ inputs.account_id  }}
+        role: ${{ inputs.role }}
+        region: ${{ inputs.region }}
+        ecr_account_id: ${{ inputs.ecr_account_id }}
+        ecr_region: ${{ inputs.ecr_region }}
+        cluster_name: ${{ inputs.cluster_name }}
+        k8s_version: ${{ inputs.k8s_version }}
+        git_ref: ${{ inputs.git_ref }}

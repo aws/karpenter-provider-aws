@@ -18,20 +18,18 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/iam"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	awserrors "github.com/aws/karpenter/pkg/errors"
 	"github.com/aws/karpenter/pkg/utils"
 	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
@@ -40,6 +38,8 @@ import (
 var _ = Describe("GarbageCollection", func() {
 	var customAMI string
 	var instanceInput *ec2.RunInstancesInput
+	var instanceProfileName string
+	var roleName string
 
 	BeforeEach(func() {
 		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
@@ -48,10 +48,12 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(subnets).ToNot(HaveLen(0))
 
 		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		instanceProfileName = fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
+		roleName = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 		instanceInput = &ec2.RunInstancesInput{
 			InstanceType: aws.String("c5.large"),
 			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-				Name: aws.String(settings.FromContext(env.Context).DefaultInstanceProfile),
+				Name: aws.String(instanceProfileName),
 			},
 			SecurityGroupIds: lo.Map(securityGroups, func(s environmentaws.SecurityGroup, _ int) *string {
 				return s.GroupIdentifier.GroupId
@@ -95,10 +97,9 @@ var _ = Describe("GarbageCollection", func() {
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))))
 
-		instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
-		ExpectInstanceProfileCreated(instanceProfileName)
+		env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
 		DeferCleanup(func() {
-			ExpectInstanceProfileDeleted(instanceProfileName)
+			env.ExpectInstanceProfileDeleted(instanceProfileName, roleName)
 		})
 		// Create an instance manually to mock Karpenter launching an instance
 		out := env.EventuallyExpectRunInstances(instanceInput)
@@ -154,50 +155,3 @@ var _ = Describe("GarbageCollection", func() {
 		env.EventuallyExpectNotFound(node)
 	})
 })
-
-func ExpectInstanceProfileCreated(instanceProfileName string) {
-	By("creating an instance profile")
-	createInstanceProfile := &iam.CreateInstanceProfileInput{
-		InstanceProfileName: aws.String(instanceProfileName),
-		Tags: []*iam.Tag{
-			{
-				Key:   aws.String(coretest.DiscoveryLabel),
-				Value: aws.String(env.ClusterName),
-			},
-		},
-	}
-	By("adding the karpenter role to new instance profile")
-	_, err := env.IAMAPI.CreateInstanceProfile(createInstanceProfile)
-	Expect(awserrors.IgnoreAlreadyExists(err)).ToNot(HaveOccurred())
-	addInstanceProfile := &iam.AddRoleToInstanceProfileInput{
-		InstanceProfileName: aws.String(instanceProfileName),
-		RoleName:            aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
-	}
-	_, err = env.IAMAPI.AddRoleToInstanceProfile(addInstanceProfile)
-	Expect(ignoreAlreadyContainsRole(err)).ToNot(HaveOccurred())
-}
-
-func ExpectInstanceProfileDeleted(instanceProfileName string) {
-	By("deleting an instance profile")
-	removeRoleFromInstanceProfile := &iam.RemoveRoleFromInstanceProfileInput{
-		InstanceProfileName: aws.String(instanceProfileName),
-		RoleName:            aws.String(fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)),
-	}
-	_, err := env.IAMAPI.RemoveRoleFromInstanceProfile(removeRoleFromInstanceProfile)
-	Expect(awserrors.IgnoreNotFound(err)).To(BeNil())
-
-	deleteInstanceProfile := &iam.DeleteInstanceProfileInput{
-		InstanceProfileName: aws.String(instanceProfileName),
-	}
-	_, err = env.IAMAPI.DeleteInstanceProfile(deleteInstanceProfile)
-	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
-}
-
-func ignoreAlreadyContainsRole(err error) error {
-	if err != nil {
-		if strings.Contains(err.Error(), "Cannot exceed quota for InstanceSessionsPerInstanceProfile") {
-			return nil
-		}
-	}
-	return err
-}

@@ -39,11 +39,10 @@ import (
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
-	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/test"
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -164,30 +163,6 @@ func (env *Environment) ExpectSettingsRemoved(vars ...v1.EnvVar) {
 	if !equality.Semantic.DeepEqual(d, stored) {
 		By("removing environment variables for karpenter deployment")
 		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
-		env.EventuallyExpectKarpenterRestarted()
-	}
-}
-
-// ExpectSettingsLegacy gets the karpenter-global-settings ConfigMap
-func (env *Environment) ExpectSettingsLegacy() *v1.ConfigMap {
-	GinkgoHelper()
-	return env.ExpectConfigMapExists(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"})
-}
-
-// ExpectSettingsReplacedLegacy performs a full replace of the settings, replacing the existing data
-// with the data passed through
-func (env *Environment) ExpectSettingsReplacedLegacy(data ...map[string]string) {
-	GinkgoHelper()
-	if env.ExpectConfigMapDataReplaced(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
-		env.EventuallyExpectKarpenterRestarted()
-	}
-}
-
-// ExpectSettingsOverriddenLegacy overrides specific values specified through data. It only overrides
-// or inserts the specific values specified and does not upsert any of the existing data
-func (env *Environment) ExpectSettingsOverriddenLegacy(data ...map[string]string) {
-	GinkgoHelper()
-	if env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
 		env.EventuallyExpectKarpenterRestarted()
 	}
 }
@@ -382,17 +357,20 @@ func (env *Environment) EventuallyExpectPendingPodCount(selector labels.Selector
 	}).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) {
+func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) []*v1.Pod {
 	By(fmt.Sprintf("waiting for %d pods matching selector %s to be ready", numPods, selector.String()))
 	GinkgoHelper()
-	env.EventuallyExpectHealthyPodCountWithTimeout(-1, selector, numPods)
+	return env.EventuallyExpectHealthyPodCountWithTimeout(-1, selector, numPods)
 }
 
-func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.Duration, selector labels.Selector, numPods int) {
+func (env *Environment) EventuallyExpectHealthyPodCountWithTimeout(timeout time.Duration, selector labels.Selector, numPods int) []*v1.Pod {
 	GinkgoHelper()
+	var pods []*v1.Pod
 	Eventually(func(g Gomega) {
-		g.Expect(env.Monitor.RunningPodsCount(selector)).To(Equal(numPods))
+		pods = env.Monitor.RunningPods(selector)
+		g.Expect(pods).To(HaveLen(numPods))
 	}).WithTimeout(timeout).Should(Succeed())
+	return pods
 }
 
 func (env *Environment) ExpectPodsMatchingSelector(selector labels.Selector) []*v1.Pod {
@@ -446,12 +424,6 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*
 	return createdNodes
 }
 
-func MachineNames(machines []*v1alpha5.Machine) []string {
-	return lo.Map(machines, func(m *v1alpha5.Machine, index int) string {
-		return m.Name
-	})
-}
-
 func NodeNames(nodes []*v1.Node) []string {
 	return lo.Map(nodes, func(n *v1.Node, index int) string {
 		return n.Name
@@ -470,61 +442,26 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) ConsistentlyExpectMachineCount(comparator string, count int, duration string) []*v1alpha5.Machine {
+func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {
 	GinkgoHelper()
-	By(fmt.Sprintf("expecting machines to be %s to %d for %s", comparator, count, duration))
-	machineList := &v1alpha5.MachineList{}
-	Consistently(func(g Gomega) {
-		g.Expect(env.Client.List(env, machineList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d machines, had %d (%v) for %s", count, len(machineList.Items), MachineNames(lo.ToSlicePtr(machineList.Items)), duration))
-	}, duration).Should(Succeed())
-	return lo.ToSlicePtr(machineList.Items)
-}
-
-func (env *Environment) EventuallyExpectCordonedNodeCountLegacy(comparator string, count int) []*v1.Node {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for cordoned nodes to be %s to %d", comparator, count))
-	nodeList := &v1.NodeList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.unschedulable": "true"})).To(Succeed())
-		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d cordoned nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
-	}).Should(Succeed())
-	return lo.ToSlicePtr(nodeList.Items)
-}
-
-func (env *Environment) EventuallyExpectNodesUncordonedLegacyWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for %d nodes to be uncordoned", len(nodes)))
-	nodeList := &v1.NodeList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.unschedulable": "true"})).To(Succeed())
-		cordonedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
-		g.Expect(cordonedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
-	}).WithTimeout(timeout).Should(Succeed())
-}
-
-func (env *Environment) EventuallyExpectCordonedNodeCount(comparator string, count int) []*v1.Node {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for cordoned nodes to be %s to %d", comparator, count))
+	By(fmt.Sprintf("waiting for tainted nodes to be %s to %d", comparator, count))
 	nodeList := &v1.NodeList{}
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
 		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d cordoned nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+			fmt.Sprintf("expected %d tainted nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) EventuallyExpectNodesUncordonedWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
+func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.Duration, nodes ...*v1.Node) {
 	GinkgoHelper()
-	By(fmt.Sprintf("waiting for %d nodes to be uncordoned", len(nodes)))
+	By(fmt.Sprintf("waiting for %d nodes to be untainted", len(nodes)))
 	nodeList := &v1.NodeList{}
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
-		cordonedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
-		g.Expect(cordonedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
+		taintedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
+		g.Expect(taintedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
 	}).WithTimeout(timeout).Should(Succeed())
 }
 
@@ -538,18 +475,6 @@ func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) 
 			fmt.Sprintf("expected %d nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
-}
-
-func (env *Environment) EventuallyExpectMachineCount(comparator string, count int) []*v1alpha5.Machine {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for machines to be %s to %d", comparator, count))
-	machineList := &v1alpha5.MachineList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, machineList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d machines, had %d (%v)", count, len(machineList.Items), MachineNames(lo.ToSlicePtr(machineList.Items))))
-	}).Should(Succeed())
-	return lo.ToSlicePtr(machineList.Items)
 }
 
 func (env *Environment) EventuallyExpectNodeCountWithSelector(comparator string, count int, selector labels.Selector) []*v1.Node {
@@ -615,29 +540,6 @@ func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, 
 		g.Expect(len(nodes)).To(BeNumerically(comparator, count))
 	}).Should(Succeed())
 	return nodes
-}
-
-func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, count int) []*v1alpha5.Machine {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for created machines to be %s to %d", comparator, count))
-	machineList := &v1alpha5.MachineList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env.Context, machineList)).To(Succeed())
-		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count))
-	}).Should(Succeed())
-	return lo.Map(machineList.Items, func(m v1alpha5.Machine, _ int) *v1alpha5.Machine {
-		return &m
-	})
-}
-
-func (env *Environment) EventuallyExpectMachinesReady(machines ...*v1alpha5.Machine) {
-	Eventually(func(g Gomega) {
-		for _, machine := range machines {
-			temp := &v1alpha5.Machine{}
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).Should(Succeed())
-			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
-		}
-	}).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectCreatedNodeClaimCount(comparator string, count int) []*corev1beta1.NodeClaim {

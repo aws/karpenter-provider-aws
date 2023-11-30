@@ -44,7 +44,8 @@ authenticate properly by running `aws sts get-caller-identity`.
 After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
-export KARPENTER_VERSION=v0.32.1
+export KARPENTER_NAMESPACE=karpenter
+export KARPENTER_VERSION=v0.32.3
 export K8S_VERSION={{< param "latest_k8s_version" >}}
 ```
 
@@ -57,7 +58,7 @@ If you open a new shell to run steps in this procedure, you need to set some or 
 To remind yourself of these values, type:
 
 ```bash
-echo $KARPENTER_VERSION $K8S_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID $TEMPOUT
+echo $KARPENTER_NAMESPACE $KARPENTER_VERSION $K8S_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCOUNT_ID $TEMPOUT
 ```
 
 {{% /alert %}}
@@ -68,7 +69,7 @@ echo $KARPENTER_VERSION $K8S_VERSION $CLUSTER_NAME $AWS_DEFAULT_REGION $AWS_ACCO
 Create a basic cluster with `eksctl`.
 The following cluster configuration will:
 
-* Use CloudFormation to set up the infrastructure needed by the EKS cluster.
+* Use CloudFormation to set up the infrastructure needed by the EKS cluster. See [CloudFormation]({{< relref "../../reference/cloudformation/" >}}) for a complete description of what `cloudformation.yaml` does for Karpenter.
 * Create a Kubernetes service account and AWS IAM Role, and associate them using IRSA to let Karpenter launch instances.
 * Add the Karpenter node role to the aws-auth configmap to allow nodes to connect.
 * Use [AWS EKS managed node groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) for the kube-system and karpenter namespaces. Uncomment fargateProfiles settings (and comment out managedNodeGroups settings) to use Fargate for both namespaces instead.
@@ -113,23 +114,34 @@ Note: This NodePool will create capacity as long as the sum of all created capac
 
 Karpenter is now active and ready to begin provisioning nodes.
 
-## First Use
-
-Create some pods using a deployment and watch Karpenter provision nodes in response.
-
-### Scale up deployment
+### 6. Scale up deployment
 
 This deployment uses the [pause image](https://www.ianlewis.org/en/almighty-pause-container) and starts with zero replicas.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step13-automatic-node-provisioning.sh" language="bash"%}}
 
-### Scale down deployment
+### 7. Scale down deployment
 
 Now, delete the deployment. After a short amount of time, Karpenter should terminate the empty nodes due to consolidation.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step14-deprovisioning.sh" language="bash"%}}
 
-## Add optional monitoring with Grafana
+### 8. Delete Karpenter nodes manually
+
+If you delete a node with kubectl, Karpenter will gracefully cordon, drain,
+and shutdown the corresponding instance. Under the hood, Karpenter adds a
+finalizer to the node object, which blocks deletion until all pods are
+drained and the instance is terminated. Keep in mind, this only works for
+nodes provisioned by Karpenter.
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step16-delete-node.sh" language="bash"%}}
+
+### 9. Delete the cluster
+To avoid additional charges, remove the demo infrastructure from your AWS account.
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step17-cleanup.sh" language="bash"%}}
+
+## Monitoring with Grafana (optional)
 
 This section describes optional ways to configure Karpenter to enhance its capabilities.
 In particular, the following commands deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
@@ -145,19 +157,63 @@ The new stack has only one user, `admin`, and the password is stored in a secret
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step11-grafana-get-password.sh" language="bash"%}}
 
-## Cleanup
+## Advanced Installation
 
-### Delete Karpenter nodes manually
+The section below covers advanced installation techniques for installing Karpenter. This includes things such as running Karpenter on a cluster without public internet access or ensuring that Karpenter avoids getting throttled by other components in your cluster.
 
-If you delete a node with kubectl, Karpenter will gracefully cordon, drain,
-and shutdown the corresponding instance. Under the hood, Karpenter adds a
-finalizer to the node object, which blocks deletion until all pods are
-drained and the instance is terminated. Keep in mind, this only works for
-nodes provisioned by Karpenter.
+### Private Clusters
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step15-delete-node.sh" language="bash"%}}
+You can optionally install Karpenter on a [private cluster](https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html#private-cluster-requirements) using the `eksctl` installation by setting `privateCluster.enabled` to true in your [ClusterConfig](https://eksctl.io/usage/eks-private-cluster/#eks-fully-private-cluster) and by setting `--set settings.isolatedVPC=true` when installing the `karpenter` helm chart.
 
-### Delete the cluster
-To avoid additional charges, remove the demo infrastructure from your AWS account.
+```bash
+privateCluster:
+  enabled: true
+```
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step16-cleanup.sh" language="bash"%}}
+Private clusters have no outbound access to the internet. This means that in order for Karpenter to reach out to the services that it needs to access, you need to enable specific VPC private endpoints. Below shows the endpoints that you need to enable to successfully run Karpenter in a private cluster:
+
+```text
+com.amazonaws.<region>.ec2
+com.amazonaws.<region>.ecr.api
+com.amazonaws.<region>.ecr.dkr
+com.amazonaws.<region>.s3 – For pulling container images
+com.amazonaws.<region>.sts – For IAM roles for service accounts
+com.amazonaws.<region>.ssm - For resolving default AMIs
+com.amazonaws.<region>.sqs - For accessing SQS if using interruption handling
+```
+
+If you do not currently have these endpoints surfaced in your VPC, you can add the endpoints by running
+
+```bash
+aws ec2 create-vpc-endpoint --vpc-id ${VPC_ID} --service-name ${SERVICE_NAME} --vpc-endpoint-type Interface --subnet-ids ${SUBNET_IDS} --security-group-ids ${SECURITY_GROUP_IDS}
+```
+
+{{% alert title="Note" color="primary" %}}
+
+Karpenter (controller and webhook deployment) container images must be in or copied to Amazon ECR private or to a another private registry accessible from inside the VPC. If these are not available from within the VPC, or from networks peered with the VPC, you will get Image pull errors when Kubernetes tries to pull these images from ECR public.
+
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+
+There is currently no VPC private endpoint for the [Price List Query API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-price-list-query-api.html). As a result, pricing data can go stale over time. By default, Karpenter ships a static price list that is updated when each binary is released.
+
+Failed requests for pricing data will result in the following error messages
+
+```bash
+ERROR   controller.aws.pricing  updating on-demand pricing, RequestError: send request failed
+caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.231.236:443: i/o timeout; RequestError: send request failed
+caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.231.236:443: i/o timeout, using existing pricing data from 2022-08-17T00:19:52Z  {"commit": "4b5f953"}
+```
+
+{{% /alert %}}
+
+### Preventing APIServer Request Throttling
+
+Kubernetes uses [FlowSchemas](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#flowschema) and [PriorityLevelConfigurations](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration) to map calls to the API server into buckets which determine each user agent's throttling limits.
+
+By default, Karpenter is placed in the `workload-low` PriorityLevelConfiguration for all APIServer requests. This means that other components that make a high number of requests to the APIServer may affect the ability for Karpenter to make requests.
+
+To ensure that Karpenter is unaffected by these other, lower priority components, we can place Karpenter into a higher-priority PriorityLevelConfiguration using a custom FlowSchema.
+
+{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step15-apply-flowschemas.sh" language="bash"%}}

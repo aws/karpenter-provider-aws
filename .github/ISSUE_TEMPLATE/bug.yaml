@@ -1,11 +1,13 @@
 name: Bug
 description: Report a bug
-labels: bug
-body: 
+labels:
+- bug
+- needs-triage
+body:
 - type: textarea
   attributes:
     label: Description
-    value: | 
+    value: |
       **Observed Behavior**:
 
       **Expected Behavior**:
@@ -13,8 +15,8 @@ body:
       **Reproduction Steps** (Please include YAML):
 
       **Versions**:
-      - Chart Version: 
-      - Kubernetes Version (`kubectl version`): 
+      - Chart Version:
+      - Kubernetes Version (`kubectl version`):
 
       * Please vote on this issue by adding a 👍 [reaction](https://blog.github.com/2016-03-10-add-reactions-to-pull-requests-issues-and-comments/) to the original issue to help the community and maintainers prioritize this request
       * Please do not leave "+1" or "me too" comments, they generate extra noise for issue followers and do not help prioritize the request

@@ -17,8 +17,9 @@ package amifamily
 import (
 	"fmt"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/samber/lo"
@@ -30,7 +31,7 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
@@ -42,7 +43,7 @@ type Windows struct {
 	Build   string
 }
 
-func (w Windows) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
+func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
 			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1alpha1.WindowsCore, version),

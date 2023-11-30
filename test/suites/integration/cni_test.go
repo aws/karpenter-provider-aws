@@ -25,12 +25,24 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"github.com/aws/karpenter-core/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	"sigs.k8s.io/karpenter/pkg/test"
 )
 
 var _ = Describe("CNITests", func() {
-	It("should set max pods to 110 when AWSENILimited when AWS_ENI_LIMITED_POD_DENSITY is false", func() {
-		env.ExpectSettingsOverriddenLegacy(map[string]string{"aws.enableENILimitedPodDensity": "false"})
+	It("should set eni-limited maxPods", func() {
+		pod := test.Pod()
+		env.ExpectCreated(pod, nodeClass, nodePool)
+		env.EventuallyExpectHealthy(pod)
+		env.ExpectCreatedNodeCount("==", 1)
+		var node corev1.Node
+		Expect(env.Client.Get(env.Context, types.NamespacedName{Name: pod.Spec.NodeName}, &node)).To(Succeed())
+		allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
+		Expect(allocatablePods).To(Equal(eniLimitedPodsFor(node.Labels["node.kubernetes.io/instance-type"])))
+	})
+	It("should set max pods to 110 if maxPods is set in kubelet", func() {
+		nodePool.Spec.Template.Spec.Kubelet = &v1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 		pod := test.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
@@ -40,16 +52,6 @@ var _ = Describe("CNITests", func() {
 		Expect(env.Client.Get(env.Context, types.NamespacedName{Name: pod.Spec.NodeName}, &node)).To(Succeed())
 		allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
 		Expect(allocatablePods).To(Equal(int64(110)))
-	})
-	It("should set eni-limited maxPods when AWSENILimited when AWS_ENI_LIMITED_POD_DENSITY is true", func() {
-		pod := test.Pod()
-		env.ExpectCreated(pod, nodeClass, nodePool)
-		env.EventuallyExpectHealthy(pod)
-		env.ExpectCreatedNodeCount("==", 1)
-		var node corev1.Node
-		Expect(env.Client.Get(env.Context, types.NamespacedName{Name: pod.Spec.NodeName}, &node)).To(Succeed())
-		allocatablePods, _ := node.Status.Allocatable.Pods().AsInt64()
-		Expect(allocatablePods).To(Equal(eniLimitedPodsFor(node.Labels["node.kubernetes.io/instance-type"])))
 	})
 	It("should set maxPods when reservedENIs is set", func() {
 		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "RESERVED_ENIS", Value: "1"})

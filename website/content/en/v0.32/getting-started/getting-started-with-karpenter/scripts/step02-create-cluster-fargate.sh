@@ -5,13 +5,13 @@ kind: ClusterConfig
 metadata:
   name: ${CLUSTER_NAME}
   region: ${AWS_DEFAULT_REGION}
-  version: "1.24"
+  version: "${K8S_VERSION}"
   tags:
     karpenter.sh/discovery: ${CLUSTER_NAME}
 fargateProfiles:
   - name: karpenter
     selectors:
-    - namespace: karpenter
+    - namespace: "${KARPENTER_NAMESPACE}"
 iam:
   withOIDC: true
 EOF

@@ -22,9 +22,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/aws/karpenter/pkg/providers/amifamily"
 	"github.com/aws/karpenter/pkg/providers/instance"
@@ -88,7 +88,7 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1
 	if len(amis) == 0 {
 		return "", fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amis.MapToInstanceTypes([]*cloudprovider.InstanceType{nodeInstanceType}, nodeClaim.IsMachine)
+	mappedAMIs := amis.MapToInstanceTypes([]*cloudprovider.InstanceType{nodeInstanceType})
 	if !lo.Contains(lo.Keys(mappedAMIs), instance.ImageID) {
 		return AMIDrift, nil
 	}
@@ -131,21 +131,12 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance,
 }
 
 func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) cloudprovider.DriftReason {
-	var ownerHashKey string
-	if nodeClaim.IsMachine {
-		ownerHashKey = v1alpha1.AnnotationNodeTemplateHash
-	} else {
-		ownerHashKey = v1beta1.AnnotationNodeClassHash
-	}
-	nodeClassHash, foundHashNodeClass := nodeClass.Annotations[ownerHashKey]
-	nodeClaimHash, foundHashNodeClaim := nodeClaim.Annotations[ownerHashKey]
+	nodeClassHash, foundHashNodeClass := nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]
+	nodeClaimHash, foundHashNodeClaim := nodeClaim.Annotations[v1beta1.AnnotationEC2NodeClassHash]
 	if !foundHashNodeClass || !foundHashNodeClaim {
 		return ""
 	}
-	if nodeClassHash != nodeClaimHash {
-		return lo.Ternary(nodeClaim.IsMachine, NodeTemplateDrift, NodeClassDrift)
-	}
-	return ""
+	return lo.Ternary(nodeClassHash != nodeClaimHash, NodeClassDrift, "")
 }
 
 func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {

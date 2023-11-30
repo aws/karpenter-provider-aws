@@ -1,8 +1,8 @@
 name: E2EVersionCompatibilityTrigger
 on:
   schedule:
-    # The test will run every Monday at 12:07 AM UTC
-    - cron: '7 0 * * 1'
+    # The test will run every Monday, Thursday at 12:07 AM UTC
+    - cron: '7 0 * * 1,4'
   workflow_run:
     workflows: [ApprovalComment]
     types: [completed]
@@ -26,6 +26,9 @@ jobs:
     with:
       allowed_comment: "versionCompatibility"
   versionCompatibility:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     strategy:

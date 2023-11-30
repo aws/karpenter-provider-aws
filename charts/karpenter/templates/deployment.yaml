@@ -30,7 +30,6 @@ spec:
         {{- with .Values.podAnnotations }}
           {{- toYaml . | nindent 8 }}
         {{- end }}
-        checksum/settings: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
@@ -78,9 +77,8 @@ spec:
               value: "{{ .Values.webhook.port }}"
             - name: WEBHOOK_METRICS_PORT
               value: "{{ .Values.webhook.metrics.port }}"
-          {{- else }}
             - name: DISABLE_WEBHOOK
-              value: "true"
+              value: "false"
           {{- end }}
           {{- with .Values.logLevel }}
             - name: LOG_LEVEL
@@ -101,7 +99,7 @@ spec:
                   divisor: "0"
                   resource: limits.memory
             - name: FEATURE_GATES
-              value: "Drift={{ or .Values.settings.featureGates.driftEnabled .Values.settings.featureGates.drift }}"
+              value: "Drift={{ .Values.settings.featureGates.drift }}"
           {{- with .Values.settings.batchMaxDuration }}
             - name: BATCH_MAX_DURATION
               value: "{{ . }}"
@@ -110,39 +108,39 @@ spec:
             - name: BATCH_IDLE_DURATION
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.assumeRoleARN .Values.settings.assumeRoleARN }}
+          {{- with .Values.settings.assumeRoleARN }}
             - name: ASSUME_ROLE_ARN
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.assumeRoleDuration .Values.settings.assumeRoleDuration }}
+          {{- with .Values.settings.assumeRoleDuration }}
             - name: ASSUME_ROLE_DURATION
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.clusterCABundle .Values.settings.clusterCABundle }}
+          {{- with .Values.settings.clusterCABundle }}
             - name: CLUSTER_CA_BUNDLE
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.clusterName .Values.settings.clusterName }}
+          {{- with .Values.settings.clusterName }}
             - name: CLUSTER_NAME
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.clusterEndpoint .Values.settings.clusterEndpoint }}
+          {{- with .Values.settings.clusterEndpoint }}
             - name: CLUSTER_ENDPOINT
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.isolatedVPC .Values.settings.isolatedVPC }}
+          {{- with .Values.settings.isolatedVPC }}
             - name: ISOLATED_VPC
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.vmMemoryOverheadPercent .Values.settings.vmMemoryOverheadPercent }}
+          {{- with .Values.settings.vmMemoryOverheadPercent }}
             - name: VM_MEMORY_OVERHEAD_PERCENT
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.interruptionQueueName .Values.settings.interruptionQueue }}
+          {{- with .Values.settings.interruptionQueue }}
             - name: INTERRUPTION_QUEUE
               value: "{{ . }}"
           {{- end }}
-          {{- with or .Values.settings.aws.reservedENIs .Values.settings.reservedENIs }}
+          {{- with .Values.settings.reservedENIs }}
             - name: RESERVED_ENIS
               value: "{{ . }}"
           {{- end }}

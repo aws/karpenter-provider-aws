@@ -22,6 +22,7 @@ You can also perform many of these steps in the console, but we will use the com
 Set a variable for your cluster name.
 
 ```bash
+KARPENTER_NAMESPACE=karpenter
 CLUSTER_NAME=<your cluster name>
 ```
 
@@ -76,6 +77,9 @@ Replace the `${AWS_PARTITION}` variable with the account partition, `${AWS_ACCOU
 - groups:
   - system:bootstrappers
   - system:nodes
+  ## If you intend to run Windows workloads, the kube-proxy group should be specified.
+  # For more information, see https://github.com/aws/karpenter/issues/5099.
+  # - eks:kube-proxy-windows
   rolearn: arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
   username: system:node:{{EC2PrivateDNSName}}
 ```
@@ -88,7 +92,7 @@ One for your Karpenter node role and one for your existing node group.
 First set the Karpenter release you want to deploy.
 
 ```bash
-export KARPENTER_VERSION=v0.32.1
+export KARPENTER_VERSION=v0.32.3
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
@@ -129,7 +133,7 @@ Now that our deployment is ready we can create the karpenter namespace, create t
 
 ## Create default NodePool
 
-We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree/v0.32.1/examples/v1beta1) for specific needs.
+We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree/v0.32.3/examples/v1beta1) for specific needs.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step10-create-nodepool.sh" language="bash" %}}
 
