@@ -2,10 +2,10 @@ name: PublishTestTools
 on:
   workflow_dispatch:
   push:
-    # branches: [main, docker-image-for-tests]
-    # paths:
-    #   - test/Dockerfile
-    #   - test/push-docker.sh
+    branches: [main]
+    paths:
+      - test/Dockerfile
+      - test/push-docker.sh
   schedule:
     - cron: "0 13 * * MON"
 permissions:
@@ -18,10 +18,11 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      # - uses: aws-actions/configure-aws-credentials@v4.0.1
-      # with:
-      #   role-to-assume: "arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}"
-      #   aws-region: ${{ vars.ECR_REGION }}
+      - uses: ./.github/actions/install-deps
+      - uses: aws-actions/configure-aws-credentials@v4.0.1
+        with:
+          role-to-assume: "arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}"
+          aws-region: ${{ vars.ECR_REGION }}
       - run: ./push-docker.sh
         working-directory: ./test
         env:
