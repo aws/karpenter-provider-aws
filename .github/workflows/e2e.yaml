@@ -74,7 +74,7 @@ jobs:
       statuses: write # ./.github/actions/commit-status/start
     name: suite-${{ inputs.suite }}
     runs-on: ubuntu-latest
-    container: aman0408/karpenter:latest
+    container: public.ecr.aws/karpenter/tools:latest
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
         with:
@@ -90,10 +90,10 @@ jobs:
           role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
           aws-region: ${{ inputs.region }}
           role-duration-seconds: 21600
-      # - name: add jitter on cluster creation
-      #   run: |
-      #     # Creating jitter so that we can stagger cluster creation to avoid throttling
-      #     sleep $(( RANDOM % 300 + 1 ))
+      - name: add jitter on cluster creation
+        run: |
+          # Creating jitter so that we can stagger cluster creation to avoid throttling
+          sleep $(( RANDOM % 300 + 1 ))
       - id: generate-cluster-name
         name: generate cluster name
         run: |
