@@ -58,7 +58,7 @@ runs:
       fi
       
       helm upgrade --install karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
-        -n karpenter \
+        -n kube-system \
         --version "v0-$(git rev-parse HEAD)" \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/karpenter-irsa-${{ inputs.cluster_name }}" \
         --set webhook.enabled=${WEBHOOK_ENABLED} \
@@ -82,7 +82,7 @@ runs:
   - name: diff-karpenter
     shell: bash
     run: |
-      helm diff upgrade --namespace karpenter \
+      helm diff upgrade --namespace kube-system \
         karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
         --version v0-$(git rev-parse HEAD) \
         --reuse-values --three-way-merge --detailed-exitcode
