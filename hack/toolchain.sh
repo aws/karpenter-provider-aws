@@ -7,7 +7,7 @@ USER=$(whoami)
 main() {
     echo $USER
     echo "$MY_USER"
-    echo "$whoami"
+    #echo "$whoami"
     tools
     kubebuilder
 }
