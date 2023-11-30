@@ -30,10 +30,9 @@ const (
 // SQSBehavior must be reset between tests otherwise tests will
 // pollute each other.
 type SQSBehavior struct {
-	GetQueueURLBehavior        MockedFunction[sqs.GetQueueUrlInput, sqs.GetQueueUrlOutput]
-	GetQueueAttributesBehavior MockedFunction[sqs.GetQueueAttributesInput, sqs.GetQueueAttributesOutput]
-	ReceiveMessageBehavior     MockedFunction[sqs.ReceiveMessageInput, sqs.ReceiveMessageOutput]
-	DeleteMessageBehavior      MockedFunction[sqs.DeleteMessageInput, sqs.DeleteMessageOutput]
+	GetQueueURLBehavior    MockedFunction[sqs.GetQueueUrlInput, sqs.GetQueueUrlOutput]
+	ReceiveMessageBehavior MockedFunction[sqs.ReceiveMessageInput, sqs.ReceiveMessageOutput]
+	DeleteMessageBehavior  MockedFunction[sqs.DeleteMessageInput, sqs.DeleteMessageOutput]
 }
 
 type SQSAPI struct {
@@ -45,7 +44,6 @@ type SQSAPI struct {
 // each other.
 func (s *SQSAPI) Reset() {
 	s.GetQueueURLBehavior.Reset()
-	s.GetQueueAttributesBehavior.Reset()
 	s.ReceiveMessageBehavior.Reset()
 	s.DeleteMessageBehavior.Reset()
 }

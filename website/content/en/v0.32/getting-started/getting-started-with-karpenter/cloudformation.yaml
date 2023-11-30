@@ -178,7 +178,6 @@ Resources:
               "Resource": "${KarpenterInterruptionQueue.Arn}",
               "Action": [
                 "sqs:DeleteMessage",
-                "sqs:GetQueueAttributes",
                 "sqs:GetQueueUrl",
                 "sqs:ReceiveMessage"
               ]
