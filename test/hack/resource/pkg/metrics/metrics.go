@@ -25,13 +25,12 @@ import (
 )
 
 const (
-	karpenterMetricRegion    = "us-east-2"
-	karpenterMetricDatabase  = "karpenterTesting"
-	karpenterMetricTableName = "sweeperCleanedResources"
+	karpenterMetricRegion   = "us-east-2"
+	karpenterMetricDatabase = "karpenterTesting"
 )
 
 type Client interface {
-	FireMetric(context.Context, string, float64, string) error
+	FireMetric(ctx context.Context, tableName string, metricName string, metricValue float64, region string) error
 }
 
 type TimeStream struct {
@@ -42,10 +41,10 @@ func NewTimeStream(cfg aws.Config) *TimeStream {
 	return &TimeStream{timestreamClient: timestreamwrite.NewFromConfig(cfg, WithRegion(karpenterMetricRegion))}
 }
 
-func (t *TimeStream) FireMetric(ctx context.Context, name string, value float64, region string) error {
+func (t *TimeStream) FireMetric(ctx context.Context, tableName string, name string, value float64, region string) error {
 	_, err := t.timestreamClient.WriteRecords(ctx, &timestreamwrite.WriteRecordsInput{
 		DatabaseName: aws.String(karpenterMetricDatabase),
-		TableName:    aws.String(karpenterMetricTableName),
+		TableName:    aws.String(tableName),
 		Records: []timestreamtypes.Record{
 			{
 				MeasureName:  aws.String(name),

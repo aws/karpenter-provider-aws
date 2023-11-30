@@ -64,6 +64,15 @@ func (ip *InstanceProfile) GetExpired(ctx context.Context, expirationTime time.T
 	return names, multierr.Combine(errs...)
 }
 
+func (ip *InstanceProfile) CountAll(ctx context.Context) (count int, err error) {
+	out, err := ip.iamClient.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{})
+	if err != nil {
+		return count, err
+	}
+
+	return len(out.InstanceProfiles), nil
+}
+
 func (ip *InstanceProfile) Get(ctx context.Context, clusterName string) (names []string, err error) {
 	out, err := ip.iamClient.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{})
 	if err != nil {
