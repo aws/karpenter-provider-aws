@@ -57,7 +57,7 @@ runs:
 
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
       yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
-      
+
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
         --stack-name iam-${{ inputs.cluster_name }} \
@@ -148,6 +148,7 @@ runs:
       # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
       # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
       eksctl update iamserviceaccount -f clusterconfig.yaml --approve
+
       # Add the SQS and SSM VPC endpoints if we are creating a private cluster
       # We need to grab all of the VPC details for the cluster in order to add the endpoint
       if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
