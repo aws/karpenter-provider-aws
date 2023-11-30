@@ -58,7 +58,7 @@ RUN helm plugin install https://github.com/databus23/helm-diff
 RUN go version
 
 # Cache modules to speed up test execution
-RUN git clone https://github.com/aws/karpenter.git /karpenter
+RUN git clone -b docker-image-for-tests https://github.com/aman0408/karpenter.git /karpenter
 WORKDIR /karpenter
 
 RUN K8S_VERSION="1.28.x" make toolchain

@@ -3,8 +3,9 @@ set -euo pipefail
 
 K8S_VERSION="${K8S_VERSION:="1.27.x"}"
 KUBEBUILDER_ASSETS="/usr/local/kubebuilder/bin"
-
+USER="${whoami}"
 main() {
+    echo $USER
     echo "$MY_USER"
     echo "$whoami"
     tools
