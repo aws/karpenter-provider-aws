@@ -74,7 +74,7 @@ jobs:
   run-suite:
     name: suite-${{ inputs.suite }}
     runs-on: ubuntu-latest
-    container: public.ecr.aws/karpenter/tools:latest
+    container: aman0408/karpenter:latest
     steps:
       - uses: actions/checkout@v4
         with:
