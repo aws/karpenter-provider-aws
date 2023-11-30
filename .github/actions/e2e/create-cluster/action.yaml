@@ -57,6 +57,7 @@ runs:
 
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
       yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
+      
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
         --stack-name iam-${{ inputs.cluster_name }} \
@@ -70,6 +71,7 @@ runs:
       # Create or Upgrade the cluster based on whether the cluster already exists
       cmd="create"
       eksctl get cluster --name ${{ inputs.cluster_name }} && cmd="upgrade"
+
       cat << EOF >> clusterconfig.yaml
       ---
       apiVersion: eksctl.io/v1alpha5
@@ -140,8 +142,9 @@ runs:
         yq -i '.privateCluster.enabled=true' clusterconfig.yaml
         yq -i '.managedNodeGroups[0].privateNetworking=true' clusterconfig.yaml
       fi
-      
+
       eksctl ${cmd} cluster -f clusterconfig.yaml
+
       # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
       # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
       eksctl update iamserviceaccount -f clusterconfig.yaml --approve
@@ -152,6 +155,7 @@ runs:
         VPC_ID=$(echo $VPC_CONFIG | jq .vpcId -r)
         SUBNET_IDS=($(echo $VPC_CONFIG | jq '.subnetIds | join(" ")' -r))
         SECURITY_GROUP_IDS=($(echo $VPC_CONFIG | jq '.securityGroupIds | join(" ")' -r))
+
         for SERVICE in "com.amazonaws.${{ inputs.region }}.ssm" "com.amazonaws.${{ inputs.region }}.sqs"; do
           aws ec2 create-vpc-endpoint \
             --vpc-id "${VPC_ID}" \
