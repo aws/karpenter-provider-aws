@@ -77,6 +77,26 @@ func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time) (ids []s
 	return ids, err
 }
 
+func (e *ENI) CountAll(ctx context.Context) (count int, err error) {
+	var nextToken *string
+	for {
+		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return count, err
+		}
+
+		count += len(out.NetworkInterfaces)
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return count, err
+}
+
 func (e *ENI) Get(ctx context.Context, clusterName string) (ids []string, err error) {
 	var nextToken *string
 	for {

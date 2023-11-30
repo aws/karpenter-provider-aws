@@ -71,6 +71,41 @@ func (i *Instance) GetExpired(ctx context.Context, expirationTime time.Time) (id
 	return ids, err
 }
 
+func (i *Instance) CountAll(ctx context.Context) (count int, err error) {
+	var nextToken *string
+
+	for {
+		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
+			Filters: []ec2types.Filter{
+				{
+					Name: lo.ToPtr("instance-state-name"),
+					Values: []string{
+						string(ec2types.InstanceStateNameRunning),
+						string(ec2types.InstanceStateNamePending),
+						string(ec2types.InstanceStateNameShuttingDown),
+						string(ec2types.InstanceStateNameStopped),
+						string(ec2types.InstanceStateNameStopping),
+					},
+				},
+			},
+			NextToken: nextToken,
+		})
+		if err != nil {
+			return count, err
+		}
+
+		for _, res := range out.Reservations {
+			count += len(res.Instances)
+		}
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return count, err
+}
+
 func (i *Instance) Get(ctx context.Context, clusterName string) (ids []string, err error) {
 	var nextToken *string
 
@@ -78,7 +113,7 @@ func (i *Instance) Get(ctx context.Context, clusterName string) (ids []string, e
 		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 			Filters: []ec2types.Filter{
 				{
-					Name:   lo.ToPtr("Instance-state-name"),
+					Name:   lo.ToPtr("instance-state-name"),
 					Values: []string{string(ec2types.InstanceStateNameRunning)},
 				},
 				{

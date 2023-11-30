@@ -70,7 +70,7 @@ func NewEnvironment(t *testing.T) *Environment {
 	config := NewConfig()
 	client := NewClient(ctx, config)
 
-	lo.Must0(os.Setenv(system.NamespaceEnvKey, "karpenter"))
+	lo.Must0(os.Setenv(system.NamespaceEnvKey, "kube-system"))
 	if val, ok := os.LookupEnv("GIT_REF"); ok {
 		ctx = context.WithValue(ctx, GitRefContextKey, val)
 	}

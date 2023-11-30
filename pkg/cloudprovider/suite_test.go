@@ -22,6 +22,7 @@ import (
 	"time"
 
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 
@@ -598,6 +599,35 @@ var _ = Describe("CloudProvider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
+		})
+	})
+	Context("EFA", func() {
+		It("should include vpc.amazonaws.com/efa on a nodeclaim if it requests it", func() {
+			nodeClaim.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"dl1.24xlarge"},
+				},
+			}
+			nodeClaim.Spec.Resources.Requests = v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("1")}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1beta1.ResourceEFA))
+		})
+		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
+			nodeClaim.Spec.Requirements = []v1.NodeSelectorRequirement{
+				{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"dl1.24xlarge"},
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1beta1.ResourceEFA))
 		})
 	})
 })

@@ -623,6 +623,38 @@ var _ = Describe("InstanceTypes", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
+	It("should launch instances for vpc.amazonaws.com/efa resource requests", func() {
+		nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"dl1.24xlarge"},
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pods := []*v1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("1")},
+				},
+			}),
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("2")},
+					Limits:   v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("2")},
+				},
+			}),
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		nodes := sets.NewString()
+		for _, pod := range pods {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "dl1.24xlarge"))
+			nodes.Insert(node.Name)
+		}
+		Expect(nodes.Len()).To(Equal(1))
+	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())

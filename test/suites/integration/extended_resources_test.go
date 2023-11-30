@@ -209,6 +209,51 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
+
+	It("should provision nodes for a deployment that requests vpc.amazonaws.com/efa", func() {
+		ExpectEFADevicePluginCreated()
+
+		nodePool.Spec.Template.Labels = map[string]string{
+			"aws.amazon.com/efa": "true",
+		}
+		nodePool.Spec.Template.Spec.Taints = []v1.Taint{
+			{
+				Key:    "aws.amazon.com/efa",
+				Effect: v1.TaintEffectNoSchedule,
+			},
+		}
+		// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
+		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
+
+		numPods := 1
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "efa-app"},
+				},
+				Tolerations: []v1.Toleration{
+					{
+						Key:      "aws.amazon.com/efa",
+						Operator: v1.TolerationOpExists,
+					},
+				},
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						"vpc.amazonaws.com/efa": resource.MustParse("2"),
+					},
+					Limits: v1.ResourceList{
+						"vpc.amazonaws.com/efa": resource.MustParse("2"),
+					},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectInitializedNodeCount("==", 1)
+	})
 })
 
 func ExpectNvidiaDevicePluginCreated() {
@@ -401,6 +446,83 @@ func ExpectHabanaDevicePluginCreated() {
 							Image: "vault.habana.ai/docker-k8s-device-plugin/docker-k8s-device-plugin:latest",
 							SecurityContext: &v1.SecurityContext{
 								Privileged: lo.ToPtr(true),
+							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									Name:      "device-plugin",
+									MountPath: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+					Volumes: []v1.Volume{
+						{
+							Name: "device-plugin",
+							VolumeSource: v1.VolumeSource{
+								HostPath: &v1.HostPathVolumeSource{
+									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+func ExpectEFADevicePluginCreated() {
+	GinkgoHelper()
+	env.ExpectCreated(&appsv1.DaemonSet{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+			Name:      "aws-efa-k8s-device-plugin-daemonset",
+			Namespace: "kube-system",
+		}),
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "aws-efa-k8s-device-plugin",
+				},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
+			},
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+					Annotations: map[string]string{
+						"scheduler.alpha.kubernetes.io/critical-pod": "",
+					},
+					Labels: map[string]string{
+						"name": "aws-efa-k8s-device-plugin",
+					},
+				}),
+				Spec: v1.PodSpec{
+					NodeSelector: map[string]string{
+						"aws.amazon.com/efa": "true",
+					},
+					Tolerations: []v1.Toleration{
+						{
+							Key:      "CriticalAddonsOnly",
+							Operator: v1.TolerationOpExists,
+						},
+						{
+							Key:      "aws.amazon.com/efa",
+							Operator: v1.TolerationOpExists,
+							Effect:   v1.TaintEffectNoSchedule,
+						},
+					},
+					PriorityClassName: "system-node-critical",
+					HostNetwork:       true,
+					Containers: []v1.Container{
+						{
+							Name:  "aws-efea-k8s-device-plugin",
+							Image: "602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/aws-efa-k8s-device-plugin:v0.3.3",
+							SecurityContext: &v1.SecurityContext{
+								AllowPrivilegeEscalation: lo.ToPtr(false),
+								Capabilities: &v1.Capabilities{
+									Drop: []v1.Capability{"ALL"},
+								},
+								RunAsNonRoot: lo.ToPtr(false),
 							},
 							VolumeMounts: []v1.VolumeMount{
 								{
