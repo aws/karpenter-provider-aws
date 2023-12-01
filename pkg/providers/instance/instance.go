@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"math"
 	"sort"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -485,7 +486,7 @@ func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType, isMa
 	for _, it := range instanceTypes {
 		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
 		// requirement
-		if it.Requirements.Get(lo.Ternary(isMachine, v1alpha1.LabelInstanceSize, v1beta1.LabelInstanceSize)).Has("metal") {
+		if _, ok := lo.Find(it.Requirements.Get(lo.Ternary(isMachine, v1alpha1.LabelInstanceSize, v1beta1.LabelInstanceSize)).Values(), func(size string) bool { return strings.Contains(size, "metal") }); ok {
 			continue
 		}
 		if !resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceAWSNeuron, v1beta1.ResourceAWSNeuron)]) ||
