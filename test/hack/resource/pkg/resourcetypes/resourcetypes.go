@@ -34,6 +34,8 @@ const (
 type Type interface {
 	// String is the string representation of the type
 	String() string
+	// Global determines if a resource is globally located in an account
+	Global() bool
 	// Get returns all resources of the type associated with the clusterName
 	Get(ctx context.Context, clusterName string) (ids []string, err error)
 	// GetExpired returns all resources of the type that were provisioned before the expirationTime

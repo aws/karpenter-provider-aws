@@ -35,6 +35,10 @@ func (o *OIDC) String() string {
 	return "OpenIDConnectProvider"
 }
 
+func (o *OIDC) Global() bool {
+	return true
+}
+
 func (o *OIDC) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	out, err := o.iamClient.ListOpenIDConnectProviders(ctx, &iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {

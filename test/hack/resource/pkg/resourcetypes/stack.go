@@ -36,6 +36,10 @@ func (s *Stack) String() string {
 	return "CloudformationStacks"
 }
 
+func (s *Stack) Global() bool {
+	return false
+}
+
 func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	var nextToken *string
 	for {

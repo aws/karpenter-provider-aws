@@ -59,7 +59,7 @@ func main() {
 			resourceLogger.Errorf("%v", err)
 		}
 
-		if err = metricsClient.FireMetric(ctx, resourceCountTableName, resourceTypes[i].String(), float64(resourceCount), cfg.Region); err != nil {
+		if err = metricsClient.FireMetric(ctx, resourceCountTableName, resourceTypes[i].String(), float64(resourceCount), lo.Ternary(resourceTypes[i].Global(), "global", cfg.Region)); err != nil {
 			resourceLogger.Errorf("%v", err)
 		}
 		resourceLogger.With("count", resourceCount).Infof("counted resourceTypes")

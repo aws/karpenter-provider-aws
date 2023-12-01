@@ -36,6 +36,10 @@ func (lt *LaunchTemplate) String() string {
 	return "LaunchTemplates"
 }
 
+func (lt *LaunchTemplate) Global() bool {
+	return false
+}
+
 func (lt *LaunchTemplate) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	var nextToken *string
 	for {

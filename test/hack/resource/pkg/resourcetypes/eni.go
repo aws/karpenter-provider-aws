@@ -37,6 +37,10 @@ func (e *ENI) String() string {
 	return "ElasticNetworkInterface"
 }
 
+func (e *ENI) Global() bool {
+	return false
+}
+
 func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
 	var nextToken *string
 	for {
