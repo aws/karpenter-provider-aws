@@ -1,5 +1,6 @@
 name: "CodeQL"
 on:
+  workflow_dispatch:
   push:
     branches:
       - 'main'
@@ -14,12 +15,12 @@ jobs:
     permissions:
       actions: read # github/codeql-action/init@v2
       security-events: write # github/codeql-action/init@v2
-
     strategy:
       fail-fast: false
       matrix:
-        language: [ 'go' ]
-
+        language:
+          - go
+          - javascript
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
       - uses: ./.github/actions/install-deps
