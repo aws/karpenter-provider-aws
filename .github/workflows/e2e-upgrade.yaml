@@ -81,8 +81,8 @@ jobs:
           CLUSTER_NAME="upgrade-$RANDOM$RANDOM"
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
-      - name: create eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
-        uses: ./.github/actions/e2e/create-cluster
+      - name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
+        uses: ./.github/actions/e2e/setup-cluster
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}
@@ -100,7 +100,7 @@ jobs:
         with:
           ref: ${{ inputs.to_git_ref }}
       - name: upgrade eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
-        uses: ./.github/actions/e2e/create-cluster
+        uses: ./.github/actions/e2e/setup-cluster
         with:
           account_id: ${{ vars.ACCOUNT_ID }}
           role: ${{ vars.ROLE_NAME }}

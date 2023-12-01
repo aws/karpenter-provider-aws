@@ -1,4 +1,4 @@
-name: CreateCluster
+name: SetupCluster
 description: 'Installs Go Downloads and installs Karpenter Dependencies'
 inputs:
   account_id:
