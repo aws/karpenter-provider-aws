@@ -15,7 +15,7 @@ AWS is the first cloud provider supported by Karpenter, although it is designed 
 
 ### Can I write my own cloud provider for Karpenter?
 Yes, but there is no documentation yet for it.
-Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree/v0.31.0/pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
+Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree/v0.31.3/pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
 
 ### What operating system nodes does Karpenter deploy?
 By default, Karpenter uses Amazon Linux 2 images.
@@ -28,7 +28,7 @@ Karpenter is flexible to multi architecture configurations using [well known lab
 
 ### What RBAC access is required?
 All of the required RBAC rules can be found in the helm chart template.
-See [clusterrolebinding.yaml](https://github.com/aws/karpenter/blob/v0.31.0/charts/karpenter/templates/clusterrolebinding.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/v0.31.0/charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/v0.31.0/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/v0.31.0/charts/karpenter/templates/role.yaml) files for details.
+See [clusterrolebinding.yaml](https://github.com/aws/karpenter/blob/v0.31.3/charts/karpenter/templates/clusterrolebinding.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob/v0.31.3/charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob/v0.31.3/charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob/v0.31.3/charts/karpenter/templates/role.yaml) files for details.
 
 ### Can I run Karpenter outside of a Kubernetes cluster?
 Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes API and your provider API.

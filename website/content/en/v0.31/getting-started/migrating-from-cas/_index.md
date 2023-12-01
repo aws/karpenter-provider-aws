@@ -82,7 +82,7 @@ Replace the `${AWS_PARTITION}` variable with the account partition, `${AWS_ACCOU
   - system:nodes
   ## If you intend to run Windows workloads, the kube-proxy group should be specified.
   # For more information, see https://github.com/aws/karpenter/issues/5099.
-  # - eks:kube-proxy-windows  
+  # - eks:kube-proxy-windows
   rolearn: arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}
   username: system:node:{{EC2PrivateDNSName}}
 ```
@@ -95,7 +95,7 @@ One for your Karpenter node role and one for your existing node group.
 First set the Karpenter release you want to deploy.
 
 ```bash
-export KARPENTER_VERSION=v0.31.0
+export KARPENTER_VERSION=v0.31.3
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
@@ -137,7 +137,7 @@ Now that our deployment is ready we can create the karpenter namespace, create t
 ## Create default provisioner
 
 We need to create a default provisioner so Karpenter knows what types of nodes we want for unscheduled workloads.
-You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree/v0.31.0/examples/provisioner) for specific needs.
+You can refer to some of the [example provisioners](https://github.com/aws/karpenter/tree/v0.31.3/examples/provisioner) for specific needs.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step11-create-provisioner.sh" language="bash" %}}
 
