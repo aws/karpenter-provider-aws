@@ -35,6 +35,10 @@ func (ip *InstanceProfile) String() string {
 	return "InstanceProfile"
 }
 
+func (ip *InstanceProfile) Global() bool {
+	return true
+}
+
 func (ip *InstanceProfile) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
 	out, err := ip.iamClient.ListInstanceProfiles(ctx, &iam.ListInstanceProfilesInput{})
 	if err != nil {

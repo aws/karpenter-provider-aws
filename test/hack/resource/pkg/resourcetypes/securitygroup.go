@@ -37,6 +37,10 @@ func (sg *SecurityGroup) String() string {
 	return "SecurityGroup"
 }
 
+func (sg *SecurityGroup) Global() bool {
+	return false
+}
+
 func (sg *SecurityGroup) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
 	var nextToken *string
 	for {

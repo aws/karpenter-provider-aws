@@ -35,6 +35,10 @@ func (i *Instance) String() string {
 	return "Instances"
 }
 
+func (i *Instance) Global() bool {
+	return false
+}
+
 func (i *Instance) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
 	var nextToken *string
 	for {

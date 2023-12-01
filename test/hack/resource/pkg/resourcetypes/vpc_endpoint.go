@@ -35,6 +35,10 @@ func (v *VPCEndpoint) String() string {
 	return "VPCEndpoints"
 }
 
+func (v *VPCEndpoint) Global() bool {
+	return true
+}
+
 func (v *VPCEndpoint) Get(ctx context.Context, clusterName string) (ids []string, err error) {
 	var nextToken *string
 	for {
