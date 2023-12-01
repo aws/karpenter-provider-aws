@@ -11,7 +11,7 @@ Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes 
 
 To make upgrading easier we aim to minimize introduction of breaking changes with the following:
 
-## Compatibility Matrix 
+## Compatibility Matrix
 
 [comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
 
@@ -70,9 +70,9 @@ If you get the error `invalid ownership metadata; label validation error:` while
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.31.0/pkg/apis/crds/karpenter.sh_provisioners.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.31.0/pkg/apis/crds/karpenter.sh_machines.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.31.0/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.31.3/pkg/apis/crds/karpenter.sh_provisioners.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.31.3/pkg/apis/crds/karpenter.sh_machines.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.31.3/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
 ```
 
 ### How Do We Break Incompatibility?
@@ -128,8 +128,8 @@ Snapshot releases are tagged with the git commit hash prefixed by the Karpenter 
 ### Upgrading to v0.30.0+
 
 * Karpenter will now [statically drift]({{<ref "./concepts/deprovisioning.md#drift" >}}) on both Provisioner and AWSNodeTemplate Fields. For Provisioner Static Drift, the `karpenter.sh/provisioner-hash` annotation must be present on both the Provisioner and Machine. For AWSNodeTemplate drift, the `karpenter.k8s.aws/nodetemplate-hash` annotation must be present on the AWSNodeTemplate and Machine. Karpenter will not add these annotations to pre-existing nodes, so each of these nodes will need to be recycled one time for the annotations to be added.
-* Karpenter will now fail validation on AWSNodeTemplates and Provisioner `spec.provider` that have `amiSelectors`, `subnetSelectors`, or `securityGroupSelectors` set with a combination of id selectors (`aws-ids`, `aws::ids`) and other selectors. 
-* Karpenter now statically sets the `securityContext` at both the pod and container-levels and doesn't allow override values to be passed through the helm chart. This change was made to adhere to [Restricted Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted), which follows pod hardening best practices. 
+* Karpenter will now fail validation on AWSNodeTemplates and Provisioner `spec.provider` that have `amiSelectors`, `subnetSelectors`, or `securityGroupSelectors` set with a combination of id selectors (`aws-ids`, `aws::ids`) and other selectors.
+* Karpenter now statically sets the `securityContext` at both the pod and container-levels and doesn't allow override values to be passed through the helm chart. This change was made to adhere to [Restricted Pod Security Standard](https://kubernetes.io/docs/concepts/security/pod-security-standards/#restricted), which follows pod hardening best practices.
 
 {{% alert title="Note" color="primary" %}}
 If you have sidecar containers configured to run alongside Karpenter that cannot tolerate the [pod-wide `securityContext` constraints](https://github.com/aws/karpenter/blob/v0.30.0/charts/karpenter/templates/deployment.yaml#L40), you will need to specify overrides to the sidecar `securityContext` in your deployment.
