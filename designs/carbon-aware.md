@@ -1,4 +1,4 @@
-# Carbon Aware Karpenter: Optimizing Kubernetes Cluster Autoscaling for Environmental Sustainability
+# Carbon Efficient Karpenter: Optimizing Kubernetes Cluster Autoscaling for Environmental Sustainability
 *Author: [@JacobValdemar](https://github.com/JacobValdemar)*
 
 ## Context & Problem
@@ -6,7 +6,7 @@ There is a growing concern about the environmental impact of Kubernetes clusters
 
 I am currently working on my master's thesis in Computer Engineering (Master of Science in Engineering) at Aarhus University located in Denmark. The objective of the thesis is to enable Karpenter to minimize carbon emissions from Kubernetes clusters that run on cloud infrastructure (scoped to AWS).
 
-RFC: https://github.com/aws/karpenter/issues/4630
+RFC: https://github.com/kubernetes-sigs/karpenter/issues/675
 
 ## Fundamentals of Green Software
 I will try to keep it simple. The reader should be familiar with the following.
@@ -25,9 +25,9 @@ There is a lot more to Green Software. If you want to learn more, I recommend yo
 ### Feature Gate
 The feature is proposed to be controlled using a [feature gate](https://karpenter.sh/docs/concepts/settings/#feature-gates).
 
-| **Feature** | **Default** |         **Config Key**          | **Stage** |    **Since**    | **Until** |
-| :---------: | :---------: | :-----------------------------: | :-------: | :-------------: | :-------: |
-| CarbonAware |    false    | featureGates.carbonAwareEnabled |   Alpha   | v0.32.0/v0.33.0 |           |
+|   **Feature**   | **Default** |           **Config Key**            | **Stage** | **Since** | **Until** |
+| :-------------: | :---------: | :---------------------------------: | :-------: | :-------: | :-------: |
+| CarbonEfficient |    false    | featureGates.carbonEfficientEnabled |   Alpha   |     ?     |           |
 
 ### Carbon emissions data source
 Currently the best option is to create estimates based on the methodology used in [Boaviztapi](https://github.com/Boavizta/boaviztapi).
@@ -50,15 +50,15 @@ Approaches to handle this:
 To enable emission based priotization, the launch strategy should be changed from `lowest-price` to `prioritized`.
 
 ### Changes to consolidation (karpenter-core)
-Single Machine Consolidation (`singlemachineconsolidation.go`) and Multi Machine Consolidation (`multimachineconsolidation.go`) as well as `consolidation.go` is currently consolidating nodes to reduce costs. We want to change this when Carbon Aware is enabled. They should consolidate to minimize carbon emissions. 
+Single Machine Consolidation (`singlemachineconsolidation.go`) and Multi Machine Consolidation (`multimachineconsolidation.go`) as well as `consolidation.go` is currently consolidating nodes to reduce costs. We want to change this when Carbon Efficient is enabled. They should consolidate to minimize carbon emissions. 
 
 ### Changes to Provisioning
-Currently, provisioning (roughly) filter instances based on requirements, sort instances by price, and launch the cheapest instance. We want to change this when Carbon Aware is enabled. It should sort instances by carbon emissions and launch the instance which has the lowest Global Warming Potential[^1].
+Currently, provisioning (roughly) filter instances based on requirements, sort instances by price, and launch the cheapest instance. We want to change this when Carbon Efficient is enabled. It should sort instances by carbon emissions and launch the instance which has the lowest Global Warming Potential[^1].
 
-### Option 1: Use Carbon Aware provisioning and consolidation methods
+### Option 1: Use Carbon Efficient provisioning and consolidation methods
 
 #### Consolidation
-Create two new consolidation methods `carbonawaresinglemachineconsolidation.go` and `carbonawaremultimachineconsolidation.go` that will be used when Carbon Aware is enabled.
+Create two new consolidation methods `carbonefficientsinglemachineconsolidation.go` and `carbonefficientmultimachineconsolidation.go` that will be used when Carbon Efficient is enabled.
 
 <details>
 
@@ -70,7 +70,7 @@ Create two new consolidation methods `carbonawaresinglemachineconsolidation.go` 
 +func NewController(ctx context.Context, clk clock.Clock, kubeClient client.Client, provisioner *provisioning.Provisioner,
 +	cp cloudprovider.CloudProvider, recorder events.Recorder, cluster *state.Cluster) *Controller {
 
-+	if settings.FromContext(ctx).CarbonAwareEnabled {
++	if settings.FromContext(ctx).CarbonEfficientEnabled {
 +		return &Controller{
 +			clock:         clk,
 +			kubeClient:    kubeClient,
@@ -84,8 +84,8 @@ Create two new consolidation methods `carbonawaresinglemachineconsolidation.go` 
 +				NewDrift(kubeClient, cluster, provisioner, recorder),
 +				NewEmptiness(clk),
 +				NewEmptyMachineConsolidation(clk, cluster, kubeClient, provisioner, cp, recorder),
-+				NewCarbonAwareMultiMachineConsolidation(clk, cluster, kubeClient, provisioner, cp, recorder),
-+				NewCarbonAwareSingleMachineConsolidation(clk, cluster, kubeClient, provisioner, cp, recorder),
++				NewCarbonEfficientMultiMachineConsolidation(clk, cluster, kubeClient, provisioner, cp, recorder),
++				NewCarbonEfficientSingleMachineConsolidation(clk, cluster, kubeClient, provisioner, cp, recorder),
 +			},
 +		}
 +	}
@@ -112,25 +112,25 @@ Create two new consolidation methods `carbonawaresinglemachineconsolidation.go` 
 </details>
 
 #### Provisioning
-In `karpenter-core`, create a new method `types.go/OrderByCarbonEmissions` and use that in `nodeclaimtemplate.go/ToMachine` and `nodeclaimtemplate.go/ToNodeClaim` instead of `types.go/OrderByPrice` when Carbon Aware is enabled.
+In `karpenter-core`, create a new method `types.go/OrderByCarbonEmissions` and use that in `nodeclaimtemplate.go/ToMachine` and `nodeclaimtemplate.go/ToNodeClaim` instead of `types.go/OrderByPrice` when Carbon Efficient is enabled.
 
-In `karpenter`, create a new method `CarbonAwareCreate` in `pkg/providers/instance/instance.go` that is used in `pkg/cloudprovider/cloudprovider.go/Create` instead of `pkg/providers/instance/instance.go/Create` when Carbon Aware is enabled.
+In `karpenter`, create a new method `CarbonEfficientCreate` in `pkg/providers/instance/instance.go` that is used in `pkg/cloudprovider/cloudprovider.go/Create` instead of `pkg/providers/instance/instance.go/Create` when Carbon Efficient is enabled.
 
 #### Considerations
 1. 👍 Current consolidation methods are unaffected.
-1. 👎 There might be copy-paste of code from the original consolidation methods to the carbon aware consolidators.
+1. 👎 There might be copy-paste of code from the original consolidation methods to the carbon efficient consolidators.
 
-### Option 2: Use Carbon Aware filtering/sorting methods
+### Option 2: Use Carbon Efficient filtering/sorting methods
 
 #### Consolidation
-Create carbon aware implementations of low-level functions like `filterByPrice`, `filterOutSameType`, `getCandidatePrices`, etc. that are used when Carbon Aware is enabled. Usage of aforementioned functions might assume that it is price that they are getting, but in reality it is data about carbon emissions.
+Create carbon efficient implementations of low-level functions like `filterByPrice`, `filterOutSameType`, `getCandidatePrices`, etc. that are used when Carbon Efficient is enabled. Usage of aforementioned functions might assume that it is price that they are getting, but in reality it is data about carbon emissions.
 
 #### Provisioning
-Use same changes to provisioning as in [option 1](#option-1-use-carbon-aware-provisioning-and-concolidation-methods).
+Use same changes to provisioning as in [option 1](#option-1-use-carbon-efficient-provisioning-and-concolidation-methods).
 
 #### Considerations
 1. 👍 Less code copy-paste.
-1. 👍 Improvements to original consolidation methods also improve the Carbon Aware feature.
+1. 👍 Improvements to original consolidation methods also improve the Carbon Efficient feature.
 1. 👎 Has a risk of breaking undocumented invariants.
 1. 👎 Adds complexity to the original consolidation methods.
 
@@ -145,10 +145,10 @@ Another feature (added later) can be to add carbon price to instance price to si
 1. 👍 Change is constrained to the pricing domain, so most of Karpenter's logic remains unaffected.
 1. 👍👍 A simulated carbon tax could be appealing for *Beta* or *General Availability*[^3] as it combines the real price with the carbon price.
 1. 👎 Adds complexity to the *price* concept. Price is not *just* price, but rather becomes an optimization function.
-1. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Aware is enabled.
+1. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Efficient is enabled.
 
 ### Option 4: Enable custom instance price overrides
-Enable administrators to configure custom instance price overrides, e.g. in a ConfigMap. A configuration using emission factors (varying with region and instance type) masked as prices can be pre-generated. Administrators then copy-paste a Carbon Aware `priceOverride` into their environment.
+Enable administrators to configure custom instance price overrides, e.g. in a ConfigMap. A configuration using emission factors (varying with region and instance type) masked as prices can be pre-generated. Administrators then copy-paste a Carbon Efficient `priceOverride` into their environment.
 
 ```yaml
 priceOverrides:
@@ -188,11 +188,11 @@ A ConfigMap with price overrides for all combinations of instance types and regi
 1. 👍 Simple solution.
 1. 👍 Can be used for other purposes.
 2. 👎👎 ConfigMap cannot contain all data.
-3. 👎 Hard to discover the carbon aware "feature".
+3. 👎 Hard to discover the carbon efficient "feature".
 4. 👎 Carbon emission price cannot be combined with actual price.
 5. 👎 Carbon emissions are completely static without possibility to improve it in the future.
 7. 👎 Feature can not be enabled as a toggle.
-8. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Aware is enabled.
+8. 👎 Depending on implementation, the `karpenter_cloudprovider_instance_type_price_estimate` metric *may* represent more than just price when Carbon Efficient is enabled.
 
 [^1]: The potential impact of greenhouse gases on global warming. Measured in terms of CO₂e.
 [^2]: See [prices_gen.go](/hack/code/prices_gen.go) and [zz_generated.pricing.go](/pkg/providers/pricing/zz_generated.pricing.go)
