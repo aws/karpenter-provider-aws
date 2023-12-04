@@ -155,12 +155,6 @@ var _ = Describe("AMI", func() {
 		})
 		It("should provision a node using the Ubuntu family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
-			// TODO (@jmdeal): Remove when the latest Ubuntu AMI is fixed
-			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
-				{
-					Name: "ubuntu-eks/k8s_1.28/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20231128",
-				},
-			}
 			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
 			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter/issues/4472)
 			nodePool = coretest.ReplaceRequirements(nodePool,
