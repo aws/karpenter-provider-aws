@@ -84,14 +84,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
-				if *amiFamily == v1beta1.AMIFamilyUbuntu {
-					// TODO (@jmdeal): Remove when the latest Ubuntu AMI is fixed
-					nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
-						{
-							Name: "ubuntu-eks/k8s_1.28/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20231128",
-						},
-					}
-				}
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
 						v1.LabelOSStable:   string(v1.Linux),
