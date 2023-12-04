@@ -83,9 +83,9 @@ jobs:
       statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      # This version matches the newest version that contains karpenter deployed
-      # to the kube-system namespace so that karpenter upgrade succeeds
-      from_git_ref: 3522382660f15d678406c7aafdc5aac14ac5cec2
+      # This version matches the updated create-cluster action, which is now setup-cluster 
+      # https://github.com/aws/karpenter/pull/5203/files
+      from_git_ref: 4d5fbcd2059593e613e92f2f0ede22160fc2a1e3
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
