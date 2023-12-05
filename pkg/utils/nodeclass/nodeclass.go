@@ -61,21 +61,23 @@ func NewSubnetSelectorTerms(subnetSelector map[string]string) (terms []v1beta1.S
 	}
 	// Each of these slices needs to be pre-populated with the "0" element so that we can properly generate permutations
 	ids := []string{""}
-	tags := map[string]string{}
+	tagSet := []map[string]string{make(map[string]string)}
 	for k, v := range subnetSelector {
 		switch k {
 		case "aws-ids", "aws::ids":
 			ids = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
-			tags[k] = v
+			tagSet = createSelectorTags(k, v, tagSet)
 		}
 	}
 	// If there are some "special" keys used, we have to represent the old selector as multiple terms
 	for _, id := range ids {
-		terms = append(terms, v1beta1.SubnetSelectorTerm{
-			Tags: tags,
-			ID:   id,
-		})
+		for _, tag := range tagSet {
+			terms = append(terms, v1beta1.SubnetSelectorTerm{
+				Tags: tag,
+				ID:   id,
+			})
+		}
 	}
 	return terms
 }
@@ -86,21 +88,23 @@ func NewSecurityGroupSelectorTerms(securityGroupSelector map[string]string) (ter
 	}
 	// Each of these slices needs to be pre-populated with the "0" element so that we can properly generate permutations
 	ids := []string{""}
-	tags := map[string]string{}
+	tagSet := []map[string]string{make(map[string]string)}
 	for k, v := range securityGroupSelector {
 		switch k {
 		case "aws-ids", "aws::ids":
 			ids = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
-			tags[k] = v
+			tagSet = createSelectorTags(k, v, tagSet)
 		}
 	}
 	// If there are some "special" keys used, we have to represent the old selector as multiple terms
 	for _, id := range ids {
-		terms = append(terms, v1beta1.SecurityGroupSelectorTerm{
-			Tags: tags,
-			ID:   id,
-		})
+		for _, tag := range tagSet {
+			terms = append(terms, v1beta1.SecurityGroupSelectorTerm{
+				Tags: tag,
+				ID:   id,
+			})
+		}
 	}
 	return terms
 }
@@ -113,7 +117,7 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 	ids := []string{""}
 	names := []string{""}
 	owners := []string{""}
-	tags := map[string]string{}
+	tagSet := []map[string]string{make(map[string]string)}
 	for k, v := range amiSelector {
 		switch k {
 		case "aws-ids", "aws::ids":
@@ -123,19 +127,21 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 		case "aws::owners":
 			owners = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
-			tags[k] = v
+			tagSet = createSelectorTags(k, v, tagSet)
 		}
 	}
 	// If there are some "special" keys used, we have to represent the old selector as multiple terms
 	for _, owner := range owners {
 		for _, id := range ids {
 			for _, name := range names {
-				terms = append(terms, v1beta1.AMISelectorTerm{
-					Tags:  tags,
-					ID:    id,
-					Name:  name,
-					Owner: owner,
-				})
+				for _, tag := range tagSet {
+					terms = append(terms, v1beta1.AMISelectorTerm{
+						Tags:  tag,
+						ID:    id,
+						Name:  name,
+						Owner: owner,
+					})
+				}
 			}
 		}
 	}
@@ -244,4 +250,30 @@ func PatchStatus(ctx context.Context, c client.Client, stored, nodeClass *v1beta
 
 func HashAnnotation(nodeClass *v1beta1.EC2NodeClass) map[string]string {
 	return map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()}
+}
+
+func createSelectorTags(k string, v string, tagSet []map[string]string) []map[string]string {
+	cdlValue := lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
+	for _, val := range cdlValue {
+		for _, tag := range tagSet {
+			if _, ok := tag[k]; ok {
+				tempTag := deepCopyMap(tag)
+				tempTag[k] = val
+				tagSet = append(tagSet, tempTag)
+				break
+			} else {
+				tag[k] = val
+			}
+		}
+	}
+
+	return tagSet
+}
+
+func deepCopyMap(m map[string]string) map[string]string {
+	result := map[string]string{}
+	for k, v := range m {
+		result[k] = v
+	}
+	return result
 }

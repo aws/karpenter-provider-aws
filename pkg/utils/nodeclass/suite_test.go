@@ -401,7 +401,7 @@ var _ = Describe("NodeClassUtils", func() {
 			"aws::name":   "ami-name1,ami-name2",
 			"aws::owners": "self,amazon",
 			"aws::ids":    "ami-1234,ami-5678",
-			"custom-tag":  "custom-value",
+			"custom-tag":  "custom-value1,custom-value2",
 			"custom-tag2": "custom-value2",
 		}
 		nodeClass := nodeclassutil.New(nodeTemplate)
@@ -419,14 +419,23 @@ var _ = Describe("NodeClassUtils", func() {
 
 		// Expect AMISelectorTerms to be exactly what we would expect from the filtering above
 		// This should include all permutations of the filters that could be used by this selector mechanism
-		Expect(nodeClass.Spec.AMISelectorTerms).To(HaveLen(8))
+		Expect(nodeClass.Spec.AMISelectorTerms).To(HaveLen(16))
 		Expect(nodeClass.Spec.AMISelectorTerms).To(ConsistOf(
 			v1beta1.AMISelectorTerm{
 				Name:  "ami-name1",
 				Owner: "self",
 				ID:    "ami-1234",
 				Tags: map[string]string{
-					"custom-tag":  "custom-value",
+					"custom-tag":  "custom-value1",
+					"custom-tag2": "custom-value2",
+				},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name1",
+				Owner: "self",
+				ID:    "ami-1234",
+				Tags: map[string]string{
+					"custom-tag":  "custom-value2",
 					"custom-tag2": "custom-value2",
 				},
 			},
@@ -435,7 +444,16 @@ var _ = Describe("NodeClassUtils", func() {
 				Owner: "self",
 				ID:    "ami-5678",
 				Tags: map[string]string{
-					"custom-tag":  "custom-value",
+					"custom-tag":  "custom-value1",
+					"custom-tag2": "custom-value2",
+				},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name1",
+				Owner: "self",
+				ID:    "ami-5678",
+				Tags: map[string]string{
+					"custom-tag":  "custom-value2",
 					"custom-tag2": "custom-value2",
 				},
 			},
@@ -444,7 +462,16 @@ var _ = Describe("NodeClassUtils", func() {
 				Owner: "amazon",
 				ID:    "ami-1234",
 				Tags: map[string]string{
-					"custom-tag":  "custom-value",
+					"custom-tag":  "custom-value1",
+					"custom-tag2": "custom-value2",
+				},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name1",
+				Owner: "amazon",
+				ID:    "ami-1234",
+				Tags: map[string]string{
+					"custom-tag":  "custom-value2",
 					"custom-tag2": "custom-value2",
 				},
 			},
@@ -453,7 +480,16 @@ var _ = Describe("NodeClassUtils", func() {
 				Owner: "amazon",
 				ID:    "ami-5678",
 				Tags: map[string]string{
-					"custom-tag":  "custom-value",
+					"custom-tag":  "custom-value1",
+					"custom-tag2": "custom-value2",
+				},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name1",
+				Owner: "amazon",
+				ID:    "ami-5678",
+				Tags: map[string]string{
+					"custom-tag":  "custom-value2",
 					"custom-tag2": "custom-value2",
 				},
 			},
@@ -462,7 +498,16 @@ var _ = Describe("NodeClassUtils", func() {
 				Owner: "self",
 				ID:    "ami-1234",
 				Tags: map[string]string{
-					"custom-tag":  "custom-value",
+					"custom-tag":  "custom-value1",
+					"custom-tag2": "custom-value2",
+				},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name2",
+				Owner: "self",
+				ID:    "ami-1234",
+				Tags: map[string]string{
+					"custom-tag":  "custom-value2",
 					"custom-tag2": "custom-value2",
 				},
 			},
@@ -471,7 +516,16 @@ var _ = Describe("NodeClassUtils", func() {
 				Owner: "self",
 				ID:    "ami-5678",
 				Tags: map[string]string{
-					"custom-tag":  "custom-value",
+					"custom-tag":  "custom-value1",
+					"custom-tag2": "custom-value2",
+				},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name2",
+				Owner: "self",
+				ID:    "ami-5678",
+				Tags: map[string]string{
+					"custom-tag":  "custom-value2",
 					"custom-tag2": "custom-value2",
 				},
 			},
@@ -480,7 +534,16 @@ var _ = Describe("NodeClassUtils", func() {
 				Owner: "amazon",
 				ID:    "ami-1234",
 				Tags: map[string]string{
-					"custom-tag":  "custom-value",
+					"custom-tag":  "custom-value1",
+					"custom-tag2": "custom-value2",
+				},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name2",
+				Owner: "amazon",
+				ID:    "ami-1234",
+				Tags: map[string]string{
+					"custom-tag":  "custom-value2",
 					"custom-tag2": "custom-value2",
 				},
 			},
@@ -489,8 +552,118 @@ var _ = Describe("NodeClassUtils", func() {
 				Owner: "amazon",
 				ID:    "ami-5678",
 				Tags: map[string]string{
-					"custom-tag":  "custom-value",
+					"custom-tag":  "custom-value1",
 					"custom-tag2": "custom-value2",
+				},
+			},
+			v1beta1.AMISelectorTerm{
+				Name:  "ami-name2",
+				Owner: "amazon",
+				ID:    "ami-5678",
+				Tags: map[string]string{
+					"custom-tag":  "custom-value2",
+					"custom-tag2": "custom-value2",
+				},
+			},
+		))
+
+		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
+		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
+		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
+		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
+		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
+		ExpectMetadataOptionsEqual(nodeTemplate.Spec.MetadataOptions, nodeClass.Spec.MetadataOptions)
+		Expect(nodeClass.Spec.Context).To(Equal(nodeTemplate.Spec.Context))
+		Expect(nodeClass.Spec.LaunchTemplateName).To(Equal(nodeTemplate.Spec.LaunchTemplateName))
+		Expect(nodeClass.Spec.InstanceProfile).To(Equal(nodeTemplate.Spec.InstanceProfile))
+
+		ExpectSubnetStatusEqual(nodeTemplate.Status.Subnets, nodeClass.Status.Subnets)
+		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
+		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
+	})
+	It("should convert a AWSNodeTemplate to a EC2NodeClass (with comma delineated list on SubnetSelector)", func() {
+		nodeTemplate.Spec.SubnetSelector = map[string]string{
+			"test-key-1": "test-value-1,test-value-2,test-value-3",
+			"test-key-2": "test-value-1",
+		}
+
+		nodeClass := nodeclassutil.New(nodeTemplate)
+
+		for k, v := range nodeTemplate.Annotations {
+			Expect(nodeClass.Annotations).To(HaveKeyWithValue(k, v))
+		}
+		for k, v := range nodeTemplate.Labels {
+			Expect(nodeClass.Labels).To(HaveKeyWithValue(k, v))
+		}
+		Expect(nodeClass.Spec.SubnetSelectorTerms).To(HaveLen(3))
+		Expect(nodeClass.Spec.SubnetSelectorTerms).To(ConsistOf(
+			v1beta1.SubnetSelectorTerm{
+				Tags: map[string]string{
+					"test-key-1": "test-value-1",
+					"test-key-2": "test-value-1",
+				},
+			},
+			v1beta1.SubnetSelectorTerm{
+				Tags: map[string]string{
+					"test-key-1": "test-value-2",
+					"test-key-2": "test-value-1",
+				},
+			},
+			v1beta1.SubnetSelectorTerm{
+				Tags: map[string]string{
+					"test-key-1": "test-value-3",
+					"test-key-2": "test-value-1",
+				},
+			},
+		))
+
+		Expect(nodeClass.Spec.SecurityGroupSelectorTerms).To(HaveLen(1))
+		Expect(nodeClass.Spec.SecurityGroupSelectorTerms[0].Tags).To(Equal(nodeTemplate.Spec.SecurityGroupSelector))
+
+		Expect(nodeClass.Spec.AMIFamily).To(Equal(nodeTemplate.Spec.AMIFamily))
+		Expect(nodeClass.Spec.UserData).To(Equal(nodeTemplate.Spec.UserData))
+		Expect(nodeClass.Spec.Role).To(BeEmpty())
+		Expect(nodeClass.Spec.Tags).To(Equal(nodeTemplate.Spec.Tags))
+		ExpectBlockDeviceMappingsEqual(nodeTemplate.Spec.BlockDeviceMappings, nodeClass.Spec.BlockDeviceMappings)
+		Expect(nodeClass.Spec.DetailedMonitoring).To(Equal(nodeTemplate.Spec.DetailedMonitoring))
+		ExpectMetadataOptionsEqual(nodeTemplate.Spec.MetadataOptions, nodeClass.Spec.MetadataOptions)
+		Expect(nodeClass.Spec.Context).To(Equal(nodeTemplate.Spec.Context))
+		Expect(nodeClass.Spec.LaunchTemplateName).To(Equal(nodeTemplate.Spec.LaunchTemplateName))
+		Expect(nodeClass.Spec.InstanceProfile).To(Equal(nodeTemplate.Spec.InstanceProfile))
+
+		ExpectSubnetStatusEqual(nodeTemplate.Status.Subnets, nodeClass.Status.Subnets)
+		ExpectSecurityGroupStatusEqual(nodeTemplate.Status.SecurityGroups, nodeClass.Status.SecurityGroups)
+		ExpectAMIStatusEqual(nodeTemplate.Status.AMIs, nodeClass.Status.AMIs)
+	})
+	It("should convert a AWSNodeTemplate to a EC2NodeClass (with comma delineated list on SecurityGroupSelector)", func() {
+		nodeTemplate.Spec.SecurityGroupSelector = map[string]string{
+			"test-key-1": "test-value-1,test-value-2",
+			"test-key-2": "test-value-1",
+		}
+
+		nodeClass := nodeclassutil.New(nodeTemplate)
+
+		for k, v := range nodeTemplate.Annotations {
+			Expect(nodeClass.Annotations).To(HaveKeyWithValue(k, v))
+		}
+		for k, v := range nodeTemplate.Labels {
+			Expect(nodeClass.Labels).To(HaveKeyWithValue(k, v))
+		}
+		Expect(nodeClass.Spec.SubnetSelectorTerms).To(HaveLen(1))
+		Expect(nodeClass.Spec.SubnetSelectorTerms[0].Tags).To(Equal(nodeTemplate.Spec.SubnetSelector))
+		Expect(nodeClass.Spec.SecurityGroupSelectorTerms).To(HaveLen(2))
+		Expect(nodeClass.Spec.SecurityGroupSelectorTerms).To(ConsistOf(
+			v1beta1.SecurityGroupSelectorTerm{
+				Tags: map[string]string{
+					"test-key-1": "test-value-1",
+					"test-key-2": "test-value-1",
+				},
+			},
+			v1beta1.SecurityGroupSelectorTerm{
+				Tags: map[string]string{
+					"test-key-1": "test-value-2",
+					"test-key-2": "test-value-1",
 				},
 			},
 		))
