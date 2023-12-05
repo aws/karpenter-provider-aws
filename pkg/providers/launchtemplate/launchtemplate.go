@@ -33,8 +33,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
-
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
@@ -108,10 +106,6 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 
 	p.Lock()
 	defer p.Unlock()
-	// If Launch Template is directly specified then just use it
-	if nodeClass.Spec.LaunchTemplateName != nil {
-		return []*LaunchTemplate{{Name: ptr.StringValue(nodeClass.Spec.LaunchTemplateName), InstanceTypes: instanceTypes}}, nil
-	}
 
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}), tags)
 	if err != nil {

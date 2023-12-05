@@ -33,7 +33,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cache"
 	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
@@ -142,7 +141,7 @@ func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error)
 	return msg, nil
 }
 
-// handleMessage takes an action against every node involved in the message that is owned by a Provisioner
+// handleMessage takes an action against every node involved in the message that is owned by a NodePool
 func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap map[string]*v1beta1.NodeClaim,
 	nodeInstanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
 
@@ -195,7 +194,7 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		zone := nodeClaim.Labels[v1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1alpha1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1beta1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {

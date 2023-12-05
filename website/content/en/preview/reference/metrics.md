@@ -90,14 +90,6 @@ Number of nodeclaims registered in total by Karpenter. Labeled by the owning nod
 ### `karpenter_nodeclaims_terminated`
 Number of nodeclaims terminated in total by Karpenter. Labeled by reason the nodeclaim was terminated and the owning nodepool.
 
-## Nodepool Metrics
-
-### `karpenter_nodepool_limit`
-The nodepool limits are the limits specified on the provisioner that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
-
-### `karpenter_nodepool_usage`
-The nodepool usage is the amount of resources that have been provisioned by a particular nodepool. Labeled by nodepool name and resource type.
-
 ## Provisioner Metrics
 
 ### `karpenter_provisioner_scheduling_duration_seconds`
@@ -106,13 +98,21 @@ Duration of scheduling process in seconds.
 ### `karpenter_provisioner_scheduling_simulation_duration_seconds`
 Duration of scheduling simulations used for deprovisioning and provisioning in seconds.
 
+## Nodepool Metrics
+
+### `karpenter_nodepool_limit`
+The nodepool limits are the limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
+
+### `karpenter_nodepool_usage`
+The nodepool usage is the amount of resources that have been provisioned by a particular nodepool. Labeled by nodepool name and resource type.
+
 ## Nodes Metrics
 
 ### `karpenter_nodes_allocatable`
 Node allocatable are the resources allocatable by nodes.
 
 ### `karpenter_nodes_created`
-Number of nodes created in total by Karpenter. Labeled by owning provisioner.
+Number of nodes created in total by Karpenter. Labeled by owning nodepool.
 
 ### `karpenter_nodes_leases_deleted`
 Number of deleted leaked leases.
@@ -121,7 +121,7 @@ Number of deleted leaked leases.
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
 
 ### `karpenter_nodes_terminated`
-Number of nodes terminated in total by Karpenter. Labeled by owning provisioner.
+Number of nodes terminated in total by Karpenter. Labeled by owning nodepool.
 
 ### `karpenter_nodes_termination_time_seconds`
 The time taken between a node's deletion request and the removal of its finalizer
@@ -144,7 +144,7 @@ Node total pod requests are the resources requested by non-DaemonSet pods bound 
 The time from pod creation until the pod is running.
 
 ### `karpenter_pods_state`
-Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, provisioner name, zone, architecture, capacity type, instance type and pod phase.
+Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, nodepool name, zone, architecture, capacity type, instance type and pod phase.
 
 ## Cloudprovider Metrics
 

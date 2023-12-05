@@ -47,7 +47,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
+		// TODO: Remove cache when we utilize the resolved subnets from the EC2NodeClass.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
 		cache: cache,
 		// inflightIPs is used to track IPs from known launched instances

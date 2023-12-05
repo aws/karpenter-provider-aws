@@ -679,11 +679,11 @@ func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 
 	return lo.CountBy(daemonSetList.Items, func(d appsv1.DaemonSet) bool {
 		p := &v1.Pod{Spec: d.Spec.Template.Spec}
-		nodeTemplate := pscheduling.NewNodeClaimTemplate(np)
-		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
+		nodeClaimTemplate := pscheduling.NewNodeClaimTemplate(np)
+		if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).Tolerates(p); err != nil {
 			return false
 		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
+		if err := nodeClaimTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
 			return false
 		}
 		return true

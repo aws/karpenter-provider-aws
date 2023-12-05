@@ -60,7 +60,7 @@ type Provider struct {
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
 	// Fully initialized Instance Types are also cached based on the set of all instance types, zones, unavailableOfferings cache,
-	// node template, and kubelet configuration from the provisioner
+	// EC2NodeClass, and kubelet configuration from the NodePool
 
 	mu    sync.Mutex
 	cache *cache.Cache

@@ -792,7 +792,7 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false")
 		})
-		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in Provisioner", func() {
+		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in NodePool", func() {
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(10)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -1112,12 +1112,12 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(err).To(BeNil())
 				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
-			It("should not bootstrap when provider ref points to a non-existent resource", func() {
+			It("should not bootstrap when provider ref points to a non-existent EC2NodeClass resource", func() {
 				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
 				ExpectApplied(ctx, env.Client, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-				// This will not be scheduled since we were pointed to a non-existent awsnodetemplate resource.
+				// This will not be scheduled since we were pointed to a non-existent EC2NodeClass resource.
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should not bootstrap on invalid toml user data", func() {
@@ -1351,7 +1351,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 		})
 		Context("Custom AMI Selector", func() {
-			It("should use ami selector specified in AWSNodeTemplate", func() {
+			It("should use ami selector specified in EC2NodeClass", func() {
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
@@ -1388,7 +1388,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				ExpectLaunchTemplatesCreatedWithUserData("special user data")
 			})
-			It("should correctly use ami selector with specific IDs in AWSNodeTemplate", func() {
+			It("should correctly use ami selector with specific IDs in EC2NodeClass", func() {
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: "ami-123"}, {ID: "ami-456"}}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
@@ -1508,7 +1508,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
 			})
-			It("should choose amis from SSM if no selector specified in AWSNodeTemplate", func() {
+			It("should choose amis from SSM if no selector specified in EC2NodeClass", func() {
 				version := lo.Must(awsEnv.VersionProvider.Get(ctx))
 				awsEnv.SSMAPI.Parameters = map[string]string{
 					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): "test-ami-123",
