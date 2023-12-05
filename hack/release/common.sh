@@ -177,7 +177,7 @@ removeOldWebsiteDirectories() {
 
 editWebsiteConfig() {
   RELEASE_VERSION=$1
-  yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
+  yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/hugo.yaml
 }
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
@@ -193,12 +193,12 @@ editWebsiteVersionsMenu() {
       return
     fi
     VERSIONS+=("${SANITIZED_VERSION}")
-  done < <(yq '.params.versions' website/config.yaml)
+  done < <(yq '.params.versions' website/hugo.yaml)
   unset VERSIONS[${#VERSIONS[@]}-2]
 
-  yq -i '.params.versions = []' website/config.yaml
+  yq -i '.params.versions = []' website/hugo.yaml
 
   for VERSION in "${VERSIONS[@]}"; do
-    yq -i ".params.versions += \"${VERSION}\"" website/config.yaml
+    yq -i ".params.versions += \"${VERSION}\"" website/hugo.yaml
   done
 }
