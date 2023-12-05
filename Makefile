@@ -59,10 +59,6 @@ test: ## Run tests
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
 		--ginkgo.vv
-	cd tools/karpenter-convert && go test -v ./pkg/... \
-		--ginkgo.focus="${FOCUS}" \
-		--ginkgo.randomize-all \
-		--ginkgo.vv
 
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
