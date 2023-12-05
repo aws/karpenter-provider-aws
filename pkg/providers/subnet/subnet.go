@@ -32,7 +32,6 @@ import (
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-	"sigs.k8s.io/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
@@ -247,7 +246,7 @@ func getFilterSets(terms []v1beta1.SubnetSelectorTerm) (res [][]*ec2.Filter) {
 				} else {
 					filters = append(filters, &ec2.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+						Values: []*string{aws.String(v)},
 					})
 				}
 			}

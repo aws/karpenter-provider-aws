@@ -42,6 +42,8 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 * `v0.33.x` enables `Drift=true` by default in the `FEATURE_GATES`. If you previously didn't enable the feature gate, Karpenter will now check if there is a difference between the desired state of your nodes declared in your NodePool and the actual state of your nodes. View the [Drift Section of Disruption Conceptual Docs]({{<ref "../concepts/disruption#drift" >}}) for more details.
 * `v0.33.x` drops looking up the `zap-logger-config` through ConfigMap discovery. Instead, Karpenter now expects the logging config to be mounted on the filesystem if you are using this to configure Zap logging. This is not enabled by default, but can be enabled through `--set logConfig.enabled=true` in the helm values. Note that setting the Zap logging config is a deprecated feature in beta and is planned to be dropped at v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
 * `v0.33.x` change the default `LOG_LEVEL` from `debug` to `info` by default. If you are still enabling logging configuration through the `zap-logger-config`, no action is required.
+* `v0.33.x` drops support for comma delimited lists on tags for `SubnetSelectorTerm`, `SecurityGroupsSelectorTerm`, and `AMISelectorTerm`. Karpenter now supports multiple terms for each of the selectors which means that we can specify a more explicit OR-based constraint through separate terms rather than a comma-delimited list of values.
+
 
 ### Upgrading to v0.32.0+
 

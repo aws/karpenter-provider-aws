@@ -28,7 +28,6 @@ import (
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
-	"sigs.k8s.io/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
@@ -118,7 +117,7 @@ func getFilterSets(terms []v1beta1.SecurityGroupSelectorTerm) (res [][]*ec2.Filt
 				} else {
 					filters = append(filters, &ec2.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+						Values: []*string{aws.String(v)},
 					})
 				}
 			}
