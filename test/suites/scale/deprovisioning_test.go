@@ -600,6 +600,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				nodePool.Spec.Disruption.ExpireAfter.Duration = ptr.Duration(0)
 
 				noExpireNodePool := test.NodePool(*nodePool.DeepCopy())
+
+				// Disable Expiration
+				noExpireNodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+				noExpireNodePool.Spec.Disruption.ExpireAfter.Duration = nil
+
 				noExpireNodePool.ObjectMeta = metav1.ObjectMeta{Name: test.RandomName()}
 				noExpireNodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
