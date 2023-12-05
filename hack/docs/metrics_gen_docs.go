@@ -156,7 +156,7 @@ func getMetricsFromPackages(packages ...*ast.Package) []metricInfo {
 
 func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	subSystemSortOrder := map[string]int{}
-	subSystemSortOrder["provisioner"] = 1
+	subSystemSortOrder["nodepool"] = 1
 	subSystemSortOrder["nodes"] = 2
 	subSystemSortOrder["pods"] = 3
 	subSystemSortOrder["cloudprovider"] = 4

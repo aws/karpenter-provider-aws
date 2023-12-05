@@ -109,27 +109,6 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// LaunchTemplateName for the node. If not specified, a launch template will be generated.
-	// NOTE: This field is for specifying a custom launch template and is exposed in the Spec
-	// as `launchTemplate` for backwards compatibility.
-	// +optional
-	LaunchTemplateName *string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalSubnetSelector is the original subnet selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalSubnetSelector map[string]string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalSecurityGroupSelector is the original security group selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalSecurityGroupSelector map[string]string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalAMISelector is the original ami selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalAMISelector map[string]string `json:"-" hash:"ignore"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.

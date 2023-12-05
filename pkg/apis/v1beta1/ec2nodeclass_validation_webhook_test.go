@@ -69,7 +69,7 @@ var _ = Describe("Webhook/Validation", func() {
 		})
 		It("should succeed by validating that regex is properly escaped", func() {
 			nc.Spec.Tags = map[string]string{
-				"karpenterzsh/provisioner-name": "value",
+				"karpenterzsh/nodepool": "value",
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
 			nc.Spec.Tags = map[string]string{

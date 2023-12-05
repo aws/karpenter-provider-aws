@@ -41,6 +41,9 @@ import (
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
 	awscache "github.com/aws/karpenter/pkg/cache"
 	"github.com/aws/karpenter/pkg/controllers/interruption"
@@ -49,9 +52,7 @@ import (
 	"github.com/aws/karpenter/pkg/operator/options"
 	"github.com/aws/karpenter/pkg/providers/sqs"
 	"github.com/aws/karpenter/pkg/test"
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 )
@@ -274,7 +275,7 @@ func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*v1.Node) 
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),
@@ -293,7 +294,7 @@ func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{},
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),
@@ -311,7 +312,7 @@ func makeSpotInterruptionMessagesAndNodes(count int) ([]interface{}, []*v1.Node)
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),

@@ -37,7 +37,6 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
@@ -1586,13 +1585,13 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *corev1beta1.
 		instanceType := it
 		onDemandPrice := 1.00
 		for _, o := range it.Offerings {
-			if o.CapacityType == v1alpha5.CapacityTypeOnDemand {
+			if o.CapacityType == corev1beta1.CapacityTypeOnDemand {
 				onDemandPrice = o.Price
 			}
 		}
 		for _, o := range instanceType.Offerings {
 			o := o
-			if o.CapacityType != v1alpha5.CapacityTypeSpot {
+			if o.CapacityType != corev1beta1.CapacityTypeSpot {
 				continue
 			}
 			spotPrice := fmt.Sprintf("%0.3f", onDemandPrice*0.5)

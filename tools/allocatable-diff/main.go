@@ -32,10 +32,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
-	coreoperator "github.com/aws/karpenter-core/pkg/operator"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
+
 	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 	"github.com/aws/karpenter/pkg/cloudprovider"
 	"github.com/aws/karpenter/pkg/operator"
@@ -90,11 +89,7 @@ func main() {
 			"karpenter.sh/discovery": clusterName,
 		},
 	}))))
-	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(&v1alpha5.Provisioner{
-		Spec: v1alpha5.ProvisionerSpec{
-			Provider: raw,
-		},
-	})))
+	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, nil))
 
 	// Write the header information into the CSV
 	lo.Must0(w.Write([]string{"Instance Type", "Expected Capacity", "", "", "Expected Allocatable", "", "", "Actual Capacity", "", "", "Actual Allocatable", ""}))
