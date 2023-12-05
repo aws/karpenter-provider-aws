@@ -27,6 +27,7 @@ import (
 	"net/textproto"
 	"strings"
 
+	"github.com/aws/karpenter/pkg/apis/v1beta1"
 	"github.com/samber/lo"
 )
 
@@ -78,8 +79,8 @@ func (e EKS) eksBootstrapScript() string {
 	if args := e.kubeletExtraArgs(); len(args) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", strings.Join(args, " ")))
 	}
-	if e.InstanceStoreConfiguration != nil {
-		userData.WriteString(fmt.Sprintf(" \\\n--local-disks %s", *e.InstanceStoreConfiguration))
+	if lo.FromPtr(e.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
+		userData.WriteString(" \\\n--local-disks raid0")
 	}
 	return userData.String()
 }

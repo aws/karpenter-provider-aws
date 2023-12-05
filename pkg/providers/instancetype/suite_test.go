@@ -656,7 +656,7 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should launch instances w/ instance storage for ephemeral storage resource requests when disks are mounted for ephemeral-storage", func() {
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2)
-		nodeClass.Spec.InstanceStoreConfiguration = lo.ToPtr(v1beta1.MountNodeEphemeralStorage)
+		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -668,7 +668,6 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should not launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping on AL2 AMI Family & disks are not mounted for ephemeral-storage", func() {
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2)
-		nodeClass.Spec.InstanceStoreConfiguration = lo.ToPtr(v1beta1.MountIndividualDisks)
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{

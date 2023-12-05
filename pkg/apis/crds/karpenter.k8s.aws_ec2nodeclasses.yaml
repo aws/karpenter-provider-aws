@@ -203,12 +203,11 @@ spec:
                 x-kubernetes-validations:
                 - message: instanceProfile cannot be empty
                   rule: self != ''
-              instanceStoreConfiguration:
-                description: InstanceStoreConfiguration describes how to format and
-                  mount instance store disks.
+              instanceStorePolicy:
+                description: InstanceStorePolicy describes how to format and mount
+                  instance store disks.
                 enum:
-                - MountNodeEphemeralStorage
-                - MountIndividualDisks
+                - RAID0
                 type: string
               metadataOptions:
                 default:

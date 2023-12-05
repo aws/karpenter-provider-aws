@@ -549,7 +549,7 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods if the sum of pod ephemeral-storage and overhead exceeds node capacity and instance storage is mounted", func() {
-			nodeClass.Spec.InstanceStoreConfiguration = lo.ToPtr(v1beta1.MountNodeEphemeralStorage)
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
