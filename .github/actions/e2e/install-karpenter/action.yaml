@@ -27,7 +27,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+  - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
     with:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-helm
@@ -40,7 +40,7 @@ runs:
       kubectl label ns karpenter scrape=enabled --overwrite=true
       kubectl label ns karpenter pod-security.kubernetes.io/enforce=restricted --overwrite=true
   - name: login to ecr via docker
-    uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3
+    uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
     with:
       registry: ${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com
       logout: true
@@ -48,7 +48,7 @@ runs:
     shell: bash
     run: |
       aws eks update-kubeconfig --name "${{ inputs.cluster_name }}"
-      
+
       # Parse minor version to determine whether to enable the webhooks
       VERSION=${{ inputs.k8s_version }}
       RELEASE_VERSION_MINOR="${VERSION#*.}"
@@ -56,7 +56,7 @@ runs:
       if (( RELEASE_VRESION_MINOR < 25 )); then
         WEBHOOK_ENABLED=true
       fi
-      
+
       helm upgrade --install karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
         -n kube-system \
         --version "v0-$(git rev-parse HEAD)" \
