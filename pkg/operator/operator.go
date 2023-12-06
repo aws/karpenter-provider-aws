@@ -48,6 +48,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
+	"knative.dev/pkg/changeset"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
@@ -84,7 +85,7 @@ func init() {
 	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 	crmetrics.Registry.MustRegister(BuildInfo)
-	BuildInfo.WithLabelValues(operator.Version, runtime.Version()).Set(1)
+	BuildInfo.WithLabelValues(operator.Version, runtime.Version(), changeset.Get()).Set(1)
 }
 
 // Operator is injected into the AWS CloudProvider's factories
