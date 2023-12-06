@@ -19,11 +19,11 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("Hash", func() {

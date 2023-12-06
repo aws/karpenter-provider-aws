@@ -35,14 +35,14 @@ import (
 	"knative.dev/pkg/logging"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
-	"github.com/aws/karpenter/pkg/utils"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -185,7 +185,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
 		// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
 		// This is done to help comply with AWS account policies that require explicitly setting of that field to 'false'.
-		// https://github.com/aws/karpenter/issues/3815
+		// https://github.com/aws/karpenter-provider-aws/issues/3815
 		options.AssociatePublicIPAddress = aws.Bool(false)
 	}
 	return options, nil
@@ -292,7 +292,7 @@ func (p *Provider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) 
 	// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
 	// This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
 	// This is ignored for EFA instances since it can't be specified if you launch with multiple network interfaces.
-	// https://github.com/aws/karpenter/issues/3815
+	// https://github.com/aws/karpenter-provider-aws/issues/3815
 	if options.AssociatePublicIPAddress != nil {
 		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			{

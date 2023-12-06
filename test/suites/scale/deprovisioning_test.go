@@ -21,8 +21,6 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -35,13 +33,16 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
-	awstest "github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils"
-	"github.com/aws/karpenter/test/pkg/debug"
-	"github.com/aws/karpenter/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
+	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
+	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 const (
@@ -51,7 +52,6 @@ const (
 	expirationValue       = "expiration"
 	noExpirationValue     = "noExpiration"
 	driftValue            = "drift"
-	noDriftValue          = "noDrift"
 )
 
 const (

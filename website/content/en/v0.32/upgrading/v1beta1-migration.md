@@ -60,7 +60,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
     ```bash
     TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter/v0.32.3/website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
+    curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.3/website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
 
     AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION} # use the default region if AWS_REGION isn't defined
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
@@ -74,12 +74,12 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 5. Apply the v0.32.3 Custom Resource Definitions (CRDs):
 
    ```bash
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.sh_provisioners.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.sh_machines.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.sh_nodepools.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.32.3/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.3/pkg/apis/crds/karpenter.sh_provisioners.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.3/pkg/apis/crds/karpenter.sh_machines.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.3/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.3/pkg/apis/crds/karpenter.sh_nodepools.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.3/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.3/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
     ```
 
 6. Upgrade Karpenter to the new version:

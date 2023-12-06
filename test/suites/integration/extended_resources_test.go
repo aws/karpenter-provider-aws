@@ -19,8 +19,6 @@ import (
 	"os"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -30,8 +28,11 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	awsenv "github.com/aws/karpenter/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	awsenv "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Extended Resources", func() {
@@ -100,7 +101,7 @@ var _ = Describe("Extended Resources", func() {
 		DeferCleanup(func() {
 			env.ExpectPodENIDisabled()
 		})
-		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 		test.ReplaceRequirements(nodePool,
 			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceFamily,

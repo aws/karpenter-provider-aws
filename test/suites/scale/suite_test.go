@@ -18,10 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/aws/karpenter/test/pkg/environment/aws"
 )
 
 var env *aws.Environment
