@@ -1,0 +1,64 @@
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: Bottlerocket
+  amiSelectorTerms:
+  - id: ami-123
+    name: test name
+    owner: self
+    tags:
+      MyTag: '*'
+  - id: ami-456
+    name: test name
+    owner: self
+    tags:
+      MyTag: '*'
+  - id: ami-123
+    name: test name
+    owner: amazon
+    tags:
+      MyTag: '*'
+  - id: ami-456
+    name: test name
+    owner: amazon
+    tags:
+      MyTag: '*'
+  blockDeviceMappings:
+  - deviceName: /dev/xvdb
+    ebs:
+      deleteOnTermination: true
+      volumeSize: 100Gi
+      volumeType: gp3
+  role: $KARPENTER_NODE_ROLE
+  securityGroupSelectorTerms:
+  - tags:
+      karpenter.sh/discovery-1: karpenter-demo-1
+      karpenter.sh/discovery-2: karpenter-demo-4
+  - tags:
+      karpenter.sh/discovery-1: karpenter-demo-2
+      karpenter.sh/discovery-2: karpenter-demo-4
+  - tags:
+      karpenter.sh/discovery-1: karpenter-demo-3
+      karpenter.sh/discovery-2: karpenter-demo-4
+  - tags:
+      karpenter.sh/discovery-1: karpenter-demo-1
+      karpenter.sh/discovery-2: karpenter-demo-5
+  - tags:
+      karpenter.sh/discovery-1: karpenter-demo-2
+      karpenter.sh/discovery-2: karpenter-demo-5
+  - tags:
+      karpenter.sh/discovery-1: karpenter-demo-3
+      karpenter.sh/discovery-2: karpenter-demo-5
+  subnetSelectorTerms:
+  - tags:
+      karpenter.sh/discovery: karpenter-demo
+  tags:
+    MyBackupTag: "yes"
+    MyTag: "1234"
+  userData: |
+    [settings.kubernetes]
+    kube-api-qps = 30
+    [settings.kubernetes.eviction-hard]
+    "memory.available" = "10%"
