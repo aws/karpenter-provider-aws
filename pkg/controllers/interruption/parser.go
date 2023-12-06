@@ -20,12 +20,12 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/noop"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/rebalancerecommendation"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/spotinterruption"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/noop"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/rebalancerecommendation"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/spotinterruption"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
 )
 
 type parserKey struct {

@@ -17,7 +17,7 @@ Karpenter leverages Github Actions to run our E2E test suites. These suites are 
 
 ## Enabling Github Action Runs in Your AWS Account
 
-1. Deploy the [Cloudformation stacks](https://github.com/aws/karpenter/tree/main/test/cloudformation/README.md) into your account to enable Managed Prometheus, Managed Grafana, and the Github Actions runner policies.
+1. Deploy the [Cloudformation stacks](https://github.com/aws/karpenter-provider-aws/tree/main/test/cloudformation/README.md) into your account to enable Managed Prometheus, Managed Grafana, and the Github Actions runner policies.
 2. Set the following [Github Actions environment variables](https://docs.github.com/en/actions/learn-github-actions/variables#defining-configuration-variables-for-multiple-workflows) in your repository fork under `Settings/Secrets and Variables/Actions`:
    ```yaml
    AWS_REGION: <region>

@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
 	nodeclaimutil "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 )
 
 type Controller struct {

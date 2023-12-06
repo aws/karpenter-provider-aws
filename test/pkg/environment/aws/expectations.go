@@ -29,8 +29,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/mitchellh/hashstructure/v2"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -38,8 +36,11 @@ import (
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	awserrors "github.com/aws/karpenter/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 // Spot Interruption experiment details partially copied from
