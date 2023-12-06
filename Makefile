@@ -146,7 +146,7 @@ install:  ## Deploy the latest released version into your ~/.kube/config cluster
 		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm uninstall karpenter --namespace karpenter
+	helm uninstall karpenter --namespace ${KARPENTER_NAMESPACE}
 
 docgen: ## Generate docs
 	KARPENTER_CORE_DIR=$(KARPENTER_CORE_DIR) $(WITH_GOFLAGS) ./hack/docgen.sh
