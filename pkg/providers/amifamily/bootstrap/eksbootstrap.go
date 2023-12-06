@@ -27,7 +27,7 @@ import (
 	"net/textproto"
 	"strings"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/samber/lo"
 )
 
