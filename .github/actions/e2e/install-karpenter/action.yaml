@@ -40,7 +40,7 @@ runs:
       kubectl label ns karpenter scrape=enabled --overwrite=true
       kubectl label ns karpenter pod-security.kubernetes.io/enforce=restricted --overwrite=true
   - name: login to ecr via docker
-    uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3
+    uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
     with:
       registry: ${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com
       logout: true
