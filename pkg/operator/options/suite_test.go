@@ -21,15 +21,15 @@ import (
 	"testing"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
-	. "knative.dev/pkg/logging/testing"
-
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
 )
 
 var ctx context.Context

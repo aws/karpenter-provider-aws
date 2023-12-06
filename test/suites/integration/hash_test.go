@@ -15,13 +15,14 @@ limitations under the License.
 package integration_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("CRD Hash", func() {

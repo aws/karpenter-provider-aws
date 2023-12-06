@@ -42,6 +42,8 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 * `v0.33.x` enables `Drift=true` by default in the `FEATURE_GATES`. If you previously didn't enable the feature gate, Karpenter will now check if there is a difference between the desired state of your nodes declared in your NodePool and the actual state of your nodes. View the [Drift Section of Disruption Conceptual Docs]({{<ref "../concepts/disruption#drift" >}}) for more details.
 * `v0.33.x` drops looking up the `zap-logger-config` through ConfigMap discovery. Instead, Karpenter now expects the logging config to be mounted on the filesystem if you are using this to configure Zap logging. This is not enabled by default, but can be enabled through `--set logConfig.enabled=true` in the helm values. Note that setting the Zap logging config is a deprecated feature in beta and is planned to be dropped at v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
 * `v0.33.x` change the default `LOG_LEVEL` from `debug` to `info` by default. If you are still enabling logging configuration through the `zap-logger-config`, no action is required.
+* `v0.33.x` drops support for comma delimited lists on tags for `SubnetSelectorTerm`, `SecurityGroupsSelectorTerm`, and `AMISelectorTerm`. Karpenter now supports multiple terms for each of the selectors which means that we can specify a more explicit OR-based constraint through separate terms rather than a comma-delimited list of values.
+
 
 ### Upgrading to v0.32.0+
 
@@ -170,7 +172,7 @@ kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
 * The karpenter webhook and controller containers are combined into a single binary, which requires changes to the helm chart. If your Karpenter installation (helm or otherwise) currently customizes the karpenter webhook, your deployment tooling may require minor changes.
 * Karpenter now supports native interruption handling. If you were previously using Node Termination Handler for spot interruption handling and health events, you will need to remove the component from your cluster before enabling `aws.interruptionQueueName`. For more details on Karpenter's interruption handling, see the [Interruption Handling Docs]({{< ref "../concepts/disruption/#interruption" >}}).
 * Instance category defaults are now explicitly persisted in the Provisioner, rather than handled implicitly in memory. By default, Provisioners will limit instance category to c,m,r. If any instance type constraints are applied, it will override this default. If you have created Provisioners in the past with unconstrained instance type, family, or category, Karpenter will now more flexibly use instance types than before. If you would like to apply these constraints, they must be included in the Provisioner CRD.
-* Karpenter CRD raw YAML URLs have migrated from `https://raw.githubusercontent.com/aws/karpenter/v0.19.3/charts/karpenter/crds/...` to `https://raw.githubusercontent.com/aws/karpenter/v0.19.3/pkg/apis/crds/...`. If you reference static Karpenter CRDs or rely on `kubectl replace -f` to apply these CRDs from their remote location, you will need to migrate to the new location.
+* Karpenter CRD raw YAML URLs have migrated from `https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.19.3/charts/karpenter/crds/...` to `https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.19.3/pkg/apis/crds/...`. If you reference static Karpenter CRDs or rely on `kubectl replace -f` to apply these CRDs from their remote location, you will need to migrate to the new location.
 * Pods without an ownerRef (also called "controllerless" or "naked" pods) will now be evicted by default during node termination and consolidation.  Users can prevent controllerless pods from being voluntarily disrupted by applying the `karpenter.sh/do-not-evict: "true"` annotation to the pods in question.
 * The following CLI options/environment variables are now removed and replaced in favor of pulling settings dynamically from the [`karpenter-global-settings`]({{<ref "../reference/settings#configmap" >}}) ConfigMap. See the [Settings docs]({{<ref "../reference/settings/#environment-variables--cli-flags" >}}) for more details on configuring the new values in the ConfigMap.
 
@@ -198,28 +200,28 @@ Users who have scripted the installation or upgrading of Karpenter need to adjus
 ### Upgrading to v0.16.2+
 * v0.16.2 adds new kubeletConfiguration fields to the `provisioners.karpenter.sh` v1alpha5 CRD.  The CRD will need to be updated to use the new parameters:
 ```bash
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.16.2/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.16.2/charts/karpenter/crds/karpenter.sh_provisioners.yaml
 ```
 
 ### Upgrading to v0.16.0+
 * v0.16.0 adds a new weight field to the `provisioners.karpenter.sh` v1alpha5 CRD.  The CRD will need to be updated to use the new parameters:
 ```bash
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.16.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.16.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
 ```
 
 ### Upgrading to v0.15.0+
 * v0.15.0 adds a new consolidation field to the `provisioners.karpenter.sh` v1alpha5 CRD.  The CRD will need to be updated to use the new parameters:
 ```bash
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.15.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.15.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
 ```
 
 ### Upgrading to v0.14.0+
 * v0.14.0 adds new fields to the `provisioners.karpenter.sh` v1alpha5 and `awsnodetemplates.karpenter.k8s.aws` v1alpha1 CRDs. The CRDs will need to be updated to use the new parameters:
 
 ```bash
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.14.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.14.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
 
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.14.0/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.14.0/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml
 ```
 
 * v0.14.0 changes the way Karpenter discovers its dynamically generated AWS launch templates to use a tag rather than a Name scheme. The previous name scheme was `Karpenter-${CLUSTER_NAME}-*` which could collide with user created launch templates that Karpenter should not manage. The new scheme uses a tag on the launch template `karpenter.k8s.aws/cluster: ${CLUSTER_NAME}`. As a result, Karpenter will not clean-up dynamically generated launch templates using the old name scheme. You can manually clean these up with the following commands:
@@ -249,7 +251,7 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
   If you are upgrading from v0.10.1 - v0.11.1, a new CRD `awsnodetemplate` was added. In v0.12.0, this crd was renamed to `awsnodetemplates`. Since helm does not manage the lifecycle of CRDs, you will need to perform a few manual steps for this CRD upgrade:
   1. Make sure any `awsnodetemplate` manifests are saved somewhere so that they can be reapplied to the cluster.
   2. `kubectl delete crd awsnodetemplate`
-  3. `kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.13.2/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml`
+  3. `kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.13.2/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml`
   4. Perform the Karpenter upgrade to v0.13.x, which will install the new `awsnodetemplates` CRD.
   5. Reapply the `awsnodetemplate` manifests you saved from step 1, if applicable.
 * v0.13.0 also adds EC2/spot price fetching to Karpenter to allow making more accurate decisions regarding node deployments.  Our [getting started guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}) documents this, but if you are upgrading Karpenter you will need to modify your Karpenter controller policy to add the `pricing:GetProducts` and `ec2:DescribeSpotPriceHistory` permissions.
@@ -260,7 +262,7 @@ aws ec2 delete-launch-template --launch-template-id <LAUNCH_TEMPLATE_ID>
 * If you are upgrading from v0.10.1 - v0.11.1, a new CRD `awsnodetemplate` was added. In v0.12.0, this crd was renamed to `awsnodetemplates`. Since helm does not manage the lifecycle of CRDs, you will need to perform a few manual steps for this CRD upgrade:
   1. Make sure any `awsnodetemplate` manifests are saved somewhere so that they can be reapplied to the cluster.
   2. `kubectl delete crd awsnodetemplate`
-  3. `kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.12.1/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml`
+  3. `kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.12.1/charts/karpenter/crds/karpenter.k8s.aws_awsnodetemplates.yaml`
   4. Perform the Karpenter upgrade to v0.12.x, which will install the new `awsnodetemplates` CRD.
   5. Reapply the `awsnodetemplate` manifests you saved from step 1, if applicable.
 
@@ -273,7 +275,7 @@ Other extended resources must be registered on nodes by their respective device 
 v0.11.0 adds a `providerRef` field in the Provisioner CRD. To use this new field you will need to replace the Provisioner CRD manually:
 
 ```shell
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.11.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.11.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
 ```
 
 ### Upgrading to v0.10.0+
@@ -281,7 +283,7 @@ kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.11.0/chart
 v0.10.0 adds a new field, `startupTaints` to the provisioner spec.  Standard Helm upgrades [do not upgrade CRDs](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/#some-caveats-and-explanations) so the  field will not be available unless the CRD is manually updated.  This can be performed prior to the standard upgrade by applying the new CRD manually:
 
 ```shell
-kubectl replace -f https://raw.githubusercontent.com/aws/karpenter/v0.10.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
+kubectl replace -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.10.0/charts/karpenter/crds/karpenter.sh_provisioners.yaml
 ```
 
 📝 If you don't perform this manual CRD update, Karpenter will work correctly except for rejecting the creation/update of provisioners that use `startupTaints`.

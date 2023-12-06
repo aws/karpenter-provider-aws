@@ -20,20 +20,18 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/aws-sdk-go/aws"
 
-	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 
 	v1 "k8s.io/api/core/v1"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
 )
 
 type Windows struct {
@@ -46,7 +44,7 @@ type Windows struct {
 func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
-			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1alpha1.WindowsCore, version),
+			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1beta1.WindowsCore, version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
 				scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),

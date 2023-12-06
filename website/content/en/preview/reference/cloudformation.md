@@ -18,7 +18,7 @@ To download a particular version of `cloudformation.yaml`, set the version and u
 
 ```bash
 export KARPENTER_VERSION={{< param "latest_release_version" >}}
-curl https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
+curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
 Following some header information, the rest of the `cloudformation.yaml` file describes the resources that CloudFormation deploys.

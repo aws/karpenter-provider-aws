@@ -17,15 +17,16 @@ package integration_test
 import (
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/test/pkg/debug"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
+
+	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {

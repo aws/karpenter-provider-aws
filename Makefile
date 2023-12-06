@@ -59,10 +59,6 @@ test: ## Run tests
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
 		--ginkgo.vv
-	cd tools/karpenter-convert && go test -v ./pkg/... \
-		--ginkgo.focus="${FOCUS}" \
-		--ginkgo.randomize-all \
-		--ginkgo.vv
 
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
@@ -132,7 +128,7 @@ setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controll
 	CLUSTER_NAME=${CLUSTER_NAME} ./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
 
 image: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter/cmd/controller))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
 	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
@@ -191,7 +187,7 @@ tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 download: ## Recursively "go mod download" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
-update-core: ## Update karpenter-core to latest
+update-karpenter: ## Update kubernetes-sigs/karpenter to latest
 	go get -u sigs.k8s.io/karpenter@HEAD
 	go mod tidy
 

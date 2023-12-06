@@ -16,14 +16,15 @@ package v1beta1_test
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("CEL/Validation", func() {
@@ -71,7 +72,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 		It("should fail if tags contain a restricted domain key", func() {
 			nc.Spec.Tags = map[string]string{
-				"karpenter.sh/provisioner-name": "value",
+				corev1beta1.NodePoolLabelKey: "value",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
@@ -79,7 +80,7 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
-				"karpenter.sh/managed-by": "test",
+				corev1beta1.ManagedByAnnotationKey: "test",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 		})
@@ -444,7 +445,7 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 		It("should fail when AMIFamily is Custom and not AMISelectorTerms", func() {
-			nc.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
+			nc.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})

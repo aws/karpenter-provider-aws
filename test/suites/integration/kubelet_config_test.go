@@ -18,7 +18,6 @@ import (
 	"math"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,11 +26,13 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+
+	. "github.com/onsi/ginkgo/v2"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
@@ -84,14 +85,6 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
-				if *amiFamily == v1beta1.AMIFamilyUbuntu {
-					// TODO (@jmdeal): Remove when the latest Ubuntu AMI is fixed
-					nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
-						{
-							Name: "ubuntu-eks/k8s_1.28/images/hvm-ssd/ubuntu-focal-20.04-amd64-server-20231128",
-						},
-					}
-				}
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
 						v1.LabelOSStable:   string(v1.Linux),
@@ -117,7 +110,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				// Need to enable nodepool-level OS-scoping for now since DS evaluation is done off of the nodepool
 				// requirements, not off of the instance type options so scheduling can fail if nodepool aren't
 				// properly scoped
-				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.*, c7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.*, c7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 				test.ReplaceRequirements(nodePool,
 					v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceFamily,

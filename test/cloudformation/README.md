@@ -30,7 +30,7 @@ aws cloudformation deploy \
 ```console
 aws cloudformation deploy --stack-name GithubActionsIAM \
     --template-file iam_cloudformation.yaml \
-    --parameter-overrides "DatabaseName=karpenterTesting" "TableName=scaleTestDurations" "SweeperTableName=sweeperCleanedResources" "ResourceCountTableName=resourceCount" "Repository=<repository>" Branches="*" "PrometheusWorkspaceID=<workspace-id>" Regions="us-east-2,us-west-2,..." \
+    --parameter-overrides "DatabaseName=karpenterTesting" "TableName=scaleTestDurations" "SweeperTableName=sweeperCleanedResources" "ResourceCountTableName=resourceCount" "Repository=aws/karpenter-provider-aws" Branches="*" "PrometheusWorkspaceID=<workspace-id>" Regions="us-east-2,us-west-2,..." \
     --capabilities CAPABILITY_NAMED_IAM
 ```
 

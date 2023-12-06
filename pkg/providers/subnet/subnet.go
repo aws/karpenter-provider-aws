@@ -29,10 +29,9 @@ import (
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-	"sigs.k8s.io/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
@@ -48,7 +47,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
+		// TODO: Remove cache when we utilize the resolved subnets from the EC2NodeClass.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
 		cache: cache,
 		// inflightIPs is used to track IPs from known launched instances
@@ -247,7 +246,7 @@ func getFilterSets(terms []v1beta1.SubnetSelectorTerm) (res [][]*ec2.Filter) {
 				} else {
 					filters = append(filters, &ec2.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+						Values: []*string{aws.String(v)},
 					})
 				}
 			}

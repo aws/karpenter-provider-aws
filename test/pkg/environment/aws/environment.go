@@ -41,11 +41,11 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/providers/sqs"
-	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/test/pkg/environment/common"
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 )
 
 func init() {

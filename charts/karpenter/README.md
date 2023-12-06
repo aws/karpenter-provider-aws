@@ -29,7 +29,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | additionalAnnotations | object | `{}` | Additional annotations to add into metadata. |
 | additionalClusterRoleRules | list | `[]` | Specifies additional rules for the core ClusterRole. |
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
-| affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/provisioner-name","operator":"DoesNotExist"},{"key":"karpenter.sh/nodepool","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"topologyKey":"kubernetes.io/hostname"}]}}` | Affinity rules for scheduling the pod. If an explicit label selector is not provided for pod affinity or pod anti-affinity one will be created from the pod selector labels. |
+| affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/nodepool","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"topologyKey":"kubernetes.io/hostname"}]}}` | Affinity rules for scheduling the pod. If an explicit label selector is not provided for pod affinity or pod anti-affinity one will be created from the pod selector labels. |
 | controller.env | list | `[]` | Additional environment variables for the controller pod. |
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
@@ -82,7 +82,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | settings.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.clusterName | string | `""` | Cluster name. |
 | settings.featureGates | object | `{"drift":true}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features |
-| settings.featureGates.drift | bool | `true` | drift is in BETA and is enabled by default. Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes and the desired state of nodes set in provisioners and node templates |
+| settings.featureGates.drift | bool | `true` | drift is in BETA and is enabled by default. Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes and the desired state of nodes set in nodepools and nodeclasses |
 | settings.interruptionQueue | string | `""` | interruptionQueue is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint This also has the effect of disabling look-ups to the AWS pricing endpoint |
 | settings.reservedENIs | string | `"0"` | Reserved ENIs are not included in the calculations for max-pods or kube-reserved This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html |

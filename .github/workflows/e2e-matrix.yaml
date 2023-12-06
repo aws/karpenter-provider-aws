@@ -83,10 +83,9 @@ jobs:
       statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      # This version matches the steps of the newest version that contains the additional step
-      # of deploying the instance profile so that the pre-upgrade and post-upgrade create-cluster
-      # actions have the same number of steps and don't fail during post-cleanup
-      from_git_ref: 62c25a3ea85c7d00165e60a913fff1ec7c1f29fd
+      # This version matches the updated create-cluster action, which is now setup-cluster 
+      # https://github.com/aws/karpenter/pull/5203/files
+      from_git_ref: 4d5fbcd2059593e613e92f2f0ede22160fc2a1e3
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}

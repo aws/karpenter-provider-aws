@@ -18,7 +18,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 var persistedSettings []v1.EnvVar

@@ -18,8 +18,6 @@ import (
 	"fmt"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,9 +28,12 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/test/pkg/debug"
-	"github.com/aws/karpenter/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
@@ -249,7 +250,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			Image:            aws.WindowsDefaultImage,
 		}})
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
-		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 		test.ReplaceRequirements(nodePool,
 			v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceFamily,

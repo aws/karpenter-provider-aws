@@ -67,8 +67,6 @@ affinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
-            - key: karpenter.sh/provisioner-name
-              operator: DoesNotExist
             - key: karpenter.sh/nodepool
               operator: DoesNotExist
   podAntiAffinity:
@@ -199,5 +197,5 @@ settings:
   featureGates:
     # -- drift is in BETA and is enabled by default.
     # Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes
-    # and the desired state of nodes set in provisioners and node templates
+    # and the desired state of nodes set in nodepools and nodeclasses
     drift: true

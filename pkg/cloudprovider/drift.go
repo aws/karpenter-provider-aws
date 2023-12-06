@@ -25,17 +25,16 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/utils"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
 const (
 	AMIDrift           cloudprovider.DriftReason = "AMIDrift"
 	SubnetDrift        cloudprovider.DriftReason = "SubnetDrift"
 	SecurityGroupDrift cloudprovider.DriftReason = "SecurityGroupDrift"
-	NodeTemplateDrift  cloudprovider.DriftReason = "NodeTemplateDrift"
 	NodeClassDrift     cloudprovider.DriftReason = "NodeClassDrift"
 )
 
@@ -78,9 +77,6 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1
 	if !found {
 		return "", fmt.Errorf(`finding node instance type "%s"`, nodeClaim.Labels[v1.LabelInstanceTypeStable])
 	}
-	if nodeClass.Spec.LaunchTemplateName != nil {
-		return "", nil
-	}
 	amis, err := c.amiProvider.Get(ctx, nodeClass, &amifamily.Options{})
 	if err != nil {
 		return "", fmt.Errorf("getting amis, %w", err)
@@ -114,11 +110,6 @@ func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *
 // Checks if the security groups are drifted, by comparing the EC2NodeClass.Status.SecurityGroups
 // to the ec2 instance security groups
 func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
-	// nodeClass.Spec.SecurityGroupSelector can be nil if the user is using a launchTemplateName to define SecurityGroups
-	// Karpenter will not drift on changes to securitygroup in the launchTemplateName
-	if nodeClass.Spec.LaunchTemplateName != nil {
-		return "", nil
-	}
 	securityGroupIds := sets.New(lo.Map(nodeClass.Status.SecurityGroups, func(sg v1beta1.SecurityGroup, _ int) string { return sg.ID })...)
 	if len(securityGroupIds) == 0 {
 		return "", fmt.Errorf("no security groups exist in status")

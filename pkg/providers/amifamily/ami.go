@@ -32,12 +32,11 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/providers/version"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
-	"sigs.k8s.io/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
@@ -267,7 +266,7 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 				} else {
 					elem.Filters = append(elem.Filters, &ec2.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+						Values: []*string{aws.String(v)},
 					})
 				}
 			}

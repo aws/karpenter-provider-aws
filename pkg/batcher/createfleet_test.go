@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 
-	"github.com/aws/karpenter/pkg/batcher"
+	"github.com/aws/karpenter-provider-aws/pkg/batcher"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

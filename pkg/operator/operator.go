@@ -52,24 +52,23 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 	"sigs.k8s.io/karpenter/pkg/operator"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
-	"github.com/aws/karpenter/pkg/apis"
-	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/launchtemplate"
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
-	"github.com/aws/karpenter/pkg/providers/version"
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 )
 
 var BuildInfo = prometheus.NewGaugeVec(
@@ -82,7 +81,6 @@ var BuildInfo = prometheus.NewGaugeVec(
 
 func init() {
 	lo.Must0(apis.AddToScheme(scheme.Scheme))
-	v1alpha5.NormalizedLabels = lo.Assign(v1alpha5.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 	crmetrics.Registry.MustRegister(BuildInfo)
 	BuildInfo.WithLabelValues(operator.Version, runtime.Version(), changeset.Get()).Set(1)
@@ -144,7 +142,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	kubeDNSIP, err := kubeDNSIP(ctx, operator.KubernetesInterface)
 	if err != nil {
 		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
-		// https://github.com/aws/karpenter/issues/2787
+		// https://github.com/aws/karpenter-provider-aws/issues/2787
 		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
 	} else {
 		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")

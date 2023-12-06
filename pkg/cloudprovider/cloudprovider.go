@@ -27,15 +27,12 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
-	"sigs.k8s.io/karpenter/pkg/utils/functional"
-	nodepoolutil "sigs.k8s.io/karpenter/pkg/utils/nodepool"
-
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/utils"
-	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
-
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -44,14 +41,13 @@ import (
 	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	cloudproviderevents "github.com/aws/karpenter/pkg/cloudprovider/events"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
+	cloudproviderevents "github.com/aws/karpenter-provider-aws/pkg/cloudprovider/events"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
 
@@ -105,19 +101,8 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 		return i.Name == instance.Type
 	})
 	nc := c.instanceToNodeClaim(instance, instanceType)
-	nc.Annotations = lo.Assign(nc.Annotations, nodeclassutil.HashAnnotation(nodeClass))
+	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 	return nc, nil
-}
-
-// Link adds a tag to the cloudprovider NodeClaim to tell the cloudprovider that it's now owned by a NodeClaim
-func (c *CloudProvider) Link(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name))
-	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
-	if err != nil {
-		return fmt.Errorf("getting instance ID, %w", err)
-	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
-	return c.instanceProvider.Link(ctx, id, nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey])
 }
 
 func (c *CloudProvider) List(ctx context.Context) ([]*corev1beta1.NodeClaim, error) {
@@ -183,8 +168,7 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name))
 
-	providerID := lo.Ternary(nodeClaim.Status.ProviderID != "", nodeClaim.Status.ProviderID, nodeClaim.Annotations[v1alpha5.MachineLinkedAnnotationKey])
-	id, err := utils.ParseInstanceID(providerID)
+	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		return fmt.Errorf("getting instance ID, %w", err)
 	}
@@ -262,15 +246,15 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *cor
 }
 
 func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, instance *instance.Instance) (*cloudprovider.InstanceType, error) {
-	provisioner, err := c.resolveNodePoolFromInstance(ctx, instance)
+	nodePool, err := c.resolveNodePoolFromInstance(ctx, instance)
 	if err != nil {
-		// If we can't resolve the provisioner, we fall back to not getting instance type info
-		return nil, client.IgnoreNotFound(fmt.Errorf("resolving provisioner, %w", err))
+		// If we can't resolve the NodePool, we fall back to not getting instance type info
+		return nil, client.IgnoreNotFound(fmt.Errorf("resolving nodepool, %w", err))
 	}
-	instanceTypes, err := c.GetInstanceTypes(ctx, provisioner)
+	instanceTypes, err := c.GetInstanceTypes(ctx, nodePool)
 	if err != nil {
-		// If we can't resolve the provisioner, we fall back to not getting instance type info
-		return nil, client.IgnoreNotFound(fmt.Errorf("resolving node template, %w", err))
+		// If we can't resolve the NodePool, we fall back to not getting instance type info
+		return nil, client.IgnoreNotFound(fmt.Errorf("resolving nodeclass, %w", err))
 	}
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == instance.Type
@@ -279,25 +263,14 @@ func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, ins
 }
 
 func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instance *instance.Instance) (*corev1beta1.NodePool, error) {
-	provisionerName := instance.Tags[v1alpha5.ProvisionerNameLabelKey]
-	nodePoolName := instance.Tags[corev1beta1.NodePoolLabelKey]
-
-	switch {
-	case nodePoolName != "":
+	if nodePoolName, ok := instance.Tags[corev1beta1.NodePoolLabelKey]; ok {
 		nodePool := &corev1beta1.NodePool{}
 		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool); err != nil {
 			return nil, err
 		}
 		return nodePool, nil
-	case provisionerName != "":
-		provisioner := &v1alpha5.Provisioner{}
-		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
-			return nil, err
-		}
-		return nodepoolutil.New(provisioner), nil
-	default:
-		return nil, errors.NewNotFound(schema.GroupResource{Group: corev1beta1.Group, Resource: "NodePool"}, "")
 	}
+	return nil, errors.NewNotFound(schema.GroupResource{Group: corev1beta1.Group, Resource: "NodePool"}, "")
 }
 
 func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *cloudprovider.InstanceType) *corev1beta1.NodeClaim {

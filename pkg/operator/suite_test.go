@@ -20,19 +20,20 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/service/eks"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
-	. "knative.dev/pkg/logging/testing"
 
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/fake"
-	awscontext "github.com/aws/karpenter/pkg/operator"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	awscontext "github.com/aws/karpenter-provider-aws/pkg/operator"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 

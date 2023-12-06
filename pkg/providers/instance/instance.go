@@ -35,17 +35,16 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/batcher"
-	"github.com/aws/karpenter/pkg/cache"
-	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/launchtemplate"
-	"github.com/aws/karpenter/pkg/providers/subnet"
-	"github.com/aws/karpenter/pkg/utils"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/batcher"
+	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1alpha5"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
@@ -104,16 +103,6 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	return NewInstanceFromFleet(fleetInstance, tags, efaEnabled), nil
 }
 
-func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
-	if err := p.CreateTags(ctx, id, map[string]string{
-		v1alpha5.MachineManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
-		v1alpha5.ProvisionerNameLabelKey:       provisionerName,
-	}); err != nil {
-		return fmt.Errorf("linking tags, %w", err)
-	}
-	return nil
-}
-
 func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
 	out, err := p.ec2Batcher.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 		InstanceIds: aws.StringSlice([]string{id}),
@@ -141,7 +130,7 @@ func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
-				Values: aws.StringSlice([]string{v1alpha5.ProvisionerNameLabelKey, corev1beta1.NodePoolLabelKey}),
+				Values: aws.StringSlice([]string{corev1beta1.NodePoolLabelKey}),
 			},
 			{
 				Name:   aws.String("tag-key"),
@@ -411,7 +400,7 @@ func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanc
 	return instanceTypes
 }
 
-// isMixedCapacityLaunch returns true if provisioners and available offerings could potentially allow either a spot or
+// isMixedCapacityLaunch returns true if nodepools and available offerings could potentially allow either a spot or
 // and on-demand node to launch
 func (p *Provider) isMixedCapacityLaunch(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) bool {
 	requirements := scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...)

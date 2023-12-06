@@ -28,10 +28,9 @@ import (
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
-	"sigs.k8s.io/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 type Provider struct {
@@ -47,7 +46,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		// TODO: Remove cache for v1beta1, utilize resolved security groups from the AWSNodeTemplate.status
+		// TODO: Remove cache cache when we utilize the security groups from the EC2NodeClass.status
 		cache: cache,
 	}
 }
@@ -55,13 +54,9 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
+
 	// Get SecurityGroups
-	// TODO: When removing custom launchTemplates for v1beta1, security groups will be required.
-	// The check will not be necessary
 	filterSets := getFilterSets(nodeClass.Spec.SecurityGroupSelectorTerms)
-	if len(filterSets) == 0 {
-		return []*ec2.SecurityGroup{}, nil
-	}
 	securityGroups, err := p.getSecurityGroups(ctx, filterSets)
 	if err != nil {
 		return nil, err
@@ -118,7 +113,7 @@ func getFilterSets(terms []v1beta1.SecurityGroupSelectorTerm) (res [][]*ec2.Filt
 				} else {
 					filters = append(filters, &ec2.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+						Values: []*string{aws.String(v)},
 					})
 				}
 			}

@@ -23,23 +23,22 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	awspricing "github.com/aws/aws-sdk-go/service/pricing"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/types"
-	. "knative.dev/pkg/logging/testing"
-
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
-	. "sigs.k8s.io/karpenter/pkg/test/expectations"
-
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context

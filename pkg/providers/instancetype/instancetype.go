@@ -22,24 +22,24 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/mitchellh/hashstructure/v2"
+	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	awscache "github.com/aws/karpenter/pkg/cache"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/mitchellh/hashstructure/v2"
-	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/providers/subnet"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -60,7 +60,7 @@ type Provider struct {
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
 	// Fully initialized Instance Types are also cached based on the set of all instance types, zones, unavailableOfferings cache,
-	// node template, and kubelet configuration from the provisioner
+	// EC2NodeClass, and kubelet configuration from the NodePool
 
 	mu    sync.Mutex
 	cache *cache.Cache
