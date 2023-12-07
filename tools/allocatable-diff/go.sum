@@ -48,10 +48,10 @@ github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137/go.mod h1:OMCwj8V
 github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kdvxnR2qWY=
 github.com/avast/retry-go v3.0.0+incompatible h1:4SOWQ7Qs+oroOTQOYnAHqelpCO0biHSxpiH9JdtuBj0=
 github.com/avast/retry-go v3.0.0+incompatible/go.mod h1:XtSnn+n/sHqQIpZ10K1qAevBhOOCWBLXXy3hyiqqBrY=
-github.com/aws/aws-sdk-go v1.48.11 h1:9YbiSbaF/jWi+qLRl+J5dEhr2mcbDYHmKg2V7RBcD5M=
-github.com/aws/aws-sdk-go v1.48.11/go.mod h1:LF8svs817+Nz+DmiMQKTO3ubZ/6IaTpq3TjupRn3Eqk=
-github.com/aws/karpenter v0.32.2-0.20231205002141-fbdb621104b4 h1:GbFqWkP2rUNKEtzAqJ8HJTCLQAVdlUdyu8XZrEpjEFU=
-github.com/aws/karpenter v0.32.2-0.20231205002141-fbdb621104b4/go.mod h1:7tIW1X81+Q+b177/BnypK6Ir7GiL5KKtR6pU6GphnAo=
+github.com/aws/aws-sdk-go v1.48.13 h1:6N4GTme6MpxfCisWf5pql8k3TBORiKTmbeutZCDXlG8=
+github.com/aws/aws-sdk-go v1.48.13/go.mod h1:LF8svs817+Nz+DmiMQKTO3ubZ/6IaTpq3TjupRn3Eqk=
+github.com/aws/karpenter-provider-aws v0.33.1-0.20231206223517-f73ccfa65419 h1:zejIHIPkRwfw1VFHFqtM1YHYcxH3vcBkQIQbydw6YjI=
+github.com/aws/karpenter-provider-aws v0.33.1-0.20231206223517-f73ccfa65419/go.mod h1:PYMJm2lX/ppJjEfQg3OEeMb8UyYXW762mlmbJ7WueEg=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
@@ -729,8 +729,8 @@ sigs.k8s.io/controller-runtime v0.16.3 h1:2TuvuokmfXvDUamSx1SuAOO3eTyye+47mJCigw
 sigs.k8s.io/controller-runtime v0.16.3/go.mod h1:j7bialYoSn142nv9sCOJmQgDXQXxnroFU4VnX/brVJ0=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
-sigs.k8s.io/karpenter v0.32.2-0.20231205004259-6a5c00a354b3 h1:iTCm2GfvpG+x8GedLc2NIr5DtV6AbDf5V5NgV9CtcA0=
-sigs.k8s.io/karpenter v0.32.2-0.20231205004259-6a5c00a354b3/go.mod h1:7hPB7kdImFHAFp7pqPUqgBDOrh8GEcRnHT5uIlsXMKA=
+sigs.k8s.io/karpenter v0.33.0 h1:FvFzhYMwFackafImFeFz/ti/z/55NiZtr8HXiS+z9lU=
+sigs.k8s.io/karpenter v0.33.0/go.mod h1:7hPB7kdImFHAFp7pqPUqgBDOrh8GEcRnHT5uIlsXMKA=
 sigs.k8s.io/structured-merge-diff/v4 v4.3.0 h1:UZbZAZfX0wV2zr7YZorDz6GXROfDFj6LvqCRm4VUVKk=
 sigs.k8s.io/structured-merge-diff/v4 v4.3.0/go.mod h1:N8hJocpFajUSSeSJ9bOZ77VzejKZaXsTtZo4/u7Io08=
 sigs.k8s.io/yaml v1.3.0 h1:a2VclLzOGrwOHDiV8EfBGhvjHvP46CtW5j6POvhYGGo=

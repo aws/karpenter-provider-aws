@@ -3,19 +3,18 @@ module github.com/aws/karpenter/tools/allocatable-diff
 go 1.21
 
 require (
-	github.com/aws/karpenter v0.32.2-0.20231205002141-fbdb621104b4
+	github.com/aws/karpenter-provider-aws v0.33.1-0.20231206223517-f73ccfa65419
 	github.com/samber/lo v1.39.0
 	k8s.io/api v0.28.4
-	k8s.io/apimachinery v0.28.4
 	k8s.io/client-go v0.28.4
 	sigs.k8s.io/controller-runtime v0.16.3
-	sigs.k8s.io/karpenter v0.32.2-0.20231205004259-6a5c00a354b3
+	sigs.k8s.io/karpenter v0.33.0
 )
 
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2 // indirect
-	github.com/aws/aws-sdk-go v1.48.11 // indirect
+	github.com/aws/aws-sdk-go v1.48.13 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
@@ -87,6 +86,7 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	k8s.io/apiextensions-apiserver v0.28.4 // indirect
+	k8s.io/apimachinery v0.28.4 // indirect
 	k8s.io/cloud-provider v0.28.4 // indirect
 	k8s.io/component-base v0.28.4 // indirect
 	k8s.io/csi-translation-lib v0.28.4 // indirect
