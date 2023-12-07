@@ -1,5 +1,6 @@
-name: "APICodeGen"
+name: "CodeGenCI"
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 13 * * MON'
 jobs:
