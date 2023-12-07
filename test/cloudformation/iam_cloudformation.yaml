@@ -238,6 +238,7 @@ Resources:
               - eks:CreateCluster
               - eks:CreateAddon
               - eks:CreateNodegroup
+              - eks:CreatePodIdentityAssociation
               - eks:DeleteCluster
               - eks:ListFargateProfiles
               - eks:TagResource
@@ -328,6 +329,8 @@ Resources:
           - Effect: Allow
             Action: iam:PassRole
             Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
               - !GetAtt FISInterruptionRole.Arn
           - Effect: Allow

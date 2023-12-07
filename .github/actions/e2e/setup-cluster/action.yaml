@@ -30,7 +30,7 @@ inputs:
     default: "1.28"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.164.0
+    default: v0.165.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     default: "IPv4"
@@ -110,23 +110,19 @@ runs:
           logRetentionInDays: 30
       iam:
         serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
-        serviceAccounts:
-          - metadata:
-              name: karpenter
-              namespace: kube-system
-            attachPolicyARNs:
-              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}"
-            permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        podIdentityAssociations:
+          - namespace: kube-system
+            serviceAccountName: karpenter
             roleName: karpenter-irsa-${{ inputs.cluster_name }}
-            roleOnly: true
-          - metadata:
-              name: prometheus-kube-prometheus-prometheus
-              namespace: prometheus
-            attachPolicyARNs:
-              - "arn:aws:iam::${{ inputs.account_id }}:policy/PrometheusWorkspaceIngestionPolicy"
-            permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            permissionsBoundaryARN: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            permissionPolicyARNs: 
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}"
+          - namespace: prometheus-kube-prometheus-prometheus
+            serviceAccountName: prometheus
             roleName: prometheus-irsa-${{ inputs.cluster_name }}
-            roleOnly: true
+            permissionsBoundaryARN: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            permissionPolicyARNs:
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/PrometheusWorkspaceIngestionPolicy"
         withOIDC: true
       addons:
       - name: vpc-cni
@@ -139,6 +135,8 @@ runs:
         permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
         wellKnownPolicies:
           ebsCSIController: true
+      - name: eks-pod-identity-agent
+        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
       EOF
 
       if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
@@ -147,10 +145,6 @@ runs:
       fi
 
       eksctl ${cmd} cluster -f clusterconfig.yaml
-
-      # We need to call these update iamserviceaccount commands again since the "eksctl upgrade cluster" action
-      # doesn't handle updates to IAM serviceaccounts correctly when the roles assigned to them change
-      eksctl update iamserviceaccount -f clusterconfig.yaml --approve
 
       # Add the SQS and SSM VPC endpoints if we are creating a private cluster
       # We need to grab all of the VPC details for the cluster in order to add the endpoint
