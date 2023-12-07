@@ -21,7 +21,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/karpenter/tools/kompat/pkg/kompat"
+	"github.com/aws/karpenter-provider-aws/tools/kompat/pkg/kompat"
 )
 
 func main() {
