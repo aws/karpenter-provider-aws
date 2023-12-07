@@ -132,7 +132,6 @@ jobs:
         with:
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: Upgrade
-          k8s_version: ${{ inputs.k8s_version }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs

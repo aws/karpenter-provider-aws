@@ -4,8 +4,6 @@ inputs:
   suite:
     description: "Suite that's running"
     required: true
-  k8s_version:
-    description: "Kubernetes version that this test ran against"
   url:
     description: "Webhook URL to send the Slack notification to"
     required: true
