@@ -52,3 +52,9 @@ jobs:
               issue_number: result.data.number,
               labels: ['aws', 'dependencies']
             });
+      - name: notify slack of success or failure
+        uses: ./.github/actions/e2e/slack/notify
+        if: (success() || failure())
+        with:
+          url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          suite: codegen
