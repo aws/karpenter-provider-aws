@@ -1,4 +1,4 @@
-module github.com/aws/karpenter/tools/kompat
+module github.com/aws/karpenter-provider-aws/tools/kompat
 
 go 1.20
 

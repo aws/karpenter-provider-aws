@@ -27,7 +27,7 @@ import (
 	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 
-	"github.com/aws/karpenter/tools/kompat/pkg/kompat"
+	"github.com/aws/karpenter-provider-aws/tools/kompat/pkg/kompat"
 )
 
 const (

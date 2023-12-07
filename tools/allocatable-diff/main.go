@@ -25,8 +25,6 @@ import (
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
@@ -35,10 +33,9 @@ import (
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/operator"
-	"github.com/aws/karpenter/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/operator"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
 var clusterName string
@@ -83,12 +80,6 @@ func main() {
 		op.SecurityGroupProvider,
 		op.SubnetProvider,
 	)
-	raw := &runtime.RawExtension{}
-	lo.Must0(raw.UnmarshalJSON(lo.Must(json.Marshal(&v1alpha1.AWS{
-		SubnetSelector: map[string]string{
-			"karpenter.sh/discovery": clusterName,
-		},
-	}))))
 	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, nil))
 
 	// Write the header information into the CSV

@@ -24,8 +24,8 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/zap"
 
-	"github.com/aws/karpenter/test/hack/resource/pkg/metrics"
-	"github.com/aws/karpenter/test/hack/resource/pkg/resourcetypes"
+	"github.com/aws/karpenter-provider-aws/test/hack/resource/pkg/metrics"
+	"github.com/aws/karpenter-provider-aws/test/hack/resource/pkg/resourcetypes"
 )
 
 const resourceCountTableName = "resourceCount"

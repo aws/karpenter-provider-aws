@@ -1,4 +1,4 @@
-module github.com/aws/karpenter/test/hack/resource
+module github.com/aws/karpenter-provider-aws/test/hack/resource
 
 go 1.21
 
