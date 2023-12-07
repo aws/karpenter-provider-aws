@@ -16,6 +16,7 @@ package nodeclass
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/samber/lo"
@@ -69,12 +70,14 @@ func NewSubnetSelectorTerms(subnetSelector map[string]string) (terms []v1beta1.S
 	// Each of these slices needs to be pre-populated with the "0" element so that we can properly generate permutations
 	ids := []string{""}
 	tagSet := []map[string]string{make(map[string]string)}
-	for k, v := range subnetSelector {
+	selectorTagKeys := lo.Keys(subnetSelector)
+	sort.Strings(selectorTagKeys)
+	for _, k := range selectorTagKeys {
 		switch k {
 		case "aws-ids", "aws::ids":
-			ids = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
+			ids = lo.Map(strings.Split(subnetSelector[k], ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
-			tagSet = createSelectorTags(k, v, tagSet)
+			tagSet = createSelectorTags(k, subnetSelector[k], tagSet)
 		}
 	}
 	// If there are some "special" keys used, we have to represent the old selector as multiple terms
@@ -96,12 +99,14 @@ func NewSecurityGroupSelectorTerms(securityGroupSelector map[string]string) (ter
 	// Each of these slices needs to be pre-populated with the "0" element so that we can properly generate permutations
 	ids := []string{""}
 	tagSet := []map[string]string{make(map[string]string)}
-	for k, v := range securityGroupSelector {
+	selectorTagKeys := lo.Keys(securityGroupSelector)
+	sort.Strings(selectorTagKeys)
+	for _, k := range selectorTagKeys {
 		switch k {
 		case "aws-ids", "aws::ids":
-			ids = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
+			ids = lo.Map(strings.Split(securityGroupSelector[k], ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
-			tagSet = createSelectorTags(k, v, tagSet)
+			tagSet = createSelectorTags(k, securityGroupSelector[k], tagSet)
 		}
 	}
 	// If there are some "special" keys used, we have to represent the old selector as multiple terms
@@ -125,16 +130,18 @@ func NewAMISelectorTerms(amiSelector map[string]string) (terms []v1beta1.AMISele
 	names := []string{""}
 	owners := []string{""}
 	tagSet := []map[string]string{make(map[string]string)}
-	for k, v := range amiSelector {
+	selectorTagKeys := lo.Keys(amiSelector)
+	sort.Strings(selectorTagKeys)
+	for _, k := range selectorTagKeys {
 		switch k {
 		case "aws-ids", "aws::ids":
-			ids = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
+			ids = lo.Map(strings.Split(amiSelector[k], ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		case "aws::name":
-			names = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
+			names = lo.Map(strings.Split(amiSelector[k], ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		case "aws::owners":
-			owners = lo.Map(strings.Split(v, ","), func(s string, _ int) string { return strings.Trim(s, " ") })
+			owners = lo.Map(strings.Split(amiSelector[k], ","), func(s string, _ int) string { return strings.Trim(s, " ") })
 		default:
-			tagSet = createSelectorTags(k, v, tagSet)
+			tagSet = createSelectorTags(k, amiSelector[k], tagSet)
 		}
 	}
 	// If there are some "special" keys used, we have to represent the old selector as multiple terms

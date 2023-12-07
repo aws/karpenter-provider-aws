@@ -1,0 +1,172 @@
+apiVersion: karpenter.k8s.aws/v1beta1
+kind: EC2NodeClass
+metadata:
+  name: default
+spec:
+  amiFamily: Bottlerocket
+  amiSelectorTerms:
+  - id: ami-123
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-1
+      test-key-2: test-value-4
+  - id: ami-123
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-2
+      test-key-2: test-value-4
+  - id: ami-123
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-3
+      test-key-2: test-value-4
+  - id: ami-123
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-1
+      test-key-2: test-value-5
+  - id: ami-123
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-2
+      test-key-2: test-value-5
+  - id: ami-123
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-3
+      test-key-2: test-value-5
+  - id: ami-456
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-1
+      test-key-2: test-value-4
+  - id: ami-456
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-2
+      test-key-2: test-value-4
+  - id: ami-456
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-3
+      test-key-2: test-value-4
+  - id: ami-456
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-1
+      test-key-2: test-value-5
+  - id: ami-456
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-2
+      test-key-2: test-value-5
+  - id: ami-456
+    name: test name
+    owner: self
+    tags:
+      test-key-1: test-value-3
+      test-key-2: test-value-5
+  - id: ami-123
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-1
+      test-key-2: test-value-4
+  - id: ami-123
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-2
+      test-key-2: test-value-4
+  - id: ami-123
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-3
+      test-key-2: test-value-4
+  - id: ami-123
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-1
+      test-key-2: test-value-5
+  - id: ami-123
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-2
+      test-key-2: test-value-5
+  - id: ami-123
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-3
+      test-key-2: test-value-5
+  - id: ami-456
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-1
+      test-key-2: test-value-4
+  - id: ami-456
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-2
+      test-key-2: test-value-4
+  - id: ami-456
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-3
+      test-key-2: test-value-4
+  - id: ami-456
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-1
+      test-key-2: test-value-5
+  - id: ami-456
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-2
+      test-key-2: test-value-5
+  - id: ami-456
+    name: test name
+    owner: amazon
+    tags:
+      test-key-1: test-value-3
+      test-key-2: test-value-5
+  blockDeviceMappings:
+  - deviceName: /dev/xvdb
+    ebs:
+      deleteOnTermination: true
+      volumeSize: 100Gi
+      volumeType: gp3
+  role: $KARPENTER_NODE_ROLE
+  securityGroupSelectorTerms:
+  - tags:
+      karpenter.sh/discovery: karpenter-demo
+  subnetSelectorTerms:
+  - tags:
+      karpenter.sh/discovery: karpenter-demo
+  tags:
+    MyBackupTag: "yes"
+    MyTag: "1234"
+  userData: |
+    [settings.kubernetes]
+    kube-api-qps = 30
+    [settings.kubernetes.eviction-hard]
+    "memory.available" = "10%"

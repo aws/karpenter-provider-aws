@@ -110,6 +110,11 @@ var _ = Describe("Convert", func() {
 			"./testdata/nodeclass_cdl_subnetSelectors_tags_output.yaml",
 			false,
 		),
+		Entry("nodetemplate (kubectl output) to nodeclass amiSelectors with CDL on tags",
+			"./testdata/nodetemplate_cdl_amiSelectors_tags.yaml",
+			"./testdata/nodeclass_cdl_amiSelectors_tags_output.yaml",
+			false,
+		),
 	)
 	It("should error when converting an AWSNodeTemplate with launchTemplateName", func() {
 		context.FilenameOptions.Filenames = []string{"./testdata/nodetemplate_launch_template_name.yaml"}
