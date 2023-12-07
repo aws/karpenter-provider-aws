@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"runtime"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -37,18 +38,22 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/patrickmn/go-cache"
+	"github.com/prometheus/client_golang/prometheus"
 	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
+	"knative.dev/pkg/changeset"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/metrics"
 	"sigs.k8s.io/karpenter/pkg/operator"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
@@ -66,9 +71,19 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 )
 
+var BuildInfo = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Namespace: metrics.Namespace,
+		Name:      "build_info",
+		Help:      "A metric with a constant '1' value labeled by version from which karpenter was built.",
+	},
+	[]string{"version", "goversion", "sha"})
+
 func init() {
 	lo.Must0(apis.AddToScheme(scheme.Scheme))
 	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	crmetrics.Registry.MustRegister(BuildInfo)
+	BuildInfo.WithLabelValues(operator.Version, runtime.Version(), changeset.Get()).Set(1)
 }
 
 // Operator is injected into the AWS CloudProvider's factories
