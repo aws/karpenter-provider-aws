@@ -325,6 +325,7 @@ Resources:
               - sqs:ReceiveMessage
               - pricing:GetProducts
               - eks:DescribeCluster
+              - eks-auth:AssumeRoleForPodIdentity
             Resource: "*"
           - Effect: Allow
             Action: iam:PassRole
