@@ -61,6 +61,15 @@ func (o *OIDC) GetExpired(ctx context.Context, expirationTime time.Time) (names 
 	return names, multierr.Combine(errs...)
 }
 
+func (o *OIDC) CountAll(ctx context.Context) (count int, err error) {
+	out, err := o.iamClient.ListOpenIDConnectProviders(ctx, &iam.ListOpenIDConnectProvidersInput{})
+	if err != nil {
+		return count, err
+	}
+
+	return len(out.OpenIDConnectProviderList), nil
+}
+
 func (o *OIDC) Get(ctx context.Context, clusterName string) (names []string, err error) {
 	return names, err
 }

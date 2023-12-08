@@ -70,14 +70,14 @@ func (m *Monitor) Reset() {
 
 // RestartCount returns the containers and number of restarts for that container for all containers in the pods in the
 // given namespace
-func (m *Monitor) RestartCount() map[string]int {
+func (m *Monitor) RestartCount(namespace string) map[string]int {
 	st := m.poll()
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	restarts := map[string]int{}
 	for _, pod := range st.pods.Items {
-		if pod.Namespace != "karpenter" {
+		if pod.Namespace != namespace {
 			continue
 		}
 		for _, cs := range pod.Status.ContainerStatuses {

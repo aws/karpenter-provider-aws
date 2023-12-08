@@ -33,12 +33,12 @@ runs:
         eksctl delete cluster --name ${{ inputs.cluster_name }} --timeout 60m --wait || true
     - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4
       with:
-        go-version-file: test/hack/cleanup/go.mod
-        cache-dependency-path: test/hack/cleanup/go.sum
+        go-version-file: test/hack/resource/go.mod
+        cache-dependency-path: test/hack/resource/go.sum
         check-latest: true
         cache: false
     - name: "Run cleanup script"
       run: |
         go run main.go ${{ inputs.cluster_name }}
-      working-directory: ./test/hack/cleanup
+      working-directory: ./test/hack/resource/clean
       shell: bash

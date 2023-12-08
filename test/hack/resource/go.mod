@@ -1,4 +1,4 @@
-module github.com/aws/karpenter/test/hack/cleanup
+module github.com/aws/karpenter/test/hack/resource
 
 go 1.21
 

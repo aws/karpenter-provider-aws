@@ -110,7 +110,7 @@ runs:
         serviceAccounts:
           - metadata:
               name: karpenter
-              namespace: karpenter
+              namespace: kube-system
             attachPolicyARNs:
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}"
             permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"

@@ -69,6 +69,7 @@ type LaunchTemplate struct {
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
+	EFACount            int
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -130,43 +131,29 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
-		maxPodsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) int {
-			return int(instanceType.Capacity.Pods().Value())
-		})
 		// In order to support reserved ENIs for CNI custom networking setups,
 		// we need to pass down the max-pods calculation to the kubelet.
 		// This requires that we resolve a unique launch template per max-pods value.
-		for maxPods, instanceTypes := range maxPodsToInstanceTypes {
-			kubeletConfig := &corev1beta1.KubeletConfiguration{}
-			if nodeClaim.Spec.Kubelet != nil {
-				if err := mergo.Merge(kubeletConfig, nodeClaim.Spec.Kubelet); err != nil {
-					return nil, err
-				}
-			}
-			if kubeletConfig.MaxPods == nil {
-				kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
-			}
-			resolved := &LaunchTemplate{
-				Options: options,
-				UserData: amiFamily.UserData(
-					r.defaultClusterDNS(options, kubeletConfig),
-					append(nodeClaim.Spec.Taints, nodeClaim.Spec.StartupTaints...),
-					options.Labels,
-					options.CABundle,
-					instanceTypes,
-					nodeClass.Spec.UserData,
+		// Similarly, instance types configured with EfAs require unique launch templates depending on the number of
+		// EFAs they support.
+		type launchTemplateParams struct {
+			efaCount int
+			maxPods  int
+		}
+		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) launchTemplateParams {
+			return launchTemplateParams{
+				efaCount: lo.Ternary(
+					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1beta1.ResourceEFA),
+					int(lo.ToPtr(instanceType.Capacity[v1beta1.ResourceEFA]).Value()),
+					0,
 				),
-				BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
-				MetadataOptions:     nodeClass.Spec.MetadataOptions,
-				DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
-				AMIID:               amiID,
-				InstanceTypes:       instanceTypes,
+				maxPods: int(instanceType.Capacity.Pods().Value()),
 			}
-			if len(resolved.BlockDeviceMappings) == 0 {
-				resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
-			}
-			if resolved.MetadataOptions == nil {
-				resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
+		})
+		for params, instanceTypes := range paramsToInstanceTypes {
+			resolved, err := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, amiFamily, amiID, params.maxPods, params.efaCount, options)
+			if err != nil {
+				return nil, err
 			}
 			resolvedTemplates = append(resolvedTemplates, resolved)
 		}
@@ -215,4 +202,41 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.Ku
 	newKubeletConfig := kubeletConfig.DeepCopy()
 	newKubeletConfig.ClusterDNS = []string{opts.KubeDNSIP.String()}
 	return newKubeletConfig
+}
+
+func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType,
+	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) (*LaunchTemplate, error) {
+	kubeletConfig := &corev1beta1.KubeletConfiguration{}
+	if nodeClaim.Spec.Kubelet != nil {
+		if err := mergo.Merge(kubeletConfig, nodeClaim.Spec.Kubelet); err != nil {
+			return nil, err
+		}
+	}
+	if kubeletConfig.MaxPods == nil {
+		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
+	}
+	resolved := &LaunchTemplate{
+		Options: options,
+		UserData: amiFamily.UserData(
+			r.defaultClusterDNS(options, kubeletConfig),
+			append(nodeClaim.Spec.Taints, nodeClaim.Spec.StartupTaints...),
+			options.Labels,
+			options.CABundle,
+			instanceTypes,
+			nodeClass.Spec.UserData,
+		),
+		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
+		MetadataOptions:     nodeClass.Spec.MetadataOptions,
+		DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
+		AMIID:               amiID,
+		InstanceTypes:       instanceTypes,
+		EFACount:            efaCount,
+	}
+	if len(resolved.BlockDeviceMappings) == 0 {
+		resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
+	}
+	if resolved.MetadataOptions == nil {
+		resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
+	}
+	return resolved, nil
 }
