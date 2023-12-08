@@ -48,32 +48,32 @@ spec:
                   properties:
                     budgets:
                       default:
-                        - maxUnavailable: 10%
-                      description: Budgets is a list of Budgets. If there are multiple active budgets, Karpenter uses the most restrictive maxUnavailable. If left undefined, this will default to one budget with a maxUnavailable to 10%.
+                        - nodes: 10%
+                      description: Budgets is a list of Budgets. If there are multiple active budgets, Karpenter uses the most restrictive value. If left undefined, this will default to one budget with a value to 10%.
                       items:
                         description: Budget defines when Karpenter will restrict the number of Node Claims that can be terminating simultaneously.
                         properties:
-                          crontab:
-                            description: Crontab specifies when a budget begins being active, using the upstream cronjob syntax. If omitted, the budget is always active. Currently timezones are not supported. This is required if Duration is set.
-                            pattern: ^(@(annually|yearly|monthly|weekly|daily|midnight|hourly))|((.+)\s(.+)\s(.+)\s(.+)\s(.+))$
-                            type: string
                           duration:
-                            description: Duration determines how long a Budget is active since each Crontab hit. Only minutes and hours are accepted, as cron does not work in seconds. If omitted, the budget is always active. This is required if Crontab is set. This regex has an optional 0s at the end since the duration.String() always adds a 0s at the end.
+                            description: Duration determines how long a Budget is active since each Schedule hit. Only minutes and hours are accepted, as cron does not work in seconds. If omitted, the budget is always active. This is required if Schedule is set. This regex has an optional 0s at the end since the duration.String() always adds a 0s at the end.
                             pattern: ^([0-9]+(m|h)+(0s)?)$
                             type: string
-                          maxUnavailable:
+                          nodes:
                             default: 10%
-                            description: 'MaxUnavailable dictates how many NodeClaims owned by this NodePool can be terminating at once. It must be set. This only considers NodeClaims with the karpenter.sh/disruption taint. We can''t use an intstr.IntOrString since kubebuilder doesn''t support pattern checking for int values for IntOrString values. Ref: https://github.com/kubernetes-sigs/controller-tools/blob/55efe4be40394a288216dab63156b0a64fb82929/pkg/crd/markers/validation.go#L379-L388'
+                            description: 'Nodes dictates how many NodeClaims owned by this NodePool can be terminating at once. It must be set. This only considers NodeClaims with the karpenter.sh/disruption taint. We can''t use an intstr.IntOrString since kubebuilder doesn''t support pattern checking for int nodes for IntOrString nodes. Ref: https://github.com/kubernetes-sigs/controller-tools/blob/55efe4be40394a288216dab63156b0a64fb82929/pkg/crd/markers/validation.go#L379-L388'
                             pattern: ^((100|[0-9]{1,2})%|[0-9]+)$
                             type: string
+                          schedule:
+                            description: Schedule specifies when a budget begins being active, using the upstream cronjob syntax. If omitted, the budget is always active. Currently timezones are not supported. This is required if Duration is set.
+                            pattern: ^(@(annually|yearly|monthly|weekly|daily|midnight|hourly))|((.+)\s(.+)\s(.+)\s(.+)\s(.+))$
+                            type: string
                         required:
-                          - maxUnavailable
+                          - nodes
                         type: object
                       maxItems: 50
                       type: array
                       x-kubernetes-validations:
-                        - message: '''crontab'' must be set with ''duration'''
-                          rule: '!self.all(x, (has(x.crontab) && !has(x.duration)) || (!has(x.crontab) && has(x.duration)))'
+                        - message: '''schedule'' must be set with ''duration'''
+                          rule: '!self.all(x, (has(x.schedule) && !has(x.duration)) || (!has(x.schedule) && has(x.duration)))'
                     consolidateAfter:
                       description: ConsolidateAfter is the duration the controller will wait before attempting to terminate nodes that are underutilized. Refer to ConsolidationPolicy for how underutilization is considered.
                       pattern: ^(([0-9]+(s|m|h))+)|(Never)$
