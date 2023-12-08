@@ -15,7 +15,6 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.1.0
 	github.com/prometheus/client_golang v1.17.0
-	github.com/prometheus/client_model v0.5.0
 	github.com/samber/lo v1.39.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.26.0
@@ -28,7 +27,7 @@ require (
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.16.3
-	sigs.k8s.io/karpenter v0.33.1-0.20231207192330-58e1d7552081
+	sigs.k8s.io/karpenter v0.33.1-0.20231208060535-cc54b340f630
 )
 
 require (
@@ -80,6 +79,7 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/olekukonko/tablewriter v0.0.5 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/prometheus/client_model v0.5.0 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
 	github.com/prometheus/procfs v0.12.0 // indirect
 	github.com/prometheus/statsd_exporter v0.24.0 // indirect
