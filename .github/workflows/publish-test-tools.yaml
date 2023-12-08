@@ -1,5 +1,6 @@
 name: PublishTestTools
 on:
+workflow_dispatch:
   push:
     branches:
       - 'main'
@@ -13,7 +14,7 @@ jobs:
   publish-tools:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-    if: github.repository == 'aws/karpenter'
+    if: github.repository == 'aman0408/karpenter'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
@@ -26,3 +27,7 @@ jobs:
           aws-region: ${{ vars.ECR_REGION }}
       - run: ./push-docker.sh
         working-directory: ./test
+        env:	
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}	
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}	
+          DOCKER_REPOSITORY: ${{ vars.DOCKER_REPOSITORY }}
