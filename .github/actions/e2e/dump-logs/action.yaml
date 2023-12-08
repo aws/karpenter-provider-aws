@@ -22,20 +22,19 @@ runs:
         role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
         aws-region: ${{ inputs.region }}
         role-duration-seconds: 21600
+    - name: update cluster context
+      shell: bash
+      run: |
+        aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
     - name: controller-logs
       shell: bash
       run: |
-        aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
-        POD_NAME=$(kubectl get pods -n kube-system --no-headers -o custom-columns=":metadata.name" | tail -n 1)
-        echo "logs from pod ${POD_NAME}"
-        kubectl logs "${POD_NAME}" -n kube-system -c controller
-    - name: describe-karpenter-pods
+        kubectl logs -n kube-system -l app.kubernetes.io/name=karpenter --all-containers --ignore-errors
+    - name: describe karpenter pods
       shell: bash
       run: |
-        aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
-        kubectl describe pods -n kube-system
-    - name: describe-nodes
+        kubectl describe pods -n kube-system -l app.kubernetes.io/name=karpenter
+    - name: describe nodes
       shell: bash
       run: |
-        aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
         kubectl describe nodes
