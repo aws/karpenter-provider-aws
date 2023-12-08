@@ -22,14 +22,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/samber/lo"
 
+	prometheusmodel "github.com/prometheus/client_model/go"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	awscontext "github.com/aws/karpenter-provider-aws/pkg/operator"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
-
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
-	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -101,5 +102,14 @@ var _ = Describe("Operator", func() {
 
 		_, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).To(HaveOccurred())
+	})
+	It("should fire a metric with the build_info", func() {
+		m, found := FindMetricWithLabelValues("karpenter_build_info", map[string]string{})
+		Expect(found).To(BeTrue())
+
+		for _, label := range []string{"version", "goversion", "commit"} {
+			_, ok := lo.Find(m.GetLabel(), func(l *prometheusmodel.LabelPair) bool { return lo.FromPtr(l.Name) == label })
+			Expect(ok).To(BeTrue())
+		}
 	})
 })

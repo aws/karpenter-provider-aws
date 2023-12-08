@@ -34,7 +34,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:afa0d0fd5ac375859dc3d239ec992f197cdf01f6c8e3413e3845a43c2434621e"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:5e5f59f74d86ff7f13d7d80b89afff8c661cb4e3265f2fdda95b76dd9c838cc1"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
 | controller.image.tag | string | `"v0.33.0"` | Tag of the controller image. |
 | controller.metrics.port | int | `8000` | The container port to use for metrics. |

@@ -77,7 +77,7 @@ var BuildInfo = prometheus.NewGaugeVec(
 		Name:      "build_info",
 		Help:      "A metric with a constant '1' value labeled by version from which karpenter was built.",
 	},
-	[]string{"version", "goversion", "sha"})
+	[]string{"version", "goversion", "commit"})
 
 func init() {
 	lo.Must0(apis.AddToScheme(scheme.Scheme))
