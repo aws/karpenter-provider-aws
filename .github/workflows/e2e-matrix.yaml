@@ -83,9 +83,9 @@ jobs:
       statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      # This version matches the updated create-cluster action, which is now setup-cluster 
-      # https://github.com/aws/karpenter/pull/5203/files
-      from_git_ref: 4d5fbcd2059593e613e92f2f0ede22160fc2a1e3
+      # This version matches the version switch between IRSA -> Pod Identity 
+      # https://github.com/aws/karpenter-provider-aws/pull/5262
+      from_git_ref: 8f500c23be18aa5cb8089a83c43e763303faa9ac
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
