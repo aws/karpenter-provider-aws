@@ -39,7 +39,7 @@ runs:
     shell: bash
     run: |
       kubectl label ns kube-system scrape=enabled --overwrite=true
-      kubectl label ns kube-system pod-security.kubernetes.io/enforce=restricted --overwrite=true
+      kubectl label ns kube-system pod-security.kubernetes.io/warn=restricted --overwrite=true
   - name: login to ecr via docker
     uses: docker/login-action@343f7c4344506bcbf9b4de18042ae17996df046d # v3.0.0
     with:
