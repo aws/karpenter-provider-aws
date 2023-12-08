@@ -44,7 +44,6 @@ runs:
           -f ./.github/actions/e2e/install-prometheus/values.yaml \
           --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.${{ inputs.region }}.amazonaws.com/workspaces/${{ inputs.workspace_id }}/api/v1/remote_write \
           --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=${{ inputs.region }} \
-          --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::${{ inputs.account_id }}:role/prometheus-irsa-${{ inputs.cluster_name }}" \
           --set "kubelet.serviceMonitor.cAdvisorRelabelings[0].targetLabel=metrics_path" \
           --set "kubelet.serviceMonitor.cAdvisorRelabelings[0].action=replace" \
           --set "kubelet.serviceMonitor.cAdvisorRelabelings[0].sourceLabels[0]=__metrics_path__" \

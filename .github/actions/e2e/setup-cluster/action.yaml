@@ -137,6 +137,9 @@ runs:
           ebsCSIController: true
       - name: eks-pod-identity-agent
         permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        configurationValues: |
+          tolerations:
+            - operator: Exists
       EOF
 
       if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
