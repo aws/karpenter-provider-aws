@@ -47,23 +47,28 @@ runs:
       logout: true
   - name: install-karpenter
     shell: bash
+    env:
+      ECR_ACCOUNT_ID: ${{ inputs.ecr_account_id }}
+      ECR_REGION: ${{ inputs.ecr_region }}
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
+      K8S_VERSION: ${{ inputs.k8s_version }}
     run: |
-      aws eks update-kubeconfig --name "${{ inputs.cluster_name }}"
+      aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
       # Parse minor version to determine whether to enable the webhooks
-      VERSION=${{ inputs.k8s_version }}
-      RELEASE_VERSION_MINOR="${VERSION#*.}"
+      RELEASE_VERSION_MINOR="${K8S_VERSION#*.}"
       WEBHOOK_ENABLED=false
       if (( RELEASE_VRESION_MINOR < 25 )); then
         WEBHOOK_ENABLED=true
       fi
 
-      helm upgrade --install karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
+      helm upgrade --install karpenter "oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter" \
         -n kube-system \
         --version "v0-$(git rev-parse HEAD)" \
         --set webhook.enabled=${WEBHOOK_ENABLED} \
-        --set settings.clusterName="${{ inputs.cluster_name }}" \
-        --set settings.interruptionQueue="${{ inputs.cluster_name }}" \
+        --set settings.clusterName="$CLUSTER_NAME" \
+        --set settings.interruptionQueue="$CLUSTER_NAME" \
         --set controller.resources.requests.cpu=3 \
         --set controller.resources.requests.memory=3Gi \
         --set controller.resources.limits.cpu=3 \
@@ -71,7 +76,7 @@ runs:
         --set serviceMonitor.enabled=true \
         --set serviceMonitor.additionalLabels.scrape=enabled \
         --set "serviceMonitor.endpointConfig.relabelings[0].targetLabel=clusterName" \
-        --set "serviceMonitor.endpointConfig.relabelings[0].replacement=${{ inputs.cluster_name }}" \
+        --set "serviceMonitor.endpointConfig.relabelings[0].replacement=$CLUSTER_NAME" \
         --set "serviceMonitor.endpointConfig.relabelings[1].targetLabel=gitRef" \
         --set "serviceMonitor.endpointConfig.relabelings[1].replacement=$(git rev-parse HEAD)" \
         --set "serviceMonitor.endpointConfig.relabelings[2].targetLabel=mostRecentTag" \
@@ -81,8 +86,11 @@ runs:
         --wait
   - name: diff-karpenter
     shell: bash
+    env:
+      ECR_ACCOUNT_ID: ${{ inputs.ecr_account_id }}
+      ECR_REGION: ${{ inputs.ecr_region }}
     run: |
       helm diff upgrade --namespace kube-system \
-        karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
+        karpenter oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter \
         --version v0-$(git rev-parse HEAD) \
         --reuse-values --three-way-merge --detailed-exitcode

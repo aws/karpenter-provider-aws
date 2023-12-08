@@ -12,10 +12,15 @@ jobs:
           fetch-depth: 0
       - name: Save info about the review comment as an artifact for other workflows that run on workflow_run to download them
         env:
+          # We store these values in environment variables to avoid bash script injection
+          # Specifically, it's important that we do this for github.event.review.body since this is user-controller input
+          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions
           REVIEW_BODY: ${{ github.event.review.body }}
+          PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+          COMMIT_ID: ${{ github.event.review.commit_id }}
         run: |
           mkdir -p /tmp/artifacts
-          { echo "$REVIEW_BODY"; echo ${{ github.event.pull_request.number }}; echo ${{ github.event.review.commit_id }}; } >> /tmp/artifacts/metadata.txt
+          { echo "$REVIEW_BODY"; echo "$PULL_REQUEST_NUMBER"; echo "$COMMIT_ID"; } >> /tmp/artifacts/metadata.txt
           cat /tmp/artifacts/metadata.txt
       - uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3
         with:
