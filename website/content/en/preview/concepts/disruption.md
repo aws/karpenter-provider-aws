@@ -148,6 +148,7 @@ __Behavioral Fields__
 
 Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
 
+#### Enabling Drift
 To enable the drift feature flag, refer to the [Feature Gates]({{<ref "../reference/settings#feature-gates" >}}).
 
 Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim is drifted from its owning NodePool. Karpenter will also remove the `Drifted` status condition if either:
