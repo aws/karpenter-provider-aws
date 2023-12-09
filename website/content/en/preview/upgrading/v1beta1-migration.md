@@ -109,7 +109,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
     go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@release-v0.32.x
     ```
 
-8. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [`karpenter-convert`](https://github.com/aws/karpenter/tree/release-v0.32.x/tools/karpenter-convert) CLI tool. See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-migration#awsnodetemplate-to-ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects.
+8. Convert each AWSNodeTemplate to an EC2NodeClass. To convert your v1alpha Karpenter manifests to v1beta1, you can either manually apply changes to API components or use the [`karpenter-convert`](https://github.com/aws/karpenter/tree/release-v0.32.x/tools/karpenter-convert) CLI tool. See the [AWSNodeTemplate to EC2NodeClass]({{< relref "v1beta1-migration#awsnodetemplate---ec2nodeclass" >}}) section of the Karpenter Upgrade Reference for details on how to update to Karpenter AWSNodeTemplate objects.
 
    For each EC2NodeClass, specify the `$KARPENTER_NODE_ROLE` you will use for nodes launched with this node class. Karpenter v1beta1 [drops the need for managing your own instance profile and uses node roles directly]({{< ref "v1beta1-migration#instanceprofile" >}}). The example below shows how to migrate your AWSNodeTemplate to an EC2NodeClass if your node role is the same role that was used when creating your cluster with the [Getting Started Guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}).
 
