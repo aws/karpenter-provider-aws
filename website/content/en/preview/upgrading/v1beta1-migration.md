@@ -142,7 +142,7 @@ The [`karpenter-convert`](https://github.com/aws/karpenter/tree/release-v0.32.x/
 
 12. Roll over nodes: With the new NodePool yaml in hand, there are several ways you can begin to roll over your nodes to use the new NodePool:
 
-    1. Periodic Rolling with [Drift]({{< relref "../concepts/disruption#drift" >}}): Enable [drift]({{< relref "../concepts/disruption#enabling-drift" >}}) in Karpenter, then do the following:
+    1. Periodic Rolling with [Drift]({{< relref "../concepts/disruption#drift" >}}): Enable [drift]({{< relref "../reference/settings/#feature-gates" >}}) in Karpenter, then do the following:
        - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
        - Wait as Karpenter marks all machines owned by that Provisioner as having drifted.
        - Watch as replacement nodes are launched from the new NodePool resource.
