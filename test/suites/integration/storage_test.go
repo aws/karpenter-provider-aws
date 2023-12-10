@@ -209,7 +209,7 @@ var _ = Describe("Persistent Volumes", func() {
 })
 
 var _ = Describe("Ephemeral Storage", func() {
-	It("should run a pod with mounted ephemeral storage that exceeds EBS root block device mappings on AL2", func() {
+	It("should run a pod with instance-store ephemeral storage that exceeds EBS root block device mappings", func() {
 		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
 
 		pod := test.Pod(test.PodOptions{

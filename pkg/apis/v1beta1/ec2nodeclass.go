@@ -85,7 +85,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=50
 	// +optional
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
-	// InstanceStorePolicy describes how to format and mount instance store disks.
+	// InstanceStorePolicy specifies how to handle instance-store disks.
 	// +optional
 	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
@@ -299,15 +299,14 @@ type BlockDevice struct {
 }
 
 // InstanceStorePolicy enumerates options for configuring instance store disks.
-// See: https://github.com/awslabs/amazon-eks-ami/blob/master/doc/USER_GUIDE.md
 // +kubebuilder:validation:Enum={RAID0}
 type InstanceStorePolicy string
 
 const (
 	// InstanceStorePolicyRAID0 configures a RAID-0 array that includes all ephemeral NVMe instance storage disks.
-	// The containerd and kubelet state directories (`/var/lib/containerd` and `/var/lib/kubelet`)
-	// will then use the ephemeral storage for more and faster node ephemeral-storage. The node's ephemeral
-	// storage can be shared among pods that request ephemeral storage and container images that are downloaded to the node.
+	// The containerd and kubelet state directories (`/var/lib/containerd` and `/var/lib/kubelet`) will then use the
+	// ephemeral storage for more and faster node ephemeral-storage. The node's ephemeral storage can be shared among
+	// pods that request ephemeral storage and container images that are downloaded to the node.
 	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
 )
 
