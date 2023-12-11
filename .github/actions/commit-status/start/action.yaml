@@ -25,5 +25,5 @@ runs:
             context: process.env.NAME,
             sha: process.env.SHA,
             state: "pending",
-            target_url: "https://github.com/" + process.env.REPO + "/actions/runs/" + process.env.RUN_ID,
+            target_url: `https://github.com/${process.env.REPO}/actions/runs/${process.env.RUN_ID}`,
           });
