@@ -25,7 +25,7 @@ iam:
     permissionPolicyARNs:
     - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
 
-## Optionally run on fargate
+## Optionally run on fargate or on k8s 1.23
 # Pod Identity is not available on fargate  
 # https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html
 # iam:
