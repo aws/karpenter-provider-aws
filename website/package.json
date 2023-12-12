@@ -6,7 +6,7 @@
     "autoprefixer": "^10.4.16",
     "postcss": "^8.4.32",
     "postcss-cli": "^11.0.0",
-    "hugo-extended": "0.121.0"
+    "hugo-extended": "0.121.1"
   },
 
   "scripts": {
