@@ -548,15 +548,18 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
-		It("should pack pods if the sum of pod ephemeral-storage and overhead exceeds node capacity and instance storage is mounted", func() {
+		It("should pack pods if the pod's ephemeral-storage exceeds node capacity and instance storage is mounted", func() {
 			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
 				Requests: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceEphemeralStorage: resource.MustParse("19Gi"),
+					// Default node ephemeral-storage capacity is 20Gi
+					v1.ResourceEphemeralStorage: resource.MustParse("5000Gi"),
 				}}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("m6idn.32xlarge"))
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("7600G")))
 		})
 		It("should launch multiple nodes if sum of pod ephemeral-storage requests exceeds a single nodes capacity", func() {
 			var nodes []*v1.Node
@@ -1086,6 +1089,15 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(v1.LabelNamespaceNodeRestriction)
+		})
+		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--local-disks raid0")
 		})
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
