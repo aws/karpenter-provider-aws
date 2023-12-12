@@ -16,9 +16,10 @@ limitations under the License.
 
 package pricing
 
-// generated at 2023-09-18T13:06:44Z for us-east-1
+// generated at 2023-12-11T13:07:33Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
+	// us-east-1
 	"us-east-1": {
 		// a1 family
 		"a1.2xlarge": 0.204000, "a1.4xlarge": 0.408000, "a1.large": 0.051000, "a1.medium": 0.025500,
@@ -75,6 +76,10 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"c6in.12xlarge": 2.721600, "c6in.16xlarge": 3.628800, "c6in.24xlarge": 5.443200, "c6in.2xlarge": 0.453600,
 		"c6in.32xlarge": 7.257600, "c6in.4xlarge": 0.907200, "c6in.8xlarge": 1.814400, "c6in.large": 0.113400,
 		"c6in.metal": 7.257600, "c6in.xlarge": 0.226800,
+		// c7a family
+		"c7a.12xlarge": 2.463360, "c7a.16xlarge": 3.284480, "c7a.24xlarge": 4.926720, "c7a.2xlarge": 0.410560,
+		"c7a.32xlarge": 6.568960, "c7a.48xlarge": 9.853440, "c7a.4xlarge": 0.821120, "c7a.8xlarge": 1.642240,
+		"c7a.large": 0.102640, "c7a.medium": 0.051320, "c7a.metal-48xl": 9.853440, "c7a.xlarge": 0.205280,
 		// c7g family
 		"c7g.12xlarge": 1.740000, "c7g.16xlarge": 2.320000, "c7g.2xlarge": 0.290000, "c7g.4xlarge": 0.580000,
 		"c7g.8xlarge": 1.160000, "c7g.large": 0.072500, "c7g.medium": 0.036300, "c7g.metal": 2.320000,
@@ -88,7 +93,7 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		// c7i family
 		"c7i.12xlarge": 2.142000, "c7i.16xlarge": 2.856000, "c7i.24xlarge": 4.284000, "c7i.2xlarge": 0.357000,
 		"c7i.48xlarge": 8.568000, "c7i.4xlarge": 0.714000, "c7i.8xlarge": 1.428000, "c7i.large": 0.089250,
-		"c7i.xlarge": 0.178500,
+		"c7i.metal-24xl": 4.712400, "c7i.metal-48xl": 8.568000, "c7i.xlarge": 0.178500,
 		// cr1 family
 		"cr1.8xlarge": 3.500000,
 		// d2 family
@@ -136,8 +141,9 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"i4g.16xlarge": 4.942080, "i4g.2xlarge": 0.617760, "i4g.4xlarge": 1.235520, "i4g.8xlarge": 2.471040,
 		"i4g.large": 0.154440, "i4g.xlarge": 0.308880,
 		// i4i family
-		"i4i.16xlarge": 5.491000, "i4i.2xlarge": 0.686000, "i4i.32xlarge": 10.982400, "i4i.4xlarge": 1.373000,
-		"i4i.8xlarge": 2.746000, "i4i.large": 0.172000, "i4i.metal": 10.982000, "i4i.xlarge": 0.343000,
+		"i4i.12xlarge": 4.118000, "i4i.16xlarge": 5.491000, "i4i.24xlarge": 8.236800, "i4i.2xlarge": 0.686000,
+		"i4i.32xlarge": 10.982400, "i4i.4xlarge": 1.373000, "i4i.8xlarge": 2.746000, "i4i.large": 0.172000,
+		"i4i.metal": 10.982000, "i4i.xlarge": 0.343000,
 		// im4gn family
 		"im4gn.16xlarge": 5.820670, "im4gn.2xlarge": 0.727580, "im4gn.4xlarge": 1.455170, "im4gn.8xlarge": 2.910340,
 		"im4gn.large": 0.181900, "im4gn.xlarge": 0.363790,
@@ -227,7 +233,7 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		// m7i family
 		"m7i.12xlarge": 2.419200, "m7i.16xlarge": 3.225600, "m7i.24xlarge": 4.838400, "m7i.2xlarge": 0.403200,
 		"m7i.48xlarge": 9.676800, "m7i.4xlarge": 0.806400, "m7i.8xlarge": 1.612800, "m7i.large": 0.100800,
-		"m7i.xlarge": 0.201600,
+		"m7i.metal-24xl": 5.322240, "m7i.metal-48xl": 9.676800, "m7i.xlarge": 0.201600,
 		// p2 family
 		"p2.16xlarge": 14.400000, "p2.8xlarge": 7.200000, "p2.xlarge": 0.900000,
 		// p3 family
@@ -303,7 +309,7 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		// r7a family
 		"r7a.12xlarge": 3.651600, "r7a.16xlarge": 4.868800, "r7a.24xlarge": 7.303200, "r7a.2xlarge": 0.608600,
 		"r7a.32xlarge": 9.737600, "r7a.48xlarge": 14.606400, "r7a.4xlarge": 1.217200, "r7a.8xlarge": 2.434400,
-		"r7a.large": 0.152150, "r7a.medium": 0.076080, "r7a.xlarge": 0.304300,
+		"r7a.large": 0.152150, "r7a.medium": 0.076080, "r7a.metal-48xl": 14.606400, "r7a.xlarge": 0.304300,
 		// r7g family
 		"r7g.12xlarge": 2.570400, "r7g.16xlarge": 3.427200, "r7g.2xlarge": 0.428400, "r7g.4xlarge": 0.856800,
 		"r7g.8xlarge": 1.713600, "r7g.large": 0.107100, "r7g.medium": 0.053600, "r7g.metal": 3.427200,
@@ -311,9 +317,14 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		// r7gd family
 		"r7gd.12xlarge": 3.265900, "r7gd.16xlarge": 4.354600, "r7gd.2xlarge": 0.544300, "r7gd.4xlarge": 1.088600,
 		"r7gd.8xlarge": 2.177300, "r7gd.large": 0.136100, "r7gd.medium": 0.068000, "r7gd.xlarge": 0.272200,
+		// r7i family
+		"r7i.12xlarge": 3.175200, "r7i.16xlarge": 4.233600, "r7i.24xlarge": 6.350400, "r7i.2xlarge": 0.529200,
+		"r7i.48xlarge": 12.700800, "r7i.4xlarge": 1.058400, "r7i.8xlarge": 2.116800, "r7i.large": 0.132300,
+		"r7i.metal-24xl": 6.985440, "r7i.metal-48xl": 12.700800, "r7i.xlarge": 0.264600,
 		// r7iz family
 		"r7iz.12xlarge": 4.464000, "r7iz.16xlarge": 5.952000, "r7iz.2xlarge": 0.744000, "r7iz.32xlarge": 11.904000,
-		"r7iz.4xlarge": 1.488000, "r7iz.8xlarge": 2.976000, "r7iz.large": 0.186000, "r7iz.xlarge": 0.372000,
+		"r7iz.4xlarge": 1.488000, "r7iz.8xlarge": 2.976000, "r7iz.large": 0.186000, "r7iz.metal-16xl": 6.547200,
+		"r7iz.metal-32xl": 13.094400, "r7iz.xlarge": 0.372000,
 		// t1 family
 		"t1.micro": 0.020000,
 		// t2 family
