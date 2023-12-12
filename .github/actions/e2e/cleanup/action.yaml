@@ -39,6 +39,6 @@ runs:
         cache: false
     - name: "Run cleanup script"
       run: |
-        go run main.go ${{ inputs.cluster_name }}
+        go run main.go --cluster-name ${{ inputs.cluster_name }}
       working-directory: ./test/hack/resource/clean
       shell: bash

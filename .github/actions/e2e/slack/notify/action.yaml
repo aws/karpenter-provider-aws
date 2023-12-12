@@ -1,6 +1,9 @@
 name: SlackNotify
 description: 'Notifies slack of the success or failure of the suite'
 inputs:
+  cluster_name:
+    description: "Name of the cluster"
+    required: false
   suite:
     description: "Suite that's running"
     required: true
@@ -18,8 +21,10 @@ runs:
     - id: get-run-name
       shell: bash
       run: |
-        if [[ ${{ github.event_name }} == "schedule" ]]; then
+        if [[ ${{ github.event_name }} == "schedule" && inputs.suite != "soak" ]]; then
           RUN_NAME="${{ inputs.suite }}-periodic"
+        elif [[ ${{ github.event_name }} == "schedule" ]]; then
+          RUN_NAME="soak-periodic"
         else
           RUN_NAME="${{ inputs.suite }}-${GITHUB_SHA::7}"
         fi

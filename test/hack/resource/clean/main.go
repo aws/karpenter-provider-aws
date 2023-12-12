@@ -16,8 +16,8 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -31,19 +31,22 @@ import (
 	"github.com/aws/karpenter-provider-aws/test/hack/resource/pkg/resourcetypes"
 )
 
-const expirationTTL = time.Hour * 12
 const sweeperCleanedResourcesTableName = "sweeperCleanedResources"
 
 func main() {
-	var clusterName string
-	if len(os.Args) == 2 {
-		clusterName = os.Args[1]
-	}
+	expiration := flag.String("expiration", "12h", "define the expirationTTL of the resources")
+	clusterName := flag.String("cluster-name", "", "define cluster name to cleanup")
+	flag.Parse()
+
 	ctx := context.Background()
 	cfg := lo.Must(config.LoadDefaultConfig(ctx))
 
 	logger := lo.Must(zap.NewProduction()).Sugar()
 
+	expirationTTL, err := time.ParseDuration(lo.FromPtr(expiration))
+	if err != nil {
+		logger.Fatalln("need a valid expiration duration", err)
+	}
 	expirationTime := time.Now().Add(-expirationTTL)
 
 	logger.With("expiration-time", expirationTime.String()).Infof("resolved expiration time for all resourceTypes")
@@ -73,10 +76,11 @@ func main() {
 		resourceLogger := logger.With("type", resourceTypes[i].String())
 		var ids []string
 		var err error
-		if clusterName == "" {
+		// If there's no cluster defined, clean up all expired resources. otherwise, only cleanup the resources associated with the cluster
+		if lo.FromPtr(clusterName) == "" {
 			ids, err = resourceTypes[i].GetExpired(ctx, expirationTime)
 		} else {
-			ids, err = resourceTypes[i].Get(ctx, clusterName)
+			ids, err = resourceTypes[i].Get(ctx, lo.FromPtr(clusterName))
 		}
 		if err != nil {
 			resourceLogger.Errorf("%v", err)
@@ -88,7 +92,7 @@ func main() {
 				resourceLogger.Errorf("%v", err)
 			}
 			// Should only fire metrics if the resource have expired
-			if clusterName == "" {
+			if lo.FromPtr(clusterName) == "" {
 				if err = metricsClient.FireMetric(ctx, sweeperCleanedResourcesTableName, fmt.Sprintf("%sDeleted", resourceTypes[i].String()), float64(len(cleaned)), lo.Ternary(resourceTypes[i].Global(), "global", cfg.Region)); err != nil {
 					resourceLogger.Errorf("%v", err)
 				}

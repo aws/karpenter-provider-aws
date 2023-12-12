@@ -130,6 +130,7 @@ jobs:
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'
         with:
+          cluster_name:  ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: Upgrade
           git_ref: ${{ inputs.to_git_ref }}
