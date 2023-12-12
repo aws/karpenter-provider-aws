@@ -27,8 +27,9 @@ import (
 	"net/textproto"
 	"strings"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/samber/lo"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 type EKS struct {

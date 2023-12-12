@@ -24,9 +24,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
