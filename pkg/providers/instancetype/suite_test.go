@@ -700,6 +700,19 @@ var _ = Describe("InstanceTypes", func() {
 			Expect(aws.Float64Value(value)).To(BeNumerically(">", 0))
 		}
 	})
+	It("should launch instances in local zones", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			NodeRequirements: []v1.NodeSelectorRequirement{{
+				Key:      v1.LabelTopologyZone,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"test-zone-1a-local"},
+			}},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+
+	})
 
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo

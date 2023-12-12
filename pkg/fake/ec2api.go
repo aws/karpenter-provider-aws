@@ -423,6 +423,15 @@ func (e *EC2API) DescribeSubnetsWithContext(_ context.Context, input *ec2.Descri
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
+		{
+			SubnetId:                aws.String("subnet-test4"),
+			AvailabilityZone:        aws.String("test-zone-1a-local"),
+			AvailableIpAddressCount: aws.Int64(100),
+			MapPublicIpOnLaunch:     aws.Bool(true),
+			Tags: []*ec2.Tag{
+				{Key: aws.String("Name"), Value: aws.String("test-subnet-4")},
+			},
+		},
 	}
 	if len(input.Filters) == 0 {
 		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
@@ -485,6 +494,7 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 		{ZoneName: aws.String("test-zone-1a"), ZoneId: aws.String("testzone1a"), ZoneType: aws.String("availability-zone")},
 		{ZoneName: aws.String("test-zone-1b"), ZoneId: aws.String("testzone1b"), ZoneType: aws.String("availability-zone")},
 		{ZoneName: aws.String("test-zone-1c"), ZoneId: aws.String("testzone1c"), ZoneType: aws.String("availability-zone")},
+		{ZoneName: aws.String("test-zone-1a-local"), ZoneId: aws.String("testzone1alocal"), ZoneType: aws.String("local-zone")},
 	}}, nil
 }
 
@@ -529,6 +539,10 @@ func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *
 			{
 				InstanceType: aws.String("m5.large"),
 				Location:     aws.String("test-zone-1c"),
+			},
+			{
+				InstanceType: aws.String("m5.large"),
+				Location:     aws.String("test-zone-1a-local"),
 			},
 			{
 				InstanceType: aws.String("m5.xlarge"),

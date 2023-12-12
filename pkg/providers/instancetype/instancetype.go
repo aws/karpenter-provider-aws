@@ -190,7 +190,7 @@ func (p *Provider) getInstanceTypeZones(ctx context.Context, instanceTypeOfferin
 		}
 	}
 	if p.cm.HasChanged("zones", instanceTypeZones) {
-		logging.FromContext(ctx).With("zones", instanceTypeZones.UnsortedList()).Debugf("discovered availability zones")
+		logging.FromContext(ctx).With("zones", instanceTypeZones.UnsortedList()).Debugf("discovered zones")
 	}
 	p.cache.Set(AvailabilityZonesCacheKey, instanceTypeZones, 24*time.Hour)
 	return instanceTypeZones
