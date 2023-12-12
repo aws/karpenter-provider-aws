@@ -34,6 +34,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -65,6 +66,7 @@ type Environment struct {
 	SubnetCache               *cache.Cache
 	SecurityGroupCache        *cache.Cache
 	InstanceProfileCache      *cache.Cache
+	PlacementGroupCache       *cache.Cache
 
 	// Providers
 	InstanceTypesProvider   *instancetype.Provider
@@ -77,6 +79,7 @@ type Environment struct {
 	AMIResolver             *amifamily.Resolver
 	VersionProvider         *version.Provider
 	LaunchTemplateProvider  *launchtemplate.Provider
+	PlacementGroupProvider  *placementgroup.Provider
 }
 
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
@@ -93,6 +96,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	launchTemplateCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	subnetCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	placementGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 
@@ -103,7 +107,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	versionProvider := version.NewProvider(env.KubernetesInterface, kubernetesVersionCache)
 	instanceProfileProvider := instanceprofile.NewProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	amiProvider := amifamily.NewProvider(versionProvider, ssmapi, ec2api, ec2Cache)
-	amiResolver := amifamily.New(amiProvider)
+	placementGroupProvider := placementgroup.NewProvider(ec2api, placementGroupCache)
+	amiResolver := amifamily.New(amiProvider, placementGroupProvider)
 	instanceTypesProvider := instancetype.NewProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
 		launchtemplate.NewProvider(
@@ -154,6 +159,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		AMIProvider:             amiProvider,
 		AMIResolver:             amiResolver,
 		VersionProvider:         versionProvider,
+		PlacementGroupProvider:  placementGroupProvider,
 	}
 }
 

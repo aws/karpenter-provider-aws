@@ -105,6 +105,9 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":2,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// PlacementGroupSelectorTerms is a list of PlacementGroupSelector. The terms are ORed.
+	// +optional
+	PlacementGroupSelectorTerms []PlacementGroupSelectorTerm `json:"placementGroupSelectorTerms,omitempty" hash:"ignore"`
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
@@ -165,6 +168,14 @@ type AMISelectorTerm struct {
 	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
 	// +optional
 	Owner string `json:"owner,omitempty"`
+}
+
+// PlacementGroupSelectorTerm defines the selection logic for ec2 placement groups
+// that are used to launch nodes. If multiple fields are used for selection, the requirements are ANDed
+type PlacementGroupSelectorTerm struct {
+	// Name of the placement group to be selected
+	// +optional
+	Name string `json:"name,omitempty"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the

@@ -45,6 +45,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
@@ -56,10 +57,11 @@ type Controller struct {
 	securityGroupProvider   *securitygroup.Provider
 	amiProvider             *amifamily.Provider
 	instanceProfileProvider *instanceprofile.Provider
+	placementGroupProvider  *placementgroup.Provider
 }
 
 func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) *Controller {
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, placementGroupProvider *placementgroup.Provider) *Controller {
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
@@ -67,6 +69,7 @@ func NewController(kubeClient client.Client, recorder events.Recorder, subnetPro
 		securityGroupProvider:   securityGroupProvider,
 		amiProvider:             amiProvider,
 		instanceProfileProvider: instanceProfileProvider,
+		placementGroupProvider:  placementGroupProvider,
 	}
 }
 
@@ -79,6 +82,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		c.resolveSecurityGroups(ctx, nodeClass),
 		c.resolveAMIs(ctx, nodeClass),
 		c.resolveInstanceProfile(ctx, nodeClass),
+		c.resolvePlacementGroups(ctx, nodeClass),
 	)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
@@ -194,6 +198,17 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 	return nil
 }
 
+func (c *Controller) resolvePlacementGroups(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
+	result, err := c.placementGroupProvider.Get(ctx, nodeClass)
+	if err != nil {
+		return err
+	}
+	if result != nil {
+		nodeClass.Status.PlacementGroups = append(nodeClass.Status.PlacementGroups, *result.GroupArn)
+	}
+	return nil
+}
+
 func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	if nodeClass.Spec.Role != "" {
 		name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
@@ -215,9 +230,9 @@ type NodeClassController struct {
 }
 
 func NewNodeClassController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) corecontroller.Controller {
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, placementProvider *placementgroup.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
+		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, placementProvider),
 	})
 }
 

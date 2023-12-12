@@ -30,6 +30,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/placementgroup"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -43,7 +44,8 @@ var DefaultEBS = v1beta1.BlockDevice{
 
 // Resolver is able to fill-in dynamic launch template parameters
 type Resolver struct {
-	amiProvider *Provider
+	amiProvider            *Provider
+	placementGroupProvider *placementgroup.Provider
 }
 
 // Options define the static launch template parameters
@@ -70,6 +72,12 @@ type LaunchTemplate struct {
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
 	EFACount            int
+	Placement           *Placement
+}
+
+// Placement holds the dynamically generated launch template placement parameters
+type Placement struct {
+	PlacementGroup string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -108,9 +116,10 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 }
 
 // New constructs a new launch template Resolver
-func New(amiProvider *Provider) *Resolver {
+func New(amiProvider *Provider, placementGroupProvider *placementgroup.Provider) *Resolver {
 	return &Resolver{
-		amiProvider: amiProvider,
+		amiProvider:            amiProvider,
+		placementGroupProvider: placementGroupProvider,
 	}
 }
 
@@ -230,6 +239,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 		DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 		AMIID:               amiID,
 		InstanceTypes:       instanceTypes,
+		Placement:           r.resolvePlacement(nodeClass),
 		EFACount:            efaCount,
 	}
 	if len(resolved.BlockDeviceMappings) == 0 {
@@ -239,4 +249,18 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 		resolved.MetadataOptions = amiFamily.DefaultMetadataOptions()
 	}
 	return resolved, nil
+}
+
+// TODO: Must be resolved: https://github.com/aws/karpenter-provider-aws/pull/4553/files#r1405582171
+func (r Resolver) resolvePlacement(nodeClass *v1beta1.EC2NodeClass) *Placement {
+	var placement *Placement
+	pg := nodeClass.Status.PlacementGroups
+
+	if pg != nil {
+		placement = &Placement{}
+		if len(pg) > 0 {
+			placement.PlacementGroup = pg[0]
+		}
+	}
+	return placement
 }
