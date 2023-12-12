@@ -57,7 +57,6 @@ Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
-  pullPrivateReplica "$RELEASE_VERSION"
 }
 
 authenticate() {
@@ -121,16 +120,6 @@ cosignImages() {
         -a GIT_VERSION="${RELEASE_VERSION}" \
         -a BUILD_DATE="$(buildDate)" \
         "${CONTROLLER_IMG}"
-}
-
-pullPrivateReplica(){
-  authenticatePrivateRepo
-  RELEASE_IDENTIFIER=$1
-  PULL_THROUGH_CACHE_PATH="${PRIVATE_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
-  HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
-  docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
-  helm pull "oci://${PULL_THROUGH_CACHE_PATH}karpenter" --version "${HELM_CHART_VERSION}"
-  helm pull "oci://${PULL_THROUGH_CACHE_PATH}karpenter-crd" --version "${HELM_CHART_VERSION}"
 }
 
 publishHelmChart() {
