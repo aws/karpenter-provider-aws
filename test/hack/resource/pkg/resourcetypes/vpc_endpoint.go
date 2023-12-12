@@ -36,7 +36,7 @@ func (v *VPCEndpoint) String() string {
 }
 
 func (v *VPCEndpoint) Global() bool {
-	return true
+	return false
 }
 
 func (v *VPCEndpoint) Get(ctx context.Context, clusterName string) (ids []string, err error) {
