@@ -37,6 +37,8 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "karpenter.serviceAccountName" . }}
       {{- with .Values.priorityClassName }}
+      securityContext:
+        fsGroup: 65536
       priorityClassName: {{ . | quote }}
       {{- end }}
       {{- with .Values.terminationGracePeriodSeconds }}
