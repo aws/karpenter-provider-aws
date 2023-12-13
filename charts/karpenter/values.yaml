@@ -44,6 +44,8 @@ podAnnotations: {}
 podDisruptionBudget:
   name: karpenter
   maxUnavailable: 1
+# -- SecurityContext for the pod.
+podSecurityContext: {}
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
 # -- Override the default termination grace period for the pod.
