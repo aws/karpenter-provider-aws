@@ -17,7 +17,7 @@ AWS is the first cloud provider supported by Karpenter, although it is designed 
 Yes, but there is no documentation yet for it. Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree/v0.33.0/pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
 
 ### What operating system nodes does Karpenter deploy?
-By default, Karpenter uses Amazon Linux 2 images.
+Karpenter uses the OS defined by the [AMI Family in your EC2NodeClass]({{< ref "./concepts/nodeclasses#specamifamily" >}}). 
 
 ### Can I provide my own custom operating system images?
 Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/nodeclasses/#specamiselectorterms" >}}) for your nodes.
