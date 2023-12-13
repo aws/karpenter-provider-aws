@@ -23,9 +23,11 @@ jobs:
       - if: github.event_name == 'workflow_run'
         uses: ./.github/actions/download-artifact
       - id: resolve-step
+        env:
+          ALLOWED_COMMENT: ${{ inputs.allowed_comment }}
         run: |
           if [[ "${{ github.event_name }}" == "workflow_run" ]]; then
-            if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" == *"${{ inputs.allowed_comment }}"* ]]; then
+            if [[ "$(head -n 1 /tmp/artifacts/metadata.txt)" == *"$ALLOWED_COMMENT"* ]]; then
                echo SHOULD_RUN=true >> "$GITHUB_OUTPUT"
             else
                echo SHOULD_RUN=false >> "$GITHUB_OUTPUT"

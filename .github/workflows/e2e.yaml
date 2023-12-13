@@ -103,13 +103,16 @@ jobs:
           sleep $(( RANDOM % 300 + 1 ))
       - id: generate-cluster-name
         name: generate cluster name
+        env:
+          SUITE: ${{ inputs.suite }}
+          CLUSTER_NAME: ${{ inputs.cluster_name }}
+          WORKFLOW_TRIGGER: ${{ inputs.workflow_trigger }}
         run: |
-          CLUSTER_NAME='${{ inputs.cluster_name }}'
-          if [[ '${{ inputs.cluster_name }}' == '' ]]; then 
-            if [[ '${{ inputs.workflow_trigger }}' == 'soak' ]]; then 
-              CLUSTER_NAME=$(echo soak-periodic-$RANDOM$RANDOM | awk '{print tolower($0)}' | tr / -)
+          if [[ "$CLUSTER_NAME" == '' ]]; then 
+            if [[ "$WORKFLOW_TRIGGER" == 'soak' ]]; then 
+              CLUSTER_NAME=$(echo "soak-periodic-$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)
             else 
-              CLUSTER_NAME=$(echo ${{ inputs.suite }}-$RANDOM$RANDOM | awk '{print tolower($0)}' | tr / -)
+              CLUSTER_NAME=$(echo "$SUITE-$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)
             fi 
           fi
           echo "Using cluster name \"$CLUSTER_NAME\""
@@ -132,11 +135,13 @@ jobs:
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
       - name: run the ${{ inputs.suite }} test suite
+        env:
+          SUITE: ${{ inputs.suite }}
+          ENABLE_METRICS: ${{ inputs.enable_metrics }}
         run: |
-          TEST_SUITE="${{ inputs.suite }}"
           # If we are performing the PrivateCluster test suite, then we should just run the 'Integration' test suite
-          if [[ inputs.suite == 'PrivateCluster' ]]; then
-            TEST_SUITE="Integration"
+          if [[ $SUITE == 'PrivateCluster' ]]; then
+            SUITE="Integration"
           fi
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           # Clean up the cluster before running all tests
@@ -144,8 +149,7 @@ jobs:
           kubectl delete ec2nodeclass --all
           kubectl delete deployment --all
       
-          # Run test Suite
-          TEST_SUITE="$TEST_SUITE" ENABLE_METRICS=${{ inputs.enable_metrics }} METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
+          TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
             CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
             INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
       - name: notify slack of success or failure

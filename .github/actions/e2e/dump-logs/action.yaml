@@ -24,8 +24,10 @@ runs:
         role-duration-seconds: 21600
     - name: update cluster context
       shell: bash
+      env:
+        CLUSTER_NAME: ${{ inputs.cluster_name }}
       run: |
-        aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
+        aws eks update-kubeconfig --name "$CLUSTER_NAME"
     - name: controller-logs
       shell: bash
       run: |

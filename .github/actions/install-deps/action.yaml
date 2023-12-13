@@ -24,4 +24,6 @@ runs:
         key: ${{ runner.os }}-${{ inputs.k8sVersion }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
     - if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
       shell: bash
-      run: K8S_VERSION=${{ inputs.k8sVersion }} make toolchain
+      env:
+        K8S_VERSION: ${{ inputs.k8sVersion }}
+      run: make toolchain

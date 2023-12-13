@@ -12,13 +12,18 @@ runs:
   steps:
     - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
       if: always()
+      env:
+        NAME: ${{ inputs.name }}
+        SHA: ${{ inputs.git_ref }}
+        REPO: ${{ github.repository }}
+        RUN_ID: ${{ github.run_id }}
       with:
         script: |
           github.rest.repos.createCommitStatus({
             owner: context.repo.owner,
             repo: context.repo.repo,
-            context: "${{ inputs.name }}",
-            sha: "${{ inputs.git_ref }}",
+            context: process.env.NAME,
+            sha: process.env.SHA,
             state: "pending",
-            target_url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            target_url: `https://github.com/${process.env.REPO}/actions/runs/${process.env.RUN_ID}`,
           });

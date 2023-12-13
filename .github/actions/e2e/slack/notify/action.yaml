@@ -20,13 +20,15 @@ runs:
         ref: ${{ inputs.git_ref }}
     - id: get-run-name
       shell: bash
+      env:
+        SUITE: ${{ inputs.suite }}
       run: |
         if [[ ${{ github.event_name }} == "schedule" && inputs.suite != "soak" ]]; then
-          RUN_NAME="${{ inputs.suite }}-periodic"
+          RUN_NAME="$SUITE-periodic"
         elif [[ ${{ github.event_name }} == "schedule" ]]; then
           RUN_NAME="soak-periodic"
         else
-          RUN_NAME="${{ inputs.suite }}-${GITHUB_SHA::7}"
+          RUN_NAME="$SUITE-${GITHUB_SHA::7}"
         fi
 
         # Convert the RUN_NAME to all lowercase
@@ -35,9 +37,9 @@ runs:
       if: ${{ job.status == 'success' }}
       with:
         url: ${{ inputs.url }}
-        message: ":white_check_mark: ${{ steps.get-run-name.outputs.RUN_NAME }} (https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})"
+        message: ":white_check_mark: ${{ steps.get-run-name.outputs.RUN_NAME }} (https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"
     - uses: ./.github/actions/e2e/slack/send-message
       if: ${{ job.status == 'failure' }}
       with:
         url: ${{ inputs.url }}
-        message: ":x: ${{ steps.get-run-name.outputs.RUN_NAME }} (https://github.com/${{github.repository}}/actions/runs/${{github.run_id}})"
+        message: ":x: ${{ steps.get-run-name.outputs.RUN_NAME }} (https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})"

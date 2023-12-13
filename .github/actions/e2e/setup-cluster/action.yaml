@@ -51,6 +51,9 @@ runs:
       version: ${{ inputs.eksctl_version }}
   - name: create iam policies
     shell: bash
+    env:
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
     run: |
       # Resolve the cloudformation path with fallback
       CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
@@ -59,47 +62,54 @@ runs:
       fi
 
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
-      yq -i '.Resources.KarpenterNodeRole.Properties.PermissionsBoundary="arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"' $CLOUDFORMATION_PATH
+      yq -i ".Resources.KarpenterNodeRole.Properties.PermissionsBoundary = \"arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary\"" $CLOUDFORMATION_PATH
 
       aws iam create-service-linked-role --aws-service-name spot.amazonaws.com || true
       aws cloudformation deploy \
-        --stack-name iam-${{ inputs.cluster_name }} \
+        --stack-name "iam-$CLUSTER_NAME" \
         --template-file $CLOUDFORMATION_PATH \
         --capabilities CAPABILITY_NAMED_IAM \
-        --parameter-overrides "ClusterName=${{ inputs.cluster_name }}" \
-        --tags "testing/type=e2e" "testing/cluster=${{ inputs.cluster_name }}" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
+        --parameter-overrides "ClusterName=$CLUSTER_NAME" \
+        --tags "testing/type=e2e" "testing/cluster=$CLUSTER_NAME" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=$CLUSTER_NAME"
   - name: create or upgrade cluster
     shell: bash
+    env:
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
+      REGION: ${{ inputs.region }}
+      K8S_VERSION: ${{ inputs.k8s_version }}
+      IP_FAMILY: ${{ inputs.ip_family }}
+      PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
     run: |
       # Create or Upgrade the cluster based on whether the cluster already exists
       cmd="create"
-      eksctl get cluster --name ${{ inputs.cluster_name }} && cmd="upgrade"
+      eksctl get cluster --name "$CLUSTER_NAME" && cmd="upgrade"
 
       cat << EOF >> clusterconfig.yaml
       ---
       apiVersion: eksctl.io/v1alpha5
       kind: ClusterConfig
       metadata:
-        name: ${{ inputs.cluster_name }}
-        region: ${{ inputs.region }}
-        version: "${{ inputs.k8s_version }}"
+        name: "$CLUSTER_NAME"
+        region: "$REGION"
+        version: "$K8S_VERSION"
         tags:
-          karpenter.sh/discovery: "${{ inputs.cluster_name }}"
+          karpenter.sh/discovery: "$CLUSTER_NAME"
           github.com/run-url: "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           testing/type: "e2e"
-          testing/cluster: "${{ inputs.cluster_name }}"
+          testing/cluster: "$CLUSTER_NAME"
       kubernetesNetworkConfig:
-        ipFamily: ${{ inputs.ip_family }}
+        ipFamily: "$IP_FAMILY"
       managedNodeGroups:
         - instanceType: c5.4xlarge
           amiFamily: AmazonLinux2
-          name: ${{ inputs.cluster_name }}-system-pool
+          name: "$CLUSTER_NAME-system-pool"
           desiredCapacity: 2
           disableIMDSv1: true
           minSize: 2
           maxSize: 2
           iam:
-            instanceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            instanceRolePermissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
           taints:
           - key: CriticalAddonsOnly
             value: "true"
@@ -109,43 +119,43 @@ runs:
           enableTypes: ["*"]
           logRetentionInDays: 30
       iam:
-        serviceRolePermissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        serviceRolePermissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
         podIdentityAssociations:
           - namespace: kube-system
             serviceAccountName: karpenter
-            roleName: karpenter-irsa-${{ inputs.cluster_name }}
-            permissionsBoundaryARN: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            roleName: "karpenter-irsa-$CLUSTER_NAME"
+            permissionsBoundaryARN: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
             permissionPolicyARNs: 
-              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}"
+              - "arn:aws:iam::$ACCOUNT_ID:policy/KarpenterControllerPolicy-$CLUSTER_NAME"
         serviceAccounts:
           - metadata:
               name: prometheus-kube-prometheus-prometheus
               namespace: prometheus
             attachPolicyARNs:
-              - "arn:aws:iam::${{ inputs.account_id }}:policy/PrometheusWorkspaceIngestionPolicy"
-            permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
-            roleName: prometheus-irsa-${{ inputs.cluster_name }}
+              - "arn:aws:iam::$ACCOUNT_ID:policy/PrometheusWorkspaceIngestionPolicy"
+            permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
+            roleName: "prometheus-irsa-$CLUSTER_NAME"
             roleOnly: true
         withOIDC: true
       addons:
       - name: vpc-cni
-        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: coredns
-        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: kube-proxy
-        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: aws-ebs-csi-driver
-        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
         wellKnownPolicies:
           ebsCSIController: true
       - name: eks-pod-identity-agent
-        permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
         configurationValues: |
           tolerations:
             - operator: Exists
       EOF
 
-      if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
+      if [[ $PRIVATE_CLUSTER == 'true' ]]; then
         yq -i '.privateCluster.enabled=true' clusterconfig.yaml
         yq -i '.managedNodeGroups[0].privateNetworking=true' clusterconfig.yaml
       fi
@@ -154,45 +164,53 @@ runs:
 
       # Add the SQS and SSM VPC endpoints if we are creating a private cluster
       # We need to grab all of the VPC details for the cluster in order to add the endpoint
-      if [[ ${{ inputs.private_cluster }} == 'true' ]]; then
-        VPC_CONFIG=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query "cluster.resourcesVpcConfig")
+      if [[ $PRIVATE_CLUSTER == 'true' ]]; then
+        VPC_CONFIG=$(aws eks describe-cluster --name "$CLUSTER_NAME" --query "cluster.resourcesVpcConfig")
         VPC_ID=$(echo $VPC_CONFIG | jq .vpcId -r)
         SUBNET_IDS=($(echo $VPC_CONFIG | jq '.subnetIds | join(" ")' -r))
         SECURITY_GROUP_IDS=($(echo $VPC_CONFIG | jq '.securityGroupIds | join(" ")' -r))
 
-        for SERVICE in "com.amazonaws.${{ inputs.region }}.ssm" "com.amazonaws.${{ inputs.region }}.sqs"; do
+        for SERVICE in "com.amazonaws.$REGION.ssm" "com.amazonaws.$REGION.sqs"; do
           aws ec2 create-vpc-endpoint \
             --vpc-id "${VPC_ID}" \
             --vpc-endpoint-type Interface \
             --service-name "${SERVICE}" \
             --subnet-ids ${SUBNET_IDS[@]} \
             --security-group-ids ${SECURITY_GROUP_IDS[@]} \
-            --tags "testing/type=e2e" "testing/cluster=${{ inputs.cluster_name }}" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=${{ inputs.cluster_name }}"
+            --tags "testing/type=e2e" "testing/cluster=$CLUSTER_NAME" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=$CLUSTER_NAME"
         done
       fi
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash
+    env:
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
     run: |
-      oidc_id=$(aws eks describe-cluster --name ${{ inputs.cluster_name }} --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
-      arn="arn:aws:iam::${{ inputs.account_id }}:oidc-provider/${oidc_id}"
+      oidc_id=$(aws eks describe-cluster --name "$CLUSTER_NAME" --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
+      arn="arn:aws:iam::$ACCOUNT_ID:oidc-provider/${oidc_id}"
       aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
-         --tags Key=testing/type,Value=e2e Key=testing/cluster,Value=${{ inputs.cluster_name }} Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+         --tags Key=testing/type,Value=e2e Key=testing/cluster,Value=$CLUSTER_NAME Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - name: give KarpenterNodeRole permission to bootstrap
     shell: bash
+    env:
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
     run: |
       eksctl create iamidentitymapping \
       --username system:node:{{EC2PrivateDNSName}} \
-      --cluster "${{ inputs.cluster_name }}" \
-      --arn "arn:aws:iam::${{ inputs.account_id }}:role/KarpenterNodeRole-${{ inputs.cluster_name }}" \
+      --cluster "$CLUSTER_NAME" \
+      --arn "arn:aws:iam::$ACCOUNT_ID:role/KarpenterNodeRole-$CLUSTER_NAME" \
       --group system:bootstrappers \
       --group system:nodes \
       --group eks:kube-proxy-windows
   - name: cloudformation describe stack events
     shell: bash
     if: failure()
+    env:
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
     run: |
-      stack_names=$(aws cloudformation describe-stacks --query 'Stacks[?Tags[?Key == `karpenter.sh/discovery` && Value == `${{ inputs.CLUSTER_NAME }}`]].{StackName: StackName}' --output text)
+      stack_names=$(aws cloudformation describe-stacks --query "Stacks[?Tags[?Key == 'karpenter.sh/discovery' && Value == '$CLUSTER_NAME']].{StackName: StackName}" --output text)
       for stack_name in $stack_names; do
         echo "Stack Events for $stack_name:"
         aws cloudformation describe-stack-events --stack-name $stack_name
