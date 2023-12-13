@@ -15,5 +15,5 @@ runs:
         URL: ${{ inputs.url }}
         MESSAGE: ${{ inputs.message }}
       run: |
-        JSON='{"message": "$MESSAGE"}'
+        JSON="{'message': '$MESSAGE'}"
         curl -X POST -H 'Content-Type: application/json' --data "${JSON}" "$(printf "$URL" | tr -d "\n")"
