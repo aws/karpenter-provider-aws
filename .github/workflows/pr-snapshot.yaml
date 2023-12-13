@@ -35,11 +35,10 @@ jobs:
           role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
           aws-region: ${{ vars.ECR_REGION }}
       - run: make snapshot
+      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
-          GH_PR_NUMBER: ${{ env.PR_NUMBER }}
           ECR_ACCOUNT_ID: ${{ vars.ECR_ACCOUNT_ID }}
           ECR_REGION: ${{ vars.ECR_REGION }}
-      - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             github.rest.issues.createComment({
