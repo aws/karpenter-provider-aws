@@ -26,6 +26,7 @@ on:
           - IPv6
           - Scale
           - PrivateCluster
+          - LocalZone
       k8s_version:
         type: choice
         options:
@@ -108,12 +109,12 @@ jobs:
           CLUSTER_NAME: ${{ inputs.cluster_name }}
           WORKFLOW_TRIGGER: ${{ inputs.workflow_trigger }}
         run: |
-          if [[ "$CLUSTER_NAME" == '' ]]; then 
-            if [[ "$WORKFLOW_TRIGGER" == 'soak' ]]; then 
+          if [[ "$CLUSTER_NAME" == '' ]]; then
+            if [[ "$WORKFLOW_TRIGGER" == 'soak' ]]; then
               CLUSTER_NAME=$(echo "soak-periodic-$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)
-            else 
+            else
               CLUSTER_NAME=$(echo "$SUITE-$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)
-            fi 
+            fi
           fi
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
@@ -134,6 +135,7 @@ jobs:
           ecr_region: ${{ vars.SNAPSHOT_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
+          enable_local_zones: ${{ inputs.suite == 'LocalZone' }}
       - name: run the ${{ inputs.suite }} test suite
         env:
           SUITE: ${{ inputs.suite }}
@@ -148,7 +150,7 @@ jobs:
           kubectl delete nodepool --all
           kubectl delete ec2nodeclass --all
           kubectl delete deployment --all
-      
+
           TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
             CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
             INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests

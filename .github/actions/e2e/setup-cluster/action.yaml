@@ -40,6 +40,10 @@ inputs:
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
     required: false
+  enable_local_zones:
+    description: "Whether to include local zones in the VPC created for the cluster."
+    required: false
+    default: 'false'
 runs:
   using: "composite"
   steps:
@@ -81,14 +85,15 @@ runs:
       IP_FAMILY: ${{ inputs.ip_family }}
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
       GIT_REF:  ${{ inputs.git_ref }}
+      ENABLE_LOCAL_ZONES: ${{ inputs.enable_local_zones }}
     run: |
-      if [[ "$GIT_REF" == '' ]]; then 
+      if [[ "$GIT_REF" == '' ]]; then
         GIT_REF=$(git rev-parse HEAD)
       fi
 
-      # Disable Pod Identity for Karpenter on K8s 1.23. Pod Identity is not supported on K8s 1.23 
+      # Disable Pod Identity for Karpenter on K8s 1.23. Pod Identity is not supported on K8s 1.23
       # https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html#pod-id-considerations
-      if [[ "$K8S_VERSION" == '1.23' ]]; then 
+      if [[ "$K8S_VERSION" == '1.23' ]]; then
         KARPENTER_IAM="""
           - metadata:
               name: karpenter
@@ -104,14 +109,14 @@ runs:
             serviceAccountName: karpenter
             roleName: karpenter-irsa-${{ inputs.cluster_name }}
             permissionsBoundaryARN: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
-            permissionPolicyARNs: 
+            permissionPolicyARNs:
               - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}""""
         POD_IDENTITY="""- name: eks-pod-identity-agent
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
         configurationValues: |
           tolerations:
             - operator: Exists"""
-      fi 
+      fi
 
       # Create or Upgrade the cluster based on whether the cluster already exists
       cmd="create"
@@ -178,6 +183,13 @@ runs:
       $POD_IDENTITY
       EOF
 
+      if [[ $ENABLE_LOCAL_ZONES == "true" ]]; then
+        local_zones=$(AWS_REGION=$REGION aws ec2 describe-availability-zones | yq '.AvailabilityZones | filter(.ZoneType == "local-zone") | [.[].ZoneName] | join(" ")')
+        for zone in $local_zones; do
+          yq -i ".localZones += [\"$zone\"]" clusterconfig.yaml
+        done
+      fi
+
       if [[ $PRIVATE_CLUSTER == 'true' ]]; then
         yq -i '.privateCluster.enabled=true' clusterconfig.yaml
         yq -i '.managedNodeGroups[0].privateNetworking=true' clusterconfig.yaml
@@ -211,9 +223,9 @@ runs:
       CLUSTER_NAME: ${{ inputs.cluster_name }}
       GIT_REF: ${{ inputs.git_ref }}
     run: |
-      if [[ "$GIT_REF" == '' ]]; then 
+      if [[ "$GIT_REF" == '' ]]; then
         GIT_REF=$(git rev-parse HEAD)
-      fi 
+      fi
       oidc_id=$(aws eks describe-cluster --name "$CLUSTER_NAME" --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
       arn="arn:aws:iam::$ACCOUNT_ID:oidc-provider/${oidc_id}"
       aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
