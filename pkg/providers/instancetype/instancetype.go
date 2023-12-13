@@ -48,7 +48,7 @@ import (
 const (
 	InstanceTypesCacheKey         = "types"
 	InstanceTypeOfferingsCacheKey = "offerings"
-	AvailabilityZonesCacheKey     = "zones"
+	ZonesCacheKey                 = "zones"
 )
 
 type Provider struct {
@@ -98,9 +98,9 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	if err != nil {
 		return nil, err
 	}
-	// Get AvailabilityZones from EC2
-	instanceTypeZones := p.getInstanceTypeZones(ctx, instanceTypeOfferings)
-	// Constrain AZs from subnets
+	// Get zones from instancetypeOfferings
+	zones := p.getZones(ctx, instanceTypeOfferings)
+	// Constrain zones from subnets
 	subnets, err := p.subnetProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 		return item.([]*cloudprovider.InstanceType), nil
 	}
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
-		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], instanceTypeZones, subnetZones))
+		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], zones, subnetZones))
 	})
 	for _, instanceType := range instanceTypes {
 		InstanceTypeVCPU.With(prometheus.Labels{
@@ -172,28 +172,28 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 	return offerings
 }
 
-func (p *Provider) getInstanceTypeZones(ctx context.Context, instanceTypeOfferings map[string]sets.Set[string]) sets.Set[string] {
+func (p *Provider) getZones(ctx context.Context, instanceTypeOfferings map[string]sets.Set[string]) sets.Set[string] {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to getAvailabilityZones do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call.
 	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if cached, ok := p.cache.Get(AvailabilityZonesCacheKey); ok {
+	if cached, ok := p.cache.Get(ZonesCacheKey); ok {
 		return cached.(sets.Set[string])
 	}
 	// Get zones from offerings
-	instanceTypeZones := sets.Set[string]{}
-	for _, zones := range instanceTypeOfferings {
-		for zone := range zones {
-			instanceTypeZones.Insert(zone)
+	zones := sets.Set[string]{}
+	for _, offeringZones := range instanceTypeOfferings {
+		for zone := range offeringZones {
+			zones.Insert(zone)
 		}
 	}
-	if p.cm.HasChanged("zones", instanceTypeZones) {
-		logging.FromContext(ctx).With("zones", instanceTypeZones.UnsortedList()).Debugf("discovered zones")
+	if p.cm.HasChanged("zones", zones) {
+		logging.FromContext(ctx).With("zones", zones.UnsortedList()).Debugf("discovered zones")
 	}
-	p.cache.Set(AvailabilityZonesCacheKey, instanceTypeZones, 24*time.Hour)
-	return instanceTypeZones
+	p.cache.Set(ZonesCacheKey, zones, 24*time.Hour)
+	return zones
 }
 
 func (p *Provider) getInstanceTypeOfferings(ctx context.Context) (map[string]sets.Set[string], error) {
