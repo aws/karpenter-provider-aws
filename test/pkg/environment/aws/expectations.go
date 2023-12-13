@@ -210,6 +210,14 @@ func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequ
 	return siro.SpotInstanceRequests[0]
 }
 
+// GetZones returns all available zones mapped from zone -> zone type
+func (env *Environment) GetZones() map[string]string {
+	output := lo.Must(env.EC2API.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{}))
+	return lo.Associate(output.AvailabilityZones, func(zone *ec2.AvailabilityZone) (string, string) {
+		return lo.FromPtr(zone.ZoneName), lo.FromPtr(zone.ZoneType)
+	})
+}
+
 // GetSubnets returns all subnets matching the label selector
 // mapped from AZ -> {subnet-ids...}
 func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
