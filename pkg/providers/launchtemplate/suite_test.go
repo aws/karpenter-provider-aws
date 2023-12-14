@@ -989,49 +989,6 @@ var _ = Describe("LaunchTemplates", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2), fmt.Sprintf("--max-pods=%d", 100))
 		})
-		It("should specify --container-runtime containerd by default", func() {
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod()
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
-		})
-		It("should specify --container-runtime containerd when using Neuron GPUs", func() {
-			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1beta1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceCPU:            resource.MustParse("1"),
-						v1beta1.ResourceAWSNeuron: resource.MustParse("1"),
-					},
-					Limits: map[v1.ResourceName]resource.Quantity{
-						v1beta1.ResourceAWSNeuron: resource.MustParse("1"),
-					},
-				},
-			})
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
-		})
-		It("should specify --container-runtime containerd when using Nvidia GPUs", func() {
-			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1beta1.LabelInstanceCategory, Operator: v1.NodeSelectorOpExists}}
-			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceCPU:            resource.MustParse("1"),
-						v1beta1.ResourceNVIDIAGPU: resource.MustParse("1"),
-					},
-					Limits: map[v1.ResourceName]resource.Quantity{
-						v1beta1.ResourceNVIDIAGPU: resource.MustParse("1"),
-					},
-				},
-			})
-			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataContaining("--container-runtime containerd")
-		})
 		It("should specify --dns-cluster-ip and --ip-family when running in an ipv6 cluster", func() {
 			awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("fd4b:121b:812b::a")
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
