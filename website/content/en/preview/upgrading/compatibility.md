@@ -6,12 +6,12 @@ description: >
   Compatibility issues for Karpenter
 ---
 
-# Compatibility 
+# Compatibility
 
 To make upgrading easier we aim to minimize the introduction of breaking changes.
 Before you begin upgrading Karpenter, consider Karpenter compatibility issues related to Kubernetes and the NodePool API (previously Provisioner).
 
-## Compatibility Matrix 
+## Compatibility Matrix
 
 [comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
 
@@ -20,15 +20,6 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 | karpenter  | 0.21.x+ | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ | 0.31.x+ |
 
 [comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
-
-{{% alert title="Note" color="warning" %}}
-Karpenter currently does not support the following [new `topologySpreadConstraints` keys](https://kubernetes.io/blog/2023/04/17/fine-grained-pod-topology-spread-features-beta/), promoted to beta in Kubernetes 1.27:
-- `matchLabelKeys`
-- `nodeAffinityPolicy`
-- `nodeTaintsPolicy`
-
-For more information on Karpenter's support for these keys, view [this tracking issue](https://github.com/aws/karpenter-core/issues/430).
-{{% /alert %}}
 
 {{% alert title="Note" color="warning" %}}
 Karpenter supports using [Kubernetes Common Expression Language](https://kubernetes.io/docs/reference/using-api/cel/) for validating its Custom Resource Definitions out-of-the-box; however, this feature is not supported on versions of Kubernetes < 1.25. If you are running an earlier version of Kubernetes, you will need to use the Karpenter admission webhooks for validation instead. You can enable these webhooks with `--set webhook.enabled=true` when applying the Karpenter helm chart.
