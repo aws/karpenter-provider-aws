@@ -47,5 +47,6 @@ jobs:
       workflow_trigger: "soak"
       cluster_name: ${{ matrix.cluster_name }}
       cleanup: ${{ matrix.cluster_cleanup }}
+      git_ref: ${{ matrix.git_ref }}
     secrets:
       SLACK_WEBHOOK_SOAK_URL: ${{ secrets.SLACK_WEBHOOK_SOAK_URL }}
