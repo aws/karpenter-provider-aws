@@ -8,6 +8,8 @@ body:
   attributes:
     label: Description
     value: |
+      ** READ BEFORE CONTINUING: If your issue is not specific to AWS, please cut a ticket in github.com/kubernetes-sigs/karpenter.
+
       **Observed Behavior**:
 
       **Expected Behavior**:
