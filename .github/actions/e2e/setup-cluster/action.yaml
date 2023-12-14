@@ -82,6 +82,9 @@ runs:
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
       GIT_REF:  ${{ inputs.git_ref }}
     run: |
+      if [[ "$GIT_REF" == '' ]]; then 
+        GIT_REF=$(git rev-parse HEAD)
+      fi
       # Create or Upgrade the cluster based on whether the cluster already exists
       cmd="create"
       eksctl get cluster --name "$CLUSTER_NAME" && cmd="upgrade"
@@ -188,8 +191,11 @@ runs:
     env:
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
-      GIT_REF:  ${{ inputs.git_ref }}
+      GIT_REF: ${{ inputs.git_ref }}
     run: |
+      if [[ "$GIT_REF" == '' ]]; then 
+        GIT_REF=$(git rev-parse HEAD)
+      fi 
       oidc_id=$(aws eks describe-cluster --name "$CLUSTER_NAME" --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
       arn="arn:aws:iam::$ACCOUNT_ID:oidc-provider/${oidc_id}"
       aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
