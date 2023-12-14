@@ -85,6 +85,9 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=50
 	// +optional
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
+	// InstanceStorePolicy specifies how to handle instance-store disks.
+	// +optional
+	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
@@ -294,6 +297,18 @@ type BlockDevice struct {
 	// +optional
 	VolumeType *string `json:"volumeType,omitempty"`
 }
+
+// InstanceStorePolicy enumerates options for configuring instance store disks.
+// +kubebuilder:validation:Enum={RAID0}
+type InstanceStorePolicy string
+
+const (
+	// InstanceStorePolicyRAID0 configures a RAID-0 array that includes all ephemeral NVMe instance storage disks.
+	// The containerd and kubelet state directories (`/var/lib/containerd` and `/var/lib/kubelet`) will then use the
+	// ephemeral storage for more and faster node ephemeral-storage. The node's ephemeral storage can be shared among
+	// pods that request ephemeral storage and container images that are downloaded to the node.
+	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
+)
 
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
