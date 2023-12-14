@@ -32,20 +32,20 @@ jobs:
       - uses: ./.github/actions/install-deps
       - uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
-          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
-          aws-region: ${{ vars.ECR_REGION }}
+          role-to-assume: 'arn:aws:iam::${{ vars.SNAPSHOT_ACCOUNT_ID }}:role/${{ vars.SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.SNAPSHOT_REGION }}
       - run: make snapshot
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         env:
-          ECR_ACCOUNT_ID: ${{ vars.ECR_ACCOUNT_ID }}
-          ECR_REGION: ${{ vars.ECR_REGION }}
+          SNAPSHOT_ACCOUNT_ID: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          SNAPSHOT_REGION: ${{ vars.SNAPSHOT_REGION }}
         with:
           script: |
             github.rest.issues.createComment({
               issue_number: process.env.PR_NUMBER,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `Snapshot successfully published to "oci://${process.env.ECR_ACCOUNT_ID}.ecr.${process.env.ECR_REGION}.amazonaws.com/karpenter/snapshot/karpenter:v0-${process.env.PR_COMMIT}".`
+              body: `Snapshot successfully published to "oci://${process.env.SNAPSHOT_ACCOUNT_ID}.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot/karpenter:v0-${process.env.PR_COMMIT}".`
             })
       - if: always()
         uses: ./.github/actions/commit-status/end
