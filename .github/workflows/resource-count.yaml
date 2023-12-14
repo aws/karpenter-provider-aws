@@ -7,7 +7,7 @@ permissions:
   id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   counter:
-    if: vars.ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
+    if: vars.CI_ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
@@ -18,7 +18,7 @@ jobs:
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
-          role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
+          role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ matrix.region }}
       - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:

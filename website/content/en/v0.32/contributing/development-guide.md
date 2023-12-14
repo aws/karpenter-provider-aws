@@ -73,9 +73,9 @@ make test       # E2E correctness tests
 
 ### Change Log Level
 
+By default, `make apply` will set the log level to debug. You can change the log level by setting the log level in your helm values. 
 ```bash
-kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"debug"}}' # Debug Level
-kubectl patch configmap config-logging -n karpenter --patch '{"data":{"loglevel.controller":"info"}}' # Info Level
+--set logLevel=debug
 ```
 
 ### Debugging Metrics

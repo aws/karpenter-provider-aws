@@ -29,6 +29,7 @@ import (
 
 type cluster struct {
 	Name    string `json:"cluster_name"`
+	GitRef  string `json:"git_ref"`
 	Cleanup bool   `json:"cluster_cleanup"`
 }
 
@@ -52,7 +53,10 @@ func main() {
 		}
 
 		if strings.HasPrefix(c, "soak-periodic-") {
-			outputList = append(outputList, &cluster{Name: c, Cleanup: clusterDetails.Cluster.CreatedAt.Before(expirationTime)})
+			outputList = append(outputList, &cluster{
+				Name:    c,
+				GitRef:  clusterDetails.Cluster.Tags["test/git_ref"],
+				Cleanup: clusterDetails.Cluster.CreatedAt.Before(expirationTime)})
 		}
 	}
 
