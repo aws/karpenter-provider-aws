@@ -1,4 +1,4 @@
-curl -fsSL https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml  > $TEMPOUT \
+curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml  > $TEMPOUT \
 && aws cloudformation deploy \
   --stack-name "Karpenter-${CLUSTER_NAME}" \
   --template-file "${TEMPOUT}" \
@@ -33,6 +33,9 @@ iamIdentityMappings:
   groups:
   - system:bootstrappers
   - system:nodes
+  ## If you intend to run Windows workloads, the kube-proxy group should be specified.
+  # For more information, see https://github.com/aws/karpenter/issues/5099.
+  # - eks:kube-proxy-windows
 
 managedNodeGroups:
 - instanceType: m5.large

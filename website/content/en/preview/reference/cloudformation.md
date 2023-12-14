@@ -18,7 +18,7 @@ To download a particular version of `cloudformation.yaml`, set the version and u
 
 ```bash
 export KARPENTER_VERSION={{< param "latest_release_version" >}}
-curl https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
+curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
 Following some header information, the rest of the `cloudformation.yaml` file describes the resources that CloudFormation deploys.
@@ -313,7 +313,7 @@ Because pricing information does not exist in every region at the moment, the Al
 
 Karpenter supports interruption queues, that you can create as described in the [Interruption]({{< relref "../concepts/disruption#interruption" >}}) section of the Disruption page.
 This section of the cloudformation.yaml template can give Karpenter permission to access those queues by specifying the resource ARN.
-For the interruption queue you created (`${KarepenterInterruptionQueue.Arn}`), the AllowInterruptionQueueActions Sid lets the Karpenter controller have permission to delete messages ([DeleteMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html)), get queue attributes ([GetQueueAttributes](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueAttributes.html)), get queue URL ([GetQueueUrl](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueUrl.html)), and receive messages ([ReceiveMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)).
+For the interruption queue you created (`${KarpenterInterruptionQueue.Arn}`), the AllowInterruptionQueueActions Sid lets the Karpenter controller have permission to delete messages ([DeleteMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html)), get queue URL ([GetQueueUrl](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueUrl.html)), and receive messages ([ReceiveMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)).
 
 ```json
 {
@@ -322,7 +322,6 @@ For the interruption queue you created (`${KarepenterInterruptionQueue.Arn}`), t
   "Resource": "${KarpenterInterruptionQueue.Arn}",
   "Action": [
     "sqs:DeleteMessage",
-    "sqs:GetQueueAttributes",
     "sqs:GetQueueUrl",
     "sqs:ReceiveMessage"
   ]

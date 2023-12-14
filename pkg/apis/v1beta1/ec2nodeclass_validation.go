@@ -33,6 +33,8 @@ const (
 	tagsPath                       = "tags"
 	metadataOptionsPath            = "metadataOptions"
 	blockDeviceMappingsPath        = "blockDeviceMappings"
+	rolePath                       = "role"
+	instanceProfilePath            = "instanceProfile"
 )
 
 var (
@@ -65,6 +67,12 @@ func (in *EC2NodeClass) validateImmutableFields(original *EC2NodeClass) (errs *a
 }
 
 func (in *EC2NodeClassSpec) validate(_ context.Context) (errs *apis.FieldError) {
+	if in.Role != "" && in.InstanceProfile != nil {
+		errs = errs.Also(apis.ErrMultipleOneOf(rolePath, instanceProfilePath))
+	}
+	if in.Role == "" && in.InstanceProfile == nil {
+		errs = errs.Also(apis.ErrMissingOneOf(rolePath, instanceProfilePath))
+	}
 	return errs.Also(
 		in.validateSubnetSelectorTerms().ViaField(subnetSelectorTermsPath),
 		in.validateSecurityGroupSelectorTerms().ViaField(securityGroupSelectorTermsPath),
@@ -133,8 +141,6 @@ func (in *AMISelectorTerm) validate() (errs *apis.FieldError) {
 		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id", "name"))
 	} else if in.ID != "" && (len(in.Tags) > 0 || in.Name != "" || in.Owner != "") {
 		errs = errs.Also(apis.ErrGeneric(`"id" is mutually exclusive, cannot be set with a combination of other fields in`))
-	} else if in.Owner != "" && len(in.Tags) > 0 {
-		errs = errs.Also(apis.ErrGeneric(`"owner" cannot be set with "tags" in`))
 	}
 	return errs
 }

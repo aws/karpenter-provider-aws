@@ -38,16 +38,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/events"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
-	nodeclassutil "github.com/aws/karpenter/pkg/utils/nodeclass"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/events"
+	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
 type Controller struct {
@@ -73,10 +72,8 @@ func NewController(kubeClient client.Client, recorder events.Recorder, subnetPro
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
-	if !nodeClass.IsNodeTemplate {
-		controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
-	}
-	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, nodeclassutil.HashAnnotation(nodeClass))
+	controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
+	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 	err := multierr.Combine(
 		c.resolveSubnets(ctx, nodeClass),
 		c.resolveSecurityGroups(ctx, nodeClass),
@@ -85,10 +82,10 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
-		if patchErr := nodeclassutil.Patch(ctx, c.kubeClient, stored, nodeClass); patchErr != nil {
+		if patchErr := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
 			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
 		}
-		if patchErr := nodeclassutil.PatchStatus(ctx, c.kubeClient, stored, statusCopy); patchErr != nil {
+		if patchErr := c.kubeClient.Status().Patch(ctx, statusCopy, client.MergeFrom(stored)); err != nil {
 			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
 		}
 	}
@@ -100,9 +97,6 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 
 func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
-	if nodeClass.IsNodeTemplate {
-		return reconcile.Result{}, nil
-	}
 	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
@@ -114,12 +108,14 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
-	if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
-		return reconcile.Result{}, fmt.Errorf("terminating instance profile, %w", err)
+	if nodeClass.Spec.Role != "" {
+		if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
+			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
+		}
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
-		if err := nodeclassutil.Patch(ctx, c.kubeClient, stored, nodeClass); err != nil {
+		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
 			return reconcile.Result{}, client.IgnoreNotFound(fmt.Errorf("removing termination finalizer, %w", err))
 		}
 	}
@@ -199,14 +195,15 @@ func (c *Controller) resolveAMIs(ctx context.Context, nodeClass *v1beta1.EC2Node
 }
 
 func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-	if nodeClass.IsNodeTemplate {
-		return nil
+	if nodeClass.Spec.Role != "" {
+		name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
+		if err != nil {
+			return fmt.Errorf("creating instance profile, %w", err)
+		}
+		nodeClass.Status.InstanceProfile = name
+	} else {
+		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
-	name, err := c.instanceProfileProvider.Create(ctx, nodeClass)
-	if err != nil {
-		return fmt.Errorf("resolving instance profile, %w", err)
-	}
-	nodeClass.Status.InstanceProfile = name
 	return nil
 }
 
@@ -248,40 +245,6 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 				DeleteFunc: func(e event.DeleteEvent) bool { return true },
 			}),
 		).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
-		WithOptions(controller.Options{
-			RateLimiter: workqueue.NewMaxOfRateLimiter(
-				workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 1*time.Minute),
-				// 10 qps, 100 bucket size
-				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
-			),
-			MaxConcurrentReconciles: 10,
-		}))
-}
-
-type NodeTemplateController struct {
-	*Controller
-}
-
-func NewNodeTemplateController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*v1alpha1.AWSNodeTemplate](kubeClient, &NodeTemplateController{
-		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
-	})
-}
-
-func (c *NodeTemplateController) Reconcile(ctx context.Context, nodeTemplate *v1alpha1.AWSNodeTemplate) (reconcile.Result, error) {
-	return c.Controller.Reconcile(ctx, nodeclassutil.New(nodeTemplate))
-}
-
-func (c *NodeTemplateController) Name() string {
-	return "awsnodetemplate"
-}
-
-func (c *NodeTemplateController) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(controllerruntime.
-		NewControllerManagedBy(m).
-		For(&v1alpha1.AWSNodeTemplate{}).
 		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewMaxOfRateLimiter(

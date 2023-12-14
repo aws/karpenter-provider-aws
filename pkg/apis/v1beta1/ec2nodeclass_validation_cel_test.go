@@ -15,20 +15,16 @@ limitations under the License.
 package v1beta1_test
 
 import (
-	"strings"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/api/resource"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/Pallinder/go-randomdata"
-	"github.com/imdario/mergo"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"github.com/aws/aws-sdk-go/aws"
-
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("CEL/Validation", func() {
@@ -38,26 +34,23 @@ var _ = Describe("CEL/Validation", func() {
 		if env.Version.Minor() < 25 {
 			Skip("CEL Validation is for 1.25>")
 		}
-		nc = &v1beta1.EC2NodeClass{
-			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
-			Spec: v1beta1.EC2NodeClassSpec{
-				AMIFamily: &v1beta1.AMIFamilyAL2,
-				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
-					{
-						Tags: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
-					{
-						Tags: map[string]string{
-							"foo": "bar",
-						},
-					},
-				},
-			},
-		}
+		nc = test.EC2NodeClass()
+	})
+	It("should succeed if just specifying role", func() {
+		Expect(env.Client.Create(ctx, nc)).To(Succeed())
+	})
+	It("should succeed if just specifying instance profile", func() {
+		nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+		nc.Spec.Role = ""
+		Expect(env.Client.Create(ctx, nc)).To(Succeed())
+	})
+	It("should fail if specifying both instance profile and role", func() {
+		nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+		Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+	})
+	It("should fail if not specifying one of instance profile and role", func() {
+		nc.Spec.Role = ""
+		Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 	})
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
@@ -79,7 +72,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 		It("should fail if tags contain a restricted domain key", func() {
 			nc.Spec.Tags = map[string]string{
-				"karpenter.sh/provisioner-name": "value",
+				corev1beta1.NodePoolLabelKey: "value",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
@@ -87,7 +80,7 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
-				"karpenter.sh/managed-by": "test",
+				corev1beta1.ManagedByAnnotationKey: "test",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 		})
@@ -352,6 +345,17 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
+		It("should succeed when an ami selector term has an owner key with tags", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					Owner: "testowner",
+					Tags: map[string]string{
+						"test": "testvalue",
+					},
+				},
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
 		It("should fail when a ami selector term has no values", func() {
 			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{},
@@ -381,17 +385,6 @@ var _ = Describe("CEL/Validation", func() {
 				{
 					Tags: map[string]string{
 						"": "testvalue",
-					},
-				},
-			}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
-		It("should fail when an ami selector term has an owner key with tags", func() {
-			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
-				{
-					Owner: "testowner",
-					Tags: map[string]string{
-						"test": "testvalue",
 					},
 				},
 			}
@@ -452,7 +445,7 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 		It("should fail when AMIFamily is Custom and not AMISelectorTerms", func() {
-			nc.Spec.AMIFamily = &v1alpha1.AMIFamilyCustom
+			nc.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
@@ -489,87 +482,6 @@ var _ = Describe("CEL/Validation", func() {
 				HTTPTokens: aws.String("test"),
 			}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
-	})
-	Context("EC2NodeClass Hash", func() {
-		var nodeClass *v1beta1.EC2NodeClass
-		BeforeEach(func() {
-			nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-				Spec: v1beta1.EC2NodeClassSpec{
-					AMIFamily: aws.String(v1alpha1.AMIFamilyAL2),
-					Context:   aws.String("context-1"),
-					Role:      "role-1",
-					Tags: map[string]string{
-						"keyTag-1": "valueTag-1",
-						"keyTag-2": "valueTag-2",
-					},
-					MetadataOptions: &v1beta1.MetadataOptions{
-						HTTPEndpoint: aws.String("test-metadata-1"),
-					},
-					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
-						{
-							DeviceName: aws.String("map-device-1"),
-						},
-						{
-							DeviceName: aws.String("map-device-2"),
-						},
-					},
-					UserData:           aws.String("userdata-test-1"),
-					DetailedMonitoring: aws.Bool(false),
-				},
-			})
-		})
-		DescribeTable("should change hash when static fields are updated", func(changes v1beta1.EC2NodeClass) {
-			hash := nodeClass.Hash()
-			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
-			updatedHash := nodeClass.Hash()
-			Expect(hash).ToNot(Equal(updatedHash))
-		},
-			Entry("InstanceProfile Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Role: "role-2"}}),
-			Entry("UserData Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
-			Entry("Tags Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
-			Entry("MetadataOptions Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}),
-			Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
-			Entry("Context Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
-			Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-			Entry("AMIFamily Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
-		)
-		DescribeTable("should not change hash when slices are re-ordered", func(changes v1beta1.EC2NodeClass) {
-			hash := nodeClass.Hash()
-			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
-			updatedHash := nodeClass.Hash()
-			Expect(hash).To(Equal(updatedHash))
-		},
-			Entry("Reorder Tags", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}}}),
-			Entry("Reorder BlockDeviceMapping", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}}),
-		)
-		It("should not change hash when behavior/dynamic fields are updated", func() {
-			hash := nodeClass.Hash()
-
-			// Update a behavior/dynamic field
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
-				{
-					Tags: map[string]string{"subnet-test-key": "subnet-test-value"},
-				},
-			}
-			nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
-				{
-					Tags: map[string]string{"sg-test-key": "sg-test-value"},
-				},
-			}
-			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
-				{
-					Tags: map[string]string{"ami-test-key": "ami-test-value"},
-				},
-			}
-			updatedHash := nodeClass.Hash()
-			Expect(hash).To(Equal(updatedHash))
-		})
-		It("should expect two provisioner with the same spec to have the same provisioner hash", func() {
-			otherNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
-				Spec: nodeClass.Spec,
-			})
-			Expect(nodeClass.Hash()).To(Equal(otherNodeClass.Hash()))
 		})
 	})
 	Context("BlockDeviceMappings", func() {
@@ -703,12 +615,34 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("Role Immutability", func() {
+		It("should fail if role is not defined", func() {
+			nc.Spec.Role = ""
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
 		It("should fail when updating the role", func() {
 			nc.Spec.Role = "test-role"
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 
 			nc.Spec.Role = "test-role2"
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail to switch between an unmanaged and managed instance profile", func() {
+			nc.Spec.Role = ""
+			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+
+			nc.Spec.Role = "test-role"
+			nc.Spec.InstanceProfile = nil
+			Expect(env.Client.Update(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail to switch between a managed and unmanaged instance profile", func() {
+			nc.Spec.Role = "test-role"
+			nc.Spec.InstanceProfile = nil
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+
+			nc.Spec.Role = ""
+			nc.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
+			Expect(env.Client.Update(ctx, nc)).ToNot(Succeed())
 		})
 	})
 })

@@ -24,9 +24,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
@@ -40,6 +41,7 @@ type Options struct {
 	AWSENILimitedPodDensity bool
 	ContainerRuntime        *string
 	CustomUserData          *string
+	InstanceStorePolicy     *v1beta1.InstanceStorePolicy
 }
 
 func (o Options) kubeletExtraArgs() (args []string) {
@@ -95,9 +97,6 @@ func (o Options) nodeLabelArg() string {
 	keys := lo.Keys(o.Labels)
 	sort.Strings(keys) // ensures this list is deterministic, for easy testing.
 	for _, key := range keys {
-		if v1alpha5.LabelDomainExceptions.Has(key) || corev1beta1.LabelDomainExceptions.Has(key) {
-			continue
-		}
 		labelStrings = append(labelStrings, fmt.Sprintf("%s=%v", key, o.Labels[key]))
 	}
 	return fmt.Sprintf("--node-labels=%q", strings.Join(labelStrings, ","))

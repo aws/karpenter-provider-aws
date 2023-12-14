@@ -23,23 +23,22 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	awspricing "github.com/aws/aws-sdk-go/service/pricing"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/types"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
-
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
-
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/test"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -58,7 +57,6 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	controller = pricing.NewController(awsEnv.PricingProvider)
@@ -72,7 +70,6 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 
 	awsEnv.Reset()
 })

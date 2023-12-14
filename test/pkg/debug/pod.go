@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	"github.com/aws/karpenter-core/pkg/utils/pod"
+	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
+	"sigs.k8s.io/karpenter/pkg/utils/pod"
 )
 
 type PodController struct {
@@ -86,7 +86,7 @@ func (c *PodController) Builder(_ context.Context, m manager.Manager) corecontro
 				},
 			},
 			predicate.NewPredicateFuncs(func(o client.Object) bool {
-				return o.GetNamespace() != "kube-system" && o.GetNamespace() != "karpenter"
+				return o.GetNamespace() != "kube-system"
 			}),
 		)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))

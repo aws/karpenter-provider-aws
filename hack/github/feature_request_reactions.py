@@ -21,7 +21,7 @@ issue_reaction_count: list[dict[str, Union[int, str]]] = []
 PLUS_ONE_REACTION_STRINGS = ['+1', 'heart', 'hooray', 'rocket', 'eyes']
 ISSUE_LABELS = ['feature']
 
-repo: Repository = github.get_repo('aws/karpenter')
+repo: Repository = github.get_repo('aws/karpenter-provider-aws')
 open_issues = repo.get_issues(state='open', labels=ISSUE_LABELS)
 for issue in open_issues:
   # count unique +1s

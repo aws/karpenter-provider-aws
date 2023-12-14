@@ -29,11 +29,10 @@ import (
 	"github.com/samber/lo"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
 type Provider struct {
@@ -48,7 +47,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
-		// TODO: Remove cache for v1beta1, utilize resolved subnet from the AWSNodeTemplate.status
+		// TODO: Remove cache when we utilize the resolved subnets from the EC2NodeClass.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
 		cache: cache,
 		// inflightIPs is used to track IPs from known launched instances
@@ -84,7 +83,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([
 		}
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
-	if p.cm.HasChanged(fmt.Sprintf("subnets/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), subnets) {
+	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), subnets) {
 		logging.FromContext(ctx).
 			With("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) string {
 				return fmt.Sprintf("%s (%s)", aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone))
@@ -247,7 +246,7 @@ func getFilterSets(terms []v1beta1.SubnetSelectorTerm) (res [][]*ec2.Filter) {
 				} else {
 					filters = append(filters, &ec2.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+						Values: []*string{aws.String(v)},
 					})
 				}
 			}

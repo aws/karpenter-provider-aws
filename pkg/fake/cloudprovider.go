@@ -19,10 +19,9 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/test"
 )
 
 const (
@@ -59,12 +58,6 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1beta1.NodePool)
 }
 
 func (c *CloudProvider) IsDrifted(_ context.Context, nodeClaim *v1beta1.NodeClaim) (corecloudprovider.DriftReason, error) {
-	nodeAMI := nodeClaim.Labels[v1alpha1.LabelInstanceAMIID]
-	for _, ami := range c.ValidAMIs {
-		if nodeAMI == ami {
-			return "", nil
-		}
-	}
 	return "drifted", nil
 }
 

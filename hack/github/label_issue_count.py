@@ -18,7 +18,7 @@ github = Github(os.environ.get('GH_TOKEN'))
 issue_label_counts: dict[str, int] = {}
 PLUS_ONE_REACTION_STRINGS = {'+1', 'heart', 'hooray', 'rocket', 'eyes'}
 
-repo: Repository = github.get_repo('aws/karpenter')
+repo: Repository = github.get_repo('aws/karpenter-provider-aws')
 open_issues = repo.get_issues(state='open')
 for issue in open_issues:
   for label in issue.get_labels():

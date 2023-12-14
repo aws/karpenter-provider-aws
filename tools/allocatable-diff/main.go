@@ -25,21 +25,17 @@ import (
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/json"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
-	coreoperator "github.com/aws/karpenter-core/pkg/operator"
-	nodepoolutil "github.com/aws/karpenter-core/pkg/utils/nodepool"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/operator"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
+
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/operator"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
 var clusterName string
@@ -60,7 +56,7 @@ func main() {
 	restConfig := config.GetConfigOrDie()
 	kubeClient := lo.Must(client.New(restConfig, client.Options{}))
 	ctx := context.Background()
-	ctx = settings.ToContext(ctx, &settings.Settings{ClusterName: clusterName, IsolatedVPC: true, VMMemoryOverheadPercent: overheadPercent})
+	ctx = options.ToContext(ctx, &options.Options{ClusterName: clusterName, IsolatedVPC: true, VMMemoryOverheadPercent: overheadPercent})
 
 	file := lo.Must(os.OpenFile(outFile, os.O_RDWR|os.O_CREATE, 0777))
 	defer file.Close()
@@ -84,17 +80,7 @@ func main() {
 		op.SecurityGroupProvider,
 		op.SubnetProvider,
 	)
-	raw := &runtime.RawExtension{}
-	lo.Must0(raw.UnmarshalJSON(lo.Must(json.Marshal(&v1alpha1.AWS{
-		SubnetSelector: map[string]string{
-			"karpenter.sh/discovery": clusterName,
-		},
-	}))))
-	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, nodepoolutil.New(&v1alpha5.Provisioner{
-		Spec: v1alpha5.ProvisionerSpec{
-			Provider: raw,
-		},
-	})))
+	instanceTypes := lo.Must(cloudProvider.GetInstanceTypes(ctx, nil))
 
 	// Write the header information into the CSV
 	lo.Must0(w.Write([]string{"Instance Type", "Expected Capacity", "", "", "Expected Allocatable", "", "", "Actual Capacity", "", "", "Actual Allocatable", ""}))

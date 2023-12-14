@@ -17,16 +17,16 @@ package main
 import (
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/controllers"
-	"github.com/aws/karpenter/pkg/operator"
-	"github.com/aws/karpenter/pkg/webhooks"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers"
+	"github.com/aws/karpenter-provider-aws/pkg/operator"
+	"github.com/aws/karpenter-provider-aws/pkg/webhooks"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider/metrics"
-	corecontrollers "github.com/aws/karpenter-core/pkg/controllers"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
-	coreoperator "github.com/aws/karpenter-core/pkg/operator"
-	corewebhooks "github.com/aws/karpenter-core/pkg/webhooks"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
+	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
+	"sigs.k8s.io/karpenter/pkg/controllers/state"
+	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
+	corewebhooks "sigs.k8s.io/karpenter/pkg/webhooks"
 )
 
 func main() {

@@ -26,4 +26,12 @@
 /v0.32/concepts/settings /v0.32/reference/settings
 /v0.32/concepts/threat-model /v0.32/reference/threat-model
 
-# TODO @joinnis: Add redirects for the "docs" version and future versions after v0.32 release
+# Redirect all docs documentation to the new routes
+/docs/concepts/provisioners /docs/concepts/nodepools
+/docs/concepts/node-templates /docs/concepts/nodeclasses
+/docs/concepts/deprovisioning /docs/concepts/disruption
+/docs/upgrade-guide /docs/upgrading/upgrade-guide
+/docs/concepts/instance-types /docs/reference/instance-types
+/docs/concepts/metrics /docs/reference/metrics
+/docs/concepts/settings /docs/reference/settings
+/docs/concepts/threat-model /docs/reference/threat-model

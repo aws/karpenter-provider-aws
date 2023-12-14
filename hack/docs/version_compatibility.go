@@ -20,7 +20,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/aws/karpenter/pkg/providers/version"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 )
 
 func main() {

@@ -2,7 +2,7 @@ export K8S_VERSION ?= 1.27.x
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
 ## Inject the app version into operator.Version
-LDFLAGS ?= -ldflags=-X=github.com/aws/karpenter-core/pkg/operator.Version=$(shell git describe --tags --always)
+LDFLAGS ?= -ldflags=-X=sigs.k8s.io/karpenter/pkg/operator.Version=$(shell git describe --tags --always)
 
 GOFLAGS ?= $(LDFLAGS)
 WITH_GOFLAGS = GOFLAGS="$(GOFLAGS)"
@@ -13,10 +13,7 @@ AWS_ACCOUNT_ID ?= $(shell aws sts get-caller-identity --query Account --output t
 KARPENTER_IAM_ROLE_ARN ?= arn:aws:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
 HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
       		--set settings.clusterName=${CLUSTER_NAME} \
-			--set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
-			--set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
 			--set settings.interruptionQueue=${CLUSTER_NAME} \
-			--set settings.featureGates.drift=true \
 			--set controller.resources.requests.cpu=1 \
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
@@ -24,14 +21,14 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--create-namespace
 
 # CR for local builds of Karpenter
-SYSTEM_NAMESPACE ?= karpenter
+KARPENTER_NAMESPACE ?= kube-system
 KARPENTER_VERSION ?= $(shell git tag --sort=committerdate | tail -1)
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/dev
 GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-karpenter/scripts
 
 # Common Directories
-MOD_DIRS = $(shell find . -name go.mod -type f | xargs dirname)
-KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' github.com/aws/karpenter-core)
+MOD_DIRS = $(shell find . -path "./website" -prune -o -name go.mod -type f -print | xargs dirname)
+KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 
 # TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
 TEST_SUITE ?= "..."
@@ -42,41 +39,26 @@ help: ## Display help
 
 presubmit: verify test ## Run all steps in the developer loop
 
-ci-test: battletest coverage ## Runs tests and submits coverage
+ci-test: test coverage ## Runs tests and submits coverage
 
 ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 
 run: ## Run Karpenter controller binary against your local cluster
-	kubectl create configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings \
-		--from-literal=aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
-		--dry-run=client -o yaml | kubectl apply -f -
-
-
-	SYSTEM_NAMESPACE=${SYSTEM_NAMESPACE} \
+	SYSTEM_NAMESPACE=${KARPENTER_NAMESPACE} \
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
 		LEADER_ELECT=false \
 		DISABLE_WEBHOOK=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
-		CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
 		FEATURE_GATES="Drift=true" \
 		go run ./cmd/controller/main.go
 
-clean-run: ## Clean resources deployed by the run target
-	kubectl delete configmap -n ${SYSTEM_NAMESPACE} karpenter-global-settings --ignore-not-found
-
 test: ## Run tests
-	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
-	cd tools/karpenter-convert && go test -v ./pkg/... --ginkgo.focus="${FOCUS}" --ginkgo.vv
-
-battletest: ## Run randomized, racing, code-covered tests
-	go test -v ./pkg/... \
-		-race \
-		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./pkg/... \
+	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
+		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
-		--ginkgo.vv \
-		-tags random_test_delay
+		--ginkgo.vv
 
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
@@ -106,7 +88,7 @@ benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
 
 deflake: ## Run randomized, racing, code-covered tests to deflake failures
-	for i in $(shell seq 1 5); do make battletest || exit 1; done
+	for i in $(shell seq 1 5); do make test || exit 1; done
 
 deflake-until-it-fails: ## Run randomized, racing tests until the test fails to catch flakes
 	ginkgo \
@@ -126,6 +108,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
+	hack/github/dependabot.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -134,6 +117,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 		fi;}
 	@echo "Validating codegen/docgen build scripts..."
 	@find hack/code hack/docs -name "*.go" -type f -print0 | xargs -0 -I {} go build -o /dev/null {}
+	actionlint -oneline
 
 vulncheck: ## Verify code vulnerabilities
 	@govulncheck ./pkg/...
@@ -145,13 +129,13 @@ setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controll
 	CLUSTER_NAME=${CLUSTER_NAME} ./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
 
 image: ## Build the Karpenter controller images using ko build
-	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter/cmd/controller))
+	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
 	$(eval IMG_REPOSITORY=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 1))
 	$(eval IMG_TAG=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 1 | cut -d ":" -f 2 -s))
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
 
 apply: image ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
-	helm upgrade --install karpenter charts/karpenter --namespace ${SYSTEM_NAMESPACE} \
+	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
 		$(HELM_OPTS) \
 		--set controller.image.repository=$(IMG_REPOSITORY) \
 		--set controller.image.tag=$(IMG_TAG) \
@@ -159,11 +143,11 @@ apply: image ## Deploy the controller from the current state of your git reposit
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to ${KARPENTER_VERSION}
-	helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace ${SYSTEM_NAMESPACE} \
+	helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace ${KARPENTER_NAMESPACE} \
 		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm uninstall karpenter --namespace karpenter
+	helm uninstall karpenter --namespace ${KARPENTER_NAMESPACE}
 
 docgen: ## Generate docs
 	KARPENTER_CORE_DIR=$(KARPENTER_CORE_DIR) $(WITH_GOFLAGS) ./hack/docgen.sh
@@ -196,7 +180,7 @@ issues: ## Run GitHub issue analysis scripts
 	./hack/github/label_issue_count.py > "karpenter-labels-$(shell date +"%Y-%m-%d").csv"
 
 website: ## Serve the docs website locally
-	cd website && npm install && git submodule update --init --recursive && hugo server
+	cd website && npm install && hugo mod tidy && hugo server
 
 tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod tidy $(newline))
@@ -204,11 +188,11 @@ tidy: ## Recursively "go mod tidy" on all directories where go.mod exists
 download: ## Recursively "go mod download" on all directories where go.mod exists
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && go mod download $(newline))
 
-update-core: ## Update karpenter-core to latest
-	go get -u github.com/aws/karpenter-core@HEAD
+update-karpenter: ## Update kubernetes-sigs/karpenter to latest
+	go get -u sigs.k8s.io/karpenter@HEAD
 	go mod tidy
 
-.PHONY: help dev ci release test battletest e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
+.PHONY: help dev ci release test e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
 
 define newline
 

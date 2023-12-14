@@ -1,27 +1,25 @@
-name: "APICodeGen"
-
+name: "CodeGenCI"
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 13 * * MON'
-
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-  pull-requests: write # name: Create Pull Request
-  contents: write # name: Create Pull Request
-
 jobs:
   codegen:
-    if: github.repository == 'aws/karpenter'
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      pull-requests: write # name: Create Pull Request
+      contents: write # name: Create Pull Request
+    if: github.repository == 'aws/karpenter-provider-aws'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - uses: ./.github/actions/install-deps
       - run: |
           git config user.name "APICodeGen"
           git config user.email "APICodeGen@users.noreply.github.com"
           git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
           git config pull.rebase false
-      - uses: aws-actions/configure-aws-credentials@v4.0.1
+      - uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
           role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
           aws-region: ${{ vars.ECR_REGION }}
@@ -29,10 +27,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ENABLE_GIT_PUSH: true
-      - run: export APICodeGenUpdate=$((cat /tmp/codegen-updates && echo "APICodeGenUpdate=true" >> $GITHUB_ENV) || echo "false")
+      - id: detect-changes
+        run: cat /tmp/codegen-updates && echo APICodeGenUpdate=true >> "$GITHUB_OUTPUT"
       - name: Create Pull Request
-        if: env.APICodeGenUpdate == 'true'
-        uses: actions/github-script@v6
+        if: steps.detect-changes.outputs.APICodeGenUpdate == 'true'
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
             const { repo, owner } = context.repo;
@@ -53,3 +52,9 @@ jobs:
               issue_number: result.data.number,
               labels: ['aws', 'dependencies']
             });
+      - name: notify slack of success or failure
+        uses: ./.github/actions/e2e/slack/notify
+        if: (success() || failure())
+        with:
+          url: ${{ secrets.SLACK_WEBHOOK_URL }}
+          suite: codegen

@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 )
 
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
@@ -37,6 +37,7 @@ type Instance struct {
 	SecurityGroupIDs []string
 	SubnetID         string
 	Tags             map[string]string
+	EFAEnabled       bool
 }
 
 func NewInstance(out *ec2.Instance) *Instance {
@@ -53,11 +54,14 @@ func NewInstance(out *ec2.Instance) *Instance {
 		}),
 		SubnetID: aws.StringValue(out.SubnetId),
 		Tags:     lo.SliceToMap(out.Tags, func(t *ec2.Tag) (string, string) { return aws.StringValue(t.Key), aws.StringValue(t.Value) }),
+		EFAEnabled: lo.ContainsBy(out.NetworkInterfaces, func(ni *ec2.InstanceNetworkInterface) bool {
+			return ni != nil && lo.FromPtr(ni.InterfaceType) == ec2.NetworkInterfaceTypeEfa
+		}),
 	}
 
 }
 
-func NewInstanceFromFleet(out *ec2.CreateFleetInstance, tags map[string]string) *Instance {
+func NewInstanceFromFleet(out *ec2.CreateFleetInstance, tags map[string]string, efaEnabled bool) *Instance {
 	return &Instance{
 		LaunchTime:   time.Now(), // estimate the launch time since we just launched
 		State:        ec2.StatePending,
@@ -68,5 +72,6 @@ func NewInstanceFromFleet(out *ec2.CreateFleetInstance, tags map[string]string) 
 		CapacityType: aws.StringValue(out.Lifecycle),
 		SubnetID:     aws.StringValue(out.LaunchTemplateAndOverrides.Overrides.SubnetId),
 		Tags:         tags,
+		EFAEnabled:   efaEnabled,
 	}
 }

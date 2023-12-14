@@ -161,6 +161,10 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-gpu-memory                          | 16384       | [AWS Specific] Number of mebibytes of memory on the GPU                                                                                                         |
 | karpenter.k8s.aws/instance-local-nvme                          | 900         | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                                        |
 
+{{% alert title="Note" color="primary" %}}
+Karpenter translates the following deprecated labels to their stable equivalents: `failure-domain.beta.kubernetes.io/zone`, `failure-domain.beta.kubernetes.io/region`, `beta.kubernetes.io/arch`, `beta.kubernetes.io/os`, and `beta.kubernetes.io/instance-type`.
+{{% /alert %}}
+
 #### User-Defined Labels
 
 Karpenter is aware of several well-known labels, deriving them from instance type details. If you specify a `nodeSelector` or a required `nodeAffinity` using a label that is not well-known to Karpenter, it will not launch nodes with these labels and pods will remain pending. For Karpenter to become aware that it can schedule for these labels, you must specify the label in the Provisioner requirements with the `Exists` operator:
@@ -594,8 +598,10 @@ This is not identical to a topology spread with a specified ratio.  We are const
 #### Workload Topology Spread Constraint
 
 ```yaml
-      topologySpreadConstraints:
-      - maxSkew: 1
-        topologyKey: capacity-spread
-        whenUnsatisfiable: DoNotSchedule
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: capacity-spread
+    whenUnsatisfiable: DoNotSchedule
+    labelSelector:
+      ...
 ```
