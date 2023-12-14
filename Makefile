@@ -136,10 +136,12 @@ image: ## Build the Karpenter controller images using ko build
 
 apply: image ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
-		$(HELM_OPTS) \
-		--set controller.image.repository=$(IMG_REPOSITORY) \
-		--set controller.image.tag=$(IMG_TAG) \
-		--set controller.image.digest=$(IMG_DIGEST)
+        $(HELM_OPTS) \
+        --set logConfig.enabled=true \
+        --set logConfig.logLevel.controller=debug \
+        --set controller.image.repository=$(IMG_REPOSITORY) \
+        --set controller.image.tag=$(IMG_TAG) \
+        --set controller.image.digest=$(IMG_DIGEST)
 
 install:  ## Deploy the latest released version into your ~/.kube/config cluster
 	@echo Upgrading to ${KARPENTER_VERSION}
