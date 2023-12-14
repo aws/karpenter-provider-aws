@@ -72,6 +72,9 @@ func (env *Environment) ExpectUpdated(objects ...client.Object) {
 		Eventually(func(g Gomega) {
 			current := o.DeepCopyObject().(client.Object)
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+			if current.GetResourceVersion() != o.GetResourceVersion() {
+				logging.FromContext(env).Infof("detected an update to an object with an outdated resource version, did you get the latest version of the object before patching?")
+			}
 			o.SetResourceVersion(current.GetResourceVersion())
 			g.Expect(env.Client.Update(env.Context, o)).To(Succeed())
 		}).WithTimeout(time.Second * 10).Should(Succeed())
