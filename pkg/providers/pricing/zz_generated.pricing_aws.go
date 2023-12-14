@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2023-12-11T13:07:33Z for us-east-1
+// generated at 2023-12-14T20:30:08Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
