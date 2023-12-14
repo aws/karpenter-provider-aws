@@ -32,6 +32,7 @@ func (s Settings) Validate() (errs *apis.FieldError) {
 		s.validateVMMemoryOverheadPercent(),
 		s.validateReservedENIs(),
 		s.validateAssumeRoleDuration(),
+		s.validatePriceMultiplier(),
 	).ViaField("aws")
 }
 
@@ -83,6 +84,16 @@ func (s Settings) validateVMMemoryOverheadPercent() (errs *apis.FieldError) {
 func (s Settings) validateReservedENIs() (errs *apis.FieldError) {
 	if s.ReservedENIs < 0 {
 		return errs.Also(apis.ErrInvalidValue("cannot be negative", "reservedENIs"))
+	}
+	return nil
+}
+
+func (s Settings) validatePriceMultiplier() (errs *apis.FieldError) {
+	if s.SpotPriceMultiplier <= 0 {
+		return errs.Also(apis.ErrInvalidValue("cannot be zero or negative", "SpotPriceMultiplier"))
+	}
+	if s.OnDemandPriceMultiplier <= 0 {
+		return errs.Also(apis.ErrInvalidValue("cannot be zero or negative", "OnDemandPriceMultiplier"))
 	}
 	return nil
 }

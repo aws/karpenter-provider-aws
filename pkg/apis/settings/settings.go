@@ -42,6 +42,8 @@ var defaultSettings = &Settings{
 	InterruptionQueueName:      "",
 	Tags:                       map[string]string{},
 	ReservedENIs:               0,
+	SpotPriceMultiplier:        1,
+	OnDemandPriceMultiplier:    1,
 }
 
 // +k8s:deepcopy-gen=true
@@ -59,6 +61,8 @@ type Settings struct {
 	InterruptionQueueName      string
 	Tags                       map[string]string
 	ReservedENIs               int
+	SpotPriceMultiplier        float64
+	OnDemandPriceMultiplier    float64
 }
 
 func (*Settings) ConfigMap() string {
@@ -83,6 +87,8 @@ func (*Settings) Inject(ctx context.Context, cm *v1.ConfigMap) (context.Context,
 		configmap.AsString("aws.interruptionQueueName", &s.InterruptionQueueName),
 		AsStringMap("aws.tags", &s.Tags),
 		configmap.AsInt("aws.reservedENIs", &s.ReservedENIs),
+		configmap.AsFloat64("aws.spotPriceMultiplier", &s.SpotPriceMultiplier),
+		configmap.AsFloat64("aws.onDemandPriceMultiplier", &s.OnDemandPriceMultiplier),
 	); err != nil {
 		return ctx, fmt.Errorf("parsing settings, %w", err)
 	}

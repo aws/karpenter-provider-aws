@@ -75,6 +75,10 @@ data:
   # Reserved ENIs are not included in the calculations for max-pods or kube-reserved
   # This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html
   aws.reservedENIs: "1"
+  # Spot Price Multiplier for including volume discounts etc. for spot prices. The spot price will be multiplied with the spotPriceMultiplier to determine the real cost
+  aws.spotPriceMultiplier: "0.95"
+  # On Demand Multiplier for including volume discounts etc. to ensure choosing the cheapest available instance. The ondemand price will be multiplied with the onDemandPriceMultiplier to determine the real cost
+  aws.onDemandPriceMultiplier: "0.60"
 ```
 
 ### Feature Gates

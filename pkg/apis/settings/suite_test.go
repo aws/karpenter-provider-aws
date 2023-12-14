@@ -56,6 +56,8 @@ var _ = Describe("Validation", func() {
 		Expect(s.VMMemoryOverheadPercent).To(Equal(0.075))
 		Expect(len(s.Tags)).To(BeZero())
 		Expect(s.ReservedENIs).To(Equal(0))
+		Expect(s.SpotPriceMultiplier).To(Equal(1.0))
+		Expect(s.OnDemandPriceMultiplier).To(Equal(1.0))
 	})
 	It("should succeed to set custom values", func() {
 		cm := &v1.ConfigMap{
@@ -72,6 +74,8 @@ var _ = Describe("Validation", func() {
 				"aws.vmMemoryOverheadPercent":    "0.1",
 				"aws.tags":                       `{"tag1": "value1", "tag2": "value2", "example.com/tag": "my-value"}`,
 				"aws.reservedENIs":               "1",
+				"aws.spotPriceMultiplier":        "2",
+				"aws.onDemandPriceMultiplier":    "0.5",
 			},
 		}
 		ctx, err := (&settings.Settings{}).Inject(ctx, cm)
@@ -90,6 +94,8 @@ var _ = Describe("Validation", func() {
 		Expect(s.Tags).To(HaveKeyWithValue("tag2", "value2"))
 		Expect(s.Tags).To(HaveKeyWithValue("example.com/tag", "my-value"))
 		Expect(s.ReservedENIs).To(Equal(1))
+		Expect(s.SpotPriceMultiplier).To(Equal(2.0))
+		Expect(s.OnDemandPriceMultiplier).To(Equal(0.5))
 	})
 	It("should succeed when setting values that no longer exist (backwards compatibility)", func() {
 		cm := &v1.ConfigMap{
@@ -212,6 +218,24 @@ var _ = Describe("Validation", func() {
 			Data: map[string]string{
 				"aws.assumeRoleDuration": "2m",
 				"aws.clusterName":        "my-cluster",
+			},
+		}
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
+	})
+	It("should fail validation with spotPriceMultiplier is negative", func() {
+		cm := &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.spotPriceMultiplier": "-1",
+			},
+		}
+		_, err := (&settings.Settings{}).Inject(ctx, cm)
+		Expect(err).To(HaveOccurred())
+	})
+	It("should fail validation with OnDemandPriceMultiplier is negative", func() {
+		cm := &v1.ConfigMap{
+			Data: map[string]string{
+				"aws.OnDemandPriceMultiplier": "-0.1",
 			},
 		}
 		_, err := (&settings.Settings{}).Inject(ctx, cm)

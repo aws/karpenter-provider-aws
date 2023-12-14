@@ -120,6 +120,35 @@ var _ = Describe("Pricing", func() {
 		Expect(price).To(BeNumerically("==", 1.23))
 		Expect(getPricingEstimateMetricValue("c99.large", ec2.UsageClassTypeOnDemand, "")).To(BeNumerically("==", 1.23))
 	})
+	It("should update on-demand pricing with response from the pricing API modified by specified multiplier", func() {
+		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			OnDemandPriceMultiplier: lo.ToPtr(0.5),
+		}))
+		c98ExpectedPrice := 1.20 * settings.FromContext(ctx).OnDemandPriceMultiplier
+		c99ExpectedPrice := 1.23 * settings.FromContext(ctx).OnDemandPriceMultiplier
+
+		// modify our API before creating the pricing provider as it performs an initial update on creation. The pricing
+		// API provides on-demand prices, the ec2 API provides spot prices
+		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
+			},
+		})
+		updateStart := time.Now()
+		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+		Eventually(func() bool { return awsEnv.PricingProvider.OnDemandLastUpdated().After(updateStart) }).Should(BeTrue())
+
+		price, ok := awsEnv.PricingProvider.OnDemandPrice("c98.large")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", c98ExpectedPrice))
+		Expect(getPricingEstimateMetricValue("c98.large", ec2.UsageClassTypeOnDemand, "")).To(BeNumerically("==", c98ExpectedPrice))
+
+		price, ok = awsEnv.PricingProvider.OnDemandPrice("c99.large")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", c99ExpectedPrice))
+		Expect(getPricingEstimateMetricValue("c99.large", ec2.UsageClassTypeOnDemand, "")).To(BeNumerically("==", c99ExpectedPrice))
+	})
 	It("should update spot pricing with response from the pricing API", func() {
 		now := time.Now()
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
@@ -169,6 +198,74 @@ var _ = Describe("Pricing", func() {
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.23))
 		Expect(getPricingEstimateMetricValue("c99.large", ec2.UsageClassTypeSpot, "test-zone-1a")).To(BeNumerically("==", 1.23))
+	})
+	It("should update spot pricing with response from the pricing API modified by specified multiplier", func() {
+		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
+			SpotPriceMultiplier: lo.ToPtr(0.7),
+		}))
+		c99Zone1aExpectedPrice := 1.23 * settings.FromContext(ctx).SpotPriceMultiplier
+		c99Zone1bExpectedPrice := 1.50 * settings.FromContext(ctx).SpotPriceMultiplier
+		c98Zone1aExpectedPrice := 1.20 * settings.FromContext(ctx).SpotPriceMultiplier
+		c98Zone1bExpectedPrice := 1.10 * settings.FromContext(ctx).SpotPriceMultiplier
+
+		now := time.Now()
+		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c98.large"),
+					SpotPrice:        aws.String("1.20"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.50"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("c98.large"),
+					SpotPrice:        aws.String("1.10"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
+			},
+		})
+		updateStart := time.Now()
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		Eventually(func() bool { return awsEnv.PricingProvider.SpotLastUpdated().After(updateStart) }).Should(BeTrue())
+
+		price, ok := awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1a")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", c98Zone1aExpectedPrice))
+		Expect(getPricingEstimateMetricValue("c98.large", ec2.UsageClassTypeSpot, "test-zone-1a")).To(BeNumerically("==", c98Zone1aExpectedPrice))
+
+		price, ok = awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1b")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", c98Zone1bExpectedPrice))
+		Expect(getPricingEstimateMetricValue("c98.large", ec2.UsageClassTypeSpot, "test-zone-1b")).To(BeNumerically("==", c98Zone1bExpectedPrice))
+
+		price, ok = awsEnv.PricingProvider.SpotPrice("c99.large", "test-zone-1a")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", c99Zone1aExpectedPrice))
+		Expect(getPricingEstimateMetricValue("c99.large", ec2.UsageClassTypeSpot, "test-zone-1a")).To(BeNumerically("==", c99Zone1aExpectedPrice))
+
+		price, ok = awsEnv.PricingProvider.SpotPrice("c99.large", "test-zone-1b")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", c99Zone1bExpectedPrice))
+		Expect(getPricingEstimateMetricValue("c99.large", ec2.UsageClassTypeSpot, "test-zone-1b")).To(BeNumerically("==", c99Zone1bExpectedPrice))
 	})
 	It("should update zonal pricing with data from the spot pricing API", func() {
 		now := time.Now()

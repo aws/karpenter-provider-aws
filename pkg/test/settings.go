@@ -34,6 +34,8 @@ type SettingOptions struct {
 	InterruptionQueueName      *string
 	Tags                       map[string]string
 	ReservedENIs               *int
+	SpotPriceMultiplier        *float64
+	OnDemandPriceMultiplier    *float64
 }
 
 func Settings(overrides ...SettingOptions) *awssettings.Settings {
@@ -54,5 +56,7 @@ func Settings(overrides ...SettingOptions) *awssettings.Settings {
 		InterruptionQueueName:      lo.FromPtrOr(options.InterruptionQueueName, ""),
 		Tags:                       options.Tags,
 		ReservedENIs:               lo.FromPtrOr(options.ReservedENIs, 0),
+		SpotPriceMultiplier:        lo.FromPtrOr(options.SpotPriceMultiplier, 1.0),
+		OnDemandPriceMultiplier:    lo.FromPtrOr(options.OnDemandPriceMultiplier, 1.0),
 	}
 }
