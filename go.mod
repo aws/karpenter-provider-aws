@@ -117,4 +117,6 @@ require (
 	sigs.k8s.io/yaml v1.3.0 // indirect
 )
 
-replace sigs.k8s.io/karpenter => github.com/njtran/karpenter v0.0.0-20231213081543-700e0aff1142
+// replace sigs.k8s.io/karpenter => github.com/njtran/karpenter v0.0.0-20231214021004-67edadf4afdf
+
+replace sigs.k8s.io/karpenter => /Users/nichotr/workplace/go/src/github.com/kubernetes-sigs/karpenter

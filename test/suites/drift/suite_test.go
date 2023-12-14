@@ -96,15 +96,16 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
-	Context("Budgets", func() {
-		It("should respect budgets for empty drift", func() {
-			coretest.ReplaceRequirements(nodePool,
+	FContext("Budgets", func() {
+		FIt("should respect budgets for empty drift", func() {
+			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"2xlarge"},
 				},
 			)
+			// We're expecting to create 3 nodes, so we'll expect to see 2 nodes deleting at one time.
 			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
 				Nodes: "50%",
 			}}
@@ -130,7 +131,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			env.ExpectCreated(nodeClass, nodePool, dep)
 
 			env.EventuallyExpectCreatedNodeClaimCount("==", 3)
-			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
+			env.EventuallyExpectCreatedNodeCount("==", 3)
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
@@ -148,16 +149,22 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				})
 			}).Should(Succeed())
 
+			// List nodes so that we get any updated information on the nodes. If we don't
+			// we have the potential to over-write any changes Karpenter makes to the nodes.
+			nodes := env.EventuallyExpectNodeCountWithSelector("==", 3, labels.SelectorFromSet(map[string]string{corev1beta1.NodePoolLabelKey: nodePool.Name}))
+
 			// Add a finalizer to each node so that we can stop termination disruptions
+			By("adding finalizers to the nodes to prevent full termination")
 			for _, node := range nodes {
 				node.Finalizers = append(node.Finalizers, "test/finalizer")
 				env.ExpectUpdated(node)
 			}
 
+			By("making the nodes empty")
 			// Delete the deployment to make all nodes empty.
 			env.ExpectDeleted(dep)
 
-			env.EventuallyExpectTaintedNodeCount("==", 2)
+			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
 
 			// Set the expireAfter to "Never" to make sure new node isn't deleted
 			// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
@@ -165,12 +172,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			nodePool.Spec.Disruption.ExpireAfter.Duration = nil
 			env.ExpectUpdated(nodePool)
 
-			// Expect that only one node is tainted, even considering the new node that was just created.
-			var nodeList *v1.NodeList
-			Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
-			Expect(len(nodeList.Items)).To(BeNumerically("==", 2))
-
-			// Add a finalizer to each node so that we can stop termination disruptions
+			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
 				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
 					return finalizer == "test/finalizer"
@@ -180,18 +182,22 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// After the deletion timestamp is set and all pods are drained
 			// the node should be gone
-			env.EventuallyExpectNotFound(&nodeList.Items[0], &nodeList.Items[1])
+			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+
+			nodes = env.EventuallyExpectTaintedNodeCount("==", 1)
+			env.EventuallyExpectNotFound(nodes[0])
 		})
-		It("should respect budgets for non-empty delete expiration", func() {
-			coretest.ReplaceRequirements(nodePool,
+		It("should respect budgets for non-empty delete drift", func() {
+			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"2xlarge"},
 				},
 			)
+			// We're expecting to create 3 nodes, so we'll expect to see 2 nodes deleting at one time.
 			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
-				Nodes: "30%",
+				Nodes: "50%",
 			}}
 			var numPods int32 = 6
 			dep = coretest.Deployment(coretest.DeploymentOptions{
@@ -215,7 +221,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			env.ExpectCreated(nodeClass, nodePool, dep)
 
 			env.EventuallyExpectCreatedNodeClaimCount("==", 3)
-			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
+			env.EventuallyExpectCreatedNodeCount("==", 3)
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
@@ -233,23 +239,23 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				})
 			}).Should(Succeed())
 
+			// List nodes so that we get any updated information on the nodes. If we don't
+			// we have the potential to over-write any changes Karpenter makes to the nodes.
+			nodes := env.EventuallyExpectNodeCountWithSelector("==", 3, labels.SelectorFromSet(map[string]string{corev1beta1.NodePoolLabelKey: nodePool.Name}))
+
 			// Add a finalizer to each node so that we can stop termination disruptions
+			By("adding finalizers to the nodes to prevent full termination")
 			for _, node := range nodes {
 				node.Finalizers = append(node.Finalizers, "test/finalizer")
 				env.ExpectUpdated(node)
 			}
 
-			// Half the number of replicas so that all pods can fit on one node.
-			dep.Spec.Replicas = lo.ToPtr(int32(3))
+			By("making the nodes empty")
+			// Update the deployment to half the replicas.
+			dep.Spec.Replicas = lo.ToPtr[int32](3)
 			env.ExpectUpdated(dep)
 
-			// Remove the do-not-disrupt annotation so that the nodes are now deprovisionable
-			for _, pod := range env.ExpectPodsMatchingSelector(selector) {
-				delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
-				env.ExpectUpdated(pod)
-			}
-
-			env.EventuallyExpectTaintedNodeCount("==", 1)
+			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
 
 			// Set the expireAfter to "Never" to make sure new node isn't deleted
 			// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
@@ -257,12 +263,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			nodePool.Spec.Disruption.ExpireAfter.Duration = nil
 			env.ExpectUpdated(nodePool)
 
-			// Expect that only one node is tainted, even considering the new node that was just created.
-			var nodeList *v1.NodeList
-			Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
-			Expect(len(nodeList.Items)).To(BeNumerically("==", 1))
-
-			// Add a finalizer to each node so that we can stop termination disruptions
+			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
 				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
 					return finalizer == "test/finalizer"
@@ -272,10 +273,13 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// After the deletion timestamp is set and all pods are drained
 			// the node should be gone
-			env.EventuallyExpectNotFound(&nodeList.Items[0])
+			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+
+			nodes = env.EventuallyExpectTaintedNodeCount("==", 1)
+			env.EventuallyExpectNotFound(nodes[0])
 		})
-		It("should respect budgets for non-empty replace expiration", func() {
-			coretest.ReplaceRequirements(nodePool,
+		It("should respect budgets for non-empty replace drift", func() {
+			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
@@ -307,13 +311,13 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			env.ExpectCreated(nodeClass, nodePool, dep)
 
 			env.EventuallyExpectCreatedNodeClaimCount("==", 3)
-			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
+			env.EventuallyExpectCreatedNodeCount("==", 3)
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 			// Drift the nodeclaims
 			nodePool.Spec.Template.Annotations = map[string]string{"test": "annotation"}
-			env.ExpectUpdated(nodePool)
+			env.ExpectCreatedOrUpdated(nodePool)
 
 			// Expect that the NodeClaims will all be marked expired
 			Eventually(func(g Gomega) {
@@ -324,6 +328,10 @@ var _ = Describe("Drift", Label("AWS"), func() {
 					g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
 				})
 			}).Should(Succeed())
+
+			// List nodes so that we get any updated information on the nodes. If we don't
+			// we have the potential to over-write any changes Karpenter makes to the nodes.
+			nodes := env.EventuallyExpectNodeCountWithSelector("==", 3, labels.SelectorFromSet(map[string]string{corev1beta1.NodePoolLabelKey: nodePool.Name}))
 
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
@@ -358,7 +366,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
 			Expect(len(nodeList.Items)).To(BeNumerically("==", 1))
 
-			// Add a finalizer to each node so that we can stop termination disruptions
+			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
 				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
 					return finalizer == "test/finalizer"

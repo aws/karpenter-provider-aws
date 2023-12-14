@@ -28,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
+	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
@@ -128,10 +129,11 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 					item := metaList.Items[i]
 					deepCopy := item.DeepCopy()
 					// Remove finalizer if we need it
-					deepCopy.Finalizers = lo.Reject(deepCopy.Finalizers, func(finalizer string, _ int) bool {
+					item.Finalizers = lo.Reject(item.Finalizers, func(finalizer string, _ int) bool {
 						return finalizer == testingFinalizer
 					})
 					if !equality.Semantic.DeepEqual(item, deepCopy) {
+						logging.FromContext(env).Infof("Failed to patch the node finalizer out")
 						g.Expect(client.IgnoreNotFound(env.Client.Patch(env, &item, client.MergeFrom(deepCopy)))).To(Succeed())
 					}
 					g.Expect(client.IgnoreNotFound(env.Client.Delete(env, &metaList.Items[i], client.PropagationPolicy(metav1.DeletePropagationForeground)))).To(Succeed())
