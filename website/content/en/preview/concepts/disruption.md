@@ -185,10 +185,10 @@ To enable interruption handling, configure the `--interruption-queue-name` CLI a
 
 You can rate limit Karpenter's disruption through the `NodePool.Spec.Disruption.Budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will take into account nodes that are being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through expiration, drift, emptiness, and consolidation.
 
-## budget.Duration + budget.Schedule
+#### budget.Duration + budget.Schedule
 Duration and Schedule can only be defined together. When omitted, the budget is always active. When defined, the schedule determines when a budget is active, and the duration determines how long from that point the budget is active. 
 
-### Schedule
+##### Schedule
 Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below. 
 Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for how to follow the cron syntax. 
 
@@ -208,10 +208,10 @@ Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/worklo
 Timezones are not supported. Most images default to UTC, but it is best practice to ensure this is the case when considering how to define your budgets. 
 {{% /alert %}}
 
-### Duration
+##### Duration
 Duration is a metav1.Duration, which allows compound durations with minutes and hours values such as `10h5m` or `30m` or `160h`. Since cron syntax does not accept denominations smaller than minutes, users can only define minutes or hours. 
 
-## Nodes
+#### Nodes
 When calculating if a budget will reject a node from disruption, Karpenter will list the total number of nodes provisioned for a NodePool, and the number of those nodes currently being deleted. 
 
 If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting`. If otherwise defined as a non-percentage value, Karpenter will simply subtract the number of nodes from the total `(total * percentage) - total_deleting`. For multiple budgets in a NodePool, Karpenter will take the minimum value of each of the budgets.
