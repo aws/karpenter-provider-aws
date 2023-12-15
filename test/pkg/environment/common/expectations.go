@@ -66,18 +66,33 @@ func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	}
 }
 
+// ExpectUpdated will update objects in the cluster to match the inputs.
+// WARNING: This ignores the resource version check, which can result in
+// overwriting changes made by other controllers in the cluster.
+// This is useful in ensuring that we can clean up resources by patching
+// out finalizers.
+// Grab the object before making the updates to reduce the chance of this race.
 func (env *Environment) ExpectUpdated(objects ...client.Object) {
 	GinkgoHelper()
 	for _, o := range objects {
 		Eventually(func(g Gomega) {
 			current := o.DeepCopyObject().(client.Object)
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+			if current.GetResourceVersion() != o.GetResourceVersion() {
+				logging.FromContext(env).Infof("detected an update to an object with an outdated resource version, did you get the latest version of the object before patching?")
+			}
 			o.SetResourceVersion(current.GetResourceVersion())
 			g.Expect(env.Client.Update(env.Context, o)).To(Succeed())
 		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
 
+// ExpectCreatedOrUpdated can update objects in the cluster to match the inputs.
+// WARNING: ExpectUpdated ignores the resource version check, which can result in
+// overwriting changes made by other controllers in the cluster.
+// This is useful in ensuring that we can clean up resources by patching
+// out finalizers.
+// Grab the object before making the updates to reduce the chance of this race.
 func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
 	GinkgoHelper()
 	for _, o := range objects {
