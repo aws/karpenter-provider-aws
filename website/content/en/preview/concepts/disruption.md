@@ -190,7 +190,7 @@ When calculating if a budget will block nodes from disruption, Karpenter lists t
 
 If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting`. If otherwise defined as a non-percentage value, Karpenter will simply subtract the number of nodes from the total `(total * percentage) - total_deleting`. For multiple budgets in a NodePool, Karpenter will take the minimum value (most restrictive) of each of the budgets.
 
-For example, the following NodePool with three budgets defines:
+For example, the following NodePool with three budgets defines the following requirements:
 - The first budget will only allow 20% of nodes owned by that NodePool to be disrupted. For instance, if there were 19 nodes owned by the NodePool, 4 disruptions would be allowed, rounding up from `19 * .2 = 3.8`.
 - The second budget acts as a ceiling to the previous budget, only allowing 5 disruptions when there are more than 25 nodes.
 - The last budget only blocks disruptions during the first 10 minutes of the day, where 0 disruptions are allowed.
