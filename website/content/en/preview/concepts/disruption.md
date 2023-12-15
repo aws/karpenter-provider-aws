@@ -13,11 +13,13 @@ The finalizer blocks deletion of the node object while the Termination Controlle
 
 ### Disruption Controller
 
-Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automatic method](#automatic-methods) at a time, in order of Expiration, Drift, and then Consolidation. Each method varies slightly, but they all follow the standard disruption process:
+Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automatic method](#automatic-methods) at a time, in order of Expiration, Drift, and then Consolidation. Each method varies slightly, but they all follow the standard disruption process. Karpenter uses [NodePool.Disruption.Budgets]({{<ref "#disruptionbudgets" >}}) to control the speed of disruption. 
 1. Identify a list of prioritized candidates for the disruption method.
    * If there are [pods that cannot be evicted](#pod-eviction) on the node, Karpenter will ignore the node and try disrupting it later.
    * If there are no disruptable nodes, continue to the next disruption method.
-2. For each disruptable node, execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
+2. For each disruptable node:
+   1. Check if disrupting it would violate its NodePool's disruption budget.
+   2. Execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
 3. Add the `karpenter.sh/disruption:NoSchedule` taint to the node(s) to prevent pods from scheduling to it.
 4. Pre-spin any replacement nodes needed as calculated in Step (2), and wait for them to become ready.
    * If a replacement node fails to initialize, un-taint the node(s), and restart from Step (1), starting at the first disruption method again.
@@ -60,6 +62,8 @@ When you run `kubectl delete node` on a node without a finalizer, the node is de
 {{% /alert %}}
 
 ## Automated Methods
+
+Automated methods can be rate limited through [NodePool Disruption Budgets]({{<ref "#disruptionbudgets" >}})
 
 * **Expiration**: Karpenter will mark nodes as expired and disrupt them after they have lived a set number of seconds, based on the NodePool's `spec.disruption.expireAfter` value. You can use node expiry to periodically recycle nodes due to security concerns.
 * [**Consolidation**]({{<ref "#consolidation" >}}): Karpenter works to actively reduce cluster cost by identifying when:
@@ -176,6 +180,63 @@ Karpenter enables this feature by watching an SQS queue which receives critical 
 To enable interruption handling, configure the `--interruption-queue-name` CLI argument with the name of the interruption queue provisioned to handle interruption events.
 
 ## Controls
+
+### Disruption Budgets
+
+You can rate limit Karpenter's disruption through the `NodePool.Spec.Disruption.Budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will take into account nodes that are being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through expiration, drift, emptiness, and consolidation.
+
+## budget.Duration + budget.Schedule
+Duration and Schedule can only be defined together. When omitted, the budget is always active. When defined, the schedule determines when a budget is active, and the duration determines how long from that point the budget is active. 
+
+### Schedule
+Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below. 
+Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for how to follow the cron syntax. 
+
+```bash
+# ┌───────────── minute (0 - 59)
+# │ ┌───────────── hour (0 - 23)
+# │ │ ┌───────────── day of the month (1 - 31)
+# │ │ │ ┌───────────── month (1 - 12)
+# │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday;
+# │ │ │ │ │                                   7 is also Sunday on some systems)
+# │ │ │ │ │                                   OR sun, mon, tue, wed, thu, fri, sat
+# │ │ │ │ │
+# * * * * *
+```
+
+{{% alert title="Note" color="primary" %}}
+Timezones are not supported. Most images default to UTC, but it is best practice to ensure this is the case when considering how to define your budgets. 
+{{% /alert %}}
+
+### Duration
+Duration is a metav1.Duration, which allows compound durations with minutes and hours values such as `10h5m` or `30m` or `160h`. Since cron syntax does not accept denominations smaller than minutes, users can only define minutes or hours. 
+
+## Nodes
+When calculating if a budget will reject a node from disruption, Karpenter will list the total number of nodes provisioned for a NodePool, and the number of those nodes currently being deleted. 
+
+If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting`. If otherwise defined as a non-percentage value, Karpenter will simply subtract the number of nodes from the total `(total * percentage) - total_deleting`. For multiple budgets in a NodePool, Karpenter will take the minimum value of each of the budgets.
+
+For example, the following NodePool with the following three budgets defines:
+- During the first 10 minutes of the day, 0 disruptions are allowed, due to the third budget.
+- When the NodePool has 25 or more nodes, only 5 disruptions are allowed, since 20% of a number larger than 25 would result in 6 nodes, due to rounding up, which is larger than 5. 
+- When the NodePool has 5 through 9 nodes, 2 disruptions would be allowed, since 20% of 9 is 1.8 which rounds up to 2. 
+
+```yaml
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    expireAfter: 720h # 30 * 24h = 720h
+    budgets: 
+    - nodes: "20%"
+    - nodes: 5
+    - nodes: 0
+      schedule: "@daily"
+      duration: 10m
+```
 
 ### Pod-Level Controls
 
