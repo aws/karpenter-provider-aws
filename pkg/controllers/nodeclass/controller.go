@@ -245,7 +245,6 @@ func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) core
 				DeleteFunc: func(e event.DeleteEvent) bool { return true },
 			}),
 		).
-		WithEventFilter(predicate.GenerationChangedPredicate{}).
 		WithOptions(controller.Options{
 			RateLimiter: workqueue.NewMaxOfRateLimiter(
 				workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 1*time.Minute),
