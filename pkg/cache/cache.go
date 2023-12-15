@@ -35,5 +35,5 @@ const (
 
 const (
 	// DefaultCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
-	DefaultCleanupInterval = 10 * time.Minute
+	DefaultCleanupInterval = time.Minute
 )
