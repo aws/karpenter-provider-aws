@@ -115,7 +115,8 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	// Compute fully initialized instance types hash key
 	subnetHash, _ := hashstructure.Hash(subnets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%d-%d-%d-%s-%016x-%016x", p.instanceTypesSeqNum, p.instanceTypeOfferingsSeqNum, p.unavailableOfferings.SeqNum, nodeClass.UID, subnetHash, kcHash)
+	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.Spec.BlockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s", p.instanceTypesSeqNum, p.instanceTypeOfferingsSeqNum, p.unavailableOfferings.SeqNum, subnetHash, kcHash, blockDeviceMappingsHash, aws.StringValue(nodeClass.Spec.AMIFamily))
 
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
@@ -230,10 +231,12 @@ func (p *Provider) getInstanceTypeOfferings(ctx context.Context) (map[string]set
 		}); err != nil {
 		return nil, fmt.Errorf("describing instance type zone offerings, %w", err)
 	}
-	if p.cm.HasChanged("instance-type-count", len(instanceTypeOfferings)) {
+	if p.cm.HasChanged("instance-type-offering", instanceTypeOfferings) {
+		// Only update instanceTypesSeqNun with the instance type offerings  have been changed
+		// This is to not create new keys with duplicate instance type offerings option
+		atomic.AddUint64(&p.instanceTypeOfferingsSeqNum, 1)
 		logging.FromContext(ctx).With("instance-type-count", len(instanceTypeOfferings)).Debugf("discovered offerings for instance types")
 	}
-	atomic.AddUint64(&p.instanceTypeOfferingsSeqNum, 1)
 	p.cache.SetDefault(InstanceTypeOfferingsCacheKey, instanceTypeOfferings)
 	return instanceTypeOfferings, nil
 }
@@ -270,10 +273,12 @@ func (p *Provider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInf
 		return nil, fmt.Errorf("fetching instance types using ec2.DescribeInstanceTypes, %w", err)
 	}
 	if p.cm.HasChanged("instance-types", instanceTypes) {
+		// Only update instanceTypesSeqNun with the instance types have been changed
+		// This is to not create new keys with duplicate instance types option
+		atomic.AddUint64(&p.instanceTypesSeqNum, 1)
 		logging.FromContext(ctx).With(
 			"count", len(instanceTypes)).Debugf("discovered instance types")
 	}
-	atomic.AddUint64(&p.instanceTypesSeqNum, 1)
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
 }
