@@ -183,43 +183,17 @@ To enable interruption handling, configure the `--interruption-queue-name` CLI a
 
 ### Disruption Budgets
 
-You can rate limit Karpenter's disruption through the `NodePool.Spec.Disruption.Budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will take into account nodes that are being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through expiration, drift, emptiness, and consolidation.
+You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through expiration, drift, emptiness, and consolidation.
 
-#### budget.Duration + budget.Schedule
-Duration and Schedule can only be defined together. When omitted, the budget is always active. When defined, the schedule determines when a budget is active, and the duration determines how long from that point the budget is active. 
+### Nodes
+When calculating if a budget will block nodes from disruption, Karpenter lists the total number of nodes owned by a NodePool, subtracting out the nodes owned by that NodePool that are currently being deleted. If the number of nodes being deleted by Karpenter or any other processes is greater than the number of allowed disruptions, disruption for this node will not proceed.
 
-##### Schedule
-Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below. 
-Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for how to follow the cron syntax. 
-
-```bash
-# ┌───────────── minute (0 - 59)
-# │ ┌───────────── hour (0 - 23)
-# │ │ ┌───────────── day of the month (1 - 31)
-# │ │ │ ┌───────────── month (1 - 12)
-# │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday;
-# │ │ │ │ │                                   7 is also Sunday on some systems)
-# │ │ │ │ │                                   OR sun, mon, tue, wed, thu, fri, sat
-# │ │ │ │ │
-# * * * * *
-```
-
-{{% alert title="Note" color="primary" %}}
-Timezones are not supported. Most images default to UTC, but it is best practice to ensure this is the case when considering how to define your budgets. 
-{{% /alert %}}
-
-##### Duration
-Duration is a metav1.Duration, which allows compound durations with minutes and hours values such as `10h5m` or `30m` or `160h`. Since cron syntax does not accept denominations smaller than minutes, users can only define minutes or hours. 
-
-#### Nodes
-When calculating if a budget will reject a node from disruption, Karpenter will list the total number of nodes provisioned for a NodePool, and the number of those nodes currently being deleted. 
-
-If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting`. If otherwise defined as a non-percentage value, Karpenter will simply subtract the number of nodes from the total `(total * percentage) - total_deleting`. For multiple budgets in a NodePool, Karpenter will take the minimum value of each of the budgets.
+If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting`. If otherwise defined as a non-percentage value, Karpenter will simply subtract the number of nodes from the total `(total * percentage) - total_deleting`. For multiple budgets in a NodePool, Karpenter will take the minimum value (most restrictive) of each of the budgets.
 
 For example, the following NodePool with the following three budgets defines:
-- During the first 10 minutes of the day, 0 disruptions are allowed, due to the third budget.
-- When the NodePool has 25 or more nodes, only 5 disruptions are allowed, since 20% of a number larger than 25 would result in 6 nodes, due to rounding up, which is larger than 5. 
-- When the NodePool has 5 through 9 nodes, 2 disruptions would be allowed, since 20% of 9 is 1.8 which rounds up to 2. 
+- When the NodePool has less than 25 nodes nodes, 20% disruptions would be allowed. For instance, if there were 19 nodes owned by the NodePool, 4 disruptions would be allowed, rounding up from `19 * .2 = 3.8`.
+- When the NodePool has 25 or more nodes, only 5 disruptions are allowed, acting as a ceiling. When comparing to the 20% budget, 5 will be more restrictive than any percentage value, resulting in 5 allowed disruptions. 
+- The last budget selectively blocks disruptions during the first 10 minutes of the day, where 0 disruptions are allowed.
 
 ```yaml
 apiVersion: karpenter.sh/v1beta1
@@ -237,6 +211,33 @@ spec:
       schedule: "@daily"
       duration: 10m
 ```
+
+#### Schedule
+Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below, with additional special macros like `@yearly`, `monthly`, `@weekly`, `@daily`, `@hourly`.
+Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for more information on how to follow the cron syntax. 
+
+```bash
+# ┌───────────── minute (0 - 59)
+# │ ┌───────────── hour (0 - 23)
+# │ │ ┌───────────── day of the month (1 - 31)
+# │ │ │ ┌───────────── month (1 - 12)
+# │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday;
+# │ │ │ │ │                                   7 is also Sunday on some systems)
+# │ │ │ │ │                                   OR sun, mon, tue, wed, thu, fri, sat
+# │ │ │ │ │
+# * * * * *
+```
+
+{{% alert title="Note" color="primary" %}}
+Timezones are not supported. Most images default to UTC, but it is best practice to ensure this is the case when considering how to define your budgets. 
+{{% /alert %}}
+
+#### Duration
+Duration allows compound durations with minutes and hours values such as `10h5m` or `30m` or `160h`. Since cron syntax does not accept denominations smaller than minutes, users can only define minutes or hours.
+
+{{% alert title="Note" color="primary" %}}
+Duration and Schedule can only be defined together. When omitted, the budget is always active. When defined, the schedule determines when a budget is active, and the duration determines how long from that point the budget is active. 
+{{% /alert %}}
 
 ### Pod-Level Controls
 

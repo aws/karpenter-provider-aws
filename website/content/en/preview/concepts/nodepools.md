@@ -138,7 +138,7 @@ spec:
     # You can choose to disable expiration entirely by setting the string value 'Never' here
     expireAfter: 720h
 
-    # Budgets control the speed at which Karpenter can scale down nodes.
+    # Budgets control the speed Karpenter can scale down nodes.
     # Karpenter will respect the minimum of the currently active budgets, and will round up
     # when considering percentages. Duration and Schedule must be set together. 
     budgets: 
