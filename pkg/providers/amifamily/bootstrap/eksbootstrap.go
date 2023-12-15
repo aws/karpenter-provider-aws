@@ -68,9 +68,6 @@ func (e EKS) eksBootstrapScript() string {
 	if e.isIPv6() {
 		userData.WriteString(" \\\n--ip-family ipv6")
 	}
-	if e.ContainerRuntime != "" {
-		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
-	}
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
