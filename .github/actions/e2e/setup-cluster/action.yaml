@@ -199,7 +199,7 @@ runs:
       oidc_id=$(aws eks describe-cluster --name "$CLUSTER_NAME" --query "cluster.identity.oidc.issuer" --output text | cut -d '/' -f 3,4,5)
       arn="arn:aws:iam::$ACCOUNT_ID:oidc-provider/${oidc_id}"
       aws iam tag-open-id-connect-provider --open-id-connect-provider-arn $arn \
-         --tags Key=test/git_ref,Values="$GIT_REF" Key=testing/type,Value=e2e Key=testing/cluster,Value=$CLUSTER_NAME Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+         --tags Key=test/git_ref,Value=$GIT_REF Key=testing/type,Value=e2e Key=testing/cluster,Value=$CLUSTER_NAME Key=github.com/run-url,Value=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
   - name: give KarpenterNodeRole permission to bootstrap
     shell: bash
     env:
