@@ -76,9 +76,7 @@ func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
 func (a AL2) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
-	containerRuntime := aws.String("containerd")
 	return bootstrap.EKS{
-		ContainerRuntime: *containerRuntime,
 		Options: bootstrap.Options{
 			ClusterName:         a.Options.ClusterName,
 			ClusterEndpoint:     a.Options.ClusterEndpoint,
