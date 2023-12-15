@@ -185,14 +185,14 @@ To enable interruption handling, configure the `--interruption-queue-name` CLI a
 
 You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through expiration, drift, emptiness, and consolidation.
 
-### Nodes
+#### Nodes
 When calculating if a budget will block nodes from disruption, Karpenter lists the total number of nodes owned by a NodePool, subtracting out the nodes owned by that NodePool that are currently being deleted. If the number of nodes being deleted by Karpenter or any other processes is greater than the number of allowed disruptions, disruption for this node will not proceed.
 
 If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting`. If otherwise defined as a non-percentage value, Karpenter will simply subtract the number of nodes from the total `(total * percentage) - total_deleting`. For multiple budgets in a NodePool, Karpenter will take the minimum value (most restrictive) of each of the budgets.
 
 For example, the following NodePool with the following three budgets defines:
 - When the NodePool has less than 25 nodes nodes, 20% disruptions would be allowed. For instance, if there were 19 nodes owned by the NodePool, 4 disruptions would be allowed, rounding up from `19 * .2 = 3.8`.
-- When the NodePool has 25 or more nodes, only 5 disruptions are allowed, acting as a ceiling. When comparing to the 20% budget, 5 will be more restrictive than any percentage value, resulting in 5 allowed disruptions. 
+- When the NodePool has 25 or more nodes, only 5 disruptions are allowed, acting as a ceiling. When comparing to the 20% budget, 5 will be more restrictive than any percentage value, resulting in 5 allowed disruptions.
 - The last budget selectively blocks disruptions during the first 10 minutes of the day, where 0 disruptions are allowed.
 
 ```yaml
