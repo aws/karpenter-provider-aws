@@ -126,6 +126,10 @@ var _ = Describe("NodeClassController", func() {
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
 				},
+				{
+					ID:   "subnet-test4",
+					Zone: "test-zone-1a-local",
+				},
 			}))
 		})
 		It("Should have the correct ordering for the Subnets", func() {
@@ -208,6 +212,10 @@ var _ = Describe("NodeClassController", func() {
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
 				},
+				{
+					ID:   "subnet-test4",
+					Zone: "test-zone-1a-local",
+				},
 			}))
 
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -253,6 +261,10 @@ var _ = Describe("NodeClassController", func() {
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
 				},
+				{
+					ID:   "subnet-test4",
+					Zone: "test-zone-1a-local",
+				},
 			}))
 
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -297,6 +309,10 @@ var _ = Describe("NodeClassController", func() {
 				{
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
+				},
+				{
+					ID:   "subnet-test4",
+					Zone: "test-zone-1a-local",
 				},
 			}))
 

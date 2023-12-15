@@ -26,18 +26,6 @@ Parameters:
     Type: String
     Description: "Timestream table to count number of resources to"
 Resources:
-  GithubOIDCProvider:
-    Type: AWS::IAM::OIDCProvider
-    Properties:
-      Url: https://token.actions.githubusercontent.com
-      ClientIdList:
-        - sts.amazonaws.com
-      # Relevant context for all these thumbprints can be found in the GH issue and blogpost:
-      # https://github.com/aws-actions/configure-aws-credentials/issues/357#issuecomment-1605290219
-      # https://github.blog/changelog/2023-06-27-github-actions-update-on-oidc-integration-with-aws/
-      ThumbprintList:
-        - 6938fd4d98bab03faadb97b34396831e3780aea1
-        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
   GithubActionsPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -398,7 +386,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Federated: !Ref GithubOIDCProvider
+              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
             Action: "sts:AssumeRoleWithWebIdentity"
             Condition:
               StringEquals:
