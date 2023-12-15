@@ -63,6 +63,9 @@ params:
     sidebar_search_disable: false
     navbar_logo: true
     footer_about_disable: true
+  snapshot_repo:
+    account_id: "021119463062"
+    region: us-east-1
   links:
     developer:
       - name: GitHub
