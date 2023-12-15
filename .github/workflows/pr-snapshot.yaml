@@ -45,7 +45,12 @@ jobs:
               issue_number: process.env.PR_NUMBER,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `Snapshot successfully published to "oci://${process.env.SNAPSHOT_ACCOUNT_ID}.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot/karpenter:v0-${process.env.PR_COMMIT}".`
+              body: `Snapshot successfully published to \`oci://${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot/karpenter:v0-${process.env.PR_COMMIT}\`.
+            To install you must login to the ECR repo with an AWS account:
+            ~~~
+            aws ecr get-login-password --region ${process.env.SNAPSHOT_REGION} | docker login --username AWS --password-stdin ${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com
+            ~~~
+            `
             })
       - if: always()
         uses: ./.github/actions/commit-status/end
