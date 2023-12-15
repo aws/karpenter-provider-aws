@@ -232,8 +232,8 @@ spec:
     expireAfter: 720h # 30 * 24h = 720h
     budgets: 
     - nodes: "20%"
-    - nodes: 5
-    - nodes: 0
+    - nodes: "5"
+    - nodes: "0"
       schedule: "@daily"
       duration: 10m
 ```

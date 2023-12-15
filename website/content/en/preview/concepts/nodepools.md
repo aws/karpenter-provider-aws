@@ -146,7 +146,7 @@ spec:
     # On Weekdays during business hours, don't do any deprovisioning.
     - schedule: "0 9 * * mon-fri"
       duration: 8h
-      nodes: 0
+      nodes: "0"
 
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
