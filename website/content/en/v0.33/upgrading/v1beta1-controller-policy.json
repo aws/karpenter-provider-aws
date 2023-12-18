@@ -25,7 +25,8 @@
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:instance/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:volume/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:network-interface/*",
-        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*",
+        "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*"
       ],
       "Action": [
         "ec2:RunInstances",
@@ -49,7 +50,8 @@
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:instance/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:volume/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:network-interface/*",
-        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*",
+        "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*"
       ],
       "Action": "ec2:CreateTags",
       "Condition": {
