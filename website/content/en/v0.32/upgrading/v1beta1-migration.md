@@ -144,7 +144,7 @@ The [`karpenter-convert`](https://github.com/aws/karpenter/tree/release-v0.32.x/
 
     1. Periodic Rolling with [Expiration]({{< relref "../concepts/disruption#automated-methods" >}}):
        - Add the following taint to the old Provisioner: `karpenter.sh/legacy=true:NoSchedule`
-       - Set the Expiration in your Provisioner to a small value like `ttlSecondsUntilExpired: 300` to mark all nodes older than 5 minutes as expired.
+       - Set the Expiration in your Provisioner to a small value like `ttlSecondsUntilExpired: 300` to mark all nodes older than 5 minutes as expired. *Please note that in beta APIs, this is the same as `disruption.expireAfter`*
        - Watch as replacement nodes are launched from the new NodePool resource.
 
        Because Karpenter will only roll one node at a time, it may take some time for Karpenter to completely roll all nodes under a Provisioner.
