@@ -34,7 +34,11 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 ```
 
 ### Upgrading to v0.34.0+
-* Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. This will allow Karpenter to disrupt multiple batches of nodes simultaneously, which can result in overall quicker scale-down of your cluster. Karpenter will default to disrupting at most 10% of your nodes simultaneously per NodePool.   Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more. 
+* Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more. 
+* With Disruption Budgets, Karpenter will disrupt multiple batches of nodes simultaneously, which can result in overall quicker scale-down of your cluster. Before v0.34, Karpenter had a hard-coded parallelism limit for each type of disruption. In v0.34, Karpenter will now disrupt at most 10% of nodes for a given NodePool. There is no setting that will be perfectly equivalent with the behavior prior to v0.34. When considering how to configure your budgets, please refer to the following limits for versions prior to v0.34:
+  * `Empty Expiration / Empty Drift / Empty Consolidation`: infinite parallelism 
+  * `Non-Empty Expiration / Non-Empty Drift / Single-Node Consolidation`: one node at a time
+  * `Multi-Node Consolidation`: max 100 nodes
 
 ### Upgrading to v0.33.0+
 
