@@ -34,7 +34,7 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 ```
 
 ### Upgrading to v0.34.0+
-* Karpenter now supports `nodepool.spec.disruption.budgets`. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more.
+* Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. This will allow Karpenter to disrupt multiple batches of nodes simultaneously, which can result in overall quicker scale-down of your cluster. Karpenter will default to disrupting at most 10% of your nodes simultaneously per NodePool.   Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more. 
 
 ### Upgrading to v0.33.0+
 
