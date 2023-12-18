@@ -85,6 +85,34 @@ runs:
       if [[ "$GIT_REF" == '' ]]; then 
         GIT_REF=$(git rev-parse HEAD)
       fi
+
+      # Disable Pod Identity for Karpenter on K8s 1.23. Pod Identity is not supported on K8s 1.23 
+      # https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html#pod-id-considerations
+      if [[ "$K8S_VERSION" == '1.23' ]]; then 
+        KARPENTER_IAM="""
+          - metadata:
+              name: karpenter
+              namespace: kube-system
+            attachPolicyARNs:
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}"
+            permissionsBoundary: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            roleName: karpenter-irsa-${{ inputs.cluster_name }}
+            roleOnly: true"""
+      else
+        KARPENTER_IAM="""podIdentityAssociations:
+          - namespace: kube-system
+            serviceAccountName: karpenter
+            roleName: karpenter-irsa-${{ inputs.cluster_name }}
+            permissionsBoundaryARN: "arn:aws:iam::${{ inputs.account_id }}:policy/GithubActionsPermissionsBoundary"
+            permissionPolicyARNs: 
+              - "arn:aws:iam::${{ inputs.account_id }}:policy/KarpenterControllerPolicy-${{ inputs.cluster_name }}""""
+        POD_IDENTITY="""- name: eks-pod-identity-agent
+        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
+        configurationValues: |
+          tolerations:
+            - operator: Exists"""
+      fi 
+
       # Create or Upgrade the cluster based on whether the cluster already exists
       cmd="create"
       eksctl get cluster --name "$CLUSTER_NAME" && cmd="upgrade"
@@ -125,13 +153,6 @@ runs:
           logRetentionInDays: 30
       iam:
         serviceRolePermissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
-        podIdentityAssociations:
-          - namespace: kube-system
-            serviceAccountName: karpenter
-            roleName: "karpenter-irsa-$CLUSTER_NAME"
-            permissionsBoundaryARN: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
-            permissionPolicyARNs: 
-              - "arn:aws:iam::$ACCOUNT_ID:policy/KarpenterControllerPolicy-$CLUSTER_NAME"
         serviceAccounts:
           - metadata:
               name: prometheus-kube-prometheus-prometheus
@@ -141,6 +162,7 @@ runs:
             permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
             roleName: "prometheus-irsa-$CLUSTER_NAME"
             roleOnly: true
+        $KARPENTER_IAM
         withOIDC: true
       addons:
       - name: vpc-cni
@@ -153,11 +175,7 @@ runs:
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
         wellKnownPolicies:
           ebsCSIController: true
-      - name: eks-pod-identity-agent
-        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
-        configurationValues: |
-          tolerations:
-            - operator: Exists
+      $POD_IDENTITY
       EOF
 
       if [[ $PRIVATE_CLUSTER == 'true' ]]; then
