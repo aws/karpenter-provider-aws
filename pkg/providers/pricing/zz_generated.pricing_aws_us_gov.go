@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2023-12-11T13:07:38Z for us-east-1
+// generated at 2023-12-18T13:07:43Z for us-east-1
 
 var InitialOnDemandPricesUSGov = map[string]map[string]float64{
 	// us-gov-east-1
