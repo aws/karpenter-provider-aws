@@ -9,7 +9,8 @@ config(){
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
   PRIVATE_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
-  SNAPSHOT_REPO_ECR=${SNAPSHOT_REPO_ECR:-${PRIVATE_HOST}/karpenter/snapshot/}
+  SNAPSHOT_ECR="021119463062.dkr.ecr.us-east-1.amazonaws.com"
+  SNAPSHOT_REPO_ECR=${SNAPSHOT_REPO_ECR:-${SNAPSHOT_ECR}/karpenter/snapshot/}
 
   CURRENT_MAJOR_VERSION="0"
   RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
@@ -57,7 +58,6 @@ Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
-  pullPrivateReplica "$RELEASE_VERSION"
 }
 
 authenticate() {
@@ -65,7 +65,7 @@ authenticate() {
 }
 
 authenticatePrivateRepo() {
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PRIVATE_HOST}
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${SNAPSHOT_ECR}
 }
 
 buildImages() {
