@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,8 +31,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 
+	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
@@ -62,196 +63,202 @@ var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Consolidation", func() {
-	It("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents), func() {
-		nodePool := test.NodePool(corev1beta1.NodePool{
-			Spec: corev1beta1.NodePoolSpec{
-				Disruption: corev1beta1.Disruption{
-					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
-					// Disable Consolidation until we're ready
-					ConsolidateAfter: &corev1beta1.NillableDuration{},
-				},
-				Template: corev1beta1.NodeClaimTemplate{
-					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []v1.NodeSelectorRequirement{
-							{
-								Key:      corev1beta1.CapacityTypeLabelKey,
-								Operator: v1.NodeSelectorOpIn,
-								// we don't replace spot nodes, so this forces us to only delete nodes
-								Values: []string{corev1beta1.CapacityTypeSpot},
-							},
-							{
-								Key:      v1beta1.LabelInstanceSize,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{"medium", "large", "xlarge"},
-							},
-							{
-								Key:      v1beta1.LabelInstanceFamily,
-								Operator: v1.NodeSelectorOpNotIn,
-								// remove some cheap burstable and the odd c1 instance types so we have
-								// more control over what gets provisioned
-								Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
-							},
-						},
-						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+	DescribeTable("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents),
+		func(spotToSpot bool) {
+			nodePool := test.NodePool(corev1beta1.NodePool{
+				Spec: corev1beta1.NodePoolSpec{
+					Disruption: corev1beta1.Disruption{
+						ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+						// Disable Consolidation until we're ready
+						ConsolidateAfter: &corev1beta1.NillableDuration{},
 					},
-				},
-			},
-		})
-
-		var numPods int32 = 100
-		dep := test.Deployment(test.DeploymentOptions{
-			Replicas: numPods,
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-				},
-			},
-		})
-
-		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		env.ExpectCreatedNodeCount("==", 0)
-		env.ExpectCreated(nodePool, nodeClass, dep)
-
-		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
-
-		// reduce the number of pods by 60%
-		dep.Spec.Replicas = aws.Int32(40)
-		env.ExpectUpdated(dep)
-		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, "<", 0.5)
-
-		// Enable consolidation as WhenUnderutilized doesn't allow a consolidateAfter value
-		nodePool.Spec.Disruption.ConsolidateAfter = nil
-		env.ExpectUpdated(nodePool)
-
-		// With consolidation enabled, we now must delete nodes
-		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, ">", 0.6)
-
-		env.ExpectDeleted(dep)
-	})
-	It("should consolidate on-demand nodes (replace)", func() {
-		nodePool := test.NodePool(corev1beta1.NodePool{
-			Spec: corev1beta1.NodePoolSpec{
-				Disruption: corev1beta1.Disruption{
-					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
-					// Disable Consolidation until we're ready
-					ConsolidateAfter: &corev1beta1.NillableDuration{},
-				},
-				Template: corev1beta1.NodeClaimTemplate{
-					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []v1.NodeSelectorRequirement{
-							{
-								Key:      corev1beta1.CapacityTypeLabelKey,
-								Operator: v1.NodeSelectorOpIn,
-								// we don't replace spot nodes, so this forces us to only delete nodes
-								Values: []string{corev1beta1.CapacityTypeOnDemand},
+					Template: corev1beta1.NodeClaimTemplate{
+						Spec: corev1beta1.NodeClaimSpec{
+							Requirements: []v1.NodeSelectorRequirement{
+								{
+									Key:      corev1beta1.CapacityTypeLabelKey,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   lo.Ternary(spotToSpot, []string{corev1beta1.CapacityTypeSpot}, []string{corev1beta1.CapacityTypeOnDemand}),
+								},
+								{
+									Key:      v1beta1.LabelInstanceSize,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{"medium", "large", "xlarge"},
+								},
+								{
+									Key:      v1beta1.LabelInstanceFamily,
+									Operator: v1.NodeSelectorOpNotIn,
+									// remove some cheap burstable and the odd c1 instance types so we have
+									// more control over what gets provisioned
+									Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
+								},
 							},
-							{
-								Key:      v1beta1.LabelInstanceSize,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{"large", "2xlarge"},
-							},
-						},
-						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
-					},
-				},
-			},
-		})
-
-		var numPods int32 = 3
-		largeDep := test.Deployment(test.DeploymentOptions{
-			Replicas: numPods,
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "large-app"},
-				},
-				TopologySpreadConstraints: []v1.TopologySpreadConstraint{
-					{
-						MaxSkew:           1,
-						TopologyKey:       v1.LabelHostname,
-						WhenUnsatisfiable: v1.DoNotSchedule,
-						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": "large-app",
-							},
+							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
 						},
 					},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("4")},
+			})
+
+			var numPods int32 = 100
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: numPods,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+					},
 				},
-			},
-		})
-		smallDep := test.Deployment(test.DeploymentOptions{
-			Replicas: numPods,
-			PodOptions: test.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Labels: map[string]string{"app": "small-app"},
-				},
-				TopologySpreadConstraints: []v1.TopologySpreadConstraint{
-					{
-						MaxSkew:           1,
-						TopologyKey:       v1.LabelHostname,
-						WhenUnsatisfiable: v1.DoNotSchedule,
-						LabelSelector: &metav1.LabelSelector{
-							MatchLabels: map[string]string{
-								"app": "small-app",
+			})
+
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			env.ExpectCreatedNodeCount("==", 0)
+			env.ExpectCreated(nodePool, nodeClass, dep)
+
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+
+			// reduce the number of pods by 60%
+			dep.Spec.Replicas = aws.Int32(40)
+			env.ExpectUpdated(dep)
+			env.EventuallyExpectAvgUtilization(v1.ResourceCPU, "<", 0.5)
+
+			// Enable consolidation as WhenUnderutilized doesn't allow a consolidateAfter value
+			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			env.ExpectUpdated(nodePool)
+
+			// With consolidation enabled, we now must delete nodes
+			env.EventuallyExpectAvgUtilization(v1.ResourceCPU, ">", 0.6)
+
+			env.ExpectDeleted(dep)
+		},
+		Entry("if the nodes are on-demand nodes", false),
+		Entry("if the nodes are spot nodes", true),
+	)
+	DescribeTable("should consolidate nodes (replace)",
+		func(spotToSpot bool) {
+			nodePool := test.NodePool(corev1beta1.NodePool{
+				Spec: corev1beta1.NodePoolSpec{
+					Disruption: corev1beta1.Disruption{
+						ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+						// Disable Consolidation until we're ready
+						ConsolidateAfter: &corev1beta1.NillableDuration{},
+					},
+					Template: corev1beta1.NodeClaimTemplate{
+						Spec: corev1beta1.NodeClaimSpec{
+							Requirements: []v1.NodeSelectorRequirement{
+								{
+									Key:      corev1beta1.CapacityTypeLabelKey,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   lo.Ternary(spotToSpot, []string{corev1beta1.CapacityTypeSpot}, []string{corev1beta1.CapacityTypeOnDemand}),
+								},
+								{
+									Key:      v1beta1.LabelInstanceSize,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{"large", "2xlarge"},
+								},
 							},
+							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
 						},
 					},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")},
+			})
+
+			var numPods int32 = 3
+			largeDep := test.Deployment(test.DeploymentOptions{
+				Replicas: numPods,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       v1.LabelHostname,
+							WhenUnsatisfiable: v1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": "large-app",
+								},
+							},
+						},
+					},
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("4")},
+					},
 				},
-			},
-		})
+			})
+			smallDep := test.Deployment(test.DeploymentOptions{
+				Replicas: numPods,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "small-app"},
+					},
+					TopologySpreadConstraints: []v1.TopologySpreadConstraint{
+						{
+							MaxSkew:           1,
+							TopologyKey:       v1.LabelHostname,
+							WhenUnsatisfiable: v1.DoNotSchedule,
+							LabelSelector: &metav1.LabelSelector{
+								MatchLabels: map[string]string{
+									"app": "small-app",
+								},
+							},
+						},
+					},
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")},
+					},
+				},
+			})
 
-		selector := labels.SelectorFromSet(largeDep.Spec.Selector.MatchLabels)
-		env.ExpectCreatedNodeCount("==", 0)
-		env.ExpectCreated(nodePool, nodeClass, largeDep, smallDep)
+			selector := labels.SelectorFromSet(largeDep.Spec.Selector.MatchLabels)
+			env.ExpectCreatedNodeCount("==", 0)
+			env.ExpectCreated(nodePool, nodeClass, largeDep, smallDep)
 
-		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 
-		// 3 nodes due to the anti-affinity rules
-		env.ExpectCreatedNodeCount("==", 3)
+			// 3 nodes due to the anti-affinity rules
+			env.ExpectCreatedNodeCount("==", 3)
 
-		// scaling down the large deployment leaves only small pods on each node
-		largeDep.Spec.Replicas = aws.Int32(0)
-		env.ExpectUpdated(largeDep)
-		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, "<", 0.5)
+			// scaling down the large deployment leaves only small pods on each node
+			largeDep.Spec.Replicas = aws.Int32(0)
+			env.ExpectUpdated(largeDep)
+			env.EventuallyExpectAvgUtilization(v1.ResourceCPU, "<", 0.5)
 
-		nodePool.Spec.Disruption.ConsolidateAfter = nil
-		env.ExpectUpdated(nodePool)
+			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			env.ExpectUpdated(nodePool)
 
-		// With consolidation enabled, we now must replace each node in turn to consolidate due to the anti-affinity
-		// rules on the smaller deployment.  The 2xl nodes should go to a large
-		env.EventuallyExpectAvgUtilization(v1.ResourceCPU, ">", 0.8)
+			// With consolidation enabled, we now must replace each node in turn to consolidate due to the anti-affinity
+			// rules on the smaller deployment.  The 2xl nodes should go to a large
+			env.EventuallyExpectAvgUtilization(v1.ResourceCPU, ">", 0.8)
 
-		var nodes v1.NodeList
-		Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
-		numLargeNodes := 0
-		numOtherNodes := 0
-		for _, n := range nodes.Items {
-			// only count the nodes created by the provisoiner
-			if n.Labels[corev1beta1.NodePoolLabelKey] != nodePool.Name {
-				continue
+			var nodes v1.NodeList
+			Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
+			numLargeNodes := 0
+			numOtherNodes := 0
+			for _, n := range nodes.Items {
+				// only count the nodes created by the provisoiner
+				if n.Labels[corev1beta1.NodePoolLabelKey] != nodePool.Name {
+					continue
+				}
+				if strings.HasSuffix(n.Labels[v1.LabelInstanceTypeStable], ".large") {
+					numLargeNodes++
+				} else {
+					numOtherNodes++
+				}
 			}
-			if strings.HasSuffix(n.Labels[v1.LabelInstanceTypeStable], ".large") {
-				numLargeNodes++
-			} else {
-				numOtherNodes++
-			}
-		}
 
-		// all of the 2xlarge nodes should have been replaced with large instance types
-		Expect(numLargeNodes).To(Equal(3))
-		// and we should have no other nodes
-		Expect(numOtherNodes).To(Equal(0))
+			// all of the 2xlarge nodes should have been replaced with large instance types
+			Expect(numLargeNodes).To(Equal(3))
+			// and we should have no other nodes
+			Expect(numOtherNodes).To(Equal(0))
 
-		env.ExpectDeleted(largeDep, smallDep)
-	})
+			env.ExpectDeleted(largeDep, smallDep)
+		},
+		Entry("if the nodes are on-demand nodes", false),
+		Entry("if the nodes are spot nodes", true),
+	)
 	It("should consolidate on-demand nodes to spot (replace)", func() {
 		nodePool := test.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
@@ -266,8 +273,7 @@ var _ = Describe("Consolidation", func() {
 							{
 								Key:      corev1beta1.CapacityTypeLabelKey,
 								Operator: v1.NodeSelectorOpIn,
-								// we don't replace spot nodes, so this forces us to only delete nodes
-								Values: []string{corev1beta1.CapacityTypeOnDemand},
+								Values:   []string{corev1beta1.CapacityTypeOnDemand},
 							},
 							{
 								Key:      v1beta1.LabelInstanceSize,

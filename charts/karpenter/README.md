@@ -63,8 +63,8 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | podAnnotations | object | `{}` | Additional annotations for the pod. |
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podDisruptionBudget.name | string | `"karpenter"` |  |
-| podSecurityContext | object | `{"fsGroup":65536}` | SecurityContext for the pod. |
 | podLabels | object | `{}` | Additional labels for the pod. |
+| podSecurityContext | object | `{"fsGroup":65536}` | SecurityContext for the pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
@@ -74,7 +74,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.additionalLabels | object | `{}` | Additional labels for the ServiceMonitor. |
 | serviceMonitor.enabled | bool | `false` | Specifies whether a ServiceMonitor should be created. |
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
-| settings | object | `{"assumeRoleARN":"","assumeRoleDuration":"15m","batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","featureGates":{"drift":true},"interruptionQueue":"","isolatedVPC":false,"reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
+| settings | object | `{"assumeRoleARN":"","assumeRoleDuration":"15m","batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","featureGates":{"drift":true,"spotToSpotConsolidation":false},"interruptionQueue":"","isolatedVPC":false,"reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
 | settings.assumeRoleARN | string | `""` | Role to assume for calling AWS services. |
 | settings.assumeRoleDuration | string | `"15m"` | Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless assumeRoleARN set. |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
@@ -82,8 +82,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | settings.clusterCABundle | string | `""` | Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server. |
 | settings.clusterEndpoint | string | `""` | Cluster endpoint. If not set, will be discovered during startup (EKS only) |
 | settings.clusterName | string | `""` | Cluster name. |
-| settings.featureGates | object | `{"drift":true}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features |
+| settings.featureGates | object | `{"drift":true,"spotToSpotConsolidation":false}` | Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features |
 | settings.featureGates.drift | bool | `true` | drift is in BETA and is enabled by default. Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes and the desired state of nodes set in nodepools and nodeclasses |
+| settings.featureGates.spotToSpotConsolidation | bool | `false` | spotToSpotConsolidation is disabled by default. Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation. |
 | settings.interruptionQueue | string | `""` | interruptionQueue is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs. |
 | settings.isolatedVPC | bool | `false` | If true then assume we can't reach AWS services which don't have a VPC endpoint This also has the effect of disabling look-ups to the AWS pricing endpoint |
 | settings.reservedENIs | string | `"0"` | Reserved ENIs are not included in the calculations for max-pods or kube-reserved This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html |

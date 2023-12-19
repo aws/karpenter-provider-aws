@@ -374,11 +374,11 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 	sort.Slice(instanceTypes, func(i, j int) bool {
 		iPrice := math.MaxFloat64
 		jPrice := math.MaxFloat64
-		if len(instanceTypes[i].Offerings.Available().Requirements(requirements)) > 0 {
-			iPrice = instanceTypes[i].Offerings.Available().Requirements(requirements).Cheapest().Price
+		if len(instanceTypes[i].Offerings.Available().Compatible(requirements)) > 0 {
+			iPrice = instanceTypes[i].Offerings.Available().Compatible(requirements).Cheapest().Price
 		}
-		if len(instanceTypes[j].Offerings.Available().Requirements(requirements)) > 0 {
-			jPrice = instanceTypes[j].Offerings.Available().Requirements(requirements).Cheapest().Price
+		if len(instanceTypes[j].Offerings.Available().Compatible(requirements)) > 0 {
+			jPrice = instanceTypes[j].Offerings.Available().Compatible(requirements).Cheapest().Price
 		}
 		if iPrice == jPrice {
 			return instanceTypes[i].Name < instanceTypes[j].Name

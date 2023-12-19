@@ -240,7 +240,7 @@ func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *cor
 	reqs := scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...)
 	return lo.Filter(instanceTypes, func(i *cloudprovider.InstanceType, _ int) bool {
 		return reqs.Compatible(i.Requirements, scheduling.AllowUndefinedWellKnownLabels) == nil &&
-			len(i.Offerings.Requirements(reqs).Available()) > 0 &&
+			len(i.Offerings.Compatible(reqs).Available()) > 0 &&
 			resources.Fits(nodeClaim.Spec.Resources.Requests, i.Allocatable())
 	}), nil
 }
