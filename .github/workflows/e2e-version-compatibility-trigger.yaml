@@ -26,6 +26,9 @@ jobs:
     with:
       allowed_comment: "versionCompatibility"
   versionCompatibility:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     strategy:

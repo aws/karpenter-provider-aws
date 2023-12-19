@@ -9,10 +9,10 @@ on:
       - test/push-docker.sh
   schedule:
     - cron: '0 13 * * MON'
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   publish-tools:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:

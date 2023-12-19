@@ -1,13 +1,18 @@
 name: Release
 on:
   push:
-    tags: [ 'v*.*.*' ]
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-  contents: write # marvinpinto/action-automatic-releases@latest
-  pull-requests: write # name: Create PR
+    # Only release on supported semantic version tagging e.g. v0.0.1-rc.0
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-rc.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-alpha.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-beta.[0-9]+'
 jobs:
   release:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      contents: write # marvinpinto/action-automatic-releases@v1.2.1
+      pull-requests: write # name: Create PR
     if: github.repository == 'aws/karpenter'
     runs-on: ubuntu-latest
     steps:
