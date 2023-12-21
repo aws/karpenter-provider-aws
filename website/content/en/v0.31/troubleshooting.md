@@ -624,7 +624,7 @@ An identified potential cause for a continuous cycle of nodes being provisioned 
 Spot instances are time limited and therefore, interruptible. Once a signal is sent by AWS. This triggers a NTH and Karpenter, where the former signals a shutdown and the later provisions - creating a recursive situation.
 This can be mitigated by either completely removing NTH or by setting the following values:
 
-# enableSpotInterruptionDraining If false, do not drain nodes when the spot interruption termination notice is received. Only used in IMDS mode.
+* enableSpotInterruptionDraining: If false, do not drain nodes when the spot interruption termination notice is received. Only used in IMDS mode.
 enableSpotInterruptionDraining: false
 
 # enableRebalanceDraining If true, drain nodes when the rebalance recommendation notice is received. Only used in IMDS mode.
