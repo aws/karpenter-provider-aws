@@ -627,7 +627,7 @@ This can be mitigated by either completely removing NTH or by setting the follow
 * enableSpotInterruptionDraining: If false, do not drain nodes when the spot interruption termination notice is received. Only used in IMDS mode.
 enableSpotInterruptionDraining: false
 
-# enableRebalanceDraining If true, drain nodes when the rebalance recommendation notice is received. Only used in IMDS mode.
+* enableRebalanceDrainin: If true, drain nodes when the rebalance recommendation notice is received. Only used in IMDS mode.
 enableRebalanceDraining: false
 
 ## Pricing
