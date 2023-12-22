@@ -1,0 +1,52 @@
+name: E2ESoakTrigger
+on:
+  schedule:
+    - cron: '0 */3 * * *'
+jobs:
+  resolve_cluster:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+    if: github.repository == 'aws/karpenter-provider-aws'
+    runs-on: ubuntu-latest
+    outputs:
+      PREEXISTING_CLUSTERS: ${{ steps.list_clusters.outputs.PREEXISTING_CLUSTERS }}
+    steps:
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+    - name: configure aws credentials
+      uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a
+      with:
+       role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
+       aws-region: eu-north-1
+    - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+      with:
+        go-version-file: test/hack/soak/go.mod
+        cache-dependency-path: test/hack/soak/go.sum
+        check-latest: true
+        cache: false
+    # Grab all the names of the soak testing clusters, and identify clusters that will need to be deleted
+    # Empty cluster_name will indicate that a new cluster will be created
+    - id: list_clusters 
+      name: "Run list clusters script"
+      run: |
+        PREEXISTING_CLUSTERS="$(go run get_clusters.go)" 
+        echo PREEXISTING_CLUSTERS="$PREEXISTING_CLUSTERS" >> "$GITHUB_OUTPUT"
+      working-directory: ./test/hack/soak
+      shell: bash
+  soak:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # required by e2e.yaml
+    needs: [resolve_cluster]
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.resolve_cluster.outputs.PREEXISTING_CLUSTERS) }}
+    uses: ./.github/workflows/e2e.yaml
+    with:
+      suite: Integration
+      region: eu-north-1
+      workflow_trigger: "soak"
+      cluster_name: ${{ matrix.cluster_name }}
+      cleanup: ${{ matrix.cluster_cleanup }}
+      git_ref: ${{ matrix.git_ref }}
+    secrets:
+      SLACK_WEBHOOK_SOAK_URL: ${{ secrets.SLACK_WEBHOOK_SOAK_URL }}

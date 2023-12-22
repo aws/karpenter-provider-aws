@@ -21,7 +21,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 )
 
 var acceptedStates = sets.NewString("stopping", "stopped", "shutting-down", "terminated")

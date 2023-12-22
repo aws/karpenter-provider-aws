@@ -25,10 +25,7 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
-	corev1alpha5 "github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 func NewWebhooks() []knativeinjection.ControllerConstructor {
@@ -59,7 +56,5 @@ func NewCRDValidationWebhook(ctx context.Context, _ configmap.Watcher) *controll
 }
 
 var Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-	v1alpha1.SchemeGroupVersion.WithKind("AWSNodeTemplate"): &v1alpha1.AWSNodeTemplate{},
-	corev1alpha5.SchemeGroupVersion.WithKind("Provisioner"): &v1alpha5.Provisioner{},
-	v1beta1.SchemeGroupVersion.WithKind("EC2NodeClass"):     &v1beta1.EC2NodeClass{},
+	v1beta1.SchemeGroupVersion.WithKind("EC2NodeClass"): &v1beta1.EC2NodeClass{},
 }

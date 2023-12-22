@@ -1,11 +1,15 @@
 name: Feature
 description: Suggest an idea for a new feature
-labels: feature
-body: 
+labels:
+- feature
+- needs-triage
+body:
 - type: textarea
   attributes:
     label: Description
     value: |
+      ** READ BEFORE CONTINUING: If your issue is not specific to AWS, please cut a ticket in [kubernetes-sigs/karpenter](https://github.com/kubernetes-sigs/karpenter/issues/new/choose).
+
       **What problem are you trying to solve?**
 
       **How important is this feature to you?**

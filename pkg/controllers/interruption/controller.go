@@ -30,19 +30,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/cache"
-	interruptionevents "github.com/aws/karpenter/pkg/controllers/interruption/events"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/utils"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
-	"github.com/aws/karpenter-core/pkg/events"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	nodeclaimutil "github.com/aws/karpenter-core/pkg/utils/nodeclaim"
+	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
+
+	"sigs.k8s.io/karpenter/pkg/events"
+	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
+	nodeclaimutil "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 )
 
 type Action string
@@ -59,14 +59,14 @@ type Controller struct {
 	kubeClient                client.Client
 	clk                       clock.Clock
 	recorder                  events.Recorder
-	sqsProvider               *SQSProvider
+	sqsProvider               *sqs.Provider
 	unavailableOfferingsCache *cache.UnavailableOfferings
 	parser                    *EventParser
 	cm                        *pretty.ChangeMonitor
 }
 
 func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder,
-	sqsProvider *SQSProvider, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
+	sqsProvider *sqs.Provider, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
 
 	return &Controller{
 		kubeClient:                kubeClient,
@@ -80,8 +80,8 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", options.FromContext(ctx).InterruptionQueue))
-	if c.cm.HasChanged(options.FromContext(ctx).InterruptionQueue, nil) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", c.sqsProvider.Name()))
+	if c.cm.HasChanged(c.sqsProvider.Name(), nil) {
 		logging.FromContext(ctx).Debugf("watching interruption queue")
 	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
@@ -141,7 +141,7 @@ func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error)
 	return msg, nil
 }
 
-// handleMessage takes an action against every node involved in the message that is owned by a Provisioner
+// handleMessage takes an action against every node involved in the message that is owned by a NodePool
 func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap map[string]*v1beta1.NodeClaim,
 	nodeInstanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
 
@@ -180,8 +180,7 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqsapi.Message) err
 // handleNodeClaim retrieves the action for the message and then performs the appropriate action against the node
 func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *v1beta1.NodeClaim, node *v1.Node) error {
 	action := actionForMessage(msg)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With(lo.Ternary(nodeClaim.IsMachine, "machine", "nodeclaim"), nodeClaim.Name))
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("action", string(action)))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name, "action", string(action)))
 	if node != nil {
 		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
 	}
@@ -195,7 +194,7 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		zone := nodeClaim.Labels[v1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1alpha1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1beta1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {

@@ -28,6 +28,8 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 type EKS struct {
@@ -66,9 +68,6 @@ func (e EKS) eksBootstrapScript() string {
 	if e.isIPv6() {
 		userData.WriteString(" \\\n--ip-family ipv6")
 	}
-	if e.ContainerRuntime != "" {
-		userData.WriteString(fmt.Sprintf(" \\\n--container-runtime %s", e.ContainerRuntime))
-	}
 	if e.KubeletConfig != nil && len(e.KubeletConfig.ClusterDNS) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--dns-cluster-ip '%s'", e.KubeletConfig.ClusterDNS[0]))
 	}
@@ -77,6 +76,9 @@ func (e EKS) eksBootstrapScript() string {
 	}
 	if args := e.kubeletExtraArgs(); len(args) > 0 {
 		userData.WriteString(fmt.Sprintf(" \\\n--kubelet-extra-args '%s'", strings.Join(args, " ")))
+	}
+	if lo.FromPtr(e.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
+		userData.WriteString(" \\\n--local-disks raid0")
 	}
 	return userData.String()
 }

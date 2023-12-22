@@ -6,9 +6,7 @@ description: >
   Configure Karpenter with NodePools
 ---
 
-When you first installed Karpenter, you set up a default NodePool.
-The NodePool sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes.
-The NodePool can be set to do things like:
+When you first installed Karpenter, you set up a default NodePool. The NodePool sets constraints on the nodes that can be created by Karpenter and the pods that can run on those nodes. The NodePool can be set to do things like:
 
 * Define taints to limit the pods that can run on nodes Karpenter creates
 * Define any startup taints to inform Karpenter that it should taint the node initially, but that the taint is temporary.
@@ -86,7 +84,7 @@ spec:
         - key: "kubernetes.io/arch"
           operator: In
           values: ["arm64", "amd64"]
-        - key: "karpenter.sh/capacity-type" # If not included, the webhook for the AWS cloud provider will default to on-demand
+        - key: "karpenter.sh/capacity-type"
           operator: In
           values: ["spot", "on-demand"]
 
@@ -94,7 +92,6 @@ spec:
       # These are all optional and provide support for additional customization and use cases.
       kubelet:
         clusterDNS: ["10.0.1.100"]
-        containerRuntime: containerd
         systemReserved:
           cpu: 100m
           memory: 100Mi
@@ -140,6 +137,16 @@ spec:
     # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
     # You can choose to disable expiration entirely by setting the string value 'Never' here
     expireAfter: 720h
+
+    # Budgets control the speed Karpenter can scale down nodes.
+    # Karpenter will respect the minimum of the currently active budgets, and will round up
+    # when considering percentages. Duration and Schedule must be set together. 
+    budgets: 
+    - nodes: 10%
+    # On Weekdays during business hours, don't do any deprovisioning.
+    - schedule: "0 9 * * mon-fri"
+      duration: 8h
+      nodes: "0"
 
   # Resource limits constrain the total size of the cluster.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
@@ -256,7 +263,6 @@ additional customization and use cases. Adjust these only if you know you need t
 ```yaml
 kubelet:
   clusterDNS: ["10.0.1.100"]
-  containerRuntime: containerd
   systemReserved:
     cpu: 100m
     memory: 100Mi
@@ -284,10 +290,6 @@ kubelet:
   podsPerCore: 2
   maxPods: 20
 ```
-
-You can specify the container runtime to be either `dockerd` or `containerd`. By default, `containerd` is used.
-
-* `containerd` is the only valid container runtime when using the `Bottlerocket` AMIFamily or when using Kubernetes version 1.24+ and the `AL2`, `Windows2019`, or `Windows2022` AMIFamilies.
 
 ### Reserved Resources
 

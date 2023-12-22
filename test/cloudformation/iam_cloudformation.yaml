@@ -9,7 +9,7 @@ Parameters:
     Description: "The restrictions on which branches have permission to reach out to the OIDC provider. This is useful for security hardening of your github actions as described in https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions"
   Regions:
     Type: CommaDelimitedList
-    Default: "us-east-2,us-west-2,eu-west-1"
+    Default: "us-east-1,us-east-2,us-west-2,eu-west-1"
   PrometheusWorkspaceID:
     Type: String
     Description: "Prometheus workspace to forward cluster prometheus metrics to"
@@ -22,23 +22,121 @@ Parameters:
   SweeperTableName:
     Type: String
     Description: "Timestream table to forward leaked resources to"
+  ResourceCountTableName:
+    Type: String
+    Description: "Timestream table to count number of resources to"
 Resources:
-  GithubOIDCProvider:
-    Type: AWS::IAM::OIDCProvider
-    Properties:
-      Url: https://token.actions.githubusercontent.com
-      ClientIdList:
-        - sts.amazonaws.com
-      # Relevant context for all these thumbprints can be found in the GH issue and blogpost:
-      # https://github.com/aws-actions/configure-aws-credentials/issues/357#issuecomment-1605290219
-      # https://github.blog/changelog/2023-06-27-github-actions-update-on-oidc-integration-with-aws/
-      ThumbprintList:
-        - 6938fd4d98bab03faadb97b34396831e3780aea1
-        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
   GithubActionsPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
       ManagedPolicyName: GithubActionsPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action:
+              - cloudformation:CreateChangeSet
+              - cloudformation:CreateStack
+              - cloudformation:DeleteStack
+              - cloudformation:DescribeChangeSet
+              - cloudformation:DescribeStackEvents
+              - cloudformation:DescribeStackResources
+              - cloudformation:ExecuteChangeSet
+              - cloudformation:GetTemplate
+              - cloudformation:GetTemplateSummary
+            Resource:
+              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/iam-*"
+              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/eksctl-*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+             - cloudformation:ListStacks
+             - cloudformation:DescribeStacks
+            Resource: "*"
+          - Effect: Allow
+            Action: logs:PutRetentionPolicy
+            Resource: !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/eks/*"
+          - Effect: Allow
+            Action: fis:CreateExperimentTemplate
+            Resource: !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:action/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - fis:CreateExperimentTemplate
+              - fis:DeleteExperimentTemplate
+              - fis:StartExperiment
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment-template/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - fis:GetExperiment
+              - fis:StartExperiment
+            Resource: 
+              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - iam:CreateServiceLinkedRole
+            Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
+          - Effect: Allow
+            Action:
+              - sqs:CreateQueue
+              - sqs:AddPermission
+              - sqs:TagQueue
+              - sqs:SetQueueAttributes
+              - sqs:GetQueueAttributes
+              - sqs:GetQueueUrl
+              - sqs:RemovePermission
+              - sqs:DeleteQueue
+              - sqs:UntagQueue
+            Resource: 
+            - !Sub "arn:${AWS::Partition}:sqs:*:${AWS::AccountId}:*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action:
+              - events:PutRule
+              - events:DeleteRule
+              - events:DescribeRule
+              - events:PutTargets
+              - events:RemoveTargets
+              - events:EnableRule
+            Resource: !Sub "arn:${AWS::Partition}:events:*:${AWS::AccountId}:rule/*"
+            Condition:
+              StringEquals:
+                aws:RequestedRegion: 
+                  Ref: Regions
+          - Effect: Allow
+            Action: timestream:WriteRecords
+            Resource:
+              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
+              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${SweeperTableName}"
+              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${ResourceCountTableName}"
+          - Effect: Allow
+            Action: timestream:DescribeEndpoints
+            Resource: "*"
+  GithubActionsIAMPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GithubActionsIAMPolicy
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
@@ -116,38 +214,24 @@ Resources:
               - iam:DeletePolicyVersion
               - iam:ListPolicyVersions
             Resource: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:policy/KarpenterControllerPolicy-*"
-          - Effect: Allow
-            Action:
-              - cloudformation:CreateChangeSet
-              - cloudformation:CreateStack
-              - cloudformation:DeleteStack
-              - cloudformation:DescribeChangeSet
-              - cloudformation:DescribeStackEvents
-              - cloudformation:DescribeStackResources
-              - cloudformation:ExecuteChangeSet
-              - cloudformation:GetTemplate
-              - cloudformation:GetTemplateSummary
-            Resource:
-              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/iam-*"
-              - !Sub "arn:${AWS::Partition}:cloudformation:*:${AWS::AccountId}:stack/eksctl-*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-             - cloudformation:ListStacks
-             - cloudformation:DescribeStacks
-            Resource: "*"
+  GithubActionsEKSPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: GithubActionsEKSPolicy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
           - Effect: Allow
             Action:
               - eks:CreateCluster
               - eks:CreateAddon
               - eks:CreateNodegroup
+              - eks:CreatePodIdentityAssociation
               - eks:DeleteCluster
               - eks:ListFargateProfiles
               - eks:TagResource
               - eks:DescribeCluster
+              - eks:ListClusters
             Resource: !Sub "arn:${AWS::Partition}:eks:*:${AWS::AccountId}:cluster/*"
             Condition:
               StringEquals:
@@ -173,82 +257,6 @@ Resources:
               StringEquals:
                 aws:RequestedRegion: 
                   Ref: Regions
-          - Effect: Allow
-            Action: logs:PutRetentionPolicy
-            Resource: !Sub "arn:aws:logs:*:${AWS::AccountId}:log-group:/aws/eks/*"
-          - Effect: Allow
-            Action: fis:CreateExperimentTemplate
-            Resource: !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:action/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - fis:CreateExperimentTemplate
-              - fis:DeleteExperimentTemplate
-              - fis:StartExperiment
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment-template/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - fis:GetExperiment
-              - fis:StartExperiment
-            Resource: 
-              - !Sub "arn:${AWS::Partition}:fis:*:${AWS::AccountId}:experiment/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - iam:CreateServiceLinkedRole
-            Resource:
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/spot.amazonaws.com/AWSServiceRoleForEC2Spot"
-              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
-          - Effect: Allow
-            Action:
-              - sqs:CreateQueue
-              - sqs:AddPermission
-              - sqs:TagQueue
-              - sqs:SetQueueAttributes
-              - sqs:GetQueueAttributes
-              - sqs:GetQueueUrl
-              - sqs:RemovePermission
-              - sqs:DeleteQueue
-              - sqs:UntagQueue
-            Resource: 
-            - !Sub "arn:${AWS::Partition}:sqs:*:${AWS::AccountId}:*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action:
-              - events:PutRule
-              - events:DeleteRule
-              - events:DescribeRule
-              - events:PutTargets
-              - events:RemoveTargets
-              - events:EnableRule
-            Resource: !Sub "arn:${AWS::Partition}:events:*:${AWS::AccountId}:rule/*"
-            Condition:
-              StringEquals:
-                aws:RequestedRegion: 
-                  Ref: Regions
-          - Effect: Allow
-            Action: timestream:WriteRecords
-            Resource:
-              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
-              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${SweeperTableName}"
-          - Effect: Allow
-            Action: timestream:DescribeEndpoints
-            Resource: "*"
   # GithubActionsPermissionsBoundary includes all permissions needed for all designated roles provisioned by the GithubActions
   # CI task. This includes the cluster ServiceRoles that are generated by EKSCTL and all roles generated with IRSA to interface from the
   # cluster into AWS services through IAM.
@@ -305,10 +313,13 @@ Resources:
               - sqs:ReceiveMessage
               - pricing:GetProducts
               - eks:DescribeCluster
+              - eks-auth:AssumeRoleForPodIdentity
             Resource: "*"
           - Effect: Allow
             Action: iam:PassRole
             Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
               - !GetAtt FISInterruptionRole.Arn
           - Effect: Allow
@@ -366,6 +377,8 @@ Resources:
       RoleName: GithubActionsRole
       ManagedPolicyArns:
         - !Ref GithubActionsPolicy
+        - !Ref GithubActionsEKSPolicy
+        - !Ref GithubActionsIAMPolicy
         - !Ref GithubActionsPermissionsBoundary
       MaxSessionDuration: 21600 # 6 hours is the max session for GHA
       AssumeRolePolicyDocument:
@@ -373,7 +386,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Federated: !Ref GithubOIDCProvider
+              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
             Action: "sts:AssumeRoleWithWebIdentity"
             Condition:
               StringEquals:

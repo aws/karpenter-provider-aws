@@ -8,14 +8,16 @@ on:
       k8s_version:
         type: string
         default: "1.28"
-      eksctl_version:
-        type: string
-        default: v0.160.0-rc.0
+      cleanup:
+        type: boolean
+        required: true
       git_ref:
         type: string
       workflow_trigger:
         type: string
         required: true
+      parallelism:
+        type: number
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
@@ -24,8 +26,10 @@ on:
       region:
         type: choice
         options:
+          - "us-east-1"
           - "us-east-2"
           - "us-west-2"
+          - "eu-west-1"
         default: "us-east-2"
       k8s_version:
         type: choice
@@ -37,55 +41,55 @@ on:
           - "1.27"
           - "1.28"
         default: "1.28"
-      eksctl_version:
-        type: string
-        default: v0.160.0-rc.0
+      cleanup:
+        type: boolean
+        required: true
+        default: true
 # All jobs will run under the following conditions:
 #   1. Upstream Karpenter repo triggered the job by schedule, push, or dispatch
 #   2. Upstream Karpenter repo triggered the job by workflow_run, which requires maintainer check to succeed
 #   3. Downstream fork triggered the job through dispatch and has set 'ENABLE_E2E' in repo environment variables
 jobs:
   e2e:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     strategy:
       fail-fast: false
+      max-parallel: ${{ inputs.parallelism || 100 }}
       matrix:
         suite:
-          - Beta/Integration
-          - Beta/NodeClaim
-          - Beta/Consolidation
-          - Beta/Interruption
-          - Beta/Drift
-          - Beta/Expiration
-          - Beta/Chaos
-          - Beta/IPv6
-          - Alpha/Integration
-          - Alpha/Machine
-          - Alpha/Consolidation
-          - Alpha/Interruption
-          - Alpha/Drift
-          - Alpha/Expiration
-          - Alpha/Chaos
-          - Alpha/IPv6
+          - Integration
+          - NodeClaim
+          - Consolidation
+          - Interruption
+          - Drift
+          - Expiration
+          - Chaos
+          - IPv6
     uses: ./.github/workflows/e2e.yaml
     with:
       suite: ${{ matrix.suite }}
       git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
-      eksctl_version: ${{ inputs.eksctl_version }}
+      cleanup: ${{ inputs.cleanup }}
       workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
   e2e-upgrade:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      # This version matches the steps of the newest version that contains the additional step
-      # of deploying the instance profile so that the pre-upgrade and post-upgrade create-cluster
-      # actions have the same number of steps and don't fail during post-cleanup
-      from_git_ref: 62c25a3ea85c7d00165e60a913fff1ec7c1f29fd
+      # This version matches the version switch between IRSA -> Pod Identity 
+      # https://github.com/aws/karpenter-provider-aws/pull/5262
+      from_git_ref: 8f500c23be18aa5cb8089a83c43e763303faa9ac
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
-      eksctl_version: ${{ inputs.eksctl_version }}
+      cleanup: ${{ inputs.cleanup }}
+      workflow_trigger: ${{ inputs.workflow_trigger }}
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

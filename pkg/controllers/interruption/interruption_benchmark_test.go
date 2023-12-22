@@ -24,13 +24,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -41,19 +40,20 @@ import (
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/controllers/interruption"
-	"github.com/aws/karpenter/pkg/controllers/interruption/events"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 )
 
 var r = rand.New(rand.NewSource(time.Now().Unix()))
@@ -80,11 +80,10 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	fakeClock = &clock.FakeClock{}
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-		ClusterName:           lo.ToPtr("karpenter-notification-benchmarking"),
-		IsolatedVPC:           lo.ToPtr(true),
-		InterruptionQueueName: lo.ToPtr("test-cluster"),
+		ClusterName:       lo.ToPtr("karpenter-notification-benchmarking"),
+		IsolatedVPC:       lo.ToPtr(true),
+		InterruptionQueue: lo.ToPtr("test-cluster"),
 	}))
-	ctx = settings.ToContext(ctx, test.Settings())
 	env = coretest.NewEnvironment(scheme.Scheme)
 	// Stop the coretest environment after the coretest completes
 	defer func() {
@@ -95,7 +94,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 		}
 	}()
 
-	providers := newProviders(env.Client)
+	providers := newProviders(env.Context, env.Client)
 	if err := providers.makeInfrastructure(ctx); err != nil {
 		b.Fatalf("standing up infrastructure, %v", err)
 	}
@@ -162,33 +161,33 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 type providerSet struct {
 	kubeClient  client.Client
-	sqsAPI      *sqs.SQS
-	sqsProvider *interruption.SQSProvider
+	sqsAPI      *servicesqs.SQS
+	sqsProvider *sqs.Provider
 }
 
-func newProviders(kubeClient client.Client) providerSet {
+func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
 	sess := session.Must(session.NewSession(
 		request.WithRetryer(
 			&aws.Config{STSRegionalEndpoint: endpoints.RegionalSTSEndpoint},
 			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
 		),
 	))
-	sqsAPI := sqs.New(sess)
+	sqsAPI := servicesqs.New(sess)
 	return providerSet{
 		kubeClient:  kubeClient,
 		sqsAPI:      sqsAPI,
-		sqsProvider: interruption.NewSQSProvider(sqsAPI),
+		sqsProvider: sqs.NewProvider(ctx, sqsAPI, "test-cluster"),
 	}
 }
 
 func (p *providerSet) makeInfrastructure(ctx context.Context) error {
-	if _, err := p.sqsAPI.CreateQueueWithContext(ctx, &sqs.CreateQueueInput{
+	if _, err := p.sqsAPI.CreateQueueWithContext(ctx, &servicesqs.CreateQueueInput{
 		QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueueName),
 		Attributes: map[string]*string{
-			sqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
+			servicesqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
 		},
 	}); err != nil {
-		return fmt.Errorf("creating sqs queue, %w", err)
+		return fmt.Errorf("creating servicesqs queue, %w", err)
 	}
 	return nil
 }
@@ -198,10 +197,10 @@ func (p *providerSet) cleanupInfrastructure(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("discovering queue url for deletion, %w", err)
 	}
-	if _, err = p.sqsAPI.DeleteQueueWithContext(ctx, &sqs.DeleteQueueInput{
+	if _, err = p.sqsAPI.DeleteQueueWithContext(ctx, &servicesqs.DeleteQueueInput{
 		QueueUrl: lo.ToPtr(queueURL),
 	}); err != nil {
-		return fmt.Errorf("deleting sqs queue, %w", err)
+		return fmt.Errorf("deleting servicesqs queue, %w", err)
 	}
 	return nil
 }
@@ -275,7 +274,7 @@ func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*v1.Node) 
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),
@@ -294,7 +293,7 @@ func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{},
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),
@@ -312,7 +311,7 @@ func makeSpotInterruptionMessagesAndNodes(count int) ([]interface{}, []*v1.Node)
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),

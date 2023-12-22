@@ -24,7 +24,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
 const (

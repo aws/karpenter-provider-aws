@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-K8S_VERSION="${K8S_VERSION:="1.27.x"}"
+K8S_VERSION="${K8S_VERSION:="1.28.x"}"
 KUBEBUILDER_ASSETS="/usr/local/kubebuilder/bin"
 
 main() {
@@ -21,6 +21,8 @@ tools() {
     go install -tags extended github.com/gohugoio/hugo@v0.110.0
     go install golang.org/x/vuln/cmd/govulncheck@latest
     go install github.com/onsi/ginkgo/v2/ginkgo@latest
+    go install github.com/rhysd/actionlint/cmd/actionlint@latest
+    go install github.com/mattn/goveralls@latest
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
         echo "Go workspace's \"bin\" directory is not in PATH. Run 'export PATH=\"\$PATH:\${GOPATH:-\$HOME/go}/bin\"'."
@@ -31,10 +33,6 @@ kubebuilder() {
     sudo mkdir -p ${KUBEBUILDER_ASSETS}
     sudo chown "${USER}" ${KUBEBUILDER_ASSETS}
     arch=$(go env GOARCH)
-    ## Kubebuilder does not support darwin/arm64, so use amd64 through Rosetta instead
-    if [[ $(go env GOOS) == "darwin" ]] && [[ $(go env GOARCH) == "arm64" ]]; then
-        arch="amd64"
-    fi
     ln -sf $(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}")/* ${KUBEBUILDER_ASSETS}
     find $KUBEBUILDER_ASSETS
 }

@@ -32,15 +32,12 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/logging"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/providers/version"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/functional"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
 type Provider struct {
@@ -91,11 +88,11 @@ func (a AMIs) String() string {
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, isMachine bool) map[string][]*cloudprovider.InstanceType {
+func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range a {
-			if err := instanceType.Requirements.Compatible(ami.Requirements, lo.Ternary(isMachine, scheduling.AllowUndefinedWellKnownLabelsV1Alpha5, scheduling.AllowUndefinedWellKnownLabelsV1Beta1)); err == nil {
+			if err := instanceType.Requirements.Compatible(ami.Requirements, scheduling.AllowUndefinedWellKnownLabels); err == nil {
 				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
 				break
 			}
@@ -124,13 +121,13 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, opt
 			return nil, err
 		}
 	} else {
-		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms, nodeClass.IsNodeTemplate)
+		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms)
 		if err != nil {
 			return nil, err
 		}
 	}
 	amis.Sort()
-	if p.cm.HasChanged(fmt.Sprintf("amis/%t/%s", nodeClass.IsNodeTemplate, nodeClass.Name), amis) {
+	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), amis) {
 		logging.FromContext(ctx).With("ids", amis, "count", len(amis)).Debugf("discovered amis")
 	}
 	return amis, nil
@@ -145,7 +142,7 @@ func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2Nod
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion, nodeClass.IsNodeTemplate)
+	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion)
 	for _, ami := range defaultAMIs {
 		if id, err := p.resolveSSMParameter(ctx, ami.Query); err != nil {
 			logging.FromContext(ctx).With("query", ami.Query).Errorf("discovering amis from ssm, %s", err)
@@ -183,13 +180,13 @@ func (p *Provider) resolveSSMParameter(ctx context.Context, ssmQuery string) (st
 	return ami, nil
 }
 
-func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm, isNodeTemplate bool) (AMIs, error) {
+func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm) (AMIs, error) {
 	filterAndOwnerSets := GetFilterAndOwnerSets(terms)
 	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
 	}
-	if images, ok := p.cache.Get(fmt.Sprintf("%t/%d", isNodeTemplate, hash)); ok {
+	if images, ok := p.cache.Get(fmt.Sprintf("%d", hash)); ok {
 		return images.(AMIs), nil
 	}
 	images := map[uint64]AMI{}
@@ -201,7 +198,7 @@ func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm,
 			MaxResults: aws.Int64(500),
 		}, func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for i := range page.Images {
-				reqs := p.getRequirementsFromImage(page.Images[i], isNodeTemplate)
+				reqs := p.getRequirementsFromImage(page.Images[i])
 				if !v1beta1.WellKnownArchitectures.Has(reqs.Get(v1.LabelArchStable).Any()) {
 					continue
 				}
@@ -229,7 +226,7 @@ func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm,
 			return nil, fmt.Errorf("describing images, %w", err)
 		}
 	}
-	p.cache.SetDefault(fmt.Sprintf("%t/%d", isNodeTemplate, hash), AMIs(lo.Values(images)))
+	p.cache.SetDefault(fmt.Sprintf("%d", hash), AMIs(lo.Values(images)))
 	return lo.Values(images), nil
 }
 
@@ -246,13 +243,19 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
 		default:
 			elem := FiltersAndOwners{
-				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
+				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
 			}
 			if term.Name != "" {
+				// Default owners to self,amazon to ensure Karpenter only discovers cross-account AMIs if the user specifically allows it.
+				// Removing this default would cause Karpenter to discover publicly shared AMIs passing the name filter.
+				elem = FiltersAndOwners{
+					Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
+				}
 				elem.Filters = append(elem.Filters, &ec2.Filter{
 					Name:   aws.String("name"),
 					Values: aws.StringSlice([]string{term.Name}),
 				})
+
 			}
 			for k, v := range term.Tags {
 				if v == "*" {
@@ -263,7 +266,7 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 				} else {
 					elem.Filters = append(elem.Filters, &ec2.Filter{
 						Name:   aws.String(fmt.Sprintf("tag:%s", k)),
-						Values: aws.StringSlice(functional.SplitCommaSeparatedString(v)),
+						Values: []*string{aws.String(v)},
 					})
 				}
 			}
@@ -276,17 +279,8 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 	return res
 }
 
-func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image, isNodeTemplate bool) scheduling.Requirements {
+func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
 	requirements := scheduling.NewRequirements()
-	// Only allow tag-based AMI requirements for NodeTemplates
-	// TODO @joinnis: Remove this section for tag-based AMI requirements when dropping v1alpha5
-	if isNodeTemplate {
-		for _, tag := range ec2Image.Tags {
-			if v1alpha5.WellKnownLabels.Has(*tag.Key) || corev1beta1.WellKnownLabels.Has(*tag.Key) {
-				requirements.Add(scheduling.NewRequirement(*tag.Key, v1.NodeSelectorOpIn, *tag.Value))
-			}
-		}
-	}
 	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
 	architecture := *ec2Image.Architecture
 	if value, ok := v1beta1.AWSToKubeArchitectures[architecture]; ok {

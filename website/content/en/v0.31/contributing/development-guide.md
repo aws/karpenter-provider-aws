@@ -69,7 +69,6 @@ make image # build and push the karpenter images
 
 ```bash
 make test       # E2E correctness tests
-make battletest # More rigorous tests run in CI environment
 ```
 
 ### Change Log Level
@@ -106,8 +105,8 @@ stern -n karpenter -l app.kubernetes.io/name=karpenter
 ### AWS
 
 For local development on Karpenter you will need a Docker repo which can manage your images for Karpenter components.
-You can use the following command to provision an ECR repository. We recommend using a single "dev" repository for 
-development across multiple projects, and to use specific image hashes instead of image tags. 
+You can use the following command to provision an ECR repository. We recommend using a single "dev" repository for
+development across multiple projects, and to use specific image hashes instead of image tags.
 
 ```bash
 aws ecr create-repository \

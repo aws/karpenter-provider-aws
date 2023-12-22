@@ -83,13 +83,14 @@ checkForUpdates() {
 
 gitOpenAndPullBranch() {
   git fetch origin
-  git checkout codegen || git checkout -b codegen || true
+  git checkout -b codegen
 }
 
 gitCommitAndPush() {
   UPDATE_SUBJECT=$1
   git commit -m "CodeGen updates from AWS API for ${UPDATE_SUBJECT}"
-  git push --set-upstream origin codegen
+  # Force push the branch since we might have left the branch around from the last codegen
+  git push --set-upstream origin codegen --force
 }
 
 noUpdates() {
@@ -101,7 +102,12 @@ if [[ $ENABLE_GIT_PUSH == true ]]; then
   gitOpenAndPullBranch
 fi
 
+echo "Updating bandwidth..."
 bandwidth
+echo "Updating pricing..."
 pricing
+echo "Updating VPC limits..."
 vpcLimits
+echo "Updating instance type data..."
 instanceTypeTestData
+echo "Finished codegen"

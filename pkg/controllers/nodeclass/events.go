@@ -19,9 +19,10 @@ import (
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/events"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/utils"
+	"sigs.k8s.io/karpenter/pkg/events"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
 func WaitingOnNodeClaimTerminationEvent(nodeClass *v1beta1.EC2NodeClass, names []string) events.Event {

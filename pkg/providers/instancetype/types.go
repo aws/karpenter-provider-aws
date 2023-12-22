@@ -29,16 +29,15 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/ptr"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 const (
@@ -54,22 +53,25 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1
 	region string, nodeClass *v1beta1.EC2NodeClass, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
 	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
-	return &cloudprovider.InstanceType{
+	it := &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
-		Requirements: computeRequirements(ctx, info, offerings, region, amiFamily, kc, nodeClass),
+		Requirements: computeRequirements(info, offerings, region, amiFamily),
 		Offerings:    offerings,
-		Capacity:     computeCapacity(ctx, info, amiFamily, nodeClass.Spec.BlockDeviceMappings, kc),
+		Capacity:     computeCapacity(ctx, info, amiFamily, nodeClass, kc),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info), amiFamily, kc),
 			SystemReserved:    systemReservedResources(kc),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(amiFamily, nodeClass.Spec.BlockDeviceMappings), amiFamily, kc),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, nodeClass), amiFamily, kc),
 		},
 	}
+	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)))) == nil {
+		it.Capacity[v1beta1.ResourcePrivateIPv4Address] = *privateIPv4Address(info)
+	}
+	return it
 }
 
 //nolint:gocyclo
-func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offerings cloudprovider.Offerings, region string,
-	amiFamily amifamily.AMIFamily, kc *corev1beta1.KubeletConfiguration, nodeClass *v1beta1.EC2NodeClass) scheduling.Requirements {
+func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Offerings, region string, amiFamily amifamily.AMIFamily) scheduling.Requirements {
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
@@ -99,9 +101,6 @@ func computeRequirements(ctx context.Context, info *ec2.InstanceTypeInfo, offeri
 		scheduling.NewRequirement(v1beta1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
 		scheduling.NewRequirement(v1beta1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
 	)
-	if nodeClass.IsNodeTemplate {
-		requirements.Add(scheduling.NewRequirement(v1alpha1.LabelInstancePods, v1.NodeSelectorOpIn, fmt.Sprint(pods(ctx, info, amiFamily, kc))))
-	}
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(aws.StringValue(info.InstanceType))
 	if len(instanceFamilyParts) == 4 {
@@ -170,19 +169,19 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 }
 
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
-	blockDeviceMappings []*v1beta1.BlockDeviceMapping, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+	nodeClass *v1beta1.EC2NodeClass, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
-		v1.ResourceCPU:                     *cpu(info),
-		v1.ResourceMemory:                  *memory(ctx, info),
-		v1.ResourceEphemeralStorage:        *ephemeralStorage(amiFamily, blockDeviceMappings),
-		v1.ResourcePods:                    *pods(ctx, info, amiFamily, kc),
-		v1beta1.ResourceAWSPodENI:          *awsPodENI(aws.StringValue(info.InstanceType)),
-		v1beta1.ResourceNVIDIAGPU:          *nvidiaGPUs(info),
-		v1beta1.ResourceAMDGPU:             *amdGPUs(info),
-		v1beta1.ResourceAWSNeuron:          *awsNeurons(info),
-		v1beta1.ResourceHabanaGaudi:        *habanaGaudis(info),
-		v1beta1.ResourcePrivateIPv4Address: *privateIPv4Address(info),
+		v1.ResourceCPU:              *cpu(info),
+		v1.ResourceMemory:           *memory(ctx, info),
+		v1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, nodeClass),
+		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
+		v1beta1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
+		v1beta1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
+		v1beta1.ResourceAMDGPU:      *amdGPUs(info),
+		v1beta1.ResourceAWSNeuron:   *awsNeurons(info),
+		v1beta1.ResourceHabanaGaudi: *habanaGaudis(info),
+		v1beta1.ResourceEFA:         *efas(info),
 	}
 	return resourceList
 }
@@ -203,11 +202,17 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 	return mem
 }
 
-// Setting ephemeral-storage to be either the default value or what is defined in blockDeviceMappings
-func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1beta1.BlockDeviceMapping) *resource.Quantity {
-	if len(blockDeviceMappings) != 0 {
+// Setting ephemeral-storage to be either the default value, what is defined in blockDeviceMappings, or the combined size of local store volumes.
+func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, nodeClass *v1beta1.EC2NodeClass) *resource.Quantity {
+	// If local store disks have been configured for node ephemeral-storage, use the total size of the disks.
+	if lo.FromPtr(nodeClass.Spec.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
+		if info.InstanceStorageInfo != nil && info.InstanceStorageInfo.TotalSizeInGB != nil {
+			return resources.Quantity(fmt.Sprintf("%dG", *info.InstanceStorageInfo.TotalSizeInGB))
+		}
+	}
+	if len(nodeClass.Spec.BlockDeviceMappings) != 0 {
 		// First check if there's a root volume configured in blockDeviceMappings.
-		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+		if blockDeviceMapping, ok := lo.Find(nodeClass.Spec.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
 			return bdm.RootVolume
 		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 			return blockDeviceMapping.EBS.VolumeSize
@@ -215,11 +220,11 @@ func ephemeralStorage(amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1be
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
 			// We can't know if a custom AMI is going to have a volume size.
-			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
+			volumeSize := nodeClass.Spec.BlockDeviceMappings[len(nodeClass.Spec.BlockDeviceMappings)-1].EBS.VolumeSize
 			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
 			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
-			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+			if blockDeviceMapping, ok := lo.Find(nodeClass.Spec.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
 				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
 			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 				return blockDeviceMapping.EBS.VolumeSize
@@ -298,6 +303,14 @@ func habanaGaudis(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
+func efas(info *ec2.InstanceTypeInfo) *resource.Quantity {
+	count := int64(0)
+	if info.NetworkInfo != nil && info.NetworkInfo.EfaInfo != nil {
+		count = lo.FromPtr(info.NetworkInfo.EfaInfo.MaximumEfaInterfaces)
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
 func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
@@ -315,7 +328,6 @@ func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Q
 }
 
 func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
-
 	//https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/ecbd6965a0100d9a070110233762593b16023287/pkg/provider/ip/provider.go#L297
 	capacity := aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1
 	return resources.Quantity(fmt.Sprint(capacity))
@@ -401,7 +413,7 @@ func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.A
 	switch {
 	case kc != nil && kc.MaxPods != nil:
 		count = int64(ptr.Int32Value(kc.MaxPods))
-	case settings.FromContext(ctx).EnableENILimitedPodDensity && amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
+	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info).Value()
 	default:
 		count = 110

@@ -44,7 +44,6 @@ type EC2NodeClassSpec struct {
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name) || has(x.owner)))"
-	// +kubebuilder:validation:XValidation:message="'owner' cannot be set with 'tags'",rule="!self.all(x, has(x.owner) && has(x.tags))"
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms,omitempty" hash:"ignore"`
@@ -58,12 +57,21 @@ type EC2NodeClassSpec struct {
 	// +optional
 	UserData *string `json:"userData,omitempty"`
 	// Role is the AWS identity that nodes use. This field is immutable.
+	// This field is mutually exclusive from instanceProfile.
 	// Marking this field as immutable avoids concerns around terminating managed instance profiles from running instances.
 	// This field may be made mutable in the future, assuming the correct garbage collection and drift handling is implemented
 	// for the old instance profiles on an update.
+	// +kubebuilder:validation:XValidation:rule="self != ''",message="role cannot be empty"
 	// +kubebuilder:validation:XValidation:rule="self == oldSelf",message="immutable field changed"
-	// +required
-	Role string `json:"role"`
+	// +optional
+	Role string `json:"role,omitempty"`
+	// InstanceProfile is the AWS entity that instances use.
+	// This field is mutually exclusive from role.
+	// The instance profile should already have a role assigned to it that Karpenter
+	//  has PassRole permission on for instance launch using this instanceProfile to succeed.
+	// +kubebuilder:validation:XValidation:rule="self != ''",message="instanceProfile cannot be empty"
+	// +optional
+	InstanceProfile *string `json:"instanceProfile,omitempty"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +kubebuilder:validation:XValidation:message="empty tag keys aren't supported",rule="self.all(k, k != '')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching kubernetes.io/cluster/",rule="self.all(k, !k.startsWith('kubernetes.io/cluster') )"
@@ -77,6 +85,9 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=50
 	// +optional
 	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
+	// InstanceStorePolicy specifies how to handle instance-store disks.
+	// +optional
+	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
 	// DetailedMonitoring controls if detailed monitoring is enabled for instances that are launched
 	// +optional
 	DetailedMonitoring *bool `json:"detailedMonitoring,omitempty"`
@@ -101,31 +112,6 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// LaunchTemplateName for the node. If not specified, a launch template will be generated.
-	// NOTE: This field is for specifying a custom launch template and is exposed in the Spec
-	// as `launchTemplate` for backwards compatibility.
-	// +optional
-	LaunchTemplateName *string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// InstanceProfile is the AWS identity that instances use.
-	// +optional
-	InstanceProfile *string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalSubnetSelector is the original subnet selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalSubnetSelector map[string]string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalSecurityGroupSelector is the original security group selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalSecurityGroupSelector map[string]string `json:"-" hash:"ignore"`
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	// OriginalAMISelector is the original ami selector that was used by the v1alpha5 representation of this API.
-	// DO NOT USE THIS VALUE when performing business logic in code
-	// +optional
-	OriginalAMISelector map[string]string `json:"-" hash:"ignore"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.
@@ -312,6 +298,18 @@ type BlockDevice struct {
 	VolumeType *string `json:"volumeType,omitempty"`
 }
 
+// InstanceStorePolicy enumerates options for configuring instance store disks.
+// +kubebuilder:validation:Enum={RAID0}
+type InstanceStorePolicy string
+
+const (
+	// InstanceStorePolicyRAID0 configures a RAID-0 array that includes all ephemeral NVMe instance storage disks.
+	// The containerd and kubelet state directories (`/var/lib/containerd` and `/var/lib/kubelet`) will then use the
+	// ephemeral storage for more and faster node ephemeral-storage. The node's ephemeral storage can be shared among
+	// pods that request ephemeral storage and container images that are downloaded to the node.
+	InstanceStorePolicyRAID0 InstanceStorePolicy = "RAID0"
+)
+
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
 // +kubebuilder:resource:path=ec2nodeclasses,scope=Cluster,categories=karpenter,shortName={ec2nc,ec2ncs}
@@ -321,13 +319,10 @@ type EC2NodeClass struct {
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
 	// +kubebuilder:validation:XValidation:message="amiSelectorTerms is required when amiFamily == 'Custom'",rule="self.amiFamily == 'Custom' ? self.amiSelectorTerms.size() != 0 : true"
+	// +kubebuilder:validation:XValidation:message="must specify exactly one of ['role', 'instanceProfile']",rule="(has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
-
-	// IsNodeTemplate tells Karpenter whether the in-memory representation of this object
-	// is actually referring to a AWSNodeTemplate object. This value is not actually part of the v1beta1 public-facing API
-	// TODO @joinnis: Remove this field when v1alpha5 is unsupported in a future version of Karpenter
-	IsNodeTemplate bool `json:"-" hash:"ignore"`
 }
 
 func (in *EC2NodeClass) Hash() string {
