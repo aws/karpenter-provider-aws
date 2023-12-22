@@ -8,7 +8,7 @@ body:
   attributes:
     label: Description
     value: |
-      ** READ BEFORE CONTINUING: If your issue is not specific to AWS, please cut a ticket in github.com/kubernetes-sigs/karpenter.
+      ** READ BEFORE CONTINUING: If your issue is not specific to AWS, please cut a ticket in [kubernetes-sigs/karpenter](https://github.com/kubernetes-sigs/karpenter/issues/new/choose).
 
       **What problem are you trying to solve?**
 
