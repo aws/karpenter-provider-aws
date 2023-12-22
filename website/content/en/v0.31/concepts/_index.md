@@ -129,6 +129,10 @@ When Karpenter detects one of these events will occur to your nodes, it automati
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Rebalance Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
 {{% /alert %}}
 
+{{% alert title="Note" color="warning" %}}
+For users that wish to benefit from both Karpetner and Spot Rebalance Recommendations, which usually entails using the AWS Node Termination Handler, please note that it may cause a disruption between how karpenter handles Spot instances and their events and how AWS Node Termination Handler does, furter information can be found here: [Troubleshooting](../troubleshooting.md#Node-provisioning-and-deprovisioning-loop)
+{{% /alert %}}
+
 ### Kubernetes cluster autoscaler
 Like Karpenter, [Kubernetes Cluster Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler) is
 designed to add nodes when requests come in to run pods that cannot be met by current capacity.
