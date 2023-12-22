@@ -32,6 +32,9 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
+### Upgrading to v0.34.0+
+
+* Karpenter add now by default on `podSecurityContext` level, specific `fsgroup: 65536`. If you are using sidecar containers, you should review if this configuration is compatible for them. If you need to change this default value you have the option adding specific `podSecurityContext:` block on your values.yaml file
 
 ### Upgrading to v0.33.0+
 
