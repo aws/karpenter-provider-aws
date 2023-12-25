@@ -24,7 +24,7 @@ metadata:
 spec:
   # ...
   placementStrategy:
-    cluster: { enabled: true } # No configuration ields
+    cluster: { enabled: true } # No configuration fields
 ---
 apiVersion: karpenter.k8s.aws/v1beta1
 kind: EC2NodeClass
