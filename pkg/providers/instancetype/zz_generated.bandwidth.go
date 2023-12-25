@@ -22,6 +22,7 @@ var (
 	InstanceTypeBandwidthMegabits = map[string]int64{
 		// c3.large is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// c4.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// hpc7g.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// i2.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// m2.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// m4.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
@@ -688,7 +689,6 @@ var (
 		"dl2q.24xlarge":     100000,
 		"g4dn.metal":        100000,
 		"g5.48xlarge":       100000,
-		"hpc6a.48xlarge":    100000,
 		"i3en.24xlarge":     100000,
 		"i3en.metal":        100000,
 		"im4gn.16xlarge":    100000,
@@ -735,10 +735,6 @@ var (
 		"c6in.32xlarge":     200000,
 		"c6in.metal":        200000,
 		"c7gn.16xlarge":     200000,
-		"hpc6id.32xlarge":   200000,
-		"hpc7g.16xlarge":    200000,
-		"hpc7g.4xlarge":     200000,
-		"hpc7g.8xlarge":     200000,
 		"m6idn.32xlarge":    200000,
 		"m6idn.metal":       200000,
 		"m6in.32xlarge":     200000,
@@ -747,10 +743,6 @@ var (
 		"r6idn.metal":       200000,
 		"r6in.32xlarge":     200000,
 		"r6in.metal":        200000,
-		"hpc7a.12xlarge":    300000,
-		"hpc7a.24xlarge":    300000,
-		"hpc7a.48xlarge":    300000,
-		"hpc7a.96xlarge":    300000,
 		"dl1.24xlarge":      400000,
 		"p4d.24xlarge":      400000,
 		"p4de.24xlarge":     400000,
