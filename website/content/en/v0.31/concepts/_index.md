@@ -130,7 +130,7 @@ Karpenter publishes Kubernetes events to the node for all events listed above in
 {{% /alert %}}
 
 {{% alert title="Note" color="warning" %}}
-For users that wish to benefit from both Karpetner and Spot Rebalance Recommendations, which usually entails using the AWS Node Termination Handler, please note that it may cause a disruption between how karpenter handles Spot instances and their events and how AWS Node Termination Handler does, furter information can be found here: [Troubleshooting](../troubleshooting.md#Node-provisioning-and-deprovisioning-loop)
+For users that wish to benefit from both Karpenter and [Spot Rebalance Recommendations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html), which usually entails using the [AWS Node Termination Handler](https://github.com/aws/aws-node-termination-handler), please note that the AWS Node Termination Handler cordons and drains nodes, potentially causing node churn in the cluster. Further information can be found here: [Troubleshooting](../troubleshooting.md#Node-provisioning-and-deprovisioning-loop)
 {{% /alert %}}
 
 ### Kubernetes cluster autoscaler
