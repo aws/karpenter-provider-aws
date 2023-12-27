@@ -488,7 +488,7 @@ spec:
 
 ## spec.instanceProfile
 
-`InstanceProfile` is an optional field and is neccesary to tell Karpenter which identity nodes from this `EC2NodeClass` should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClasss`. If you use the `instanceProfile` field instead of `role`, Karpenter will not manage the InstanceProfile on your behalf.
+`InstanceProfile` is an optional field and is necessary to tell Karpenter which identity nodes from this `EC2NodeClass` should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClasss`. If you use the `instanceProfile` field instead of `role`, Karpenter will not manage the InstanceProfile on your behalf.
 
 {{% alert title="Note" color="primary" %}}
 
