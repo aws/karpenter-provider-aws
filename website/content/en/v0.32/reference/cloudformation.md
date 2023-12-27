@@ -211,7 +211,7 @@ The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amaz
   "Action": "ec2:CreateTags",
   "Condition": {
     "StringEquals": {
-      "aws:ResourceTag/karpenter.sh/cluster/${ClusterName}": "owned"
+      "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
     },
     "StringLike": {
       "aws:ResourceTag/karpenter.sh/nodepool": "*"
