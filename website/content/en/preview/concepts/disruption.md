@@ -176,7 +176,7 @@ Karpenter publishes Kubernetes events to the node for all events listed above in
 {{% /alert %}}
 
 {{% alert title="Note" color="warning" %}}
-For users that wish to benefit from both Karpenter and [Spot Rebalance Recommendations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html), which usually entails using the [AWS Node Termination Handler](https://github.com/aws/aws-node-termination-handler), please note that the AWS Node Termination Handler cordons and drains nodes, potentially causing node churn in the cluster. Further information can be found here: [Troubleshooting](../troubleshooting.md#AWS-Node-Termination-Handler-(NTH)-interactions)
+For users that wish to benefit from both Karpenter and [Spot Rebalance Recommendations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html), which usually entails using the [AWS Node Termination Handler](https://github.com/aws/aws-node-termination-handler), please note that the AWS Node Termination Handler cordons and drains nodes, potentially causing node churn in the cluster. Further information can be found here: [Troubleshooting](../troubleshooting.md#aws-node-termination-handler-nth-interactions)
 {{% /alert %}}
 
 
