@@ -28,7 +28,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
@@ -43,7 +42,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-const testingFinalizer = "testing/finalizer"
+const TestingFinalizer = "testing/finalizer"
 
 var (
 	CleanableObjects = []client.Object{
@@ -126,16 +125,7 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 				// are deleting so that we avoid getting client-side throttled
 				workqueue.ParallelizeUntil(env, 50, len(metaList.Items), func(i int) {
 					defer GinkgoRecover()
-					item := metaList.Items[i]
-					deepCopy := item.DeepCopy()
-					// Remove finalizer if we need it
-					item.Finalizers = lo.Reject(item.Finalizers, func(finalizer string, _ int) bool {
-						return finalizer == testingFinalizer
-					})
-					if !equality.Semantic.DeepEqual(item, deepCopy) {
-						logging.FromContext(env).Infof("Failed to patch the node finalizer out")
-						g.Expect(client.IgnoreNotFound(env.Client.Patch(env, &item, client.MergeFrom(deepCopy)))).To(Succeed())
-					}
+					g.Expect(env.ExpectTestingFinalizerRemoved(&metaList.Items[i])).To(Succeed())
 					g.Expect(client.IgnoreNotFound(env.Client.Delete(env, &metaList.Items[i], client.PropagationPolicy(metav1.DeletePropagationForeground)))).To(Succeed())
 				})
 				// If the deletes eventually succeed, we should have no elements here at the end of the test
@@ -145,4 +135,22 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 		}(obj)
 	}
 	wg.Wait()
+}
+
+func (env *Environment) ExpectTestingFinalizerRemoved(obj client.Object) error {
+	metaObj := &metav1.PartialObjectMetadata{}
+	metaObj.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
+	if err := env.Client.Get(env, client.ObjectKeyFromObject(obj), metaObj); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	deepCopy := metaObj.DeepCopy()
+	metaObj.Finalizers = lo.Reject(metaObj.Finalizers, func(finalizer string, _ int) bool {
+		return finalizer == TestingFinalizer
+	})
+
+	if !equality.Semantic.DeepEqual(metaObj, deepCopy) {
+		return env.Client.Patch(env, metaObj, client.MergeFrom(deepCopy))
+	}
+	return nil
 }

@@ -34,6 +34,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -117,7 +118,7 @@ var _ = Describe("Expiration", func() {
 
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
-				node.Finalizers = append(node.Finalizers, "test/finalizer")
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
 			}
 
@@ -139,10 +140,7 @@ var _ = Describe("Expiration", func() {
 
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
-				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
-					return finalizer == "test/finalizer"
-				})
-				env.ExpectUpdated(node)
+				env.ExpectTestingFinalizerRemoved(node)
 			}
 
 			// After the deletion timestamp is set and all pods are drained
@@ -198,7 +196,7 @@ var _ = Describe("Expiration", func() {
 
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
-				node.Finalizers = append(node.Finalizers, "test/finalizer")
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
 			}
 
@@ -227,10 +225,7 @@ var _ = Describe("Expiration", func() {
 
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
-				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
-					return finalizer == "test/finalizer"
-				})
-				env.ExpectUpdated(node)
+				env.ExpectTestingFinalizerRemoved(node)
 			}
 
 			// After the deletion timestamp is set and all pods are drained
@@ -286,7 +281,7 @@ var _ = Describe("Expiration", func() {
 
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
-				node.Finalizers = append(node.Finalizers, "test/finalizer")
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
 			}
 
@@ -319,10 +314,7 @@ var _ = Describe("Expiration", func() {
 
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
-				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
-					return finalizer == "test/finalizer"
-				})
-				env.ExpectUpdated(node)
+				env.ExpectTestingFinalizerRemoved(node)
 			}
 
 			// After the deletion timestamp is set and all pods are drained

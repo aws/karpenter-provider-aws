@@ -41,6 +41,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -97,7 +98,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
 	FContext("Budgets", func() {
-		FIt("should respect budgets for empty drift", func() {
+		It("should respect budgets for empty drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,
@@ -139,7 +140,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			nodePool.Spec.Template.Annotations = map[string]string{"test": "annotation"}
 			env.ExpectUpdated(nodePool)
 
-			// Expect that the NodeClaims will all be marked expired
+			// Expect that the NodeClaims will all be marked drifted
 			Eventually(func(g Gomega) {
 				nodeClaimList := &corev1beta1.NodeClaimList{}
 				err := env.Client.List(env.Context, nodeClaimList)
@@ -156,7 +157,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			// Add a finalizer to each node so that we can stop termination disruptions
 			By("adding finalizers to the nodes to prevent full termination")
 			for _, node := range nodes {
-				node.Finalizers = append(node.Finalizers, "test/finalizer")
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
 			}
 
@@ -174,10 +175,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
-				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
-					return finalizer == "test/finalizer"
-				})
-				env.ExpectUpdated(node)
+				env.ExpectTestingFinalizerRemoved(node)
 			}
 
 			// After the deletion timestamp is set and all pods are drained
@@ -246,7 +244,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			// Add a finalizer to each node so that we can stop termination disruptions
 			By("adding finalizers to the nodes to prevent full termination")
 			for _, node := range nodes {
-				node.Finalizers = append(node.Finalizers, "test/finalizer")
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
 			}
 
@@ -265,10 +263,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
-				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
-					return finalizer == "test/finalizer"
-				})
-				env.ExpectUpdated(node)
+				env.ExpectTestingFinalizerRemoved(node)
 			}
 
 			// After the deletion timestamp is set and all pods are drained
@@ -335,7 +330,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
-				node.Finalizers = append(node.Finalizers, "test/finalizer")
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
 			}
 
@@ -368,10 +363,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
-				node.Finalizers = lo.Reject(node.Finalizers, func(finalizer string, _ int) bool {
-					return finalizer == "test/finalizer"
-				})
-				env.ExpectUpdated(node)
+				env.ExpectTestingFinalizerRemoved(node)
 			}
 
 			// After the deletion timestamp is set and all pods are drained
