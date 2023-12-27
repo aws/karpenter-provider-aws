@@ -637,6 +637,18 @@ This typically occurs when the node has not been considered fully initialized fo
 
 This error indicates that the `vpc.amazonaws.com/pod-eni` resource was never reported on the node. If you've enabled Pod ENI for Karpenter nodes via the `aws.enablePodENI` setting, you will need to make the corresponding change to the VPC CNI to enable [security groups for pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) which will cause the resource to be registered.
 
+### AWS Node Termination Handler (NTH) interactions
+An identified potential cause for a continuous cycle of nodes being provisioned and immediately deprovisioned by Karpenter, can stem from a functionality that exists within AWS Node Termination Handler (NTH) called Capacity Rebalancing.
+Spot instances are time limited and, therefore, interruptible. When a signal is sent by AWS, it triggers actions from NTH and Karpenter, where the former signals a shutdown and the later provisions, creating a recursive situation.
+This can be mitigated by either completely removing NTH or by setting the following values:
+
+* enableSpotInterruptionDraining: If false, do not drain nodes when the spot interruption termination notice is received. Only used in IMDS mode.
+enableSpotInterruptionDraining: false
+
+* enableRebalanceDrainin: If true, drain nodes when the rebalance recommendation notice is received. Only used in IMDS mode.
+enableRebalanceDraining: false
+
+
 ## Pricing
 
 ### Stale pricing data on isolated subnet
