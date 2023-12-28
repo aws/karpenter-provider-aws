@@ -150,7 +150,7 @@ func (env *Environment) ExpectTestingFinalizerRemoved(obj client.Object) error {
 	})
 
 	if !equality.Semantic.DeepEqual(metaObj, deepCopy) {
-		return env.Client.Patch(env, metaObj, client.MergeFrom(deepCopy))
+		return client.IgnoreNotFound(env.Client.Patch(env, metaObj, client.MergeFrom(deepCopy)))
 	}
 	return nil
 }
