@@ -28,6 +28,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Cordial   | Using Karpenter to scale multiple EKS clusters quickly | `@dschaaff` | [Cordial](https://cordial.com) |
 | Dig Security | Protecting our customers data - Using Karpenter to manage production and development workloads on EKS, We are using only Spot Instances in production. | `@Shahar Danus` | [Dig Security](https://dig.security/) |
 | Docker | Using Karpenter to scale Docker Hub on our EKS clusters | N/A | [Docker](https://www.docker.com) |
+| GlobalDots | Using Karpenter to scale Kubernetes clusters for a lot of our clients & for internal needs | `@vainkop` | [GlobalDots](https://globaldots.com) |
 | Grafana Labs | Using Karpenter as our Autoscaling tool on EKS | `@paulajulve`, `@logyball` | [Homepage](https://grafana.com/) & [Blog](https://grafana.com/blog/2023/11/09/how-grafana-labs-switched-to-karpenter-to-reduce-costs-and-complexities-in-amazon-eks/) |
 | H2O.ai | Dynamically scaling CPU and GPU nodes for AI workloads  | `@Ophir Zahavi`, `@Asaf Oren` | [H2O.ai](https://h2o.ai/) |
 | idealo | Scaling multi-arch IPv6 clusters hosting web and event-driven applications | `@Heiko Rothe` | [Homepage](https://www.idealo.de) |
@@ -49,6 +50,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | The Scale Factory | Using Karpenter (controllers on EC2/Fargate) to efficiently scale K8s workloads and empowering our customer teams to do the same  | `@marko` | [Homepage](https://www.scalefactory.com) |
 | Tyk Cloud | Scaling workloads for the Cloud Free plan  | `@Artem Hluvchynskyi`, `@gowtham` | [Tyk Cloud](https://tyk.io/cloud/) |
 | Wehkamp | Using Karpenter to scale the EKS clusters for our e-commerce platforms | `@ChrisV` | [Wehkamp](https://www.wehkamp.nl) & [Wehkamp Techblog](https://medium.com/wehkamp-techblog)|
+| Whoosh | Using Karpenter to scale the EKS clusters for many purposes | `@vainkop` | [Whoosh](https://whoosh.bike) |
 | Next Insurance | Using Karpenter to manage the nodes in all our EKS clusters, including dev and prod, on demand and spots | `@moshebs` | [Homepage](https://www.nextinsurance.com)|
 | Grover Group GmbH | We use Karpenter for efficient and cost effective scaling of our nodes in all of our EKS clusters | `@suraj2410` | [Homepage](https://www.grover.com/de-en) & [Engineering Techblog](https://engineering.grover.com)|
 | Logz.io | Using Karpenter in all of our EKS clusters for efficient and cost effective scaling of all our K8s workloads | `@pincher95`, `@Samplify` | [Homepage](https://logz.io/)|
