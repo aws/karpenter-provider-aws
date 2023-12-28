@@ -671,6 +671,20 @@ func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.Obj
 	Expect(env.Client.Patch(env.Context, ds, patch)).To(Succeed())
 }
 
+func (env *Environment) ExpectHealthyPodsForNode(nodeName string) []*v1.Pod {
+	GinkgoHelper()
+	podList := &v1.PodList{}
+	Expect(env.Client.List(env, podList, client.MatchingFields{"spec.nodeName": nodeName}, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+
+	// Return the healthy pods
+	return lo.Filter(lo.ToSlicePtr(podList.Items), func(p *v1.Pod, _ int) bool {
+		_, found := lo.Find(p.Status.Conditions, func(cond v1.PodCondition) bool {
+			return cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue
+		})
+		return found
+	})
+}
+
 func (env *Environment) ExpectCABundle() string {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
