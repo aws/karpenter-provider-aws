@@ -180,7 +180,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
 			env.EventuallyExpectNotFound(nodes[0])
 		})
-		FIt("should respect budgets for non-empty delete drift", func() {
+		It("should respect budgets for non-empty delete drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,
