@@ -97,7 +97,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=true"})
 	})
-	FContext("Budgets", func() {
+	Context("Budgets", func() {
 		It("should respect budgets for empty drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
@@ -136,7 +136,22 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
+			// List nodes so that we get any updated information on the nodes. If we don't
+			// we have the potential to over-write any changes Karpenter makes to the nodes.
+			nodes := env.EventuallyExpectNodeCount("==", 3)
+			// Add a finalizer to each node so that we can stop termination disruptions
+			By("adding finalizers to the nodes to prevent termination")
+			for _, node := range nodes {
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+				env.ExpectUpdated(node)
+			}
+
+			By("making the nodes empty")
+			// Delete the deployment to make all nodes empty.
+			env.ExpectDeleted(dep)
+
 			// Drift the nodeclaims
+			By("drift the nodeclaims")
 			nodePool.Spec.Template.Annotations = map[string]string{"test": "annotation"}
 			env.ExpectUpdated(nodePool)
 
@@ -150,26 +165,11 @@ var _ = Describe("Drift", Label("AWS"), func() {
 				})
 			}).Should(Succeed())
 
-			// List nodes so that we get any updated information on the nodes. If we don't
-			// we have the potential to over-write any changes Karpenter makes to the nodes.
-			nodes := env.EventuallyExpectNodeCountWithSelector("==", 3, labels.SelectorFromSet(map[string]string{corev1beta1.NodePoolLabelKey: nodePool.Name}))
-
-			// Add a finalizer to each node so that we can stop termination disruptions
-			By("adding finalizers to the nodes to prevent full termination")
-			for _, node := range nodes {
-				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-				env.ExpectUpdated(node)
-			}
-
-			By("making the nodes empty")
-			// Delete the deployment to make all nodes empty.
-			env.ExpectDeleted(dep)
-
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
-				env.ExpectTestingFinalizerRemoved(node)
+				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
 			}
 
 			// After the deletion timestamp is set and all pods are drained
@@ -177,7 +177,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			env.EventuallyExpectNotFound(nodes[0], nodes[1])
 
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 1)
-			env.ExpectTestingFinalizerRemoved(nodes[0])
+			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
 			env.EventuallyExpectNotFound(nodes[0])
 		})
 		It("should respect budgets for non-empty delete drift", func() {
@@ -300,7 +300,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			// the node should be gone
 			env.EventuallyExpectNotFound(nodes[0], nodes[1])
 		})
-		FIt("should respect budgets for non-empty replace drift", func() {
+		It("should respect budgets for non-empty replace drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,

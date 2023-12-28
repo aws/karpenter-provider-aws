@@ -80,6 +80,8 @@ var _ = Describe("Expiration", func() {
 			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
 				Nodes: "50%",
 			}}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{}
+
 			var numPods int32 = 6
 			dep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: numPods,
@@ -102,9 +104,25 @@ var _ = Describe("Expiration", func() {
 			env.ExpectCreated(nodeClass, nodePool, dep)
 
 			env.EventuallyExpectCreatedNodeClaimCount("==", 3)
-			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
+			env.EventuallyExpectCreatedNodeCount("==", 3)
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
+
+			nodes := env.EventuallyExpectNodeCount("==", 3)
+			By("adding finalizers to the nodes to prevent termination")
+			// Add a finalizer to each node so that we can stop termination disruptions
+			for _, node := range nodes {
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+				env.ExpectUpdated(node)
+			}
+
+			By("making the nodes empty")
+			// Delete the deployment to make all nodes empty.
+			env.ExpectDeleted(dep)
+
+			By("enabling expiration")
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
+			env.ExpectUpdated(nodePool)
 
 			// Expect that the NodeClaims will all be marked expired
 			Eventually(func(g Gomega) {
@@ -116,16 +134,7 @@ var _ = Describe("Expiration", func() {
 				})
 			}).Should(Succeed())
 
-			// Add a finalizer to each node so that we can stop termination disruptions
-			for _, node := range nodes {
-				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-				env.ExpectUpdated(node)
-			}
-
-			// Delete the deployment to make all nodes empty.
-			env.ExpectDeleted(dep)
-
-			// Expect that only one node is tainted, even considering the new node that was just created.
+			// Expect that two nodes are tainted.
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
 
 			// Add a finalizer to each node so that we can stop termination disruptions
