@@ -137,7 +137,7 @@ var _ = Describe("Expiration", func() {
 			// Expect that two nodes are tainted.
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
 
-			// Add a finalizer to each node so that we can stop termination disruptions
+			// Remove finalizers
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
 			}
@@ -261,10 +261,9 @@ var _ = Describe("Expiration", func() {
 			// we have the potential to over-write any changes Karpenter makes to the nodes.
 			nodes = env.EventuallyExpectNodeCount("==", 3)
 
+			// Mark one node as schedulable so the other two nodes can schedule to this node and delete.
 			nodes[0].Spec.Unschedulable = false
-			nodes[1].Spec.Unschedulable = false
 			env.ExpectUpdated(nodes[0])
-			env.ExpectUpdated(nodes[1])
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
 
 			By("removing the finalizer from the nodes")
@@ -347,7 +346,7 @@ var _ = Describe("Expiration", func() {
 			}
 
 			nodes = env.EventuallyExpectNodeCount("==", 3)
-			// Expect one node tainted and a new node created 2 times.
+			// Expect two nodes tainted and two nodes created
 			tainted := env.EventuallyExpectTaintedNodeCount("==", 2)
 			env.EventuallyExpectCreatedNodeCount("==", 2)
 

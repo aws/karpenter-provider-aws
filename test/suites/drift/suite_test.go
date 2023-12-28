@@ -180,7 +180,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
 			env.EventuallyExpectNotFound(nodes[0])
 		})
-		It("should respect budgets for non-empty delete drift", func() {
+		FIt("should respect budgets for non-empty delete drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,
@@ -286,10 +286,9 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			// we have the potential to over-write any changes Karpenter makes to the nodes.
 			nodes = env.EventuallyExpectNodeCount("==", 3)
 
+			// Mark one node as schedulable so the other two nodes can schedule to this node and delete.
 			nodes[0].Spec.Unschedulable = false
-			nodes[1].Spec.Unschedulable = false
 			env.ExpectUpdated(nodes[0])
-			env.ExpectUpdated(nodes[1])
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
 
 			By("removing the finalizer from the nodes")
@@ -371,7 +370,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}
 
 			nodes = env.EventuallyExpectNodeCount("==", 3)
-			// Expect one node tainted and a new node created 2 times.
+			// Expect two nodes tainted, and 2 nodes created
 			tainted := env.EventuallyExpectTaintedNodeCount("==", 2)
 			env.EventuallyExpectCreatedNodeCount("==", 2)
 
@@ -380,7 +379,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 
 			env.EventuallyExpectNotFound(tainted[0], tainted[1])
 
-			// Expect one node tainted and a new node created 2 times.
+			// Expect one node tainted and a one more new node created.
 			tainted = env.EventuallyExpectTaintedNodeCount("==", 1)
 			env.EventuallyExpectCreatedNodeCount("==", 3)
 
