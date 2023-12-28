@@ -224,8 +224,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			env.ExpectUpdated(dep)
 
 			By("spreading the pods to each of the nodes")
-			pods := env.EventuallyExpectHealthyPodCount(selector, 3)
-			nodes := []*v1.Node{}
+			env.EventuallyExpectHealthyPodCount(selector, 3)
+			var nodes []*v1.Node
 			// Delete pods from the deployment until each node has one pod.
 			nodePods := []*v1.Pod{}
 			for {
@@ -275,7 +275,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			}).Should(Succeed())
 
 			By("enabling disruption by removing the do not disrupt annotation")
-			pods = env.EventuallyExpectHealthyPodCount(selector, 3)
+			pods := env.EventuallyExpectHealthyPodCount(selector, 3)
 			// Remove the do-not-disrupt annotation so that the nodes are now disruptable
 			for _, pod := range pods {
 				delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
@@ -293,8 +293,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
 
 			By("removing the finalizer from the nodes")
-			env.ExpectTestingFinalizerRemoved(nodes[0])
-			env.ExpectTestingFinalizerRemoved(nodes[1])
+			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
+			Expect(env.ExpectTestingFinalizerRemoved(nodes[1])).To(Succeed())
 
 			// After the deletion timestamp is set and all pods are drained
 			// the node should be gone
@@ -375,8 +375,8 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			tainted := env.EventuallyExpectTaintedNodeCount("==", 2)
 			env.EventuallyExpectCreatedNodeCount("==", 2)
 
-			env.ExpectTestingFinalizerRemoved(tainted[0])
-			env.ExpectTestingFinalizerRemoved(tainted[1])
+			Expect(env.ExpectTestingFinalizerRemoved(tainted[0])).To(Succeed())
+			Expect(env.ExpectTestingFinalizerRemoved(tainted[1])).To(Succeed())
 
 			env.EventuallyExpectNotFound(tainted[0], tainted[1])
 
@@ -384,7 +384,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			tainted = env.EventuallyExpectTaintedNodeCount("==", 1)
 			env.EventuallyExpectCreatedNodeCount("==", 3)
 
-			env.ExpectTestingFinalizerRemoved(tainted[0])
+			Expect(env.ExpectTestingFinalizerRemoved(tainted[0])).To(Succeed())
 
 			// After the deletion timestamp is set and all pods are drained
 			// the node should be gone
