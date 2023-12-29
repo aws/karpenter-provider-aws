@@ -169,7 +169,7 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
 #### AllowScopedResourceCreationTagging
 
 The AllowScopedResourceCreationTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)
-actions on `fleet`, `instance`, `volume`, `network-interface`, and `launch-template` resources, While making `RunInstance`, `CreateFleet`, or `CreateLaunchTemplate` calls. Additionally, this ensures that resources can't be tagged arbitrarily by Karpenter after they are created.
+actions on `fleet`, `instance`, `volume`, `network-interface`, `launch-template` and `spot-instances-request` resources, While making `RunInstance`, `CreateFleet`, or `CreateLaunchTemplate` calls. Additionally, this ensures that resources can't be tagged arbitrarily by Karpenter after they are created.
 
 ```json
 {
@@ -180,7 +180,8 @@ actions on `fleet`, `instance`, `volume`, `network-interface`, and `launch-templ
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*"
   ],
   "Action": "ec2:CreateTags",
   "Condition": {
