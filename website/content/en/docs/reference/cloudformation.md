@@ -113,7 +113,7 @@ Someone wanting to add Karpenter to an existing cluster, instead of using `cloud
 
 The AllowScopedEC2InstanceActions statement ID (Sid) identifies a set of EC2 resources that are allowed to be accessed with
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html) and [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html) actions.
-For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `spot-instances-request`, `security-group`, `subnet` and `launch-template` EC2 resources, scoped for the particular AWS partition and region.
+For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `security-group`, `subnet` and `launch-template` EC2 resources, scoped for the particular AWS partition and region.
 
 ```json
 {
@@ -122,7 +122,6 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
   "Resource": [
     "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
