@@ -137,7 +137,7 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
 
 The AllowScopedEC2InstanceActionsWithTags Sid allows the
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html), [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html), and [CreateLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateLaunchTemplate.html)
-actions requested by the Karpenter controller to create all `fleet`, `instance`, `volume`, `network-interface`, or `launch-template` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/nodepool` tag be set to any value. This ensures that Karpenter is only allowed to create instances for a single EKS cluster.
+actions requested by the Karpenter controller to create all `fleet`, `instance`, `volume`, `network-interface`, `launch-template` or `spot-instances-request` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/nodepool` tag be set to any value. This ensures that Karpenter is only allowed to create instances for a single EKS cluster.
 
 ```json
 {
@@ -148,7 +148,8 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*"
   ],
   "Action": [
     "ec2:RunInstances",
