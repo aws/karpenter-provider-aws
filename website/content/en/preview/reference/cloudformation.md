@@ -202,7 +202,7 @@ actions on `fleet`, `instance`, `volume`, `network-interface`, and `launch-templ
 
 #### AllowScopedResourceTagging
 
-The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html) actions on all instances created by Karpenter after their creation. It enforces that Karpenter is only able to update the tags on cluster instances it is operating on through the `karpenter.sh/cluster/${ClusterName}`" and `karpenter.sh/nodepool` tags.
+The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html) actions on all instances created by Karpenter after their creation. It enforces that Karpenter is only able to update the tags on cluster instances it is operating on through the `kubernetes.io/cluster/${ClusterName}`" and `karpenter.sh/nodepool` tags.
 ```json
 {
   "Sid": "AllowScopedResourceTagging",
@@ -211,7 +211,7 @@ The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amaz
   "Action": "ec2:CreateTags",
   "Condition": {
     "StringEquals": {
-      "aws:ResourceTag/karpenter.sh/cluster/${ClusterName}": "owned"
+      "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
     },
     "StringLike": {
       "aws:ResourceTag/karpenter.sh/nodepool": "*"
