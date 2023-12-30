@@ -7,7 +7,6 @@
       "Resource": [
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}::image/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}::snapshot/*",
-        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:spot-instances-request/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:security-group/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:subnet/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
@@ -25,7 +24,8 @@
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:instance/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:volume/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:network-interface/*",
-        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:spot-instances-request/*"
       ],
       "Action": [
         "ec2:RunInstances",
@@ -49,7 +49,8 @@
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:instance/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:volume/*",
         "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:network-interface/*",
-        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*"
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:launch-template/*",
+        "arn:${AWS_PARTITION}:ec2:${AWS_REGION}:*:spot-instances-request/*"
       ],
       "Action": "ec2:CreateTags",
       "Condition": {
