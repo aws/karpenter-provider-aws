@@ -122,7 +122,6 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
   "Resource": [
     "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
@@ -149,7 +148,8 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*"
   ],
   "Action": [
     "ec2:RunInstances",
@@ -181,7 +181,8 @@ actions on `fleet`, `instance`, `volume`, `network-interface`, and `launch-templ
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:instance/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:volume/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:network-interface/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:spot-instances-request/*"
   ],
   "Action": "ec2:CreateTags",
   "Condition": {
