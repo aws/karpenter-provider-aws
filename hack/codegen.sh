@@ -51,7 +51,11 @@ instanceTypeTestData() {
   checkForUpdates "${GENERATED_FILE}"
 }
 
-# checkForUpdates is a helper function that takes in a
+# checkForUpdates is a helper function that takes in a file and an optional ignore pattern
+# to determine if there is a diff between the previous iteration of the file and the newly generated data
+# If it fines a difference between the new and the old file and the ENABLE_GIT_PUSH environment variable is set,
+# it will push the updated file with an automatic commit to the "codegen" branch
+# Usage: checkForUpdates "pkg/providers/pricing/zz_generated.pricing_aws.go" "// generated at"
 checkForUpdates() {
   GENERATED_FILE=$1
   IGNORE_PATTERN=${2:-""}
