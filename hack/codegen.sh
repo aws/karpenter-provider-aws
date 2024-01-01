@@ -55,7 +55,8 @@ instanceTypeTestData() {
 # to determine if there is a diff between the previous iteration of the file and the newly generated data
 # If it fines a difference between the new and the old file and the ENABLE_GIT_PUSH environment variable is set,
 # it will push the updated file with an automatic commit to the "codegen" branch
-# Usage: checkForUpdates "pkg/providers/pricing/zz_generated.pricing_aws.go" "// generated at"
+# USAGE:
+#   checkForUpdates "pkg/providers/pricing/zz_generated.pricing_aws.go" "// generated at"
 checkForUpdates() {
   GENERATED_FILE=$1
   IGNORE_PATTERN=${2:-""}
@@ -69,7 +70,6 @@ checkForUpdates() {
   echo "Checking git diff for updates..."
   if [[ -n "${GIT_DIFF}" ]]; then
     echo "$GIT_DIFF"
-    git add "${GENERATED_FILE}"
     if [[ $ENABLE_GIT_PUSH == true ]]; then
       gitCommitAndPush "${GENERATED_FILE}"
     fi
@@ -86,6 +86,7 @@ gitOpenAndPullBranch() {
 
 gitCommitAndPush() {
   GENERATED_FILE=$1
+  git add "${GENERATED_FILE}"
   git commit -m "CodeGen updates from AWS API for ${GENERATED_FILE}"
   # Force push the branch since we might have left the branch around from the last codegen
   git push --set-upstream origin codegen --force
