@@ -127,10 +127,9 @@ When Karpenter detects one of these events will occur to your nodes, it automati
 
 {{% alert title="Note" color="warning" %}}
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Rebalance Recommendations__. Karpenter does not currently support cordon, drain, and terminate logic for Spot Rebalance Recommendations.
-{{% /alert %}}
 
-{{% alert title="Note" color="warning" %}}
-For users that wish to benefit from both Karpenter and [Spot Rebalance Recommendations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html), which usually entails using the [AWS Node Termination Handler](https://github.com/aws/aws-node-termination-handler), please note that the AWS Node Termination Handler cordons and drains nodes, potentially causing node churn in the cluster. Further information can be found here: [Troubleshooting](../troubleshooting.md#aws-node-termination-handler-nth-interactions)
+For users that wish to benefit from both Karpenter and [Spot Rebalance Recommendations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html), which usually entails using the [AWS Node Termination Handler](https://github.com/aws/aws-node-termination-handler), please note that the AWS Node Termination Handler cordons and drains nodes, potentially causing node churn in the cluster. Further information can be found here: [Troubleshooting](../troubleshooting.md#aws-node-termination-handler-nth-interactions).
+
 {{% /alert %}}
 
 ### Kubernetes cluster autoscaler
