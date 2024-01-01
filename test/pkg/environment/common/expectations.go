@@ -38,6 +38,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
@@ -79,7 +80,7 @@ func (env *Environment) ExpectUpdated(objects ...client.Object) {
 			current := o.DeepCopyObject().(client.Object)
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
 			if current.GetResourceVersion() != o.GetResourceVersion() {
-				logging.FromContext(env).Infof("detected an update to an object with an outdated resource version, did you get the latest version of the object before patching?")
+				logging.FromContext(env).Infof("detected an update to an object (%s) with an outdated resource version, did you get the latest version of the object before patching?", lo.Must(apiutil.GVKForObject(o, env.Client.Scheme())))
 			}
 			o.SetResourceVersion(current.GetResourceVersion())
 			g.Expect(env.Client.Update(env.Context, o)).To(Succeed())
@@ -668,6 +669,20 @@ func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.Obj
 		}
 	}
 	Expect(env.Client.Patch(env.Context, ds, patch)).To(Succeed())
+}
+
+func (env *Environment) ExpectHealthyPodsForNode(nodeName string) []*v1.Pod {
+	GinkgoHelper()
+	podList := &v1.PodList{}
+	Expect(env.Client.List(env, podList, client.MatchingFields{"spec.nodeName": nodeName}, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+
+	// Return the healthy pods
+	return lo.Filter(lo.ToSlicePtr(podList.Items), func(p *v1.Pod, _ int) bool {
+		_, found := lo.Find(p.Status.Conditions, func(cond v1.PodCondition) bool {
+			return cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue
+		})
+		return found
+	})
 }
 
 func (env *Environment) ExpectCABundle() string {

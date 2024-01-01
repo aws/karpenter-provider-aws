@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
-	nodeclaimutil "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 )
@@ -66,12 +65,12 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	managedRetrieved := lo.Filter(retrieved, func(nc *v1beta1.NodeClaim, _ int) bool {
 		return nc.Annotations[v1beta1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
 	})
-	nodeClaimList, err := nodeclaimutil.List(ctx, c.kubeClient)
-	if err != nil {
+	nodeClaimList := &v1beta1.NodeClaimList{}
+	if err = c.kubeClient.List(ctx, nodeClaimList); err != nil {
 		return reconcile.Result{}, err
 	}
 	nodeList := &v1.NodeList{}
-	if err := c.kubeClient.List(ctx, nodeList); err != nil {
+	if err = c.kubeClient.List(ctx, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
 	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n v1beta1.NodeClaim, _ int) (string, bool) {
