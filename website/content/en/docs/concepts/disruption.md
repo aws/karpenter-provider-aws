@@ -169,6 +169,8 @@ For Spot interruptions, the NodePool will start a new node as soon as it sees th
 
 {{% alert title="Note" color="primary" %}}
 Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Rebalance Recommendations__. Karpenter does not currently support taint, drain, and terminate logic for Spot Rebalance Recommendations.
+
+For users that wish to benefit from both Karpenter and [Spot Rebalance Recommendations](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html), which usually entails using the [AWS Node Termination Handler](https://github.com/aws/aws-node-termination-handler), please note that the AWS Node Termination Handler cordons and drains nodes, potentially causing node churn in the cluster. Further information can be found here: [Troubleshooting](../troubleshooting.md#aws-node-termination-handler-nth-interactions)
 {{% /alert %}}
 
 Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
