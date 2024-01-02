@@ -66,7 +66,7 @@ spec:
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   instanceProfile: "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
 
-  # Optional, discovers amis to override the amiFamily's default
+  # Optional, discovers amis to override the amiFamily's default amis
   # Each term in the array of amiSelectorTerms is ORed together
   # Within a single term, all conditions are ANDed
   amiSelectorTerms:
@@ -396,7 +396,9 @@ spec:
 
 ## spec.amiSelectorTerms
 
-AMI Selector Terms are used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
+AMI Selector Terms are used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). **When you specify `amiSelectorTerms`, you fully override the default AMIs that are selected on by your EC2NodeClass [`amiFamily`]({{< ref "#specamifamily" >}}).**
+
+This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
 ```yaml
 amiSelectorTerms:
