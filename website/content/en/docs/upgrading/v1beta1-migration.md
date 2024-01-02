@@ -752,6 +752,34 @@ Karpenter v1beta1 introduces changes to some common labels, annotations, and sta
 | MachineExpired                  | Expired        |
 | MachineDrifted                  | Drifted        |
 
+### IAM Controller Permissions
+
+v1beta1 introduces changes to the IAM permissions assigned to the Karpenter controller policy used when deploying Karpenter to your cluster with [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html) or [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html).
+
+You can see a full example of the v1beta1 required controller permissions by viewing the [v1beta1 Controller Policy](https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.4/website/content/en/preview/upgrading/v1beta1-controller-policy.json).
+
+Additionally, read more detail about the full set of permissions assigned to the Karpenter controller policy in the [CloudFormation Reference Guide]({{< ref "../reference/cloudformation" >}}).
+
+#### Updating Tag-Based Permissions
+
+Since Karpenter v1beta1 introduces changes to custom resource, label, and annotation naming, this also changes the tag keys that Karpenter uses to tag instances, volumes launch templates, and any other resources that Karpenter deploys and manages.
+
+By default, when using the [Karpenter Getting Started Guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}) to setup Karpenter on your cluster, you will deploy an IAM policy that scopes Karpenter's permissions based on tag keys and values using [ABAC](https://aws.amazon.com/identity/attribute-based-access-control/). Any part of the Karpenter alpha controller policy which previously referenced `aws:RequestTag:karpenter.sh/provisioner-name`  or `aws:ResourceTag:karpenter.sh/provisioner-name` is now updated in v1beta1 to be `aws:RequestTag:karpenter.sh/nodepool` and `aws:ResourceTag:karpenter.sh/nodepool`.
+
+{{% alert title="Note" color="warning" %}}
+While migrating between alpha and beta, you will need to maintain the old tag permissions as well as the new permissions. You can remove the old tag key permissions from the controller policy when you have fully migrated to beta resources. This process for maintaining both sets of permissions while migrating is also mentioned in greater detail in the [Upgrade Procedure]({{< ref "#upgrade-procedure" >}}) shown above.
+{{% /alert %}}
+
+#### Updating IAM Instance Profile Permissions
+
+Additionally, starting in v1beta1, Karpenter removes the need for you to manage your own instance profiles used to launch EC2 instances, allowing you to only specify the role that you want assigned to your instances in the `spec.role` of the `EC2NodeClass`. When you do this, Karpenter will generate and manage an instance profile on your behalf.
+
+To enable this functionality, you need to add `iam:` permissions that give Karpenter permission to generate and managed instance profiles. These permissions include `iam:CreateInstanceProfile`, `iam:TagInstanceProfile`, `iam:AddRoleToInstanceProfile`, `iam:RemoveRoleFromInstanceProfile`, `iam:DeleteInstanceProfile`, and `iam:GetInstanceProfile`. Each of these permissions is scoped down to only operate on instance profiles generated from a single Karpenter instance on a single Karpenter cluster using [ABAC](https://aws.amazon.com/identity/attribute-based-access-control/).
+
+{{% alert title="Note" color="warning" %}}
+These `iam:` permissions are not required if you do not intend to use the `spec.role` field to enable the managed instance profile feature. Instead, you can use the `spec.instanceProfile` field to tell Karpenter to use an unmanaged instance profile explicitly. Note that this means that you have to manually provision and manage the instance profile yourself as you did in alpha.
+{{% /alert %}}
+
 ### Metrics
 
 The following table shows v1alpha5 metrics and the v1beta1 version of each metric. All metrics on this table will exist simultaneously, while both v1alpha5 and v1beta1 are supported within the same version.
