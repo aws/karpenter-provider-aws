@@ -6,7 +6,7 @@ It converts `v1alpha5/Provisioner` to `v1beta1/NodePool` and `v1alpha1/AWSNodeTe
 ## Installation 
 
 ```
-go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@latest
+go install github.com/aws/karpenter/tools/karpenter-convert/cmd/karpenter-convert@release-v0.32.x
 ```
 
 ## Usage
