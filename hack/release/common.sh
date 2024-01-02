@@ -153,11 +153,15 @@ createNewWebsiteDirectory() {
 }
 
 removeOldWebsiteDirectories() {
-  local n=5
+  local n=3
   # Get all the directories except the last n directories sorted from earliest to latest version
-  last_n_versions=$(find website/content/en/* -type d -name "*" -maxdepth 0 | grep -v "preview\|docs" | sort | tail -n "$n")
+  # preview, docs, and v0.32 are special directories that we always propagate into the set of directory options
+  # Keep the v0.32 version around while we are supporting v1beta1 migration
+  # Drop it once we no longer want to maintain the v0.32 version in the docs
+  last_n_versions=$(find website/content/en/* -type d -name "*" -maxdepth 0 | grep -v "preview\|docs\|v0.32" | sort | tail -n "$n")
   last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
   last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
+  last_n_versions+=$(echo -e "\nwebsite/content/en/v0.32")
   all=$(find website/content/en/* -type d -name "*" -maxdepth 0)
   ## symmetric difference
   comm -3 <(sort <<< $last_n_versions) <(sort <<< $all) | tr -d '\t' | xargs -r -n 1 rm -r
@@ -170,19 +174,10 @@ editWebsiteConfig() {
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
 # without increasing the size of the set.
+# It uses the current version directories (ignoring the docs directory) to generate this list
 editWebsiteVersionsMenu() {
-  RELEASE_VERSION=$1
-  versionData "${RELEASE_VERSION}"
-  VERSIONS=("${RELEASE_MINOR_VERSION}")
-  while IFS= read -r LINE; do
-    SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
-    # Bail from this config.yaml update if the version is already in the existing list
-    if [[ "${RELEASE_MINOR_VERSION}" == "${SANITIZED_VERSION}" ]]; then
-      return
-    fi
-    VERSIONS+=("${SANITIZED_VERSION}")
-  done < <(yq '.params.versions' website/hugo.yaml)
-  unset VERSIONS[${#VERSIONS[@]}-2]
+  VERSIONS=($(find website/content/en/* -type d -name "*" -maxdepth 0 | xargs basename | grep -v "docs\|preview"))
+  VERSIONS+=('preview')
 
   yq -i '.params.versions = []' website/hugo.yaml
 
