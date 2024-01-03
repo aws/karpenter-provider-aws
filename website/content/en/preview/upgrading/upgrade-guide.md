@@ -34,6 +34,13 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 ```
 
 ### Upgrading to v0.34.0+
+
+[comment]: <> (WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE ALERT SECTION BELOW TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO v0.32 FIRST)
+
+{{% alert title="Warning" color="warning" %}}
+v0.34.0+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to v0.33.0+ without first [upgrading to v0.32.x]({{<ref "#upgrading-to-v0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
+{{% /alert %}}
+
 * Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more. 
 * With Disruption Budgets, Karpenter will disrupt multiple batches of nodes simultaneously, which can result in overall quicker scale-down of your cluster. Before v0.34, Karpenter had a hard-coded parallelism limit for each type of disruption. In v0.34, Karpenter will now disrupt at most 10% of nodes for a given NodePool. There is no setting that will be perfectly equivalent with the behavior prior to v0.34. When considering how to configure your budgets, please refer to the following limits for versions prior to v0.34:
   * `Empty Expiration / Empty Drift / Empty Consolidation`: infinite parallelism 
@@ -41,6 +48,12 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
   * `Multi-Node Consolidation`: max 100 nodes
 
 ### Upgrading to v0.33.0+
+
+[comment]: <> (WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE ALERT SECTION BELOW TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO v0.32 FIRST)
+
+{{% alert title="Warning" color="warning" %}}
+v0.33.0+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to v0.33.0+ without first [upgrading to v0.32.x]({{<ref "#upgrading-to-v0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
+{{% /alert %}}
 
 * Karpenter now tags `spot-instances-request` with the same tags that it tags instances, volumes, and primary ENIs. This means that you will now need to add `ec2:CreateTags` permission for `spot-instances-request`. You can also further scope your controller policy for the `ec2:RunInstances` action to require that it launches the `spot-instances-request` with these specific tags. You can view an example of scoping these actions in the [Getting Started Guide's default CloudFormation controller policy](https://github.com/aws/karpenter/blob/v0.33.0/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml#L61).
 * We now recommend that you set the installation namespace for your Karpenter controllers to `kube-system` to denote Karpenter as a critical cluster component. This ensures that requests from the Karpenter controllers are treated with higher priority by assigning them to a different [PriorityLevelConfiguration](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration) than generic requests from other namespaces. For more details on API Priority and Fairness, read the [Kubernetes API Priority and Fairness Conceptual Docs](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/). Note: Changing the namespace for your Karpenter release will cause the service account namespace to change. If you are using IRSA for authentication with AWS, you will need to change scoping set in the controller's trust policy from `karpenter:karpenter` to `kube-system:karpenter`.
