@@ -637,6 +637,21 @@ This typically occurs when the node has not been considered fully initialized fo
 
 This error indicates that the `vpc.amazonaws.com/pod-eni` resource was never reported on the node. If you've enabled Pod ENI for Karpenter nodes via the `aws.enablePodENI` setting, you will need to make the corresponding change to the VPC CNI to enable [security groups for pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) which will cause the resource to be registered.
 
+### AWS Node Termination Handler (NTH) interactions
+Karpenter [doesn't currently support draining and terminating on spot rebalance recommendations]({{< ref "concepts/deprovisioning#interruption" >}}). Users who want support for both drain and terminate on spot interruption as well as drain and termination on spot rebalance recommendations may install Node Termination Handler (NTH) on their clusters to support this behavior.
+
+These two components do not share information between each other, meaning if you have drain and terminate functionality enabled on NTH, NTH may remove a node for a spot rebalance recommendation. Karpenter will replace the node to fulfill the pod capacity that was being fulfilled by the old node; however, Karpenter won't be aware of the reason that that node was terminated. This means that Karpenter may launch the same instance type that was just deprovisioned, causing a spot rebalance recommendation to be sent again. This can result in very short-lived instances where NTH continually removes nodes and Karpeneter re-launches the same instance type over and over again.
+
+Karpenter doesn't recommend reacting to spot rebalance recommendations when running Karpenter with spot nodes; however, if you absolutely require this functionality, note that the above scenario is possible. 
+Spot instances are time limited and, therefore, interruptible. When a signal is sent by AWS, it triggers actions from NTH and Karpenter, where the former signals a shutdown and the later provisions, creating a recursive situation.
+This can be mitigated by either completely removing NTH or by setting the following values:
+
+* enableSpotInterruptionDraining: If false, do not drain nodes when the spot interruption termination notice is received. Only used in IMDS mode.
+enableSpotInterruptionDraining: false
+
+* enableRebalanceDrainin: If true, drain nodes when the rebalance recommendation notice is received. Only used in IMDS mode.
+enableRebalanceDraining: false
+
 ## Pricing
 
 ### Stale pricing data on isolated subnet

@@ -20,6 +20,7 @@ import (
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
@@ -29,6 +30,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/karpenter/pkg/metrics"
 
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -42,7 +44,6 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/events"
 	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
-	nodeclaimutil "sigs.k8s.io/karpenter/pkg/utils/nodeclaim"
 )
 
 type Action string
@@ -208,12 +209,15 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, nodeClaim *v1beta1.Nod
 	if !nodeClaim.DeletionTimestamp.IsZero() {
 		return nil
 	}
-	if err := nodeclaimutil.Delete(ctx, c.kubeClient, nodeClaim); err != nil {
+	if err := c.kubeClient.Delete(ctx, nodeClaim); err != nil {
 		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}
 	logging.FromContext(ctx).Infof("initiating delete from interruption message")
 	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, nodeClaim)...)
-	nodeclaimutil.TerminatedCounter(nodeClaim, terminationReasonLabel).Inc()
+	metrics.NodeClaimsTerminatedCounter.With(prometheus.Labels{
+		metrics.ReasonLabel:   terminationReasonLabel,
+		metrics.NodePoolLabel: nodeClaim.Labels[v1beta1.NodePoolLabelKey],
+	}).Inc()
 	return nil
 }
 
@@ -245,8 +249,8 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *v1beta1.N
 // NodeClaim .status.providerID and the NodeClaim
 func (c *Controller) makeNodeClaimInstanceIDMap(ctx context.Context) (map[string]*v1beta1.NodeClaim, error) {
 	m := map[string]*v1beta1.NodeClaim{}
-	nodeClaimList, err := nodeclaimutil.List(ctx, c.kubeClient)
-	if err != nil {
+	nodeClaimList := &v1beta1.NodeClaimList{}
+	if err := c.kubeClient.List(ctx, nodeClaimList); err != nil {
 		return nil, err
 	}
 	for i := range nodeClaimList.Items {

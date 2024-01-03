@@ -25,6 +25,7 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,6 +41,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
+
+const TestingFinalizer = "testing/finalizer"
 
 var (
 	CleanableObjects = []client.Object{
@@ -122,6 +125,7 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 				// are deleting so that we avoid getting client-side throttled
 				workqueue.ParallelizeUntil(env, 50, len(metaList.Items), func(i int) {
 					defer GinkgoRecover()
+					g.Expect(env.ExpectTestingFinalizerRemoved(&metaList.Items[i])).To(Succeed())
 					g.Expect(client.IgnoreNotFound(env.Client.Delete(env, &metaList.Items[i], client.PropagationPolicy(metav1.DeletePropagationForeground)))).To(Succeed())
 				})
 				// If the deletes eventually succeed, we should have no elements here at the end of the test
@@ -131,4 +135,22 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 		}(obj)
 	}
 	wg.Wait()
+}
+
+func (env *Environment) ExpectTestingFinalizerRemoved(obj client.Object) error {
+	metaObj := &metav1.PartialObjectMetadata{}
+	metaObj.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
+	if err := env.Client.Get(env, client.ObjectKeyFromObject(obj), metaObj); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	deepCopy := metaObj.DeepCopy()
+	metaObj.Finalizers = lo.Reject(metaObj.Finalizers, func(finalizer string, _ int) bool {
+		return finalizer == TestingFinalizer
+	})
+
+	if !equality.Semantic.DeepEqual(metaObj, deepCopy) {
+		return client.IgnoreNotFound(env.Client.Patch(env, metaObj, client.MergeFrom(deepCopy)))
+	}
+	return nil
 }
