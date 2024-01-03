@@ -47,6 +47,8 @@ v0.34.0+ _only_ supports Karpenter v1beta1 APIs and will not work with existing 
   * `Non-Empty Expiration / Non-Empty Drift / Single-Node Consolidation`: one node at a time
   * `Multi-Node Consolidation`: max 100 nodes
 
+* Karpenter now adds a default `podSecurityContext` that configures the `fsgroup: 65536` of volumes in the pod. If you are using sidecar containers, you should review if this configuration is compatible for them. You can disable this default `podSecurityContext` through helm by performing `--set podSecurityContext=null` when installing/upgrading the chart.
+
 ### Upgrading to v0.33.0+
 
 [comment]: <> (WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE ALERT SECTION BELOW TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO v0.32 FIRST)

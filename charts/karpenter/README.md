@@ -63,6 +63,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | podAnnotations | object | `{}` | Additional annotations for the pod. |
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podDisruptionBudget.name | string | `"karpenter"` |  |
+| podSecurityContext | object | `{"fsGroup":65536}` | SecurityContext for the pod. |
 | podLabels | object | `{}` | Additional labels for the pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
