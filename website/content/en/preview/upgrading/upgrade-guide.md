@@ -38,7 +38,7 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 [comment]: <> (WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE ALERT SECTION BELOW TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO v0.32 FIRST)
 
 {{% alert title="Warning" color="warning" %}}
-v0.34.0+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to v0.33.0+ without first [upgrading to v0.32.x]({{<ref "#upgrading-to-v0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
+v0.34.0+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to v0.34.0+ without first [upgrading to v0.32.x]({{<ref "#upgrading-to-v0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
 {{% /alert %}}
 
 * Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more. 
