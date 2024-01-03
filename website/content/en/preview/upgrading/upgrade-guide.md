@@ -32,9 +32,6 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.sh_nodeclaims.yaml
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
-### Upgrading to v0.34.0+
-
-* Karpenter add now by default on `podSecurityContext` level, specific `fsgroup: 65536`. If you are using sidecar containers, you should review if this configuration is compatible for them. If you need to change this default value you have the option adding specific `podSecurityContext:` block on your values.yaml file
 
 ### Upgrading to v0.34.0+
 * Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more. 
@@ -42,6 +39,8 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
   * `Empty Expiration / Empty Drift / Empty Consolidation`: infinite parallelism 
   * `Non-Empty Expiration / Non-Empty Drift / Single-Node Consolidation`: one node at a time
   * `Multi-Node Consolidation`: max 100 nodes
+
+* Karpenter now adds a default `podSecurityContext` that configures the `fsgroup: 65536` of volumes in the pod. If you are using sidecar containers, you should review if this configuration is compatible for them. You can disable this default `podSecurityContext` through helm by performing `--set podSecurityContext=null` when installing/upgrading the chart.
 
 ### Upgrading to v0.33.0+
 
