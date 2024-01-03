@@ -77,4 +77,4 @@
 /v0.34/concepts/threat-model /v0.34/reference/threat-model
 
 # Redirect any v1beta1-migration reference to the v0.32 version
-/v0.*/upgrading/v1beta1-migration /v0.32/upgrading/v1beta1-migration
+/*/upgrading/v1beta1-migration /v0.32/upgrading/v1beta1-migration
