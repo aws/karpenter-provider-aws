@@ -324,7 +324,7 @@ var _ = Describe("Expiration", func() {
 
 			By("expiring the nodes")
 			// Expire the nodeclaims
-			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 90)}
 			env.ExpectUpdated(nodePool)
 
 			// Expect that the NodeClaims will all be marked expired
