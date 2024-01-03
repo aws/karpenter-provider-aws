@@ -41,7 +41,9 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0
 {{% alert title="Warning" color="warning" %}}
 Karpenter v0.32.0 introduces v1beta1 APIs, including _significant_ changes to the API and installation procedures for the Karpenter controllers. Do not upgrade to v0.32.0+ without referencing the [v1beta1 Migration Upgrade Procedure]({{<ref "v1beta1-migration#upgrade-procedure" >}}).
 
-Additionally, if rolling back after upgrading to v0.32.0, note that v0.31.2 and v0.31.3 are the only versions that support handling rollback after you have deployed the v1beta1 APIs to your cluster.
+This version includes **dual support** for both alpha and beta APIs to ensure that you can slowly migrate your existing Provisioner, AWSNodeTemplate, and Machine alpha APIs to the newer NodePool, EC2NodeClass, and NodeClaim beta APIs.
+
+Note that if you are rolling back after upgrading to v0.32.0, note that v0.31.2 and v0.31.3 are the only versions that support handling rollback after you have deployed the v1beta1 APIs to your cluster.
 {{% /alert %}}
 
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.
