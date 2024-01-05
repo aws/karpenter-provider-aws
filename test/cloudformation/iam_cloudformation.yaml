@@ -144,6 +144,7 @@ Resources:
             Action:
               - iam:AttachRolePolicy
               - iam:CreateRole
+              - iam:TagRole
               - iam:DeleteRolePolicy
               - iam:DetachRolePolicy
               - iam:PutRolePolicy
