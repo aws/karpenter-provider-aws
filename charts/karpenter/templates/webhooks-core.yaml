@@ -23,17 +23,6 @@ webhooks:
       - apiGroups:
           - karpenter.sh
         apiVersions:
-          - v1alpha5
-        operations:
-          - CREATE
-          - UPDATE
-        resources:
-          - provisioners
-          - provisioners/status
-        scope: '*'
-      - apiGroups:
-          - karpenter.sh
-        apiVersions:
           - v1beta1
         operations:
           - CREATE

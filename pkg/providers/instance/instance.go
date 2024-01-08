@@ -32,23 +32,21 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/batcher"
-	"github.com/aws/karpenter/pkg/cache"
-	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/launchtemplate"
-	"github.com/aws/karpenter/pkg/providers/subnet"
-	"github.com/aws/karpenter/pkg/utils"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/batcher"
+	"github.com/aws/karpenter-provider-aws/pkg/cache"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
+
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
 var (
@@ -101,17 +99,8 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if err != nil {
 		return nil, err
 	}
-	return NewInstanceFromFleet(fleetInstance, tags), nil
-}
-
-func (p *Provider) Link(ctx context.Context, id, provisionerName string) error {
-	if err := p.CreateTags(ctx, id, map[string]string{
-		v1alpha5.MachineManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
-		v1alpha5.ProvisionerNameLabelKey:       provisionerName,
-	}); err != nil {
-		return fmt.Errorf("linking tags, %w", err)
-	}
-	return nil
+	efaEnabled := lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1beta1.ResourceEFA)
+	return NewInstanceFromFleet(fleetInstance, tags, efaEnabled), nil
 }
 
 func (p *Provider) Get(ctx context.Context, id string) (*Instance, error) {
@@ -141,7 +130,7 @@ func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
-				Values: aws.StringSlice([]string{v1alpha5.ProvisionerNameLabelKey, corev1beta1.NodePoolLabelKey}),
+				Values: aws.StringSlice([]string{corev1beta1.NodePoolLabelKey}),
 			},
 			{
 				Name:   aws.String("tag-key"),
@@ -253,25 +242,13 @@ func (p *Provider) launchInstance(ctx context.Context, nodeClass *v1beta1.EC2Nod
 }
 
 func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim) map[string]string {
-	var overridableTags, staticTags map[string]string
-	if nodeClaim.IsMachine {
-		overridableTags = map[string]string{
-			"Name": fmt.Sprintf("%s/%s", v1alpha5.ProvisionerNameLabelKey, nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey]),
-		}
-		staticTags = map[string]string{
-			fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
-			v1alpha5.ProvisionerNameLabelKey:                                              nodeClaim.Labels[v1alpha5.ProvisionerNameLabelKey],
-			v1alpha5.MachineManagedByAnnotationKey:                                        options.FromContext(ctx).ClusterName,
-		}
-	} else {
-		staticTags = map[string]string{
-			fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
-			corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
-			corev1beta1.ManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
-			v1beta1.LabelNodeClass:             nodeClass.Name,
-		}
+	staticTags := map[string]string{
+		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
+		corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
+		corev1beta1.ManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
+		v1beta1.LabelNodeClass:             nodeClass.Name,
 	}
-	return lo.Assign(overridableTags, settings.FromContext(ctx).Tags, nodeClass.Spec.Tags, staticTags)
+	return lo.Assign(nodeClass.Spec.Tags, staticTags)
 }
 
 func (p *Provider) checkODFallback(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
@@ -414,7 +391,7 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
 // that make the most sense given our specific AWS cloudprovider.
 func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
-	instanceTypes = filterExoticInstanceTypes(instanceTypes, nodeClaim.IsMachine)
+	instanceTypes = filterExoticInstanceTypes(instanceTypes)
 	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
 	// are more expensive than the cheapest on-demand type.
 	if p.isMixedCapacityLaunch(nodeClaim, instanceTypes) {
@@ -423,7 +400,7 @@ func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanc
 	return instanceTypes
 }
 
-// isMixedCapacityLaunch returns true if provisioners and available offerings could potentially allow either a spot or
+// isMixedCapacityLaunch returns true if nodepools and available offerings could potentially allow either a spot or
 // and on-demand node to launch
 func (p *Provider) isMixedCapacityLaunch(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) bool {
 	requirements := scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...)
@@ -479,18 +456,18 @@ func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType) []*cloudpro
 // filterExoticInstanceTypes is used to eliminate less desirable instance types (like GPUs) from the list of possible instance types when
 // a set of more appropriate instance types would work. If a set of more desirable instance types is not found, then the original slice
 // of instance types are returned.
-func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType, isMachine bool) []*cloudprovider.InstanceType {
+func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
 	var genericInstanceTypes []*cloudprovider.InstanceType
 	for _, it := range instanceTypes {
 		// deprioritize metal even if our opinionated filter isn't applied due to something like an instance family
 		// requirement
-		if _, ok := lo.Find(it.Requirements.Get(lo.Ternary(isMachine, v1alpha1.LabelInstanceSize, v1beta1.LabelInstanceSize)).Values(), func(size string) bool { return strings.Contains(size, "metal") }); ok {
+		if _, ok := lo.Find(it.Requirements.Get(v1beta1.LabelInstanceSize).Values(), func(size string) bool { return strings.Contains(size, "metal") }); ok {
 			continue
 		}
-		if !resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceAWSNeuron, v1beta1.ResourceAWSNeuron)]) ||
-			!resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceAMDGPU, v1beta1.ResourceAMDGPU)]) ||
-			!resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceNVIDIAGPU, v1beta1.ResourceNVIDIAGPU)]) ||
-			!resources.IsZero(it.Capacity[lo.Ternary(isMachine, v1alpha1.ResourceHabanaGaudi, v1beta1.ResourceHabanaGaudi)]) {
+		if !resources.IsZero(it.Capacity[v1beta1.ResourceAWSNeuron]) ||
+			!resources.IsZero(it.Capacity[v1beta1.ResourceAMDGPU]) ||
+			!resources.IsZero(it.Capacity[v1beta1.ResourceNVIDIAGPU]) ||
+			!resources.IsZero(it.Capacity[v1beta1.ResourceHabanaGaudi]) {
 			continue
 		}
 		genericInstanceTypes = append(genericInstanceTypes, it)

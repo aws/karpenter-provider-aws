@@ -24,7 +24,7 @@ data:
       },
       "outputPaths": [{{ include "karpenter.outputPathsList" . }}],
       "errorOutputPaths": [{{ include "karpenter.errorOutputPathsList" . }}],
-      "encoding": "{{ or .Values.logEncoding .Values.logConfig.logEncoding }}",
+      "encoding": "{{ .Values.logConfig.logEncoding }}",
       "encoderConfig": {
         "timeKey": "time",
         "levelKey": "level",
@@ -36,6 +36,6 @@ data:
         "timeEncoder": "iso8601"
       }
     }
-  loglevel.controller: {{ or .Values.controller.logLevel .Values.logConfig.logLevel.controller }}
-  loglevel.webhook: {{ or .Values.webhook.logLevel .Values.logConfig.logLevel.webhook }}
+  loglevel.controller: {{ .Values.logConfig.logLevel.controller }}
+  loglevel.webhook: {{ .Values.logConfig.logLevel.webhook }}
 {{- end }}

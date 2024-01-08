@@ -28,9 +28,8 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	"github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 // Monitor is used to monitor the cluster state during a running test
@@ -71,14 +70,14 @@ func (m *Monitor) Reset() {
 
 // RestartCount returns the containers and number of restarts for that container for all containers in the pods in the
 // given namespace
-func (m *Monitor) RestartCount() map[string]int {
+func (m *Monitor) RestartCount(namespace string) map[string]int {
 	st := m.poll()
 
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	restarts := map[string]int{}
 	for _, pod := range st.pods.Items {
-		if pod.Namespace != "karpenter" {
+		if pod.Namespace != namespace {
 			continue
 		}
 		for _, cs := range pod.Status.ContainerStatuses {
@@ -224,8 +223,7 @@ func (m *Monitor) nodeUtilization(resource v1.ResourceName) []float64 {
 	for nodeName, requests := range st.nodeRequests {
 		allocatable := st.nodes[nodeName].Status.Allocatable[resource]
 		// skip any nodes we didn't launch
-		if st.nodes[nodeName].Labels[v1alpha5.ProvisionerNameLabelKey] == "" &&
-			st.nodes[nodeName].Labels[v1beta1.NodePoolLabelKey] == "" {
+		if st.nodes[nodeName].Labels[v1beta1.NodePoolLabelKey] == "" {
 			continue
 		}
 		if allocatable.IsZero() {

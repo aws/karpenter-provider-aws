@@ -3,28 +3,34 @@ on:
   schedule:
     - cron: '0 */12 * * *'
   workflow_dispatch:
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
 jobs:
   sweeper:
-    if: vars.ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+    if: vars.CI_ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
       matrix:
-        region: [us-east-2, us-west-2, eu-west-1]
+        region: [us-east-2, us-west-2, eu-west-1, eu-north-1]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
-          role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
+          role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ matrix.region }}
-      - uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4
+      - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
         with:
-          go-version-file: test/hack/cleanup/go.mod
+          go-version-file: test/hack/resource/go.mod
           check-latest: true
-          cache-dependency-path: "test/hack/cleanup/go.sum"
-      - run: go run main.go
-        working-directory: ./test/hack/cleanup
+          cache-dependency-path: "test/hack/resource/go.sum"
+      # eu-north-1 contains the soak tests and resources should be swept if they are older than 8 days
+      - run: |
+          if [[ "${{ matrix.region }}" == "eu-north-1" ]]; then
+            go run main.go --expiration 192h
+          else
+            go run main.go --expiration 12h
+          fi
+        working-directory: ./test/hack/resource/clean
         name: "Run cleanup script"

@@ -24,15 +24,17 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	awsenv "github.com/aws/karpenter/test/pkg/environment/aws"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	awsenv "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("AMI", func() {
@@ -155,7 +157,7 @@ var _ = Describe("AMI", func() {
 		It("should provision a node using the Ubuntu family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
 			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
-			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter/issues/4472)
+			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceFamily,
@@ -280,7 +282,7 @@ var _ = Describe("AMI", func() {
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 
-			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter/issues/4472)
+			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			nodePool = coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceFamily,

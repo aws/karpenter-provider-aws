@@ -18,15 +18,17 @@ import (
 	"net"
 	"testing"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/test/pkg/environment/aws"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var env *aws.Environment

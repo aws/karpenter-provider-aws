@@ -44,7 +44,7 @@ authenticate properly by running `aws sts get-caller-identity`.
 After setting up the tools, set the Karpenter version number:
 
 ```bash
-export KARPENTER_VERSION=v0.31.2
+export KARPENTER_VERSION=v0.31.3
 ```
 
 Then set the following environment variable:

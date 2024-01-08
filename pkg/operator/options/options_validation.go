@@ -28,6 +28,7 @@ func (o Options) Validate() error {
 		o.validateVMMemoryOverheadPercent(),
 		o.validateAssumeRoleDuration(),
 		o.validateReservedENIs(),
+		o.validateRequiredFields(),
 	)
 }
 
@@ -65,7 +66,6 @@ func (o Options) validateReservedENIs() error {
 	return nil
 }
 
-// Note: add back to Validate when karpenter-global-settings (and merge logic) are completely removed
 func (o Options) validateRequiredFields() error {
 	if o.ClusterName == "" {
 		return fmt.Errorf("missing field, cluster-name")

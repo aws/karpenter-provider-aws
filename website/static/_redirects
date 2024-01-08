@@ -16,6 +16,36 @@
 /preview/concepts/settings /preview/reference/settings
 /preview/concepts/threat-model /preview/reference/threat-model
 
+# Redirect all docs documentation to the new routes
+/docs/concepts/provisioners /docs/concepts/nodepools
+/docs/concepts/node-templates /docs/concepts/nodeclasses
+/docs/concepts/deprovisioning /docs/concepts/disruption
+/docs/upgrade-guide /docs/upgrading/upgrade-guide
+/docs/concepts/instance-types /docs/reference/instance-types
+/docs/concepts/metrics /docs/reference/metrics
+/docs/concepts/settings /docs/reference/settings
+/docs/concepts/threat-model /docs/reference/threat-model
+
+# Redirect all v0.30 documentation from the new routes to the old routes
+/v0.30/concepts/nodepools /v0.30/concepts/provisioners
+/v0.30/concepts/nodeclasses /v0.30/concepts/node-templates
+/v0.30/concepts/disruption /v0.30/concepts/deprovisioning
+/v0.30/upgrading/upgrade-guide /v0.30/upgrade-guide
+/v0.30/reference/instance-types /v0.30/concepts/instance-types
+/v0.30/reference/metrics /v0.30/concepts/metrics
+/v0.30/reference/settings /v0.30/concepts/settings
+/v0.30/reference/threat-model /v0.30/concepts/threat-model
+
+# Redirect all v0.31 documentation from the new routes to the old routes
+/v0.31/concepts/nodepools /v0.31/concepts/provisioners
+/v0.31/concepts/nodeclasses /v0.31/concepts/node-templates
+/v0.31/concepts/disruption /v0.31/concepts/deprovisioning
+/v0.31/upgrading/upgrade-guide /v0.31/upgrade-guide
+/v0.31/reference/instance-types /v0.31/concepts/instance-types
+/v0.31/reference/metrics /v0.31/concepts/metrics
+/v0.31/reference/settings /v0.31/concepts/settings
+/v0.31/reference/threat-model /v0.31/concepts/threat-model
+
 # Redirect all v0.32 documentation to the new routes
 /v0.32/concepts/provisioners /v0.32/concepts/nodepools
 /v0.32/concepts/node-templates /v0.32/concepts/nodeclasses
@@ -26,12 +56,25 @@
 /v0.32/concepts/settings /v0.32/reference/settings
 /v0.32/concepts/threat-model /v0.32/reference/threat-model
 
-# Redirect all docs documentation to the new routes
-/docs/concepts/provisioners /docs/concepts/nodepools
-/docs/concepts/node-templates /docs/concepts/nodeclasses
-/docs/concepts/deprovisioning /docs/concepts/disruption
-/docs/upgrade-guide /docs/upgrading/upgrade-guide
-/docs/concepts/instance-types /docs/reference/instance-types
-/docs/concepts/metrics /docs/reference/metrics
-/docs/concepts/settings /docs/reference/settings
-/docs/concepts/threat-model /docs/reference/threat-model
+# Redirect all v0.33 documentation to the new routes
+/v0.33/concepts/provisioners /v0.33/concepts/nodepools
+/v0.33/concepts/node-templates /v0.33/concepts/nodeclasses
+/v0.33/concepts/deprovisioning /v0.33/concepts/disruption
+/v0.33/upgrade-guide /v0.33/upgrading/upgrade-guide
+/v0.33/concepts/instance-types /v0.33/reference/instance-types
+/v0.33/concepts/metrics /v0.33/reference/metrics
+/v0.33/concepts/settings /v0.33/reference/settings
+/v0.33/concepts/threat-model /v0.33/reference/threat-model
+
+# Redirect all v0.34 documentation to the new routes
+/v0.34/concepts/provisioners /v0.34/concepts/nodepools
+/v0.34/concepts/node-templates /v0.34/concepts/nodeclasses
+/v0.34/concepts/deprovisioning /v0.34/concepts/disruption
+/v0.34/upgrade-guide /v0.34/upgrading/upgrade-guide
+/v0.34/concepts/instance-types /v0.34/reference/instance-types
+/v0.34/concepts/metrics /v0.34/reference/metrics
+/v0.34/concepts/settings /v0.34/reference/settings
+/v0.34/concepts/threat-model /v0.34/reference/threat-model
+
+# Redirect any v1beta1-migration reference to the v0.32 version
+/*/upgrading/v1beta1-migration /v0.32/upgrading/v1beta1-migration

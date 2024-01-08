@@ -16,12 +16,13 @@ package integration_test
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
 )
 
 var _ = Describe("BlockDeviceMappings", func() {

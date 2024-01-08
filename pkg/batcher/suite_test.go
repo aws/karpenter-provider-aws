@@ -22,10 +22,11 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/batcher"
-	"github.com/aws/karpenter/pkg/fake"
+	"sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/test/expectations"
+
+	"github.com/aws/karpenter-provider-aws/pkg/batcher"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"

@@ -22,19 +22,10 @@ Parameters:
   SweeperTableName:
     Type: String
     Description: "Timestream table to forward leaked resources to"
+  ResourceCountTableName:
+    Type: String
+    Description: "Timestream table to count number of resources to"
 Resources:
-  GithubOIDCProvider:
-    Type: AWS::IAM::OIDCProvider
-    Properties:
-      Url: https://token.actions.githubusercontent.com
-      ClientIdList:
-        - sts.amazonaws.com
-      # Relevant context for all these thumbprints can be found in the GH issue and blogpost:
-      # https://github.com/aws-actions/configure-aws-credentials/issues/357#issuecomment-1605290219
-      # https://github.blog/changelog/2023-06-27-github-actions-update-on-oidc-integration-with-aws/
-      ThumbprintList:
-        - 6938fd4d98bab03faadb97b34396831e3780aea1
-        - 1c58a3a8518e8759bf075b76b750d4f2df264fcd
   GithubActionsPolicy:
     Type: AWS::IAM::ManagedPolicy
     Properties:
@@ -138,6 +129,7 @@ Resources:
             Resource:
               - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${TableName}"
               - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${SweeperTableName}"
+              - !Sub "arn:${AWS::Partition}:timestream:${AWS::Region}:${AWS::AccountId}:database/${DatabaseName}/table/${ResourceCountTableName}"
           - Effect: Allow
             Action: timestream:DescribeEndpoints
             Resource: "*"
@@ -152,6 +144,7 @@ Resources:
             Action:
               - iam:AttachRolePolicy
               - iam:CreateRole
+              - iam:TagRole
               - iam:DeleteRolePolicy
               - iam:DetachRolePolicy
               - iam:PutRolePolicy
@@ -234,6 +227,7 @@ Resources:
               - eks:CreateCluster
               - eks:CreateAddon
               - eks:CreateNodegroup
+              - eks:CreatePodIdentityAssociation
               - eks:DeleteCluster
               - eks:ListFargateProfiles
               - eks:TagResource
@@ -320,10 +314,13 @@ Resources:
               - sqs:ReceiveMessage
               - pricing:GetProducts
               - eks:DescribeCluster
+              - eks-auth:AssumeRoleForPodIdentity
             Resource: "*"
           - Effect: Allow
             Action: iam:PassRole
             Resource:
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/karpenter-irsa-*"
+              - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/prometheus-irsa-*"
               - !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-*"
               - !GetAtt FISInterruptionRole.Arn
           - Effect: Allow
@@ -390,7 +387,7 @@ Resources:
         Statement:
           - Effect: Allow
             Principal:
-              Federated: !Ref GithubOIDCProvider
+              Federated: !Sub "arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com"
             Action: "sts:AssumeRoleWithWebIdentity"
             Condition:
               StringEquals:

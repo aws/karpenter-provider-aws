@@ -19,12 +19,11 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/test"
 )
 
 var _ = Describe("Hash", func() {
@@ -33,7 +32,7 @@ var _ = Describe("Hash", func() {
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: v1beta1.EC2NodeClassSpec{
-				AMIFamily: aws.String(v1alpha1.AMIFamilyAL2),
+				AMIFamily: aws.String(v1beta1.AMIFamilyAL2),
 				Context:   aws.String("context-1"),
 				Role:      "role-1",
 				Tags: map[string]string{
@@ -70,7 +69,7 @@ var _ = Describe("Hash", func() {
 		Entry("BlockDeviceMappings Drift", "436753305915039702", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
 		Entry("Context Drift", "3729470655588343019", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
 		Entry("DetailedMonitoring Drift", "17892305444040067573", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-		Entry("AMIFamily Drift", "9493798894326942407", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
+		Entry("AMIFamily Drift", "9493798894326942407", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1beta1.AMIFamilyBottlerocket)}}),
 		Entry("Reorder Tags", staticHash, v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-2": "valueTag-2", "keyTag-1": "valueTag-1"}}}),
 		Entry("Reorder BlockDeviceMapping", staticHash, v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-2")}, {DeviceName: aws.String("map-device-1")}}}}),
 
@@ -96,7 +95,7 @@ var _ = Describe("Hash", func() {
 		Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
 		Entry("Context Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
 		Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-		Entry("AMIFamily Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1alpha1.AMIFamilyBottlerocket)}}),
+		Entry("AMIFamily Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1beta1.AMIFamilyBottlerocket)}}),
 	)
 	It("should change hash when instanceProfile is updated", func() {
 		nodeClass.Spec.Role = ""
@@ -137,7 +136,7 @@ var _ = Describe("Hash", func() {
 		updatedHash := nodeClass.Hash()
 		Expect(hash).To(Equal(updatedHash))
 	})
-	It("should expect two EC2NodeClasses with the same spec to have the same provisioner hash", func() {
+	It("should expect two EC2NodeClasses with the same spec to have the same hash", func() {
 		otherNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: nodeClass.Spec,
 		})

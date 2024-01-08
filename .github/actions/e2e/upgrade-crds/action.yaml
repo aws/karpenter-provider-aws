@@ -24,11 +24,13 @@ runs:
         role-to-assume: arn:aws:iam::${{ inputs.account_id }}:role/${{ inputs.role }}
         aws-region: ${{ inputs.region }}
         role-duration-seconds: 21600
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       with:
         ref: ${{ inputs.git_ref }}
     - name: install-karpenter
       shell: bash
+      env:
+        CLUSTER_NAME: ${{ inputs.cluster_name }}
       run: |
-        aws eks update-kubeconfig --name ${{ inputs.cluster_name }}
+        aws eks update-kubeconfig --name "$CLUSTER_NAME"
         kubectl apply -f pkg/apis/crds/

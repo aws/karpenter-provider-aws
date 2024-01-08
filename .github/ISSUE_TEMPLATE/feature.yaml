@@ -4,6 +4,11 @@ labels:
 - feature
 - needs-triage
 body:
+- type: markdown
+  attributes:
+    value: |
+      > [!IMPORTANT]
+      > If your issue is not specific to AWS, please cut a ticket in [kubernetes-sigs/karpenter](https://github.com/kubernetes-sigs/karpenter/issues/new/choose).
 - type: textarea
   attributes:
     label: Description

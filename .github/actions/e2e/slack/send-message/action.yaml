@@ -11,6 +11,9 @@ runs:
   using: "composite"
   steps:
     - shell: bash
+      env:
+        URL: ${{ inputs.url }}
+        MESSAGE: ${{ inputs.message }}
       run: |
-        JSON='{"message": "${{ inputs.message }}"}'
-        curl -X POST -H 'Content-Type: application/json' --data "${JSON}" "$(printf "${{ inputs.url }}" | tr -d "\n")"
+        JSON="{'message': '$MESSAGE'}"
+        curl -X POST -H 'Content-Type: application/json' --data "${JSON}" "$(printf "$URL" | tr -d "\n")"

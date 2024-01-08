@@ -26,6 +26,7 @@ on:
           - IPv6
           - Scale
           - PrivateCluster
+          - LocalZone
       k8s_version:
         type: choice
         options:
@@ -36,13 +37,15 @@ on:
           - "1.27"
           - "1.28"
         default: "1.28"
-      enable_metrics:
-        type: boolean
-        default: false
+      cluster_name:
+        type: string
       cleanup:
         type: boolean
         required: true
         default: true
+      enable_metrics:
+        type: boolean
+        default: false
   workflow_call:
     inputs:
       git_ref:
@@ -64,18 +67,23 @@ on:
         required: true
       workflow_trigger:
         type: string
+      cluster_name:
+        type: string
+        description: If cluster_name is empty, a new cluster will be created. Otherwise, tests will run on an existing cluster
     secrets:
       SLACK_WEBHOOK_URL:
-        required: true
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-  statuses: write # ./.github/actions/commit-status/start
+        required: false
+      SLACK_WEBHOOK_SOAK_URL:
+        required: false
 jobs:
   run-suite:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     name: suite-${{ inputs.suite }}
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           ref: ${{ inputs.git_ref }}
       - if: always() && github.event_name == 'workflow_run'
@@ -87,72 +95,91 @@ jobs:
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
-          role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
+          role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ inputs.region }}
           role-duration-seconds: 21600
-      - name: add jitter on cluster creation
+      - name: add jitter on cluster setup
         run: |
           # Creating jitter so that we can stagger cluster creation to avoid throttling
           sleep $(( RANDOM % 300 + 1 ))
       - id: generate-cluster-name
         name: generate cluster name
+        env:
+          SUITE: ${{ inputs.suite }}
+          CLUSTER_NAME: ${{ inputs.cluster_name }}
+          WORKFLOW_TRIGGER: ${{ inputs.workflow_trigger }}
         run: |
-          CLUSTER_NAME="$(echo ${{ inputs.suite }}-"$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)"
-          echo Using cluster name "$CLUSTER_NAME"
+          if [[ "$CLUSTER_NAME" == '' ]]; then
+            if [[ "$WORKFLOW_TRIGGER" == 'soak' ]]; then
+              CLUSTER_NAME=$(echo "soak-periodic-$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)
+            else
+              CLUSTER_NAME=$(echo "$SUITE-$RANDOM$RANDOM" | awk '{print tolower($0)}' | tr / -)
+            fi
+          fi
+          echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
-      - name: create eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
-        uses: ./.github/actions/e2e/create-cluster
+      - name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
+        if: inputs.cluster_name == ''
+        uses: ./.github/actions/e2e/setup-cluster
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.164.0
+          eksctl_version: v0.165.0
           ip_family: ${{ contains(inputs.suite, 'IPv6') && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           private_cluster: ${{ inputs.suite == 'PrivateCluster' }}
           git_ref: ${{ inputs.git_ref }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-          ecr_region: ${{ vars.ECR_REGION }}
+          ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          ecr_region: ${{ vars.SNAPSHOT_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
+          enable_local_zones: ${{ inputs.suite == 'LocalZone' }}
       - name: run the ${{ inputs.suite }} test suite
+        env:
+          SUITE: ${{ inputs.suite }}
+          ENABLE_METRICS: ${{ inputs.enable_metrics }}
         run: |
-          TEST_SUITE="${{ inputs.suite }}"
           # If we are performing the PrivateCluster test suite, then we should just run the 'Integration' test suite
-          if [[ inputs.suite == 'PrivateCluster' ]]; then
-            TEST_SUITE="Integration"
+          if [[ $SUITE == 'PrivateCluster' ]]; then
+            SUITE="Integration"
           fi
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
-          TEST_SUITE="$TEST_SUITE" ENABLE_METRICS=${{ inputs.enable_metrics }} METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
+          # Clean up the cluster before running all tests
+          kubectl delete nodepool --all
+          kubectl delete ec2nodeclass --all
+          kubectl delete deployment --all
+
+          TEST_SUITE="$SUITE" ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=${{ vars.TIMESTREAM_REGION }} GIT_REF="$(git rev-parse HEAD)" \
             CLUSTER_NAME="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }} --query "cluster.endpoint" --output text)" \
             INTERRUPTION_QUEUE="${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}" make e2etests
       - name: notify slack of success or failure
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'
         with:
-          url: ${{ secrets.SLACK_WEBHOOK_URL }}
-          suite: ${{ inputs.suite }}
-          k8s_version: ${{ inputs.k8s_version }}
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          url: ${{ inputs.workflow_trigger == 'soak' && secrets.SLACK_WEBHOOK_SOAK_URL || secrets.SLACK_WEBHOOK_URL }}
+          suite: ${{ inputs.workflow_trigger == 'soak' && 'soak' || inputs.suite }}
           git_ref: ${{ inputs.git_ref }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
         if: failure() || cancelled()
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}' resources
         uses: ./.github/actions/e2e/cleanup
         if: always() && inputs.cleanup
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
-          eksctl_version: v0.164.0
+          eksctl_version: v0.165.0
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:

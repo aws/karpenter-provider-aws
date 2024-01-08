@@ -1,4 +1,4 @@
-module github.com/aws/karpenter/website
+module github.com/aws/karpenter-provider-aws/website
 
 go 1.21
 

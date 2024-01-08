@@ -24,7 +24,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -41,20 +40,20 @@ import (
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/controllers/interruption"
-	"github.com/aws/karpenter/pkg/controllers/interruption/events"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/sqs"
-	"github.com/aws/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	coretest "github.com/aws/karpenter-core/pkg/test"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 )
 
 var r = rand.New(rand.NewSource(time.Now().Unix()))
@@ -85,7 +84,6 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 		IsolatedVPC:       lo.ToPtr(true),
 		InterruptionQueue: lo.ToPtr("test-cluster"),
 	}))
-	ctx = settings.ToContext(ctx, test.Settings())
 	env = coretest.NewEnvironment(scheme.Scheme)
 	// Stop the coretest environment after the coretest completes
 	defer func() {
@@ -276,7 +274,7 @@ func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*v1.Node) 
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),
@@ -295,7 +293,7 @@ func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{},
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),
@@ -313,7 +311,7 @@ func makeSpotInterruptionMessagesAndNodes(count int) ([]interface{}, []*v1.Node)
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					v1alpha5.ProvisionerNameLabelKey: "default",
+					v1beta1.NodePoolLabelKey: "default",
 				},
 			},
 			ProviderID: fake.ProviderID(instanceID),

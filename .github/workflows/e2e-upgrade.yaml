@@ -48,16 +48,16 @@ on:
     secrets:
       SLACK_WEBHOOK_URL:
         required: true
-permissions:
-  id-token: write # aws-actions/configure-aws-credentials@v4.0.1
-  statuses: write # ./.github/actions/commit-status/start
 jobs:
   run-suite:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     name: suite-upgrade
     runs-on: ubuntu-latest
     steps:
       # This additional checkout can be removed when the commit status action is added to the from_git_ref version of Karpenter
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           ref: ${{ inputs.to_git_ref }}
       - if: always() && github.event_name == 'workflow_run'
@@ -66,13 +66,13 @@ jobs:
           name: ${{ github.workflow }} (${{ inputs.k8s_version }}) / e2e (Upgrade)
           git_ref: ${{ inputs.to_git_ref }}
       - uses: ./.github/actions/install-deps
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           ref: ${{ inputs.from_git_ref }}
       - name: configure aws credentials
         uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
-          role-to-assume: arn:aws:iam::${{ vars.ACCOUNT_ID }}:role/${{ vars.ROLE_NAME }}
+          role-to-assume: arn:aws:iam::${{ vars.CI_ACCOUNT_ID }}:role/${{ vars.CI_ROLE_NAME }}
           aws-region: ${{ inputs.region }}
           role-duration-seconds: 21600
       - id: generate-cluster-name
@@ -81,44 +81,44 @@ jobs:
           CLUSTER_NAME="upgrade-$RANDOM$RANDOM"
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
-      - name: create eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
-        uses: ./.github/actions/e2e/create-cluster
+      - name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
+        uses: ./.github/actions/e2e/setup-cluster
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.164.0
+          eksctl_version: v0.165.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.from_git_ref }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-          ecr_region: ${{ vars.ECR_REGION }}
+          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }} # TODO @joinnis: Change this from the old to new account when enough snapshots are generated
+          ecr_region: ${{ vars.SNAPSHOT_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
           ref: ${{ inputs.to_git_ref }}
       - name: upgrade eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
-        uses: ./.github/actions/e2e/create-cluster
+        uses: ./.github/actions/e2e/setup-cluster
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.164.0
+          eksctl_version: v0.165.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.to_git_ref }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }}
-          ecr_region: ${{ vars.ECR_REGION }}
+          ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          ecr_region: ${{ vars.SNAPSHOT_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
       - name: upgrade crds
         uses: ./.github/actions/e2e/upgrade-crds
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
@@ -130,28 +130,28 @@ jobs:
         uses: ./.github/actions/e2e/slack/notify
         if: (success() || failure()) && github.event_name != 'workflow_run' && inputs.workflow_trigger != 'versionCompatibility'
         with:
+          cluster_name:  ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           url: ${{ secrets.SLACK_WEBHOOK_URL }}
           suite: Upgrade
-          k8s_version: ${{ inputs.k8s_version }}
           git_ref: ${{ inputs.to_git_ref }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
         if: failure() || cancelled()
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
       - name: cleanup karpenter and cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}' resources
         uses: ./.github/actions/e2e/cleanup
         if: always() && inputs.cleanup
         with:
-          account_id: ${{ vars.ACCOUNT_ID }}
-          role: ${{ vars.ROLE_NAME }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
-          eksctl_version: v0.164.0
+          eksctl_version: v0.165.0
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:

@@ -24,8 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -33,28 +31,30 @@ import (
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
-	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/events"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	awscache "github.com/aws/karpenter/pkg/cache"
-	"github.com/aws/karpenter/pkg/controllers/interruption"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/scheduledchange"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/spotinterruption"
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages/statechange"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/providers/sqs"
-	"github.com/aws/karpenter/pkg/test"
-	"github.com/aws/karpenter/pkg/utils"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/events"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/spotinterruption"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 const (
@@ -92,7 +92,6 @@ var _ = AfterSuite(func() {
 
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	unavailableOfferingsCache.Flush()
 	sqsapi.Reset()
 })

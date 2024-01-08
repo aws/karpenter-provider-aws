@@ -13,11 +13,13 @@ The finalizer blocks deletion of the node object while the Termination Controlle
 
 ### Disruption Controller
 
-Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automatic method](#automatic-methods) at a time, in order of Expiration, Drift, and then Consolidation. Each method varies slightly, but they all follow the standard disruption process:
+Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automatic method](#automatic-methods) at a time, in order of Expiration, Drift, and then Consolidation. Each method varies slightly, but they all follow the standard disruption process. Karpenter uses [disruption budgets]({{<ref "#disruption-budgets" >}}) to control the speed of disruption. 
 1. Identify a list of prioritized candidates for the disruption method.
    * If there are [pods that cannot be evicted](#pod-eviction) on the node, Karpenter will ignore the node and try disrupting it later.
    * If there are no disruptable nodes, continue to the next disruption method.
-2. For each disruptable node, execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
+2. For each disruptable node:
+   1. Check if disrupting it would violate its NodePool's disruption budget.
+   2. Execute a scheduling simulation with the pods on the node to find if any replacement nodes are needed.
 3. Add the `karpenter.sh/disruption:NoSchedule` taint to the node(s) to prevent pods from scheduling to it.
 4. Pre-spin any replacement nodes needed as calculated in Step (2), and wait for them to become ready.
    * If a replacement node fails to initialize, un-taint the node(s), and restart from Step (1), starting at the first disruption method again.
@@ -60,6 +62,8 @@ When you run `kubectl delete node` on a node without a finalizer, the node is de
 {{% /alert %}}
 
 ## Automated Methods
+
+Automated methods can be rate limited through [NodePool Disruption Budgets]({{<ref "#disruption-budgets" >}})
 
 * **Expiration**: Karpenter will mark nodes as expired and disrupt them after they have lived a set number of seconds, based on the NodePool's `spec.disruption.expireAfter` value. You can use node expiry to periodically recycle nodes due to security concerns.
 * [**Consolidation**]({{<ref "#consolidation" >}}): Karpenter works to actively reduce cluster cost by identifying when:
@@ -168,7 +172,9 @@ When Karpenter detects one of these events will occur to your nodes, it automati
 For Spot interruptions, the NodePool will start a new node as soon as it sees the Spot interruption warning. Spot interruptions have a __2 minute notice__ before Amazon EC2 reclaims the instance. Karpenter's average node startup time means that, generally, there is sufficient time for the new node to become ready and to move the pods to the new node before the NodeClaim is reclaimed.
 
 {{% alert title="Note" color="primary" %}}
-Karpenter publishes Kubernetes events to the node for all events listed above in addition to __Spot Rebalance Recommendations__. Karpenter does not currently support taint, drain, and terminate logic for Spot Rebalance Recommendations.
+Karpenter publishes Kubernetes events to the node for all events listed above in addition to [__Spot Rebalance Recommendations__](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/rebalance-recommendations.html). Karpenter does not currently support taint, drain, and terminate logic for Spot Rebalance Recommendations.
+
+If you require handling for Spot Rebalance Recommendations, you can use the [AWS Node Termination Handler (NTH)](https://github.com/aws/aws-node-termination-handler) alongside Karpenter; however, note that the AWS Node Termination Handler cordons and drains nodes on rebalance recommendations, potentially causing more node churn in the cluster than with interruptions alone. Further information can be found in the [Troubleshooting Guide]({{< ref "../troubleshooting#aws-node-termination-handler-nth-interactions" >}}).
 {{% /alert %}}
 
 Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
@@ -176,6 +182,64 @@ Karpenter enables this feature by watching an SQS queue which receives critical 
 To enable interruption handling, configure the `--interruption-queue-name` CLI argument with the name of the interruption queue provisioned to handle interruption events.
 
 ## Controls
+
+### Disruption Budgets
+
+You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through expiration, drift, emptiness, and consolidation.
+
+#### Nodes
+When calculating if a budget will block nodes from disruption, Karpenter lists the total number of nodes owned by a NodePool, subtracting out the nodes owned by that NodePool that are currently being deleted. If the number of nodes being deleted by Karpenter or any other processes is greater than the number of allowed disruptions, disruption for this node will not proceed.
+
+If the budget is configured with a percentage value, such as `20%`, Karpenter will calculate the number of allowed disruptions as `allowed_disruptions = roundup(total * percentage) - total_deleting`. If otherwise defined as a non-percentage value, Karpenter will simply subtract the number of nodes from the total `(total * percentage) - total_deleting`. For multiple budgets in a NodePool, Karpenter will take the minimum value (most restrictive) of each of the budgets.
+
+For example, the following NodePool with three budgets defines the following requirements:
+- The first budget will only allow 20% of nodes owned by that NodePool to be disrupted. For instance, if there were 19 nodes owned by the NodePool, 4 disruptions would be allowed, rounding up from `19 * .2 = 3.8`.
+- The second budget acts as a ceiling to the previous budget, only allowing 5 disruptions when there are more than 25 nodes.
+- The last budget only blocks disruptions during the first 10 minutes of the day, where 0 disruptions are allowed.
+
+```yaml
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    expireAfter: 720h # 30 * 24h = 720h
+    budgets: 
+    - nodes: "20%"
+    - nodes: "5"
+    - nodes: "0"
+      schedule: "@daily"
+      duration: 10m
+```
+
+#### Schedule
+Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below, with additional special macros like `@yearly`, `monthly`, `@weekly`, `@daily`, `@hourly`.
+Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for more information on how to follow the cron syntax. 
+
+```bash
+# ┌───────────── minute (0 - 59)
+# │ ┌───────────── hour (0 - 23)
+# │ │ ┌───────────── day of the month (1 - 31)
+# │ │ │ ┌───────────── month (1 - 12)
+# │ │ │ │ ┌───────────── day of the week (0 - 6) (Sunday to Saturday;
+# │ │ │ │ │                                   7 is also Sunday on some systems)
+# │ │ │ │ │                                   OR sun, mon, tue, wed, thu, fri, sat
+# │ │ │ │ │
+# * * * * *
+```
+
+{{% alert title="Note" color="primary" %}}
+Timezones are not supported. Most images default to UTC, but it is best practice to ensure this is the case when considering how to define your budgets. 
+{{% /alert %}}
+
+#### Duration
+Duration allows compound durations with minutes and hours values such as `10h5m` or `30m` or `160h`. Since cron syntax does not accept denominations smaller than minutes, users can only define minutes or hours.
+
+{{% alert title="Note" color="primary" %}}
+Duration and Schedule must be defined together. When omitted, the budget is always active. When defined, the schedule determines a starting point where the budget will begin being enforced, and the duration determines how long from that starting point the budget will be enforced. 
+{{% /alert %}}
 
 ### Pod-Level Controls
 

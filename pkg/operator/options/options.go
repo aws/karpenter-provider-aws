@@ -20,14 +20,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
-	"k8s.io/apimachinery/pkg/util/sets"
-
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/utils/env"
-	"github.com/aws/karpenter/pkg/apis/settings"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/utils/env"
 )
 
 func init() {
@@ -46,8 +42,6 @@ type Options struct {
 	VMMemoryOverheadPercent float64
 	InterruptionQueue       string
 	ReservedENIs            int
-
-	setFlags map[string]bool
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -69,45 +63,14 @@ func (o *Options) Parse(fs *coreoptions.FlagSet, args ...string) error {
 		}
 		return fmt.Errorf("parsing flags, %w", err)
 	}
-
-	// Check if each option has been set. This is a little brute force and better options might exist,
-	// but this only needs to be here for one version
-	o.setFlags = map[string]bool{}
-	cliFlags := sets.New[string]()
-	fs.Visit(func(f *flag.Flag) {
-		cliFlags.Insert(f.Name)
-	})
-	fs.VisitAll(func(f *flag.Flag) {
-		envName := strings.ReplaceAll(strings.ToUpper(f.Name), "-", "_")
-		_, ok := os.LookupEnv(envName)
-		o.setFlags[f.Name] = ok || cliFlags.Has(f.Name)
-	})
-
 	if err := o.Validate(); err != nil {
 		return fmt.Errorf("validating options, %w", err)
 	}
-
 	return nil
 }
 
 func (o *Options) ToContext(ctx context.Context) context.Context {
 	return ToContext(ctx, o)
-}
-
-func (o *Options) MergeSettings(ctx context.Context) {
-	s := settings.FromContext(ctx)
-	mergeField(&o.AssumeRoleARN, s.AssumeRoleARN, o.setFlags["assume-role-arn"])
-	mergeField(&o.AssumeRoleDuration, s.AssumeRoleDuration, o.setFlags["assume-role-duration"])
-	mergeField(&o.ClusterCABundle, s.ClusterCABundle, o.setFlags["cluster-ca-bundle"])
-	mergeField(&o.ClusterName, s.ClusterName, o.setFlags["cluster-name"])
-	mergeField(&o.ClusterEndpoint, s.ClusterEndpoint, o.setFlags["cluster-endpoint"])
-	mergeField(&o.IsolatedVPC, s.IsolatedVPC, o.setFlags["isolated-vpc"])
-	mergeField(&o.VMMemoryOverheadPercent, s.VMMemoryOverheadPercent, o.setFlags["vm-memory-overhead-percent"])
-	mergeField(&o.InterruptionQueue, s.InterruptionQueueName, o.setFlags["interruption-queue"])
-	mergeField(&o.ReservedENIs, s.ReservedENIs, o.setFlags["reserved-enis"])
-	if err := o.validateRequiredFields(); err != nil {
-		panic(fmt.Errorf("checking required fields, %w", err))
-	}
 }
 
 func ToContext(ctx context.Context, opts *Options) context.Context {
@@ -120,11 +83,4 @@ func FromContext(ctx context.Context) *Options {
 		return nil
 	}
 	return retval.(*Options)
-}
-
-// Note: Separated out to help with cyclomatic complexity check
-func mergeField[T any](dest *T, src T, isDestSet bool) {
-	if !isDestSet {
-		*dest = src
-	}
 }

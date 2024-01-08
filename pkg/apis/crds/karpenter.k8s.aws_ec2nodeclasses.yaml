@@ -203,6 +203,12 @@ spec:
                 x-kubernetes-validations:
                 - message: instanceProfile cannot be empty
                   rule: self != ''
+              instanceStorePolicy:
+                description: InstanceStorePolicy specifies how to handle instance-store
+                  disks.
+                enum:
+                - RAID0
+                type: string
               metadataOptions:
                 default:
                   httpEndpoint: enabled

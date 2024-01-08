@@ -15,9 +15,7 @@ limitations under the License.
 package main
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -34,20 +32,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	coreoperator "github.com/aws/karpenter-core/pkg/operator"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	awscloudprovider "github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/operator"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/test"
+	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	awscloudprovider "github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/operator"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 // FakeManager is a manager that takes all the utilized calls from the operator setup
@@ -93,8 +90,6 @@ func main() {
 		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
 		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
 	}))
-	// TODO @joinnis: Remove this when dropping alpha support
-	ctx = settings.ToContext(ctx, test.Settings())
 
 	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
 		Manager:             &FakeManager{},
@@ -103,14 +98,6 @@ func main() {
 	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider,
 		op.EventRecorder, op.GetClient(), op.AMIProvider, op.SecurityGroupProvider, op.SubnetProvider)
 
-	provider := v1alpha1.AWS{SubnetSelector: map[string]string{
-		"*": "*",
-	}}
-	var buf bytes.Buffer
-	enc := json.NewEncoder(&buf)
-	if err := enc.Encode(provider); err != nil {
-		log.Fatalf("encoding provider, %s", err)
-	}
 	instanceTypes, err := cp.GetInstanceTypes(ctx, nil)
 	if err != nil {
 		log.Fatalf("listing instance types, %s", err)
@@ -159,7 +146,7 @@ below are the resources available with some assumptions and after the instance o
 
 	// we don't want to show a few labels that will vary amongst regions
 	delete(labelNameMap, v1.LabelTopologyZone)
-	delete(labelNameMap, v1alpha5.LabelCapacityType)
+	delete(labelNameMap, v1beta1.CapacityTypeLabelKey)
 
 	labelNames := lo.Keys(labelNameMap)
 

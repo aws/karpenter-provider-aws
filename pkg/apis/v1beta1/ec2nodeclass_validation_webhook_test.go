@@ -15,16 +15,17 @@ limitations under the License.
 package v1beta1_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/aws-sdk-go/aws"
 
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/test"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("Webhook/Validation", func() {
@@ -69,7 +70,7 @@ var _ = Describe("Webhook/Validation", func() {
 		})
 		It("should succeed by validating that regex is properly escaped", func() {
 			nc.Spec.Tags = map[string]string{
-				"karpenterzsh/provisioner-name": "value",
+				"karpenterzsh/nodepool": "value",
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
 			nc.Spec.Tags = map[string]string{
@@ -83,7 +84,7 @@ var _ = Describe("Webhook/Validation", func() {
 		})
 		It("should fail if tags contain a restricted domain key", func() {
 			nc.Spec.Tags = map[string]string{
-				"karpenter.sh/provisioner-name": "value",
+				"karpenter.sh/nodepool": "value",
 			}
 			Expect(nc.Validate(ctx)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{

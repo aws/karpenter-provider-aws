@@ -29,16 +29,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/mitchellh/hashstructure/v2"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	awserrors "github.com/aws/karpenter/pkg/errors"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 // Spot Interruption experiment details partially copied from
@@ -206,6 +208,14 @@ func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequ
 	Expect(err).ToNot(HaveOccurred())
 	Expect(siro.SpotInstanceRequests).To(HaveLen(1))
 	return siro.SpotInstanceRequests[0]
+}
+
+// GetZones returns all available zones mapped from zone -> zone type
+func (env *Environment) GetZones() map[string]string {
+	output := lo.Must(env.EC2API.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{}))
+	return lo.Associate(output.AvailabilityZones, func(zone *ec2.AvailabilityZone) (string, string) {
+		return lo.FromPtr(zone.ZoneName), lo.FromPtr(zone.ZoneType)
+	})
 }
 
 // GetSubnets returns all subnets matching the label selector

@@ -17,22 +17,21 @@ package amifamily
 import (
 	"fmt"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/aws-sdk-go/aws"
 
-	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 
 	v1 "k8s.io/api/core/v1"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
 
 type Windows struct {
@@ -42,10 +41,10 @@ type Windows struct {
 	Build   string
 }
 
-func (w Windows) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
+func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
-			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1alpha1.WindowsCore, version),
+			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1beta1.WindowsCore, version),
 			Requirements: scheduling.NewRequirements(
 				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
 				scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
@@ -56,7 +55,7 @@ func (w Windows) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:     w.Options.ClusterName,

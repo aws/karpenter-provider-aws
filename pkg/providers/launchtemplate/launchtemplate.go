@@ -33,21 +33,19 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/amifamily"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
-	"github.com/aws/karpenter/pkg/providers/securitygroup"
-	"github.com/aws/karpenter/pkg/providers/subnet"
-	"github.com/aws/karpenter/pkg/utils"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
 const (
@@ -108,10 +106,6 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 
 	p.Lock()
 	defer p.Unlock()
-	// If Launch Template is directly specified then just use it
-	if nodeClass.Spec.LaunchTemplateName != nil {
-		return []*LaunchTemplate{{Name: ptr.StringValue(nodeClass.Spec.LaunchTemplateName), InstanceTypes: instanceTypes}}, nil
-	}
 
 	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}), tags)
 	if err != nil {
@@ -161,7 +155,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 			delete(labels, k)
 		}
 	}
-	instanceProfile, err := p.getInstanceProfile(ctx, nodeClass)
+	instanceProfile, err := p.getInstanceProfile(nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -174,10 +168,10 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	options := &amifamily.Options{
-		ClusterName:             options.FromContext(ctx).ClusterName,
-		ClusterEndpoint:         p.ClusterEndpoint,
-		AWSENILimitedPodDensity: settings.FromContext(ctx).EnableENILimitedPodDensity,
-		InstanceProfile:         instanceProfile,
+		ClusterName:         options.FromContext(ctx).ClusterName,
+		ClusterEndpoint:     p.ClusterEndpoint,
+		InstanceProfile:     instanceProfile,
+		InstanceStorePolicy: nodeClass.Spec.InstanceStorePolicy,
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
 			return v1beta1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
@@ -192,7 +186,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
 		// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
 		// This is done to help comply with AWS account policies that require explicitly setting of that field to 'false'.
-		// https://github.com/aws/karpenter/issues/3815
+		// https://github.com/aws/karpenter-provider-aws/issues/3815
 		options.AssociatePublicIPAddress = aws.Bool(false)
 	}
 	return options, nil
@@ -243,7 +237,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 	if capacityType == corev1beta1.CapacityTypeSpot {
 		launchTemplateDataTags = append(launchTemplateDataTags, &ec2.LaunchTemplateTagSpecificationRequest{ResourceType: aws.String(ec2.ResourceTypeSpotInstancesRequest), Tags: utils.MergeTags(options.Tags)})
 	}
-	networkInterface := p.generateNetworkInterface(options)
+	networkInterfaces := p.generateNetworkInterfaces(options)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(launchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
@@ -255,7 +249,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
 			// If the network interface is defined, the security groups are defined within it
-			SecurityGroupIds: lo.Ternary(networkInterface != nil, nil, lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) })),
+			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) })),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
@@ -264,7 +258,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
 				HttpTokens:              options.MetadataOptions.HTTPTokens,
 			},
-			NetworkInterfaces: networkInterface,
+			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
 		},
 		TagSpecifications: []*ec2.TagSpecification{
@@ -281,12 +275,25 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 	return output.LaunchTemplate, nil
 }
 
-// generateNetworkInterface generates a network interface for the launch template.
-// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
-// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
-// This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
-// https://github.com/aws/karpenter/issues/3815
-func (p *Provider) generateNetworkInterface(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+// generateNetworkInterfaces generates network interfaces for the launch template.
+func (p *Provider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+	if options.EFACount != 0 {
+		return lo.Times(options.EFACount, func(i int) *ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+			return &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+				NetworkCardIndex: lo.ToPtr(int64(i)),
+				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
+				DeviceIndex:   lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
+				InterfaceType: lo.ToPtr(ec2.NetworkInterfaceTypeEfa),
+				Groups:        lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+			}
+		})
+	}
+
+	// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
+	// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
+	// This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
+	// This is ignored for EFA instances since it can't be specified if you launch with multiple network interfaces.
+	// https://github.com/aws/karpenter-provider-aws/issues/3815
 	if options.AssociatePublicIPAddress != nil {
 		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			{
@@ -370,7 +377,7 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 	}
 }
 
-func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
+func (p *Provider) getInstanceProfile(nodeClass *v1beta1.EC2NodeClass) (string, error) {
 	if nodeClass.Spec.InstanceProfile != nil {
 		return aws.StringValue(nodeClass.Spec.InstanceProfile), nil
 	}
@@ -380,9 +387,5 @@ func (p *Provider) getInstanceProfile(ctx context.Context, nodeClass *v1beta1.EC
 		}
 		return nodeClass.Status.InstanceProfile, nil
 	}
-	defaultProfile := settings.FromContext(ctx).DefaultInstanceProfile
-	if defaultProfile == "" {
-		return "", errors.New("neither spec.provider.instanceProfile nor --aws-default-instance-profile is specified")
-	}
-	return defaultProfile, nil
+	return "", errors.New("neither spec.instanceProfile or spec.role is specified")
 }

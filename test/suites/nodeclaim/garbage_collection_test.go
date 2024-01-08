@@ -22,22 +22,25 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	awserrors "github.com/aws/karpenter/pkg/errors"
-	"github.com/aws/karpenter/pkg/utils"
-	environmentaws "github.com/aws/karpenter/test/pkg/environment/aws"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
+	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("GarbageCollection", func() {
 	var customAMI string
 	var instanceInput *ec2.RunInstancesInput
+	var instanceProfileName string
+	var roleName string
 
 	BeforeEach(func() {
 		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
@@ -46,10 +49,12 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(subnets).ToNot(HaveLen(0))
 
 		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		instanceProfileName = fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
+		roleName = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 		instanceInput = &ec2.RunInstancesInput{
 			InstanceType: aws.String("c5.large"),
 			IamInstanceProfile: &ec2.IamInstanceProfileSpecification{
-				Name: aws.String(settings.FromContext(env.Context).DefaultInstanceProfile),
+				Name: aws.String(instanceProfileName),
 			},
 			SecurityGroupIds: lo.Map(securityGroups, func(s environmentaws.SecurityGroup, _ int) *string {
 				return s.GroupIdentifier.GroupId
@@ -93,8 +98,6 @@ var _ = Describe("GarbageCollection", func() {
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))))
 
-		instanceProfileName := fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
-		roleName := fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 		env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
 		DeferCleanup(func() {
 			env.ExpectInstanceProfileDeleted(instanceProfileName, roleName)

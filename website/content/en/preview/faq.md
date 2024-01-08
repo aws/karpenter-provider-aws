@@ -17,7 +17,7 @@ AWS is the first cloud provider supported by Karpenter, although it is designed 
 Yes, but there is no documentation yet for it. Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree{{< githubRelRef >}}pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
 
 ### What operating system nodes does Karpenter deploy?
-By default, Karpenter uses Amazon Linux 2 images.
+Karpenter uses the OS defined by the [AMI Family in your EC2NodeClass]({{< ref "./concepts/nodeclasses#specamifamily" >}}). 
 
 ### Can I provide my own custom operating system images?
 Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/nodeclasses/#specamiselectorterms" >}}) for your nodes.
@@ -92,9 +92,9 @@ Yes, Karpenter supports provisioning metal instance types when a NodePool's `nod
 
 ### How does Karpenter dynamically select instance types?
 
-Karpenter batches pending pods and then binpacks them based on CPU, memory, and GPUs required, taking into account node overhead, VPC CNI resources required, and daemonsets that will be packed when bringing up a new node. Karpenter [recommends the use of C, M, and R >= Gen 3 instance types]({{< ref "./concepts/nodepools#spectemplatespecrequirements" >}}) for most generic workloads, but it can be constrained in the NodePool spec with the [instance-type](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesioinstance-type) well-known label in the requirements section. 
+Karpenter batches pending pods and then binpacks them based on CPU, memory, and GPUs required, taking into account node overhead, VPC CNI resources required, and daemonsets that will be packed when bringing up a new node. Karpenter [recommends the use of C, M, and R >= Gen 3 instance types]({{< ref "./concepts/nodepools#spectemplatespecrequirements" >}}) for most generic workloads, but it can be constrained in the NodePool spec with the [instance-type](https://kubernetes.io/docs/reference/labels-annotations-taints/#nodekubernetesioinstance-type) well-known label in the requirements section.
 
-After the pods are binpacked on the most efficient instance type (i.e. the smallest instance type that can fit the pod batch), Karpenter takes 59 other instance types that are larger than the most efficient packing, and passes all 60 instance type options to an API called Amazon EC2 Fleet. 
+After the pods are binpacked on the most efficient instance type (i.e. the smallest instance type that can fit the pod batch), Karpenter takes 59 other instance types that are larger than the most efficient packing, and passes all 60 instance type options to an API called Amazon EC2 Fleet.
 
 
 The EC2 fleet API attempts to provision the instance type based on the [Price Capacity Optimized allocation strategy](https://aws.amazon.com/blogs/compute/introducing-price-capacity-optimized-allocation-strategy-for-ec2-spot-instances/). For the on-demand capacity type, this is effectively equivalent to the `lowest-price` allocation strategy. For the spot capacity type, Fleet will determine an instance type that has both the lowest price combined with the lowest chance of being interrupted. Note that this may not give you the instance type with the strictly lowest price for spot.
@@ -185,6 +185,11 @@ amiSelectorTerms:
     - name: Windows_Server-2022-English-Full-EKS_Optimized-{{< param "latest_k8s_version" >}}*
 ```
 
+### Can I use Karpenter to scale my workload's pods?
+Karpenter is a node autoscaler which will create new nodes in response to unschedulable pods. Scaling the pods themselves is outside of its scope.
+This is the realm of pod autoscalers such as the [Vertical Pod Autoscaler](https://github.com/kubernetes/autoscaler/tree/master/vertical-pod-autoscaler) (for scaling an individual pod's resources) or the [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) (for scaling replicas).
+We also recommend taking a look at [Keda](https://keda.sh/) if you're looking for more advanced autoscaling capabilities for pods.
+
 ## Deprovisioning
 ### How does Karpenter deprovision nodes?
 See [Deprovisioning nodes]({{< ref "./concepts/disruption" >}}) for information on how Karpenter deprovisions nodes.
@@ -206,7 +211,7 @@ For information on upgrading Karpenter, see the [Upgrade Guide]({{< ref "./upgra
 
 ### How do I upgrade an EKS Cluster with Karpenter?
 
-When upgrading an Amazon EKS cluster, [Karpenter's Drift feature]({{<ref "./concepts/disruption#drift" >}}) can automatically upgrade the Karpenter-provisioned nodes to stay in-sync with the EKS control plane. Karpenter Drift currently needs to be enabled using a [feature gate]({{<ref "./reference/settings#feature-gates" >}}). 
+When upgrading an Amazon EKS cluster, [Karpenter's Drift feature]({{<ref "./concepts/disruption#drift" >}}) can automatically upgrade the Karpenter-provisioned nodes to stay in-sync with the EKS control plane. Karpenter Drift currently needs to be enabled using a [feature gate]({{<ref "./reference/settings#feature-gates" >}}).
 
 {{% alert title="Note" color="primary" %}}
 Karpenter's default [EC2NodeClass `amiFamily` configuration]({{<ref "./concepts/nodeclasses#specamifamily" >}}) uses the latest EKS Optimized AL2 AMI for the same major and minor version as the EKS cluster's control plane, meaning that an upgrade of the control plane will cause Karpenter to auto-discover the new AMIs for that version.

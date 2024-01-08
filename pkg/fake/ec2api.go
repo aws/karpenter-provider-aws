@@ -30,11 +30,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter-core/pkg/utils/atomic"
+	"sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/utils/atomic"
 )
 
 type CapacityPool struct {
@@ -118,7 +117,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 		var skippedPools []CapacityPool
 		var spotInstanceRequestID *string
 
-		if aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) == v1alpha5.CapacityTypeSpot {
+		if aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) == corev1beta1.CapacityTypeSpot {
 			spotInstanceRequestID = aws.String(test.RandomName())
 		}
 
@@ -424,6 +423,15 @@ func (e *EC2API) DescribeSubnetsWithContext(_ context.Context, input *ec2.Descri
 				{Key: aws.String("foo"), Value: aws.String("bar")},
 			},
 		},
+		{
+			SubnetId:                aws.String("subnet-test4"),
+			AvailabilityZone:        aws.String("test-zone-1a-local"),
+			AvailableIpAddressCount: aws.Int64(100),
+			MapPublicIpOnLaunch:     aws.Bool(true),
+			Tags: []*ec2.Tag{
+				{Key: aws.String("Name"), Value: aws.String("test-subnet-4")},
+			},
+		},
 	}
 	if len(input.Filters) == 0 {
 		return nil, fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
@@ -486,6 +494,7 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 		{ZoneName: aws.String("test-zone-1a"), ZoneId: aws.String("testzone1a"), ZoneType: aws.String("availability-zone")},
 		{ZoneName: aws.String("test-zone-1b"), ZoneId: aws.String("testzone1b"), ZoneType: aws.String("availability-zone")},
 		{ZoneName: aws.String("test-zone-1c"), ZoneId: aws.String("testzone1c"), ZoneType: aws.String("availability-zone")},
+		{ZoneName: aws.String("test-zone-1a-local"), ZoneId: aws.String("testzone1alocal"), ZoneType: aws.String("local-zone")},
 	}}, nil
 }
 
@@ -530,6 +539,10 @@ func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *
 			{
 				InstanceType: aws.String("m5.large"),
 				Location:     aws.String("test-zone-1c"),
+			},
+			{
+				InstanceType: aws.String("m5.large"),
+				Location:     aws.String("test-zone-1a-local"),
 			},
 			{
 				InstanceType: aws.String("m5.xlarge"),
@@ -609,6 +622,18 @@ func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *
 			},
 			{
 				InstanceType: aws.String("m5.metal"),
+				Location:     aws.String("test-zone-1c"),
+			},
+			{
+				InstanceType: aws.String("m6idn.32xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("m6idn.32xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("m6idn.32xlarge"),
 				Location:     aws.String("test-zone-1c"),
 			},
 		},

@@ -17,8 +17,8 @@ These descriptions should allow you to understand:
 To download a particular version of `cloudformation.yaml`, set the version and use `curl` to pull the file to your local system:
 
 ```bash
-export KARPENTER_VERSION=v0.32.2
-curl https://raw.githubusercontent.com/aws/karpenter/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
+export KARPENTER_VERSION=v0.32.4
+curl https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > cloudformation.yaml
 ```
 
 Following some header information, the rest of the `cloudformation.yaml` file describes the resources that CloudFormation deploys.
@@ -36,7 +36,7 @@ That name would then be appended to any name below where `${ClusterName}` is inc
 
 * Partition: Any time an ARN is used, it includes the [partition name](https://docs.aws.amazon.com/whitepapers/latest/aws-fault-isolation-boundaries/partitions.html) to identify where the object is found. In most cases, that partition name is `aws`. However, it could also be `aws-cn` (for China Regions) or `aws-us-gov` (for AWS GovCloud US Regions).
 
-## Node Authorization 
+## Node Authorization
 
 The following sections of the `cloudformation.yaml` file set up IAM permissions for Kubernetes nodes created by Karpenter.
 In particular, this involves setting up a node role that can be attached and passed to instance profiles that Karpenter generates at runtime:
@@ -79,7 +79,7 @@ The role created here includes several AWS managed policies, which are designed 
 
 If you were to use a node role from an existing cluster, you could skip this provisioning step and pass this node role to any EC2NodeClasses that you create. Additionally, you would ensure that the [Controller Policy]({{< relref "#controllerpolicy" >}}) has `iam:PassRole` permission to the role attached to the generated instance profiles.
 
-## Controller Authorization 
+## Controller Authorization
 
 This section sets the AWS permissions for the Karpenter Controller. When used in the Getting Started guide, `eksctl` uses these permissions to create a service account (karpenter) that is combined with the KarpenterControllerPolicy.
 
@@ -136,7 +136,7 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
 
 #### AllowScopedEC2InstanceActionsWithTags
 
-The AllowScopedEC2InstanceActionsWithTags Sid allows the 
+The AllowScopedEC2InstanceActionsWithTags Sid allows the
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html), [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html), and [CreateLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateLaunchTemplate.html)
 actions requested by the Karpenter controller to create all `fleet`, `instance`, `volume`, `network-interface`, or `launch-template` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/nodepool` tag be set to any value. This ensures that Karpenter is only allowed to create instances for a single EKS cluster.
 
@@ -202,7 +202,7 @@ actions on `fleet`, `instance`, `volume`, `network-interface`, and `launch-templ
 
 #### AllowScopedResourceTagging
 
-The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html) actions on all instances created by Karpenter after their creation. It enforces that Karpenter is only able to update the tags on cluster instances it is operating on through the `karpenter.sh/cluster/${ClusterName}`" and `karpenter.sh/nodepool` tags.
+The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html) actions on all instances created by Karpenter after their creation. It enforces that Karpenter is only able to update the tags on cluster instances it is operating on through the `kubernetes.io/cluster/${ClusterName}`" and `karpenter.sh/nodepool` tags.
 ```json
 {
   "Sid": "AllowScopedResourceTagging",
@@ -211,7 +211,7 @@ The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amaz
   "Action": "ec2:CreateTags",
   "Condition": {
     "StringEquals": {
-      "aws:ResourceTag/karpenter.sh/cluster/${ClusterName}": "owned"
+      "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
     },
     "StringLike": {
       "aws:ResourceTag/karpenter.sh/nodepool": "*"
@@ -313,7 +313,7 @@ Because pricing information does not exist in every region at the moment, the Al
 
 Karpenter supports interruption queues, that you can create as described in the [Interruption]({{< relref "../concepts/disruption#interruption" >}}) section of the Disruption page.
 This section of the cloudformation.yaml template can give Karpenter permission to access those queues by specifying the resource ARN.
-For the interruption queue you created (`${KarepenterInterruptionQueue.Arn}`), the AllowInterruptionQueueActions Sid lets the Karpenter controller have permission to delete messages ([DeleteMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html)), get queue attributes ([GetQueueAttributes](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueAttributes.html)), get queue URL ([GetQueueUrl](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueUrl.html)), and receive messages ([ReceiveMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)).
+For the interruption queue you created (`${KarpenterInterruptionQueue.Arn}`), the AllowInterruptionQueueActions Sid lets the Karpenter controller have permission to delete messages ([DeleteMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_DeleteMessage.html)), get queue URL ([GetQueueUrl](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_GetQueueUrl.html)), and receive messages ([ReceiveMessage](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/APIReference/API_ReceiveMessage.html)).
 
 ```json
 {
@@ -322,7 +322,6 @@ For the interruption queue you created (`${KarepenterInterruptionQueue.Arn}`), t
   "Resource": "${KarpenterInterruptionQueue.Arn}",
   "Action": [
     "sqs:DeleteMessage",
-    "sqs:GetQueueAttributes",
     "sqs:GetQueueUrl",
     "sqs:ReceiveMessage"
   ]
@@ -405,7 +404,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
 
 #### AllowScopedInstanceProfileActions
 
-The AllowScopedInstanceProfileActions Sid gives the Karpenter controller permission to perform [`iam:AddRoleToInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AddRoleToInstanceProfile.html), [`iam:RemoveRoleFromInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_RemoveRoleFromInstanceProfile.html), and [`iam:DeleteInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteInstanceProfile.html) actions, 
+The AllowScopedInstanceProfileActions Sid gives the Karpenter controller permission to perform [`iam:AddRoleToInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AddRoleToInstanceProfile.html), [`iam:RemoveRoleFromInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_RemoveRoleFromInstanceProfile.html), and [`iam:DeleteInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteInstanceProfile.html) actions,
 provided that the request is made to a cluster with `kubernetes.io/cluster/${ClusterName` set to owned and is made in the current region.
 Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This permission is further enforced by the `iam:PassRole` permission. If Karpenter attempts to add a role to an instance profile that it doesn't have `iam:PassRole` permission on, that call will fail. Therefore, if you configure Karpenter to use a new role through the `EC2NodeClass`, ensure that you also specify that role within your `iam:PassRole` permission.
 
@@ -460,7 +459,7 @@ The AllowAPIServerEndpointDiscovery Sid allows the Karpenter controller to get t
 }
 ```
 
-## Interruption Handling 
+## Interruption Handling
 
 Settings in this section allow the Karpenter controller to stand-up an interruption queue to receive notification messages from other AWS services about the health and status of instances. For example, this interruption queue allows Karpenter to be aware of spot instance interruptions that are sent 2 minutes before spot instances are reclaimed by EC2. Adding this queue allows Karpenter to be proactive in migrating workloads to new nodes.
 See the [Interruption]({{< relref "../concepts/disruption#interruption" >}}) section of the Disruption page for details.

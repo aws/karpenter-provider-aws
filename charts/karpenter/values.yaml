@@ -44,6 +44,9 @@ podAnnotations: {}
 podDisruptionBudget:
   name: karpenter
   maxUnavailable: 1
+# -- SecurityContext for the pod.
+podSecurityContext: 
+  fsGroup: 65536
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
 # -- Override the default termination grace period for the pod.
@@ -67,8 +70,6 @@ affinity:
     requiredDuringSchedulingIgnoredDuringExecution:
       nodeSelectorTerms:
         - matchExpressions:
-            - key: karpenter.sh/provisioner-name
-              operator: DoesNotExist
             - key: karpenter.sh/nodepool
               operator: DoesNotExist
   podAntiAffinity:
@@ -98,9 +99,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.32.2
+    tag: v0.33.0
     # -- SHA256 digest of the controller image.
-    digest: sha256:da893a13f026248a867de8e72d79820f9a1091aabf6d37f28897cdbb3446991d
+    digest: sha256:5e5f59f74d86ff7f13d7d80b89afff8c661cb4e3265f2fdda95b76dd9c838cc1
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -136,18 +137,18 @@ controller:
     port: 8081
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
-  enabled: true
+  enabled: false
   # -- The container port to use for the webhook.
   port: 8443
   metrics:
     # -- The container port to use for webhook metrics.
     port: 8001
-# -- Global log level
-logLevel: debug
+# -- Global log level, defaults to 'info'
+logLevel: info
 # -- Log configuration (Deprecated: Logging configuration will be dropped by v1, use logLevel instead)
 logConfig:
   # -- Whether to enable provisioning and mounting the log ConfigMap
-  enabled: true
+  enabled: false
   # -- Log outputPaths - defaults to stdout only
   outputPaths:
     - stdout
@@ -158,16 +159,14 @@ logConfig:
   logEncoding: json
   # -- Component-based log configuration
   logLevel:
-    # -- Global log level, defaults to 'debug'
-    global: debug
-    # -- Controller log level, defaults to 'debug'
-    controller: debug
+    # -- Global log level, defaults to 'info'
+    global: info
+    # -- Controller log level, defaults to 'info'
+    controller: info
     # -- Error log level, defaults to 'error'
     webhook: error
 # -- Global Settings to configure Karpenter
 settings:
-  # -- AWS-specific settings (Deprecated: The AWS block inside of settings was flattened into settings)
-  aws: {}
   # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
   # time which usually results in fewer but larger nodes.
   batchMaxDuration: 10s
@@ -199,7 +198,7 @@ settings:
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
   featureGates:
-    # -- drift is in ALPHA and is disabled by default.
-    # Setting drift to true enables the drift disruption method to watch for drift between currently deployed nodes
-    # and the desired state of nodes set in provisioners and node templates
-    drift: false
+    # -- drift is in BETA and is enabled by default.
+    # Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes
+    # and the desired state of nodes set in nodepools and nodeclasses
+    drift: true

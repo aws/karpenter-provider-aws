@@ -29,7 +29,7 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/metrics"
+	"sigs.k8s.io/karpenter/pkg/metrics"
 )
 
 type metricInfo struct {
@@ -56,6 +56,14 @@ func main() {
 		packages := getPackages(flag.Arg(i))
 		allMetrics = append(allMetrics, getMetricsFromPackages(packages...)...)
 	}
+	// Controller Runtime naming is different in that they don't specify a namespace or subsystem
+	// Getting the metrics requires special parsing logic
+	for i := range allMetrics {
+		if allMetrics[i].subsystem == "" && strings.HasPrefix(allMetrics[i].name, "controller_runtime_") {
+			allMetrics[i].subsystem = "controller_runtime"
+			allMetrics[i].name = strings.TrimPrefix(allMetrics[i].name, "controller_runtime_")
+		}
+	}
 	sort.Slice(allMetrics, bySubsystem(allMetrics))
 
 	outputFileName := flag.Arg(flag.NArg() - 1)
@@ -80,19 +88,15 @@ description: >
 	previousSubsystem := ""
 
 	for _, metric := range allMetrics {
-		// Controller Runtime naming is different in that they don't specify a namespace or subsystem
-		// Getting the metrics requires special parsing logic
-		if metric.subsystem == "" && strings.HasPrefix(metric.name, "controller_runtime_") {
-			metric.subsystem = "controller_runtime"
-			metric.name = strings.TrimPrefix(metric.name, "controller_runtime_")
-		}
 		if metric.subsystem != previousSubsystem {
-			subsystemTitle := strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
-				return fmt.Sprintf("%s%s", strings.ToTitle(s[0:1]), s[1:])
-			}), " ")
-			fmt.Fprintf(f, "## %s Metrics\n", subsystemTitle)
+			if metric.subsystem != "" {
+				subsystemTitle := strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
+					return fmt.Sprintf("%s%s", strings.ToTitle(s[0:1]), s[1:])
+				}), " ")
+				fmt.Fprintf(f, "## %s Metrics\n", subsystemTitle)
+				fmt.Fprintln(f)
+			}
 			previousSubsystem = metric.subsystem
-			fmt.Fprintln(f)
 		}
 		fmt.Fprintf(f, "### `%s`\n", metric.qualifiedName())
 		fmt.Fprintf(f, "%s\n", metric.help)
@@ -155,19 +159,23 @@ func getMetricsFromPackages(packages ...*ast.Package) []metricInfo {
 }
 
 func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
-	subSystemSortOrder := map[string]int{}
-	subSystemSortOrder["provisioner"] = 1
-	subSystemSortOrder["nodes"] = 2
-	subSystemSortOrder["pods"] = 3
-	subSystemSortOrder["cloudprovider"] = 4
-	subSystemSortOrder["cloudprovider_batcher"] = 5
+	// Higher ordering comes first. If a value isn't designated here then the subsystem will be given a default of 0.
+	// Metrics without a subsystem come first since there is no designation for the bucket they fall under
+	subSystemSortOrder := map[string]int{
+		"":          100,
+		"nodepool":  10,
+		"nodeclaim": 9,
+		"nodes":     8,
+		"pods":      7,
+	}
+
 	return func(i, j int) bool {
 		lhs := metrics[i]
 		rhs := metrics[j]
 		if subSystemSortOrder[lhs.subsystem] != subSystemSortOrder[rhs.subsystem] {
-			return subSystemSortOrder[lhs.subsystem] < subSystemSortOrder[rhs.subsystem]
+			return subSystemSortOrder[lhs.subsystem] > subSystemSortOrder[rhs.subsystem]
 		}
-		return lhs.qualifiedName() < rhs.qualifiedName()
+		return lhs.qualifiedName() > rhs.qualifiedName()
 	}
 }
 

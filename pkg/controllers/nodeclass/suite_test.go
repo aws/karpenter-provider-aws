@@ -21,12 +21,9 @@ import (
 	"time"
 
 	"github.com/imdario/mergo"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	. "knative.dev/pkg/logging/testing"
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -34,21 +31,25 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/events"
-	corecontroller "github.com/aws/karpenter-core/pkg/operator/controller"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/controllers/nodeclass"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/instanceprofile"
-	"github.com/aws/karpenter/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/events"
+	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
 var ctx context.Context
@@ -66,7 +67,6 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...), coretest.WithFieldIndexers(test.EC2NodeClassFieldIndexer(ctx)))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	nodeClassController = nodeclass.NewNodeClassController(env.Client, events.NewRecorder(&record.FakeRecorder{}), awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider)
@@ -125,6 +125,10 @@ var _ = Describe("NodeClassController", func() {
 				{
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
+				},
+				{
+					ID:   "subnet-test4",
+					Zone: "test-zone-1a-local",
 				},
 			}))
 		})
@@ -208,6 +212,10 @@ var _ = Describe("NodeClassController", func() {
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
 				},
+				{
+					ID:   "subnet-test4",
+					Zone: "test-zone-1a-local",
+				},
 			}))
 
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -253,6 +261,10 @@ var _ = Describe("NodeClassController", func() {
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
 				},
+				{
+					ID:   "subnet-test4",
+					Zone: "test-zone-1a-local",
+				},
 			}))
 
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -297,6 +309,10 @@ var _ = Describe("NodeClassController", func() {
 				{
 					ID:   "subnet-test3",
 					Zone: "test-zone-1c",
+				},
+				{
+					ID:   "subnet-test4",
+					Zone: "test-zone-1a-local",
 				},
 			}))
 
@@ -749,7 +765,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHash := nodeClass.Hash()
-			Expect(nodeClass.ObjectMeta.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
 
@@ -758,7 +774,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHashTwo := nodeClass.Hash()
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHashTwo))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHashTwo))
 			Expect(expectedHash).ToNot(Equal(expectedHashTwo))
 
 		},
@@ -776,7 +792,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHash := nodeClass.Hash()
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 				{
@@ -797,7 +813,7 @@ var _ = Describe("NodeClassController", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 		})
 	})
 	Context("NodeClass Termination", func() {

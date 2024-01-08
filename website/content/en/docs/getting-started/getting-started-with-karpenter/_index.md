@@ -32,7 +32,7 @@ Install these tools before proceeding:
 
 1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
 2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-3. `eksctl` - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
+3. `eksctl` (>= v0.165.0) - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
@@ -44,8 +44,8 @@ authenticate properly by running `aws sts get-caller-identity`.
 After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
-export KARPENTER_NAMESPACE=karpenter
-export KARPENTER_VERSION=v0.32.2
+export KARPENTER_NAMESPACE=kube-system
+export KARPENTER_VERSION=v0.33.1
 export K8S_VERSION={{< param "latest_k8s_version" >}}
 ```
 
@@ -89,6 +89,14 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 ### 4. Install Karpenter
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
+
+{{% alert title="Common Expression Language/Webhooks Notice" color="warning" %}}
+Karpenter supports using [Kubernetes Common Expression Language](https://kubernetes.io/docs/reference/using-api/cel/) for validating its Custom Resource Definitions out-of-the-box; however, this feature is not supported on versions of Kubernetes < 1.25. If you are running an earlier version of Kubernetes, you will need to use the Karpenter admission webhooks for validation instead. You can enable these webhooks with `--set webhook.enabled=true` when applying the Karpenter helm chart.
+{{% /alert %}}
+
+{{% alert title="Pod Identity Support Notice" color="warning" %}}
+Karpenter now supports using [Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html) to authenticate AWS SDK to make API requests to AWS services using AWS Identity and Access Management (IAM) permissions. This feature not supported on versions of Kubernetes < 1.24.  If you are running an earlier version of Kubernetes, you will need to use the [IAM Roles for Service Accounts(IRSA)](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html) for pod authentication instead. You can enable these IRSA with `--set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}"` when applying the Karpenter helm chart.
+{{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
 Karpenter creates a mapping between CloudProvider machines and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
@@ -159,7 +167,7 @@ The new stack has only one user, `admin`, and the password is stored in a secret
 
 ## Advanced Installation
 
-The section below covers advanced installation techniques for installing Karpenter. This includes running Karpenter on a cluster without public internet access or ensuring that Karpenter avoids request throttling by other components in your cluster.
+The section below covers advanced installation techniques for installing Karpenter. This includes things such as running Karpenter on a cluster without public internet access or ensuring that Karpenter avoids getting throttled by other components in your cluster.
 
 ### Private Clusters
 
@@ -170,7 +178,7 @@ privateCluster:
   enabled: true
 ```
 
-Private clusters have no outbound access to the internet. This means that in order for Karpenter to reach out to AWS services, you need to enable specific VPC private endpoints. Below shows the endpoints that you need to enable to successfully run Karpenter in a private cluster:
+Private clusters have no outbound access to the internet. This means that in order for Karpenter to reach out to the services that it needs to access, you need to enable specific VPC private endpoints. Below shows the endpoints that you need to enable to successfully run Karpenter in a private cluster:
 
 ```text
 com.amazonaws.<region>.ec2
@@ -182,7 +190,7 @@ com.amazonaws.<region>.ssm - For resolving default AMIs
 com.amazonaws.<region>.sqs - For accessing SQS if using interruption handling
 ```
 
-If you do not currently have these endpoints surfaced in your VPC, you can add the endpoints by running the following command.
+If you do not currently have these endpoints surfaced in your VPC, you can add the endpoints by running
 
 ```bash
 aws ec2 create-vpc-endpoint --vpc-id ${VPC_ID} --service-name ${SERVICE_NAME} --vpc-endpoint-type Interface --subnet-ids ${SUBNET_IDS} --security-group-ids ${SECURITY_GROUP_IDS}
@@ -190,7 +198,20 @@ aws ec2 create-vpc-endpoint --vpc-id ${VPC_ID} --service-name ${SERVICE_NAME} --
 
 {{% alert title="Note" color="primary" %}}
 
-Karpenter (controller and webhook deployment) container images must be in or copied to Amazon ECR private or to a another private registry accessible from inside the VPC. If these are not available from within the VPC, or from networks peered with the VPC, you will get Image pull errors when Kubernetes tries to pull these images from ECR public.
+Karpenter (controller and webhook deployment) container images must be in or copied to Amazon ECR private or to another private registry accessible from inside the VPC. If these are not available from within the VPC, or from networks peered with the VPC, you will get Image pull errors when Kubernetes tries to pull these images from ECR public.
+
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+
+There is currently no VPC private endpoint for the [IAM API](https://docs.aws.amazon.com/IAM/latest/APIReference/welcome.html). As a result, you cannot use the default `spec.role` field in your `EC2NodeClass`. Instead, you need to provision and manage an instance profile manually and then specify Karpenter to use this instance profile through the `spec.instanceProfile` field.
+
+You can provision an instance profile manually and assign a Node role to it by calling the following command
+
+```bash
+aws iam create-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
+aws iam add-role-to-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${CLUSTER_NAME}" --role-name "KarpenterNodeRole-${CLUSTER_NAME}"
+```
 
 {{% /alert %}}
 
@@ -212,8 +233,8 @@ caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.2
 
 Kubernetes uses [FlowSchemas](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#flowschema) and [PriorityLevelConfigurations](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration) to map calls to the API server into buckets which determine each user agent's throttling limits.
 
-By default, Karpenter is placed in the `workload-low` PriorityLevelConfiguration for all APIServer requests. This means that other components that make a high number of requests to the APIServer may affect the ability for Karpenter to make requests.
+By default, Karpenter is installed into the `kube-system` namespace, which leverages the `system-leader-election` and `kube-system-service-accounts` [FlowSchemas] to map calls from the `kube-system` namespace to the `leader-election` and `workload-high` PriorityLevelConfigurations respectively. By putting Karpenter in these PriorityLevelConfigurations, we ensure that Karpenter and other critical cluster components are able to run even if other components on the cluster are throttled in other PriorityLevelConfigurations.
 
-To ensure that Karpenter is unaffected by these other, lower priority components, we can place Karpenter into a higher-priority PriorityLevelConfiguration using a custom FlowSchema.
+If you install Karpenter in a different namespace than the default `kube-system` namespace, Karpenter will not be put into these higher-priority FlowSchemas by default. Instead, you will need to create custom FlowSchemas for the namespace and service account where Karpenter is installed to ensure that requests are put into this higher PriorityLevelConfiguration.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step15-apply-flowschemas.sh" language="bash"%}}

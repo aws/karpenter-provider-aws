@@ -20,12 +20,13 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	v1 "k8s.io/api/core/v1"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/providers/amifamily/bootstrap"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/scheduling"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
 type Ubuntu struct {
@@ -34,7 +35,7 @@ type Ubuntu struct {
 }
 
 // DefaultAMIs returns the AMI name, and Requirements, with an SSM query
-func (u Ubuntu) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
+func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
 			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, corev1beta1.ArchitectureAmd64),
@@ -52,17 +53,16 @@ func (u Ubuntu) DefaultAMIs(version string, _ bool) []DefaultAMIOutput {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (u Ubuntu) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string) bootstrap.Bootstrapper {
+func (u Ubuntu) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
-			ClusterName:             u.Options.ClusterName,
-			ClusterEndpoint:         u.Options.ClusterEndpoint,
-			AWSENILimitedPodDensity: u.Options.AWSENILimitedPodDensity,
-			KubeletConfig:           kubeletConfig,
-			Taints:                  taints,
-			Labels:                  labels,
-			CABundle:                caBundle,
-			CustomUserData:          customUserData,
+			ClusterName:     u.Options.ClusterName,
+			ClusterEndpoint: u.Options.ClusterEndpoint,
+			KubeletConfig:   kubeletConfig,
+			Taints:          taints,
+			Labels:          labels,
+			CABundle:        caBundle,
+			CustomUserData:  customUserData,
 		},
 	}
 }

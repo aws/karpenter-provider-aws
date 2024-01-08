@@ -4,9 +4,9 @@
   "devDependencies": {
     "ansi-regex": ">=5.0.1",
     "autoprefixer": "^10.4.16",
-    "postcss": "^8.4.31",
-    "postcss-cli": "^10.1.0",
-    "hugo-extended": "0.120.4"
+    "postcss": "^8.4.33",
+    "postcss-cli": "^11.0.0",
+    "hugo-extended": "0.121.2"
   },
 
   "scripts": {

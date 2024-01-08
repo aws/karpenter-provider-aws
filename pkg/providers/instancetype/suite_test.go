@@ -37,28 +37,27 @@ import (
 	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	corecloudprovider "github.com/aws/karpenter-core/pkg/cloudprovider"
-	"github.com/aws/karpenter-core/pkg/controllers/provisioning"
-	"github.com/aws/karpenter-core/pkg/controllers/state"
-	"github.com/aws/karpenter-core/pkg/events"
-	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
-	"github.com/aws/karpenter-core/pkg/operator/scheme"
-	"github.com/aws/karpenter-core/pkg/scheduling"
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	. "github.com/aws/karpenter-core/pkg/test/expectations"
-	"github.com/aws/karpenter-core/pkg/utils/resources"
-	"github.com/aws/karpenter/pkg/apis"
-	"github.com/aws/karpenter/pkg/apis/settings"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/cloudprovider"
-	"github.com/aws/karpenter/pkg/fake"
-	"github.com/aws/karpenter/pkg/operator/options"
-	"github.com/aws/karpenter/pkg/providers/instance"
-	"github.com/aws/karpenter/pkg/providers/instancetype"
-	"github.com/aws/karpenter/pkg/providers/pricing"
-	"github.com/aws/karpenter/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
+	"sigs.k8s.io/karpenter/pkg/controllers/state"
+	"sigs.k8s.io/karpenter/pkg/events"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
 var ctx context.Context
@@ -79,7 +78,6 @@ var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
@@ -95,7 +93,6 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	ctx = settings.ToContext(ctx, test.Settings())
 	cluster.Reset()
 	awsEnv.Reset()
 	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
@@ -625,16 +622,60 @@ var _ = Describe("InstanceTypes", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
-	It("should set pods to 110 if not using ENI-based pod density", func() {
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-			EnableENILimitedPodDensity: lo.ToPtr(false),
-		}))
-		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
-		Expect(err).To(BeNil())
-		for _, info := range instanceInfo {
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
-			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
+	It("should launch instances for vpc.amazonaws.com/efa resource requests", func() {
+		nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+			{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"dl1.24xlarge"},
+			},
 		}
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pods := []*v1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("1")},
+				},
+			}),
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("2")},
+					Limits:   v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("2")},
+				},
+			}),
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		nodes := sets.NewString()
+		for _, pod := range pods {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "dl1.24xlarge"))
+			nodes.Insert(node.Name)
+		}
+		Expect(nodes.Len()).To(Equal(1))
+	})
+	It("should not launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceEphemeralStorage: resource.MustParse("5000Gi")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should launch instances w/ instance storage for ephemeral storage resource requests when disks are mounted for ephemeral-storage", func() {
+		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceEphemeralStorage: resource.MustParse("5000Gi")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("m6idn.32xlarge"))
+		Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("7600G")))
 	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
@@ -644,13 +685,10 @@ var _ = Describe("InstanceTypes", func() {
 			Expect(it.Capacity.Pods().Value()).ToNot(BeNumerically("==", 110))
 		}
 	})
-	It("should set pods to 110 even ENILimitedPodDensity is enabled in awssettings but amifamily doesn't support", func() {
+	It("should set pods to 110 if AMI Family doesn't support", func() {
 		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 		Expect(err).To(BeNil())
 
-		ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-			EnableENILimitedPodDensity: lo.ToPtr(true),
-		}))
 		for _, info := range instanceInfo {
 			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, windowsNodeClass, nil)
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
@@ -684,6 +722,19 @@ var _ = Describe("InstanceTypes", func() {
 			value := metric.GetGauge().Value
 			Expect(aws.Float64Value(value)).To(BeNumerically(">", 0))
 		}
+	})
+	It("should launch instances in local zones", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			NodeRequirements: []v1.NodeSelectorRequirement{{
+				Key:      v1.LabelTopologyZone,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"test-zone-1a-local"},
+			}},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
+
 	})
 
 	Context("Overhead", func() {
@@ -970,7 +1021,7 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 10))
 			}
 		})
-		It("should override max-pods value when AWSENILimitedPodDensity is unset", func() {
+		It("should override max-pods value", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
@@ -1058,19 +1109,21 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", limitedPods.Value()))
 			}
 		})
-		It("should take 110 to be the default pods number when pods-per-core is 0 and AWSENILimitedPodDensity is unset", func() {
-			ctx = settings.ToContext(ctx, test.Settings(test.SettingOptions{
-				EnableENILimitedPodDensity: lo.ToPtr(false),
-			}))
-
+		It("should take limited pod density to be the default pods number when pods-per-core is 0", func() {
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(0),
 			}
 			for _, info := range instanceInfo {
-				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
-				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 110))
+				if *info.InstanceType == "t3.large" {
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 35))
+				}
+				if *info.InstanceType == "m6idn.32xlarge" {
+					it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
+				}
 			}
 		})
 		It("shouldn't report more resources than are actually available on instances", func() {
@@ -1568,13 +1621,13 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *corev1beta1.
 		instanceType := it
 		onDemandPrice := 1.00
 		for _, o := range it.Offerings {
-			if o.CapacityType == v1alpha5.CapacityTypeOnDemand {
+			if o.CapacityType == corev1beta1.CapacityTypeOnDemand {
 				onDemandPrice = o.Price
 			}
 		}
 		for _, o := range instanceType.Offerings {
 			o := o
-			if o.CapacityType != v1alpha5.CapacityTypeSpot {
+			if o.CapacityType != corev1beta1.CapacityTypeSpot {
 				continue
 			}
 			spotPrice := fmt.Sprintf("%0.3f", onDemandPrice*0.5)

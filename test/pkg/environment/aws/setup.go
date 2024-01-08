@@ -18,23 +18,19 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 var persistedSettings []v1.EnvVar
-var persistedSettingsLegacy = &v1.ConfigMap{}
 
 var (
 	CleanableObjects = []client.Object{
-		&v1alpha1.AWSNodeTemplate{},
 		&v1beta1.EC2NodeClass{},
 	}
 )
 
 func (env *Environment) BeforeEach() {
 	persistedSettings = env.ExpectSettings()
-	persistedSettingsLegacy = env.ExpectSettingsLegacy()
 	env.Environment.BeforeEach()
 }
 
@@ -47,5 +43,4 @@ func (env *Environment) AfterEach() {
 	env.Environment.AfterEach()
 	// Ensure we reset settings after collecting the controller logs
 	env.ExpectSettingsReplaced(persistedSettings...)
-	env.ExpectSettingsReplacedLegacy(persistedSettingsLegacy.Data)
 }

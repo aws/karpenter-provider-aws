@@ -15,7 +15,7 @@ limitations under the License.
 package rebalancerecommendation
 
 import (
-	"github.com/aws/karpenter/pkg/controllers/interruption/messages"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 )
 
 // Message contains the properties defined by

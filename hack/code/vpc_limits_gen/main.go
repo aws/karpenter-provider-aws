@@ -62,5 +62,5 @@ func main() {
 	out.WriteString(newRespData)
 	defer out.Close()
 
-	fmt.Printf("Downloaded vpc/limits.go from \"%s\" to file \"%s\"\n", limitsURL.String(), out.Name)
+	fmt.Printf("Downloaded vpc/limits.go from \"%s\" to file \"%s\"\n", limitsURL.String(), out.Name())
 }

@@ -24,7 +24,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/utils/resources"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/aws-sdk-go/aws"
 )
@@ -40,7 +40,7 @@ func (b Bottlerocket) Script() (string, error) {
 		return "", fmt.Errorf("invalid UserData %w", err)
 	}
 	// Karpenter will overwrite settings present inside custom UserData
-	// based on other fields specified in the provisioner
+	// based on other fields specified in the NodePool
 	s.Settings.Kubernetes.ClusterName = &b.ClusterName
 	s.Settings.Kubernetes.APIServer = &b.ClusterEndpoint
 	s.Settings.Kubernetes.ClusterCertificate = b.CABundle

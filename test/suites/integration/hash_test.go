@@ -15,12 +15,14 @@ limitations under the License.
 package integration_test
 
 import (
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("CRD Hash", func() {
@@ -45,7 +47,7 @@ var _ = Describe("CRD Hash", func() {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)
 			g.Expect(err).ToNot(HaveOccurred())
 
-			hash, found := nc.Annotations[v1beta1.AnnotationNodeClassHash]
+			hash, found := nc.Annotations[v1beta1.AnnotationEC2NodeClassHash]
 			g.Expect(found).To(BeTrue())
 			g.Expect(hash).To(Equal(nc.Hash()))
 		})

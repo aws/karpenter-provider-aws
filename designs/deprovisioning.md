@@ -26,11 +26,11 @@ As more mechanisms
 
 ### DeprovisioningAction Tunables
 
-With `DeprovisioningActions`, Karpenter will expand the [Internal Tunables](https://github.com/aws/karpenter/blob/main/designs/consolidation.md#internal-tunables) for each of the new `DeprovisioningActions`.
+With `DeprovisioningActions`, Karpenter will expand the [Internal Tunables](https://github.com/aws/karpenter-provider-aws/blob/main/designs/consolidation.md#internal-tunables) for each of the new `DeprovisioningActions`.
 
 * Order of Node Evaluation - In order, Karpenter will deprovision expired nodes, drifted nodes, then consolidatable nodes. Karpenter will prioritize any custom provider deprovisioning mechanisms such as health checks before any other.
 * DeprovisioningTTL - Karpenter consolidation uses a Consolidation TTL per-node. Going forward Karpenter will use a DeprovisioningTTL of 15 seconds for all deprovisioning methods. These can be tuned to be more granular in the future.
-* Replacement Node Timeout - Currently this is [9.5 minutes](https://github.com/aws/karpenter/blob/main/pkg/controllers/consolidation/controller.go#L70). Karpenter will not change this.
+* Replacement Node Timeout - Currently this is [9.5 minutes](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/controllers/consolidation/controller.go#L70). Karpenter will not change this.
 
 ## Benefits of the Deprovisioning Controller
 

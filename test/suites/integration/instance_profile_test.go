@@ -19,12 +19,14 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
-	coretest "github.com/aws/karpenter-core/pkg/test"
-	awserrors "github.com/aws/karpenter/pkg/errors"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
+	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("InstanceProfile Generation", func() {

@@ -1,52 +1,59 @@
 name: PullRequestSnapshot
 on:
   workflow_run:
-    workflows: [ApprovalComment]
-    types: [completed]
-permissions:
-  id-token: write
-  pull-requests: write
-  statuses: write
+    workflows:
+      - ApprovalComment
+    types:
+      - completed
 jobs:
   release:
+    permissions:
+      id-token: write
+      pull-requests: write
+      statuses: write
     if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - uses: ./.github/actions/download-artifact
       - id: metadata
         run: |
           pr_number="$(head -n 2 /tmp/artifacts/metadata.txt | tail -n 1)"
           pr_commit="$(tail -n 1 /tmp/artifacts/metadata.txt)"
-          echo PR_COMMIT="$pr_commit" >> "$GITHUB_OUTPUT"
-          echo PR_NUMBER="$pr_number" >> "$GITHUB_OUTPUT"
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4
+          echo PR_COMMIT="$pr_commit" >> "$GITHUB_ENV"
+          echo PR_NUMBER="$pr_number" >> "$GITHUB_ENV"
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          ref: ${{ steps.metadata.outputs.PR_COMMIT }}
+          ref: ${{ env.PR_COMMIT }}
       - uses: ./.github/actions/commit-status/start
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
-          git_ref: ${{ steps.metadata.outputs.PR_COMMIT }}
+          git_ref: ${{ env.PR_COMMIT }}
       - uses: ./.github/actions/install-deps
       - uses: aws-actions/configure-aws-credentials@010d0da01d0b5a38af31e9c3470dbfdabdecca3a # v4.0.1
         with:
-          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
-          aws-region: ${{ vars.ECR_REGION }}
+          role-to-assume: 'arn:aws:iam::${{ vars.SNAPSHOT_ACCOUNT_ID }}:role/${{ vars.SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.SNAPSHOT_REGION }}
       - run: make snapshot
-        env:
-          GH_PR_NUMBER: ${{steps.metadata.outputs.PR_NUMBER}}
       - uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          SNAPSHOT_ACCOUNT_ID: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          SNAPSHOT_REGION: ${{ vars.SNAPSHOT_REGION }}
         with:
-          github-token: ${{secrets.GITHUB_TOKEN}}
           script: |
             github.rest.issues.createComment({
-              issue_number: `${{steps.metadata.outputs.PR_NUMBER}}`,
+              issue_number: process.env.PR_NUMBER,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: 'Snapshot successfully published to `oci://${{ vars.ECR_ACCOUNT_ID }}.dkr.ecr.${{ vars.ECR_REGION }}.amazonaws.com/karpenter/snapshot/karpenter:v0-${{steps.metadata.outputs.PR_COMMIT}}`.'
+              body: `Snapshot successfully published to \`oci://${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot/karpenter:v0-${process.env.PR_COMMIT}\`.
+            To install you must login to the ECR repo with an AWS account:
+            ~~~
+            aws ecr get-login-password --region ${process.env.SNAPSHOT_REGION} | docker login --username AWS --password-stdin ${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com
+            ~~~
+            `
             })
       - if: always()
         uses: ./.github/actions/commit-status/end
         with:
           name: "${{ github.workflow }} / ${{ github.job }} (pull_request_review)"
-          git_ref: ${{ steps.metadata.outputs.PR_COMMIT }}
+          git_ref: ${{ env.PR_COMMIT }}

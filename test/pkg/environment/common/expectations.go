@@ -38,12 +38,12 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	pscheduling "github.com/aws/karpenter-core/pkg/controllers/provisioning/scheduling"
-	"github.com/aws/karpenter-core/pkg/scheduling"
-	"github.com/aws/karpenter-core/pkg/test"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
+	"sigs.k8s.io/karpenter/pkg/test"
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -67,18 +67,33 @@ func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	}
 }
 
+// ExpectUpdated will update objects in the cluster to match the inputs.
+// WARNING: This ignores the resource version check, which can result in
+// overwriting changes made by other controllers in the cluster.
+// This is useful in ensuring that we can clean up resources by patching
+// out finalizers.
+// Grab the object before making the updates to reduce the chance of this race.
 func (env *Environment) ExpectUpdated(objects ...client.Object) {
 	GinkgoHelper()
 	for _, o := range objects {
 		Eventually(func(g Gomega) {
 			current := o.DeepCopyObject().(client.Object)
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
+			if current.GetResourceVersion() != o.GetResourceVersion() {
+				logging.FromContext(env).Infof("detected an update to an object (%s) with an outdated resource version, did you get the latest version of the object before patching?", lo.Must(apiutil.GVKForObject(o, env.Client.Scheme())))
+			}
 			o.SetResourceVersion(current.GetResourceVersion())
 			g.Expect(env.Client.Update(env.Context, o)).To(Succeed())
 		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
 
+// ExpectCreatedOrUpdated can update objects in the cluster to match the inputs.
+// WARNING: ExpectUpdated ignores the resource version check, which can result in
+// overwriting changes made by other controllers in the cluster.
+// This is useful in ensuring that we can clean up resources by patching
+// out finalizers.
+// Grab the object before making the updates to reduce the chance of this race.
 func (env *Environment) ExpectCreatedOrUpdated(objects ...client.Object) {
 	GinkgoHelper()
 	for _, o := range objects {
@@ -100,7 +115,7 @@ func (env *Environment) ExpectSettings() (res []v1.EnvVar) {
 	GinkgoHelper()
 
 	d := &appsv1.Deployment{}
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "kube-system", Name: "karpenter"}, d)).To(Succeed())
 	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 	return lo.Map(d.Spec.Template.Spec.Containers[0].Env, func(v v1.EnvVar, _ int) v1.EnvVar {
 		return *v.DeepCopy()
@@ -111,7 +126,7 @@ func (env *Environment) ExpectSettingsReplaced(vars ...v1.EnvVar) {
 	GinkgoHelper()
 
 	d := &appsv1.Deployment{}
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "kube-system", Name: "karpenter"}, d)).To(Succeed())
 	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 	stored := d.DeepCopy()
@@ -128,7 +143,7 @@ func (env *Environment) ExpectSettingsOverridden(vars ...v1.EnvVar) {
 	GinkgoHelper()
 
 	d := &appsv1.Deployment{}
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "kube-system", Name: "karpenter"}, d)).To(Succeed())
 	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 	stored := d.DeepCopy()
@@ -154,7 +169,7 @@ func (env *Environment) ExpectSettingsRemoved(vars ...v1.EnvVar) {
 	varNames := sets.New[string](lo.Map(vars, func(v v1.EnvVar, _ int) string { return v.Name })...)
 
 	d := &appsv1.Deployment{}
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "karpenter", Name: "karpenter"}, d)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Namespace: "kube-system", Name: "karpenter"}, d)).To(Succeed())
 	Expect(d.Spec.Template.Spec.Containers).To(HaveLen(1))
 
 	stored := d.DeepCopy()
@@ -164,30 +179,6 @@ func (env *Environment) ExpectSettingsRemoved(vars ...v1.EnvVar) {
 	if !equality.Semantic.DeepEqual(d, stored) {
 		By("removing environment variables for karpenter deployment")
 		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
-		env.EventuallyExpectKarpenterRestarted()
-	}
-}
-
-// ExpectSettingsLegacy gets the karpenter-global-settings ConfigMap
-func (env *Environment) ExpectSettingsLegacy() *v1.ConfigMap {
-	GinkgoHelper()
-	return env.ExpectConfigMapExists(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"})
-}
-
-// ExpectSettingsReplacedLegacy performs a full replace of the settings, replacing the existing data
-// with the data passed through
-func (env *Environment) ExpectSettingsReplacedLegacy(data ...map[string]string) {
-	GinkgoHelper()
-	if env.ExpectConfigMapDataReplaced(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
-		env.EventuallyExpectKarpenterRestarted()
-	}
-}
-
-// ExpectSettingsOverriddenLegacy overrides specific values specified through data. It only overrides
-// or inserts the specific values specified and does not upsert any of the existing data
-func (env *Environment) ExpectSettingsOverriddenLegacy(data ...map[string]string) {
-	GinkgoHelper()
-	if env.ExpectConfigMapDataOverridden(types.NamespacedName{Namespace: "karpenter", Name: "karpenter-global-settings"}, data...) {
 		env.EventuallyExpectKarpenterRestarted()
 	}
 }
@@ -297,7 +288,7 @@ func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration
 func (env *Environment) EventuallyExpectKarpenterRestarted() {
 	GinkgoHelper()
 	By("rolling out the new karpenter deployment")
-	env.EventuallyExpectRollout("karpenter", "karpenter")
+	env.EventuallyExpectRollout("karpenter", "kube-system")
 	env.ExpectKarpenterLeaseOwnerChanged()
 }
 
@@ -357,7 +348,7 @@ func (env *Environment) ExpectKarpenterPods() []*v1.Pod {
 func (env *Environment) ExpectActiveKarpenterPodName() string {
 	GinkgoHelper()
 	lease := &coordinationv1.Lease{}
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: "karpenter-leader-election", Namespace: "karpenter"}, lease)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: "karpenter-leader-election", Namespace: "kube-system"}, lease)).To(Succeed())
 
 	// Holder identity for lease is always in the format "<pod-name>_<pseudo-random-value>
 	holderArr := strings.Split(lo.FromPtr(lease.Spec.HolderIdentity), "_")
@@ -371,7 +362,7 @@ func (env *Environment) ExpectActiveKarpenterPod() *v1.Pod {
 	podName := env.ExpectActiveKarpenterPodName()
 
 	pod := &v1.Pod{}
-	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: podName, Namespace: "karpenter"}, pod)).To(Succeed())
+	Expect(env.Client.Get(env.Context, types.NamespacedName{Name: podName, Namespace: "kube-system"}, pod)).To(Succeed())
 	return pod
 }
 
@@ -449,12 +440,6 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*
 	return createdNodes
 }
 
-func MachineNames(machines []*v1alpha5.Machine) []string {
-	return lo.Map(machines, func(m *v1alpha5.Machine, index int) string {
-		return m.Name
-	})
-}
-
 func NodeNames(nodes []*v1.Node) []string {
 	return lo.Map(nodes, func(n *v1.Node, index int) string {
 		return n.Name
@@ -471,18 +456,6 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 			fmt.Sprintf("expected %d nodes, had %d (%v) for %s", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items)), duration))
 	}, duration).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
-}
-
-func (env *Environment) ConsistentlyExpectMachineCount(comparator string, count int, duration string) []*v1alpha5.Machine {
-	GinkgoHelper()
-	By(fmt.Sprintf("expecting machines to be %s to %d for %s", comparator, count, duration))
-	machineList := &v1alpha5.MachineList{}
-	Consistently(func(g Gomega) {
-		g.Expect(env.Client.List(env, machineList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d machines, had %d (%v) for %s", count, len(machineList.Items), MachineNames(lo.ToSlicePtr(machineList.Items)), duration))
-	}, duration).Should(Succeed())
-	return lo.ToSlicePtr(machineList.Items)
 }
 
 func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {
@@ -518,18 +491,6 @@ func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) 
 			fmt.Sprintf("expected %d nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
-}
-
-func (env *Environment) EventuallyExpectMachineCount(comparator string, count int) []*v1alpha5.Machine {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for machines to be %s to %d", comparator, count))
-	machineList := &v1alpha5.MachineList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, machineList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d machines, had %d (%v)", count, len(machineList.Items), MachineNames(lo.ToSlicePtr(machineList.Items))))
-	}).Should(Succeed())
-	return lo.ToSlicePtr(machineList.Items)
 }
 
 func (env *Environment) EventuallyExpectNodeCountWithSelector(comparator string, count int, selector labels.Selector) []*v1.Node {
@@ -597,29 +558,6 @@ func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, 
 	return nodes
 }
 
-func (env *Environment) EventuallyExpectCreatedMachineCount(comparator string, count int) []*v1alpha5.Machine {
-	GinkgoHelper()
-	By(fmt.Sprintf("waiting for created machines to be %s to %d", comparator, count))
-	machineList := &v1alpha5.MachineList{}
-	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env.Context, machineList)).To(Succeed())
-		g.Expect(len(machineList.Items)).To(BeNumerically(comparator, count))
-	}).Should(Succeed())
-	return lo.Map(machineList.Items, func(m v1alpha5.Machine, _ int) *v1alpha5.Machine {
-		return &m
-	})
-}
-
-func (env *Environment) EventuallyExpectMachinesReady(machines ...*v1alpha5.Machine) {
-	Eventually(func(g Gomega) {
-		for _, machine := range machines {
-			temp := &v1alpha5.Machine{}
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(machine), temp)).Should(Succeed())
-			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
-		}
-	}).Should(Succeed())
-}
-
 func (env *Environment) EventuallyExpectCreatedNodeClaimCount(comparator string, count int) []*corev1beta1.NodeClaim {
 	GinkgoHelper()
 	By(fmt.Sprintf("waiting for created nodeclaims to be %s to %d", comparator, count))
@@ -652,10 +590,11 @@ func (env *Environment) GetNode(nodeName string) v1.Node {
 
 func (env *Environment) ExpectNoCrashes() {
 	GinkgoHelper()
-	_, crashed := lo.Find(lo.Values(env.Monitor.RestartCount()), func(restartCount int) bool {
-		return restartCount > 0
-	})
-	Expect(crashed).To(BeFalse(), "expected karpenter containers to not crash")
+	for k, v := range env.Monitor.RestartCount("kube-system") {
+		if strings.Contains(k, "karpenter") && v > 0 {
+			Fail("expected karpenter containers to not crash")
+		}
+	}
 }
 
 var (
@@ -679,7 +618,7 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 			fmt.Printf("[PREVIOUS CONTAINER LOGS]\n")
 			temp.Previous = true
 		}
-		stream, err := env.KubeClient.CoreV1().Pods("karpenter").GetLogs(pod.Name, temp).Stream(env.Context)
+		stream, err := env.KubeClient.CoreV1().Pods("kube-system").GetLogs(pod.Name, temp).Stream(env.Context)
 		if err != nil {
 			logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
 			return
@@ -732,6 +671,20 @@ func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.Obj
 	Expect(env.Client.Patch(env.Context, ds, patch)).To(Succeed())
 }
 
+func (env *Environment) ExpectHealthyPodsForNode(nodeName string) []*v1.Pod {
+	GinkgoHelper()
+	podList := &v1.PodList{}
+	Expect(env.Client.List(env, podList, client.MatchingFields{"spec.nodeName": nodeName}, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+
+	// Return the healthy pods
+	return lo.Filter(lo.ToSlicePtr(podList.Items), func(p *v1.Pod, _ int) bool {
+		_, found := lo.Find(p.Status.Conditions, func(cond v1.PodCondition) bool {
+			return cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue
+		})
+		return found
+	})
+}
+
 func (env *Environment) ExpectCABundle() string {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
@@ -756,11 +709,11 @@ func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 
 	return lo.CountBy(daemonSetList.Items, func(d appsv1.DaemonSet) bool {
 		p := &v1.Pod{Spec: d.Spec.Template.Spec}
-		nodeTemplate := pscheduling.NewNodeClaimTemplate(np)
-		if err := scheduling.Taints(nodeTemplate.Spec.Taints).Tolerates(p); err != nil {
+		nodeClaimTemplate := pscheduling.NewNodeClaimTemplate(np)
+		if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).Tolerates(p); err != nil {
 			return false
 		}
-		if err := nodeTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
+		if err := nodeClaimTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
 			return false
 		}
 		return true

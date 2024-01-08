@@ -19,29 +19,30 @@ import (
 	"sync"
 	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/equality"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/util/workqueue"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	"github.com/aws/karpenter-core/pkg/apis"
-	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
-	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-core/pkg/operator/injection"
-	"github.com/aws/karpenter-core/pkg/test"
-	"github.com/aws/karpenter-core/pkg/utils/pod"
-	"github.com/aws/karpenter/pkg/apis/v1alpha1"
-	"github.com/aws/karpenter/pkg/apis/v1beta1"
-	"github.com/aws/karpenter/test/pkg/debug"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/utils/pod"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 )
+
+const TestingFinalizer = "testing/finalizer"
 
 var (
 	CleanableObjects = []client.Object{
@@ -52,12 +53,10 @@ var (
 		&v1.PersistentVolumeClaim{},
 		&v1.PersistentVolume{},
 		&storagev1.StorageClass{},
-		&v1alpha5.Provisioner{},
 		&corev1beta1.NodePool{},
 		&v1.LimitRange{},
 		&schedulingv1.PriorityClass{},
 		&v1.Node{},
-		&v1alpha5.Machine{},
 		&corev1beta1.NodeClaim{},
 	}
 )
@@ -65,7 +64,6 @@ var (
 // nolint:gocyclo
 func (env *Environment) BeforeEach() {
 	debug.BeforeEach(env.Context, env.Config, env.Client)
-	env.Context = injection.WithSettingsOrDie(env.Context, env.KubeClient, apis.Settings...)
 
 	// Expect this cluster to be clean for test runs to execute successfully
 	env.ExpectCleanCluster()
@@ -90,7 +88,7 @@ func (env *Environment) ExpectCleanCluster() {
 		Expect(pods.Items[i].Namespace).ToNot(Equal("default"),
 			fmt.Sprintf("expected no pods in the `default` namespace, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
 	}
-	for _, obj := range []client.Object{&v1alpha5.Provisioner{}, &v1alpha1.AWSNodeTemplate{}, &corev1beta1.NodePool{}, &v1beta1.EC2NodeClass{}} {
+	for _, obj := range []client.Object{&corev1beta1.NodePool{}, &v1beta1.EC2NodeClass{}} {
 		metaList := &metav1.PartialObjectMetadataList{}
 		gvk := lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme()))
 		metaList.SetGroupVersionKind(gvk)
@@ -127,6 +125,7 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 				// are deleting so that we avoid getting client-side throttled
 				workqueue.ParallelizeUntil(env, 50, len(metaList.Items), func(i int) {
 					defer GinkgoRecover()
+					g.Expect(env.ExpectTestingFinalizerRemoved(&metaList.Items[i])).To(Succeed())
 					g.Expect(client.IgnoreNotFound(env.Client.Delete(env, &metaList.Items[i], client.PropagationPolicy(metav1.DeletePropagationForeground)))).To(Succeed())
 				})
 				// If the deletes eventually succeed, we should have no elements here at the end of the test
@@ -136,4 +135,22 @@ func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {
 		}(obj)
 	}
 	wg.Wait()
+}
+
+func (env *Environment) ExpectTestingFinalizerRemoved(obj client.Object) error {
+	metaObj := &metav1.PartialObjectMetadata{}
+	metaObj.SetGroupVersionKind(lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme())))
+	if err := env.Client.Get(env, client.ObjectKeyFromObject(obj), metaObj); err != nil {
+		return client.IgnoreNotFound(err)
+	}
+
+	deepCopy := metaObj.DeepCopy()
+	metaObj.Finalizers = lo.Reject(metaObj.Finalizers, func(finalizer string, _ int) bool {
+		return finalizer == TestingFinalizer
+	})
+
+	if !equality.Semantic.DeepEqual(metaObj, deepCopy) {
+		return client.IgnoreNotFound(env.Client.Patch(env, metaObj, client.MergeFrom(deepCopy)))
+	}
+	return nil
 }

@@ -1,8 +1,8 @@
 name: E2EVersionCompatibilityTrigger
 on:
   schedule:
-    # The test will run every Monday at 12:07 AM UTC
-    - cron: '7 0 * * 1'
+    # The test will run every Monday, Thursday at 12:07 AM UTC
+    - cron: '7 0 * * 1,4'
   workflow_run:
     workflows: [ApprovalComment]
     types: [completed]
@@ -21,11 +21,14 @@ on:
         type: boolean
 jobs:
   resolve:
-    if: (github.repository == 'aws/karpenter' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
+    if: (github.repository == 'aws/karpenter-provider-aws' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')) || github.event_name == 'workflow_dispatch'
     uses: ./.github/workflows/resolve-args.yaml
     with:
       allowed_comment: "versionCompatibility"
   versionCompatibility:
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     strategy:
