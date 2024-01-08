@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/aws/aws-sdk-go v1.49.13
+	github.com/aws/aws-sdk-go v1.49.16
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
@@ -18,7 +18,7 @@ require (
 	github.com/samber/lo v1.39.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.26.0
-	golang.org/x/sync v0.5.0
+	golang.org/x/sync v0.6.0
 	golang.org/x/time v0.5.0
 	k8s.io/api v0.29.0
 	k8s.io/apiextensions-apiserver v0.29.0
