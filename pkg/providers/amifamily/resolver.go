@@ -65,13 +65,14 @@ type Options struct {
 // LaunchTemplate holds the dynamically generated launch template parameters
 type LaunchTemplate struct {
 	*Options
-	UserData            bootstrap.Bootstrapper
-	BlockDeviceMappings []*v1beta1.BlockDeviceMapping
-	MetadataOptions     *v1beta1.MetadataOptions
-	AMIID               string
-	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
-	DetailedMonitoring  bool
-	EFACount            int
+	UserData              bootstrap.Bootstrapper
+	BlockDeviceMappings   []*v1beta1.BlockDeviceMapping
+	MetadataOptions       *v1beta1.MetadataOptions
+	AMIID                 string
+	InstanceTypes         []*cloudprovider.InstanceType `hash:"ignore"`
+	DetailedMonitoring    bool
+	AssignPublicIpAddress *bool
+	EFACount              int
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -228,12 +229,13 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 			nodeClass.Spec.UserData,
 			options.InstanceStorePolicy,
 		),
-		BlockDeviceMappings: nodeClass.Spec.BlockDeviceMappings,
-		MetadataOptions:     nodeClass.Spec.MetadataOptions,
-		DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
-		AMIID:               amiID,
-		InstanceTypes:       instanceTypes,
-		EFACount:            efaCount,
+		BlockDeviceMappings:   nodeClass.Spec.BlockDeviceMappings,
+		MetadataOptions:       nodeClass.Spec.MetadataOptions,
+		DetailedMonitoring:    aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
+		AMIID:                 amiID,
+		InstanceTypes:         instanceTypes,
+		EFACount:              efaCount,
+		AssignPublicIpAddress: nodeClass.Spec.AssignPublicIpAddress,
 	}
 	if len(resolved.BlockDeviceMappings) == 0 {
 		resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

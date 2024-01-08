@@ -1574,6 +1574,19 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeFalse())
 			})
 
+			It("should overwrite 'AssignPublicIPv4' to true when specified by user in the EC2NodeClass.NetworkInterfaces", func() {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1,test-subnet-3"}}}
+				nodeClass.Spec.AssignPublicIpAddress = aws.Bool(true)
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeTrue())
+				Expect(len(input.LaunchTemplateData.SecurityGroupIds)).To(BeNumerically("==", 0))
+			})
+
 			It("should not explicitly set 'AssignPublicIPv4' when the subnets are configured to assign public IPv4 addresses", func() {
 				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-2"}}}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)

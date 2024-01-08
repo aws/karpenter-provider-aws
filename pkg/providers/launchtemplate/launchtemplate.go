@@ -285,9 +285,10 @@ func (p *Provider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) 
 			return &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 				NetworkCardIndex: lo.ToPtr(int64(i)),
 				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
-				DeviceIndex:   lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
-				InterfaceType: lo.ToPtr(ec2.NetworkInterfaceTypeEfa),
-				Groups:        lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+				DeviceIndex:              lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
+				InterfaceType:            lo.ToPtr(ec2.NetworkInterfaceTypeEfa),
+				Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+				AssociatePublicIpAddress: options.AssignPublicIpAddress,
 			}
 		})
 	}

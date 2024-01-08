@@ -92,6 +92,10 @@ spec:
                     of other fields in amiSelectorTerms'
                   rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.name) ||
                     has(x.owner)))'
+              assignPublicIpAddress:
+                description: AssignPublicIpAddress controls if public IP addresses
+                  are assigned to instances that are launched by the launch template.
+                type: boolean
               blockDeviceMappings:
                 description: BlockDeviceMappings to be applied to provisioned nodes.
                 items:

@@ -1,4 +1,4 @@
----
+ ---
 title: "NodeClasses"
 linkTitle: "NodeClasses"
 weight: 2
@@ -113,6 +113,10 @@ spec:
 
   # Optional, configures detailed monitoring for the instance
   detailedMonitoring: true
+
+  # Optional, configures if the instance should be launched with an associated public IP address.
+  # if not specified, the default value depends on the subnet's public IP auto-assign setting.
+  associatePublicIpAddress: true
 status:
   # Resolved subnets
   subnets:
@@ -305,6 +309,13 @@ spec:
     - id: "subnet-09fa4a0a8f233a921"
     - id: "subnet-0471ca205b8a129ae"
 ```
+
+## spec.associatePublicIpAddress
+
+a boolean field to control whether the instances created by karpenter for this node class will have an associated public IP address. 
+when not specified, the node will have public IP adders if it is launched in a subnet with public IP auto-assign enabled `MapPublicIpOnLaunch=true`. 
+
+
 
 ## spec.securityGroupSelectorTerms
 
