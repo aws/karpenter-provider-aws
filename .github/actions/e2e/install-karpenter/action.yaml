@@ -63,10 +63,12 @@ runs:
         WEBHOOK_ENABLED=true
       fi
 
+      # Remove service account annotation when dropping support for 1.23
       helm upgrade --install karpenter "oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter" \
         -n kube-system \
         --version "v0-$(git rev-parse HEAD)" \
         --set webhook.enabled=${WEBHOOK_ENABLED} \
+        --set karpenter.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$ACCOUNT_ID:role/karpenter-irsa-$CLUSTER_NAME" \
         --set settings.clusterName="$CLUSTER_NAME" \
         --set settings.interruptionQueue="$CLUSTER_NAME" \
         --set controller.resources.requests.cpu=3 \

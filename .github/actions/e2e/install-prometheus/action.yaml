@@ -44,6 +44,7 @@ runs:
         ACCOUNT_ID: ${{ inputs.account_id }}
         CLUSTER_NAME: ${{ inputs.cluster_name }}
       run: |
+        # Remove service account annotation when dropping support for 1.23
         helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
           -n prometheus \
           -f ./.github/actions/e2e/install-prometheus/values.yaml \
