@@ -223,8 +223,8 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.AssignPublicIpAddress != nil {
-		in, out := &in.AssignPublicIpAddress, &out.AssignPublicIpAddress
+	if in.AssociatePublicIPAddress != nil {
+		in, out := &in.AssociatePublicIPAddress, &out.AssociatePublicIPAddress
 		*out = new(bool)
 		**out = **in
 	}

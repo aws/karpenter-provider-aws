@@ -169,7 +169,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	options := &amifamily.Options{
+	opts := &amifamily.Options{
 		ClusterName:         options.FromContext(ctx).ClusterName,
 		ClusterEndpoint:     p.ClusterEndpoint,
 		InstanceProfile:     instanceProfile,
@@ -183,6 +183,10 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		KubeDNSIP:     p.KubeDNSIP,
 		NodeClassName: nodeClass.Name,
 	}
+	if nodeClass.Spec.AssociatePublicIPAddress != nil {
+		opts.AssociatePublicIPAddress = nodeClass.Spec.AssociatePublicIPAddress
+		return nil, err
+	}
 	if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass); err != nil {
 		return nil, err
 	} else if !ok {
@@ -190,9 +194,9 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		// AssociatePublicIpAddress to 'false' in the Launch Template, generated based on this configuration struct.
 		// This is done to help comply with AWS account policies that require explicitly setting of that field to 'false'.
 		// https://github.com/aws/karpenter-provider-aws/issues/3815
-		options.AssociatePublicIPAddress = aws.Bool(false)
+		opts.AssociatePublicIPAddress = aws.Bool(false)
 	}
-	return options, nil
+	return opts, nil
 }
 
 func (p *Provider) ensureLaunchTemplate(ctx context.Context, capacityType string, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {

@@ -1574,12 +1574,12 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeFalse())
 			})
 
-			It("should overwrite 'AssignPublicIPv4' to true when specified by user in the EC2NodeClass.NetworkInterfaces", func() {
+			It("should overwrite 'AssignPublicIPv4' to true when specified by user in the EC2NodeClass", func() {
 				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 					{Tags: map[string]string{"Name": "test-subnet-1"}},
 					{Tags: map[string]string{"Name": "test-subnet-3"}},
 				}
-				nodeClass.Spec.AssignPublicIpAddress = aws.Bool(true)
+				nodeClass.Spec.AssociatePublicIPAddress = lo.ToPtr(true)
 
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()

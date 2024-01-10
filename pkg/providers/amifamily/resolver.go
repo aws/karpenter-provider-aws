@@ -235,7 +235,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 		AMIID:                 amiID,
 		InstanceTypes:         instanceTypes,
 		EFACount:              efaCount,
-		AssignPublicIpAddress: nodeClass.Spec.AssignPublicIpAddress,
+		AssignPublicIpAddress: nodeClass.Spec.AssociatePublicIPAddress,
 	}
 	if len(resolved.BlockDeviceMappings) == 0 {
 		resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
