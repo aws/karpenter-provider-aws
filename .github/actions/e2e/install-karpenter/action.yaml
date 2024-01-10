@@ -83,7 +83,10 @@ runs:
         --set "serviceMonitor.endpointConfig.relabelings[2].replacement=$(git describe --abbrev=0 --tags)" \
         --set "serviceMonitor.endpointConfig.relabelings[3].targetLabel=commitsAfterTag" \
         --set "serviceMonitor.endpointConfig.relabelings[3].replacement=\"$(git describe --tags | cut -d '-' -f 2)\"" \
-        --wait
+
+      if [[ "$K8S_VERSION" == '1.23' ]]; then 
+        kubectl annotate sa karpenter -n kube-system eks.amazonaws.com/role-arn=arn:aws:iam::${ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter
+      fi
   - name: diff-karpenter
     shell: bash
     env:
