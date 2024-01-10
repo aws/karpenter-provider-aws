@@ -50,7 +50,7 @@ data:
   aws.interruptionQueueName: "{{ . }}"
 {{- end }}
 {{- with .Values.settings.aws.tags }}
-  aws.tags: "{{ . }}"
+  aws.tags: {{ . | toJson | quote }}
 {{- end }}
 {{- with .Values.settings.aws.reservedENIs }}
   aws.reservedENIs: "{{ . }}"
