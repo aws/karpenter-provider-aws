@@ -32,11 +32,12 @@ import (
 )
 
 var uriSelectors = map[string]string{
-	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/general-purpose-instances.html":       "#general-purpose-network-performance",
-	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/compute-optimized-instances.html":     "#compute-network-performance",
-	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/memory-optimized-instances.html":      "#memory-network-perf",
-	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/storage-optimized-instances.html":     "#storage-network-performance",
-	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/accelerated-computing-instances.html": "#gpu-network-performance",
+	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/general-purpose-instances.html":            "#general-purpose-network-performance",
+	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/compute-optimized-instances.html":          "#compute-network-performance",
+	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/memory-optimized-instances.html":           "#memory-network-perf",
+	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/storage-optimized-instances.html":          "#storage-network-performance",
+	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/accelerated-computing-instances.html":      "#gpu-network-performance",
+	"https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/high-performance-computing-instances.html": "#hpc-network-performance",
 }
 
 const fileFormat = `
@@ -92,11 +93,15 @@ func main() {
 				}
 			}
 
-			// collect any remaining instancetypes
-			for _, row := range doc.Find(selector).NextAllFiltered(".table-container").Eq(1).Find("tbody").Find("tr").Nodes {
-				instanceTypeData := row.FirstChild.NextSibling.FirstChild.FirstChild.Data
-				bandwidthData := row.FirstChild.NextSibling.NextSibling.NextSibling.FirstChild.Data
-				bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthData, 64)) * 1000)
+			// Collect instance types bandwidth data from the baseline/bandwidth table underneath the standard table
+			// The HPC network performance doc is laid out differently than the other docs. There is no table underneath
+			// the standard table that contains information for network performance with baseline and burst bandwidth.
+			if selector != "#hpc-network-performance" {
+				for _, row := range doc.Find(selector).NextAllFiltered(".table-container").Eq(1).Find("tbody").Find("tr").Nodes {
+					instanceTypeData := row.FirstChild.NextSibling.FirstChild.FirstChild.Data
+					bandwidthData := row.FirstChild.NextSibling.NextSibling.NextSibling.FirstChild.Data
+					bandwidth[instanceTypeData] = int64(lo.Must(strconv.ParseFloat(bandwidthData, 64)) * 1000)
+				}
 			}
 		}()
 	}
