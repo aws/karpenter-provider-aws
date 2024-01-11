@@ -765,9 +765,9 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			startingNodeClaimState := env.EventuallyExpectCreatedNodeClaimCount("==", int(numPods))
 			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
 
-			// Drift the nodeClaim with bad configuration
+			// Drift the nodeClaim with bad configuration that will not register a NodeClaim
 			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-				Name: awssdk.String("/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-ebs"),
+				Name: awssdk.String("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"),
 			})
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: *parameter.Parameter.Value}}
