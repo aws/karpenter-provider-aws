@@ -293,7 +293,7 @@ type BlockDevice struct {
 	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$"
 	// +kubebuilder:validation:XIntOrString
 	// +optional
-	VolumeSize *resource.Quantity `json:"volumeSize,omitempty"`
+	VolumeSize *resource.Quantity `json:"volumeSize,omitempty" hash:"string"`
 	// VolumeType of the block device.
 	// For more information, see Amazon EBS volume types (https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/EBSVolumeTypes.html)
 	// in the Amazon Elastic Compute Cloud User Guide.

@@ -18,6 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -66,7 +67,21 @@ var _ = Describe("Hash", func() {
 		Entry("UserData Drift", "588756456110800812", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
 		Entry("Tags Drift", "2471764681523766508", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
 		Entry("MetadataOptions Drift", "11030161632375731908", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("test-metadata-2")}}}),
-		Entry("BlockDeviceMappings Drift", "436753305915039702", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
+		Entry("BlockDeviceMappings Drift", "2884646775270747279", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
+			{
+				DeviceName: aws.String("map-device-test-3"),
+				EBS: &v1beta1.BlockDevice{
+					DeleteOnTermination: aws.Bool(true),
+					Encrypted:           aws.Bool(true),
+					IOPS:                aws.Int64(1000),
+					KMSKeyID:            aws.String("kmskeyid"),
+					SnapshotID:          aws.String("snapshotid"),
+					Throughput:          aws.Int64(1000),
+					VolumeSize:          resources.Quantity("100Gi"),
+					VolumeType:          aws.String("volumetype"),
+				},
+			},
+		}}}),
 		Entry("Context Drift", "3729470655588343019", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
 		Entry("DetailedMonitoring Drift", "17892305444040067573", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
 		Entry("AMIFamily Drift", "9493798894326942407", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1beta1.AMIFamilyBottlerocket)}}),
@@ -103,6 +118,31 @@ var _ = Describe("Hash", func() {
 		hash := nodeClass.Hash()
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("other-instance-profile")
 		updatedHash := nodeClass.Hash()
+		Expect(hash).ToNot(Equal(updatedHash))
+	})
+	It("should change hash when volumeSize is updated on blockDeviceMapping", func() {
+		nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
+			{
+				DeviceName: aws.String("map-device-1"),
+				EBS: &v1beta1.BlockDevice{
+					VolumeSize: resources.Quantity("5Gi"),
+				},
+			},
+			{
+				DeviceName: aws.String("map-device-2"),
+				EBS: &v1beta1.BlockDevice{
+					VolumeSize: resources.Quantity("100Gi"),
+				},
+			},
+		}
+		hash := nodeClass.Hash()
+		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resources.Quantity("10Gi")
+		updatedHash := nodeClass.Hash()
+		Expect(hash).ToNot(Equal(updatedHash))
+
+		hash = updatedHash
+		nodeClass.Spec.BlockDeviceMappings[1].EBS.VolumeSize = resources.Quantity("50Gi")
+		updatedHash = nodeClass.Hash()
 		Expect(hash).ToNot(Equal(updatedHash))
 	})
 	DescribeTable("should not change hash when slices are re-ordered", func(changes v1beta1.EC2NodeClass) {
