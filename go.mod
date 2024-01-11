@@ -116,3 +116,5 @@ require (
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
+
+replace sigs.k8s.io/karpenter => /Users/nichotr/workplace/go/src/github.com/kubernetes-sigs/karpenter
