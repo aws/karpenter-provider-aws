@@ -20,6 +20,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -56,10 +58,11 @@ type Controller struct {
 	securityGroupProvider   *securitygroup.Provider
 	amiProvider             *amifamily.Provider
 	instanceProfileProvider *instanceprofile.Provider
+	launchTemplateProvider  *launchtemplate.Provider
 }
 
 func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) *Controller {
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, launchTemplateProvider *launchtemplate.Provider) *Controller {
 	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
@@ -67,6 +70,7 @@ func NewController(kubeClient client.Client, recorder events.Recorder, subnetPro
 		securityGroupProvider:   securityGroupProvider,
 		amiProvider:             amiProvider,
 		instanceProfileProvider: instanceProfileProvider,
+		launchTemplateProvider:  launchTemplateProvider,
 	}
 }
 
@@ -112,6 +116,9 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 		if err := c.instanceProfileProvider.Delete(ctx, nodeClass); err != nil {
 			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 		}
+	}
+	if err := c.launchTemplateProvider.DeleteLaunchTemplates(ctx); err != nil {
+		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
@@ -215,9 +222,9 @@ type NodeClassController struct {
 }
 
 func NewNodeClassController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider) corecontroller.Controller {
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, launchTemplateProvider *launchtemplate.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
+		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
 	})
 }
 

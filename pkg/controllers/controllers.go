@@ -17,6 +17,8 @@ package controllers
 import (
 	"context"
 
+	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
+
 	"github.com/aws/aws-sdk-go/aws/session"
 	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
@@ -46,10 +48,10 @@ import (
 func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
 	unavailableOfferings *cache.UnavailableOfferings, cloudProvider *cloudprovider.CloudProvider, subnetProvider *subnet.Provider,
 	securityGroupProvider *securitygroup.Provider, instanceProfileProvider *instanceprofile.Provider, instanceProvider *instance.Provider,
-	pricingProvider *pricing.Provider, amiProvider *amifamily.Provider) []controller.Controller {
+	pricingProvider *pricing.Provider, amiProvider *amifamily.Provider, launchTemplateProvider *launchtemplate.Provider) []controller.Controller {
 
 	controllers := []controller.Controller{
-		nodeclass.NewNodeClassController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider),
+		nodeclass.NewNodeClassController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 	}

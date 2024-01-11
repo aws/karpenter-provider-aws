@@ -382,6 +382,42 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	return output, nil
 }
 
+func (e *EC2API) DescribeLaunchTemplatesPagesWithContext(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, callbck func(*ec2.DescribeLaunchTemplatesOutput, bool) bool, _ ...request.Option) error {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return e.NextError.Get()
+	}
+	if !e.DescribeLaunchTemplatesOutput.IsNil() {
+		if callbck(e.DescribeLaunchTemplatesOutput.Clone(), true) {
+			return nil
+		}
+	}
+	output := &ec2.DescribeLaunchTemplatesOutput{}
+	if len(input.Filters) == 0 {
+		return fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
+	}
+	e.LaunchTemplates.Range(func(key, value interface{}) bool {
+		launchTemplate := value.(ec2.LaunchTemplate)
+		if Filter(input.Filters, aws.StringValue(launchTemplate.LaunchTemplateId), aws.StringValue(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
+			output.LaunchTemplates = append(output.LaunchTemplates, &launchTemplate)
+		}
+		return true
+	})
+	if callbck(output, true) {
+		return nil
+	}
+	return awserr.New("call back failed", "fail;", nil)
+}
+
+func (e *EC2API) DeleteLaunchTemplate(input *ec2.DeleteLaunchTemplateInput) (*ec2.DeleteLaunchTemplateOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	e.LaunchTemplates.Delete(input.LaunchTemplateName)
+	return nil, nil
+}
+
 func (e *EC2API) DescribeSubnetsWithContext(_ context.Context, input *ec2.DescribeSubnetsInput, _ ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()

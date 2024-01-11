@@ -389,3 +389,27 @@ func (p *Provider) getInstanceProfile(nodeClass *v1beta1.EC2NodeClass) (string, 
 	}
 	return "", errors.New("neither spec.instanceProfile or spec.role is specified")
 }
+
+func (p *Provider) DeleteLaunchTemplates(ctx context.Context) error {
+	clusterName := options.FromContext(ctx).ClusterName
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
+	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
+	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
+		for _, lt := range output.LaunchTemplates {
+			if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateName: lt.LaunchTemplateName}); err != nil {
+				logging.FromContext(ctx).With("launch-template", lt.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
+				return false
+			}
+			logging.FromContext(ctx).With(
+				"id", lt.LaunchTemplateName,
+				"name", lt.LaunchTemplateName,
+			).Debugf("deleted launch template")
+		}
+		return true
+	}); err != nil {
+		return fmt.Errorf("unable to fetch the AWS launch templates, %w", err)
+	} else {
+		return nil
+	}
+}
