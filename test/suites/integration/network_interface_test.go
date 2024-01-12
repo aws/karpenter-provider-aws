@@ -59,10 +59,10 @@ var _ = Describe("NetworkInterfaces", func() {
 			if assignPublicIp == nil {
 				if privateSubnet == true {
 					Expect(instance.PublicIpAddress).To(BeNil())
-				}
-				if privateSubnet == false {
+				} else {
 					Expect(instance.PublicIpAddress).ToNot(BeNil())
 				}
+				return
 			}
 			if *assignPublicIp == false {
 				Expect(instance.PublicIpAddress).To(BeNil())
