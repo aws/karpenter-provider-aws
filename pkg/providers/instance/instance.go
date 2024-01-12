@@ -381,7 +381,9 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 			jPrice = instanceTypes[j].Offerings.Available().Requirements(requirements).Cheapest().Price
 		}
 		if iPrice == jPrice {
-			return instanceTypes[i].Name < instanceTypes[j].Name
+			// sort newer generation instance types before old when the price is the same
+			// e.g.  c6i.large ( $0.085 ) before c5.large ( $0.085 )
+			return instanceTypes[i].Name > instanceTypes[j].Name
 		}
 		return iPrice < jPrice
 	})
