@@ -272,8 +272,8 @@ github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 h1:C3w9PqII01/Oq
 github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822/go.mod h1:+n7T8mK8HuQTcFwEeznm/DIxMOiR9yIdICNftLE1DvQ=
 github.com/mwitkow/go-conntrack v0.0.0-20161129095857-cc309e4a2223/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
 github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f/go.mod h1:qRWi+5nqEBWmkhHvq77mSJWrCKwh8bxhgT7d/eI7P4U=
-github.com/nikmohan123/karpenter v0.0.0-20240109191253-8df19ac151e4 h1:OFmT69Nu1BLBQr+z7foLEZnKYS483ZyL6mkUMYV5/oY=
-github.com/nikmohan123/karpenter v0.0.0-20240109191253-8df19ac151e4/go.mod h1:oV75dLAjZo6JCEDQGwKKSiCeNK0d66xlIrLAz0wEKCQ=
+github.com/nikmohan123/karpenter v0.0.0-20240112055946-d36f95317847 h1:+XgS/KSXDdGDO6HZeRfRqeH+oWCHW3Xrwd43vu/H3z4=
+github.com/nikmohan123/karpenter v0.0.0-20240112055946-d36f95317847/go.mod h1:h/O8acLmwFmYYmDD9b57+Fknlf7gQThuY19l7jpThYs=
 github.com/olekukonko/tablewriter v0.0.5 h1:P2Ga83D34wi1o9J6Wh1mRuqd4mF/x/lgBS7N7AbDhec=
 github.com/olekukonko/tablewriter v0.0.5/go.mod h1:hPp6KlRPjbx+hW8ykQs1w3UBbZlj6HuIJcUGPhkA7kY=
 github.com/onsi/ginkgo/v2 v2.13.2 h1:Bi2gGVkfn6gQcjNjZJVO8Gf0FHzMPf2phUei9tejVMs=
