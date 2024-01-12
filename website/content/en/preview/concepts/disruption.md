@@ -120,12 +120,13 @@ Using preferred anti-affinity and topology spreads can reduce the effectiveness 
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
 
-Cheaper spot instance types are selected with the [`price-capacity-optimized` strategy](https://aws.amazon.com/blogs/compute/introducing-price-capacity-optimized-allocation-strategy-for-ec2-spot-instances/) and often the cheapest spot instance type is not launched due to the likelihood of interruption; therefore, Karpenter uses the number of available instance type options cheaper than the currently launched spot instance as a heuristic for evaluating whether it should launch a replacement for the current spot node.
-We refer to the number of instances that Karpenter has within its launch decision as a launch's "instance type flexibility." When Karpenter is considering performing a spot-to-spot consolidation replacement, performing a replacement from a single node to another node, it will check whether replacing the instance type will lead to enough instance type flexibility in the subsequent launch request. That is -- can Karpenter find enough cheaper options than the current instance type option that Karpenter can:
-1) Be assured that it won't continually consolidate down to the cheapest spot instance which might have very poor availability and
-2) Be assured that the launch with the new instance types will have enough flexibility that an instance type with good enough availability comparable to the current instance type will be chosen.
+Cheaper spot instance types are selected with the [`price-capacity-optimized` strategy](https://aws.amazon.com/blogs/compute/introducing-price-capacity-optimized-allocation-strategy-for-ec2-spot-instances/). Often, the cheapest spot instance type is not launched due to the likelihood of interruption. As a result, Karpenter uses the number of available instance type options cheaper than the currently launched spot instance as a heuristic for evaluating whether it should launch a replacement for the current spot node.
 
-Karpenter requires a min instance type flexibility of 15 instance types when performing single node spot-to-spot consolidations (1 node to 1 node). It does not have the same instance type flexibility requirement for multi-node spot-to-spot consolidations (many nodes to 1 node) since doing so without requiring flexibility won't lead to "race to the bottom" scenarios.
+We refer to the number of instances that Karpenter has within its launch decision as a launch's "instance type flexibility." When Karpenter is considering performing a spot-to-spot consolidation replacement, it will check whether replacing the instance type will lead to enough instance type flexibility in the subsequent launch request. As a result, we get the following properties when evaluating for consolidation:
+1) We shouldn't continually consolidate down to the cheapest spot instance which might have very high rates of interruption.
+2) We launch with enough instance types that there’s high likelihood that our replacement instance has comparable availability to our current one.
+
+Karpenter requires a minimum instance type flexibility of 15 instance types when performing single node spot-to-spot consolidations (1 node to 1 node). It does not have the same instance type flexibility requirement for multi-node spot-to-spot consolidations (many nodes to 1 node) since doing so without requiring flexibility won't lead to "race to the bottom" scenarios.
 
 
 ### Drift
