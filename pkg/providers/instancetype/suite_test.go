@@ -339,8 +339,8 @@ var _ = Describe("InstanceTypes", func() {
 		// We need some way to deterministically order them if their prices match
 		reqs := scheduling.NewNodeSelectorRequirements(nodePool.Spec.Template.Spec.Requirements...)
 		sort.Slice(its, func(i, j int) bool {
-			iPrice := its[i].Offerings.Requirements(reqs).Cheapest().Price
-			jPrice := its[j].Offerings.Requirements(reqs).Cheapest().Price
+			iPrice := its[i].Offerings.Compatible(reqs).Cheapest().Price
+			jPrice := its[j].Offerings.Compatible(reqs).Cheapest().Price
 			if iPrice == jPrice {
 				return its[i].Name < its[j].Name
 			}
@@ -397,8 +397,8 @@ var _ = Describe("InstanceTypes", func() {
 		// We need some way to deterministically order them if their prices match
 		reqs := scheduling.NewNodeSelectorRequirements(nodePool.Spec.Template.Spec.Requirements...)
 		sort.Slice(its, func(i, j int) bool {
-			iPrice := its[i].Offerings.Requirements(reqs).Cheapest().Price
-			jPrice := its[j].Offerings.Requirements(reqs).Cheapest().Price
+			iPrice := its[i].Offerings.Compatible(reqs).Cheapest().Price
+			jPrice := its[j].Offerings.Compatible(reqs).Cheapest().Price
 			if iPrice == jPrice {
 				return its[i].Name < its[j].Name
 			}

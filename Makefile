@@ -18,6 +18,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
 			--set controller.resources.limits.memory=1Gi \
+			--set settings.featureGates.spotToSpotConsolidation=true \
 			--create-namespace
 
 # CR for local builds of Karpenter
