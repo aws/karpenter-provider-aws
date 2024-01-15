@@ -185,7 +185,7 @@ The [`karpenter-convert`](https://github.com/aws/karpenter/tree/main/tools/karpe
     ```bash
     ROLE_NAME="${CLUSTER_NAME}-karpenter"
     POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}"
-    POLICY_ARN=$(aws iam list-policies --query 'Policies[?PolicyName==`KarpenterControllerPolicy-scale-test`].Arn' --output text)
+    POLICY_ARN=$(aws iam list-policies --query "Policies[?PolicyName=='${POLICY_NAME}'].Arn" --output text)
     aws iam detach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
     ```
 
