@@ -90,6 +90,12 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
+{{% alert title="DNS Policy Notice" color="warning" %}}
+Karpenter uses the `ClusterFirst` pod DNS policy by default. This is the Kubernetes cluster default and this ensures that Karpetner can reach-out to internal Kubernetes services during its lifetime. There may be cases where you do not have the DNS service that you are using on your cluster up-and-running before Karpenter starts up. The most common case of this is you want Karpenter to manage the node capacity where your DNS service pods are running.
+
+If you need Karpenter to manage the DNS service pods' capacity, this means that DNS won't be running when Karpenter starts-up. In this case, you will need to set the pod DNS policy to `Default` with `--set dnsPolicy=Default`. This will tell Karpenter to use the host's DNS resolution instead of the internal DNS resolution, ensuring that you don't have a dependency on the DNS service pods to run. More details on this issue can be found in the following Github issues: [#2186](https://github.com/aws/karpenter-provider-aws/issues/2186) and [#4947](https://github.com/aws/karpenter-provider-aws/issues/4947).
+{{% /alert %}}
+
 {{% alert title="Common Expression Language/Webhooks Notice" color="warning" %}}
 Karpenter supports using [Kubernetes Common Expression Language](https://kubernetes.io/docs/reference/using-api/cel/) for validating its Custom Resource Definitions out-of-the-box; however, this feature is not supported on versions of Kubernetes < 1.25. If you are running an earlier version of Kubernetes, you will need to use the Karpenter admission webhooks for validation instead. You can enable these webhooks with `--set webhook.enabled=true` when applying the Karpenter helm chart.
 {{% /alert %}}
