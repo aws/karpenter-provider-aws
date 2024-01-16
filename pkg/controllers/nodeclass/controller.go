@@ -117,7 +117,7 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 		}
 	}
-	if err := c.launchTemplateProvider.DeleteLaunchTemplates(ctx); err != nil {
+	if err := c.launchTemplateProvider.DeleteLaunchTemplates(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)

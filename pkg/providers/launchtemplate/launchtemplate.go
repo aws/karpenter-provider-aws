@@ -175,10 +175,11 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
 			return v1beta1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
 		}),
-		Tags:      tags,
-		Labels:    labels,
-		CABundle:  p.caBundle,
-		KubeDNSIP: p.KubeDNSIP,
+		Tags:          tags,
+		Labels:        labels,
+		CABundle:      p.caBundle,
+		KubeDNSIP:     p.KubeDNSIP,
+		NodeClassName: nodeClass.Name,
 	}
 	if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass); err != nil {
 		return nil, err
@@ -264,7 +265,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-				Tags:         utils.MergeTags(options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName}),
+				Tags:         utils.MergeTags(options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName, v1beta1.LabelNodeClass: options.NodeClassName}),
 			},
 		},
 	})
@@ -390,11 +391,12 @@ func (p *Provider) getInstanceProfile(nodeClass *v1beta1.EC2NodeClass) (string, 
 	return "", errors.New("neither spec.instanceProfile or spec.role is specified")
 }
 
-func (p *Provider) DeleteLaunchTemplates(ctx context.Context) error {
+func (p *Provider) DeleteLaunchTemplates(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	clusterName := options.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
+		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}},
+			{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
 			if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateName: lt.LaunchTemplateName}); err != nil {
