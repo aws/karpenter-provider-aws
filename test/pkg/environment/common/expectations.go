@@ -390,10 +390,10 @@ func (env *Environment) EventuallyExpectBoundPodCount(selector labels.Selector, 
 	Eventually(func(g Gomega) {
 		res = []*v1.Pod{}
 		podList := &v1.PodList{}
-		g.Expect(env.Client.List(env.Context, podList)).To(Succeed())
-		for _, pod := range podList.Items {
-			if selector.Matches(labels.Set(pod.Labels)) && pod.Spec.NodeName != "" {
-				res = append(res, &pod)
+		g.Expect(env.Client.List(env.Context, podList, client.MatchingLabelsSelector{Selector: selector})).To(Succeed())
+		for i := range podList.Items {
+			if podList.Items[i].Spec.NodeName != "" {
+				res = append(res, &podList.Items[i])
 			}
 		}
 		g.Expect(res).To(HaveLen(numPods))
@@ -487,6 +487,7 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 }
 
 func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration string) {
+	GinkgoHelper()
 	Consistently(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
 		nodeClaimList := &corev1beta1.NodeClaimList{}
@@ -503,7 +504,7 @@ func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration 
 			})
 			g.Expect(ok).To(BeFalse())
 		}
-	}, "1m").Should(Succeed())
+	}, duration).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {
@@ -620,6 +621,7 @@ func (env *Environment) EventuallyExpectCreatedNodeClaimCount(comparator string,
 }
 
 func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1beta1.NodeClaim) {
+	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			temp := &corev1beta1.NodeClaim{}
@@ -630,6 +632,7 @@ func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1bet
 }
 
 func (env *Environment) EventuallyExpectExpired(nodeClaims ...*corev1beta1.NodeClaim) {
+	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
@@ -639,6 +642,7 @@ func (env *Environment) EventuallyExpectExpired(nodeClaims ...*corev1beta1.NodeC
 }
 
 func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeClaim) {
+	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
@@ -648,6 +652,7 @@ func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeC
 }
 
 func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*corev1beta1.NodeClaim) {
+	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())

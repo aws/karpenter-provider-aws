@@ -791,7 +791,7 @@ var _ = Describe("Drift", func() {
 				g.Expect(sets.New(nodeClaimUIDs...).IsSuperset(sets.New(startingNodeClaimUIDs...))).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
-		It("should not expire any nodes if their PodDisruptionBudgets are unhealthy", func() {
+		It("should not drift any nodes if their PodDisruptionBudgets are unhealthy", func() {
 			// Create a deployment that contains a readiness probe that will never succeed
 			// This way, the pod will bind to the node, but the PodDisruptionBudget will never go healthy
 			var numPods int32 = 2
@@ -828,6 +828,10 @@ var _ = Describe("Drift", func() {
 
 			// Expect pods to be bound but not to be ready since we are intentionally failing the readiness check
 			env.EventuallyExpectBoundPodCount(selector, int(numPods))
+
+			// Drift the nodeclaims
+			nodePool.Spec.Template.Annotations = map[string]string{"test": "annotation"}
+			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectDrifted(nodeClaims...)
 			env.ConsistentlyExpectNoDisruptions(int(numPods), "1m")
