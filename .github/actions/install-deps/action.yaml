@@ -15,7 +15,7 @@ runs:
     # Root path permission workaround for caching https://github.com/actions/cache/issues/845#issuecomment-1252594999
     - run: sudo chown "$USER" /usr/local
       shell: bash
-    - uses: actions/cache@704facf57e6136b1bc63b828d79edcd491f0ee84 # v3.3.2
+    - uses: actions/cache@e12d46a63a90f2fae62d114769bbf2a179198b5c # v3.3.3
       id: cache-toolchain
       with:
         path: |
