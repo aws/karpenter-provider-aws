@@ -267,6 +267,16 @@ func (env *Environment) ExpectExists(obj client.Object) {
 	}).WithTimeout(time.Second * 5).Should(Succeed())
 }
 
+func (env *Environment) EventuallyExpectBound(pods ...*v1.Pod) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.Spec.NodeName).ToNot(BeEmpty())
+		}
+	}).Should(Succeed())
+}
+
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 	GinkgoHelper()
 	env.EventuallyExpectHealthyWithTimeout(-1, pods...)
@@ -274,15 +284,16 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
 
 func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration, pods ...*v1.Pod) {
 	GinkgoHelper()
-	for _, pod := range pods {
-		Eventually(func(g Gomega) {
+	Eventually(func(g Gomega) {
+		for _, pod := range pods {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
 			g.Expect(pod.Status.Conditions).To(ContainElement(And(
 				HaveField("Type", Equal(v1.PodReady)),
 				HaveField("Status", Equal(v1.ConditionTrue)),
 			)))
-		}).WithTimeout(timeout).Should(Succeed())
-	}
+		}
+	}).WithTimeout(timeout).Should(Succeed())
+
 }
 
 func (env *Environment) EventuallyExpectKarpenterRestarted() {
@@ -373,6 +384,23 @@ func (env *Environment) EventuallyExpectPendingPodCount(selector labels.Selector
 	}).Should(Succeed())
 }
 
+func (env *Environment) EventuallyExpectBoundPodCount(selector labels.Selector, numPods int) []*v1.Pod {
+	GinkgoHelper()
+	var res []*v1.Pod
+	Eventually(func(g Gomega) {
+		res = []*v1.Pod{}
+		podList := &v1.PodList{}
+		g.Expect(env.Client.List(env.Context, podList)).To(Succeed())
+		for _, pod := range podList.Items {
+			if selector.Matches(labels.Set(pod.Labels)) && pod.Spec.NodeName != "" {
+				res = append(res, &pod)
+			}
+		}
+		g.Expect(res).To(HaveLen(numPods))
+	}).Should(Succeed())
+	return res
+}
+
 func (env *Environment) EventuallyExpectHealthyPodCount(selector labels.Selector, numPods int) []*v1.Pod {
 	By(fmt.Sprintf("waiting for %d pods matching selector %s to be ready", numPods, selector.String()))
 	GinkgoHelper()
@@ -456,6 +484,26 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 			fmt.Sprintf("expected %d nodes, had %d (%v) for %s", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items)), duration))
 	}, duration).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
+}
+
+func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration string) {
+	Consistently(func(g Gomega) {
+		// Ensure we don't change our NodeClaims
+		nodeClaimList := &corev1beta1.NodeClaimList{}
+		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(nodeClaimList.Items).To(HaveLen(nodeCount))
+
+		nodeList := &v1.NodeList{}
+		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(nodeList.Items).To(HaveLen(nodeCount))
+
+		for _, node := range nodeList.Items {
+			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
+				return corev1beta1.IsDisruptingTaint(t)
+			})
+			g.Expect(ok).To(BeFalse())
+		}
+	}, "1m").Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {
@@ -577,6 +625,33 @@ func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1bet
 			temp := &corev1beta1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), temp)).Should(Succeed())
 			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
+		}
+	}).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectExpired(nodeClaims ...*corev1beta1.NodeClaim) {
+	Eventually(func(g Gomega) {
+		for _, nc := range nodeClaims {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
+			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
+		}
+	}).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeClaim) {
+	Eventually(func(g Gomega) {
+		for _, nc := range nodeClaims {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
+			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+		}
+	}).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*corev1beta1.NodeClaim) {
+	Eventually(func(g Gomega) {
+		for _, nc := range nodeClaims {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
+			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Empty).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }

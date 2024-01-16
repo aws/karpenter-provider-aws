@@ -67,7 +67,7 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("Interruption", Label("AWS"), func() {
+var _ = Describe("Interruption", func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
 		nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{

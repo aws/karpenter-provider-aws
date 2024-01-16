@@ -103,15 +103,15 @@ var _ = Describe("Expiration", func() {
 			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 			env.ExpectCreated(nodeClass, nodePool, dep)
 
-			env.EventuallyExpectCreatedNodeClaimCount("==", 3)
-			env.EventuallyExpectCreatedNodeCount("==", 3)
+			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 3)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
-			nodes := env.EventuallyExpectNodeCount("==", 3)
 			By("adding finalizers to the nodes to prevent termination")
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
 			}
@@ -124,15 +124,7 @@ var _ = Describe("Expiration", func() {
 			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
 			env.ExpectUpdated(nodePool)
 
-			// Expect that the NodeClaims will all be marked expired
-			Eventually(func(g Gomega) {
-				nodeClaimList := &corev1beta1.NodeClaimList{}
-				err := env.Client.List(env.Context, nodeClaimList)
-				g.Expect(err).To(Succeed())
-				lo.ForEach(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) {
-					g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
-				})
-			}).Should(Succeed())
+			env.EventuallyExpectExpired(nodeClaims...)
 
 			// Expect that two nodes are tainted.
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
@@ -188,8 +180,8 @@ var _ = Describe("Expiration", func() {
 			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 			env.ExpectCreated(nodeClass, nodePool, dep)
 
-			env.EventuallyExpectCreatedNodeClaimCount("==", 3)
-			env.EventuallyExpectCreatedNodeCount("==", 3)
+			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 3)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
@@ -200,11 +192,9 @@ var _ = Describe("Expiration", func() {
 
 			By("spreading the pods to each of the nodes")
 			env.EventuallyExpectHealthyPodCount(selector, 3)
-			var nodes []*v1.Node
 			// Delete pods from the deployment until each node has one pod.
-			nodePods := []*v1.Pod{}
+			var nodePods []*v1.Pod
 			for {
-				nodes = env.EventuallyExpectNodeCount("==", 3)
 				node, found := lo.Find(nodes, func(n *v1.Node) bool {
 					nodePods = env.ExpectHealthyPodsForNode(n.Name)
 					return len(nodePods) > 1
@@ -213,6 +203,7 @@ var _ = Describe("Expiration", func() {
 					break
 				}
 				// Set the nodes to unschedulable so that the pods won't reschedule.
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 				node.Spec.Unschedulable = true
 				env.ExpectUpdated(node)
 				for _, pod := range nodePods[1:] {
@@ -225,9 +216,9 @@ var _ = Describe("Expiration", func() {
 			env.EventuallyExpectHealthyPodCount(selector, 3)
 
 			By("cordoning and adding finalizer to the nodes")
-			nodes = env.EventuallyExpectNodeCount("==", 3)
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				// Set nodes as unschedulable so that pod nomination doesn't delay disruption for the second disruption action
 				node.Spec.Unschedulable = true
@@ -239,15 +230,7 @@ var _ = Describe("Expiration", func() {
 			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
 			env.ExpectUpdated(nodePool)
 
-			// Expect that the NodeClaims will all be marked expired
-			Eventually(func(g Gomega) {
-				nodeClaimList := &corev1beta1.NodeClaimList{}
-				err := env.Client.List(env.Context, nodeClaimList)
-				g.Expect(err).To(Succeed())
-				lo.ForEach(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) {
-					g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
-				})
-			}).Should(Succeed())
+			env.EventuallyExpectExpired(nodeClaims...)
 
 			By("enabling disruption by removing the do not disrupt annotation")
 			pods := env.EventuallyExpectHealthyPodCount(selector, 3)
@@ -257,11 +240,8 @@ var _ = Describe("Expiration", func() {
 				env.ExpectUpdated(pod)
 			}
 
-			// List nodes so that we get any updated information on the nodes. If we don't
-			// we have the potential to over-write any changes Karpenter makes to the nodes.
-			nodes = env.EventuallyExpectNodeCount("==", 3)
-
 			// Mark one node as schedulable so the other two nodes can schedule to this node and delete.
+			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodes[0]), nodes[0])).To(Succeed())
 			nodes[0].Spec.Unschedulable = false
 			env.ExpectUpdated(nodes[0])
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
@@ -308,15 +288,15 @@ var _ = Describe("Expiration", func() {
 			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 			env.ExpectCreated(nodeClass, nodePool, dep)
 
-			env.EventuallyExpectCreatedNodeClaimCount("==", 3)
-			env.EventuallyExpectCreatedNodeCount("==", 3)
+			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 3)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after drift
 
 			By("cordoning and adding finalizer to the nodes")
-			nodes := env.EventuallyExpectNodeCount("==", 3)
 			// Add a finalizer to each node so that we can stop termination disruptions
 			for _, node := range nodes {
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				// Set nodes as unschedulable so that pod nomination doesn't delay disruption for the second disruption action
 				env.ExpectUpdated(node)
@@ -327,15 +307,7 @@ var _ = Describe("Expiration", func() {
 			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 90)}
 			env.ExpectUpdated(nodePool)
 
-			// Expect that the NodeClaims will all be marked expired
-			Eventually(func(g Gomega) {
-				nodeClaimList := &corev1beta1.NodeClaimList{}
-				err := env.Client.List(env.Context, nodeClaimList)
-				g.Expect(err).To(Succeed())
-				lo.ForEach(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) {
-					g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
-				})
-			}).Should(Succeed())
+			env.EventuallyExpectExpired(nodeClaims...)
 
 			By("enabling disruption by removing the do not disrupt annotation")
 			pods := env.EventuallyExpectHealthyPodCount(selector, 3)
@@ -345,7 +317,6 @@ var _ = Describe("Expiration", func() {
 				env.ExpectUpdated(pod)
 			}
 
-			nodes = env.EventuallyExpectNodeCount("==", 3)
 			// Expect two nodes tainted and two nodes created
 			tainted := env.EventuallyExpectTaintedNodeCount("==", 2)
 			env.EventuallyExpectCreatedNodeCount("==", 2)
@@ -392,11 +363,7 @@ var _ = Describe("Expiration", func() {
 		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
-		// Expect that the NodeClaim will get an expired status condition
-		Eventually(func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
-			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
-		}).Should(Succeed())
+		env.EventuallyExpectExpired(nodeClaim)
 
 		// Remove the do-not-disrupt annotation so that the Nodes are now deprovisionable
 		for _, pod := range env.ExpectPodsMatchingSelector(selector) {
@@ -460,11 +427,7 @@ var _ = Describe("Expiration", func() {
 		nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Minute)
 		env.ExpectUpdated(nodePool)
 
-		// Expect that the NodeClaim will get an expired status condition
-		Eventually(func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
-			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
-		}).Should(Succeed())
+		env.EventuallyExpectExpired(nodeClaim)
 
 		// Remove the do-not-disruption annotation so that the Nodes are now deprovisionable
 		for _, pod := range env.ExpectPodsMatchingSelector(selector) {
@@ -495,7 +458,7 @@ var _ = Describe("Expiration", func() {
 		env.EventuallyExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 	})
-	Context("Expiration Failure", func() {
+	Context("Failure", func() {
 		It("should not continue to expire if a node never registers", func() {
 			// Launch a new NodeClaim
 			var numPods int32 = 2
@@ -528,13 +491,7 @@ var _ = Describe("Expiration", func() {
 			}
 			env.ExpectCreatedOrUpdated(nodeClass)
 
-			// Should see the NodeClaim has expired
-			Eventually(func(g Gomega) {
-				for _, nc := range startingNodeClaimState {
-					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-					g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
-				}
-			}).Should(Succeed())
+			env.EventuallyExpectExpired(startingNodeClaimState...)
 
 			// Expect nodes To get tainted
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
@@ -560,7 +517,7 @@ var _ = Describe("Expiration", func() {
 				g.Expect(sets.New(nodeClaimUIDs...).IsSuperset(sets.New(startingNodeClaimUIDs...))).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
-		It("should not continue to expiration if a node registers but never becomes initialized", func() {
+		It("should not continue to expire if a node registers but never becomes initialized", func() {
 			// Set a configuration that will allow us to make a NodeClaim not be initialized
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com/taint", Effect: v1.TaintEffectPreferNoSchedule}}
 
@@ -593,13 +550,7 @@ var _ = Describe("Expiration", func() {
 				}
 			}).Should(Succeed())
 
-			// Should see the NodeClaim has expired
-			Eventually(func(g Gomega) {
-				for _, nc := range startingNodeClaimState {
-					g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-					g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
-				}
-			}).Should(Succeed())
+			env.EventuallyExpectExpired(startingNodeClaimState...)
 
 			// Expect nodes To be tainted
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
@@ -626,6 +577,47 @@ var _ = Describe("Expiration", func() {
 				nodeClaimUIDs := lo.Map(nodeClaims.Items, func(nc corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })
 				g.Expect(sets.New(nodeClaimUIDs...).IsSuperset(sets.New(startingNodeClaimUIDs...))).To(BeTrue())
 			}, "2m").Should(Succeed())
+		})
+		It("should not expire any nodes if their PodDisruptionBudgets are unhealthy", func() {
+			// Create a deployment that contains a readiness probe that will never succeed
+			// This way, the pod will bind to the node, but the PodDisruptionBudget will never go healthy
+			var numPods int32 = 2
+			dep := coretest.Deployment(coretest.DeploymentOptions{
+				Replicas: 2,
+				PodOptions: coretest.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{Labels: map[string]string{"app": "inflate"}},
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: map[string]string{"app": "inflate"},
+						}},
+					},
+
+					ReadinessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromInt32(80),
+							},
+						},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			minAvailable := intstr.FromInt32(numPods - 1)
+			pdb := coretest.PodDisruptionBudget(coretest.PDBOptions{
+				Labels:       dep.Spec.Template.Labels,
+				MinAvailable: &minAvailable,
+			})
+			env.ExpectCreated(dep, nodeClass, nodePool, pdb)
+
+			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", int(numPods))
+			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
+
+			// Expect pods to be bound but not to be ready since we are intentionally failing the readiness check
+			env.EventuallyExpectBoundPodCount(selector, int(numPods))
+
+			env.EventuallyExpectExpired(nodeClaims...)
+			env.ConsistentlyExpectNoDisruptions(int(numPods), "1m")
 		})
 	})
 })
