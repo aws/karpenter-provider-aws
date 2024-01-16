@@ -109,11 +109,11 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 	p.Lock()
 	defer p.Unlock()
 
-	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}), tags)
+	opts, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}), tags)
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -185,7 +185,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	}
 	if nodeClass.Spec.AssociatePublicIPAddress != nil {
 		opts.AssociatePublicIPAddress = nodeClass.Spec.AssociatePublicIPAddress
-		return nil, err
+		return opts, nil
 	}
 	if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass); err != nil {
 		return nil, err
