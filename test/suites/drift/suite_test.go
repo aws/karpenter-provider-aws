@@ -361,6 +361,54 @@ var _ = Describe("Drift", func() {
 			// the node should be gone
 			env.EventuallyExpectNotFound(nodes[0], nodes[1], nodes[2])
 		})
+		It("should not allow drift if the budget is fully blocking", func() {
+			// We're going to define a budget that doesn't allow any drift to happen
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes: "0",
+			}}
+
+			dep.Spec.Template.Annotations = nil
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+			By("drifting the nodes")
+			// Drift the nodeclaims
+			nodePool.Spec.Template.Annotations = map[string]string{"test": "annotation"}
+			env.ExpectUpdated(nodePool)
+
+			env.EventuallyExpectDrifted(nodeClaim)
+			env.ConsistentlyExpectNoDisruptions(1, "1m")
+		})
+		It("should not allow drift if the budget is fully blocking during a scheduled time", func() {
+			// We're going to define a budget that doesn't allow any drift to happen
+			// This is going to be on a schedule that only lasts 30 minutes, whose window starts 15 minutes before
+			// the current time and extends 15 minutes past the current time
+			// Times need to be in UTC since the karpenter containers were built in UTC time
+			windowStart := time.Now().Add(-time.Minute * 15).UTC()
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes:    "0",
+				Schedule: lo.ToPtr(fmt.Sprintf("%d %d * * *", windowStart.Minute(), windowStart.Hour())),
+				Duration: &metav1.Duration{Duration: time.Minute * 30},
+			}}
+
+			dep.Spec.Template.Annotations = nil
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+			By("drifting the nodes")
+			// Drift the nodeclaims
+			nodePool.Spec.Template.Annotations = map[string]string{"test": "annotation"}
+			env.ExpectUpdated(nodePool)
+
+			env.EventuallyExpectDrifted(nodeClaim)
+			env.ConsistentlyExpectNoDisruptions(1, "1m")
+		})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
 		// choose an old static image

@@ -15,9 +15,12 @@ limitations under the License.
 package integration_test
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/ptr"
 
@@ -31,8 +34,69 @@ import (
 )
 
 var _ = Describe("Emptiness", func() {
-	It("should terminate an empty node", func() {
+	var dep *appsv1.Deployment
+	var selector labels.Selector
+	var numPods int
+	BeforeEach(func() {
 		nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
+		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
+
+		numPods = 1
+		dep = test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+			},
+		})
+		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+	})
+	Context("Budgets", func() {
+		It("should not allow emptiness if the budget is fully blocking", func() {
+			// We're going to define a budget that doesn't allow any emptiness disruption to happen
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes: "0",
+			}}
+
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+			// Delete the deployment so there is nothing running on the node
+			env.ExpectDeleted(dep)
+
+			env.EventuallyExpectEmpty(nodeClaim)
+			env.ConsistentlyExpectNoDisruptions(1, "1m")
+		})
+		It("should not allow emptiness if the budget is fully blocking during a scheduled time", func() {
+			// We're going to define a budget that doesn't allow any emptiness disruption to happen
+			// This is going to be on a schedule that only lasts 30 minutes, whose window starts 15 minutes before
+			// the current time and extends 15 minutes past the current time
+			// Times need to be in UTC since the karpenter containers were built in UTC time
+			windowStart := time.Now().Add(-time.Minute * 15).UTC()
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes:    "0",
+				Schedule: lo.ToPtr(fmt.Sprintf("%d %d * * *", windowStart.Minute(), windowStart.Hour())),
+				Duration: &metav1.Duration{Duration: time.Minute * 30},
+			}}
+
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+			// Delete the deployment so there is nothing running on the node
+			env.ExpectDeleted(dep)
+
+			env.EventuallyExpectEmpty(nodeClaim)
+			env.ConsistentlyExpectNoDisruptions(1, "1m")
+		})
+	})
+	It("should terminate an empty node", func() {
 		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Hour * 300)}
 
 		const numPods = 1
