@@ -49,11 +49,7 @@ var _ = Describe("Emptiness", func() {
 		deployment.Spec.Replicas = ptr.Int32(0)
 		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
 
-		By("waiting for the nodeclaim emptiness status condition to propagate")
-		Eventually(func(g Gomega) {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
-			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Empty).IsTrue()).To(BeTrue())
-		}).Should(Succeed())
+		env.EventuallyExpectEmpty(nodeClaim)
 
 		By("waiting for the nodeclaim to deprovision when past its ConsolidateAfter timeout of 0")
 		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
