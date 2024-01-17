@@ -115,7 +115,7 @@ spec:
   detailedMonitoring: true
 
   # Optional, configures if the instance should be launched with an associated public IP address.
-  # if not specified, the default value depends on the subnet's public IP auto-assign setting.
+  # If not specified, the default value depends on the subnet's public IP auto-assign setting.
   associatePublicIpAddress: true
 status:
   # Resolved subnets
@@ -313,8 +313,11 @@ spec:
 ## spec.associatePublicIpAddress
 
 a boolean field to control whether the instances created by karpenter for this node class will have an associated public IP address. 
-when not specified, the node will have public IP adders if it is launched in a subnet with public IP auto-assign enabled `MapPublicIpOnLaunch=true`. 
+when not specified, the node will have public IP adders if it is launched in a subnet with public IP auto-assign enabled `MapPublicIpOnLaunch=true`.
 
+{{% alert title="Note" color="warning" %}}
+setting this field to true can cause instance launches to fail if the instance was configured with multiple EFAs. the two options can not be used together
+{{% /alert %}}
 
 
 ## spec.securityGroupSelectorTerms

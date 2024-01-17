@@ -109,11 +109,11 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 	p.Lock()
 	defer p.Unlock()
 
-	opts, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}), tags)
+	options, err := p.createAMIOptions(ctx, nodeClass, lo.Assign(nodeClaim.Labels, map[string]string{corev1beta1.CapacityTypeLabelKey: capacityType}), tags)
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, opts)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, options)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	if len(securityGroups) == 0 {
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
-	opts := &amifamily.Options{
+	options := &amifamily.Options{
 		ClusterName:         options.FromContext(ctx).ClusterName,
 		ClusterEndpoint:     p.ClusterEndpoint,
 		InstanceProfile:     instanceProfile,
@@ -184,19 +184,18 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		NodeClassName: nodeClass.Name,
 	}
 	if nodeClass.Spec.AssociatePublicIPAddress != nil {
-		opts.AssociatePublicIPAddress = nodeClass.Spec.AssociatePublicIPAddress
-		return opts, nil
-	}
-	if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass); err != nil {
+		options.AssociatePublicIPAddress = nodeClass.Spec.AssociatePublicIPAddress
+	} else if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass); err != nil {
 		return nil, err
 	} else if !ok {
+		// when `AssociatePublicIPAddress` is not specified in the `EC2NodeClass` spec,
 		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
 		// AssociatePublicIPAddress to 'false' in the Launch Template, generated based on this configuration struct.
 		// This is done to help comply with AWS account policies that require explicitly setting of that field to 'false'.
 		// https://github.com/aws/karpenter-provider-aws/issues/3815
-		opts.AssociatePublicIPAddress = aws.Bool(false)
+		options.AssociatePublicIPAddress = aws.Bool(false)
 	}
-	return opts, nil
+	return options, nil
 }
 
 func (p *Provider) ensureLaunchTemplate(ctx context.Context, capacityType string, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
