@@ -46,8 +46,8 @@ v0.34.0+ _only_ supports Karpenter v1beta1 APIs and will not work with existing 
   * `Empty Expiration / Empty Drift / Empty Consolidation`: infinite parallelism 
   * `Non-Empty Expiration / Non-Empty Drift / Single-Node Consolidation`: one node at a time
   * `Multi-Node Consolidation`: max 100 nodes
-
 * Karpenter now adds a default `podSecurityContext` that configures the `fsgroup: 65536` of volumes in the pod. If you are using sidecar containers, you should review if this configuration is compatible for them. You can disable this default `podSecurityContext` through helm by performing `--set podSecurityContext=null` when installing/upgrading the chart.
+* The `dnsPolicy` for the Karpenter controller pod has been changed back to the Kubernetes cluster default of `ClusterFirst`. Setting our `dnsPolicy` to `Default` (confusingly, this is not the Kubernetes cluster default) caused more confusion for any users running IPv6 clusters with dual-stack nodes or anyone running Karpenter with dependencies on cluster services (like clusters running service meshes). If you still want the old behavior here, you can change the `dnsPolicy` to point to use `Default` by setting the helm value on install/upgrade with `--set dnsPolicy=Default`. More details on this issue can be found in the following Github issues: [#2186](https://github.com/aws/karpenter-provider-aws/issues/2186) and [#4947](https://github.com/aws/karpenter-provider-aws/issues/4947).
 
 ### Upgrading to v0.33.0+
 
