@@ -22,9 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
+
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -371,45 +372,30 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
 		launchTemplate := value.(*ec2.LaunchTemplate)
-		if lo.Contains(aws.StringValueSlice(input.LaunchTemplateNames), aws.StringValue(launchTemplate.LaunchTemplateName)) {
+		if lo.Contains(aws.StringValueSlice(input.LaunchTemplateNames), aws.StringValue(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.StringValue(launchTemplate.LaunchTemplateId), aws.StringValue(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
 		return true
 	})
+	if len(input.Filters) != 0 {
+		return output, nil
+	}
 	if len(output.LaunchTemplates) == 0 {
 		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
 	}
 	return output, nil
 }
 
-func (e *EC2API) DescribeLaunchTemplatesPagesWithContext(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, callbck func(*ec2.DescribeLaunchTemplatesOutput, bool) bool, _ ...request.Option) error {
-	if !e.NextError.IsNil() {
-		defer e.NextError.Reset()
-		return e.NextError.Get()
+func (e *EC2API) DescribeLaunchTemplatesPagesWithContext(ctx context.Context, input *ec2.DescribeLaunchTemplatesInput, fn func(*ec2.DescribeLaunchTemplatesOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeLaunchTemplatesWithContext(ctx, input)
+	if err != nil {
+		return err
 	}
-	if !e.DescribeLaunchTemplatesOutput.IsNil() {
-		if callbck(e.DescribeLaunchTemplatesOutput.Clone(), true) {
-			return nil
-		}
-	}
-	output := &ec2.DescribeLaunchTemplatesOutput{}
-	if len(input.Filters) == 0 {
-		return fmt.Errorf("InvalidParameterValue: The filter 'null' is invalid")
-	}
-	e.LaunchTemplates.Range(func(key, value interface{}) bool {
-		launchTemplate := value.(ec2.LaunchTemplate)
-		if Filter(input.Filters, aws.StringValue(launchTemplate.LaunchTemplateId), aws.StringValue(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
-			output.LaunchTemplates = append(output.LaunchTemplates, &launchTemplate)
-		}
-		return true
-	})
-	if callbck(output, true) {
-		return nil
-	}
-	return awserr.New("call back failed", "fail;", nil)
+	fn(out, false)
+	return nil
 }
 
-func (e *EC2API) DeleteLaunchTemplate(input *ec2.DeleteLaunchTemplateInput) (*ec2.DeleteLaunchTemplateOutput, error) {
+func (e *EC2API) DeleteLaunchTemplateWithContext(_ context.Context, input *ec2.DeleteLaunchTemplateInput, _ ...request.Option) (*ec2.DeleteLaunchTemplateOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()

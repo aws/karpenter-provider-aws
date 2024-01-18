@@ -24,6 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"go.uber.org/multierr"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -394,24 +396,26 @@ func (p *Provider) getInstanceProfile(nodeClass *v1beta1.EC2NodeClass) (string, 
 func (p *Provider) DeleteLaunchTemplates(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	clusterName := options.FromContext(ctx).ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
-	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+	var deleteLTerr error
+	describeErr := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}},
 			{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
-			if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateName: lt.LaunchTemplateName}); err != nil {
+			if _, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateName: lt.LaunchTemplateName}); err != nil {
 				logging.FromContext(ctx).With("launch-template", lt.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
+				deleteLTerr = multierr.Append(deleteLTerr, err)
 				return false
 			}
-			logging.FromContext(ctx).With(
-				"id", lt.LaunchTemplateName,
-				"name", lt.LaunchTemplateName,
-			).Debugf("deleted launch template")
 		}
+		logging.FromContext(ctx).Debugf("deleted %v launch templates", len(output.LaunchTemplates))
 		return true
-	}); err != nil {
-		return fmt.Errorf("unable to fetch the AWS launch templates, %w", err)
-	} else {
-		return nil
+	})
+	if describeErr != nil {
+		return fmt.Errorf("fetching launch templates, %w", describeErr)
 	}
+	if deleteLTerr != nil {
+		return fmt.Errorf("deleting launch templates, %w", deleteLTerr)
+	}
+	return nil
 }
