@@ -15,11 +15,12 @@ limitations under the License.
 package integration_test
 
 import (
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	"sigs.k8s.io/karpenter/pkg/test"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 var _ = Describe("NetworkInterfaces", func() {

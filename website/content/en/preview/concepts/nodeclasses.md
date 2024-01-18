@@ -116,7 +116,7 @@ spec:
 
   # Optional, configures if the instance should be launched with an associated public IP address.
   # If not specified, the default value depends on the subnet's public IP auto-assign setting.
-  associatePublicIpAddress: true
+  associatePublicIPAddress: true
 status:
   # Resolved subnets
   subnets:
@@ -309,15 +309,6 @@ spec:
     - id: "subnet-09fa4a0a8f233a921"
     - id: "subnet-0471ca205b8a129ae"
 ```
-
-## spec.associatePublicIpAddress
-
-a boolean field to control whether the instances created by karpenter for this node class will have an associated public IP address. 
-when not specified, the node will have public IP adders if it is launched in a subnet with public IP auto-assign enabled `MapPublicIpOnLaunch=true`.
-
-{{% alert title="Note" color="warning" %}}
-setting this field to true can cause instance launches to fail if the instance was configured with multiple EFAs. the two options can not be used together
-{{% /alert %}}
 
 
 ## spec.securityGroupSelectorTerms
@@ -872,6 +863,14 @@ Enabling detailed monitoring controls the [EC2 detailed monitoring](https://docs
 spec:
   detailedMonitoring: true
 ```
+
+## spec.associatePublicIPAddress
+
+A boolean field that controls whether instances created by Karpenter for this EC2NodeClass will have an associated public IP address. This overrides the `MapPublicIpOnLaunch` setting applied to the subnet the node is launched in. If this field is not set, the `MapPublicIpOnLaunch` field will be respected.
+
+{{% alert title="Note" color="warning" %}}
+If `associatePublicIPAddress` is set to `true` and a NodePool referencing that EC2NodeClass is used to provision a Node for a NodeClaim requesting multiple `vpc.amazonaws.com/efa` resources, the instance launch will fail. A public IP address may only be associated with a node at launch if a single network interface is configured.
+{{% /alert %}}
 
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
