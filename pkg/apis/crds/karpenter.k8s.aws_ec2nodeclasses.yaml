@@ -101,7 +101,7 @@ spec:
                     has(x.owner)))'
               associatePublicIPAddress:
                 description: AssociatePublicIPAddress controls if public IP addresses
-                  are assigned to instances that are launched by the launch template.
+                  are assigned to instances that are launched with the nodeclass.
                 type: boolean
               blockDeviceMappings:
                 description: BlockDeviceMappings to be applied to provisioned nodes.
