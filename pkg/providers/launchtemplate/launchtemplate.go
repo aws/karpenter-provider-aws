@@ -24,8 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/multierr"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -395,27 +393,26 @@ func (p *Provider) getInstanceProfile(nodeClass *v1beta1.EC2NodeClass) (string, 
 
 func (p *Provider) DeleteLaunchTemplates(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	clusterName := options.FromContext(ctx).ClusterName
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
-	var deleteLTerr error
-	describeErr := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}},
-			{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}}},
+	var ltNames []*string
+	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+		Filters: []*ec2.Filter{
+			{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}},
+			{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}},
+		},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
-			if _, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateName: lt.LaunchTemplateName}); err != nil {
-				logging.FromContext(ctx).With("launch-template", lt.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
-				deleteLTerr = multierr.Append(deleteLTerr, err)
-				return false
-			}
+			ltNames = append(ltNames, lt.LaunchTemplateName)
 		}
-		logging.FromContext(ctx).Debugf("deleted %v launch templates", len(output.LaunchTemplates))
 		return true
-	})
-	if describeErr != nil {
-		return fmt.Errorf("fetching launch templates, %w", describeErr)
+	}); err != nil {
+		return fmt.Errorf("fetching launch templates, %w", err)
 	}
-	if deleteLTerr != nil {
-		return fmt.Errorf("deleting launch templates, %w", deleteLTerr)
+
+	for _, name := range ltNames {
+		if _, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateName: name}); err != nil {
+			return fmt.Errorf("deleting launch templates, %w", err)
+		}
 	}
+	logging.FromContext(ctx).With("launchTemplates", utils.PrettySlice(aws.StringValueSlice(ltNames), 5)).Debugf("deleted %v launch templates", len(ltNames))
 	return nil
 }
