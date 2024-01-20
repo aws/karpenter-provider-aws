@@ -41,7 +41,7 @@ var _ = Describe("Launch Template Deletion", func() {
 					{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}},
 				},
 			})
-			g.Expect(len(output.LaunchTemplates)).To(HaveLen(0))
+			g.Expect(output.LaunchTemplates).To(HaveLen(0))
 		}).Should(Succeed())
 	})
 })
