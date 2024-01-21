@@ -18,7 +18,7 @@ Karpenter works by:
 
 As someone using Karpenter, once your Kubernetes cluster and the Karpenter controller are up and running (see [Getting Started]({{<ref "./getting-started" >}})), you can:
 
-* **Set up NodePools**: By applying a NodePool to Karpenter, you can configure constraints on node provisioning and set values for node expiry, node consolidastion, or Kubelet configuration values.
+* **Set up NodePools**: By applying a NodePool to Karpenter, you can configure constraints on node provisioning and set values for node expiry, node consolidation, or Kubelet configuration values.
   NodePool-level constraints related to Kubernetes and your cloud provider (AWS, for example) include:
 
   - Taints (`taints`): Identify taints to add to provisioned nodes. If a pod doesn't have a matching toleration for the taint, the effect set by the taint occurs (NoSchedule, PreferNoSchedule, or NoExecute). See Kubernetes [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for details.
