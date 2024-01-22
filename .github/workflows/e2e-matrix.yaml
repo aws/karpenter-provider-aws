@@ -94,9 +94,9 @@ jobs:
       statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      # This version matches the version switch between IRSA -> Pod Identity
-      # https://github.com/aws/karpenter-provider-aws/pull/5262
-      from_git_ref: 8f500c23be18aa5cb8089a83c43e763303faa9ac
+      # This version includes the IRSA changes to support k8s 1.23
+      # https://github.com/aws/karpenter-provider-aws/pull/5445
+      from_git_ref: 6934ef58e8e13686d4f57c2d336dd165cbf3e759
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}
