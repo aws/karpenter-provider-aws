@@ -178,7 +178,7 @@ The [`karpenter-convert`](https://github.com/aws/karpenter/tree/release-v0.32.x/
 16. Remove the alpha instance profile(s). If you were just using the InstanceProfile deployed through the [Getting Started Guide]({{< ref "../getting-started/getting-started-with-karpenter" >}}), delete the `KarpenterNodeInstanceProfile` section from the CloudFormation. Alternatively, if you want to remove the instance profile manually, you can run the following command
 
     ```bash
-    ROLE_NAME="KarpenterNodeRole-${ClusterName}"
+    ROLE_NAME="KarpenterNodeRole-${CLUSTER_NAME}"
     INSTANCE_PROFILE_NAME="KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
     aws iam remove-role-from-instance-profile --instance-profile-name "${INSTANCE_PROFILE_NAME}" --role-name "${ROLE_NAME}"
     aws iam delete-instance-profile --instance-profile-name "${INSTANCE_PROFILE_NAME}"
