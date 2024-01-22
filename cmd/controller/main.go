@@ -67,6 +67,7 @@ func main() {
 			op.InstanceProvider,
 			op.PricingProvider,
 			op.AMIProvider,
+			op.PlacementGroupProvider,
 		)...).
 		WithWebhooks(ctx, webhooks.NewWebhooks()...).
 		Start(ctx)

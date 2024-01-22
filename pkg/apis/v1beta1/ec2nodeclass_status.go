@@ -63,6 +63,9 @@ type EC2NodeClassStatus struct {
 	// cluster under the AMI selectors.
 	// +optional
 	AMIs []AMI `json:"amis,omitempty"`
+	// PlacementGroups contains the ec2 placement group arns
+	// +optional
+	PlacementGroups []string `json:"placementGroups,omitempty"`
 	// InstanceProfile contains the resolved instance profile for the role
 	// +optional
 	InstanceProfile string `json:"instanceProfile,omitempty"`
