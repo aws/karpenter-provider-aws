@@ -126,25 +126,24 @@ In special cases, drift can correspond to multiple values and must be handled di
 ##### NodePool
 | Fields         |
 |----------------|
-| Requirements   |
+| spec.template.spec.requirements   |
 
 ##### EC2NodeClass
 | Fields                        |
 |-------------------------------|
-| Subnet Selector Terms         |
-| Security Group Selector Terms |
-| AMI Selector Terms            |
+| spec.subnetSelectorTerms      |
+| spec.securityGroupSelectorTerms  |
+| spec.amiSelectorTerms  |
 
 #### Behavioral Fields
 Behavioral Fields are treated as over-arching settings on the NodePool to dictate how Karpenter behaves. These fields don’t correspond to settings on the NodeClaim or instance. They’re set by the user to control Karpenter’s Provisioning and disruption logic. Since these don’t map to a desired state of NodeClaims, __behavioral fields are not considered for Drift__.
 
-__Behavioral Fields__
-- Weight                      
-- Limits                      
-- ConsolidationPolicy               
-- ConsolidateAfter      
-- ExpireAfter  
----      
+##### NodePool
+| Fields         |
+|----------------|
+| spec.weight       |
+| spec.limits       |
+| spec.disruption.* |
 
 Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
 
