@@ -282,7 +282,7 @@ var _ = Describe("Drift", func() {
 			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectDrifted(nodeClaim)
-			env.ConsistentlyExpectNoDisruptions(1, time.Minute)
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, "1m")
 		})
 		It("should not allow drift if the budget is fully blocking during a scheduled time", func() {
 			// We're going to define a budget that doesn't allow any drift to happen
@@ -309,7 +309,7 @@ var _ = Describe("Drift", func() {
 			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectDrifted(nodeClaim)
-			env.ConsistentlyExpectNoDisruptions(1, time.Minute)
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, "1m")
 		})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
@@ -757,7 +757,6 @@ var _ = Describe("Drift", func() {
 							MatchLabels: map[string]string{"app": "inflate"},
 						}},
 					},
-
 					ReadinessProbe: &v1.Probe{
 						ProbeHandler: v1.ProbeHandler{
 							HTTPGet: &v1.HTTPGetAction{
@@ -786,7 +785,7 @@ var _ = Describe("Drift", func() {
 			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectDrifted(nodeClaims...)
-			env.ConsistentlyExpectNoDisruptions(int(numPods), time.Minute)
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, int(numPods), "1m")
 		})
 	})
 })

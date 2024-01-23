@@ -261,11 +261,12 @@ func (env *Environment) ExpectPrefixDelegationDisabled() {
 		"ENABLE_PREFIX_DELEGATION", "false", "aws-node")
 }
 
-func (env *Environment) ExpectExists(obj client.Object) {
+func (env *Environment) ExpectExists(obj client.Object) client.Object {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
 	}).WithTimeout(time.Second * 5).Should(Succeed())
+	return obj
 }
 
 func (env *Environment) EventuallyExpectBound(pods ...*v1.Pod) {
@@ -503,41 +504,26 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-// ConsistentlyExpectNoDisruptions ensures that the state of the cluster is not changed within a passed duration
-// Specifically, we check if the cluster size in terms of nodes is the same as the passed-in size and we validate
-// that no disrupting taints are added throughout the window
-func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) {
+func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(nodesTainted int, nodeCount int, duration string) {
 	GinkgoHelper()
 	Consistently(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
 		nodeClaimList := &corev1beta1.NodeClaimList{}
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(nodeClaimList.Items).To(HaveLen(nodeCount))
+		g.Expect(len(nodeClaimList.Items)).To(Equal(nodeCount))
 
 		nodeList := &v1.NodeList{}
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(nodeList.Items).To(HaveLen(nodeCount))
+		g.Expect(len(nodeList.Items)).To(Equal(nodeCount))
 
-		for _, node := range nodeList.Items {
-			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
+		nodes := lo.Filter(nodeList.Items, func(n v1.Node, _ int) bool {
+			_, ok := lo.Find(n.Spec.Taints, func(t v1.Taint) bool {
 				return corev1beta1.IsDisruptingTaint(t)
 			})
-			g.Expect(ok).To(BeFalse())
-		}
-	}, duration.String()).Should(Succeed())
-}
-
-func (env *Environment) ConsistentlyExpectTaintedNodeCount(comparator string, count int, duration time.Duration) []*v1.Node {
-	GinkgoHelper()
-
-	By(fmt.Sprintf("checking for tainted nodes to be %s to %d for %s", comparator, count, duration))
-	nodeList := &v1.NodeList{}
-	Consistently(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
-		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
-			fmt.Sprintf("expected %d tainted nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
-	}, duration.String()).Should(Succeed())
-	return lo.ToSlicePtr(nodeList.Items)
+			return ok
+		})
+		g.Expect(len(nodes)).To(Equal(nodesTainted))
+	}, duration).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {
