@@ -59,6 +59,7 @@ type Options struct {
 	Labels                   map[string]string `hash:"ignore"`
 	KubeDNSIP                net.IP
 	AssociatePublicIPAddress *bool
+	NodeClassName            string
 }
 
 // LaunchTemplate holds the dynamically generated launch template parameters

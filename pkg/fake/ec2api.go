@@ -22,9 +22,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/aws-sdk-go/aws/awserr"
+
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
@@ -371,15 +372,36 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	output := &ec2.DescribeLaunchTemplatesOutput{}
 	e.LaunchTemplates.Range(func(key, value interface{}) bool {
 		launchTemplate := value.(*ec2.LaunchTemplate)
-		if lo.Contains(aws.StringValueSlice(input.LaunchTemplateNames), aws.StringValue(launchTemplate.LaunchTemplateName)) {
+		if lo.Contains(aws.StringValueSlice(input.LaunchTemplateNames), aws.StringValue(launchTemplate.LaunchTemplateName)) || len(input.Filters) != 0 && Filter(input.Filters, aws.StringValue(launchTemplate.LaunchTemplateId), aws.StringValue(launchTemplate.LaunchTemplateName), launchTemplate.Tags) {
 			output.LaunchTemplates = append(output.LaunchTemplates, launchTemplate)
 		}
 		return true
 	})
+	if len(input.Filters) != 0 {
+		return output, nil
+	}
 	if len(output.LaunchTemplates) == 0 {
 		return nil, awserr.New("InvalidLaunchTemplateName.NotFoundException", "not found", nil)
 	}
 	return output, nil
+}
+
+func (e *EC2API) DescribeLaunchTemplatesPagesWithContext(ctx context.Context, input *ec2.DescribeLaunchTemplatesInput, fn func(*ec2.DescribeLaunchTemplatesOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeLaunchTemplatesWithContext(ctx, input)
+	if err != nil {
+		return err
+	}
+	fn(out, false)
+	return nil
+}
+
+func (e *EC2API) DeleteLaunchTemplateWithContext(_ context.Context, input *ec2.DeleteLaunchTemplateInput, _ ...request.Option) (*ec2.DeleteLaunchTemplateOutput, error) {
+	if !e.NextError.IsNil() {
+		defer e.NextError.Reset()
+		return nil, e.NextError.Get()
+	}
+	e.LaunchTemplates.Delete(input.LaunchTemplateName)
+	return nil, nil
 }
 
 func (e *EC2API) DescribeSubnetsWithContext(_ context.Context, input *ec2.DescribeSubnetsInput, _ ...request.Option) (*ec2.DescribeSubnetsOutput, error) {

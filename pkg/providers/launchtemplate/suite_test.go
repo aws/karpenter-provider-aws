@@ -135,6 +135,57 @@ var _ = Describe("LaunchTemplates", func() {
 			},
 		})
 	})
+	It("should create unique launch templates for multiple identical nodeClasses", func() {
+		nodeClass2 := test.EC2NodeClass()
+		nodePool2 := coretest.NodePool(corev1beta1.NodePool{
+			Spec: corev1beta1.NodePoolSpec{
+				Template: corev1beta1.NodeClaimTemplate{
+					Spec: corev1beta1.NodeClaimSpec{
+						Requirements: []v1.NodeSelectorRequirement{
+							{
+								Key:      corev1beta1.CapacityTypeLabelKey,
+								Operator: v1.NodeSelectorOpIn,
+								Values:   []string{corev1beta1.CapacityTypeSpot},
+							},
+						},
+						NodeClassRef: &corev1beta1.NodeClassReference{
+							Name: nodeClass2.Name,
+						},
+					},
+				},
+			},
+		})
+		pods := []*v1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{corev1beta1.CapacityTypeSpot},
+				},
+			},
+			}),
+			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+				{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{corev1beta1.CapacityTypeOnDemand},
+				},
+			},
+			}),
+		}
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodePool2, nodeClass2)
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		ltConfigCount := len(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs) + len(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop().LaunchTemplateConfigs)
+		Expect(ltConfigCount).To(BeNumerically("==", awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()))
+		nodeClasses := [2]string{nodeClass.Name, nodeClass2.Name}
+		awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+			for _, value := range ltInput.LaunchTemplateData.TagSpecifications[0].Tags {
+				if *value.Key == v1beta1.LabelNodeClass {
+					Expect(*value.Value).To(BeElementOf(nodeClasses))
+				}
+			}
+		})
+	})
 	It("should default to a generated launch template", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod()

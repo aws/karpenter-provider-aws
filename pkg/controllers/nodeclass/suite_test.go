@@ -30,7 +30,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
-
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
@@ -69,7 +68,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	nodeClassController = nodeclass.NewNodeClassController(env.Client, events.NewRecorder(&record.FakeRecorder{}), awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider)
+	nodeClassController = nodeclass.NewNodeClassController(env.Client, events.NewRecorder(&record.FakeRecorder{}), awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -821,6 +820,53 @@ var _ = Describe("NodeClassController", func() {
 		BeforeEach(func() {
 			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
 		})
+		It("should not delete the NodeClass if launch template deletion fails", func() {
+			launchTemplateName := aws.String(fake.LaunchTemplateName())
+			awsEnv.EC2API.LaunchTemplates.Store(launchTemplateName, &ec2.LaunchTemplate{LaunchTemplateName: launchTemplateName, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}}})
+			_, ok := awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
+			Expect(ok).To(BeTrue())
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			awsEnv.EC2API.NextError.Set(fmt.Errorf("delete Launch Template Error"))
+			ExpectReconcileFailed(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			ExpectExists(ctx, env.Client, nodeClass)
+		})
+		It("should not delete the launch template not associated with the nodeClass", func() {
+			launchTemplateName := aws.String(fake.LaunchTemplateName())
+			awsEnv.EC2API.LaunchTemplates.Store(launchTemplateName, &ec2.LaunchTemplate{LaunchTemplateName: launchTemplateName, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}}})
+			_, ok := awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
+			Expect(ok).To(BeTrue())
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			_, ok = awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
+			Expect(ok).To(BeTrue())
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
+		It("should succeed to delete the launch template", func() {
+			ltName1 := aws.String(fake.LaunchTemplateName())
+			awsEnv.EC2API.LaunchTemplates.Store(ltName1, &ec2.LaunchTemplate{LaunchTemplateName: ltName1, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
+			ltName2 := aws.String(fake.LaunchTemplateName())
+			awsEnv.EC2API.LaunchTemplates.Store(ltName2, &ec2.LaunchTemplate{LaunchTemplateName: ltName2, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
+			_, ok := awsEnv.EC2API.LaunchTemplates.Load(ltName1)
+			Expect(ok).To(BeTrue())
+			_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName2)
+			Expect(ok).To(BeTrue())
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+
+			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName1)
+			Expect(ok).To(BeFalse())
+			_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName2)
+			Expect(ok).To(BeFalse())
+			ExpectNotFound(ctx, env.Client, nodeClass)
+		})
 		It("should succeed to delete the instance profile with no NodeClaims", func() {
 			awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
 				profileName: {
@@ -927,7 +973,6 @@ var _ = Describe("NodeClassController", func() {
 					},
 				},
 			}
-
 			nodeClass.Spec.Role = ""
 			nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 			ExpectApplied(ctx, env.Client, nodeClass)

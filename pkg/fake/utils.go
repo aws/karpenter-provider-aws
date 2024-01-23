@@ -55,6 +55,14 @@ func RoleID() string {
 	return fmt.Sprintf("role-%s", randomdata.Alphanumeric(17))
 }
 
+func LaunchTemplateName() string {
+	return fmt.Sprintf("karpenter.k8s.aws/%s", randomdata.Alphanumeric(17))
+}
+
+func LaunchTemplateID() string {
+	return fmt.Sprint(randomdata.Alphanumeric(17))
+}
+
 func PrivateDNSName() string {
 	return fmt.Sprintf("ip-192-168-%d-%d.%s.compute.internal", randomdata.Number(0, 256), randomdata.Number(0, 256), DefaultRegion)
 }
