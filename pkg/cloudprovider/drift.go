@@ -25,6 +25,9 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
@@ -51,11 +54,11 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev
 	if err != nil {
 		return "", fmt.Errorf("calculating ami drift, %w", err)
 	}
-	securitygroupDrifted, err := c.areSecurityGroupsDrifted(instance, nodeClass)
+	securitygroupDrifted, err := c.areSecurityGroupsDrifted(ctx, instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating securitygroup drift, %w", err)
 	}
-	subnetDrifted, err := c.isSubnetDrifted(instance, nodeClass)
+	subnetDrifted, err := c.isSubnetDrifted(ctx, instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
@@ -91,28 +94,38 @@ func (c *CloudProvider) isAMIDrifted(ctx context.Context, nodeClaim *corev1beta1
 	return "", nil
 }
 
-// Checks if the security groups are drifted, by comparing the EC2NodeClass.Status.Subnets
+// Checks if the security groups are drifted, by comparing the subnet returned from the subnetProvider
 // to the ec2 instance subnets
-func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
-	// If the node template status does not have subnets, wait for the subnets to be populated before continuing
-	if len(nodeClass.Status.Subnets) == 0 {
-		return "", fmt.Errorf("no subnets exist in status")
+func (c *CloudProvider) isSubnetDrifted(ctx context.Context, instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	subnets, err := c.subnetProvider.List(ctx, nodeClass)
+	if err != nil {
+		return "", err
 	}
-	_, found := lo.Find(nodeClass.Status.Subnets, func(subnet v1beta1.Subnet) bool {
-		return subnet.ID == instance.SubnetID
+	// subnets need to be found to check for drift
+	if len(subnets) == 0 {
+		return "", fmt.Errorf("no subnets are discovered")
+	}
+
+	_, found := lo.Find(subnets, func(subnet *ec2.Subnet) bool {
+		return aws.StringValue(subnet.SubnetId) == instance.SubnetID
 	})
+
 	if !found {
 		return SubnetDrift, nil
 	}
 	return "", nil
 }
 
-// Checks if the security groups are drifted, by comparing the EC2NodeClass.Status.SecurityGroups
+// Checks if the security groups are drifted, by comparing the security groups returned from the SecurityGroupProvider
 // to the ec2 instance security groups
-func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
-	securityGroupIds := sets.New(lo.Map(nodeClass.Status.SecurityGroups, func(sg v1beta1.SecurityGroup, _ int) string { return sg.ID })...)
+func (c *CloudProvider) areSecurityGroupsDrifted(ctx context.Context, ec2Instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	securitygroup, err := c.securityGroupProvider.List(ctx, nodeClass)
+	if err != nil {
+		return "", err
+	}
+	securityGroupIds := sets.New(lo.Map(securitygroup, func(sg *ec2.SecurityGroup, _ int) string { return aws.StringValue(sg.GroupId) })...)
 	if len(securityGroupIds) == 0 {
-		return "", fmt.Errorf("no security groups exist in status")
+		return "", fmt.Errorf("no security groups are discovered")
 	}
 
 	if !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)) {

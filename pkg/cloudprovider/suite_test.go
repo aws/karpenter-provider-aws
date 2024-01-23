@@ -210,31 +210,65 @@ var _ = Describe("CloudProvider", func() {
 						ImageId:      aws.String(armAMIID),
 						Architecture: aws.String("arm64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("ami-key-1"),
+								Value: aws.String("ami-value-1"),
+							},
+						},
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String(amdAMIID),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("ami-key-2"),
+								Value: aws.String("ami-value-2"),
+							},
+						},
 					},
 				},
 			})
-			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-				{
-					ID:   validSecurityGroup,
-					Name: "test-securitygroup",
+			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
+				SecurityGroups: []*ec2.SecurityGroup{
+					{
+						GroupId:   aws.String(validSecurityGroup),
+						GroupName: aws.String("test-securitygroup"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("sg-key"),
+								Value: aws.String("sg-value"),
+							},
+						},
+					},
 				},
-			}
-			nodeClass.Status.Subnets = []v1beta1.Subnet{
-				{
-					ID:   validSubnet1,
-					Zone: "zone-1",
+			})
+			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{
+				Subnets: []*ec2.Subnet{
+					{
+						SubnetId:         aws.String(validSubnet1),
+						AvailabilityZone: aws.String("zone-1"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("sn-key-1"),
+								Value: aws.String("sn-value-1"),
+							},
+						},
+					},
+					{
+						SubnetId:         aws.String(validSubnet2),
+						AvailabilityZone: aws.String("zone-2"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   aws.String("sn-key-2"),
+								Value: aws.String("sn-value-2"),
+							},
+						},
+					},
 				},
-				{
-					ID:   validSubnet2,
-					Zone: "zone-2",
-				},
-			}
+			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
@@ -305,8 +339,8 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(Equal(cloudprovider.SubnetDrift))
 		})
 		It("should return an error if subnets are empty", func() {
-			nodeClass.Status.Subnets = []v1beta1.Subnet{}
-			ExpectApplied(ctx, env.Client, nodeClass)
+			awsEnv.SubnetCache.Flush()
+			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{}})
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
@@ -316,39 +350,39 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should return an error if the security groups are empty", func() {
-			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{}
-			ExpectApplied(ctx, env.Client, nodeClass)
+			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{}})
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
-		It("should return drifted if the instance security groups doesn't match the status", func() {
+		It("should return drifted if the instance security groups doesn't match the discovered values", func() {
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
-		It("should return drifted if there are more instance security groups present than in the status", func() {
+		It("should return drifted if there are more instance security groups present than in the discovered values", func() {
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}, {GroupId: aws.String(validSecurityGroup)}}
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
-		It("should return drifted if more security groups are present than instance security groups", func() {
-			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-				{
-					ID:   validSecurityGroup,
-					Name: "test-securitygroup",
+		It("should return drifted if more security groups are present than instance security groups then discovered from nodeclass", func() {
+			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
+				SecurityGroups: []*ec2.SecurityGroup{
+					{
+						GroupId:   aws.String(validSecurityGroup),
+						GroupName: aws.String("test-securitygroup"),
+					},
+					{
+						GroupId:   aws.String(fake.SecurityGroupID()),
+						GroupName: aws.String("test-securitygroup"),
+					},
 				},
-				{
-					ID:   fake.SecurityGroupID(),
-					Name: "test-securitygroup",
-				},
-			}
-			ExpectApplied(ctx, env.Client, nodeClass)
+			})
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
@@ -422,8 +456,8 @@ var _ = Describe("CloudProvider", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 				},
-				Entry("AMI Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMISelectorTerms: []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}}}),
-				Entry("Subnet Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{ID: "subnet-test1"}}}}),
+				Entry("AMI Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMISelectorTerms: []v1beta1.AMISelectorTerm{{Tags: map[string]string{"ami-key-1": "ami-value-1"}}}}}),
+				Entry("Subnet Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"sn-key-1": "sn-value-1"}}}}}),
 				Entry("SecurityGroup Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"sg-key": "sg-value"}}}}}),
 			)
 			It("should not return drifted if karpenter.k8s.aws/nodeclass-hash annotation is not present on the NodeClaim", func() {
