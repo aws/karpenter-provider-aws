@@ -42,6 +42,6 @@ var _ = Describe("Launch Template Deletion", func() {
 				},
 			})
 			g.Expect(output.LaunchTemplates).To(HaveLen(0))
-		}).Should(Succeed())
+		}).WithPolling(5.0).Should(Succeed())
 	})
 })
