@@ -18,12 +18,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"go.uber.org/multierr"
 	"math"
 	"net"
 	"strings"
 	"sync"
 	"time"
+
+	"go.uber.org/multierr"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
