@@ -139,10 +139,6 @@ apply: image ## Deploy the controller from the current state of your git reposit
 	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
         $(HELM_OPTS) \
         --set logLevel=debug \
-        --set controller.env[0].name=ENABLE_PROFILING \
-        --set-string controller.env[0].value=true \
-        --set serviceMonitor.enabled=true \
-        --set serviceMonitor.additionalLabels.scrape=enabled \
         --set controller.image.repository=$(IMG_REPOSITORY) \
         --set controller.image.tag=$(IMG_TAG) \
         --set controller.image.digest=$(IMG_DIGEST)
