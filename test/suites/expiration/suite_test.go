@@ -618,7 +618,13 @@ var _ = Describe("Expiration", func() {
 							MatchLabels: map[string]string{"app": "inflate"},
 						}},
 					},
-					PreStopSleep: lo.ToPtr(int64(300)),
+					ReadinessProbe: &v1.Probe{
+						ProbeHandler: v1.ProbeHandler{
+							HTTPGet: &v1.HTTPGetAction{
+								Port: intstr.FromInt32(80),
+							},
+						},
+					},
 				},
 			})
 			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
