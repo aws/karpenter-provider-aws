@@ -13,7 +13,7 @@ The finalizer blocks deletion of the node object while the Termination Controlle
 
 ### Disruption Controller
 
-Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automatic method](#automatic-methods) at a time, in order of Expiration, Drift, and then Consolidation. Each method varies slightly, but they all follow the standard disruption process. Karpenter uses [disruption budgets]({{<ref "#disruption-budgets" >}}) to control the speed of disruption. 
+Karpenter automatically discovers disruptable nodes and spins up replacements when needed. Karpenter disrupts nodes by executing one [automatic method](#automatic-methods) at a time, in order of Expiration, Drift, and then Consolidation. Each method varies slightly, but they all follow the standard disruption process. Karpenter uses [disruption budgets]({{<ref "#disruption-budgets" >}}) to control the speed of disruption.
 1. Identify a list of prioritized candidates for the disruption method.
    * If there are [pods that cannot be evicted](#pod-eviction) on the node, Karpenter will ignore the node and try disrupting it later.
    * If there are no disruptable nodes, continue to the next disruption method.
@@ -213,7 +213,7 @@ spec:
   disruption:
     consolidationPolicy: WhenUnderutilized
     expireAfter: 720h # 30 * 24h = 720h
-    budgets: 
+    budgets:
     - nodes: "20%"
     - nodes: "5"
     - nodes: "0"
@@ -223,7 +223,7 @@ spec:
 
 #### Schedule
 Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below, with additional special macros like `@yearly`, `monthly`, `@weekly`, `@daily`, `@hourly`.
-Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for more information on how to follow the cron syntax. 
+Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for more information on how to follow the cron syntax.
 
 ```bash
 # ┌───────────── minute (0 - 59)
@@ -238,14 +238,14 @@ Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/worklo
 ```
 
 {{% alert title="Note" color="primary" %}}
-Timezones are not supported. Most images default to UTC, but it is best practice to ensure this is the case when considering how to define your budgets. 
+Timezones are not supported. Most images default to UTC, but it is best practice to ensure this is the case when considering how to define your budgets.
 {{% /alert %}}
 
 #### Duration
 Duration allows compound durations with minutes and hours values such as `10h5m` or `30m` or `160h`. Since cron syntax does not accept denominations smaller than minutes, users can only define minutes or hours.
 
 {{% alert title="Note" color="primary" %}}
-Duration and Schedule must be defined together. When omitted, the budget is always active. When defined, the schedule determines a starting point where the budget will begin being enforced, and the duration determines how long from that starting point the budget will be enforced. 
+Duration and Schedule must be defined together. When omitted, the budget is always active. When defined, the schedule determines a starting point where the budget will begin being enforced, and the duration determines how long from that starting point the budget will be enforced.
 {{% /alert %}}
 
 ### Pod-Level Controls
@@ -279,7 +279,7 @@ Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}
 
 ### Node-Level Controls
 
-You can block Karpenter from voluntarily choosing to disrupt certain nodes by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the node. This will prevent consolidation and expiration actions on the node.
+You can block Karpenter from voluntarily choosing to disrupt certain nodes by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the node. This will prevent disruption actions on the node.
 
 ```yaml
 apiVersion: v1
@@ -291,7 +291,7 @@ metadata:
 
 #### Example: Disable Disruption on a NodePool
 
-NodePool `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this NodePool. By setting the annotation `karpenter.sh/do-not-disrupt: "true"` on the NodePool, you will selectively prevent all nodes launched by this NodePool from being considered in consolidation or expiration actions.
+NodePool `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this NodePool. By setting the annotation `karpenter.sh/do-not-disrupt: "true"` on the NodePool, you will selectively prevent all nodes launched by this NodePool from being considered in disruption actions.
 
 ```yaml
 apiVersion: karpenter.sh/v1beta1

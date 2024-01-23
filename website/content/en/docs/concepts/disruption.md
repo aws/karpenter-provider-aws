@@ -209,7 +209,7 @@ Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}
 
 ### Node-Level Controls
 
-You can block Karpenter from voluntarily choosing to disrupt certain nodes by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the node. This will prevent consolidation and expiration actions on the node.
+You can block Karpenter from voluntarily choosing to disrupt certain nodes by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the node. This will prevent disruption actions on the node.
 
 ```yaml
 apiVersion: v1
@@ -221,7 +221,7 @@ metadata:
 
 #### Example: Disable Disruption on a NodePool
 
-NodePool `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this NodePool. By setting the annotation `karpenter.sh/do-not-disrupt: "true"` on the NodePool, you will selectively prevent all nodes launched by this NodePool from being considered in consolidation or expiration actions.
+NodePool `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this NodePool. By setting the annotation `karpenter.sh/do-not-disrupt: "true"` on the NodePool, you will selectively prevent all nodes launched by this NodePool from being considered in disruption actions.
 
 ```yaml
 apiVersion: karpenter.sh/v1beta1
