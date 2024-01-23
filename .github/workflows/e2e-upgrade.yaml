@@ -92,7 +92,7 @@ jobs:
           eksctl_version: v0.165.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.from_git_ref }}
-          ecr_account_id: ${{ vars.ECR_ACCOUNT_ID }} # TODO @joinnis: Change this from the old to new account when enough snapshots are generated
+          ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
           ecr_region: ${{ vars.SNAPSHOT_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
