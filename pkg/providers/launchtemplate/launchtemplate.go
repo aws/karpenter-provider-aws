@@ -18,6 +18,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"go.uber.org/multierr"
 	"math"
 	"net"
 	"strings"
@@ -408,10 +409,13 @@ func (p *Provider) DeleteLaunchTemplates(ctx context.Context, nodeClass *v1beta1
 		return fmt.Errorf("fetching launch templates, %w", err)
 	}
 
+	var deleteErr error
 	for _, name := range ltNames {
-		if _, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateName: name}); err != nil {
-			return fmt.Errorf("deleting launch templates, %w", err)
-		}
+		_, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateName: name})
+		deleteErr = multierr.Append(deleteErr, err)
+	}
+	if deleteErr != nil {
+		return fmt.Errorf("deleting launch templates, %w", deleteErr)
 	}
 	logging.FromContext(ctx).With("launchTemplates", utils.PrettySlice(aws.StringValueSlice(ltNames), 5)).Debugf("deleted %v launch templates", len(ltNames))
 	return nil

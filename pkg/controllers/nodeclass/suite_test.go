@@ -820,7 +820,7 @@ var _ = Describe("NodeClassController", func() {
 		BeforeEach(func() {
 			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
 		})
-		It("should fail to delete the launch template", func() {
+		It("should not delete the NodeClass if launch template deletion fails", func() {
 			launchTemplateName := aws.String(fake.LaunchTemplateName())
 			awsEnv.EC2API.LaunchTemplates.Store(launchTemplateName, &ec2.LaunchTemplate{LaunchTemplateName: launchTemplateName, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}}})
 			_, ok := awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
@@ -848,16 +848,22 @@ var _ = Describe("NodeClassController", func() {
 			ExpectNotFound(ctx, env.Client, nodeClass)
 		})
 		It("should succeed to delete the launch template", func() {
-			launchTemplateName := aws.String(fake.LaunchTemplateName())
-			awsEnv.EC2API.LaunchTemplates.Store(launchTemplateName, &ec2.LaunchTemplate{LaunchTemplateName: launchTemplateName, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
-			_, ok := awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
+			ltName1 := aws.String(fake.LaunchTemplateName())
+			awsEnv.EC2API.LaunchTemplates.Store(ltName1, &ec2.LaunchTemplate{LaunchTemplateName: ltName1, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
+			ltName2 := aws.String(fake.LaunchTemplateName())
+			awsEnv.EC2API.LaunchTemplates.Store(ltName2, &ec2.LaunchTemplate{LaunchTemplateName: ltName2, LaunchTemplateId: aws.String(fake.LaunchTemplateID()), Tags: []*ec2.Tag{&ec2.Tag{Key: aws.String("karpenter.k8s.aws/cluster"), Value: aws.String("test-cluster")}, {Key: aws.String("karpenter.k8s.aws/ec2nodeclass"), Value: aws.String(nodeClass.Name)}}})
+			_, ok := awsEnv.EC2API.LaunchTemplates.Load(ltName1)
+			Expect(ok).To(BeTrue())
+			_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName2)
 			Expect(ok).To(BeTrue())
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 
 			Expect(env.Client.Delete(ctx, nodeClass)).To(Succeed())
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
-			_, ok = awsEnv.EC2API.LaunchTemplates.Load(launchTemplateName)
+			_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName1)
+			Expect(ok).To(BeFalse())
+			_, ok = awsEnv.EC2API.LaunchTemplates.Load(ltName2)
 			Expect(ok).To(BeFalse())
 			ExpectNotFound(ctx, env.Client, nodeClass)
 		})
