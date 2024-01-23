@@ -93,11 +93,9 @@ var _ = Describe("Expiration", func() {
 		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 	})
 	Context("Budgets", func() {
-		/*
-			Two nodes, both expired or both drifted, the more drifted one with a pre-stop pod that sleeps for 300 seconds,
-			and we consistently ensure that the second node is not tainted == disrupted.
-		*/
-		FIt("should not continue to disrupt nodes that have been the target of pod nomination", func() {
+		// Two nodes, both expired or both drifted, the more drifted one with a pre-stop pod that sleeps for 300 seconds,
+		// and we consistently ensure that the second node is not tainted == disrupted.
+		It("should not continue to disrupt nodes that have been the target of pod nomination", func() {
 			coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,
