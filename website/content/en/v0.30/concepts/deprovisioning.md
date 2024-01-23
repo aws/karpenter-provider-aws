@@ -162,12 +162,12 @@ In special cases, drift can correspond to multiple values and must be handled di
 Behavioral Fields are treated as over-arching settings on the NodePool to dictate how Karpenter behaves. These fields don’t correspond to settings on the NodeClaim or instance. They’re set by the user to control Karpenter’s Provisioning and disruption logic. Since these don’t map to a desired state of NodeClaims, __behavioral fields are not considered for Drift__.
 
 __Behavioral Fields__
-- Weight
-- Limits
-- ConsolidationPolicy
-- ConsolidateAfter
-- ExpireAfter
----
+- Weight                      
+- Limits                      
+- ConsolidationPolicy               
+- ConsolidateAfter      
+- ExpireAfter  
+---      
 
 Read the [Drift Design](https://github.com/aws/karpenter-core/blob/main/designs/drift.md) for more.
 
@@ -216,7 +216,7 @@ Voluntary node removal does not include [Interruption]({{<ref "#interruption" >}
 
 ### Node-Level Controls
 
-Nodes can be opted out of consolidation and expiration deprovisioning by setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the node.
+Nodes can be opted out of consolidation deprovisioning by setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the node.
 
 ```yaml
 apiVersion: v1
@@ -228,7 +228,7 @@ metadata:
 
 #### Example: Disable Consolidation on Provisioner
 
-Provisioner `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this provisioner. By setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the provisioner, you will selectively prevent all nodes launched by this Provisioner from being considered in consolidation or expiration actions.
+Provisioner `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this provisioner. By setting the annotation `karpenter.sh/do-not-consolidate: "true"` on the provisioner, you will selectively prevent all nodes launched by this Provisioner from being considered in consolidation calculations.
 
 ```yaml
 apiVersion: karpenter.sh/v1alpha5
