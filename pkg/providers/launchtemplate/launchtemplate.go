@@ -418,6 +418,6 @@ func (p *Provider) DeleteLaunchTemplates(ctx context.Context, nodeClass *v1beta1
 	if deleteErr != nil {
 		return fmt.Errorf("deleting launch templates, %w", deleteErr)
 	}
-	logging.FromContext(ctx).With("launchTemplates", utils.PrettySlice(aws.StringValueSlice(ltNames), 5)).Debugf("deleted %v launch templates", len(ltNames))
+	logging.FromContext(ctx).With("launchTemplates", utils.PrettySlice(aws.StringValueSlice(ltNames), 5)).Debugf("deleted launch templates")
 	return nil
 }
