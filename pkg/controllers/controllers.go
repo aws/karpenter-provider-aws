@@ -51,7 +51,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 	pricingProvider *pricing.Provider, amiProvider *amifamily.Provider, launchTemplateProvider *launchtemplate.Provider) []controller.Controller {
 
 	controllers := []controller.Controller{
-		nodeclass.NewNodeClassController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
+		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 	}

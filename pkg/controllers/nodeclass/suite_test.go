@@ -68,7 +68,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 
-	nodeClassController = nodeclass.NewNodeClassController(env.Client, events.NewRecorder(&record.FakeRecorder{}), awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+	nodeClassController = nodeclass.NewController(env.Client, events.NewRecorder(&record.FakeRecorder{}), awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 })
 
 var _ = AfterSuite(func() {
