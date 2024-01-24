@@ -28,21 +28,19 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
-
-	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 )
 
 type Controller struct {
 	kubeClient      client.Client
-	cloudProvider   *cloudprovider.CloudProvider
+	cloudProvider   cloudprovider.CloudProvider
 	successfulCount uint64 // keeps track of successful reconciles for more aggressive requeueing near the start of the controller
 }
 
-func NewController(kubeClient client.Client, cloudProvider *cloudprovider.CloudProvider) *Controller {
+func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudProvider) *Controller {
 	return &Controller{
 		kubeClient:      kubeClient,
 		cloudProvider:   cloudProvider,
@@ -93,7 +91,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.NodeClaim, nodeList *v1.NodeList) error {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", nodeClaim.Status.ProviderID))
 	if err := c.cloudProvider.Delete(ctx, nodeClaim); err != nil {
-		return corecloudprovider.IgnoreNodeClaimNotFoundError(err)
+		return cloudprovider.IgnoreNodeClaimNotFoundError(err)
 	}
 	logging.FromContext(ctx).Debugf("garbage collected cloudprovider instance")
 

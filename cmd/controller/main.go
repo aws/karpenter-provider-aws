@@ -60,7 +60,7 @@ func main() {
 			op.GetClient(),
 			op.EventRecorder,
 			op.UnavailableOfferingsCache,
-			awsCloudProvider,
+			cloudProvider,
 			op.SubnetProvider,
 			op.SecurityGroupProvider,
 			op.InstanceProfileProvider,
