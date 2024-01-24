@@ -16,9 +16,7 @@ extraScrapeConfigs: |
           - kube-system
       relabel_configs:
       - source_labels:
-          [
-            __meta_kubernetes_endpoints_name,
-            __meta_kubernetes_endpoint_port_name,
-          ]
+        - __meta_kubernetes_endpoints_name
+        - __meta_kubernetes_endpoint_port_name
         action: keep
         regex: karpenter;http-metrics
