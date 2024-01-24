@@ -51,6 +51,8 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
+var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)
+
 type Controller struct {
 	kubeClient              client.Client
 	recorder                events.Recorder
@@ -62,8 +64,9 @@ type Controller struct {
 }
 
 func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, launchTemplateProvider *launchtemplate.Provider) *Controller {
-	return &Controller{
+	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, launchTemplateProvider *launchtemplate.Provider) corecontroller.Controller {
+
+	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
 		subnetProvider:          subnetProvider,
@@ -71,7 +74,7 @@ func NewController(kubeClient client.Client, recorder events.Recorder, subnetPro
 		amiProvider:             amiProvider,
 		instanceProfileProvider: instanceProfileProvider,
 		launchTemplateProvider:  launchTemplateProvider,
-	}
+	})
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
@@ -214,25 +217,11 @@ func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1be
 	return nil
 }
 
-var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*NodeClassController)(nil)
-
-//nolint:revive
-type NodeClassController struct {
-	*Controller
-}
-
-func NewNodeClassController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, launchTemplateProvider *launchtemplate.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &NodeClassController{
-		Controller: NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
-	})
-}
-
-func (c *NodeClassController) Name() string {
+func (c *Controller) Name() string {
 	return "nodeclass"
 }
 
-func (c *NodeClassController) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
+func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
 	return corecontroller.Adapt(controllerruntime.
 		NewControllerManagedBy(m).
 		For(&v1beta1.EC2NodeClass{}).
