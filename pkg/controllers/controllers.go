@@ -17,6 +17,8 @@ package controllers
 import (
 	"context"
 
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -30,7 +32,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
-	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	nodeclaimgarbagecollection "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/garbagecollection"
 	nodeclaimtagging "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/tagging"
@@ -46,7 +47,7 @@ import (
 )
 
 func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
-	unavailableOfferings *cache.UnavailableOfferings, cloudProvider *cloudprovider.CloudProvider, subnetProvider *subnet.Provider,
+	unavailableOfferings *cache.UnavailableOfferings, cloudProvider cloudprovider.CloudProvider, subnetProvider *subnet.Provider,
 	securityGroupProvider *securitygroup.Provider, instanceProfileProvider *instanceprofile.Provider, instanceProvider *instance.Provider,
 	pricingProvider *pricing.Provider, amiProvider *amifamily.Provider, launchTemplateProvider *launchtemplate.Provider) []controller.Controller {
 
