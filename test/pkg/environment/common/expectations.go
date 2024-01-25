@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"time"
 
@@ -468,6 +469,22 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*
 	return createdNodes
 }
 
+func (env *Environment) ExpectNodeCount(comparator string, count int) {
+	GinkgoHelper()
+
+	nodeList := &v1.NodeList{}
+	Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+	Expect(len(nodeList.Items)).To(BeNumerically(comparator, count))
+}
+
+func (env *Environment) ExpectNodeClaimCount(comparator string, count int) {
+	GinkgoHelper()
+	
+	nodeClaimList := &corev1beta1.NodeClaimList{}
+	Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+	Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
+}
+
 func NodeNames(nodes []*v1.Node) []string {
 	return lo.Map(nodes, func(n *v1.Node, index int) string {
 		return n.Name
@@ -486,6 +503,9 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
+// ConsistentlyExpectNoDisruptions ensures that the state of the cluster is not changed within a passed duration
+// Specifically, we check if the cluster size in terms of nodes is the same as the passed-in size and we validate
+// that no disrupting taints are added throughout the window
 func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration string) {
 	GinkgoHelper()
 	Consistently(func(g Gomega) {
@@ -751,17 +771,56 @@ func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.Obj
 	Expect(env.Client.Patch(env.Context, ds, patch)).To(Succeed())
 }
 
-func (env *Environment) ExpectHealthyPodsForNode(nodeName string) []*v1.Pod {
+// ForcePodsToSpread ensures that currently scheduled pods get spread evenly across all passed nodes by deleting pods off of existing
+// nodes and waiting them to reschedule. This is useful for scenarios where you want to force the nodes be underutilized
+// but you want to keep a consistent count of nodes rather than leaving around empty ones.
+func (env *Environment) ForcePodsToSpread(nodes ...*v1.Node) {
+	GinkgoHelper()
+
+	// Get the total count of pods across
+	podCount := 0
+	for _, n := range nodes {
+		podCount += len(env.ExpectActivePodsForNode(n.Name))
+	}
+	maxPodsPerNode := int(math.Ceil(float64(podCount) / float64(len(nodes))))
+
+	By(fmt.Sprintf("forcing %d pods to spread across %d nodes", podCount, len(nodes)))
+	for {
+		var nodePods []*v1.Pod
+		node, found := lo.Find(nodes, func(n *v1.Node) bool {
+			nodePods = env.ExpectActivePodsForNode(n.Name)
+			return len(nodePods) > maxPodsPerNode
+		})
+		if !found {
+			break
+		}
+		// Set the nodes to unschedulable so that the pods won't reschedule.
+		Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+		stored := node.DeepCopy()
+		node.Spec.Unschedulable = true
+		Expect(env.Client.Patch(env.Context, node, client.MergeFrom(stored))).To(Succeed())
+		for _, pod := range nodePods[maxPodsPerNode:] {
+			env.ExpectDeleted(pod)
+		}
+		Eventually(func(g Gomega) {
+			g.Expect(len(env.ExpectActivePodsForNode(node.Name))).To(Or(Equal(maxPodsPerNode), Equal(maxPodsPerNode-1)))
+		}).WithTimeout(5 * time.Second).Should(Succeed())
+	}
+	for _, n := range nodes {
+		stored := n.DeepCopy()
+		n.Spec.Unschedulable = false
+		Expect(env.Client.Patch(env.Context, n, client.MergeFrom(stored))).To(Succeed())
+	}
+}
+
+func (env *Environment) ExpectActivePodsForNode(nodeName string) []*v1.Pod {
 	GinkgoHelper()
 	podList := &v1.PodList{}
 	Expect(env.Client.List(env, podList, client.MatchingFields{"spec.nodeName": nodeName}, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 
 	// Return the healthy pods
 	return lo.Filter(lo.ToSlicePtr(podList.Items), func(p *v1.Pod, _ int) bool {
-		_, found := lo.Find(p.Status.Conditions, func(cond v1.PodCondition) bool {
-			return cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue
-		})
-		return found
+		return p.DeletionTimestamp.IsZero()
 	})
 }
 

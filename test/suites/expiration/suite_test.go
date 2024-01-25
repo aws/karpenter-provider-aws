@@ -207,36 +207,13 @@ var _ = Describe("Expiration", func() {
 			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 3)
 			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
-			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 			By("scaling down the deployment")
 			// Update the deployment to a third of the replicas.
 			dep.Spec.Replicas = lo.ToPtr[int32](3)
 			env.ExpectUpdated(dep)
 
-			By("spreading the pods to each of the nodes")
-			env.EventuallyExpectHealthyPodCount(selector, 3)
-			// Delete pods from the deployment until each node has one pod.
-			var nodePods []*v1.Pod
-			for {
-				node, found := lo.Find(nodes, func(n *v1.Node) bool {
-					nodePods = env.ExpectHealthyPodsForNode(n.Name)
-					return len(nodePods) > 1
-				})
-				if !found {
-					break
-				}
-				// Set the nodes to unschedulable so that the pods won't reschedule.
-				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
-				node.Spec.Unschedulable = true
-				env.ExpectUpdated(node)
-				for _, pod := range nodePods[1:] {
-					env.ExpectDeleted(pod)
-				}
-				Eventually(func(g Gomega) {
-					g.Expect(len(env.ExpectHealthyPodsForNode(node.Name))).To(Equal(1))
-				}).WithTimeout(5 * time.Second).Should(Succeed())
-			}
+			env.ForcePodsToSpread(nodes...)
 			env.EventuallyExpectHealthyPodCount(selector, 3)
 
 			By("cordoning and adding finalizer to the nodes")
