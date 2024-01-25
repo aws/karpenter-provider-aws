@@ -479,7 +479,7 @@ func (env *Environment) ExpectNodeCount(comparator string, count int) {
 
 func (env *Environment) ExpectNodeClaimCount(comparator string, count int) {
 	GinkgoHelper()
-	
+
 	nodeClaimList := &corev1beta1.NodeClaimList{}
 	Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 	Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
@@ -525,6 +525,19 @@ func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration 
 			g.Expect(ok).To(BeFalse())
 		}
 	}, duration).Should(Succeed())
+}
+
+func (env *Environment) ConsistentlyExpectTaintedNodeCount(comparator string, count int, duration string) []*v1.Node {
+	GinkgoHelper()
+
+	By(fmt.Sprintf("checking for tainted nodes to be %s to %d for %s", comparator, count, duration))
+	nodeList := &v1.NodeList{}
+	Consistently(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
+		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d tainted nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+	}, duration).Should(Succeed())
+	return lo.ToSlicePtr(nodeList.Items)
 }
 
 func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {

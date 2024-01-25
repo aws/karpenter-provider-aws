@@ -124,8 +124,9 @@ var _ = Describe("Consolidation", func() {
 			// Update the deployment to only contain 1 replica.
 			env.ExpectUpdated(dep)
 
-			// This check ensures that we are consolidating nodes at the same time
+			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
+			env.ConsistentlyExpectTaintedNodeCount("==", 2, "5s")
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
@@ -144,7 +145,7 @@ var _ = Describe("Consolidation", func() {
 			env.EventuallyExpectNotFound(nodes[0], nodes[1])
 
 			// Expect there to only be one node remaining for the last replica
-			env.ExpectNodeClaimCount("==", 1)
+			env.ExpectNodeCount("==", 1)
 		})
 		It("should respect budgets for non-empty delete consolidation", func() {
 			// This test will hold consolidation until we are ready to execute it
@@ -203,11 +204,15 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = nil
 			env.ExpectUpdated(nodePool)
 
+			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			nodes = env.EventuallyExpectTaintedNodeCount("==", 2)
+			env.ConsistentlyExpectTaintedNodeCount("==", 2, "5s")
+
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
 			}
 			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+			env.ExpectNodeCount("==", 1)
 		})
 		It("should not allow consolidation if the budget is fully blocking", func() {
 			// We're going to define a budget that doesn't allow any consolidation to happen
