@@ -16,7 +16,6 @@ package bootstrap
 
 import (
 	"github.com/pelletier/go-toml/v2"
-	"time"
 )
 
 func NewBottlerocketConfig(userdata *string) (*BottlerocketConfig, error) {
@@ -87,7 +86,7 @@ type BottlerocketStaticPod struct {
 // https://kubernetes.io/docs/tasks/administer-cluster/kubelet-credential-provider/
 type BottlerocketCredentialProvider struct {
 	Enabled       *bool             `toml:"enabled"`
-	CacheDuration time.Duration     `toml:"cache-duration,omitempty"`
+	CacheDuration *string           `toml:"cache-duration,omitempty"`
 	ImagePatterns []string          `toml:"image-patterns"`
 	Environment   map[string]string `toml:"environment,omitempty"`
 }
