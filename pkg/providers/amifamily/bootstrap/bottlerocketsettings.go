@@ -35,7 +35,7 @@ type BottlerocketConfig struct {
 	Settings    BottlerocketSettings   `toml:"-"`
 }
 
-// BottlerocketSettings is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/develop/sources/models/src/aws-k8s-1.22/mod.rs
+// BottlerocketSettings is a subset of all configuration in https://github.com/bottlerocket-os/bottlerocket/blob/d427c40931cba6e6bedc5b75e9c084a6e1818db9/sources/models/src/lib.rs#L260
 // These settings apply across all K8s versions that karpenter supports.
 type BottlerocketSettings struct {
 	Kubernetes BottlerocketKubernetes `toml:"kubernetes"`
@@ -82,8 +82,7 @@ type BottlerocketStaticPod struct {
 }
 
 // BottlerocketCredentialProvider is k8s specific configuration for Bottlerocket Kubelet image credential provider
-// https://bottlerocket.dev/en/os/1.18.x/api/settings/kubernetes/#credential-providers
-// https://kubernetes.io/docs/tasks/administer-cluster/kubelet-credential-provider/
+// See Bottlerocket struct at https://github.com/bottlerocket-os/bottlerocket/blob/d427c40931cba6e6bedc5b75e9c084a6e1818db9/sources/models/modeled-types/src/kubernetes.rs#L1307
 type BottlerocketCredentialProvider struct {
 	Enabled       *bool             `toml:"enabled"`
 	CacheDuration *string           `toml:"cache-duration,omitempty"`
