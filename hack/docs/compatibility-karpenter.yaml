@@ -36,3 +36,9 @@ compatibility:
   - appVersion: 0.32.x
     minK8sVersion: 1.23
     maxK8sVersion: 1.28
+  - appVersion: 0.33.0
+    minK8sVersion: 1.23
+    maxK8sVersion: 1.28
+  - appVersion: 0.33.1
+    minK8sVersion: 1.23
+    maxK8sVersion: 1.28
