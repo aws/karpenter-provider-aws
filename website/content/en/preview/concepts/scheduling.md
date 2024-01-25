@@ -349,8 +349,11 @@ The three supported `topologyKey` values that Karpenter supports are:
 - `kubernetes.io/hostname`
 - `karpenter.sh/capacity-type`
 
-
 See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/) for details.
+
+{{% alert title="Note" color="primary" %}}
+NodePools do not attempt to balance or rebalance the availability zones for their nodes. Availability zone balancing may be achieved by defining zonal Topology Spread Constraints for Pods that require multi-zone durability, and NodePools will respect these constraints while optimizing for compute costs.
+{{% /alert %}}
 
 ## Pod affinity/anti-affinity
 
