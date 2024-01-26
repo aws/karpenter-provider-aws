@@ -21,7 +21,7 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.28"
+    default: "1.29"
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
 runs:
@@ -33,7 +33,7 @@ runs:
   - uses: ./.github/actions/e2e/install-helm
     with:
       version: v3.12.3 # Pinned to this version since v3.13.0 has issues with anonymous pulls: https://github.com/helm/helm/issues/12423
-  # Label namespace to enforce security stranded and scrape prometheus metrics 
+  # Label namespace to enforce security stranded and scrape prometheus metrics
   # https://kubernetes.io/docs/concepts/security/pod-security-standards/
   - name: add labels to kube-system namespace
     shell: bash

@@ -36,7 +36,8 @@ on:
           - "1.26"
           - "1.27"
           - "1.28"
-        default: "1.28"
+          - "1.29"
+        default: "1.29"
       cluster_name:
         type: string
       cleanup:
@@ -58,7 +59,7 @@ on:
         required: true
       k8s_version:
         type: string
-        default: "1.28"
+        default: "1.29"
       enable_metrics:
         type: boolean
         default: false
