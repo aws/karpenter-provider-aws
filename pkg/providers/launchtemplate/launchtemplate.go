@@ -370,6 +370,13 @@ func (p *Provider) cachedEvictedFunc(ctx context.Context) func(string, interface
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
 		if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); err != nil {
+			if awserrors.IsLaunchTemplateNotFound(err) {
+				logging.FromContext(ctx).With(
+					"id", aws.StringValue(launchTemplate.LaunchTemplateId),
+					"name", aws.StringValue(launchTemplate.LaunchTemplateName),
+				).Debugf("launch template no longer exists")
+				return
+			}
 			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
 			return
 		}
