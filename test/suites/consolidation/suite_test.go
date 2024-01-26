@@ -22,10 +22,12 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/samber/lo"
+	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -63,6 +65,224 @@ var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Consolidation", func() {
+	Context("Budgets", func() {
+		var nodePool *corev1beta1.NodePool
+		var dep *appsv1.Deployment
+		var selector labels.Selector
+		var numPods int32
+		BeforeEach(func() {
+			nodePool = env.DefaultNodePool(nodeClass)
+			nodePool.Spec.Disruption.ConsolidateAfter = nil
+
+			numPods = 5
+			dep = test.Deployment(test.DeploymentOptions{
+				Replicas: numPods,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "regular-app"},
+					},
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+					},
+				},
+			})
+			selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		})
+		It("should respect budgets for empty delete consolidation", func() {
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{
+				{
+					Nodes: "40%",
+				},
+			}
+
+			// Hostname anti-affinity to require one pod on each node
+			dep.Spec.Template.Spec.Affinity = &v1.Affinity{
+				PodAntiAffinity: &v1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+						{
+							LabelSelector: dep.Spec.Selector,
+							TopologyKey:   v1.LabelHostname,
+						},
+					},
+				},
+			}
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+
+			By("adding finalizers to the nodes to prevent termination")
+			for _, node := range nodes {
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+				env.ExpectUpdated(node)
+			}
+
+			dep.Spec.Replicas = lo.ToPtr[int32](1)
+			By("making the nodes empty")
+			// Update the deployment to only contain 1 replica.
+			env.ExpectUpdated(dep)
+
+			// Ensure that we get two nodes tainted, and they have overlap during the drift
+			env.EventuallyExpectTaintedNodeCount("==", 2)
+			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+
+			// Remove the finalizer from each node so that we can terminate
+			for _, node := range nodes {
+				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			}
+
+			// After the deletion timestamp is set and all pods are drained
+			// the node should be gone
+			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+
+			// This check ensures that we are consolidating nodes at the same time
+			env.EventuallyExpectTaintedNodeCount("==", 2)
+			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+
+			for _, node := range nodes {
+				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			}
+			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+
+			// Expect there to only be one node remaining for the last replica
+			env.ExpectNodeCount("==", 1)
+		})
+		It("should respect budgets for non-empty delete consolidation", func() {
+			// This test will hold consolidation until we are ready to execute it
+			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+
+			nodePool = test.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"2xlarge"},
+				},
+			)
+			// We're expecting to create 3 nodes, so we'll expect to see at most 2 nodes deleting at one time.
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes: "50%",
+			}}
+			numPods = 9
+			dep = test.Deployment(test.DeploymentOptions{
+				Replicas: numPods,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "large-app"},
+					},
+					// Each 2xlarge has 8 cpu, so each node should fit no more than 3 pods.
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU: resource.MustParse("2100m"),
+						},
+					},
+				},
+			})
+			selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", 3)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", 3)
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+
+			By("scaling down the deployment")
+			// Update the deployment to a third of the replicas.
+			dep.Spec.Replicas = lo.ToPtr[int32](3)
+			env.ExpectUpdated(dep)
+
+			env.ForcePodsToSpread(nodes...)
+			env.EventuallyExpectHealthyPodCount(selector, 3)
+
+			By("cordoning and adding finalizer to the nodes")
+			// Add a finalizer to each node so that we can stop termination disruptions
+			for _, node := range nodes {
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+				env.ExpectUpdated(node)
+			}
+
+			By("enabling consolidation")
+			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			env.ExpectUpdated(nodePool)
+
+			// Ensure that we get two nodes tainted, and they have overlap during the drift
+			env.EventuallyExpectTaintedNodeCount("==", 2)
+			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+
+			for _, node := range nodes {
+				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			}
+			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+			env.ExpectNodeCount("==", 1)
+		})
+		It("should not allow consolidation if the budget is fully blocking", func() {
+			// We're going to define a budget that doesn't allow any consolidation to happen
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes: "0",
+			}}
+
+			// Hostname anti-affinity to require one pod on each node
+			dep.Spec.Template.Spec.Affinity = &v1.Affinity{
+				PodAntiAffinity: &v1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+						{
+							LabelSelector: dep.Spec.Selector,
+							TopologyKey:   v1.LabelHostname,
+						},
+					},
+				},
+			}
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
+			env.EventuallyExpectCreatedNodeCount("==", 5)
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+
+			dep.Spec.Replicas = lo.ToPtr[int32](1)
+			By("making the nodes empty")
+			// Update the deployment to only contain 1 replica.
+			env.ExpectUpdated(dep)
+
+			env.ConsistentlyExpectNoDisruptions(5, time.Minute)
+		})
+		It("should not allow consolidation if the budget is fully blocking during a scheduled time", func() {
+			// We're going to define a budget that doesn't allow any drift to happen
+			// This is going to be on a schedule that only lasts 30 minutes, whose window starts 15 minutes before
+			// the current time and extends 15 minutes past the current time
+			// Times need to be in UTC since the karpenter containers were built in UTC time
+			windowStart := time.Now().Add(-time.Minute * 15).UTC()
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes:    "0",
+				Schedule: lo.ToPtr(fmt.Sprintf("%d %d * * *", windowStart.Minute(), windowStart.Hour())),
+				Duration: &metav1.Duration{Duration: time.Minute * 30},
+			}}
+
+			// Hostname anti-affinity to require one pod on each node
+			dep.Spec.Template.Spec.Affinity = &v1.Affinity{
+				PodAntiAffinity: &v1.PodAntiAffinity{
+					RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+						{
+							LabelSelector: dep.Spec.Selector,
+							TopologyKey:   v1.LabelHostname,
+						},
+					},
+				},
+			}
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
+			env.EventuallyExpectCreatedNodeCount("==", 5)
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+
+			dep.Spec.Replicas = lo.ToPtr[int32](1)
+			By("making the nodes empty")
+			// Update the deployment to only contain 1 replica.
+			env.ExpectUpdated(dep)
+
+			env.ConsistentlyExpectNoDisruptions(5, time.Minute)
+		})
+	})
 	DescribeTable("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents),
 		func(spotToSpot bool) {
 			nodePool := test.NodePool(corev1beta1.NodePool{

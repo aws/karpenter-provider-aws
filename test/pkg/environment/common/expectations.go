@@ -19,6 +19,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"math"
 	"strings"
 	"time"
 
@@ -468,13 +469,29 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*
 	return createdNodes
 }
 
+func (env *Environment) ExpectNodeCount(comparator string, count int) {
+	GinkgoHelper()
+
+	nodeList := &v1.NodeList{}
+	Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+	Expect(len(nodeList.Items)).To(BeNumerically(comparator, count))
+}
+
+func (env *Environment) ExpectNodeClaimCount(comparator string, count int) {
+	GinkgoHelper()
+
+	nodeClaimList := &corev1beta1.NodeClaimList{}
+	Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+	Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
+}
+
 func NodeNames(nodes []*v1.Node) []string {
 	return lo.Map(nodes, func(n *v1.Node, index int) string {
 		return n.Name
 	})
 }
 
-func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int, duration string) []*v1.Node {
+func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int, duration time.Duration) []*v1.Node {
 	GinkgoHelper()
 	By(fmt.Sprintf("expecting nodes to be %s to %d for %s", comparator, count, duration))
 	nodeList := &v1.NodeList{}
@@ -482,11 +499,14 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
 			fmt.Sprintf("expected %d nodes, had %d (%v) for %s", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items)), duration))
-	}, duration).Should(Succeed())
+	}, duration.String()).Should(Succeed())
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration string) {
+// ConsistentlyExpectNoDisruptions ensures that the state of the cluster is not changed within a passed duration
+// Specifically, we check if the cluster size in terms of nodes is the same as the passed-in size and we validate
+// that no disrupting taints are added throughout the window
+func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) {
 	GinkgoHelper()
 	Consistently(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
@@ -504,7 +524,20 @@ func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration 
 			})
 			g.Expect(ok).To(BeFalse())
 		}
-	}, duration).Should(Succeed())
+	}, duration.String()).Should(Succeed())
+}
+
+func (env *Environment) ConsistentlyExpectTaintedNodeCount(comparator string, count int, duration time.Duration) []*v1.Node {
+	GinkgoHelper()
+
+	By(fmt.Sprintf("checking for tainted nodes to be %s to %d for %s", comparator, count, duration))
+	nodeList := &v1.NodeList{}
+	Consistently(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
+		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d tainted nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
+	}, duration.String()).Should(Succeed())
+	return lo.ToSlicePtr(nodeList.Items)
 }
 
 func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {
@@ -751,17 +784,63 @@ func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.Obj
 	Expect(env.Client.Patch(env.Context, ds, patch)).To(Succeed())
 }
 
-func (env *Environment) ExpectHealthyPodsForNode(nodeName string) []*v1.Pod {
+// ForcePodsToSpread ensures that currently scheduled pods get spread evenly across all passed nodes by deleting pods off of existing
+// nodes and waiting them to reschedule. This is useful for scenarios where you want to force the nodes be underutilized
+// but you want to keep a consistent count of nodes rather than leaving around empty ones.
+func (env *Environment) ForcePodsToSpread(nodes ...*v1.Node) {
+	GinkgoHelper()
+
+	// Get the total count of pods across
+	podCount := 0
+	for _, n := range nodes {
+		podCount += len(env.ExpectActivePodsForNode(n.Name))
+	}
+	maxPodsPerNode := int(math.Ceil(float64(podCount) / float64(len(nodes))))
+
+	By(fmt.Sprintf("forcing %d pods to spread across %d nodes", podCount, len(nodes)))
+	start := time.Now()
+	for {
+		var nodePods []*v1.Pod
+		node, found := lo.Find(nodes, func(n *v1.Node) bool {
+			nodePods = env.ExpectActivePodsForNode(n.Name)
+			return len(nodePods) > maxPodsPerNode
+		})
+		if !found {
+			break
+		}
+		// Set the nodes to unschedulable so that the pods won't reschedule.
+		Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+		stored := node.DeepCopy()
+		node.Spec.Unschedulable = true
+		Expect(env.Client.Patch(env.Context, node, client.MergeFrom(stored))).To(Succeed())
+		for _, pod := range nodePods[maxPodsPerNode:] {
+			env.ExpectDeleted(pod)
+		}
+		Eventually(func(g Gomega) {
+			g.Expect(len(env.ExpectActivePodsForNode(node.Name))).To(Or(Equal(maxPodsPerNode), Equal(maxPodsPerNode-1)))
+		}).WithTimeout(5 * time.Second).Should(Succeed())
+
+		// TODO: Consider moving this time check to an Eventually poll. This gets a little tricker with helper functions
+		// since you need to make sure that your Expectation helper functions are scoped to to your "g Gomega" scope
+		// so that you don't fail the first time you get a failure on your expectation
+		if time.Since(start) > time.Minute*15 {
+			Fail("forcing pods to spread failed due to a timeout")
+		}
+	}
+	for _, n := range nodes {
+		stored := n.DeepCopy()
+		n.Spec.Unschedulable = false
+		Expect(env.Client.Patch(env.Context, n, client.MergeFrom(stored))).To(Succeed())
+	}
+}
+
+func (env *Environment) ExpectActivePodsForNode(nodeName string) []*v1.Pod {
 	GinkgoHelper()
 	podList := &v1.PodList{}
 	Expect(env.Client.List(env, podList, client.MatchingFields{"spec.nodeName": nodeName}, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 
-	// Return the healthy pods
 	return lo.Filter(lo.ToSlicePtr(podList.Items), func(p *v1.Pod, _ int) bool {
-		_, found := lo.Find(p.Status.Conditions, func(cond v1.PodCondition) bool {
-			return cond.Type == v1.PodReady && cond.Status == v1.ConditionTrue
-		})
-		return found
+		return p.DeletionTimestamp.IsZero()
 	})
 }
 
