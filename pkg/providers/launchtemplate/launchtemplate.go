@@ -288,19 +288,13 @@ func (p *Provider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) 
 			return &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 				NetworkCardIndex: lo.ToPtr(int64(i)),
 				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
-				DeviceIndex:              lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
-				InterfaceType:            lo.ToPtr(ec2.NetworkInterfaceTypeEfa),
-				Groups:                   lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
-				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
+				DeviceIndex:   lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
+				InterfaceType: lo.ToPtr(ec2.NetworkInterfaceTypeEfa),
+				Groups:        lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
 			}
 		})
 	}
 
-	// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
-	// AssociatePublicIPAddress to 'false' in the Launch Template, generated based on this configuration struct.
-	// This is done to help comply with AWS account policies that require explicitly setting that field to 'false'.
-	// This is ignored for EFA instances since it can't be specified if you launch with multiple network interfaces.
-	// https://github.com/aws/karpenter-provider-aws/issues/3815
 	if options.AssociatePublicIPAddress != nil {
 		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
 			{

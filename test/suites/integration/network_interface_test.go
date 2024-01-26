@@ -18,6 +18,8 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -27,7 +29,7 @@ var _ = Describe("NetworkInterfaces", func() {
 
 	DescribeTable(
 		"should correctly configure public IP assignment on instances",
-		func(privateSubnet bool, assignPublicIp *bool) {
+		func(useEFA bool, privateSubnet bool, assignPublicIp *bool) {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{
 				Tags: map[string]string{
 					"Name":                   lo.Ternary(privateSubnet, "*Private*", "*Public*"),
@@ -37,6 +39,18 @@ var _ = Describe("NetworkInterfaces", func() {
 			nodeClass.Spec.AssociatePublicIPAddress = assignPublicIp
 
 			pod := test.Pod()
+
+			if useEFA {
+				pod.Spec.Containers[0].Resources = v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1beta1.ResourceEFA: resource.MustParse("2"),
+					},
+					Limits: v1.ResourceList{
+						v1beta1.ResourceEFA: resource.MustParse("2"),
+					},
+				}
+			}
+
 			env.ExpectCreated(pod, nodeClass, nodePool)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
@@ -45,22 +59,31 @@ var _ = Describe("NetworkInterfaces", func() {
 			if assignPublicIp == nil {
 				if privateSubnet {
 					Expect(instance.PublicIpAddress).To(BeNil())
+					Expect(instance.NetworkInterfaces[0].Association).To(BeNil())
 				} else {
 					Expect(instance.PublicIpAddress).ToNot(BeNil())
+					Expect(instance.NetworkInterfaces[0].Association).ToNot(BeNil())
+					Expect(instance.NetworkInterfaces[0].Association.PublicIp).ToNot(BeNil())
 				}
 			} else if *assignPublicIp == false {
 				Expect(instance.PublicIpAddress).To(BeNil())
+				Expect(instance.NetworkInterfaces[0].Association).To(BeNil())
 			} else if *assignPublicIp == true {
 				Expect(instance.PublicIpAddress).ToNot(BeNil())
+				Expect(instance.NetworkInterfaces[0].Association).ToNot(BeNil())
+				Expect(instance.NetworkInterfaces[0].Association.PublicIp).ToNot(BeNil())
+			}
+
+			if useEFA {
+				Expect(instance.NetworkInterfaces).To(HaveLen(2))
+				Expect(instance.NetworkInterfaces[0].InterfaceType).To(HaveValue(Equal("efa")))
+				Expect(instance.NetworkInterfaces[1].InterfaceType).To(HaveValue(Equal("efa")))
 			}
 		},
-		Entry("AssociatePublicIPAddress not specified by the user while using a private subnet", true, nil),
-		Entry("AssociatePublicIPAddress set true by user while using a private subnet", true, lo.ToPtr(true)),
-		Entry("AssociatePublicIPAddress not false by user while using a private subnet", true, lo.ToPtr(false)),
+		Entry("AssociatePublicIPAddress not specified by the user while using a private subnet", false, true, nil),
+		Entry("AssociatePublicIPAddress set true by user while using a private subnet", false, true, lo.ToPtr(true)),
 
-		Entry("AssociatePublicIPAddress not specified by the user while using a public subnet", false, nil),
-		Entry("AssociatePublicIPAddress set true by user while using a public subnet", false, lo.ToPtr(true)),
-		Entry("AssociatePublicIPAddress not false by user while using a public subnet", false, lo.ToPtr(false)),
+		Entry("AssociatePublicIPAddress not specified by the user while using a private subnet and multiple EFAs", true, true, nil),
 	)
 
 })

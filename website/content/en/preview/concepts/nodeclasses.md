@@ -869,7 +869,8 @@ spec:
 A boolean field that controls whether instances created by Karpenter for this EC2NodeClass will have an associated public IP address. This overrides the `MapPublicIpOnLaunch` setting applied to the subnet the node is launched in. If this field is not set, the `MapPublicIpOnLaunch` field will be respected.
 
 {{% alert title="Note" color="warning" %}}
-If `associatePublicIPAddress` is set to `true` and a NodePool referencing that EC2NodeClass is used to provision a Node for a NodeClaim requesting multiple `vpc.amazonaws.com/efa` resources, the instance launch will fail. A public IP address may only be associated with a node at launch if a single network interface is configured.
+for a NodeClaim requesting `vpc.amazonaws.com/efa` resources, the `associatePublicIPAddress` field is completely ignored
+A public IP address may only be associated with a node at launch if a single network interface is configured.
 {{% /alert %}}
 
 ## status.subnets
