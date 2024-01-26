@@ -504,8 +504,9 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(nodesTainted int, nodeCount int, duration string) {
+func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(nodesTainted int, nodeCount int, duration time.Duration) []*v1.Node {
 	GinkgoHelper()
+	nodes := []v1.Node{}
 	Consistently(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
 		nodeClaimList := &corev1beta1.NodeClaimList{}
@@ -516,7 +517,7 @@ func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(nodesTain
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 		g.Expect(len(nodeList.Items)).To(Equal(nodeCount))
 
-		nodes := lo.Filter(nodeList.Items, func(n v1.Node, _ int) bool {
+		nodes = lo.Filter(nodeList.Items, func(n v1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t v1.Taint) bool {
 				return corev1beta1.IsDisruptingTaint(t)
 			})
@@ -524,6 +525,7 @@ func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(nodesTain
 		})
 		g.Expect(len(nodes)).To(Equal(nodesTainted))
 	}, duration).Should(Succeed())
+	return lo.ToSlicePtr(nodes)
 }
 
 func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, count int) []*v1.Node {

@@ -161,7 +161,7 @@ var _ = Describe("Drift", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, 5*time.Second)
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
@@ -253,7 +253,7 @@ var _ = Describe("Drift", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
 
 			By("removing the finalizer from the nodes")
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
@@ -282,7 +282,7 @@ var _ = Describe("Drift", func() {
 			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectDrifted(nodeClaim)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, "1m")
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, time.Minute)
 		})
 		It("should not allow drift if the budget is fully blocking during a scheduled time", func() {
 			// We're going to define a budget that doesn't allow any drift to happen
@@ -309,7 +309,7 @@ var _ = Describe("Drift", func() {
 			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectDrifted(nodeClaim)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, "1m")
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, time.Minute)
 		})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
@@ -785,7 +785,7 @@ var _ = Describe("Drift", func() {
 			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectDrifted(nodeClaims...)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, int(numPods), "1m")
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, int(numPods), time.Minute)
 		})
 	})
 })

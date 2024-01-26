@@ -126,7 +126,7 @@ var _ = Describe("Consolidation", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
@@ -139,7 +139,7 @@ var _ = Describe("Consolidation", func() {
 
 			// This check ensures that we are consolidating nodes at the same time
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
 
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
@@ -208,7 +208,7 @@ var _ = Describe("Consolidation", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
 
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
@@ -244,7 +244,7 @@ var _ = Describe("Consolidation", func() {
 			// Update the deployment to only contain 1 replica.
 			env.ExpectUpdated(dep)
 
-			env.ConsistentlyExpectNoDisruptions(5, time.Minute)
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 5, time.Minute)
 		})
 		It("should not allow consolidation if the budget is fully blocking during a scheduled time", func() {
 			// We're going to define a budget that doesn't allow any drift to happen
@@ -280,7 +280,7 @@ var _ = Describe("Consolidation", func() {
 			// Update the deployment to only contain 1 replica.
 			env.ExpectUpdated(dep)
 
-			env.ConsistentlyExpectNoDisruptions(5, time.Minute)
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 5, time.Minute)
 		})
 	})
 	DescribeTable("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents),
