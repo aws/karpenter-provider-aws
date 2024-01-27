@@ -112,6 +112,10 @@ var _ = Describe("GarbageCollection", func() {
 					Value: aws.String(nodePool.Name),
 				},
 				{
+					Key:   aws.String(v1beta1.LabelNodeClass),
+					Value: aws.String(nodeClass.Name),
+				},
+				{
 					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
 					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
@@ -173,6 +177,10 @@ var _ = Describe("GarbageCollection", func() {
 						},
 						{
 							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Value: aws.String("default"),
+						},
+						{
+							Key:   aws.String(v1beta1.LabelNodeClass),
 							Value: aws.String("default"),
 						},
 						{
