@@ -117,4 +117,4 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace sigs.k8s.io/karpenter => github.com/njtran/karpenter v0.0.0-20240126222727-6a86347641a8
+replace sigs.k8s.io/karpenter => github.com/njtran/karpenter v0.0.0-20240128221753-125389e09b80
