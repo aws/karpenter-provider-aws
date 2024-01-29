@@ -134,6 +134,10 @@ func (p *Provider) List(ctx context.Context) ([]*Instance, error) {
 			},
 			{
 				Name:   aws.String("tag-key"),
+				Values: aws.StringSlice([]string{v1beta1.LabelNodeClass}),
+			},
+			{
+				Name:   aws.String("tag-key"),
 				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)}),
 			},
 			instanceStateFilter,
