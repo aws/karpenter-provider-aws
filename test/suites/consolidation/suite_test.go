@@ -139,7 +139,7 @@ var _ = Describe("Consolidation", func() {
 
 			// This check ensures that we are consolidating nodes at the same time
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
 
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
