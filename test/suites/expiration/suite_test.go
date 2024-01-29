@@ -235,7 +235,7 @@ var _ = Describe("Expiration", func() {
 
 			// Expect that two nodes are tainted.
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
 
 			// Remove finalizers
 			for _, node := range nodes {
@@ -332,7 +332,7 @@ var _ = Describe("Expiration", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the expiration
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
 
 			By("removing the finalizer from the nodes")
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())

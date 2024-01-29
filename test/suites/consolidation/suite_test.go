@@ -126,7 +126,7 @@ var _ = Describe("Consolidation", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 5, time.Second*5)
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
@@ -208,7 +208,7 @@ var _ = Describe("Consolidation", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
 
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
