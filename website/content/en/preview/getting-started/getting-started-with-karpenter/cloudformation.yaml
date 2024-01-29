@@ -35,19 +35,35 @@ Resources:
           "Version": "2012-10-17",
           "Statement": [
             {
-              "Sid": "AllowScopedEC2InstanceActions",
+              "Sid": "AllowScopedEC2InstanceAccessActions",
               "Effect": "Allow",
               "Resource": [
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
                 "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
-                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+                "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*"
               ],
               "Action": [
                 "ec2:RunInstances",
                 "ec2:CreateFleet"
               ]
+            },
+            {
+              "Sid": "AllowScopedEC2LaunchTemplateAccessActions",
+              "Effect": "Allow",
+              "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
+              "Action": [
+                "ec2:RunInstances",
+                "ec2:CreateFleet"
+              ],
+              "Condition": {
+                "StringEquals": {
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
+                },
+                "StringLike": {
+                  "aws:ResourceTag/karpenter.sh/nodepool": "*"
+                }
+              }
             },
             {
               "Sid": "AllowScopedEC2InstanceActionsWithTags",

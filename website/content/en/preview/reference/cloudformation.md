@@ -87,7 +87,7 @@ The resources defined in this section are associated with:
 
 * KarpenterControllerPolicy
 
-Because the scope of the KarpenterControllerPolicy is an AWS region, the cluster's AWS region is included in the `AllowScopedEC2InstanceActions`.
+Because the scope of the KarpenterControllerPolicy is an AWS region, the cluster's AWS region is included in the `AllowScopedEC2InstanceAccessActions`.
 
 ### KarpenterControllerPolicy
 
@@ -109,27 +109,52 @@ KarpenterControllerPolicy:
 
 Someone wanting to add Karpenter to an existing cluster, instead of using `cloudformation.yaml`, would need to create the IAM policy directly and assign that policy to the role leveraged by the service account using IRSA.
 
-#### AllowScopedEC2InstanceActions
+#### AllowScopedEC2InstanceAccessActions
 
-The AllowScopedEC2InstanceActions statement ID (Sid) identifies a set of EC2 resources that are allowed to be accessed with
+The AllowScopedEC2InstanceAccessActions statement ID (Sid) identifies a set of EC2 resources that are allowed to be accessed with
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html) and [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html) actions.
 For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `image`, `snapshot`, `security-group`, `subnet` and `launch-template` EC2 resources, scoped for the particular AWS partition and region.
 
 ```json
 {
-  "Sid": "AllowScopedEC2InstanceActions",
+  "Sid": "AllowScopedEC2InstanceAccessActions",
   "Effect": "Allow",
   "Resource": [
     "arn:${AWS::Partition}:ec2:${AWS::Region}::image/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}::snapshot/*",
     "arn:${AWS::Partition}:ec2:${AWS::Region}:*:security-group/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*",
-    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*"
+    "arn:${AWS::Partition}:ec2:${AWS::Region}:*:subnet/*"
   ],
   "Action": [
     "ec2:RunInstances",
     "ec2:CreateFleet"
   ]
+}
+```
+
+#### AllowScopedEC2LaunchTemplateAccessActions
+
+The AllowScopedEC2InstanceAccessActions statement ID (Sid) identifies launch templates that are allowed to be accessed with
+[RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html) and [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html) actions.
+For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read (but not create) `launch-template` EC2 resources that have the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/nodepool` tag, scoped for the particular AWS partition and region. This ensures that an instance launch can't access launch templates that weren't provisioned by Karpenter.
+
+```json
+{
+  "Sid": "AllowScopedEC2LaunchTemplateAccessActions",
+  "Effect": "Allow",
+  "Resource": "arn:${AWS::Partition}:ec2:${AWS::Region}:*:launch-template/*",
+  "Action": [
+    "ec2:RunInstances",
+    "ec2:CreateFleet"
+  ],
+  "Condition": {
+    "StringEquals": {
+      "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
+    },
+    "StringLike": {
+      "aws:ResourceTag/karpenter.sh/nodepool": "*"
+    }
+  }
 }
 ```
 
