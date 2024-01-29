@@ -147,6 +147,10 @@ var _ = Describe("InstanceProvider", func() {
 							Value: aws.String("default"),
 						},
 						{
+							Key:   aws.String(v1beta1.LabelNodeClass),
+							Value: aws.String("default"),
+						},
+						{
 							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
