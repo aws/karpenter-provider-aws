@@ -84,6 +84,7 @@ var _ = Describe("NetworkInterfaces", func() {
 		Entry("AssociatePublicIPAddress set true by user while using a private subnet", false, true, lo.ToPtr(true)),
 
 		Entry("AssociatePublicIPAddress not specified by the user while using a private subnet and multiple EFAs", true, true, nil),
+		Entry("AssociatePublicIPAddress set true by user while using a private subnet and multiple EFAs", true, true, lo.ToPtr(true)),
 	)
 
 })
