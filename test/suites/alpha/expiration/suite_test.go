@@ -223,7 +223,7 @@ var _ = Describe("Expiration", func() {
 
 			// Set a configuration that will not register a machine
 			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-				Name: lo.ToPtr("/aws/service/ami-amazon-linux-latest/amzn-ami-hvm-x86_64-ebs"),
+				Name: lo.ToPtr("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"),
 			})
 			Expect(err).ToNot(HaveOccurred())
 			nodeTemplate.Spec.AMISelector = map[string]string{"aws::ids": *parameter.Parameter.Value}
