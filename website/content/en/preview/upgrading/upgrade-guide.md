@@ -41,9 +41,13 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 v0.34.0+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to v0.34.0+ without first [upgrading to v0.32.x]({{<ref "#upgrading-to-v0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
 {{% /alert %}}
 
-* Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more. 
+{{% alert title="Warning" color="warning" %}}
+The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+. This new AMI version is __not currently__ supported for users relying on AMI auto-discovery with the Ubuntu AMI family. More details can be found in this [GitHub issue](https://github.com/aws/karpenter-provider-aws/issues/5572). Please review this issue before upgrading to Kubernetes 1.29 if you are using the Ubuntu AMI family. Upgrading to 1.29 without making any changes to your EC2NodeClass will result in Karpenter being unable to create new nodes.
+{{% /alert %}}
+
+* Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more.
 * With Disruption Budgets, Karpenter will disrupt multiple batches of nodes simultaneously, which can result in overall quicker scale-down of your cluster. Before v0.34, Karpenter had a hard-coded parallelism limit for each type of disruption. In v0.34, Karpenter will now disrupt at most 10% of nodes for a given NodePool. There is no setting that will be perfectly equivalent with the behavior prior to v0.34. When considering how to configure your budgets, please refer to the following limits for versions prior to v0.34:
-  * `Empty Expiration / Empty Drift / Empty Consolidation`: infinite parallelism 
+  * `Empty Expiration / Empty Drift / Empty Consolidation`: infinite parallelism
   * `Non-Empty Expiration / Non-Empty Drift / Single-Node Consolidation`: one node at a time
   * `Multi-Node Consolidation`: max 100 nodes
 * Karpenter now adds a default `podSecurityContext` that configures the `fsgroup: 65536` of volumes in the pod. If you are using sidecar containers, you should review if this configuration is compatible for them. You can disable this default `podSecurityContext` through helm by performing `--set podSecurityContext=null` when installing/upgrading the chart.
