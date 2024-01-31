@@ -346,6 +346,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 						TopologyKey:       v1.LabelTopologyZone,
 						WhenUnsatisfiable: v1.DoNotSchedule,
 						LabelSelector:     &metav1.LabelSelector{MatchLabels: podLabels},
+						MinDomains:        lo.ToPtr(int32(3)),
 					},
 				},
 			},
@@ -353,7 +354,10 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 
 		env.ExpectCreated(nodeClass, nodePool, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
-		env.ExpectCreatedNodeCount("==", 3)
+		// Karpenter will launch three nodes, however if all three nodes don't get register with the cluster at the same time, two pods will be placed on one node.
+		// This can result in a case where all 3 pods are healthy, while there are only two created nodes.
+		// In that case, we still expect to eventually have three nodes.
+		env.EventuallyExpectNodeCount("==", 3)
 	})
 	It("should provision a node using a NodePool with higher priority", func() {
 		nodePoolLowPri := test.NodePool(corev1beta1.NodePool{
