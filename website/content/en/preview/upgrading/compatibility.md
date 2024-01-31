@@ -22,6 +22,10 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 [comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
 
 {{% alert title="Note" color="warning" %}}
+The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+. This new AMI version is __not currently__ supported for users relying on AMI auto-discovery with the Ubuntu AMI family. More details can be found in this [GitHub issue](https://github.com/aws/karpenter-provider-aws/issues/5572). Please review this issue before upgrading to Kubernetes 1.29 if you are using the Ubuntu AMI family. Upgrading to 1.29 without making the changes outlined in the issue will result in Karpenter being unable to create new nodes.
+{{% /alert %}}
+
+{{% alert title="Note" color="warning" %}}
 Karpenter currently does not support the following [new `topologySpreadConstraints` keys](https://kubernetes.io/blog/2023/04/17/fine-grained-pod-topology-spread-features-beta/), promoted to beta in Kubernetes 1.27:
 - `matchLabelKeys`
 - `nodeAffinityPolicy`
