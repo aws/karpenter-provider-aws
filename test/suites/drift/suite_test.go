@@ -17,6 +17,8 @@ package drift_test
 import (
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -311,10 +313,12 @@ var _ = Describe("Drift", func() {
 		})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
-		// choose an old static image
-		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
-		})
+		// Choose and old, static image. The 1.23 image is incompatible with EKS 1.29 so fallback to a newer image.
+		parameterName := lo.Ternary(lo.Must(strconv.Atoi(strings.Split(env.GetK8sVersion(0), ".")[1])) >= 29,
+			"/aws/service/eks/optimized-ami/1.27/amazon-linux-2/amazon-eks-node-1.27-v20240129/image_id",
+			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id",
+		)
+		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: awssdk.String(parameterName)})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
