@@ -58,7 +58,6 @@ Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
-  pullPrivateReplica "$RELEASE_VERSION"
 }
 
 authenticate() {
