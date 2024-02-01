@@ -69,6 +69,7 @@ type Environment struct {
 	IAMAPI        *iam.IAM
 	FISAPI        *fis.FIS
 	EKSAPI        *eks.EKS
+	SQSAPI        *servicesqs.SQS
 	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
 
 	SQSProvider *sqs.Provider
@@ -94,6 +95,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		Region:      *session.Config.Region,
 		Environment: env,
 
+		SQSAPI:        servicesqs.New(session),
 		STSAPI:        sts.New(session),
 		EC2API:        ec2.New(session),
 		SSMAPI:        ssm.New(session),
@@ -107,7 +109,8 @@ func NewEnvironment(t *testing.T) *Environment {
 	}
 	// Initialize the provider only if the INTERRUPTION_QUEUE environment variable is defined
 	if v, ok := os.LookupEnv("INTERRUPTION_QUEUE"); ok {
-		awsEnv.SQSProvider = lo.Must(sqs.NewProvider(env.Context, servicesqs.New(session), v))
+		awsEnv.SQSProvider = lo.Must(sqs.NewProvider(env.Context, awsEnv.SQSAPI, v))
+		awsEnv.InterruptionQueue = v
 	}
 	return awsEnv
 }

@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/fis"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/mitchellh/hashstructure/v2"
@@ -33,7 +34,6 @@ import (
 	"go.uber.org/multierr"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -415,6 +415,14 @@ func (env *Environment) ExpectInstanceProfileDeleted(instanceProfileName, roleNa
 	}
 	_, err = env.IAMAPI.DeleteInstanceProfile(deleteInstanceProfile)
 	Expect(awserrors.IgnoreNotFound(err)).ToNot(HaveOccurred())
+}
+
+func (env *Environment) ExpectQueueURL(name string) string {
+	ret, err := env.SQSAPI.GetQueueUrlWithContext(env, &sqs.GetQueueUrlInput{
+		QueueName: aws.String(name),
+	})
+	Expect(err).ToNot(HaveOccurred())
+	return aws.StringValue(ret.QueueUrl)
 }
 
 func ignoreAlreadyContainsRole(err error) error {

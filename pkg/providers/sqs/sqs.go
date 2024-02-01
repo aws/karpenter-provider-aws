@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -31,17 +32,26 @@ type Provider struct {
 	url  string
 }
 
-func NewProvider(ctx context.Context, client sqsiface.SQSAPI, queueName string) (*Provider, error) {
-	ret, err := client.GetQueueUrlWithContext(ctx, &sqs.GetQueueUrlInput{
-		QueueName: aws.String(queueName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("fetching queue url, %w", err)
+func NewProvider(ctx context.Context, client sqsiface.SQSAPI, interruptionQueue string) (*Provider, error) {
+	var queueURL, queueName string
+	if !strings.HasPrefix(interruptionQueue, "https://") {
+		ret, err := client.GetQueueUrlWithContext(ctx, &sqs.GetQueueUrlInput{
+			QueueName: aws.String(interruptionQueue),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("fetching queue url, %w", err)
+		}
+		queueName = interruptionQueue
+		queueURL = aws.StringValue(ret.QueueUrl)
+	} else {
+		ss := strings.Split(interruptionQueue, "/")
+		queueName = ss[len(ss)-1]
+		queueURL = interruptionQueue
 	}
 	return &Provider{
 		client: client,
 		name:   queueName,
-		url:    aws.StringValue(ret.QueueUrl),
+		url:    queueURL,
 	}, nil
 }
 

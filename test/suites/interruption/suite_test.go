@@ -187,6 +187,39 @@ var _ = Describe("Interruption", func() {
 		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Minute).Should(Succeed()) // shorten the timeout since we should react faster
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
+	It("should terminate the node when receiving a scheduled change health event when using the interruption queue url", func() {
+		env.ExpectSettingsOverridden(v1.EnvVar{
+			Name:  "INTERRUPTION_QUEUE",
+			Value: env.ExpectQueueURL(env.InterruptionQueue),
+		})
+
+		By("Creating a single healthy node with a healthy deployment")
+		numPods := 1
+		dep := coretest.Deployment(coretest.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "my-app"},
+				},
+				TerminationGracePeriodSeconds: ptr.Int64(0),
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		node := env.Monitor.CreatedNodes()[0]
+		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("Creating a scheduled change health event in the SQS message queue")
+		env.ExpectMessagesCreated(scheduledChangeMessage(env.Region, "000000000000", instanceID))
+		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Minute).Should(Succeed()) // shorten the timeout since we should react faster
+		env.EventuallyExpectHealthyPodCount(selector, 1)
+	})
 })
 
 func scheduledChangeMessage(region, accountID, involvedInstanceID string) scheduledchange.Message {
