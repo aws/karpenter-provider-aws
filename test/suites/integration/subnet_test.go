@@ -28,6 +28,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -100,11 +101,12 @@ var _ = Describe("Subnets", func() {
 		Expect(len(subnets)).ToNot(Equal(0))
 		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
-		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-			Key:      v1.LabelZoneFailureDomainStable,
-			Operator: "In",
-			Values:   []string{shuffledAZs[0]},
-		})
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1.LabelZoneFailureDomainStable,
+				Operator: "In",
+				Values:   []string{shuffledAZs[0]},
+			}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)

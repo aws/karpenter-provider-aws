@@ -25,6 +25,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 )
@@ -32,14 +33,18 @@ import (
 var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	It("should provision one pod per node", func() {
 		test.ReplaceRequirements(nodePool,
-			v1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceTypeStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"t3.small"},
+			corev1beta1.NodeSelectorRequirementWithFlexibility{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"t3.small"},
+				},
 			},
-			v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceCategory,
-				Operator: v1.NodeSelectorOpExists,
+			corev1beta1.NodeSelectorRequirementWithFlexibility{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				},
 			},
 		)
 		deployment := test.Deployment(test.DeploymentOptions{

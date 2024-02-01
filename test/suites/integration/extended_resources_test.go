@@ -30,6 +30,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	awsenv "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -57,9 +58,11 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-			Key:      v1beta1.LabelInstanceCategory,
-			Operator: v1.NodeSelectorOpExists,
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpExists,
+			},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -87,10 +90,11 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-			Key:      v1beta1.LabelInstanceCategory,
-			Operator: v1.NodeSelectorOpExists,
-		})
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpExists,
+			}})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -103,10 +107,12 @@ var _ = Describe("Extended Resources", func() {
 		})
 		// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 		test.ReplaceRequirements(nodePool,
-			v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceFamily,
-				Operator: v1.NodeSelectorOpNotIn,
-				Values:   awsenv.ExcludedInstanceFamilies,
+			corev1beta1.NodeSelectorRequirementWithFlexibility{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceFamily,
+					Operator: v1.NodeSelectorOpNotIn,
+					Values:   awsenv.ExcludedInstanceFamilies,
+				},
 			},
 		)
 		numPods := 1

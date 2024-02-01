@@ -51,14 +51,18 @@ var _ = BeforeEach(func() {
 	nodeClass = env.DefaultEC2NodeClass()
 	nodePool = env.DefaultNodePool(nodeClass)
 	nodePool = coretest.ReplaceRequirements(nodePool,
-		v1.NodeSelectorRequirement{
-			Key:      v1beta1.LabelInstanceCategory,
-			Operator: v1.NodeSelectorOpExists,
+		corev1beta1.NodeSelectorRequirementWithFlexibility{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpExists,
+			},
 		},
-		v1.NodeSelectorRequirement{
-			Key:      v1.LabelInstanceTypeStable,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{"t3a.small"},
+		corev1beta1.NodeSelectorRequirementWithFlexibility{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"t3a.small"},
+			},
 		},
 	)
 })

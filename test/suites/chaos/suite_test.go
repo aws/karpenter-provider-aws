@@ -74,10 +74,12 @@ var _ = Describe("Chaos", func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
-			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-				Key:      corev1beta1.CapacityTypeLabelKey,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1beta1.CapacityTypeSpot},
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{corev1beta1.CapacityTypeSpot},
+				},
 			})
 			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
 			nodePool.Spec.Disruption.ConsolidateAfter = nil

@@ -65,11 +65,12 @@ var _ = Describe("Tags", func() {
 			}
 		})
 		It("should tag spot instance requests when creating resources", func() {
-			coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-				Key:      corev1beta1.CapacityTypeLabelKey,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1beta1.CapacityTypeSpot},
-			})
+			coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{corev1beta1.CapacityTypeSpot},
+				}})
 			nodeClass.Spec.Tags = map[string]string{"TestTag": "TestVal"}
 			pod := coretest.Pod()
 

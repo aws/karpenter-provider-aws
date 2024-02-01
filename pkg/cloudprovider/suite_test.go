@@ -18,12 +18,14 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 
 	clock "k8s.io/utils/clock/testing"
@@ -36,11 +38,10 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
-
-	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudproivder "sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -120,8 +121,8 @@ var _ = Describe("CloudProvider", func() {
 						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeOnDemand}},
+						Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+							{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeOnDemand}}},
 						},
 					},
 				},
@@ -140,11 +141,13 @@ var _ = Describe("CloudProvider", func() {
 	})
 	It("should return an ICE error when there are no instance types to launch", func() {
 		// Specify no instance types and expect to receive a capacity error
-		nodeClaim.Spec.Requirements = []v1.NodeSelectorRequirement{
+		nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 			{
-				Key:      v1.LabelInstanceTypeStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"test-instance-type"},
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"test-instance-type"},
+				},
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -186,6 +189,123 @@ var _ = Describe("CloudProvider", func() {
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(createFleetInput.Context).To(BeNil())
+		})
+		It("should set context on the CreateFleet request and respect minValues from NodePool", func() {
+			nodeClass.Spec.Context = aws.String("context-1234")
+			nodePool := coretest.NodePool(corev1beta1.NodePool{
+				Spec: corev1beta1.NodePoolSpec{
+					Template: corev1beta1.NodeClaimTemplate{
+						Spec: corev1beta1.NodeClaimSpec{
+							NodeClassRef: &corev1beta1.NodeClassReference{
+								Name: nodeClass.Name,
+							},
+							Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+								{
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1.LabelInstanceTypeStable,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{"m5.large", "m5.xlarge", "c6g.large", "trn1.2xlarge"},
+									},
+									MinValues: lo.ToPtr(4),
+								},
+							},
+						},
+					},
+				},
+			})
+
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			pod1 := coretest.UnschedulablePod(
+				coretest.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("1")},
+					},
+				})
+			pod2 := coretest.UnschedulablePod(
+				coretest.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("1")},
+					},
+				})
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
+			node1 := ExpectScheduled(ctx, env.Client, pod1)
+			node2 := ExpectScheduled(ctx, env.Client, pod2)
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(2))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			uniqueInstanceTypes := sets.String{}
+			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
+				for _, override := range launchTemplateConfig.Overrides {
+					uniqueInstanceTypes.Insert(*override.InstanceType)
+				}
+			}
+			Expect(len(uniqueInstanceTypes)).To(BeNumerically(">=", lo.FromPtr(nodePool.Spec.Template.Spec.Requirements[0].MinValues)))
+			Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
+		})
+		It("should set context on the CreateFleet request and respect minValues from multiple keys in NodePool", func() {
+			nodeClass.Spec.Context = aws.String("context-1234")
+			nodePool := coretest.NodePool(corev1beta1.NodePool{
+				Spec: corev1beta1.NodePoolSpec{
+					Template: corev1beta1.NodeClaimTemplate{
+						Spec: corev1beta1.NodeClaimSpec{
+							NodeClassRef: &corev1beta1.NodeClassReference{
+								Name: nodeClass.Name,
+							},
+							Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+								{
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1.LabelInstanceTypeStable,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{"m5.large", "m5.xlarge", "c6g.large", "trn1.2xlarge"},
+									},
+									MinValues: lo.ToPtr(2),
+								},
+								{
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1beta1.LabelInstanceFamily,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{"m5", "c6g", "trn1"},
+									},
+									MinValues: lo.ToPtr(3),
+								},
+							},
+						},
+					},
+				},
+			})
+
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			pod1 := coretest.UnschedulablePod(
+				coretest.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("1")},
+					},
+				})
+			pod2 := coretest.UnschedulablePod(
+				coretest.PodOptions{
+					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
+						v1.ResourceCPU: resource.MustParse("1")},
+					},
+				})
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
+			node1 := ExpectScheduled(ctx, env.Client, pod1)
+			node2 := ExpectScheduled(ctx, env.Client, pod2)
+			Expect(node1.Name).ToNot(Equal(node2.Name))
+			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(2))
+			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+			uniqueInstanceTypes := sets.String{}
+			uniqueInstanceFamilies := sets.String{}
+			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
+				for _, override := range launchTemplateConfig.Overrides {
+					uniqueInstanceTypes.Insert(*override.InstanceType)
+					uniqueInstanceFamilies.Insert(strings.Split(*override.InstanceType, ".")[0])
+				}
+			}
+			Expect(len(uniqueInstanceTypes)).To(BeNumerically(">=", 2))
+			Expect(len(uniqueInstanceFamilies)).To(BeNumerically(">=", 3))
+			Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
 		})
 	})
 	Context("NodeClaim Drift", func() {
@@ -637,11 +757,13 @@ var _ = Describe("CloudProvider", func() {
 	})
 	Context("EFA", func() {
 		It("should include vpc.amazonaws.com/efa on a nodeclaim if it requests it", func() {
-			nodeClaim.Spec.Requirements = []v1.NodeSelectorRequirement{
+			nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 				{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1.LabelInstanceTypeStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"dl1.24xlarge"},
+					},
 				},
 			}
 			nodeClaim.Spec.Resources.Requests = v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("1")}
@@ -651,11 +773,13 @@ var _ = Describe("CloudProvider", func() {
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1beta1.ResourceEFA))
 		})
 		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
-			nodeClaim.Spec.Requirements = []v1.NodeSelectorRequirement{
+			nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 				{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"dl1.24xlarge"},
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1.LabelInstanceTypeStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"dl1.24xlarge"},
+					},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)

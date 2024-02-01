@@ -43,10 +43,12 @@ var _ = Describe("CEL/Validation", func() {
 							Kind: "NodeClaim",
 							Name: "default",
 						},
-						Requirements: []v1.NodeSelectorRequirement{
+						Requirements: []v1beta1.NodeSelectorRequirementWithFlexibility{
 							{
-								Key:      v1beta1.CapacityTypeLabelKey,
-								Operator: v1.NodeSelectorOpExists,
+								NodeSelectorRequirement: v1.NodeSelectorRequirement{
+									Key:      v1beta1.CapacityTypeLabelKey,
+									Operator: v1.NodeSelectorOpExists,
+								},
 							},
 						},
 					},
@@ -58,8 +60,8 @@ var _ = Describe("CEL/Validation", func() {
 		It("should allow restricted domains exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
 			for label := range v1beta1.LabelDomainExceptions {
-				nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
-					{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				nodePool.Spec.Template.Spec.Requirements = []v1beta1.NodeSelectorRequirementWithFlexibility{
+					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}},
 				}
 				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
 				Expect(nodePool.RuntimeValidate()).To(Succeed())
@@ -70,8 +72,8 @@ var _ = Describe("CEL/Validation", func() {
 		It("should allow well known label exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
 			for label := range v1beta1.WellKnownLabels.Difference(sets.New(v1beta1.NodePoolLabelKey)) {
-				nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
-					{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}},
+				nodePool.Spec.Template.Spec.Requirements = []v1beta1.NodeSelectorRequirementWithFlexibility{
+					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}},
 				}
 				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
 				Expect(nodePool.RuntimeValidate()).To(Succeed())

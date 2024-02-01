@@ -142,26 +142,34 @@ func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1
 	nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
 		Name: nodeClass.Name,
 	}
-	nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+	nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 		{
-			Key:      v1.LabelOSStable,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{string(v1.Linux)},
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1.LabelOSStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{string(v1.Linux)},
+			},
 		},
 		{
-			Key:      corev1beta1.CapacityTypeLabelKey,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{corev1beta1.CapacityTypeOnDemand},
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      corev1beta1.CapacityTypeLabelKey,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{corev1beta1.CapacityTypeOnDemand},
+			},
 		},
 		{
-			Key:      v1beta1.LabelInstanceCategory,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{"c", "m", "r"},
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceCategory,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"c", "m", "r"},
+			},
 		},
 		{
-			Key:      v1beta1.LabelInstanceGeneration,
-			Operator: v1.NodeSelectorOpGt,
-			Values:   []string{"2"},
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceGeneration,
+				Operator: v1.NodeSelectorOpGt,
+				Values:   []string{"2"},
+			},
 		},
 	}
 	nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}

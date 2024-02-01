@@ -48,11 +48,12 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
 		nodePool.Spec.Limits = nil
-		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-			Key:      v1beta1.LabelInstanceHypervisor,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{"nitro"},
-		})
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceHypervisor,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"nitro"},
+			}})
 		deployment = test.Deployment(test.DeploymentOptions{
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
@@ -124,11 +125,13 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 		}
-		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
 			// With Prefix Delegation enabled, .large instances can have 434 pods.
-			Key:      v1beta1.LabelInstanceSize,
-			Operator: v1.NodeSelectorOpIn,
-			Values:   []string{"large"},
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceSize,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"large"},
+			},
 		},
 		)
 

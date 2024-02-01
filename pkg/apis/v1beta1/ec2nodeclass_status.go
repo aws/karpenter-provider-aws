@@ -14,7 +14,9 @@ limitations under the License.
 
 package v1beta1
 
-import v1 "k8s.io/api/core/v1"
+import (
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+)
 
 // Subnet contains resolved Subnet selector values utilized for node launch
 type Subnet struct {
@@ -46,7 +48,7 @@ type AMI struct {
 	Name string `json:"name,omitempty"`
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
-	Requirements []v1.NodeSelectorRequirement `json:"requirements"`
+	Requirements []corev1beta1.NodeSelectorRequirementWithFlexibility `json:"requirements"`
 }
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
