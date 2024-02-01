@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -156,6 +157,17 @@ var _ = Describe("AMI", func() {
 		})
 		It("should provision a node using the Ubuntu family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+			// TODO (jmdeal@): remove once 22.04 AMIs are supported
+			if env.GetK8sVersion(0) == "1.29" {
+				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
+					"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
+					"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
+				}, func(arg string, _ int) v1beta1.AMISelectorTerm {
+					parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
+					Expect(err).To(BeNil())
+					return v1beta1.AMISelectorTerm{ID: *parameter.Parameter.Value}
+				})
+			}
 			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
 			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			nodePool = coretest.ReplaceRequirements(nodePool,
