@@ -8,7 +8,8 @@ This document describes a design for a new feature to allow users to specify a m
 
 Karpenter allows users to specify TTL for nodes, which configures the maximum age of nodes in the cluster. 
 
-This is useful to ensure that nodes are replaced periodically, which helps to ensure that the cluster is running on the latest AMIs available, which simplifies and automates the security patching process.
+This is useful to ensure that nodes are replaced periodically, and helps to ensure that the cluster is running on the latest AMIs available, 
+simplifying and automating the security patching process.
 
 However, a recent issue with a released AMI (see [this issue](https://github.com/awslabs/amazon-eks-ami/issues/1551)) has highlighted that it would be useful to be able to specify a minimum age for AMIs, to ensure that nodes are not replaced with an AMI that is too new.
 
@@ -36,7 +37,7 @@ The parameter applies to AMIs resolved via:
 
 If `amiSelectorTerms` are specified, the AMIs candidates are currently resolved querying the AWS EC2 API for AMIs, applying a filter to match the selector terms.
 
-Once the images are retrieved from the API, the images younger than `amiMinimumAge` are filtered out.
+To implement this feature, once the images are retrieved from the API, the ones that are younger than `amiMinimumAge` are filtered out.
 
 AMIs could be partially resolved, if no candidates matching `amiMinimumAge` are found.
 
@@ -45,7 +46,8 @@ AMIs could be partially resolved, if no candidates matching `amiMinimumAge` are 
 If no `amiSelectorTerms` are specified, the AMIs candidates are currently resolved querying the SSM Parameter Store for the recommended EKS AMI matching the `amiFamily`,
 and then querying the AWS EC2 API for the AMI details (by specific `image-id`s).
 
-One solution would be switching to a broader query, so, instead of querying for the recommended AMI, we query for all the AMIs matching the `amiFamily` and then filter out the images younger than `amiMinimumAge`. 
+To implement this feature, we could switch to a broader query, so, instead of querying for the recommended AMI, we query for all the AMIs matching the `amiFamily` for the specified `eks` version,
+and then we filter out the images younger than `amiMinimumAge`. 
 
 for example, AL2 family, amd64 architecture:
 
