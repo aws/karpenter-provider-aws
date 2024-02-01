@@ -253,7 +253,7 @@ var _ = Describe("Drift", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Minute)
 
 			By("removing the finalizer from the nodes")
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
