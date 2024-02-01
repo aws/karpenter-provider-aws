@@ -38,6 +38,8 @@ If `amiSelectorTerms` are specified, the AMIs candidates are currently resolved 
 
 Once the images are retrieved from the API, the images younger than `amiMinimumAge` are filtered out.
 
+AMIs could be partially resolved, if no candidates matching `amiMinimumAge` are found.
+
 ### AmiFamily and AmiMinimumAge
 
 If no `amiSelectorTerms` are specified, the AMIs candidates are currently resolved querying the SSM Parameter Store for the recommended EKS AMI matching the `amiFamily`,
@@ -59,6 +61,8 @@ for example, AL2 family, amd64 architecture:
 }
 ```
 
-We can then query the EC2 API for the AMIs matching the `image-id`s returned by the SSM query, and look for the recommended `image-ids`:
+We can then query the EC2 API for the AMIs matching the `image-id`s returned by the SSM query, and look for the recommended `image-id`s:
 - if the image with the recommended `image-id` is older than `amiMinimumAge`, we keep it as candidate
-- if the image with the recommended `image-id` is younger than `amiMinimumAge`, we look for the next image in the list that matches the `imageLocation` pattern and is older than `amiMinimumAge`
+- if the image with the recommended `image-id` is younger than `amiMinimumAge`, we look for the next image in the list that is older than `amiMinimumAge`
+
+AMIs could be partially resolved, if no candidates matching `amiMinimumAge` are found.
