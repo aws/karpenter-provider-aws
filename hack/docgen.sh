@@ -2,6 +2,7 @@
 set -euo pipefail
 
 compatibilitymatrix() {
+    # versionCount is the number of K8s versions to display in the compatibility matrix
     versionCount=7
     go run hack/docs/version_compatibility.go hack/docs/compatibility-karpenter.yaml "$(git describe --exact-match --tags || echo "no tag")"
     go run hack/docs/compatibilitymetrix_gen_docs.go website/content/en/preview/upgrading/compatibility.md hack/docs/compatibility-karpenter.yaml $versionCount
