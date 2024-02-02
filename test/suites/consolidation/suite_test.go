@@ -244,7 +244,7 @@ var _ = Describe("Consolidation", func() {
 			// Update the deployment to only contain 1 replica.
 			env.ExpectUpdated(dep)
 
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 5, time.Minute)
+			env.ConsistentlyExpectNoDisruptions(5, time.Minute)
 		})
 		It("should not allow consolidation if the budget is fully blocking during a scheduled time", func() {
 			// We're going to define a budget that doesn't allow any drift to happen
@@ -280,7 +280,7 @@ var _ = Describe("Consolidation", func() {
 			// Update the deployment to only contain 1 replica.
 			env.ExpectUpdated(dep)
 
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 5, time.Minute)
+			env.ConsistentlyExpectNoDisruptions(5, time.Minute)
 		})
 	})
 	DescribeTable("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents),

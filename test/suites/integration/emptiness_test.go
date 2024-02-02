@@ -69,7 +69,7 @@ var _ = Describe("Emptiness", func() {
 			env.ExpectDeleted(dep)
 
 			env.EventuallyExpectEmpty(nodeClaim)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, time.Minute)
+			env.ConsistentlyExpectNoDisruptions(1, time.Minute)
 		})
 		It("should not allow emptiness if the budget is fully blocking during a scheduled time", func() {
 			// We're going to define a budget that doesn't allow any emptiness disruption to happen
@@ -93,7 +93,7 @@ var _ = Describe("Emptiness", func() {
 			env.ExpectDeleted(dep)
 
 			env.EventuallyExpectEmpty(nodeClaim)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, time.Minute)
+			env.ConsistentlyExpectNoDisruptions(1, time.Minute)
 		})
 	})
 	It("should terminate an empty node", func() {

@@ -160,7 +160,7 @@ var _ = Describe("Expiration", func() {
 
 			// Expect that both of the nodes are expired, but not being disrupted
 			env.EventuallyExpectExpired(ncs...)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 2, 30*time.Second)
+			env.ConsistentlyExpectNoDisruptions(2, 30*time.Second)
 
 			By("removing the do not disrupt annotations")
 			// Remove the do not disrupt annotation from the two pods
@@ -356,7 +356,7 @@ var _ = Describe("Expiration", func() {
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
 			env.EventuallyExpectExpired(nodeClaim)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, time.Minute)
+			env.ConsistentlyExpectNoDisruptions(1, time.Minute)
 		})
 		It("should not allow expiration if the budget is fully blocking during a scheduled time", func() {
 			// We're going to define a budget that doesn't allow any expirations to happen
@@ -378,7 +378,7 @@ var _ = Describe("Expiration", func() {
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
 			env.EventuallyExpectExpired(nodeClaim)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, 1, time.Minute)
+			env.ConsistentlyExpectNoDisruptions(1, time.Minute)
 		})
 	})
 	It("should expire the node after the expiration is reached", func() {
@@ -642,7 +642,7 @@ var _ = Describe("Expiration", func() {
 			env.EventuallyExpectBoundPodCount(selector, int(numPods))
 
 			env.EventuallyExpectExpired(nodeClaims...)
-			env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, int(numPods), time.Minute)
+			env.ConsistentlyExpectNoDisruptions(int(numPods), time.Minute)
 		})
 	})
 })
