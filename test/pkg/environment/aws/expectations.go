@@ -338,6 +338,14 @@ func (env *Environment) GetK8sVersion(offset int) string {
 	return fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-offset)
 }
 
+func (env *Environment) GetK8sMinorVersion(offset int) (int, error) {
+	version, err := strconv.Atoi(strings.Split(env.GetK8sVersion(offset), ".")[1])
+	if err != nil {
+		return 0, err
+	}
+	return version, nil
+}
+
 func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
 	version := env.GetK8sVersion(versionOffset)
 	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
