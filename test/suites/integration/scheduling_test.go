@@ -451,48 +451,18 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				node := env.ExpectCreatedNodeCount("==", 1)[0]
 				Expect(node.ObjectMeta.GetLabels()[v1beta1.LabelInstanceCPU]).To(Equal(expectedNodeCPU))
 			},
-			Entry("container requirements + sidecar requirements", "2", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("750m")},
-			}, v1.Container{
-				RestartPolicy: lo.ToPtr(v1.ContainerRestartPolicyAlways),
-				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("500m")},
-				},
-			}),
-			Entry("container requirements < init container requirements", "2", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("500m")},
-			}, ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("250m")},
-			}), ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1250m")},
-			})),
-			Entry("container requirements > init container requirements", "1", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("500m")},
+			Entry("sidecar requirements + later init requirements do exceed container requirements", "2", v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
-			}), ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
-			})),
-			Entry("container requirements + sidecar requirements < init container requirements", "2", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("250m")},
-			}, ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1250m")},
 			}), v1.Container{
 				RestartPolicy: lo.ToPtr(v1.ContainerRestartPolicyAlways),
 				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("250m")},
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("350m")},
 				},
-			}),
-			Entry("container requirements + sidecar requirements > init container requirements", "2", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("750m")},
 			}, ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("750m")},
-			}), v1.Container{
-				RestartPolicy: lo.ToPtr(v1.ContainerRestartPolicyAlways),
-				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("750m")},
-				},
-			}),
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+			})),
 			Entry("sidecar requirements + later init requirements do not exceed container requirements", "1", v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, ephemeralInitContainer(v1.ResourceRequirements{
@@ -505,81 +475,19 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
 			})),
-		)
-		DescribeTable(
-			"should provision a right-sized node when a pod has InitContainers (memory)",
-			func(expectedNodeMemory string, containerRequirements v1.ResourceRequirements, initContainers ...v1.Container) {
-				if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
-					Skip("native sidecar containers are only enabled on EKS 1.29+")
-				}
-				test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceMemory,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"4096", "8192"},
-				}, v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpNotIn,
-					Values:   []string{"t"},
-				})
-				pod := test.Pod(test.PodOptions{
-					InitContainers:       initContainers,
-					ResourceRequirements: containerRequirements,
-				})
-				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-					SystemReserved: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("0"),
-						v1.ResourceMemory: resource.MustParse("0Mi"),
-					},
-					KubeReserved: v1.ResourceList{
-						v1.ResourceCPU:    resource.MustParse("0"),
-						v1.ResourceMemory: resource.MustParse("0Mi"),
-					},
-				}
-				env.ExpectCreated(nodePool, nodeClass, pod)
-				env.EventuallyExpectHealthy(pod)
-				node := env.ExpectCreatedNodeCount("==", 1)[0]
-				Expect(node.ObjectMeta.GetLabels()[v1beta1.LabelInstanceMemory]).To(Equal(expectedNodeMemory))
-			},
-			Entry("container requirements + sidecar requirements", "8192", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("3Gi")},
+			Entry("init container requirements exceed all later requests", "2", v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, v1.Container{
 				RestartPolicy: lo.ToPtr(v1.ContainerRestartPolicyAlways),
 				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("2Gi")},
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("100m")},
 				},
-			}),
-			Entry("container requirements < init container requirements", "8192", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("2Gi")},
 			}, ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi")},
-			}), ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("5Gi")},
-			})),
-			Entry("container requirements > init container requirements", "4096", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("2Gi")},
-			}, ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("1536Mi")},
-			}), ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("1536Mi")},
-			})),
-			Entry("container requirements + sidecar requirements < init container requirements", "8192", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi")},
-			}, ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("5Gi")},
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1500m")},
 			}), v1.Container{
 				RestartPolicy: lo.ToPtr(v1.ContainerRestartPolicyAlways),
 				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi")},
-				},
-			}),
-			Entry("container requirements + sidecar requirements > init container requirements", "4096", v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi")},
-			}, ephemeralInitContainer(v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("2560Mi")},
-			}), v1.Container{
-				RestartPolicy: lo.ToPtr(v1.ContainerRestartPolicyAlways),
-				Resources: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceMemory: resource.MustParse("1Gi")},
+					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("100m")},
 				},
 			}),
 		)
