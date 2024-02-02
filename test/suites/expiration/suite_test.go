@@ -93,6 +93,89 @@ var _ = Describe("Expiration", func() {
 		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 	})
 	Context("Budgets", func() {
+		// Two nodes, both expired or both drifted, the more drifted one with a pre-stop pod that sleeps for 300 seconds,
+		// and we consistently ensure that the second node is not tainted == disrupted.
+		It("should not continue to disrupt nodes that have been the target of pod nomination", func() {
+			coretest.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"2xlarge"},
+				},
+			)
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes: "100%",
+			}}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{}
+
+			// Create a deployment with one pod to create one node.
+			dep = coretest.Deployment(coretest.DeploymentOptions{
+				Replicas: 1,
+				PodOptions: coretest.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Annotations: map[string]string{
+							corev1beta1.DoNotDisruptAnnotationKey: "true",
+						},
+						Labels: map[string]string{"app": "large-app"},
+					},
+					// Each 2xlarge has 8 cpu, so each node should fit 2 pods.
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU: resource.MustParse("3"),
+						},
+					},
+					Command:                       []string{"sh", "-c", "sleep 3600"},
+					Image:                         "alpine:latest",
+					PreStopSleep:                  lo.ToPtr(int64(300)),
+					TerminationGracePeriodSeconds: lo.ToPtr(int64(500)),
+				},
+			})
+			selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", 1)
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			env.EventuallyExpectHealthyPodCount(selector, 1)
+
+			// Set the node to unschedulable so that we can create another node with one pod.
+			node := env.EventuallyExpectNodeCount("==", 1)[0]
+			node.Spec.Unschedulable = true
+			env.ExpectUpdated(node)
+
+			dep.Spec.Replicas = lo.ToPtr(int32(2))
+			env.ExpectUpdated(dep)
+
+			ncs := env.EventuallyExpectCreatedNodeClaimCount("==", 2)
+			env.EventuallyExpectCreatedNodeCount("==", 2)
+			pods := env.EventuallyExpectHealthyPodCount(selector, 2)
+			env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
+
+			node = env.ExpectExists(node).(*v1.Node)
+			node.Spec.Unschedulable = false
+			env.ExpectUpdated(node)
+
+			By("enabling expiration")
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
+			env.ExpectUpdated(nodePool)
+
+			// Expect that both of the nodes are expired, but not being disrupted
+			env.EventuallyExpectExpired(ncs...)
+			env.ConsistentlyExpectNoDisruptions(2, 30*time.Second)
+
+			By("removing the do not disrupt annotations")
+			// Remove the do not disrupt annotation from the two pods
+			for _, p := range pods {
+				p := env.ExpectExists(p).(*v1.Pod)
+				delete(p.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
+				env.ExpectUpdated(p)
+			}
+			env.EventuallyExpectTaintedNodeCount("==", 1)
+
+			By("expecting only one disruption for 60s")
+			// Expect only one node being disrupted as the other node should continue to be nominated.
+			// As the pod has a 300s pre-stop sleep.
+			env.ConsistentlyExpectDisruptingNodesWithNodeCount(1, 2, time.Minute)
+		})
 		It("should respect budgets for empty expiration", func() {
 			coretest.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
@@ -152,7 +235,7 @@ var _ = Describe("Expiration", func() {
 
 			// Expect that two nodes are tainted.
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
 
 			// Remove finalizers
 			for _, node := range nodes {
@@ -249,7 +332,7 @@ var _ = Describe("Expiration", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the expiration
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
 
 			By("removing the finalizer from the nodes")
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
@@ -535,7 +618,6 @@ var _ = Describe("Expiration", func() {
 							MatchLabels: map[string]string{"app": "inflate"},
 						}},
 					},
-
 					ReadinessProbe: &v1.Probe{
 						ProbeHandler: v1.ProbeHandler{
 							HTTPGet: &v1.HTTPGetAction{
