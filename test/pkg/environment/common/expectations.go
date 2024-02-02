@@ -504,12 +504,12 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) []*v1.Node {
+func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) (taintedNodes []*v1.Node) {
 	GinkgoHelper()
 	return env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, nodeCount, duration)
 }
 
-func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(nodesTainted int, nodeCount int, duration time.Duration) []*v1.Node {
+func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(nodesTainted int, nodeCount int, duration time.Duration) (taintedNodes []*v1.Node) {
 	GinkgoHelper()
 	nodes := []v1.Node{}
 	Consistently(func(g Gomega) {
