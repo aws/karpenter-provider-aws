@@ -523,11 +523,11 @@ func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(disruptingNod
 		// Ensure we don't change our NodeClaims
 		nodeClaimList := &corev1beta1.NodeClaimList{}
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(nodeClaimList.Items)).To(BeNumerically("==", totalNodes))
+		g.Expect(nodeClaimList.Items).To(HaveLen(totalNodes))
 
 		nodeList := &v1.NodeList{}
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(nodeList.Items)).To(BeNumerically("==", totalNodes))
+		g.Expect(nodeList.Items).To(HaveLen(totalNodes))
 
 		nodes = lo.Filter(nodeList.Items, func(n v1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t v1.Taint) bool {
