@@ -486,6 +486,12 @@ func (env *Environment) ExpectNodeClaimCount(comparator string, count int) {
 	Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
 }
 
+func NodeClaimNames(nodeClaims []*corev1beta1.NodeClaim) []string {
+	return lo.Map(nodeClaims, func(n *corev1beta1.NodeClaim, index int) string {
+		return n.Name
+	})
+}
+
 func NodeNames(nodes []*v1.Node) []string {
 	return lo.Map(nodes, func(n *v1.Node, index int) string {
 		return n.Name
@@ -506,26 +512,22 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 
 func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) (taintedNodes []*v1.Node) {
 	GinkgoHelper()
-	return env.ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(duration, 0, nodeCount)
+	return env.ConsistentlyExpectDisruptionsWithNodeCount(0, nodeCount, duration)
 }
 
-func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(duration time.Duration, taintedNodeCount, nodeCount int) (taintedNodes []*v1.Node) {
-	GinkgoHelper()
-	return env.ConsistentlyExpectDisruptionsWithNodeCount(duration, 0, taintedNodeCount, nodeCount)
-}
-
-func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(duration time.Duration, replacements, disruptingNodes, totalNodes int) (taintedNodes []*v1.Node) {
+// ConsistentlyExpectDisruptionsWithNodeCount will continually ensure that there are exactly disruptingNodes with totalNodes (including replacements and existing nodes)
+func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(disruptingNodes, totalNodes int, duration time.Duration) (taintedNodes []*v1.Node) {
 	GinkgoHelper()
 	nodes := []v1.Node{}
 	Consistently(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
 		nodeClaimList := &corev1beta1.NodeClaimList{}
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(nodeClaimList.Items)).To(And(BeNumerically(">=", totalNodes), BeNumerically("<=", totalNodes+replacements)))
+		g.Expect(len(nodeClaimList.Items)).To(BeNumerically("==", totalNodes))
 
 		nodeList := &v1.NodeList{}
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(len(nodeList.Items)).To(And(BeNumerically(">=", totalNodes), BeNumerically("<=", totalNodes+replacements)))
+		g.Expect(len(nodeList.Items)).To(BeNumerically("==", totalNodes))
 
 		nodes = lo.Filter(nodeList.Items, func(n v1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t v1.Taint) bool {
@@ -559,6 +561,18 @@ func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.D
 		taintedNodeNames := lo.Map(nodeList.Items, func(n v1.Node, _ int) string { return n.Name })
 		g.Expect(taintedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *v1.Node, _ int) interface{} { return n.Name })...))
 	}).WithTimeout(timeout).Should(Succeed())
+}
+
+func (env *Environment) EventuallyExpectNodeClaimCount(comparator string, count int) []*corev1beta1.NodeClaim {
+	GinkgoHelper()
+	By(fmt.Sprintf("waiting for nodes to be %s to %d", comparator, count))
+	nodeClaimList := &corev1beta1.NodeClaimList{}
+	Eventually(func(g Gomega) {
+		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
+		g.Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count),
+			fmt.Sprintf("expected %d nodeclaims, had %d (%v)", count, len(nodeClaimList.Items), NodeClaimNames(lo.ToSlicePtr(nodeClaimList.Items))))
+	}).Should(Succeed())
+	return lo.ToSlicePtr(nodeClaimList.Items)
 }
 
 func (env *Environment) EventuallyExpectNodeCount(comparator string, count int) []*v1.Node {

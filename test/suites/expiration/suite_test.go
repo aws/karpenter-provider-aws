@@ -174,7 +174,7 @@ var _ = Describe("Expiration", func() {
 			By("expecting only one disruption for 60s")
 			// Expect only one node being disrupted as the other node should continue to be nominated.
 			// As the pod has a 300s pre-stop sleep.
-			env.ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(time.Minute, 1, 2)
+			env.ConsistentlyExpectDisruptionsWithNodeCount(1, 2, time.Minute)
 		})
 		It("should respect budgets for empty expiration", func() {
 			coretest.ReplaceRequirements(nodePool,
@@ -235,7 +235,7 @@ var _ = Describe("Expiration", func() {
 
 			// Expect that two nodes are tainted.
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(5*time.Second, 2, 3)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 5*time.Second)
 
 			// Remove finalizers
 			for _, node := range nodes {
@@ -332,7 +332,7 @@ var _ = Describe("Expiration", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the expiration
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(5*time.Second, 2, 3)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 5*time.Second)
 
 			By("removing the finalizer from the nodes")
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
@@ -408,9 +408,11 @@ var _ = Describe("Expiration", func() {
 			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
 			env.ExpectUpdated(nodePool)
 
-			// Ensure that we get two nodes tainted, and they have overlap during the drift
+			// Ensure that we get two nodes tainted, and they have overlap during the expiration
 			env.EventuallyExpectTaintedNodeCount("==", 3)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(5*time.Second, 3, 3, 5)
+			env.EventuallyExpectNodeClaimCount("==", 8)
+			env.EventuallyExpectNodeCount("==", 8)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
 
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
