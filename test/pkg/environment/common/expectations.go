@@ -506,21 +506,26 @@ func (env *Environment) ConsistentlyExpectNodeCount(comparator string, count int
 
 func (env *Environment) ConsistentlyExpectNoDisruptions(nodeCount int, duration time.Duration) (taintedNodes []*v1.Node) {
 	GinkgoHelper()
-	return env.ConsistentlyExpectDisruptingNodesWithNodeCount(0, nodeCount, duration)
+	return env.ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(duration, 0, nodeCount)
 }
 
-func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(taintedNodeCount int, nodeCount int, duration time.Duration) (taintedNodes []*v1.Node) {
+func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(duration time.Duration, taintedNodeCount, nodeCount int) (taintedNodes []*v1.Node) {
+	GinkgoHelper()
+	return env.ConsistentlyExpectDisruptionsWithNodeCount(duration, 0, taintedNodeCount, nodeCount)
+}
+
+func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(duration time.Duration, replacements, disruptingNodes, totalNodes int) (taintedNodes []*v1.Node) {
 	GinkgoHelper()
 	nodes := []v1.Node{}
 	Consistently(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
 		nodeClaimList := &corev1beta1.NodeClaimList{}
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(nodeClaimList.Items).To(HaveLen(nodeCount))
+		g.Expect(len(nodeClaimList.Items)).To(And(BeNumerically(">=", totalNodes), BeNumerically("<=", totalNodes+replacements)))
 
 		nodeList := &v1.NodeList{}
 		g.Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
-		g.Expect(nodeList.Items).To(HaveLen(nodeCount))
+		g.Expect(len(nodeList.Items)).To(And(BeNumerically(">=", totalNodes), BeNumerically("<=", totalNodes+replacements)))
 
 		nodes = lo.Filter(nodeList.Items, func(n v1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t v1.Taint) bool {
@@ -528,7 +533,7 @@ func (env *Environment) ConsistentlyExpectDisruptingNodesWithNodeCount(taintedNo
 			})
 			return ok
 		})
-		g.Expect(nodes).To(HaveLen(taintedNodeCount))
+		g.Expect(nodes).To(HaveLen(disruptingNodes))
 	}, duration).Should(Succeed())
 	return lo.ToSlicePtr(nodes)
 }

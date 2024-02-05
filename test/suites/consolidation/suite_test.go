@@ -126,7 +126,7 @@ var _ = Describe("Consolidation", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 5, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(5*time.Second, 2, 5)
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
@@ -139,7 +139,7 @@ var _ = Describe("Consolidation", func() {
 
 			// This check ensures that we are consolidating nodes at the same time
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(5*time.Second, 2, 3)
 
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
@@ -206,15 +206,114 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = nil
 			env.ExpectUpdated(nodePool)
 
-			// Ensure that we get two nodes tainted, and they have overlap during the drift
+			// Ensure that we get two nodes tainted, and they have overlap during consolidation
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCountWithNoReplacement(5*time.Second, 2, 3)
 
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
 			}
 			env.EventuallyExpectNotFound(nodes[0], nodes[1])
 			env.ExpectNodeCount("==", 1)
+		})
+		It("should respect budgets for non-empty replace consolidation", func() {
+			appLabels := map[string]string{"app": "large-app"}
+			// This test will hold consolidation until we are ready to execute it
+			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+
+			nodePool = test.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"xlarge", "2xlarge"},
+				},
+				// Add an Exists operator so that we can select on a fake partition later
+				v1.NodeSelectorRequirement{
+					Key:      "test-partition",
+					Operator: v1.NodeSelectorOpExists,
+				},
+			)
+			nodePool.Labels = appLabels
+			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes: "3",
+			}}
+
+			ds := test.DaemonSet(test.DaemonSetOptions{
+				Selector: appLabels,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: appLabels,
+					},
+					// Each 2xlarge has 8 cpu, so each node should fit no more than 1 pod since each node will have.
+					// an equivalently sized daemonset
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU: resource.MustParse("3"),
+						},
+					},
+				},
+			})
+
+			env.ExpectCreated(ds)
+
+			// Make 5 pods all with different deployments and different test partitions, so that each pod can be put
+			// on a separate node.
+			selector = labels.SelectorFromSet(appLabels)
+			numPods = 5
+			deployments := make([]*appsv1.Deployment, numPods)
+			for i := range lo.Range(int(numPods)) {
+				deployments[i] = test.Deployment(test.DeploymentOptions{
+					Replicas: 1,
+					PodOptions: test.PodOptions{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: appLabels,
+						},
+						NodeSelector: map[string]string{"test-partition": fmt.Sprintf("%d", i)},
+						// Each 2xlarge has 8 cpu, so each node should fit no more than 1 pod since each node will have.
+						// an equivalently sized daemonset
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{
+								v1.ResourceCPU: resource.MustParse("3"),
+							},
+						},
+					},
+				})
+			}
+
+			env.ExpectCreated(nodeClass, nodePool, deployments[0], deployments[1], deployments[2], deployments[3], deployments[4])
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+			// Check that all daemonsets and deployment pods are online
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods)*2)
+
+			By("cordoning and adding finalizer to the nodes")
+			// Add a finalizer to each node so that we can stop termination disruptions
+			for _, node := range nodes {
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+				env.ExpectUpdated(node)
+			}
+
+			// Delete the daemonset so that the nodes can be consolidated to smaller size
+			env.ExpectDeleted(ds)
+			// Check that all daemonsets and deployment pods are online
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+
+			By("enabling consolidation")
+			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			env.ExpectUpdated(nodePool)
+
+			// Ensure that we get two nodes tainted, and they have overlap during the drift
+			env.EventuallyExpectTaintedNodeCount("==", 3)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(5*time.Second, 3, 3, 5)
+
+			for _, node := range nodes {
+				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			}
+			env.EventuallyExpectNotFound(nodes[0], nodes[1], nodes[2])
+			env.ExpectNodeCount("==", 5)
 		})
 		It("should not allow consolidation if the budget is fully blocking", func() {
 			// We're going to define a budget that doesn't allow any consolidation to happen
