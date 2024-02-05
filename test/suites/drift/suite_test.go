@@ -161,7 +161,7 @@ var _ = Describe("Drift", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, 5*time.Second)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 5*time.Second)
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
@@ -253,7 +253,7 @@ var _ = Describe("Drift", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectDisruptingNodesWithNodeCount(2, 3, time.Minute)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 30*time.Second)
 
 			By("removing the finalizer from the nodes")
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
@@ -262,6 +262,84 @@ var _ = Describe("Drift", func() {
 			// After the deletion timestamp is set and all pods are drained
 			// the node should be gone
 			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+		})
+		It("should respect budgets for non-empty replace drift", func() {
+			appLabels := map[string]string{"app": "large-app"}
+
+			nodePool = coretest.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"xlarge"},
+				},
+				// Add an Exists operator so that we can select on a fake partition later
+				v1.NodeSelectorRequirement{
+					Key:      "test-partition",
+					Operator: v1.NodeSelectorOpExists,
+				},
+			)
+			nodePool.Labels = appLabels
+			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes: "3",
+			}}
+
+			// Make 5 pods all with different deployments and different test partitions, so that each pod can be put
+			// on a separate node.
+			selector = labels.SelectorFromSet(appLabels)
+			numPods = 5
+			deployments := make([]*appsv1.Deployment, numPods)
+			for i := range lo.Range(numPods) {
+				deployments[i] = coretest.Deployment(coretest.DeploymentOptions{
+					Replicas: 1,
+					PodOptions: coretest.PodOptions{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: appLabels,
+						},
+						NodeSelector: map[string]string{"test-partition": fmt.Sprintf("%d", i)},
+						// Each xlarge has 4 cpu, so each node should fit no more than 1 pod.
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{
+								v1.ResourceCPU: resource.MustParse("3"),
+							},
+						},
+					},
+				})
+			}
+
+			env.ExpectCreated(nodeClass, nodePool, deployments[0], deployments[1], deployments[2], deployments[3], deployments[4])
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+			// Check that all deployment pods are online
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+			By("cordoning and adding finalizer to the nodes")
+			// Add a finalizer to each node so that we can stop termination disruptions
+			for _, node := range nodes {
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+				env.ExpectUpdated(node)
+			}
+
+			// Check that all daemonsets and deployment pods are online
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+			By("drifting the nodepool")
+			nodePool.Spec.Template.Annotations = lo.Assign(nodePool.Spec.Template.Annotations, map[string]string{"test-annotation": "drift"})
+			env.ExpectUpdated(nodePool)
+
+			// Ensure that we get two nodes tainted, and they have overlap during the drift
+			env.EventuallyExpectTaintedNodeCount("==", 3)
+			env.EventuallyExpectNodeClaimCount("==", 8)
+			env.EventuallyExpectNodeCount("==", 8)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
+
+			for _, node := range nodes {
+				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			}
+			env.EventuallyExpectNotFound(nodes[0], nodes[1], nodes[2])
+			env.ExpectNodeCount("==", 5)
 		})
 		It("should not allow drift if the budget is fully blocking", func() {
 			// We're going to define a budget that doesn't allow any drift to happen
