@@ -311,7 +311,7 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
 			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
-			// Check that all daemonsets and deployment pods are online
+			// Check that all deployment pods are online
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
 			By("cordoning and adding finalizer to the nodes")
