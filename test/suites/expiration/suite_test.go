@@ -368,7 +368,7 @@ var _ = Describe("Expiration", func() {
 			selector = labels.SelectorFromSet(appLabels)
 			numPods = 5
 			deployments := make([]*appsv1.Deployment, numPods)
-			for i := range lo.Range(int(numPods)) {
+			for i := range lo.Range(numPods) {
 				deployments[i] = coretest.Deployment(coretest.DeploymentOptions{
 					Replicas: 1,
 					PodOptions: coretest.PodOptions{
@@ -391,7 +391,7 @@ var _ = Describe("Expiration", func() {
 			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
 			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
 			// Check that all daemonsets and deployment pods are online
-			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
 			By("cordoning and adding finalizer to the nodes")
 			// Add a finalizer to each node so that we can stop termination disruptions
@@ -402,7 +402,7 @@ var _ = Describe("Expiration", func() {
 			}
 
 			// Check that all daemonsets and deployment pods are online
-			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
 			By("enabling expiration")
 			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
