@@ -218,6 +218,8 @@ var _ = Describe("Drift", func() {
 			dep.Spec.Replicas = lo.ToPtr[int32](3)
 			env.ExpectUpdated(dep)
 
+			// First expect there to be 3 pods, then try to spread the pods.
+			env.EventuallyExpectHealthyPodCount(selector, 3)
 			env.ForcePodsToSpread(nodes...)
 			env.EventuallyExpectHealthyPodCount(selector, 3)
 
