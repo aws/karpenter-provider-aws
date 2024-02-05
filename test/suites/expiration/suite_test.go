@@ -297,6 +297,8 @@ var _ = Describe("Expiration", func() {
 			dep.Spec.Replicas = lo.ToPtr[int32](3)
 			env.ExpectUpdated(dep)
 
+			// First expect there to be 3 pods, then try to spread the pods.
+			env.EventuallyExpectHealthyPodCount(selector, 3)
 			env.ForcePodsToSpread(nodes...)
 			env.EventuallyExpectHealthyPodCount(selector, 3)
 
@@ -305,8 +307,6 @@ var _ = Describe("Expiration", func() {
 			for _, node := range nodes {
 				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-				// Set nodes as unschedulable so that pod nomination doesn't delay disruption for the second disruption action
-				node.Spec.Unschedulable = true
 				env.ExpectUpdated(node)
 			}
 
@@ -324,11 +324,6 @@ var _ = Describe("Expiration", func() {
 				delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 				env.ExpectUpdated(pod)
 			}
-
-			// Mark one node as schedulable so the other two nodes can schedule to this node and delete.
-			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodes[0]), nodes[0])).To(Succeed())
-			nodes[0].Spec.Unschedulable = false
-			env.ExpectUpdated(nodes[0])
 
 			// Ensure that we get two nodes tainted, and they have overlap during the expiration
 			env.EventuallyExpectTaintedNodeCount("==", 2)
@@ -475,7 +470,7 @@ var _ = Describe("Expiration", func() {
 			env.ExpectUpdated(pod)
 		}
 
-		// Eventually the node will be set as unschedulable, which means its actively being deprovisioned
+		// Eventually the node will be tainted, which means its actively being disrupted
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
@@ -539,7 +534,7 @@ var _ = Describe("Expiration", func() {
 			env.ExpectUpdated(pod)
 		}
 
-		// Eventually the node will be set as unschedulable, which means its actively being deprovisioned
+		// Eventually the node will be tainted, which means its actively being disrupted
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {

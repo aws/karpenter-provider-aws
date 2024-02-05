@@ -218,6 +218,8 @@ var _ = Describe("Drift", func() {
 			dep.Spec.Replicas = lo.ToPtr[int32](3)
 			env.ExpectUpdated(dep)
 
+			// First expect there to be 3 pods, then try to spread the pods.
+			env.EventuallyExpectHealthyPodCount(selector, 3)
 			env.ForcePodsToSpread(nodes...)
 			env.EventuallyExpectHealthyPodCount(selector, 3)
 
@@ -226,8 +228,6 @@ var _ = Describe("Drift", func() {
 			for _, node := range nodes {
 				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-				// Set nodes as unschedulable so that pod nomination doesn't delay disruption for the second disruption action
-				node.Spec.Unschedulable = true
 				env.ExpectUpdated(node)
 			}
 
@@ -245,11 +245,6 @@ var _ = Describe("Drift", func() {
 				delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 				env.ExpectUpdated(pod)
 			}
-
-			// Mark one node as schedulable so the other two nodes can schedule to this node and delete.
-			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodes[0]), nodes[0])).To(Succeed())
-			nodes[0].Spec.Unschedulable = false
-			env.ExpectUpdated(nodes[0])
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
