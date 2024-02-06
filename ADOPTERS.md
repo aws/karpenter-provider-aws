@@ -49,6 +49,7 @@ If you are open to others contacting you about your use of Karpenter on Slack, a
 | Target Australia | Using Karpenter to manage (scale, auto update etc) the containerised (EKS) compute that powers much of the Target Online platform | `@gazal-k` | [Target Australia Online Shopping](https://www.target.com.au) |
 | The Scale Factory | Using Karpenter (controllers on EC2/Fargate) to efficiently scale K8s workloads and empowering our customer teams to do the same  | `@marko` | [Homepage](https://www.scalefactory.com) |
 | Tyk Cloud | Scaling workloads for the Cloud Free plan  | `@Artem Hluvchynskyi`, `@gowtham` | [Tyk Cloud](https://tyk.io/cloud/) |
+| VictoriaMetrics Cloud | Managed Time Series Database Services from VictoriaMetrics | `@Max G` | [VictoriaMetrics Cloud](https://victoriametrics.com/products/managed/) |
 | Wehkamp | Using Karpenter to scale the EKS clusters for our e-commerce platforms | `@ChrisV` | [Wehkamp](https://www.wehkamp.nl) & [Wehkamp Techblog](https://medium.com/wehkamp-techblog)|
 | Whoosh | Using Karpenter to scale the EKS clusters for many purposes | `@vainkop` | [Whoosh](https://whoosh.bike) |
 | Next Insurance | Using Karpenter to manage the nodes in all our EKS clusters, including dev and prod, on demand and spots | `@moshebs` | [Homepage](https://www.nextinsurance.com)|
