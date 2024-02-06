@@ -114,7 +114,7 @@ buildDate(){
 }
 
 cosignImages() {
-    COSIGN_EXPERIMENTAL=1 cosign sign \
+    cosign sign --yes \
         -a GIT_HASH="$(git rev-parse HEAD)" \
         -a GIT_VERSION="${RELEASE_VERSION}" \
         -a BUILD_DATE="$(buildDate)" \
