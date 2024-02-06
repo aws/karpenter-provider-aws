@@ -124,6 +124,9 @@ Number of nodes eligible for disruption by Karpenter. Labeled by disruption meth
 ### `karpenter_disruption_consolidation_timeouts_total`
 Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
 
+### `karpenter_disruption_budgets_allowed_disruptions`
+The number of nodes for a given NodePool that can be disrupted at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
+
 ### `karpenter_disruption_actions_performed_total`
 Number of disruption actions performed. Labeled by disruption method.
 
