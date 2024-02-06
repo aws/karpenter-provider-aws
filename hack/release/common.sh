@@ -135,6 +135,15 @@ publishHelmChart() {
     helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
+
+    cosignHelmChart "${RELEASE_REPO}" "${HELM_CHART_VERSION}"
+}
+
+cosignHelmChart() {
+    RELEASE_REPO=$1
+    HELM_CHART_VERSION=$2
+    digest="$(crane digest "${RELEASE_REPO}:${HELM_CHART_VERSION}")"
+    cosign sign --yes "${RELEASE_REPO}:${HELM_CHART_VERSION}@${digest}"
 }
 
 createNewWebsiteDirectory() {
