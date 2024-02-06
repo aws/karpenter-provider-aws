@@ -2253,7 +2253,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|6|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
- |karpenter.k8s.aws/instance-network-bandwidth|15000|
+ |karpenter.k8s.aws/instance-network-bandwidth|25000|
  |karpenter.k8s.aws/instance-size|4xlarge|
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
@@ -3090,6 +3090,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|2048|
+ |karpenter.k8s.aws/instance-network-bandwidth|390|
  |karpenter.k8s.aws/instance-size|medium|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3101,6 +3102,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|1451Mi|
  |pods|8|
+ |vpc.amazonaws.com/pod-eni|4|
 ### `c7a.large`
 #### Labels
  | Label | Value |
@@ -3112,6 +3114,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|4096|
+ |karpenter.k8s.aws/instance-network-bandwidth|781|
  |karpenter.k8s.aws/instance-size|large|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3123,6 +3126,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `c7a.xlarge`
 #### Labels
  | Label | Value |
@@ -3134,6 +3138,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|8192|
+ |karpenter.k8s.aws/instance-network-bandwidth|1562|
  |karpenter.k8s.aws/instance-size|xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3145,6 +3150,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `c7a.2xlarge`
 #### Labels
  | Label | Value |
@@ -3156,6 +3162,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|3125|
  |karpenter.k8s.aws/instance-size|2xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3167,6 +3174,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `c7a.4xlarge`
 #### Labels
  | Label | Value |
@@ -3178,6 +3186,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|6250|
  |karpenter.k8s.aws/instance-size|4xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3189,6 +3198,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `c7a.8xlarge`
 #### Labels
  | Label | Value |
@@ -3200,6 +3210,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|12500|
  |karpenter.k8s.aws/instance-size|8xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3211,6 +3222,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|84|
 ### `c7a.12xlarge`
 #### Labels
  | Label | Value |
@@ -3222,6 +3234,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|98304|
+ |karpenter.k8s.aws/instance-network-bandwidth|18750|
  |karpenter.k8s.aws/instance-size|12xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3233,6 +3246,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|114|
 ### `c7a.16xlarge`
 #### Labels
  | Label | Value |
@@ -3244,6 +3258,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|25000|
  |karpenter.k8s.aws/instance-size|16xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3255,6 +3270,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `c7a.24xlarge`
 #### Labels
  | Label | Value |
@@ -3266,6 +3282,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|37500|
  |karpenter.k8s.aws/instance-size|24xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3277,6 +3294,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `c7a.32xlarge`
 #### Labels
  | Label | Value |
@@ -3288,6 +3306,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|32xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3299,6 +3318,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|234021Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `c7a.48xlarge`
 #### Labels
  | Label | Value |
@@ -3310,6 +3330,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|48xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3322,6 +3343,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `c7a.metal-48xl`
 #### Labels
  | Label | Value |
@@ -3333,6 +3355,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|metal-48xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -3345,6 +3368,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## c7g Family
 ### `c7g.medium`
 #### Labels
@@ -3984,6 +4008,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|3114Mi|
  |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `c7i.xlarge`
 #### Labels
  | Label | Value |
@@ -4007,6 +4032,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|6584Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `c7i.2xlarge`
 #### Labels
  | Label | Value |
@@ -4030,6 +4056,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14162Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `c7i.4xlarge`
 #### Labels
  | Label | Value |
@@ -4053,6 +4080,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|27381Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `c7i.8xlarge`
 #### Labels
  | Label | Value |
@@ -4076,6 +4104,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|57691Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|84|
 ### `c7i.12xlarge`
 #### Labels
  | Label | Value |
@@ -4099,6 +4128,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|88002Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|114|
 ### `c7i.16xlarge`
 #### Labels
  | Label | Value |
@@ -4122,6 +4152,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|112779Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `c7i.24xlarge`
 #### Labels
  | Label | Value |
@@ -4145,6 +4176,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `c7i.metal-24xl`
 #### Labels
  | Label | Value |
@@ -4156,6 +4188,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-network-bandwidth|37500|
  |karpenter.k8s.aws/instance-size|metal-24xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -4167,6 +4200,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|173400Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `c7i.48xlarge`
 #### Labels
  | Label | Value |
@@ -4191,6 +4225,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `c7i.metal-48xl`
 #### Labels
  | Label | Value |
@@ -4202,6 +4237,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|metal-48xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -4214,6 +4250,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|355262Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## d2 Family
 ### `d2.xlarge`
 #### Labels
@@ -5652,8 +5689,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
- |pods|737|
+ |memory|237794Mi|
+ |pods|394|
 ## hpc7g Family
 ### `hpc7g.4xlarge`
 #### Labels
@@ -6480,6 +6517,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|11250|
  |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|28120|
  |karpenter.k8s.aws/instance-size|12xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -6491,6 +6529,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|112|
 ### `i4i.16xlarge`
 #### Labels
  | Label | Value |
@@ -6528,6 +6567,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|22500|
  |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|56250|
  |karpenter.k8s.aws/instance-size|24xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -6539,6 +6579,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|722287Mi|
  |pods|437|
+ |vpc.amazonaws.com/pod-eni|105|
 ### `i4i.32xlarge`
 #### Labels
  | Label | Value |
@@ -11574,6 +11615,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|37500|
  |karpenter.k8s.aws/instance-size|metal-24xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -11585,6 +11627,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|355262Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `m7i.48xlarge`
 #### Labels
  | Label | Value |
@@ -11621,6 +11664,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|metal-48xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -11633,6 +11677,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|718987Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## m7i-flex Family
 ### `m7i-flex.large`
 #### Labels
@@ -11866,7 +11911,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|56786Mi|
  |nvidia.com/gpu|1|
  |pods|58|
- |vpc.amazonaws.com/pod-eni|38|
 ### `p3.8xlarge`
 #### Labels
  | Label | Value |
@@ -11895,7 +11939,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|228187Mi|
  |nvidia.com/gpu|4|
  |pods|234|
- |vpc.amazonaws.com/pod-eni|54|
 ### `p3.16xlarge`
 #### Labels
  | Label | Value |
@@ -11924,7 +11967,6 @@ below are the resources available with some assumptions and after the instance o
  |memory|459304Mi|
  |nvidia.com/gpu|8|
  |pods|234|
- |vpc.amazonaws.com/pod-eni|114|
 ## p3dn Family
 ### `p3dn.24xlarge`
 #### Labels
@@ -15499,6 +15541,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|7134Mi|
  |pods|8|
+ |vpc.amazonaws.com/pod-eni|4|
 ### `r7a.large`
 #### Labels
  | Label | Value |
@@ -15522,6 +15565,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `r7a.xlarge`
 #### Labels
  | Label | Value |
@@ -15545,6 +15589,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `r7a.2xlarge`
 #### Labels
  | Label | Value |
@@ -15568,6 +15613,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `r7a.4xlarge`
 #### Labels
  | Label | Value |
@@ -15591,6 +15637,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `r7a.8xlarge`
 #### Labels
  | Label | Value |
@@ -15614,6 +15661,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|84|
 ### `r7a.12xlarge`
 #### Labels
  | Label | Value |
@@ -15637,6 +15685,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|114|
 ### `r7a.16xlarge`
 #### Labels
  | Label | Value |
@@ -15660,6 +15709,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7a.24xlarge`
 #### Labels
  | Label | Value |
@@ -15683,6 +15733,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7a.32xlarge`
 #### Labels
  | Label | Value |
@@ -15706,6 +15757,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|961470Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7a.48xlarge`
 #### Labels
  | Label | Value |
@@ -15730,6 +15782,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446437Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7a.metal-48xl`
 #### Labels
  | Label | Value |
@@ -15741,6 +15794,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|metal-48xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -15753,6 +15807,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446437Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## r7g Family
 ### `r7g.medium`
 #### Labels
@@ -16109,7 +16164,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|1900|
- |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-network-bandwidth|15000|
  |karpenter.k8s.aws/instance-size|8xlarge|
  |kubernetes.io/arch|arm64|
@@ -16120,7 +16175,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|178874Mi|
+ |memory|239495Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.12xlarge`
@@ -16134,7 +16189,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|2850|
- |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-network-bandwidth|22500|
  |karpenter.k8s.aws/instance-size|12xlarge|
  |kubernetes.io/arch|arm64|
@@ -16145,7 +16200,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|239495Mi|
+ |memory|360736Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.16xlarge`
@@ -16186,6 +16241,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16384|
+ |karpenter.k8s.aws/instance-network-bandwidth|781|
  |karpenter.k8s.aws/instance-size|large|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16197,6 +16253,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `r7i.xlarge`
 #### Labels
  | Label | Value |
@@ -16208,6 +16265,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|32768|
+ |karpenter.k8s.aws/instance-network-bandwidth|1562|
  |karpenter.k8s.aws/instance-size|xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16219,6 +16277,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `r7i.2xlarge`
 #### Labels
  | Label | Value |
@@ -16230,6 +16289,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|65536|
+ |karpenter.k8s.aws/instance-network-bandwidth|3125|
  |karpenter.k8s.aws/instance-size|2xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16241,6 +16301,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `r7i.4xlarge`
 #### Labels
  | Label | Value |
@@ -16252,6 +16313,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-network-bandwidth|6250|
  |karpenter.k8s.aws/instance-size|4xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16263,6 +16325,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `r7i.8xlarge`
 #### Labels
  | Label | Value |
@@ -16274,6 +16337,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-network-bandwidth|12500|
  |karpenter.k8s.aws/instance-size|8xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16285,6 +16349,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|84|
 ### `r7i.12xlarge`
 #### Labels
  | Label | Value |
@@ -16296,6 +16361,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|393216|
+ |karpenter.k8s.aws/instance-network-bandwidth|18750|
  |karpenter.k8s.aws/instance-size|12xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16307,6 +16373,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|114|
 ### `r7i.16xlarge`
 #### Labels
  | Label | Value |
@@ -16318,6 +16385,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|25000|
  |karpenter.k8s.aws/instance-size|16xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16329,6 +16397,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7i.24xlarge`
 #### Labels
  | Label | Value |
@@ -16340,6 +16409,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|37500|
  |karpenter.k8s.aws/instance-size|24xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16351,6 +16421,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7i.metal-24xl`
 #### Labels
  | Label | Value |
@@ -16362,6 +16433,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|786432|
+ |karpenter.k8s.aws/instance-network-bandwidth|37500|
  |karpenter.k8s.aws/instance-size|metal-24xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16373,6 +16445,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|718987Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7i.48xlarge`
 #### Labels
  | Label | Value |
@@ -16384,6 +16457,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|48xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16396,6 +16470,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446437Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7i.metal-48xl`
 #### Labels
  | Label | Value |
@@ -16407,6 +16482,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|1572864|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|metal-48xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16419,6 +16495,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|1446437Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## r7iz Family
 ### `r7iz.large`
 #### Labels
@@ -16443,6 +16520,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|14481Mi|
  |pods|29|
+ |vpc.amazonaws.com/pod-eni|9|
 ### `r7iz.xlarge`
 #### Labels
  | Label | Value |
@@ -16466,6 +16544,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|29317Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|18|
 ### `r7iz.2xlarge`
 #### Labels
  | Label | Value |
@@ -16489,6 +16568,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|59627Mi|
  |pods|58|
+ |vpc.amazonaws.com/pod-eni|38|
 ### `r7iz.4xlarge`
 #### Labels
  | Label | Value |
@@ -16512,6 +16592,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|118312Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|54|
 ### `r7iz.8xlarge`
 #### Labels
  | Label | Value |
@@ -16535,6 +16616,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|239554Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|84|
 ### `r7iz.12xlarge`
 #### Labels
  | Label | Value |
@@ -16558,6 +16640,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|360795Mi|
  |pods|234|
+ |vpc.amazonaws.com/pod-eni|114|
 ### `r7iz.16xlarge`
 #### Labels
  | Label | Value |
@@ -16581,6 +16664,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7iz.metal-16xl`
 #### Labels
  | Label | Value |
@@ -16592,6 +16676,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-network-bandwidth|25000|
  |karpenter.k8s.aws/instance-size|metal-16xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16603,6 +16688,7 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|476504Mi|
  |pods|737|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7iz.32xlarge`
 #### Labels
  | Label | Value |
@@ -16627,6 +16713,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|961470Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ### `r7iz.metal-32xl`
 #### Labels
  | Label | Value |
@@ -16638,6 +16725,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor||
  |karpenter.k8s.aws/instance-memory|1048576|
+ |karpenter.k8s.aws/instance-network-bandwidth|50000|
  |karpenter.k8s.aws/instance-size|metal-32xl|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -16650,6 +16738,7 @@ below are the resources available with some assumptions and after the instance o
  |memory|961470Mi|
  |pods|737|
  |vpc.amazonaws.com/efa|1|
+ |vpc.amazonaws.com/pod-eni|107|
 ## t1 Family
 ### `t1.micro`
 #### Labels
