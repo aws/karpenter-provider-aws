@@ -409,9 +409,16 @@ var _ = Describe("Expiration", func() {
 			env.EventuallyExpectNodeCount("==", 8)
 			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
 
+			// Set the expireAfter to "Never" to make sure new node isn't deleted
+			// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
+			// racing at the end of the E2E test, leaking node resources into subsequent tests
+			nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+			env.ExpectUpdated(nodePool)
+
 			for _, node := range nodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
 			}
+
 			env.EventuallyExpectNotFound(nodes[0], nodes[1], nodes[2])
 			env.ExpectNodeCount("==", 5)
 		})
