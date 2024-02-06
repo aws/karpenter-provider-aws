@@ -26,7 +26,7 @@ Karpenter has multiple mechanisms for configuring the [operating system]({{< ref
 Karpenter is flexible to multi-architecture configurations using [well known labels]({{< ref "./concepts/scheduling/#supported-labels">}}).
 
 ### What RBAC access is required?
-All the required RBAC rules can be found in the helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/role.yaml) files for details.
+All the required RBAC rules can be found in the Helm chart template. See [clusterrole-core.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/clusterrole-core.yaml), [clusterrole.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/clusterrole.yaml), [rolebinding.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/rolebinding.yaml), and [role.yaml](https://github.com/aws/karpenter/blob{{< githubRelRef >}}charts/karpenter/templates/role.yaml) files for details.
 
 ### Can I run Karpenter outside of a Kubernetes cluster?
 Yes, as long as the controller has network and IAM/RBAC access to the Kubernetes API and your provider API.
@@ -202,7 +202,7 @@ Use your existing upgrade mechanisms to upgrade your core add-ons in Kubernetes 
 
 Karpenter requires proper permissions in the `KarpenterNode IAM Role` and the `KarpenterController IAM Role`.
 To upgrade Karpenter to version `$VERSION`, make sure that the `KarpenterNode IAM Role` and the `KarpenterController IAM Role` have the right permission described in `https://karpenter.sh/$VERSION/getting-started/getting-started-with-karpenter/cloudformation.yaml`.
-Next, locate `KarpenterController IAM Role` ARN (i.e., ARN of the resource created in [Create the KarpenterController IAM Role](../getting-started/getting-started-with-karpenter/#create-the-karpentercontroller-iam-role)) and pass them to the helm upgrade command.
+Next, locate `KarpenterController IAM Role` ARN (i.e., ARN of the resource created in [Create the KarpenterController IAM Role](../getting-started/getting-started-with-karpenter/#create-the-karpentercontroller-iam-role)) and pass them to the Helm upgrade command.
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
 
 For information on upgrading Karpenter, see the [Upgrade Guide]({{< ref "./upgrading/upgrade-guide/" >}}).

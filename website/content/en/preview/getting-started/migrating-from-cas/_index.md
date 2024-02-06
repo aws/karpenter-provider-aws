@@ -92,10 +92,10 @@ One for your Karpenter node role and one for your existing node group.
 First set the Karpenter release you want to deploy.
 
 ```bash
-export KARPENTER_VERSION={{< param "latest_release_version" >}}
+export KARPENTER_VERSION="{{< param "latest_release_version" >}}"
 ```
 
-We can now generate a full Karpenter deployment yaml from the helm chart.
+We can now generate a full Karpenter deployment yaml from the Helm chart.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step08-generate-chart.sh" language="bash" %}}
 

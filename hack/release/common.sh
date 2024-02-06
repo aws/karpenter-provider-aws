@@ -35,7 +35,7 @@ snapshot() {
   echo "Release Type: snapshot
 Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
-Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
+Helm Chart Version $(helmChartVersion "${RELEASE_VERSION}")"
 
   authenticatePrivateRepo
   buildImages "${SNAPSHOT_REPO_ECR}"
@@ -49,7 +49,7 @@ release() {
   echo "Release Type: stable
 Release Version: ${RELEASE_VERSION}
 Commit: $(git rev-parse HEAD)
-Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
+Helm Chart Version $(helmChartVersion "${RELEASE_VERSION}")"
 
   authenticate
   buildImages "${RELEASE_REPO_ECR}"
@@ -88,20 +88,20 @@ releaseType(){
   RELEASE_VERSION=$1
 
   if [[ "${RELEASE_VERSION}" == v* ]]; then
-    echo $RELEASE_TYPE_STABLE
+    echo "${RELEASE_TYPE_STABLE}"
   else
-    echo $RELEASE_TYPE_SNAPSHOT
+    echo "${RELEASE_TYPE_SNAPSHOT}"
   fi
 }
 
 helmChartVersion(){
     RELEASE_VERSION=$1
     if [[ $(releaseType "$RELEASE_VERSION") == "$RELEASE_TYPE_STABLE" ]]; then
-      echo "$RELEASE_VERSION"
+      echo "${RELEASE_VERSION#v}"
     fi
 
     if [[ $(releaseType "$RELEASE_VERSION") == "$RELEASE_TYPE_SNAPSHOT" ]]; then
-      echo "v${CURRENT_MAJOR_VERSION}-${RELEASE_VERSION}"
+      echo "${CURRENT_MAJOR_VERSION}-${RELEASE_VERSION}"
     fi
 }
 
@@ -131,7 +131,7 @@ publishHelmChart() {
     cd charts
     helm dependency update "${CHART_NAME}"
     helm lint "${CHART_NAME}"
-    helm package "${CHART_NAME}" --version "$HELM_CHART_VERSION"
+    helm package "${CHART_NAME}" --version "${HELM_CHART_VERSION}"
     helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
