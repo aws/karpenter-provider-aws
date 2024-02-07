@@ -45,8 +45,8 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE=kube-system
-export KARPENTER_VERSION=v0.33.1
-export K8S_VERSION={{< param "latest_k8s_version" >}}
+export KARPENTER_VERSION=v0.33.2
+export K8S_VERSION=1.28
 ```
 
 Then set the following environment variable:
@@ -233,7 +233,7 @@ caused by: Post "https://api.pricing.us-east-1.amazonaws.com/": dial tcp 52.94.2
 
 Kubernetes uses [FlowSchemas](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#flowschema) and [PriorityLevelConfigurations](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#prioritylevelconfiguration) to map calls to the API server into buckets which determine each user agent's throttling limits.
 
-By default, Karpenter is installed into the `kube-system` namespace, which leverages the `system-leader-election` and `kube-system-service-accounts` [FlowSchemas] to map calls from the `kube-system` namespace to the `leader-election` and `workload-high` PriorityLevelConfigurations respectively. By putting Karpenter in these PriorityLevelConfigurations, we ensure that Karpenter and other critical cluster components are able to run even if other components on the cluster are throttled in other PriorityLevelConfigurations.
+By default, Karpenter is installed into the `kube-system` namespace, which leverages the `system-leader-election` and `kube-system-service-accounts` [FlowSchemas](https://kubernetes.io/docs/concepts/cluster-administration/flow-control/#flowschema) to map calls from the `kube-system` namespace to the `leader-election` and `workload-high` PriorityLevelConfigurations respectively. By putting Karpenter in these PriorityLevelConfigurations, we ensure that Karpenter and other critical cluster components are able to run even if other components on the cluster are throttled in other PriorityLevelConfigurations.
 
 If you install Karpenter in a different namespace than the default `kube-system` namespace, Karpenter will not be put into these higher-priority FlowSchemas by default. Instead, you will need to create custom FlowSchemas for the namespace and service account where Karpenter is installed to ensure that requests are put into this higher PriorityLevelConfiguration.
 

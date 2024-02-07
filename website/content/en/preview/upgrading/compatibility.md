@@ -15,11 +15,15 @@ Before you begin upgrading Karpenter, consider Karpenter compatibility issues re
 
 [comment]: <> (the content below is generated from hack/docs/compataiblitymetrix_gen_docs.go)
 
-| KUBERNETES |  1.23   |  1.24   |  1.25   |  1.26   |  1.27   |  1.28   |
-|------------|---------|---------|---------|---------|---------|---------|
-| karpenter  | 0.21.x+ | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ | 0.31.x+ |
+| KUBERNETES |  1.23   |  1.24   |  1.25   |  1.26   |  1.27   |  1.28   |  1.29  |
+|------------|---------|---------|---------|---------|---------|---------|--------|
+| karpenter  | 0.21.x+ | 0.21.x+ | 0.25.x+ | 0.28.x+ | 0.28.x+ | 0.31.x+ | 0.34.0 |
 
 [comment]: <> (end docs generated content from hack/docs/compataiblitymetrix_gen_docs.go)
+
+{{% alert title="Note" color="warning" %}}
+The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+. This new AMI version is __not currently__ supported for users relying on AMI auto-discovery with the Ubuntu AMI family. More details can be found in this [GitHub issue](https://github.com/aws/karpenter-provider-aws/issues/5572). Please review this issue before upgrading to Kubernetes 1.29 if you are using the Ubuntu AMI family. Upgrading to 1.29 without making any changes to your EC2NodeClass will result in Karpenter being unable to create new nodes.
+{{% /alert %}}
 
 {{% alert title="Note" color="warning" %}}
 Karpenter currently does not support the following [new `topologySpreadConstraints` keys](https://kubernetes.io/blog/2023/04/17/fine-grained-pod-topology-spread-features-beta/), promoted to beta in Kubernetes 1.27:

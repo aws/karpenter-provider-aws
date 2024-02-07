@@ -513,6 +513,7 @@ Karpenter adds tags to all resources it creates, including EC2 Instances, EBS vo
 Name: <node-name>
 karpenter.sh/nodeclaim: <nodeclaim-name>
 karpenter.sh/nodepool: <nodepool-name>
+karpenter.k8s.aws/ec2nodeclass: <ec2nodeclass-name>
 kubernetes.io/cluster/<cluster-name>: owned
 ```
 

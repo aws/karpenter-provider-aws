@@ -17,6 +17,8 @@ package drift_test
 import (
 	"fmt"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -159,7 +161,7 @@ var _ = Describe("Drift", func() {
 
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 5*time.Second)
 
 			// Remove the finalizer from each node so that we can terminate
 			for _, node := range nodes {
@@ -216,6 +218,8 @@ var _ = Describe("Drift", func() {
 			dep.Spec.Replicas = lo.ToPtr[int32](3)
 			env.ExpectUpdated(dep)
 
+			// First expect there to be 3 pods, then try to spread the pods.
+			env.EventuallyExpectHealthyPodCount(selector, 3)
 			env.ForcePodsToSpread(nodes...)
 			env.EventuallyExpectHealthyPodCount(selector, 3)
 
@@ -224,8 +228,6 @@ var _ = Describe("Drift", func() {
 			for _, node := range nodes {
 				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
-				// Set nodes as unschedulable so that pod nomination doesn't delay disruption for the second disruption action
-				node.Spec.Unschedulable = true
 				env.ExpectUpdated(node)
 			}
 
@@ -244,14 +246,9 @@ var _ = Describe("Drift", func() {
 				env.ExpectUpdated(pod)
 			}
 
-			// Mark one node as schedulable so the other two nodes can schedule to this node and delete.
-			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodes[0]), nodes[0])).To(Succeed())
-			nodes[0].Spec.Unschedulable = false
-			env.ExpectUpdated(nodes[0])
-
 			// Ensure that we get two nodes tainted, and they have overlap during the drift
 			env.EventuallyExpectTaintedNodeCount("==", 2)
-			nodes = env.ConsistentlyExpectTaintedNodeCount("==", 2, time.Second*5)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 3, 30*time.Second)
 
 			By("removing the finalizer from the nodes")
 			Expect(env.ExpectTestingFinalizerRemoved(nodes[0])).To(Succeed())
@@ -260,6 +257,84 @@ var _ = Describe("Drift", func() {
 			// After the deletion timestamp is set and all pods are drained
 			// the node should be gone
 			env.EventuallyExpectNotFound(nodes[0], nodes[1])
+		})
+		It("should respect budgets for non-empty replace drift", func() {
+			appLabels := map[string]string{"app": "large-app"}
+
+			nodePool = coretest.ReplaceRequirements(nodePool,
+				v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"xlarge"},
+				},
+				// Add an Exists operator so that we can select on a fake partition later
+				v1.NodeSelectorRequirement{
+					Key:      "test-partition",
+					Operator: v1.NodeSelectorOpExists,
+				},
+			)
+			nodePool.Labels = appLabels
+			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.
+			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+				Nodes: "3",
+			}}
+
+			// Make 5 pods all with different deployments and different test partitions, so that each pod can be put
+			// on a separate node.
+			selector = labels.SelectorFromSet(appLabels)
+			numPods = 5
+			deployments := make([]*appsv1.Deployment, numPods)
+			for i := range lo.Range(numPods) {
+				deployments[i] = coretest.Deployment(coretest.DeploymentOptions{
+					Replicas: 1,
+					PodOptions: coretest.PodOptions{
+						ObjectMeta: metav1.ObjectMeta{
+							Labels: appLabels,
+						},
+						NodeSelector: map[string]string{"test-partition": fmt.Sprintf("%d", i)},
+						// Each xlarge has 4 cpu, so each node should fit no more than 1 pod.
+						ResourceRequirements: v1.ResourceRequirements{
+							Requests: v1.ResourceList{
+								v1.ResourceCPU: resource.MustParse("3"),
+							},
+						},
+					},
+				})
+			}
+
+			env.ExpectCreated(nodeClass, nodePool, deployments[0], deployments[1], deployments[2], deployments[3], deployments[4])
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+			// Check that all deployment pods are online
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+			By("cordoning and adding finalizer to the nodes")
+			// Add a finalizer to each node so that we can stop termination disruptions
+			for _, node := range nodes {
+				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
+				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
+				env.ExpectUpdated(node)
+			}
+
+			// Check that all daemonsets and deployment pods are online
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
+
+			By("drifting the nodepool")
+			nodePool.Spec.Template.Annotations = lo.Assign(nodePool.Spec.Template.Annotations, map[string]string{"test-annotation": "drift"})
+			env.ExpectUpdated(nodePool)
+
+			// Ensure that we get two nodes tainted, and they have overlap during the drift
+			env.EventuallyExpectTaintedNodeCount("==", 3)
+			env.EventuallyExpectNodeClaimCount("==", 8)
+			env.EventuallyExpectNodeCount("==", 8)
+			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
+
+			for _, node := range nodes {
+				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
+			}
+			env.EventuallyExpectNotFound(nodes[0], nodes[1], nodes[2])
+			env.ExpectNodeCount("==", 5)
 		})
 		It("should not allow drift if the budget is fully blocking", func() {
 			// We're going to define a budget that doesn't allow any drift to happen
@@ -311,10 +386,12 @@ var _ = Describe("Drift", func() {
 		})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
-		// choose an old static image
-		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String("/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id"),
-		})
+		// Choose and old, static image. The 1.23 image is incompatible with EKS 1.29 so fallback to a newer image.
+		parameterName := lo.Ternary(lo.Must(strconv.Atoi(strings.Split(env.GetK8sVersion(0), ".")[1])) >= 29,
+			"/aws/service/eks/optimized-ami/1.27/amazon-linux-2/amazon-eks-node-1.27-v20240129/image_id",
+			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id",
+		)
+		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: awssdk.String(parameterName)})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
@@ -753,7 +830,6 @@ var _ = Describe("Drift", func() {
 							MatchLabels: map[string]string{"app": "inflate"},
 						}},
 					},
-
 					ReadinessProbe: &v1.Probe{
 						ProbeHandler: v1.ProbeHandler{
 							HTTPGet: &v1.HTTPGetAction{
