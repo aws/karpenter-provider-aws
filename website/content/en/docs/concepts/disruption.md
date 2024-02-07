@@ -69,7 +69,7 @@ Automated methods can be rate limited through [NodePool Disruption Budgets]({{<r
 * [**Consolidation**]({{<ref "#consolidation" >}}): Karpenter works to actively reduce cluster cost by identifying when:
   * Nodes can be removed because the node is empty
   * Nodes can be removed as their workloads will run on other nodes in the cluster.
-  * Nodes can be replaced with cheaper variants due to a change in the workloads.
+  * Nodes can be replaced with lower priced variants due to a change in the workloads.
 * [**Drift**]({{<ref "#drift" >}}): Karpenter will mark nodes as drifted and disrupt nodes that have drifted from their desired specification. See [Drift]({{<ref "#drift" >}}) to see which fields are considered.
 * [**Interruption**]({{<ref "#interruption" >}}): Karpenter will watch for upcoming interruption events that could affect your nodes (health events, spot interruption, etc.) and will taint, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
@@ -88,12 +88,12 @@ spec:
 
 Karpenter has two mechanisms for cluster consolidation:
 1. **Deletion** - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.
-2. **Replace** - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single cheaper replacement node.
+2. **Replace** - A node can be replaced if all of its pods can run on a combination of free capacity of other nodes in the cluster and a single lower price replacement node.
 
 Consolidation has three mechanisms that are performed in order to attempt to identify a consolidation action:
 1. **Empty Node Consolidation** - Delete any entirely empty nodes in parallel
-2. **Multi Node Consolidation** - Try to delete two or more nodes in parallel, possibly launching a single replacement that is cheaper than the price of all nodes being removed
-3. **Single Node Consolidation** - Try to delete any single node, possibly launching a single replacement that is cheaper than the price of that node
+2. **Multi Node Consolidation** - Try to delete two or more nodes in parallel, possibly launching a single replacement whose price is lower than that of all nodes being removed
+3. **Single Node Consolidation** - Try to delete any single node, possibly launching a single replacement whose price is lower than that of the node being removed
 
 It's impractical to examine all possible consolidation options for multi-node consolidation, so Karpenter uses a heuristic to identify a likely set of nodes that can be consolidated.  For single-node consolidation we consider each node in the cluster individually.
 
@@ -110,7 +110,7 @@ Events:
   Type     Reason                   Age                From             Message
   ----     ------                   ----               ----             -------
   Normal   Unconsolidatable         66s                karpenter        pdb default/inflate-pdb prevents pod evictions
-  Normal   Unconsolidatable         33s (x3 over 30m)  karpenter        can't replace with a cheaper node
+  Normal   Unconsolidatable         33s (x3 over 30m)  karpenter        can't replace with a lower-priced node
 ```
 
 {{% alert title="Warning" color="warning" %}}
@@ -120,10 +120,10 @@ Using preferred anti-affinity and topology spreads can reduce the effectiveness 
 #### Spot consolidation
 For spot nodes, Karpenter has deletion consolidation enabled by default. If you would like to enable replacement with spot consolidation, you need to enable the feature through the [`SpotToSpotConsolidation` feature flag]({{<ref "../reference/settings#features-gates" >}}).
 
-Cheaper spot instance types are selected with the [`price-capacity-optimized` strategy](https://aws.amazon.com/blogs/compute/introducing-price-capacity-optimized-allocation-strategy-for-ec2-spot-instances/). Often, the cheapest spot instance type is not launched due to the likelihood of interruption. As a result, Karpenter uses the number of available instance type options cheaper than the currently launched spot instance as a heuristic for evaluating whether it should launch a replacement for the current spot node.
+Lower priced spot instance types are selected with the [`price-capacity-optimized` strategy](https://aws.amazon.com/blogs/compute/introducing-price-capacity-optimized-allocation-strategy-for-ec2-spot-instances/). Often, the lowest priced spot instance type is not launched due to the likelihood of interruption. As a result, Karpenter uses the number of available instance type options with a price lower than the currently launched spot instance as a heuristic for evaluating whether it should launch a replacement for the current spot node.
 
 We refer to the number of instances that Karpenter has within its launch decision as a launch's "instance type flexibility." When Karpenter is considering performing a spot-to-spot consolidation replacement, it will check whether replacing the instance type will lead to enough instance type flexibility in the subsequent launch request. As a result, we get the following properties when evaluating for consolidation:
-1) We shouldn't continually consolidate down to the cheapest spot instance which might have very high rates of interruption.
+1) We shouldn't continually consolidate down to the lowest priced spot instance which might have very high rates of interruption.
 2) We launch with enough instance types that there’s high likelihood that our replacement instance has comparable availability to our current one.
 
 Karpenter requires a minimum instance type flexibility of 15 instance types when performing single node spot-to-spot consolidations (1 node to 1 node). It does not have the same instance type flexibility requirement for multi-node spot-to-spot consolidations (many nodes to 1 node) since doing so without requiring flexibility won't lead to "race to the bottom" scenarios.
