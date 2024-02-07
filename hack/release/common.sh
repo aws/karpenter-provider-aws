@@ -3,13 +3,12 @@ set -euo pipefail
 
 config(){
   GITHUB_ACCOUNT="aws"
-  AWS_ACCOUNT_ID="071440425669"
   ECR_GALLERY_NAME="karpenter"
   RELEASE_REPO_ECR=${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}
   RELEASE_REPO_GH=${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}
 
-  PRIVATE_HOST="${AWS_ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com"
-  SNAPSHOT_REPO_ECR=${SNAPSHOT_REPO_ECR:-${PRIVATE_HOST}/karpenter/snapshot/}
+  SNAPSHOT_ECR="021119463062.dkr.ecr.us-east-1.amazonaws.com"
+  SNAPSHOT_REPO_ECR=${SNAPSHOT_REPO_ECR:-${SNAPSHOT_ECR}/karpenter/snapshot/}
 
   CURRENT_MAJOR_VERSION="0"
   RELEASE_PLATFORM="--platform=linux/amd64,linux/arm64"
@@ -39,7 +38,7 @@ Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
   authenticatePrivateRepo
-  buildImages ${SNAPSHOT_REPO_ECR}
+  buildImages "${SNAPSHOT_REPO_ECR}"
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${SNAPSHOT_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${SNAPSHOT_REPO_ECR}"
@@ -53,11 +52,10 @@ Commit: $(git rev-parse HEAD)
 Helm Chart Version $(helmChartVersion $RELEASE_VERSION)"
 
   authenticate
-  buildImages ${RELEASE_REPO_ECR}
+  buildImages "${RELEASE_REPO_ECR}"
   cosignImages
   publishHelmChart "karpenter" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
   publishHelmChart "karpenter-crd" "${RELEASE_VERSION}" "${RELEASE_REPO_ECR}"
-  pullPrivateReplica "$RELEASE_VERSION"
 }
 
 authenticate() {
@@ -65,7 +63,7 @@ authenticate() {
 }
 
 authenticatePrivateRepo() {
-  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${PRIVATE_HOST}
+  aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin "${SNAPSHOT_ECR}"
 }
 
 buildImages() {
@@ -123,16 +121,6 @@ cosignImages() {
         "${CONTROLLER_IMG}"
 }
 
-pullPrivateReplica(){
-  authenticatePrivateRepo
-  RELEASE_IDENTIFIER=$1
-  PULL_THROUGH_CACHE_PATH="${PRIVATE_HOST}/ecr-public/${ECR_GALLERY_NAME}/"
-  HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
-  docker pull "${PULL_THROUGH_CACHE_PATH}controller:${RELEASE_IDENTIFIER}"
-  helm pull "oci://${PULL_THROUGH_CACHE_PATH}karpenter" --version "${HELM_CHART_VERSION}"
-  helm pull "oci://${PULL_THROUGH_CACHE_PATH}karpenter-crd" --version "${HELM_CHART_VERSION}"
-}
-
 publishHelmChart() {
     CHART_NAME=$1
     RELEASE_VERSION=$2
@@ -144,7 +132,7 @@ publishHelmChart() {
     helm dependency update "${CHART_NAME}"
     helm lint "${CHART_NAME}"
     helm package "${CHART_NAME}" --version "$HELM_CHART_VERSION"
-    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}" --debug
+    helm push "${HELM_CHART_FILE_NAME}" "oci://${RELEASE_REPO}"
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
 }
@@ -155,7 +143,10 @@ createNewWebsiteDirectory() {
 
     mkdir -p "website/content/en/${RELEASE_MINOR_VERSION}"
     cp -r website/content/en/preview/* "website/content/en/${RELEASE_MINOR_VERSION}/"
+
+    # Update parameterized variables in the preview documentation to be statically set in the versioned documentation
     find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
+    find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_k8s_version\" >}}/$(yq .params.latest_k8s_version website/hugo.yaml)/g;"
     find website/content/en/${RELEASE_MINOR_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_MINOR_VERSION}/g;"
     find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< githubRelRef >}}/\/${RELEASE_VERSION}\//g;"
 
@@ -165,40 +156,35 @@ createNewWebsiteDirectory() {
 }
 
 removeOldWebsiteDirectories() {
-  local n=5
+  local n=3
   # Get all the directories except the last n directories sorted from earliest to latest version
-  last_n_versions=$(find website/content/en/* -type d -name "*" -maxdepth 0 | grep -v "preview\|docs" | sort | tail -n "$n")
+  # preview, docs, and v0.32 are special directories that we always propagate into the set of directory options
+  # Keep the v0.32 version around while we are supporting v1beta1 migration
+  # Drop it once we no longer want to maintain the v0.32 version in the docs
+  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v0.32" | sort | tail -n "$n")
   last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
   last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
-  all=$(find website/content/en/* -type d -name "*" -maxdepth 0)
+  last_n_versions+=$(echo -e "\nwebsite/content/en/v0.32")
+  all=$(find website/content/en/* -maxdepth 0 -type d -name "*")
   ## symmetric difference
   comm -3 <(sort <<< $last_n_versions) <(sort <<< $all) | tr -d '\t' | xargs -r -n 1 rm -r
 }
 
 editWebsiteConfig() {
   RELEASE_VERSION=$1
-  yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/config.yaml
+  yq -i ".params.latest_release_version = \"${RELEASE_VERSION}\"" website/hugo.yaml
 }
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
 # without increasing the size of the set.
+# It uses the current version directories (ignoring the docs directory) to generate this list
 editWebsiteVersionsMenu() {
-  RELEASE_VERSION=$1
-  versionData "${RELEASE_VERSION}"
-  VERSIONS=("${RELEASE_MINOR_VERSION}")
-  while IFS= read -r LINE; do
-    SANITIZED_VERSION=$(echo "${LINE}" | sed -e 's/["-]//g' -e 's/ *//g')
-    # Bail from this config.yaml update if the version is already in the existing list
-    if [[ "${RELEASE_MINOR_VERSION}" == "${SANITIZED_VERSION}" ]]; then
-      return
-    fi
-    VERSIONS+=("${SANITIZED_VERSION}")
-  done < <(yq '.params.versions' website/config.yaml)
-  unset VERSIONS[${#VERSIONS[@]}-2]
+  VERSIONS=($(find website/content/en/* -maxdepth 0 -type d -name "*" | xargs -r -n 1 basename | grep -v "docs\|preview"))
+  VERSIONS+=('preview')
 
-  yq -i '.params.versions = []' website/config.yaml
+  yq -i '.params.versions = []' website/hugo.yaml
 
   for VERSION in "${VERSIONS[@]}"; do
-    yq -i ".params.versions += \"${VERSION}\"" website/config.yaml
+    yq -i ".params.versions += \"${VERSION}\"" website/hugo.yaml
   done
 }

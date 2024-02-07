@@ -17,6 +17,6 @@ jobs:
       - uses: ./.github/actions/install-deps
       - uses: aws-actions/configure-aws-credentials@v1-node16
         with:
-          role-to-assume: 'arn:aws:iam::${{ vars.ECR_ACCOUNT_ID }}:role/${{ vars.ECR_SNAPSHOT_ROLE_NAME }}'
-          aws-region: ${{ vars.ECR_REGION }}
+          role-to-assume: 'arn:aws:iam::${{ vars.SNAPSHOT_ACCOUNT_ID }}:role/${{ vars.SNAPSHOT_ROLE_NAME }}'
+          aws-region: ${{ vars.SNAPSHOT_REGION }}
       - run: make snapshot
