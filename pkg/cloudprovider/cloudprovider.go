@@ -325,15 +325,8 @@ func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, ins
 
 func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instance *instance.Instance) (*corev1beta1.NodePool, error) {
 	provisionerName := instance.Tags[v1alpha5.ProvisionerNameLabelKey]
-	nodePoolName := instance.Tags[corev1beta1.NodePoolLabelKey]
 
 	switch {
-	case nodePoolName != "":
-		nodePool := &corev1beta1.NodePool{}
-		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool); err != nil {
-			return nil, err
-		}
-		return nodePool, nil
 	case provisionerName != "":
 		provisioner := &v1alpha5.Provisioner{}
 		if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: provisionerName}, provisioner); err != nil {
