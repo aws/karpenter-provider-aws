@@ -143,7 +143,10 @@ createNewWebsiteDirectory() {
 
     mkdir -p "website/content/en/${RELEASE_MINOR_VERSION}"
     cp -r website/content/en/preview/* "website/content/en/${RELEASE_MINOR_VERSION}/"
+
+    # Update parameterized variables in the preview documentation to be statically set in the versioned documentation
     find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_release_version\" >}}/${RELEASE_VERSION}/g;"
+    find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< param \"latest_k8s_version\" >}}/$(yq .params.latest_k8s_version website/hugo.yaml)/g;"
     find website/content/en/${RELEASE_MINOR_VERSION}/*/*/*.yaml -type f | xargs perl -i -p -e "s/preview/${RELEASE_MINOR_VERSION}/g;"
     find "website/content/en/${RELEASE_MINOR_VERSION}/" -type f | xargs perl -i -p -e "s/{{< githubRelRef >}}/\/${RELEASE_VERSION}\//g;"
 
@@ -158,11 +161,11 @@ removeOldWebsiteDirectories() {
   # preview, docs, and v0.32 are special directories that we always propagate into the set of directory options
   # Keep the v0.32 version around while we are supporting v1beta1 migration
   # Drop it once we no longer want to maintain the v0.32 version in the docs
-  last_n_versions=$(find website/content/en/* -type d -name "*" -maxdepth 0 | grep -v "preview\|docs\|v0.32" | sort | tail -n "$n")
+  last_n_versions=$(find website/content/en/* -maxdepth 0 -type d -name "*" | grep -v "preview\|docs\|v0.32" | sort | tail -n "$n")
   last_n_versions+=$(echo -e "\nwebsite/content/en/preview")
   last_n_versions+=$(echo -e "\nwebsite/content/en/docs")
   last_n_versions+=$(echo -e "\nwebsite/content/en/v0.32")
-  all=$(find website/content/en/* -type d -name "*" -maxdepth 0)
+  all=$(find website/content/en/* -maxdepth 0 -type d -name "*")
   ## symmetric difference
   comm -3 <(sort <<< $last_n_versions) <(sort <<< $all) | tr -d '\t' | xargs -r -n 1 rm -r
 }
@@ -176,7 +179,7 @@ editWebsiteConfig() {
 # without increasing the size of the set.
 # It uses the current version directories (ignoring the docs directory) to generate this list
 editWebsiteVersionsMenu() {
-  VERSIONS=($(find website/content/en/* -type d -name "*" -maxdepth 0 | xargs basename | grep -v "docs\|preview"))
+  VERSIONS=($(find website/content/en/* -maxdepth 0 -type d -name "*" | xargs -r -n 1 basename | grep -v "docs\|preview"))
   VERSIONS+=('preview')
 
   yq -i '.params.versions = []' website/hugo.yaml
