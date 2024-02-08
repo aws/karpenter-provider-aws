@@ -49,6 +49,7 @@ jobs:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
       statuses: write # ./.github/actions/commit-status/start
+      contents: read  # This is required for actions/checkout
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +68,7 @@ jobs:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
       statuses: write # ./.github/actions/commit-status/start
+      contents: read  # This is required for actions/checkout
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
       # This version matches the steps of the newest version of the install-eksctl action
