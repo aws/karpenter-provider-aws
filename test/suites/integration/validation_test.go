@@ -151,6 +151,12 @@ var _ = Describe("Validation", func() {
 
 			nodeClass.Spec.Tags = map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName): "owned"}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+
+			nodeClass.Spec.Tags = map[string]string{"karpenter.sh/nodeclaim": "custom-value"}
+			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
+
+			nodeClass.Spec.Tags = map[string]string{"karpenter.k8s.aws/ec2nodeclass": "custom-value"}
+			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should fail when securityGroupSelectorTerms has id and other filters", func() {
 			nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
