@@ -192,6 +192,31 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should set context on the CreateFleet request and respect minValues from NodePool", func() {
 			nodeClass.Spec.Context = aws.String("context-1234")
+			instances := fake.MakeFakeInstances()
+			instances = lo.Slice(instances, 0, 2)
+			instances[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
+			instances[1].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(8)}
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: instances})
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances)})
+			now := time.Now()
+			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+				SpotPriceHistory: []*ec2.SpotPrice{
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     instances[0].InstanceType,
+						SpotPrice:        aws.String("0.002"),
+						Timestamp:        &now,
+					},
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     instances[1].InstanceType,
+						SpotPrice:        aws.String("0.003"),
+						Timestamp:        &now,
+					},
+				},
+			})
+			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 			nodePool = coretest.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
@@ -202,11 +227,18 @@ var _ = Describe("CloudProvider", func() {
 							Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      corev1beta1.CapacityTypeLabelKey,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{corev1beta1.CapacityTypeSpot},
+									},
+								},
+								{
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
 										Key:      v1.LabelInstanceTypeStable,
 										Operator: v1.NodeSelectorOpIn,
-										Values:   []string{"m5.large", "m5.xlarge", "c6g.large", "trn1.2xlarge"},
+										Values:   instanceNames,
 									},
-									MinValues: lo.ToPtr(4),
+									MinValues: lo.ToPtr(2),
 								},
 							},
 						},
@@ -215,17 +247,16 @@ var _ = Describe("CloudProvider", func() {
 			})
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("1")},
+						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			pod2 := coretest.UnschedulablePod(
 				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("1")},
+						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -240,11 +271,45 @@ var _ = Describe("CloudProvider", func() {
 					uniqueInstanceTypes.Insert(*override.InstanceType)
 				}
 			}
-			Expect(len(uniqueInstanceTypes)).To(BeNumerically(">=", lo.FromPtr(nodePool.Spec.Template.Spec.Requirements[0].MinValues)))
+			Expect(len(uniqueInstanceTypes)).To(BeNumerically(">=", 2))
 			Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
 		})
 		It("should set context on the CreateFleet request and respect minValues from multiple keys in NodePool", func() {
 			nodeClass.Spec.Context = aws.String("context-1234")
+			instances := fake.MakeFakeInstances()
+			instances = lo.Slice(instances, 0, 3)
+			instanceFamilies := sets.Set[string]{}
+			instanceFamilies = instanceFamilies.Insert(lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return strings.Split(*info.InstanceType, ".")[0] })...)
+			instances[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
+			instances[1].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(4)}
+			instances[2].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(8)}
+			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: instances})
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances)})
+			now := time.Now()
+			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+				SpotPriceHistory: []*ec2.SpotPrice{
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     instances[0].InstanceType,
+						SpotPrice:        aws.String("0.002"),
+						Timestamp:        &now,
+					},
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     instances[1].InstanceType,
+						SpotPrice:        aws.String("0.003"),
+						Timestamp:        &now,
+					},
+					{
+						AvailabilityZone: aws.String("test-zone-1a"),
+						InstanceType:     instances[2].InstanceType,
+						SpotPrice:        aws.String("0.004"),
+						Timestamp:        &now,
+					},
+				},
+			})
+			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 			nodePool = coretest.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
@@ -257,7 +322,7 @@ var _ = Describe("CloudProvider", func() {
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
 										Key:      v1.LabelInstanceTypeStable,
 										Operator: v1.NodeSelectorOpIn,
-										Values:   []string{"m5.large", "m5.xlarge", "c6g.large", "trn1.2xlarge"},
+										Values:   instanceNames,
 									},
 									MinValues: lo.ToPtr(2),
 								},
@@ -265,9 +330,9 @@ var _ = Describe("CloudProvider", func() {
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
 										Key:      v1beta1.LabelInstanceFamily,
 										Operator: v1.NodeSelectorOpIn,
-										Values:   []string{"m5", "c6g", "trn1"},
+										Values:   instanceFamilies.UnsortedList(),
 									},
-									MinValues: lo.ToPtr(3),
+									MinValues: lo.Ternary(len(instanceFamilies) >= 3, lo.ToPtr(3), nil),
 								},
 							},
 						},
@@ -276,17 +341,16 @@ var _ = Describe("CloudProvider", func() {
 			})
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("1")},
+						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			pod2 := coretest.UnschedulablePod(
 				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("1")},
+						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -303,7 +367,9 @@ var _ = Describe("CloudProvider", func() {
 				}
 			}
 			Expect(len(uniqueInstanceTypes)).To(BeNumerically(">=", 2))
-			Expect(len(uniqueInstanceFamilies)).To(BeNumerically(">=", 3))
+			if len(instanceFamilies) >= 3 {
+				Expect(len(uniqueInstanceFamilies)).To(BeNumerically(">=", 3))
+			}
 			Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
 		})
 	})

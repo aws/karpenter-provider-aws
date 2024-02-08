@@ -56,7 +56,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
@@ -321,12 +320,12 @@ var _ = Describe("InstanceTypes", func() {
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	It("should order the instance types by price and only consider the cheapest ones", func() {
-		instances := makeFakeInstances()
+		instances := fake.MakeFakeInstances()
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: makeFakeInstances(),
+			InstanceTypes: fake.MakeFakeInstances(),
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: makeFakeInstanceOfferings(instances),
+			InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances),
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -364,12 +363,12 @@ var _ = Describe("InstanceTypes", func() {
 		}
 	})
 	It("should order the instance types by price and only consider the spot types that are cheaper than the cheapest on-demand", func() {
-		instances := makeFakeInstances()
+		instances := fake.MakeFakeInstances()
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: makeFakeInstances(),
+			InstanceTypes: fake.MakeFakeInstances(),
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: makeFakeInstanceOfferings(instances),
+			InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances),
 		})
 
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
@@ -435,18 +434,25 @@ var _ = Describe("InstanceTypes", func() {
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{corev1beta1.CapacityTypeSpot},
+				},
+			},
+			{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpExists,
 				},
 				MinValues: lo.ToPtr(70),
 			},
 		}
-		instances := makeFakeInstances()
+		instances := fake.MakeFakeInstances()
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: makeFakeInstances(),
+			InstanceTypes: fake.MakeFakeInstances(),
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: makeFakeInstanceOfferings(instances),
+			InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances),
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -464,6 +470,13 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should not filter expensive metal instanceTypeOptions if minValues for instance-type requirement is provided", func() {
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{corev1beta1.CapacityTypeSpot},
+				},
+			},
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
@@ -1749,49 +1762,4 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *corev1beta1.
 		}
 	}
 	return rsp
-}
-
-func makeFakeInstances() []*ec2.InstanceTypeInfo {
-	var instanceTypes []*ec2.InstanceTypeInfo
-	ctx := options.ToContext(context.Background(), &options.Options{IsolatedVPC: true})
-	// Use keys from the static pricing data so that we guarantee pricing for the data
-	// Create uniform instance data so all of them schedule for a given pod
-	for _, it := range pricing.NewProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
-		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
-			InstanceType: aws.String(it),
-			ProcessorInfo: &ec2.ProcessorInfo{
-				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
-			},
-			VCpuInfo: &ec2.VCpuInfo{
-				DefaultCores: aws.Int64(1),
-				DefaultVCpus: aws.Int64(2),
-			},
-			MemoryInfo: &ec2.MemoryInfo{
-				SizeInMiB: aws.Int64(8192),
-			},
-			NetworkInfo: &ec2.NetworkInfo{
-				Ipv4AddressesPerInterface: aws.Int64(10),
-				DefaultNetworkCardIndex:   aws.Int64(0),
-				NetworkCards: []*ec2.NetworkCardInfo{{
-					NetworkCardIndex:         lo.ToPtr(int64(0)),
-					MaximumNetworkInterfaces: aws.Int64(3),
-				}},
-			},
-			SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
-		})
-	}
-	return instanceTypes
-}
-
-func makeFakeInstanceOfferings(instanceTypes []*ec2.InstanceTypeInfo) []*ec2.InstanceTypeOffering {
-	var instanceTypeOfferings []*ec2.InstanceTypeOffering
-
-	// Create uniform instance offering data so all of them schedule for a given pod
-	for _, instanceType := range instanceTypes {
-		instanceTypeOfferings = append(instanceTypeOfferings, &ec2.InstanceTypeOffering{
-			InstanceType: instanceType.InstanceType,
-			Location:     aws.String("test-zone-1a"),
-		})
-	}
-	return instanceTypeOfferings
 }

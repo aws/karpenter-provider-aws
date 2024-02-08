@@ -89,10 +89,8 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 		return req.Key == v1.LabelInstanceTypeStable
 	})
 
-	// Only apply filtering of expensive instance types if minValues is not found for instance-type requirement.
-	if !found || req.MinValues == nil {
-		instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
-	}
+	minValuesInRequirement := found && req.MinValues != nil
+	instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes, minValuesInRequirement)
 	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...))
 
 	// maxInstanceTypes needs to include flexibility defined by minValues of instance-type requirement. So, we chose between the max (minValues, 60)
@@ -406,8 +404,11 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
 // that make the most sense given our specific AWS cloudprovider.
-func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
-	instanceTypes = filterExoticInstanceTypes(instanceTypes)
+func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, minValuesInRequirement bool) []*cloudprovider.InstanceType {
+	// Only apply filtering of expensive instance types if minValues is not found for instance-type requirement.
+	if !minValuesInRequirement {
+		instanceTypes = filterExoticInstanceTypes(instanceTypes)
+	}
 	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
 	// are more expensive than the cheapest on-demand type.
 	if p.isMixedCapacityLaunch(nodeClaim, instanceTypes) {

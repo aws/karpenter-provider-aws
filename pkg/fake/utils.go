@@ -15,12 +15,15 @@ limitations under the License.
 package fake
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/samber/lo"
 )
 
@@ -154,4 +157,49 @@ func matchTags(tags []*ec2.Tag, filter *ec2.Filter) bool {
 		}
 	}
 	return false
+}
+
+func MakeFakeInstances() []*ec2.InstanceTypeInfo {
+	var instanceTypes []*ec2.InstanceTypeInfo
+	ctx := options.ToContext(context.Background(), &options.Options{IsolatedVPC: true})
+	// Use keys from the static pricing data so that we guarantee pricing for the data
+	// Create uniform instance data so all of them schedule for a given pod
+	for _, it := range pricing.NewProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
+		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
+			InstanceType: aws.String(it),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(1),
+				DefaultVCpus: aws.Int64(2),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(8192),
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				Ipv4AddressesPerInterface: aws.Int64(10),
+				DefaultNetworkCardIndex:   aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{{
+					NetworkCardIndex:         lo.ToPtr(int64(0)),
+					MaximumNetworkInterfaces: aws.Int64(3),
+				}},
+			},
+			SupportedUsageClasses: DefaultSupportedUsageClasses,
+		})
+	}
+	return instanceTypes
+}
+
+func MakeFakeInstanceOfferings(instanceTypes []*ec2.InstanceTypeInfo) []*ec2.InstanceTypeOffering {
+	var instanceTypeOfferings []*ec2.InstanceTypeOffering
+
+	// Create uniform instance offering data so all of them schedule for a given pod
+	for _, instanceType := range instanceTypes {
+		instanceTypeOfferings = append(instanceTypeOfferings, &ec2.InstanceTypeOffering{
+			InstanceType: instanceType.InstanceType,
+			Location:     aws.String("test-zone-1a"),
+		})
+	}
+	return instanceTypeOfferings
 }
