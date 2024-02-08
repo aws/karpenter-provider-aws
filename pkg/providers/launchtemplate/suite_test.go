@@ -143,11 +143,13 @@ var _ = Describe("LaunchTemplates", func() {
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []v1.NodeSelectorRequirement{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
 							{
-								Key:      corev1beta1.CapacityTypeLabelKey,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{corev1beta1.CapacityTypeSpot},
+								NodeSelectorRequirement: v1.NodeSelectorRequirement{
+									Key:      corev1beta1.CapacityTypeLabelKey,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{corev1beta1.CapacityTypeSpot},
+								},
 							},
 						},
 						NodeClassRef: &corev1beta1.NodeClassReference{

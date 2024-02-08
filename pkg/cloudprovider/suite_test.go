@@ -192,7 +192,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should set context on the CreateFleet request and respect minValues from NodePool", func() {
 			nodeClass.Spec.Context = aws.String("context-1234")
-			nodePool := coretest.NodePool(corev1beta1.NodePool{
+			nodePool = coretest.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
@@ -234,7 +234,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(node1.Name).ToNot(Equal(node2.Name))
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(2))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			uniqueInstanceTypes := sets.String{}
+			uniqueInstanceTypes := sets.Set[string]{}
 			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
 				for _, override := range launchTemplateConfig.Overrides {
 					uniqueInstanceTypes.Insert(*override.InstanceType)
@@ -245,7 +245,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should set context on the CreateFleet request and respect minValues from multiple keys in NodePool", func() {
 			nodeClass.Spec.Context = aws.String("context-1234")
-			nodePool := coretest.NodePool(corev1beta1.NodePool{
+			nodePool = coretest.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
@@ -295,8 +295,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(node1.Name).ToNot(Equal(node2.Name))
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(2))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			uniqueInstanceTypes := sets.String{}
-			uniqueInstanceFamilies := sets.String{}
+			uniqueInstanceTypes, uniqueInstanceFamilies := sets.Set[string]{}, sets.Set[string]{}
 			for _, launchTemplateConfig := range createFleetInput.LaunchTemplateConfigs {
 				for _, override := range launchTemplateConfig.Overrides {
 					uniqueInstanceTypes.Insert(*override.InstanceType)

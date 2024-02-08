@@ -23,9 +23,10 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
 )

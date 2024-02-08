@@ -154,10 +154,11 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
 
 			nodePool = test.ReplaceRequirements(nodePool,
-				v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"2xlarge"},
+				corev1beta1.NodeSelectorRequirementWithFlexibility{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceSize,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"2xlarge"},
+					},
 				},
 			)
 			// We're expecting to create 3 nodes, so we'll expect to see at most 2 nodes deleting at one time.
@@ -222,15 +223,19 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
 
 			nodePool = test.ReplaceRequirements(nodePool,
-				v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"xlarge", "2xlarge"},
+				corev1beta1.NodeSelectorRequirementWithFlexibility{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1beta1.LabelInstanceSize,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"xlarge", "2xlarge"},
+					},
 				},
 				// Add an Exists operator so that we can select on a fake partition later
-				v1.NodeSelectorRequirement{
-					Key:      "test-partition",
-					Operator: v1.NodeSelectorOpExists,
+				corev1beta1.NodeSelectorRequirementWithFlexibility{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      "test-partition",
+						Operator: v1.NodeSelectorOpExists,
+					},
 				},
 			)
 			nodePool.Labels = appLabels
