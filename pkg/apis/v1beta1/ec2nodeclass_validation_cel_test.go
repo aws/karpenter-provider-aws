@@ -83,6 +83,14 @@ var _ = Describe("CEL/Validation", func() {
 				corev1beta1.ManagedByAnnotationKey: "test",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
+			nc.Spec.Tags = map[string]string{
+				v1beta1.LabelNodeClass: "test",
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
+			nc.Spec.Tags = map[string]string{
+				"karpenter.sh/nodeclaim": "test",
+			}
+			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 		})
 	})
 	Context("SubnetSelectorTerms", func() {

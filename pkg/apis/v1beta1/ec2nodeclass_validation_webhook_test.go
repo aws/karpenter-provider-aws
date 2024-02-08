@@ -95,6 +95,14 @@ var _ = Describe("Webhook/Validation", func() {
 				"karpenter.sh/managed-by": "test",
 			}
 			Expect(nc.Validate(ctx)).To(Not(Succeed()))
+			nc.Spec.Tags = map[string]string{
+				v1beta1.LabelNodeClass: "test",
+			}
+			Expect(nc.Validate(ctx)).To(Not(Succeed()))
+			nc.Spec.Tags = map[string]string{
+				"karpenter.sh/nodeclaim": "test",
+			}
+			Expect(nc.Validate(ctx)).To(Not(Succeed()))
 		})
 	})
 	Context("SubnetSelectorTerms", func() {

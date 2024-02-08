@@ -120,7 +120,7 @@ var _ = Describe("TaggingController", func() {
 		ExpectReconcileSucceeded(ctx, taggingController, client.ObjectKeyFromObject(nodeClaim))
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1beta1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
-			return *tag.Key == tagging.TagName
+			return *tag.Key == v1beta1.TagName
 		})).To(BeFalse())
 	})
 
@@ -136,7 +136,7 @@ var _ = Describe("TaggingController", func() {
 		ExpectReconcileSucceeded(ctx, taggingController, client.ObjectKeyFromObject(nodeClaim))
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1beta1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
-			return *tag.Key == tagging.TagName
+			return *tag.Key == v1beta1.TagName
 		})).To(BeFalse())
 	})
 
@@ -183,7 +183,7 @@ var _ = Describe("TaggingController", func() {
 		ExpectReconcileSucceeded(ctx, taggingController, client.ObjectKeyFromObject(nodeClaim))
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1beta1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
-			return *tag.Key == tagging.TagName
+			return *tag.Key == v1beta1.TagName
 		})).To(BeFalse())
 	})
 
@@ -211,8 +211,8 @@ var _ = Describe("TaggingController", func() {
 			Expect(nodeClaim.Annotations).To(HaveKey(v1beta1.AnnotationInstanceTagged))
 
 			expectedTags := map[string]string{
-				tagging.TagName:      nodeClaim.Status.NodeName,
-				tagging.TagNodeClaim: nodeClaim.Name,
+				v1beta1.TagName:      nodeClaim.Status.NodeName,
+				v1beta1.TagNodeClaim: nodeClaim.Name,
 			}
 			instanceTags := instance.NewInstance(ec2Instance).Tags
 			for tag, value := range expectedTags {
@@ -222,9 +222,9 @@ var _ = Describe("TaggingController", func() {
 				Expect(instanceTags).To(HaveKeyWithValue(tag, value))
 			}
 		},
-		Entry("with only karpenter.k8s.aws/nodeclaim tag", tagging.TagName),
-		Entry("with only Name tag", tagging.TagNodeClaim),
+		Entry("with only karpenter.k8s.aws/nodeclaim tag", v1beta1.TagName),
+		Entry("with only Name tag", v1beta1.TagNodeClaim),
 		Entry("with both Name and karpenter.k8s.aws/nodeclaim tags"),
-		Entry("with nothing to tag", tagging.TagName, tagging.TagNodeClaim),
+		Entry("with nothing to tag", v1beta1.TagName, v1beta1.TagNodeClaim),
 	)
 })

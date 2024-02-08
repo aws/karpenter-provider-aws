@@ -38,11 +38,6 @@ import (
 	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 )
 
-const (
-	TagNodeClaim = corev1beta1.Group + "/nodeclaim"
-	TagName      = "Name"
-)
-
 type Controller struct {
 	kubeClient       client.Client
 	instanceProvider *instance.Provider
@@ -96,8 +91,8 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 
 func (c *Controller) tagInstance(ctx context.Context, nc *corev1beta1.NodeClaim, id string) error {
 	tags := map[string]string{
-		TagName:      nc.Status.NodeName,
-		TagNodeClaim: nc.Name,
+		v1beta1.TagName:      nc.Status.NodeName,
+		v1beta1.TagNodeClaim: nc.Name,
 	}
 
 	// Remove tags which have been already populated
