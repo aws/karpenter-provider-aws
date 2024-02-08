@@ -22,9 +22,10 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
-	"github.com/samber/lo"
 )
 
 func InstanceID() string {
