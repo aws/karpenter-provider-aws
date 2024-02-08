@@ -20,6 +20,7 @@ jobs:
     permissions:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
       statuses: write # ./.github/actions/commit-status/start
+      contents: read  # This is required for actions/checkout
     needs: [resolve]
     if: needs.resolve.outputs.SHOULD_RUN == 'true'
     uses: ./.github/workflows/e2e-matrix.yaml
