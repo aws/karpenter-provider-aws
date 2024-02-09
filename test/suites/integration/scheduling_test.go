@@ -352,7 +352,10 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 
 		env.ExpectCreated(provisioner, provider, deployment)
 		env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(podLabels), 3)
-		env.ExpectCreatedNodeCount("==", 3)
+		// Karpenter will launch three nodes, however if all three nodes don't get register with the cluster at the same time, two pods will be placed on one node.
+		// This can result in a case where all 3 pods are healthy, while there are only two created nodes.
+		// In that case, we still expect to eventually have three nodes.
+		env.EventuallyExpectNodeCount("==", 3)
 	})
 	It("should provision a node using a provisioner with higher priority", func() {
 		provisionerLowPri := test.Provisioner(test.ProvisionerOptions{
