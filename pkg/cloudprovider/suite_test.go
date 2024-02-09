@@ -171,16 +171,16 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 	})
 	Context("EC2 Context", func() {
-		contextId := "context-1234"
+		contextID := "context-1234"
 		It("should set context on the CreateFleet request if specified on the NodePool", func() {
-			nodeClass.Spec.Context = aws.String(contextId)
+			nodeClass.Spec.Context = aws.String(contextID)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextId))
+			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextID))
 		})
 		It("should default to no EC2 Context", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -192,7 +192,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(createFleetInput.Context).To(BeNil())
 		})
 		It("should set context on the CreateFleet request and respect minValues from NodePool", func() {
-			nodeClass.Spec.Context = aws.String(contextId)
+			nodeClass.Spec.Context = aws.String(contextID)
 
 			// Create fake InstanceTypes where one instances can fit 2 pods and another one can fit only 1 pod.
 			instances := fake.MakeFakeInstances()
@@ -287,10 +287,10 @@ var _ = Describe("CloudProvider", func() {
 			// This ensures that we have sent the minimum number of requirements defined in the NodePool.
 			Expect(len(uniqueInstanceTypes)).To(BeNumerically(">=", 2))
 			// This ensures that the CreateFleet received the context.
-			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextId))
+			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextID))
 		})
 		It("should set context on the CreateFleet request and respect minValues from multiple keys in NodePool", func() {
-			nodeClass.Spec.Context = aws.String(contextId)
+			nodeClass.Spec.Context = aws.String(contextID)
 
 			// Create fake InstanceTypes where 2 instances can fit 2 pods individually and one can fit only 1 pod.
 			instances := fake.MakeFakeInstances()
@@ -399,7 +399,7 @@ var _ = Describe("CloudProvider", func() {
 				Expect(len(uniqueInstanceTypes)).To(BeNumerically("==", 3))
 				Expect(len(uniqueInstanceFamilies)).To(BeNumerically("==", 3))
 			}
-			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextId))
+			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextID))
 		})
 	})
 	Context("NodeClaim Drift", func() {
