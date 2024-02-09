@@ -431,6 +431,7 @@ var _ = Describe("InstanceTypes", func() {
 		}
 	})
 	It("should consider the minValues from instance-type requirement for capping InstanceTypeOptions", func() {
+		// Construct requirements with minValues for instance-type requirement.
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
@@ -447,6 +448,8 @@ var _ = Describe("InstanceTypes", func() {
 				MinValues: lo.ToPtr(70),
 			},
 		}
+
+		// Construct inputs.
 		instances := fake.MakeFakeInstances()
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
 			InstanceTypes: fake.MakeFakeInstances(),
@@ -454,6 +457,8 @@ var _ = Describe("InstanceTypes", func() {
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
 			InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances),
 		})
+
+		// Apply requirements and schedule pods.
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -461,6 +466,8 @@ var _ = Describe("InstanceTypes", func() {
 				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 			},
 		})
+
+		// Check if pods are scheduled and if CreateFleet has the right inputs respecting the minValues from requirements.
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -468,7 +475,8 @@ var _ = Describe("InstanceTypes", func() {
 		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
 		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(70))
 	})
-	It("should not filter expensive metal instanceTypeOptions if minValues for instance-type requirement is provided", func() {
+	It("should not remove expensive metal instanceTypeOptions if minValues for instance-type requirement is provided", func() {
+		// Construct requirements with minValues for instance-type requirement.
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
@@ -485,6 +493,8 @@ var _ = Describe("InstanceTypes", func() {
 				MinValues: lo.ToPtr(1),
 			},
 		}
+
+		// Apply requirements and schedule pods.
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -492,9 +502,47 @@ var _ = Describe("InstanceTypes", func() {
 				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 			},
 		})
+
+		// Check if pods are scheduled and if CreateFleet has the expensive instance-types.
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
+		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
+		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
+		var expensiveInstanceType bool
+		for _, ltc := range call.LaunchTemplateConfigs {
+			for _, ovr := range ltc.Overrides {
+				if strings.Contains(aws.StringValue(ovr.InstanceType), "metal") {
+					expensiveInstanceType = true
+				}
+			}
+		}
+		Expect(expensiveInstanceType).To(BeTrue())
+	})
+	It("should not remove expensive metal instanceTypeOptions if any of the requirement with minValues is provided", func() {
+		// Construct requirements with minValues for capacityType requirement.
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{corev1beta1.CapacityTypeSpot},
+				},
+				MinValues: lo.ToPtr(1),
+			},
+		}
 
+		// Apply requirements and schedule pods.
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
+			},
+		})
+
+		// Check if pods are scheduled and if CreateFleet has the expensive instance-types.
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectScheduled(ctx, env.Client, pod)
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		var expensiveInstanceType bool
@@ -508,6 +556,7 @@ var _ = Describe("InstanceTypes", func() {
 		Expect(expensiveInstanceType).To(BeTrue())
 	})
 	It("should de-prioritize metal if instance-type requirement is specified but minValues isn't present", func() {
+		// Construct requirements with instance-type requirement but without minValues.
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
@@ -516,6 +565,8 @@ var _ = Describe("InstanceTypes", func() {
 				},
 			},
 		}
+
+		// Apply requirements and schedule pods.
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -523,9 +574,10 @@ var _ = Describe("InstanceTypes", func() {
 				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 			},
 		})
+
+		// Check if pods are scheduled and if CreateFleet has the expensive instance-types.
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
-
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		for _, ltc := range call.LaunchTemplateConfigs {
@@ -533,39 +585,6 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(strings.Contains(aws.StringValue(ovr.InstanceType), "metal")).To(BeFalse())
 			}
 		}
-	})
-	It("should not filter expensive metal instanceTypeOptions if any of the requirement with minValues is provided", func() {
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
-			{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      corev1beta1.CapacityTypeLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{corev1beta1.CapacityTypeSpot},
-				},
-				MinValues: lo.ToPtr(1),
-			},
-		}
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pod := coretest.UnschedulablePod(coretest.PodOptions{
-			ResourceRequirements: v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-			},
-		})
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-		ExpectScheduled(ctx, env.Client, pod)
-
-		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		var expensiveInstanceType bool
-		for _, ltc := range call.LaunchTemplateConfigs {
-			for _, ovr := range ltc.Overrides {
-				if strings.Contains(aws.StringValue(ovr.InstanceType), "metal") {
-					expensiveInstanceType = true
-				}
-			}
-		}
-		Expect(expensiveInstanceType).To(BeTrue())
 	})
 	It("should de-prioritize metal", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)

@@ -171,15 +171,16 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 	})
 	Context("EC2 Context", func() {
+		contextId := "context-1234"
 		It("should set context on the CreateFleet request if specified on the NodePool", func() {
-			nodeClass.Spec.Context = aws.String("context-1234")
+			nodeClass.Spec.Context = aws.String(contextId)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
+			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextId))
 		})
 		It("should default to no EC2 Context", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -191,7 +192,9 @@ var _ = Describe("CloudProvider", func() {
 			Expect(createFleetInput.Context).To(BeNil())
 		})
 		It("should set context on the CreateFleet request and respect minValues from NodePool", func() {
-			nodeClass.Spec.Context = aws.String("context-1234")
+			nodeClass.Spec.Context = aws.String(contextId)
+
+			// Create fake InstanceTypes where one instances can fit 2 pods and another one can fit only 1 pod.
 			instances := fake.MakeFakeInstances()
 			instances = lo.Slice(instances, 0, 2)
 			instances[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
@@ -217,6 +220,8 @@ var _ = Describe("CloudProvider", func() {
 			})
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
+
+			// Define NodePool that has minValues on instance-type requirement.
 			nodePool = coretest.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
@@ -247,6 +252,8 @@ var _ = Describe("CloudProvider", func() {
 			})
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+
+			// 2 pods are created with resources such that both fit only in one of the 2 InstanceTypes created above.
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
@@ -260,8 +267,14 @@ var _ = Describe("CloudProvider", func() {
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
+
+			// Under normal circumstances 1 node would have been created that fits both the pods but
+			// here minValue enforces to include both the instances. And since one of the instances can
+			// only fit 1 pod, only 1 pod is scheduled to run in the node to be launched by CreateFleet.
 			node1 := ExpectScheduled(ctx, env.Client, pod1)
 			node2 := ExpectScheduled(ctx, env.Client, pod2)
+
+			// This ensures that the pods are scheduled in 2 different nodes.
 			Expect(node1.Name).ToNot(Equal(node2.Name))
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(2))
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -271,11 +284,15 @@ var _ = Describe("CloudProvider", func() {
 					uniqueInstanceTypes.Insert(*override.InstanceType)
 				}
 			}
+			// This ensures that we have sent the minimum number of requirements defined in the NodePool.
 			Expect(len(uniqueInstanceTypes)).To(BeNumerically(">=", 2))
-			Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
+			// This ensures that the CreateFleet received the context.
+			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextId))
 		})
 		It("should set context on the CreateFleet request and respect minValues from multiple keys in NodePool", func() {
-			nodeClass.Spec.Context = aws.String("context-1234")
+			nodeClass.Spec.Context = aws.String(contextId)
+
+			// Create fake InstanceTypes where 2 instances can fit 2 pods individually and one can fit only 1 pod.
 			instances := fake.MakeFakeInstances()
 			instances = lo.Slice(instances, 0, 3)
 			instanceFamilies := sets.Set[string]{}
@@ -310,6 +327,8 @@ var _ = Describe("CloudProvider", func() {
 			})
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
+
+			// Define NodePool that has minValues in multiple requirements.
 			nodePool = coretest.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
@@ -324,6 +343,7 @@ var _ = Describe("CloudProvider", func() {
 										Operator: v1.NodeSelectorOpIn,
 										Values:   instanceNames,
 									},
+									// consider at least 2 unique instance types
 									MinValues: lo.ToPtr(2),
 								},
 								{
@@ -332,6 +352,7 @@ var _ = Describe("CloudProvider", func() {
 										Operator: v1.NodeSelectorOpIn,
 										Values:   instanceFamilies.UnsortedList(),
 									},
+									// consider at least 3 unique instance families if provided by the fake instanceProvider
 									MinValues: lo.Ternary(len(instanceFamilies) >= 3, lo.ToPtr(3), nil),
 								},
 							},
@@ -354,6 +375,10 @@ var _ = Describe("CloudProvider", func() {
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
+
+			// Under normal circumstances 1 node would have been created that fits both the pods but
+			// here minValue enforces to include all the 3 instances to satisfy both the instance-type and instance-family requirements.
+			// And since one of the instances can only fit 1 pod, only 1 pod is scheduled to run in the node to be launched by CreateFleet.
 			node1 := ExpectScheduled(ctx, env.Client, pod1)
 			node2 := ExpectScheduled(ctx, env.Client, pod2)
 			Expect(node1.Name).ToNot(Equal(node2.Name))
@@ -366,11 +391,15 @@ var _ = Describe("CloudProvider", func() {
 					uniqueInstanceFamilies.Insert(strings.Split(*override.InstanceType, ".")[0])
 				}
 			}
+			// Ensure that there are at least minimum number of unique instance types as per the requirement in the CreateFleet request.
 			Expect(len(uniqueInstanceTypes)).To(BeNumerically(">=", 2))
-			if len(instanceFamilies) >= 3 {
-				Expect(len(uniqueInstanceFamilies)).To(BeNumerically(">=", 3))
+
+			// Ensure that there are at least minimum number of unique instance families as per the requirement in the CreateFleet request.
+			if len(instanceFamilies) > 2 {
+				Expect(len(uniqueInstanceTypes)).To(BeNumerically("==", 3))
+				Expect(len(uniqueInstanceFamilies)).To(BeNumerically("==", 3))
 			}
-			Expect(aws.StringValue(createFleetInput.Context)).To(Equal("context-1234"))
+			Expect(aws.StringValue(createFleetInput.Context)).To(Equal(contextId))
 		})
 	})
 	Context("NodeClaim Drift", func() {

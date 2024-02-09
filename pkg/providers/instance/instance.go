@@ -84,10 +84,9 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 }
 
 func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	// Check for the instance-type requirement key and if the requirement has minValues in it.
+	// Check for the instance-type requirement key and if the requirements have minValues in it.
 	var foundMinValuesInRequirement bool
 	var instanceTypeRequirementWithMinValues *corev1beta1.NodeSelectorRequirementWithFlexibility
-	var maxInstanceTypesIncludingFlexibility int
 	for i, req := range nodeClaim.Spec.Requirements {
 		if req.MinValues != nil {
 			foundMinValuesInRequirement = true
@@ -97,7 +96,9 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 			}
 		}
 	}
-	// maxInstanceTypes needs to include flexibility defined by minValues of instance-type requirement. So, we chose between the max (minValues, 60)
+
+	// maxInstanceTypesIncludingFlexibility needs to include flexibility defined by minValues of instance-type requirement. So, we choose the max of (minValues, 60)
+	var maxInstanceTypesIncludingFlexibility int
 	if instanceTypeRequirementWithMinValues != nil {
 		maxInstanceTypesIncludingFlexibility = lo.Max([]int{MaxInstanceTypes, lo.FromPtr(instanceTypeRequirementWithMinValues.MinValues)})
 	} else {
@@ -416,7 +417,7 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
 // that make the most sense given our specific AWS cloudprovider.
 func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, minValuesInRequirement bool) []*cloudprovider.InstanceType {
-	// Only apply filtering of expensive instance types if minValues is not found for instance-type requirement.
+	// Only remove expensive instance types if minValues is not found in the requirement.
 	if !minValuesInRequirement {
 		instanceTypes = filterExoticInstanceTypes(instanceTypes)
 	}
