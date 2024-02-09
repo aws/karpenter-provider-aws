@@ -7,6 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.9.0
 	github.com/aws/aws-sdk-go v1.50.25
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623
+	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240212193458-d97e2ad07de4
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -20,14 +21,15 @@ require (
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.6.0
 	golang.org/x/time v0.5.0
-	k8s.io/api v0.29.2
-	k8s.io/apiextensions-apiserver v0.29.2
-	k8s.io/apimachinery v0.29.2
-	k8s.io/client-go v0.29.2
-	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
+	k8s.io/api v0.29.1
+	k8s.io/apiextensions-apiserver v0.29.1
+	k8s.io/apimachinery v0.29.1
+	k8s.io/client-go v0.29.1
+	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.17.2
 	sigs.k8s.io/karpenter v0.34.1-0.20240227070119-01b8127e7068
+	sigs.k8s.io/yaml v1.4.0
 )
 
 require (
@@ -113,5 +115,4 @@ require (
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect
-	sigs.k8s.io/yaml v1.4.0 // indirect
 )

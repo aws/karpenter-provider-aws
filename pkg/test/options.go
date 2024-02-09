@@ -30,6 +30,7 @@ type OptionsFields struct {
 	ClusterCABundle         *string
 	ClusterName             *string
 	ClusterEndpoint         *string
+	ClusterCIDR             *string
 	IsolatedVPC             *bool
 	VMMemoryOverheadPercent *float64
 	InterruptionQueue       *string
@@ -49,6 +50,7 @@ func Options(overrides ...OptionsFields) *options.Options {
 		ClusterCABundle:         lo.FromPtrOr(opts.ClusterCABundle, ""),
 		ClusterName:             lo.FromPtrOr(opts.ClusterName, "test-cluster"),
 		ClusterEndpoint:         lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
+		ClusterCIDR:             lo.FromPtrOr(opts.ClusterCIDR, ""),
 		IsolatedVPC:             lo.FromPtrOr(opts.IsolatedVPC, false),
 		VMMemoryOverheadPercent: lo.FromPtrOr(opts.VMMemoryOverheadPercent, 0.075),
 		InterruptionQueue:       lo.FromPtrOr(opts.InterruptionQueue, ""),

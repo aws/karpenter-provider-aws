@@ -69,15 +69,16 @@ type Provider struct {
 	subnetProvider          *subnet.Provider
 	instanceProfileProvider *instanceprofile.Provider
 	cache                   *cache.Cache
-	caBundle                *string
 	cm                      *pretty.ChangeMonitor
 	KubeDNSIP               net.IP
+	cABundle                *string
 	ClusterEndpoint         string
+	ClusterCIDR             string
 }
 
 func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver,
 	securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, instanceProfileProvider *instanceprofile.Provider,
-	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
+	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string, clusterCIDR string) *Provider {
 	l := &Provider{
 		ec2api:                  ec2api,
 		amiFamily:               amiFamily,
@@ -89,6 +90,7 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 		cm:                      pretty.NewChangeMonitor(),
 		KubeDNSIP:               kubeDNSIP,
 		ClusterEndpoint:         clusterEndpoint,
+		ClusterCIDR:             clusterCIDR,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -172,6 +174,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	options := &amifamily.Options{
 		ClusterName:         options.FromContext(ctx).ClusterName,
 		ClusterEndpoint:     p.ClusterEndpoint,
+		ClusterCIDR:         p.ClusterCIDR,
 		InstanceProfile:     instanceProfile,
 		InstanceStorePolicy: nodeClass.Spec.InstanceStorePolicy,
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
