@@ -5838,7 +5838,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-network-bandwidth|25000|
- |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-pods|394|
  |karpenter.k8s.aws/instance-size|16xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -5848,8 +5848,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
- |pods|737|
+ |memory|237794Mi|
+ |pods|394|
 ## hpc7g Family
 ### `hpc7g.4xlarge`
 #### Labels
@@ -16674,7 +16674,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|1900|
- |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-network-bandwidth|15000|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -16686,7 +16686,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|178874Mi|
+ |memory|239495Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.12xlarge`
@@ -16700,7 +16700,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|2850|
- |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-network-bandwidth|22500|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -16712,7 +16712,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|239495Mi|
+ |memory|360736Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.16xlarge`
