@@ -71,7 +71,7 @@ type Provider struct {
 	cache                   *cache.Cache
 	cm                      *pretty.ChangeMonitor
 	KubeDNSIP               net.IP
-	cABundle                *string
+	CABundle                *string
 	ClusterEndpoint         string
 	ClusterCIDR             string
 }
@@ -86,7 +86,7 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 		subnetProvider:          subnetProvider,
 		instanceProfileProvider: instanceProfileProvider,
 		cache:                   cache,
-		caBundle:                caBundle,
+		CABundle:                caBundle,
 		cm:                      pretty.NewChangeMonitor(),
 		KubeDNSIP:               kubeDNSIP,
 		ClusterEndpoint:         clusterEndpoint,
@@ -182,7 +182,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		}),
 		Tags:          tags,
 		Labels:        labels,
-		CABundle:      p.caBundle,
+		CABundle:      p.CABundle,
 		KubeDNSIP:     p.KubeDNSIP,
 		NodeClassName: nodeClass.Name,
 	}

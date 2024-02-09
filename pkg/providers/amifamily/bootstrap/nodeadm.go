@@ -69,10 +69,10 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 			},
 		},
 	}
-	if n.CABundle != nil {
+	if lo.FromPtr(n.CABundle) != "" {
 		ca, err := base64.StdEncoding.DecodeString(*n.CABundle)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("decoding CABundle, %w", err)
 		}
 		config.Spec.Cluster.CertificateAuthority = ca
 	}
