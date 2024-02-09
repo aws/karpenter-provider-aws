@@ -19,23 +19,21 @@ Resources:
         IdpMetadata:
           Xml: >-
             <?xml version="1.0" encoding="UTF-8"?>
-            <md:EntityDescriptor
-            	xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp-integ.federate.amazon.com">
-            	<md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
-            		<md:KeyDescriptor use="signing">
-            			<ds:KeyInfo
-            				xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
-            				<ds:X509Data>
-            					<ds:X509Certificate>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</ds:X509Certificate>
-            				</ds:X509Data>
-            			</ds:KeyInfo>
-            		</md:KeyDescriptor>
-            		<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/logout"/>
-            		<md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/logout"/>
-            		<md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified</md:NameIDFormat>
-            		<md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/sso"/>
-            		<md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/sso"/>
-            	</md:IDPSSODescriptor>
+            <md:EntityDescriptor xmlns:md="urn:oasis:names:tc:SAML:2.0:metadata" entityID="https://idp-integ.federate.amazon.com">
+                <md:IDPSSODescriptor WantAuthnRequestsSigned="false" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+                    <md:KeyDescriptor use="signing">
+                        <ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">
+                            <ds:X509Data>
+                                <ds:X509Certificate>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</ds:X509Certificate>
+                            </ds:X509Data>
+                        </ds:KeyInfo>
+                    </md:KeyDescriptor>
+                    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/logout"/>
+                    <md:SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/logout"/>
+                    <md:NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:unspecified</md:NameIDFormat>
+                    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/sso"/>
+                    <md:SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp-integ.federate.amazon.com/api/saml2/v1/sso"/>
+                </md:IDPSSODescriptor>
             </md:EntityDescriptor>
         AssertionAttributes:
           Name: displayName
