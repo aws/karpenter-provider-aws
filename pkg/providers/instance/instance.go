@@ -84,17 +84,28 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 }
 
 func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	// Check for the instance-type requirement key
-	req, found := lo.Find(nodeClaim.Spec.Requirements, func(req corev1beta1.NodeSelectorRequirementWithFlexibility) bool {
-		return req.Key == v1.LabelInstanceTypeStable
-	})
-
-	minValuesInRequirement := found && req.MinValues != nil
-	instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes, minValuesInRequirement)
-	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...))
-
+	// Check for the instance-type requirement key and if the requirement has minValues in it.
+	var foundMinValuesInRequirement bool
+	var instanceTypeRequirementWithMinValues *corev1beta1.NodeSelectorRequirementWithFlexibility
+	var maxInstanceTypesIncludingFlexibility int
+	for i, req := range nodeClaim.Spec.Requirements {
+		if req.MinValues != nil {
+			foundMinValuesInRequirement = true
+			if req.Key == v1.LabelInstanceTypeStable {
+				instanceTypeRequirementWithMinValues = &nodeClaim.Spec.Requirements[i]
+				break
+			}
+		}
+	}
 	// maxInstanceTypes needs to include flexibility defined by minValues of instance-type requirement. So, we chose between the max (minValues, 60)
-	maxInstanceTypesIncludingFlexibility := lo.Ternary(req.MinValues != nil, lo.Max([]int{MaxInstanceTypes, lo.FromPtr(req.MinValues)}), MaxInstanceTypes)
+	if instanceTypeRequirementWithMinValues != nil {
+		maxInstanceTypesIncludingFlexibility = lo.Max([]int{MaxInstanceTypes, lo.FromPtr(instanceTypeRequirementWithMinValues.MinValues)})
+	} else {
+		maxInstanceTypesIncludingFlexibility = MaxInstanceTypes
+	}
+
+	instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes, foundMinValuesInRequirement)
+	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...))
 
 	if len(instanceTypes) > maxInstanceTypesIncludingFlexibility {
 		instanceTypes = instanceTypes[0:maxInstanceTypesIncludingFlexibility]
