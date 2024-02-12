@@ -8,6 +8,7 @@ runs:
   using: "composite"
   steps:
     - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+      id: setup-go
       with:
         go-version-file: go.mod
         check-latest: true
@@ -21,7 +22,9 @@ runs:
         path: |
           /usr/local/kubebuilder/bin
           ~/go/bin
-        key: ${{ runner.os }}-${{ inputs.k8sVersion }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
+        # Added go version to compensate for this issue with govulncheck: https://github.com/golang/go/issues/65590. Could re-evaluate if this is necessary once the
+        # upstream go issue is corrected and if this is causing too many cache misses.
+        key: ${{ runner.os }}-${{ inputs.k8sVersion }}-${{ steps.setup-go.outputs.go-version }}-toolchain-cache-${{ hashFiles('hack/toolchain.sh') }}
     - if: ${{ steps.cache-toolchain.outputs.cache-hit != 'true' }}
       shell: bash
       env:

@@ -1,6 +1,6 @@
 module github.com/aws/karpenter-provider-aws/tools/allocatable-diff
 
-go 1.21
+go 1.22
 
 require (
 	github.com/aws/karpenter-provider-aws v0.33.1-0.20231206223517-f73ccfa65419
