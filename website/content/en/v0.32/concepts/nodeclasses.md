@@ -481,7 +481,7 @@ Specify using ids:
 
 ## spec.role
 
-`Role` is an optional field and is necessary to tell Karpenter which identity nodes from this `EC2NodeClass` should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClass`. If using the [Karpenter Getting Started Guide]({{<ref "../getting-started/getting-started-with-karpenter" >}}) to deploy Karpenter, you can use the `KarpenterNodeRole-$CLUSTER_NAME` role provisioned by that process.
+`Role` is an optional field and tells Karpenter which IAM identity nodes should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClass`. If using the [Karpenter Getting Started Guide]({{<ref "../getting-started/getting-started-with-karpenter" >}}) to deploy Karpenter, you can use the `KarpenterNodeRole-$CLUSTER_NAME` role provisioned by that process.
 
 ```yaml
 spec:
@@ -490,7 +490,9 @@ spec:
 
 ## spec.instanceProfile
 
-`InstanceProfile` is an optional field and is necessary to tell Karpenter which identity nodes from this `EC2NodeClass` should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClasss`. If you use the `instanceProfile` field instead of `role`, Karpenter will not manage the InstanceProfile on your behalf.
+`InstanceProfile` is an optional field and tells Karpenter which IAM identity nodes should assume. You must specify one of `role` or `instanceProfile` when creating a Karpenter `EC2NodeClass`. If you use the `instanceProfile` field instead of `role`, Karpenter will not manage the InstanceProfile on your behalf; instead, it expects that you have pre-provisioned an IAM instance profile and assigned it a role.
+
+You can provision and assign a role to an IAM instance profile using [CloudFormation](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-iam-instanceprofile.html) or by using the [`aws iam create-instance-profile`](https://docs.aws.amazon.com/cli/latest/reference/iam/create-instance-profile.html) and [`aws iam add-role-to-instance-profile`](https://docs.aws.amazon.com/cli/latest/reference/iam/add-role-to-instance-profile.html) commands in the CLI.
 
 {{% alert title="Note" color="primary" %}}
 
