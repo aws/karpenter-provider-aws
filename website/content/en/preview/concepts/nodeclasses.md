@@ -164,7 +164,7 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 ## spec.amiFamily
 
-AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
+AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
 
 ### AL2
 
@@ -182,6 +182,34 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 --use-max-pods false \
 --kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test  --max-pods=110'
 --//--
+```
+
+### AL2023
+
+```text
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: application/node.eks.aws
+
+# Karpenter Generated NodeConfig
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: test-cluster
+    apiServerEndpoint: https://example.com
+    certificateAuthority: ca-bundle
+    cidr: 10.100.0.0/16
+  kubelet:
+    config:
+      maxPods: 110
+    flags:
+      - --node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test
+
+--//--
+
 ```
 
 ### Bottlerocket
@@ -581,6 +609,17 @@ spec:
         encrypted: true
 ```
 
+### AL2023
+```yaml
+spec:
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeSize: 20Gi
+        volumeType: gp3
+        encrypted: true
+```
+
 ### Bottlerocket
 ```yaml
 spec:
@@ -645,6 +684,10 @@ The disks must be formatted & mounted in a RAID0 and be the underlying filesyste
 #### AL2
 
 On AL2, Karpenter automatically configures the disks through an additional boostrap argument (`--local-disks raid0`). The device name is `/dev/md/0` and its mount point is `/mnt/k8s-disks/0`. You should ensure any additional disk setup does not interfere with these.
+
+#### AL2023
+
+On AL2023, Karpenter automatically configures the disks via the generated `NodeConfig` object. Like AL2, the device name is `/dev/md/0` and its mount point is `/mnt/k8s-disks/0`. You should ensure any additional disk setup does not interfere with these.
 
 #### Others
 
@@ -717,7 +760,30 @@ Consider the following example to understand how your custom UserData will be me
 
 ```bash
 #!/bin/bash
-echo "Running custom user data script"
+echo "Running custom user data script (bash)"
+```
+
+#### Merged UserData (bash)
+
+```bash
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Running custom user data script (bash)"
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash -xe
+exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+/etc/eks/bootstrap.sh 'test-cluster' --apiserver-endpoint 'https://test-cluster' --b64-cluster-ca 'ca-bundle' \
+--use-max-pods false \
+--kubelet-extra-args '--node-labels=karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test  --max-pods=110'
+--//--
 ```
 
 #### Passed-in UserData (MIME)
@@ -730,12 +796,12 @@ Content-Type: multipart/mixed; boundary="BOUNDARY"
 Content-Type: text/x-shellscript; charset="us-ascii"
 
 #!/bin/bash
-echo "Running custom user data script"
+echo "Running custom user data script (mime)"
 
 --BOUNDARY--
 ```
 
-#### Merged UserData
+#### Merged UserData (MIME)
 
 ```bash
 MIME-Version: 1.0
@@ -745,7 +811,7 @@ Content-Type: multipart/mixed; boundary="//"
 Content-Type: text/x-shellscript; charset="us-ascii"
 
 #!/bin/bash
-echo "Running custom user data script"
+echo "Running custom user data script (mime)"
 
 --//
 Content-Type: text/x-shellscript; charset="us-ascii"
@@ -774,6 +840,169 @@ spec:
     echo "$(jq '.kubeAPIQPS=50' /etc/kubernetes/kubelet/kubelet-config.json)" > /etc/kubernetes/kubelet/kubelet-config.json
 ```
 {{% /alert %}}
+
+### AL2023
+
+* Your UserData may be in one of three formats: a [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive), a NodeConfig YAML / JSON string, or a shell script.
+* Karpenter will transform your custom UserData into a MIME part, if necessary, and then create a MIME multi-part archive. This archive will consist of a generated NodeConfig, containing Karpenter's default values, followed by the transformed custom UserData. For more information on the NodeConfig spec, refer to the [AL2023 EKS Optimized AMI docs](https://awslabs.github.io/amazon-eks-ami/nodeadm/doc/examples/).
+* If a value is specified both in the Karpenter generated NodeConfig and the same value is specified in the custom user data, the value in the custom user data will take precedence.
+
+#### Passed-in UserData (NodeConfig)
+
+```yaml
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      maxPods: 42
+```
+
+#### Merged UserData (NodeConfig)
+
+```text
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+# Karpenter Generated NodeConfig
+Content-Type: application/node.eks.aws
+
+# Karpenter Generated NodeConfig
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    apiServerEndpoint: https://test-cluster
+    certificateAuthority: cluster-ca
+    cidr: 10.100.0.0/16
+    name: test-cluster
+  kubelet:
+    config:
+      clusterDNS:
+      - 10.100.0.10
+      maxPods: 118
+    flags:
+    - --node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=default"
+
+--//
+Content-Type: application/node.eks.aws
+
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      maxPods: 42
+--//--
+```
+
+#### Passed-in UserData (bash)
+
+```shell
+#!/bin/bash
+echo "Hello, AL2023!"
+```
+
+#### Merged UserData (bash)
+
+```text
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: application/node.eks.aws
+
+# Karpenter Generated NodeConfig
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    apiServerEndpoint: https://test-cluster
+    certificateAuthority: cluster-ca
+    cidr: 10.100.0.0/16
+    name: test-cluster
+  kubelet:
+    config:
+      clusterDNS:
+      - 10.100.0.10
+      maxPods: 118
+    flags:
+    - --node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=default"
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+--//--
+```
+
+#### Passed-in UserData (MIME)
+
+```text
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: application/node.eks.aws
+
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      maxPods: 42
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+--//
+```
+
+#### Merged UserData (MIME)
+
+```text
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: application/node.eks.aws
+
+# Karpenter Generated NodeConfig
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    apiServerEndpoint: https://test-cluster
+    certificateAuthority: cluster-ca
+    cidr: 10.100.0.0/16
+    name: test-cluster
+  kubelet:
+    config:
+      clusterDNS:
+      - 10.100.0.10
+      maxPods: 118
+    flags:
+    - --node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=default"
+
+--//
+Content-Type: application/node.eks.aws
+
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      maxPods: 42
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+--//--
+```
 
 ### Bottlerocket
 
