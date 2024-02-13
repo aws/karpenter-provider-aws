@@ -41,6 +41,9 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
+	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
+	// +optional
+	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name) || has(x.owner)))"

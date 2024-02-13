@@ -1561,7 +1561,7 @@ var _ = Describe("LaunchTemplates", func() {
 			})
 		})
 		Context("Subnet-based Launch Template Configration", func() {
-			It("should explicitly set 'AssignPublicIPv4' to false in the Launch Template", func() {
+			It("should explicitly set 'AssociatePublicIPAddress' to false in the Launch Template", func() {
 				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 					{Tags: map[string]string{"Name": "test-subnet-1"}},
 					{Tags: map[string]string{"Name": "test-subnet-3"}},
@@ -1574,7 +1574,50 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeFalse())
 			})
 
-			It("should not explicitly set 'AssignPublicIPv4' when the subnets are configured to assign public IPv4 addresses", func() {
+			It("should overwrite 'AssociatePublicIPAddress' to true when specified by user in the EC2NodeClass", func() {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+					{Tags: map[string]string{"Name": "test-subnet-1"}},
+					{Tags: map[string]string{"Name": "test-subnet-3"}},
+				}
+				nodeClass.Spec.AssociatePublicIPAddress = lo.ToPtr(true)
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeTrue())
+			})
+
+			It("should set 'AssociatePublicIPAddress' to false when specified by user in the EC2NodeClass", func() {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+					{Tags: map[string]string{"Name": "test-subnet-1"}},
+					{Tags: map[string]string{"Name": "test-subnet-3"}},
+				}
+				nodeClass.Spec.AssociatePublicIPAddress = lo.ToPtr(false)
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeFalse())
+			})
+
+			It("should set 'AssociatePublicIPAddress' to false when not specified by the user in the EC2NodeClass using private subnet", func() {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+					{Tags: map[string]string{"Name": "test-subnet-1"}},
+					{Tags: map[string]string{"Name": "test-subnet-3"}},
+				}
+
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
+				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeFalse())
+			})
+			It("should not explicitly set 'AssociatePublicIPAddress' when the subnets are configured to assign public IPv4 addresses", func() {
 				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-2"}}}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
