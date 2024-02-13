@@ -215,7 +215,9 @@ func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeC
 	}
 	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound
 	if !nodeClass.DeletionTimestamp.IsZero() {
-		return nil, errors.NewNotFound(v1beta1.SchemeGroupVersion.WithResource("ec2nodeclasses").GroupResource(), nodeClass.Name)
+		// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound,
+		// but we return a different error message to be clearer to users
+		return nil, newTerminatingNodeClassError(nodeClass.Name)
 	}
 	return nodeClass, nil
 }
@@ -225,9 +227,10 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodePool.Spec.Template.Spec.NodeClassRef.Name}, nodeClass); err != nil {
 		return nil, err
 	}
-	// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound
 	if !nodeClass.DeletionTimestamp.IsZero() {
-		return nil, errors.NewNotFound(v1beta1.SchemeGroupVersion.WithResource("ec2nodeclasses").GroupResource(), nodeClass.Name)
+		// For the purposes of NodeClass CloudProvider resolution, we treat deleting NodeClasses as NotFound,
+		// but we return a different error message to be clearer to users
+		return nil, newTerminatingNodeClassError(nodeClass.Name)
 	}
 	return nodeClass, nil
 }
@@ -270,7 +273,7 @@ func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instanc
 		}
 		return nodePool, nil
 	}
-	return nil, errors.NewNotFound(schema.GroupResource{Group: corev1beta1.Group, Resource: "NodePool"}, "")
+	return nil, errors.NewNotFound(schema.GroupResource{Group: corev1beta1.Group, Resource: "nodepools"}, "")
 }
 
 func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *cloudprovider.InstanceType) *corev1beta1.NodeClaim {
@@ -316,4 +319,12 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	nodeClaim.Status.ProviderID = fmt.Sprintf("aws:///%s/%s", i.Zone, i.ID)
 	nodeClaim.Status.ImageID = i.ImageID
 	return nodeClaim
+}
+
+// newTerminatingNodeClassError returns a NotFound error for handling by
+func newTerminatingNodeClassError(name string) *errors.StatusError {
+	qualifiedResource := schema.GroupResource{Group: corev1beta1.Group, Resource: "ec2nodeclasses"}
+	err := errors.NewNotFound(qualifiedResource, name)
+	err.ErrStatus.Message = fmt.Sprintf("%s %q is terminating, treating as not found", qualifiedResource.String(), name)
+	return err
 }
