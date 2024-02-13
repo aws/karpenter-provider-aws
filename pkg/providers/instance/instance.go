@@ -51,7 +51,7 @@ import (
 
 var (
 	// MaxInstanceTypes defines the number of instance type options to pass to CreateFleet
-	MaxInstanceTypes                 = 60
+	MaxInstanceTypes                 = 100
 	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
 
 	instanceStateFilter = &ec2.Filter{
@@ -84,32 +84,14 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 }
 
 func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	// Check for the instance-type requirement key and if the requirements have minValues in it.
-	var foundMinValuesInRequirement bool
-	var instanceTypeRequirementWithMinValues *corev1beta1.NodeSelectorRequirementWithFlexibility
-	for i, req := range nodeClaim.Spec.Requirements {
-		if req.MinValues != nil {
-			foundMinValuesInRequirement = true
-			if req.Key == v1.LabelInstanceTypeStable {
-				instanceTypeRequirementWithMinValues = &nodeClaim.Spec.Requirements[i]
-				break
-			}
-		}
+	schedulingRequirements := scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...)
+	// Only filter the instances if there are no minValues in the requirement.
+	if !schedulingRequirements.HasMinValues() {
+		instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
 	}
-
-	// maxInstanceTypesIncludingFlexibility needs to include flexibility defined by minValues of instance-type requirement. So, we choose the max of (minValues, 60)
-	var maxInstanceTypesIncludingFlexibility int
-	if instanceTypeRequirementWithMinValues != nil {
-		maxInstanceTypesIncludingFlexibility = lo.Max([]int{MaxInstanceTypes, lo.FromPtr(instanceTypeRequirementWithMinValues.MinValues)})
-	} else {
-		maxInstanceTypesIncludingFlexibility = MaxInstanceTypes
-	}
-
-	instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes, foundMinValuesInRequirement)
-	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...))
-
-	if len(instanceTypes) > maxInstanceTypesIncludingFlexibility {
-		instanceTypes = instanceTypes[0:maxInstanceTypesIncludingFlexibility]
+	instanceTypes = orderInstanceTypesByPrice(instanceTypes, schedulingRequirements)
+	if len(instanceTypes) > MaxInstanceTypes {
+		instanceTypes = instanceTypes[0:MaxInstanceTypes]
 	}
 	tags := getTags(ctx, nodeClass, nodeClaim)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, instanceTypes, tags)
@@ -416,11 +398,8 @@ func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requ
 
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
 // that make the most sense given our specific AWS cloudprovider.
-func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, minValuesInRequirement bool) []*cloudprovider.InstanceType {
-	// Only remove expensive instance types if minValues is not found in the requirement.
-	if !minValuesInRequirement {
-		instanceTypes = filterExoticInstanceTypes(instanceTypes)
-	}
+func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	instanceTypes = filterExoticInstanceTypes(instanceTypes)
 	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
 	// are more expensive than the cheapest on-demand type.
 	if p.isMixedCapacityLaunch(nodeClaim, instanceTypes) {

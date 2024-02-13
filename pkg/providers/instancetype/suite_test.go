@@ -430,7 +430,7 @@ var _ = Describe("InstanceTypes", func() {
 			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
 	})
-	It("should consider the minValues from instance-type requirement for capping InstanceTypeOptions", func() {
+	It("should consider the minValues from any requirement for capping InstanceTypeOptions", func() {
 		// Construct requirements with minValues for instance-type requirement.
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
 			{
@@ -473,7 +473,7 @@ var _ = Describe("InstanceTypes", func() {
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
-		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(70))
+		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(100))
 	})
 	It("should not remove expensive metal instanceTypeOptions if minValues for instance-type requirement is provided", func() {
 		// Construct requirements with minValues for instance-type requirement.

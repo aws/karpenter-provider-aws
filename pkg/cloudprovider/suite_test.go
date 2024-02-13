@@ -253,7 +253,7 @@ var _ = Describe("CloudProvider", func() {
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
-			// 2 pods are created with resources such that both fit only in one of the 2 InstanceTypes created above.
+			// 2 pods are created with resources such that both fit together only in one of the 2 InstanceTypes created above.
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
