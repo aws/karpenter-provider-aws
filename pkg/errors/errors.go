@@ -25,14 +25,18 @@ import (
 )
 
 const (
-	launchTemplateNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
+	launchTemplateNameNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
+
+	//The specified launch template ID does not exist
+	launchTemplateIDNotFoundCode = "InvalidLaunchTemplateId.NotFound"
 )
 
 var (
 	// This is not an exhaustive list, add to it as needed
 	notFoundErrorCodes = sets.New[string](
 		"InvalidInstanceID.NotFound",
-		launchTemplateNotFoundCode,
+		launchTemplateNameNotFoundCode,
+		launchTemplateIDNotFoundCode,
 		sqs.ErrCodeQueueDoesNotExist,
 		iam.ErrCodeNoSuchEntityException,
 	)
@@ -102,7 +106,7 @@ func IsLaunchTemplateNotFound(err error) bool {
 	}
 	var awsError awserr.Error
 	if errors.As(err, &awsError) {
-		return awsError.Code() == launchTemplateNotFoundCode
+		return awsError.Code() == launchTemplateNameNotFoundCode
 	}
 	return false
 }
