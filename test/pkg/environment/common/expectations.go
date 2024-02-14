@@ -739,7 +739,7 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 		temp := options.DeepCopy() // local version of the log options
 
 		fmt.Printf("------- pod/%s -------\n", pod.Name)
-		if pod.Status.ContainerStatuses[0].RestartCount > 0 {
+		if len(pod.Status.ContainerStatuses) > 0 && pod.Status.ContainerStatuses[0].RestartCount > 0 {
 			fmt.Printf("[PREVIOUS CONTAINER LOGS]\n")
 			temp.Previous = true
 		}
