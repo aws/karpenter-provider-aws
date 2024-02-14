@@ -28,12 +28,12 @@ If you get the error `invalid ownership metadata; label validation error:` while
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter helm chart:
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.6/pkg/apis/crds/karpenter.sh_provisioners.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.6/pkg/apis/crds/karpenter.sh_machines.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.6/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.6/pkg/apis/crds/karpenter.sh_nodepools.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.6/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.6/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.sh_provisioners.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.sh_machines.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.sh_nodepools.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
 
 ### Upgrading to v0.32.0+
@@ -43,7 +43,7 @@ Karpenter v0.32.0 introduces v1beta1 APIs, including _significant_ changes to th
 
 This version includes **dual support** for both alpha and beta APIs to ensure that you can slowly migrate your existing Provisioner, AWSNodeTemplate, and Machine alpha APIs to the newer NodePool, EC2NodeClass, and NodeClaim beta APIs.
 
-Note that if you are rolling back after upgrading to v0.32.0, note that v0.31.2 and v0.31.3 are the only versions that support handling rollback after you have deployed the v1beta1 APIs to your cluster.
+Note that if you are rolling back after upgrading to v0.32.0, note that v0.31.4 is the only version that supports handling rollback after you have deployed the v1beta1 APIs to your cluster.
 {{% /alert %}}
 
 * Karpenter now serves the webhook prometheus metrics server on port `8001`. If this port is already in-use on the pod or you are running in `hostNetworking` mode, you may need to change this port value. You can configure this port value through the `WEBHOOK_METRICS_PORT` environment variable or the `webhook.metrics.port` value if installing via Helm.

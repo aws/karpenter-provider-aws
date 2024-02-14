@@ -41,6 +41,9 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	SecurityGroupSelectorTerms []SecurityGroupSelectorTerm `json:"securityGroupSelectorTerms" hash:"ignore"`
+	// AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
+	// +optional
+	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name) || has(x.owner)))"
@@ -75,9 +78,10 @@ type EC2NodeClassSpec struct {
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +kubebuilder:validation:XValidation:message="empty tag keys aren't supported",rule="self.all(k, k != '')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching kubernetes.io/cluster/",rule="self.all(k, !k.startsWith('kubernetes.io/cluster') )"
-	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/provisioner-name",rule="self.all(k, k != 'karpenter.sh/provisioner-name')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/nodepool",rule="self.all(k, k != 'karpenter.sh/nodepool')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/managed-by",rule="self.all(k, k !='karpenter.sh/managed-by')"
+	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/nodeclaim",rule="self.all(k, k !='karpenter.sh/nodeclaim')"
+	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.k8s.aws/ec2nodeclass",rule="self.all(k, k !='karpenter.k8s.aws/ec2nodeclass')"
 	// +optional
 	Tags map[string]string `json:"tags,omitempty"`
 	// BlockDeviceMappings to be applied to provisioned nodes.

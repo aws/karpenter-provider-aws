@@ -5,7 +5,7 @@ go 1.21
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.8.1
-	github.com/aws/aws-sdk-go v1.50.10
+	github.com/aws/aws-sdk-go v1.50.15
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
@@ -26,8 +26,8 @@ require (
 	k8s.io/client-go v0.29.1
 	k8s.io/utils v0.0.0-20230726121419-3b25d923346b
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
-	sigs.k8s.io/controller-runtime v0.17.0
-	sigs.k8s.io/karpenter v0.34.0
+	sigs.k8s.io/controller-runtime v0.17.1
+	sigs.k8s.io/karpenter v0.34.1-0.20240209214406-0ac0ff583d94
 )
 
 require (
@@ -42,7 +42,6 @@ require (
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/deckarep/golang-set v1.8.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.11.0 // indirect
 	github.com/evanphx/json-patch v5.7.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.8.0 // indirect
