@@ -385,6 +385,7 @@ var _ = Describe("Expiration", func() {
 
 			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
 			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+
 			// Check that all daemonsets and deployment pods are online
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
@@ -395,9 +396,6 @@ var _ = Describe("Expiration", func() {
 				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
 			}
-
-			// Check that all daemonsets and deployment pods are online
-			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
 			By("enabling expiration")
 			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
