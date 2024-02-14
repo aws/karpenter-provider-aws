@@ -58,6 +58,15 @@ test: ## Run tests
 		--ginkgo.randomize-all \
 		--ginkgo.vv
 
+deflake: ## Run randomized, racing tests until the test fails to catch flakes
+	ginkgo \
+		--race \
+		--focus="${FOCUS}" \
+		--randomize-all \
+		--until-it-fails \
+		-v \
+		./pkg/...
+
 e2etests: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_ENDPOINT=${CLUSTER_ENDPOINT} \
 		CLUSTER_NAME=${CLUSTER_NAME} \
@@ -84,18 +93,6 @@ e2etests-deflake: ## Run the e2e suite against your local cluster
 
 benchmark:
 	go test -tags=test_performance -run=NoTests -bench=. ./...
-
-deflake: ## Run randomized, racing, code-covered tests to deflake failures
-	for i in $(shell seq 1 5); do make test || exit 1; done
-
-deflake-until-it-fails: ## Run randomized, racing tests until the test fails to catch flakes
-	ginkgo \
-		--race \
-		--focus="${FOCUS}" \
-		--randomize-all \
-		--until-it-fails \
-		-v \
-		./pkg/...
 
 coverage:
 	go tool cover -html coverage.out -o coverage.html
@@ -188,7 +185,7 @@ update-karpenter: ## Update kubernetes-sigs/karpenter to latest
 	go get -u sigs.k8s.io/karpenter@HEAD
 	go mod tidy
 
-.PHONY: help dev ci release test e2etests verify tidy download docgen codegen apply delete toolchain licenses vulncheck issues website nightly snapshot
+.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release release-crd prepare-website toolchain issues website tidy download update-karpenter
 
 define newline
 
