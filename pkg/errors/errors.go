@@ -26,9 +26,6 @@ import (
 
 const (
 	launchTemplateNameNotFoundCode = "InvalidLaunchTemplateName.NotFoundException"
-
-	//The specified launch template ID does not exist
-	launchTemplateIDNotFoundCode = "InvalidLaunchTemplateId.NotFound"
 )
 
 var (
@@ -36,7 +33,7 @@ var (
 	notFoundErrorCodes = sets.New[string](
 		"InvalidInstanceID.NotFound",
 		launchTemplateNameNotFoundCode,
-		launchTemplateIDNotFoundCode,
+		"InvalidLaunchTemplateId.NotFound",
 		sqs.ErrCodeQueueDoesNotExist,
 		iam.ErrCodeNoSuchEntityException,
 	)
