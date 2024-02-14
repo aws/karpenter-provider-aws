@@ -1,4 +1,3 @@
-export K8S_VERSION ?= 1.27.x
 CLUSTER_NAME ?= $(shell kubectl config view --minify -o jsonpath='{.clusters[].name}' | rev | cut -d"/" -f1 | rev | cut -d"." -f1)
 
 ## Inject the app version into operator.Version
@@ -25,15 +24,13 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 KARPENTER_NAMESPACE ?= kube-system
 KARPENTER_VERSION ?= $(shell git tag --sort=committerdate | tail -1)
 KO_DOCKER_REPO ?= ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com/dev
-GETTING_STARTED_SCRIPT_DIR = website/content/en/preview/getting-started/getting-started-with-karpenter/scripts
 
 # Common Directories
 MOD_DIRS = $(shell find . -path "./website" -prune -o -name go.mod -type f -print | xargs dirname)
 KARPENTER_CORE_DIR = $(shell go list -m -f '{{ .Dir }}' sigs.k8s.io/karpenter)
 
-# TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" or "make test" against
+# TEST_SUITE enables you to select a specific test suite directory to run "make e2etests" against
 TEST_SUITE ?= "..."
-TEST_TIMEOUT ?= "3h"
 
 help: ## Display help
 	@awk 'BEGIN {FS = ":.*##"; printf "Usage:\n  make \033[36m<target>\033[0m\n"} /^[a-zA-Z_0-9-]+:.*?##/ { printf "  \033[36m%-15s\033[0m %s\n", $$1, $$2 } /^##@/ { printf "\n\033[1m%s\033[0m\n", substr($$0, 5) } ' $(MAKEFILE_LIST)
@@ -55,7 +52,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		go run ./cmd/controller/main.go
 
 test: ## Run tests
-	go test -v ./pkg/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
+	go test -v ./pkg/... \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
@@ -68,18 +65,18 @@ e2etests: ## Run the e2e suite against your local cluster
 		go test \
 		-p 1 \
 		-count 1 \
-		-timeout ${TEST_TIMEOUT} \
+		-timeout 3h \
 		-v \
 		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
 		--ginkgo.focus="${FOCUS}" \
-		--ginkgo.timeout=${TEST_TIMEOUT} \
+		--ginkgo.timeout=3h \
 		--ginkgo.grace-period=3m \
 		--ginkgo.vv
 
 e2etests-deflake: ## Run the e2e suite against your local cluster
 	cd test && CLUSTER_NAME=${CLUSTER_NAME} ginkgo \
 		--focus="${FOCUS}" \
-		--timeout=${TEST_TIMEOUT} \
+		--timeout=3h \
 		--grace-period=3m \
 		--until-it-fails \
 		--vv \
@@ -125,9 +122,6 @@ vulncheck: ## Verify code vulnerabilities
 
 licenses: download ## Verifies dependency licenses
 	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0'
-
-setup: ## Sets up the IAM roles needed prior to deploying the karpenter-controller. This command only needs to be run once
-	CLUSTER_NAME=${CLUSTER_NAME} ./$(GETTING_STARTED_SCRIPT_DIR)/add-roles.sh $(KARPENTER_VERSION)
 
 image: ## Build the Karpenter controller images using ko build
 	$(eval CONTROLLER_IMG=$(shell $(WITH_GOFLAGS) KO_DOCKER_REPO="$(KO_DOCKER_REPO)" ko build --bare github.com/aws/karpenter-provider-aws/cmd/controller))
