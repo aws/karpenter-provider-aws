@@ -288,14 +288,15 @@ var _ = Describe("Consolidation", func() {
 
 			env.ExpectCreated(nodeClass, nodePool, deployments[0], deployments[1], deployments[2], deployments[3], deployments[4])
 
-			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
-			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+			originalNodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 5)
+			originalNodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+
 			// Check that all daemonsets and deployment pods are online
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods)*2)
 
 			By("cordoning and adding finalizer to the nodes")
 			// Add a finalizer to each node so that we can stop termination disruptions
-			for _, node := range nodes {
+			for _, node := range originalNodes {
 				Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 				node.Finalizers = append(node.Finalizers, common.TestingFinalizer)
 				env.ExpectUpdated(node)
@@ -310,16 +311,22 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = nil
 			env.ExpectUpdated(nodePool)
 
-			// Ensure that we get two nodes tainted, and they have overlap during the consolidation
+			// Ensure that we get three nodes tainted, and they have overlap during the consolidation
 			env.EventuallyExpectTaintedNodeCount("==", 3)
 			env.EventuallyExpectNodeClaimCount("==", 8)
 			env.EventuallyExpectNodeCount("==", 8)
-			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
+			env.ConsistentlyExpectDisruptionsWithNodeCount(3, 8, 5*time.Second)
 
-			for _, node := range nodes {
+			for _, node := range originalNodes {
 				Expect(env.ExpectTestingFinalizerRemoved(node)).To(Succeed())
 			}
-			env.EventuallyExpectNotFound(nodes[0], nodes[1], nodes[2])
+
+			// Eventually expect all the nodes to be rolled and completely removed
+			// Since this completes the disruption operation, this also ensures that we aren't leaking nodes into subsequent
+			// tests since nodeclaims that are actively replacing but haven't brought-up nodes yet can register nodes later
+			env.EventuallyExpectNotFound(lo.Map(originalNodes, func(n *v1.Node, _ int) client.Object { return n })...)
+			env.EventuallyExpectNotFound(lo.Map(originalNodeClaims, func(n *corev1beta1.NodeClaim, _ int) client.Object { return n })...)
+			env.ExpectNodeClaimCount("==", 5)
 			env.ExpectNodeCount("==", 5)
 		})
 		It("should not allow consolidation if the budget is fully blocking", func() {
