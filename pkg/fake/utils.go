@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
@@ -190,6 +191,24 @@ func MakeFakeInstances() []*ec2.InstanceTypeInfo {
 		})
 	}
 	return instanceTypes
+}
+
+func MakeUniqueFakeInstancesAndFamilies(instances []*ec2.InstanceTypeInfo, numInstanceFamilies int) ([]*ec2.InstanceTypeInfo, sets.Set[string]) {
+	var instanceTypes []*ec2.InstanceTypeInfo
+	instanceFamilies := sets.Set[string]{}
+	for _, it := range instances {
+		for instFamily := range instanceFamilies {
+			if strings.Split(*it.InstanceType, ".")[0] == instFamily {
+				continue
+			}
+		}
+		instanceTypes = append(instanceTypes, it)
+		instanceFamilies.Insert(strings.Split(*it.InstanceType, ".")[0])
+		if len(instanceFamilies) == numInstanceFamilies {
+			break
+		}
+	}
+	return instanceTypes, instanceFamilies
 }
 
 func MakeFakeInstanceOfferings(instanceTypes []*ec2.InstanceTypeInfo) []*ec2.InstanceTypeOffering {

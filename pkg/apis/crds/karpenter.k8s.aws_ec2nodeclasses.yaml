@@ -489,9 +489,9 @@ spec:
                             description: The label key that the selector applies to.
                             type: string
                           minValues:
-                            description: MinValues is the minimum number of unique
-                              values required to define the flexibility of the specific
-                              requirement.
+                            description: |-
+                              This is an alpha field.
+                              MinValues is the minimum number of unique values required to define the flexibility of the specific requirement.
                             maximum: 100
                             minimum: 1
                             type: integer
