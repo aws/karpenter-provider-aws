@@ -291,6 +291,10 @@ func (p *Provider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) 
 				DeviceIndex:   lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
 				InterfaceType: lo.ToPtr(ec2.NetworkInterfaceTypeEfa),
 				Groups:        lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) }),
+				// Instances launched with multiple pre-configured network interfaces cannot set AssociatePublicIPAddress to true. This is an EC2 limitation. However, this does not apply for instances
+				// with a single EFA network interface, and we should support those use cases. Launch failures with multiple enis should be considered user misconfiguration.
+				// ref: https://docs.aws.amazon.com/cli/latest/reference/ec2/request-spot-fleet.html
+				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 			}
 		})
 	}
