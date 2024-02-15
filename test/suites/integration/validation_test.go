@@ -140,14 +140,14 @@ var _ = Describe("Validation", func() {
 			)
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
-		It("should error when minValues for a requirement key is more than 100", func() {
+		It("should error when minValues for a requirement key is more than 50", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"c4.large", "c4.xlarge"},
 				},
-				MinValues: lo.ToPtr(101)},
+				MinValues: lo.ToPtr(51)},
 			)
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})

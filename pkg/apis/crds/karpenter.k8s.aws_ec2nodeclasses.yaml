@@ -492,7 +492,7 @@ spec:
                             description: |-
                               This is an alpha field.
                               MinValues is the minimum number of unique values required to define the flexibility of the specific requirement.
-                            maximum: 100
+                            maximum: 50
                             minimum: 1
                             type: integer
                           operator:
