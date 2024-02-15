@@ -109,7 +109,7 @@ spec:
                       type: array
                       x-kubernetes-validations:
                         - message: '''schedule'' must be set with ''duration'''
-                          rule: '!self.all(x, (has(x.schedule) && !has(x.duration)) || (!has(x.schedule) && has(x.duration)))'
+                          rule: self.all(x, has(x.schedule) == has(x.duration))
                     consolidateAfter:
                       description: |-
                         ConsolidateAfter is the duration the controller will wait
