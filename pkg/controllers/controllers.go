@@ -60,8 +60,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewProvider(ctx, servicesqs.New(sess), options.FromContext(ctx).InterruptionQueue)), unavailableOfferings))
 	}
 	if options.FromContext(ctx).IsolatedVPC {
-		logging.FromContext(ctx).Infof("assuming isolated VPC, pricing information will not be updated")
-	} else {
+		logging.FromContext(ctx).Infof("assuming isolated VPC, only spot pricing information will be updated")
 		controllers = append(controllers, pricing.NewController(pricingProvider))
 	}
 	return controllers
