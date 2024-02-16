@@ -57,6 +57,7 @@ managedNodeGroups:
   minSize: 1
   maxSize: 10
 
+# eks-pod-identity-agent add-on not needed when running with Fargate profile 
 addons:
 - name: eks-pod-identity-agent
 
