@@ -1,19 +1,15 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)"
+# shellcheck source=hack/release/common.sh
 source "${SCRIPT_DIR}/common.sh"
 
-config
-
-GIT_TAG=${GIT_TAG:-$(git describe --exact-match --tags || echo "none")}
-if [[ $(releaseType "$GIT_TAG") != $RELEASE_TYPE_STABLE ]]; then
+git_tag="${GIT_TAG:-$(git describe --exact-match --tags || echo "none")}"
+if [[ "${git_tag}" != v* ]]; then
   echo "Not a stable release. Missing required git tag."
   exit 1
 fi
-echo "RenderingPrep website files for ${GIT_TAG}"
+echo "RenderingPrep website files for ${git_tag}"
 
-createNewWebsiteDirectory "$GIT_TAG"
-removeOldWebsiteDirectories
-editWebsiteConfig "$GIT_TAG"
-editWebsiteVersionsMenu
+prepareWebsite "${git_tag#v}"
