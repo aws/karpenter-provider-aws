@@ -24,6 +24,7 @@ tools() {
     go install github.com/rhysd/actionlint/cmd/actionlint@latest
     go install github.com/mattn/goveralls@latest
     go install github.com/google/go-containerregistry/cmd/crane@latest
+    go install oras.land/oras/cmd/oras@latest
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
         echo "Go workspace's \"bin\" directory is not in PATH. Run 'export PATH=\"\$PATH:\${GOPATH:-\$HOME/go}/bin\"'."

@@ -127,8 +127,10 @@ publishHelmChart() {
     RELEASE_REPO=$3
     HELM_CHART_VERSION=$(helmChartVersion "$RELEASE_VERSION")
     HELM_CHART_FILE_NAME="${CHART_NAME}-${HELM_CHART_VERSION}.tgz"
+    AH_CONFIG_FILE_NAME="${CHART_NAME}/artifacthub-repo.yaml"
 
     cd charts
+    [[ -s "${AH_CONFIG_FILE_NAME}" ]] && oras push "${RELEASE_REPO}:artifacthub.io" --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml "${AH_CONFIG_FILE_NAME}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
     helm dependency update "${CHART_NAME}"
     helm lint "${CHART_NAME}"
     helm package "${CHART_NAME}" --version "${HELM_CHART_VERSION}"
