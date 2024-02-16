@@ -138,7 +138,7 @@ publishHelmChart() {
     rm "${HELM_CHART_FILE_NAME}"
     cd ..
 
-    cosignHelmChart "${RELEASE_REPO}/${CHART_NAME}" "${HELM_CHART_VERSION}"
+    cosignHelmChart "${RELEASE_REPO}${CHART_NAME}" "${HELM_CHART_VERSION}"
 }
 
 cosignHelmChart() {
