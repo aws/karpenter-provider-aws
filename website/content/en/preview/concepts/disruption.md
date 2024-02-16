@@ -222,7 +222,7 @@ spec:
 ```
 
 #### Schedule
-Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below, with additional special macros like `@yearly`, `monthly`, `@weekly`, `@daily`, `@hourly`.
+Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below, with additional special macros like `@yearly`, `@monthly`, `@weekly`, `@daily`, `@hourly`.
 Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for more information on how to follow the cron syntax.
 
 ```bash
