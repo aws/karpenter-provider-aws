@@ -85,7 +85,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
 		nodePool.Spec.Limits = nil
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceHypervisor,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"nitro"},
@@ -438,7 +438,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			// Add in a instance type size requirement that's larger than the smallest that fits the pods.
-			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
@@ -486,7 +486,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				// the requirements wide-open should cause deletes and increase our utilization on the cluster
 				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
 				nodePool.Spec.Disruption.ConsolidateAfter = nil
-				nodePool.Spec.Template.Spec.Requirements = lo.Reject(nodePool.Spec.Template.Spec.Requirements, func(r corev1beta1.NodeSelectorRequirementWithFlexibility, _ int) bool {
+				nodePool.Spec.Template.Spec.Requirements = lo.Reject(nodePool.Spec.Template.Spec.Requirements, func(r corev1beta1.NodeSelectorRequirementWithMinValues, _ int) bool {
 					return r.Key == v1beta1.LabelInstanceSize
 				})
 				env.ExpectUpdated(nodePool)

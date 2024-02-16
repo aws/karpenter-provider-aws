@@ -70,7 +70,7 @@ var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("Interruption", func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      corev1beta1.CapacityTypeLabelKey,
 				Operator: v1.NodeSelectorOpIn,

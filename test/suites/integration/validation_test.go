@@ -58,7 +58,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})
 		It("should error when a requirement references a restricted label (karpenter.sh/nodepool)", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.NodePoolLabelKey,
 					Operator: v1.NodeSelectorOpIn,
@@ -67,7 +67,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when a requirement uses In but has no values", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpIn,
@@ -76,7 +76,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when a requirement uses an unknown operator", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.CapacityTypeLabelKey,
 					Operator: "within",
@@ -85,7 +85,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when Gt is used with multiple integer values", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceMemory,
 					Operator: v1.NodeSelectorOpGt,
@@ -94,7 +94,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when Lt is used with multiple integer values", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceMemory,
 					Operator: v1.NodeSelectorOpLt,
@@ -130,7 +130,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when minValues for a requirement key is negative", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpIn,
@@ -141,7 +141,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when minValues for a requirement key is more than 50", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpIn,
@@ -152,7 +152,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when minValues for a requirement key is greater than the values specified within In operator", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpIn,

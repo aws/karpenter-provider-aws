@@ -74,7 +74,7 @@ var _ = Describe("Chaos", func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.CapacityTypeLabelKey,
 					Operator: v1.NodeSelectorOpIn,

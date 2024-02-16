@@ -121,7 +121,7 @@ var _ = Describe("CloudProvider", func() {
 						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
-						Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeOnDemand}}},
 						},
 					},
@@ -141,7 +141,7 @@ var _ = Describe("CloudProvider", func() {
 	})
 	It("should return an ICE error when there are no instance types to launch", func() {
 		// Specify no instance types and expect to receive a capacity error
-		nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
@@ -232,7 +232,7 @@ var _ = Describe("CloudProvider", func() {
 							NodeClassRef: &corev1beta1.NodeClassReference{
 								Name: nodeClass.Name,
 							},
-							Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
 										Key:      corev1beta1.CapacityTypeLabelKey,
@@ -330,7 +330,7 @@ var _ = Describe("CloudProvider", func() {
 							NodeClassRef: &corev1beta1.NodeClassReference{
 								Name: nodeClass.Name,
 							},
-							Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
 										Key:      v1.LabelInstanceTypeStable,
@@ -434,7 +434,7 @@ var _ = Describe("CloudProvider", func() {
 							NodeClassRef: &corev1beta1.NodeClassReference{
 								Name: nodeClass.Name,
 							},
-							Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
 										Key:      v1.LabelInstanceTypeStable,
@@ -945,7 +945,7 @@ var _ = Describe("CloudProvider", func() {
 	})
 	Context("EFA", func() {
 		It("should include vpc.amazonaws.com/efa on a nodeclaim if it requests it", func() {
-			nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 				{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1.LabelInstanceTypeStable,
@@ -961,7 +961,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1beta1.ResourceEFA))
 		})
 		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
-			nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 				{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1.LabelInstanceTypeStable,

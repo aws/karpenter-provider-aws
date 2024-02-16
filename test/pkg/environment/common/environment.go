@@ -142,7 +142,7 @@ func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1
 	nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
 		Name: nodeClass.Name,
 	}
-	nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+	nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 		{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1.LabelOSStable,

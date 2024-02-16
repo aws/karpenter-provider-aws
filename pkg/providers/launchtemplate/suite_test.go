@@ -120,7 +120,7 @@ var _ = Describe("LaunchTemplates", func() {
 						Labels: map[string]string{coretest.DiscoveryLabel: "unspecified"},
 					},
 					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
 									Key:      corev1beta1.CapacityTypeLabelKey,
@@ -143,7 +143,7 @@ var _ = Describe("LaunchTemplates", func() {
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
 									Key:      corev1beta1.CapacityTypeLabelKey,
@@ -351,7 +351,7 @@ var _ = Describe("LaunchTemplates", func() {
 				"tag1": "tag1value",
 				"tag2": "tag2value",
 			}
-			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 				{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      corev1beta1.CapacityTypeLabelKey,
@@ -1508,7 +1508,7 @@ var _ = Describe("LaunchTemplates", func() {
 				}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
-				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1.LabelArchStable,
@@ -1647,7 +1647,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Windows Custom UserData", func() {
 			BeforeEach(func() {
-				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}}
+				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}}
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})

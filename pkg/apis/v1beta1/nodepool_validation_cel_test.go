@@ -43,7 +43,7 @@ var _ = Describe("CEL/Validation", func() {
 							Kind: "NodeClaim",
 							Name: "default",
 						},
-						Requirements: []v1beta1.NodeSelectorRequirementWithFlexibility{
+						Requirements: []v1beta1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
 									Key:      v1beta1.CapacityTypeLabelKey,
@@ -60,7 +60,7 @@ var _ = Describe("CEL/Validation", func() {
 		It("should allow restricted domains exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
 			for label := range v1beta1.LabelDomainExceptions {
-				nodePool.Spec.Template.Spec.Requirements = []v1beta1.NodeSelectorRequirementWithFlexibility{
+				nodePool.Spec.Template.Spec.Requirements = []v1beta1.NodeSelectorRequirementWithMinValues{
 					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}},
 				}
 				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
@@ -72,7 +72,7 @@ var _ = Describe("CEL/Validation", func() {
 		It("should allow well known label exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
 			for label := range v1beta1.WellKnownLabels.Difference(sets.New(v1beta1.NodePoolLabelKey)) {
-				nodePool.Spec.Template.Spec.Requirements = []v1beta1.NodeSelectorRequirementWithFlexibility{
+				nodePool.Spec.Template.Spec.Requirements = []v1beta1.NodeSelectorRequirementWithMinValues{
 					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}},
 				}
 				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())

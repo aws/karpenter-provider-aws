@@ -101,7 +101,7 @@ var _ = Describe("Drift", func() {
 	Context("Budgets", func() {
 		It("should respect budgets for empty drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
@@ -178,7 +178,7 @@ var _ = Describe("Drift", func() {
 		})
 		It("should respect budgets for non-empty delete drift", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
@@ -264,7 +264,7 @@ var _ = Describe("Drift", func() {
 			appLabels := map[string]string{"app": "large-app"}
 
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
@@ -272,7 +272,7 @@ var _ = Describe("Drift", func() {
 					},
 				},
 				// Add an Exists operator so that we can select on a fake partition later
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      "test-partition",
 						Operator: v1.NodeSelectorOpExists,
@@ -651,7 +651,7 @@ var _ = Describe("Drift", func() {
 		}),
 		Entry("NodeRequirements", corev1beta1.NodeClaimTemplate{
 			Spec: corev1beta1.NodeClaimSpec{
-				Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot}}}},
+				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot}}}},
 			},
 		}),
 	)

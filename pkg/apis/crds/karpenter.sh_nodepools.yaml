@@ -334,7 +334,7 @@ spec:
                           description: Requirements are layered with GetLabels and applied to every node.
                           items:
                             description: |-
-                              NodeSelectorRequirementWithFlexibility introduces flexibility to the NodeSelectorRequirement through minValues
+                              NodeSelectorRequirementWithMinValues introduces flexibility to the NodeSelectorRequirement through minValues
                               which represents the minimum number of unique values that needs to be considered for a particular requirement.
                             properties:
                               key:

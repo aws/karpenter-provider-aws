@@ -65,7 +65,7 @@ var _ = Describe("Tags", func() {
 			}
 		})
 		It("should tag spot instance requests when creating resources", func() {
-			coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.CapacityTypeLabelKey,
 					Operator: v1.NodeSelectorOpIn,

@@ -589,7 +589,7 @@ var _ = Describe("NodeClassController", func() {
 				{
 					Name: "test-ami-3",
 					ID:   "ami-id-789",
-					Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+					Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 						{
 							NodeSelectorRequirement: v1.NodeSelectorRequirement{
 								Key:      v1.LabelArchStable,
@@ -614,7 +614,7 @@ var _ = Describe("NodeClassController", func() {
 				{
 					Name: "test-ami-2",
 					ID:   "ami-id-456",
-					Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+					Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 						{
 							NodeSelectorRequirement: v1.NodeSelectorRequirement{
 								Key:      v1.LabelArchStable,
@@ -633,7 +633,7 @@ var _ = Describe("NodeClassController", func() {
 				{
 					Name: "test-ami-2",
 					ID:   "ami-id-456",
-					Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+					Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 						{
 							NodeSelectorRequirement: v1.NodeSelectorRequirement{
 								Key:      v1.LabelArchStable,
@@ -652,7 +652,7 @@ var _ = Describe("NodeClassController", func() {
 				{
 					Name: "test-ami-1",
 					ID:   "ami-id-123",
-					Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+					Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 						{
 							NodeSelectorRequirement: v1.NodeSelectorRequirement{
 								Key:      v1.LabelArchStable,
@@ -717,7 +717,7 @@ var _ = Describe("NodeClassController", func() {
 				{
 					Name: "test-ami-2",
 					ID:   "ami-id-456",
-					Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+					Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 						{
 							NodeSelectorRequirement: v1.NodeSelectorRequirement{
 								Key:      v1.LabelArchStable,
@@ -742,7 +742,7 @@ var _ = Describe("NodeClassController", func() {
 				{
 					Name: "test-ami-1",
 					ID:   "ami-id-123",
-					Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+					Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 						{
 							NodeSelectorRequirement: v1.NodeSelectorRequirement{
 								Key:      v1.LabelArchStable,
@@ -775,7 +775,7 @@ var _ = Describe("NodeClassController", func() {
 					{
 						Name: "test-ami-3",
 						ID:   "ami-test3",
-						Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
 									Key:      "kubernetes.io/arch",

@@ -66,7 +66,7 @@ var _ = BeforeEach(func() {
 		},
 	})
 	nodePool = env.DefaultNodePool(nodeClass)
-	nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithFlexibility{
+	nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithMinValues{
 		NodeSelectorRequirement: v1.NodeSelectorRequirement{
 			Key:      v1.LabelTopologyZone,
 			Operator: v1.NodeSelectorOpIn,

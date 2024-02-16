@@ -111,7 +111,7 @@ var _ = Describe("InstanceTypes", func() {
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
 									Key:      corev1beta1.CapacityTypeLabelKey,
@@ -136,7 +136,7 @@ var _ = Describe("InstanceTypes", func() {
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
 									Key:      corev1beta1.CapacityTypeLabelKey,
@@ -371,7 +371,7 @@ var _ = Describe("InstanceTypes", func() {
 			InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances),
 		})
 
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.CapacityTypeLabelKey,
@@ -432,7 +432,7 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should consider the minValues from any requirement for capping InstanceTypeOptions", func() {
 		// Construct requirements with minValues for instance-type requirement.
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.CapacityTypeLabelKey,
@@ -477,7 +477,7 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should not remove expensive metal instanceTypeOptions if minValues for instance-type requirement is provided", func() {
 		// Construct requirements with minValues for instance-type requirement.
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.CapacityTypeLabelKey,
@@ -520,7 +520,7 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should not remove expensive metal instanceTypeOptions if any of the requirement with minValues is provided", func() {
 		// Construct requirements with minValues for capacityType requirement.
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.CapacityTypeLabelKey,
@@ -557,7 +557,7 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should de-prioritize metal if instance-type requirement is specified but minValues isn't present", func() {
 		// Construct requirements with instance-type requirement but without minValues.
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
@@ -626,7 +626,7 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should launch on metal", func() {
 		// add a nodePool requirement for instance type exists to remove our default filter for metal sizes
-		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1.LabelInstanceTypeStable,
 				Operator: v1.NodeSelectorOpExists,
@@ -761,7 +761,7 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	It("should launch trn1 instances for AWS Neuron resource requests", func() {
 		nodeNames := sets.NewString()
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
@@ -788,7 +788,7 @@ var _ = Describe("InstanceTypes", func() {
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
 	It("should launch instances for vpc.amazonaws.com/efa resource requests", func() {
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
@@ -1446,7 +1446,7 @@ var _ = Describe("InstanceTypes", func() {
 			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{
 				{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 			})
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceType,
 					Operator: v1.NodeSelectorOpIn,
@@ -1529,7 +1529,7 @@ var _ = Describe("InstanceTypes", func() {
 				}
 				return true
 			})).To(Succeed())
-			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 				{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot, corev1beta1.CapacityTypeOnDemand}}},
 				{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1a"}}},
 			}
@@ -1552,7 +1552,7 @@ var _ = Describe("InstanceTypes", func() {
 				{CapacityType: corev1beta1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
 			})
 			nodePool.Spec.Template.Spec.Requirements = nil
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceType,
 					Operator: v1.NodeSelectorOpIn,
@@ -1560,7 +1560,7 @@ var _ = Describe("InstanceTypes", func() {
 				},
 			},
 			)
-			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      corev1beta1.CapacityTypeLabelKey,
 					Operator: v1.NodeSelectorOpIn,
@@ -1607,7 +1607,7 @@ var _ = Describe("InstanceTypes", func() {
 			Expect(node.Labels).To(HaveKeyWithValue(corev1beta1.CapacityTypeLabelKey, corev1beta1.CapacityTypeOnDemand))
 		})
 		It("should launch spot capacity if flexible to both spot and on demand", func() {
-			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 				{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot, corev1beta1.CapacityTypeOnDemand}}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -1629,7 +1629,7 @@ var _ = Describe("InstanceTypes", func() {
 			})
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 
-			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 				{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot}}},
 				{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}}},
 				{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelTopologyZone, Operator: v1.NodeSelectorOpIn, Values: []string{"test-zone-1b"}}},
@@ -1656,7 +1656,7 @@ var _ = Describe("InstanceTypes", func() {
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 
 			// not restricting to the zone so we can get any zone
-			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithFlexibility{
+			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 				{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot}}},
 				{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelInstanceTypeStable, Operator: v1.NodeSelectorOpIn, Values: []string{"m5.large"}}},
 			}

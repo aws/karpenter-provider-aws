@@ -127,14 +127,14 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				// properly scoped
 				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.*, c7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 				test.ReplaceRequirements(nodePool,
-					corev1beta1.NodeSelectorRequirementWithFlexibility{
+					corev1beta1.NodeSelectorRequirementWithMinValues{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1beta1.LabelInstanceFamily,
 							Operator: v1.NodeSelectorOpNotIn,
 							Values:   aws.ExcludedInstanceFamilies,
 						},
 					},
-					corev1beta1.NodeSelectorRequirementWithFlexibility{
+					corev1beta1.NodeSelectorRequirementWithMinValues{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1.LabelOSStable,
 							Operator: v1.NodeSelectorOpIn,
@@ -187,7 +187,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
 		test.ReplaceRequirements(nodePool,
-			corev1beta1.NodeSelectorRequirementWithFlexibility{
+			corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceCPU,
 					Operator: v1.NodeSelectorOpIn,
@@ -232,7 +232,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
 		test.ReplaceRequirements(nodePool,
-			corev1beta1.NodeSelectorRequirementWithFlexibility{
+			corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1beta1.LabelInstanceCPU,
 					Operator: v1.NodeSelectorOpIn,

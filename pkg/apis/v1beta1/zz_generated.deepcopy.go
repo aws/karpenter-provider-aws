@@ -28,7 +28,7 @@ func (in *AMI) DeepCopyInto(out *AMI) {
 	*out = *in
 	if in.Requirements != nil {
 		in, out := &in.Requirements, &out.Requirements
-		*out = make([]apisv1beta1.NodeSelectorRequirementWithFlexibility, len(*in))
+		*out = make([]apisv1beta1.NodeSelectorRequirementWithMinValues, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

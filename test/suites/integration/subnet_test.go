@@ -102,7 +102,7 @@ var _ = Describe("Subnets", func() {
 		Expect(len(subnets)).ToNot(Equal(0))
 		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithFlexibility{
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1.LabelZoneFailureDomainStable,
 				Operator: "In",

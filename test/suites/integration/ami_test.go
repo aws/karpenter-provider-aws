@@ -173,7 +173,7 @@ var _ = Describe("AMI", func() {
 			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
 			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
@@ -300,14 +300,14 @@ var _ = Describe("AMI", func() {
 
 			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
 						Values:   awsenv.ExcludedInstanceFamilies,
 					},
 				},
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1.LabelOSStable,
 						Operator: v1.NodeSelectorOpIn,

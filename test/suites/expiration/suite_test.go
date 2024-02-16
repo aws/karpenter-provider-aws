@@ -97,7 +97,7 @@ var _ = Describe("Expiration", func() {
 		// and we consistently ensure that the second node is not tainted == disrupted.
 		It("should not continue to disrupt nodes that have been the target of pod nomination", func() {
 			coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
@@ -180,7 +180,7 @@ var _ = Describe("Expiration", func() {
 		})
 		It("should respect budgets for empty expiration", func() {
 			coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
@@ -259,7 +259,7 @@ var _ = Describe("Expiration", func() {
 		})
 		It("should respect budgets for non-empty delete expiration", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
@@ -347,7 +347,7 @@ var _ = Describe("Expiration", func() {
 			appLabels := map[string]string{"app": "large-app"}
 
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
@@ -355,7 +355,7 @@ var _ = Describe("Expiration", func() {
 					},
 				},
 				// Add an Exists operator so that we can select on a fake partition later
-				corev1beta1.NodeSelectorRequirementWithFlexibility{
+				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      "test-partition",
 						Operator: v1.NodeSelectorOpExists,

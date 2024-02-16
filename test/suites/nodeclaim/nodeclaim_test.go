@@ -40,7 +40,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 	It("should create a standard NodeClaim within the 'c' instance family", func() {
 		nodeClaim := test.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
-				Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1beta1.LabelInstanceCategory,
@@ -193,7 +193,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 	It("should remove the cloudProvider NodeClaim when the cluster NodeClaim is deleted", func() {
 		nodeClaim := test.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
-				Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1beta1.LabelInstanceCategory,
@@ -232,7 +232,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 	It("should delete a NodeClaim from the node termination finalizer", func() {
 		nodeClaim := test.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
-				Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1beta1.LabelInstanceCategory,
@@ -282,7 +282,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 
 		nodeClaim := test.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
-				Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1beta1.LabelInstanceCategory,
@@ -333,7 +333,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 
 		nodeClaim := test.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
-				Requirements: []corev1beta1.NodeSelectorRequirementWithFlexibility{
+				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1beta1.LabelInstanceCategory,

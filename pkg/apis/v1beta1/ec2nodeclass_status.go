@@ -48,7 +48,7 @@ type AMI struct {
 	Name string `json:"name,omitempty"`
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
-	Requirements []corev1beta1.NodeSelectorRequirementWithFlexibility `json:"requirements"`
+	Requirements []corev1beta1.NodeSelectorRequirementWithMinValues `json:"requirements"`
 }
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
