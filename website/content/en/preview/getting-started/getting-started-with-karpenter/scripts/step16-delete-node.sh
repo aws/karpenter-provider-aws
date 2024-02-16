@@ -1,1 +1,1 @@
-kubectl delete node $NODE_NAME
+kubectl delete node "${NODE_NAME}"

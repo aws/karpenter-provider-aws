@@ -33,7 +33,7 @@ kubebuilder() {
     sudo mkdir -p ${KUBEBUILDER_ASSETS}
     sudo chown "${USER}" ${KUBEBUILDER_ASSETS}
     arch=$(go env GOARCH)
-    ln -sf $(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}")/* ${KUBEBUILDER_ASSETS}
+    ln -sf "$(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}")"/* ${KUBEBUILDER_ASSETS}
     find $KUBEBUILDER_ASSETS
 
     # Install latest binaries for 1.25.x (contains CEL fix)
