@@ -198,12 +198,12 @@ var _ = Describe("CloudProvider", func() {
 			// This specific type of inputs will help us differentiate the scenario we are trying to test where ideally
 			// 1 instance launch would have been sufficient to fit the pods and was cheaper but we would launch 2 separate
 			// instances to meet the minimum requirement.
-			instances := fake.MakeFakeInstances()
-			instances, _ = fake.MakeUniqueFakeInstancesAndFamilies(instances, 2)
+			instances := fake.MakeInstances()
+			instances, _ = fake.MakeUniqueInstancesAndFamilies(instances, 2)
 			instances[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
 			instances[1].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(8)}
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: instances})
-			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances)})
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(instances)})
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []*ec2.SpotPrice{
@@ -296,12 +296,12 @@ var _ = Describe("CloudProvider", func() {
 			nodeClass.Spec.Context = aws.String(contextID)
 
 			// Create fake InstanceTypes where one instances can fit 2 pods and another one can fit only 1 pod.
-			instances := fake.MakeFakeInstances()
-			instances, _ = fake.MakeUniqueFakeInstancesAndFamilies(instances, 2)
+			instances := fake.MakeInstances()
+			instances, _ = fake.MakeUniqueInstancesAndFamilies(instances, 2)
 			instances[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
 			instances[1].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(8)}
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: instances})
-			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances)})
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(instances)})
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []*ec2.SpotPrice{
@@ -393,13 +393,13 @@ var _ = Describe("CloudProvider", func() {
 		It("should set context on the CreateFleet request and respect minValues from multiple keys in NodePool", func() {
 			nodeClass.Spec.Context = aws.String(contextID)
 			// Create fake InstanceTypes where 2 instances can fit 2 pods individually and one can fit only 1 pod.
-			instances := fake.MakeFakeInstances()
-			uniqInstanceTypes, instanceFamilies := fake.MakeUniqueFakeInstancesAndFamilies(instances, 3)
+			instances := fake.MakeInstances()
+			uniqInstanceTypes, instanceFamilies := fake.MakeUniqueInstancesAndFamilies(instances, 3)
 			uniqInstanceTypes[0].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(1)}
 			uniqInstanceTypes[1].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(4)}
 			uniqInstanceTypes[2].VCpuInfo = &ec2.VCpuInfo{DefaultVCpus: aws.Int64(8)}
 			awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{InstanceTypes: uniqInstanceTypes})
-			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(uniqInstanceTypes)})
+			awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{InstanceTypeOfferings: fake.MakeInstanceOfferings(uniqInstanceTypes)})
 			now := time.Now()
 			awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
 				SpotPriceHistory: []*ec2.SpotPrice{

@@ -161,7 +161,7 @@ func matchTags(tags []*ec2.Tag, filter *ec2.Filter) bool {
 	return false
 }
 
-func MakeFakeInstances() []*ec2.InstanceTypeInfo {
+func MakeInstances() []*ec2.InstanceTypeInfo {
 	var instanceTypes []*ec2.InstanceTypeInfo
 	ctx := options.ToContext(context.Background(), &options.Options{IsolatedVPC: true})
 	// Use keys from the static pricing data so that we guarantee pricing for the data
@@ -193,7 +193,7 @@ func MakeFakeInstances() []*ec2.InstanceTypeInfo {
 	return instanceTypes
 }
 
-func MakeUniqueFakeInstancesAndFamilies(instances []*ec2.InstanceTypeInfo, numInstanceFamilies int) ([]*ec2.InstanceTypeInfo, sets.Set[string]) {
+func MakeUniqueInstancesAndFamilies(instances []*ec2.InstanceTypeInfo, numInstanceFamilies int) ([]*ec2.InstanceTypeInfo, sets.Set[string]) {
 	var instanceTypes []*ec2.InstanceTypeInfo
 	instanceFamilies := sets.Set[string]{}
 	for _, it := range instances {
@@ -211,7 +211,7 @@ func MakeUniqueFakeInstancesAndFamilies(instances []*ec2.InstanceTypeInfo, numIn
 	return instanceTypes, instanceFamilies
 }
 
-func MakeFakeInstanceOfferings(instanceTypes []*ec2.InstanceTypeInfo) []*ec2.InstanceTypeOffering {
+func MakeInstanceOfferings(instanceTypes []*ec2.InstanceTypeInfo) []*ec2.InstanceTypeOffering {
 	var instanceTypeOfferings []*ec2.InstanceTypeOffering
 
 	// Create uniform instance offering data so all of them schedule for a given pod

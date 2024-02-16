@@ -490,7 +490,7 @@ spec:
                             type: string
                           minValues:
                             description: |-
-                              This is an alpha field.
+                              This field is ALPHA and can be dropped or replaced at any time
                               MinValues is the minimum number of unique values required to define the flexibility of the specific requirement.
                             maximum: 50
                             minimum: 1

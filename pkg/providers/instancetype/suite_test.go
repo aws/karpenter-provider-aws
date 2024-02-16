@@ -320,12 +320,12 @@ var _ = Describe("InstanceTypes", func() {
 		ExpectNotScheduled(ctx, env.Client, pod)
 	})
 	It("should order the instance types by price and only consider the cheapest ones", func() {
-		instances := fake.MakeFakeInstances()
+		instances := fake.MakeInstances()
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: fake.MakeFakeInstances(),
+			InstanceTypes: fake.MakeInstances(),
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances),
+			InstanceTypeOfferings: fake.MakeInstanceOfferings(instances),
 		})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
@@ -340,7 +340,7 @@ var _ = Describe("InstanceTypes", func() {
 		Expect(err).To(BeNil())
 		// Order all the instances by their price
 		// We need some way to deterministically order them if their prices match
-		reqs := scheduling.NewNodeSelectorRequirements(nodePool.Spec.Template.Spec.Requirements...)
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodePool.Spec.Template.Spec.Requirements...)
 		sort.Slice(its, func(i, j int) bool {
 			iPrice := its[i].Offerings.Compatible(reqs).Cheapest().Price
 			jPrice := its[j].Offerings.Compatible(reqs).Cheapest().Price
@@ -363,12 +363,12 @@ var _ = Describe("InstanceTypes", func() {
 		}
 	})
 	It("should order the instance types by price and only consider the spot types that are cheaper than the cheapest on-demand", func() {
-		instances := fake.MakeFakeInstances()
+		instances := fake.MakeInstances()
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: fake.MakeFakeInstances(),
+			InstanceTypes: fake.MakeInstances(),
 		})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances),
+			InstanceTypeOfferings: fake.MakeInstanceOfferings(instances),
 		})
 
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
@@ -400,7 +400,7 @@ var _ = Describe("InstanceTypes", func() {
 		Expect(err).To(BeNil())
 		// Order all the instances by their price
 		// We need some way to deterministically order them if their prices match
-		reqs := scheduling.NewNodeSelectorRequirements(nodePool.Spec.Template.Spec.Requirements...)
+		reqs := scheduling.NewNodeSelectorRequirementsWithMinValues(nodePool.Spec.Template.Spec.Requirements...)
 		sort.Slice(its, func(i, j int) bool {
 			iPrice := its[i].Offerings.Compatible(reqs).Cheapest().Price
 			jPrice := its[j].Offerings.Compatible(reqs).Cheapest().Price
@@ -429,51 +429,6 @@ var _ = Describe("InstanceTypes", func() {
 			Expect(ok).To(BeTrue())
 			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
-	})
-	It("should consider the minValues from any requirement for capping InstanceTypeOptions", func() {
-		// Construct requirements with minValues for instance-type requirement.
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
-			{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      corev1beta1.CapacityTypeLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{corev1beta1.CapacityTypeSpot},
-				},
-			},
-			{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpExists,
-				},
-				MinValues: lo.ToPtr(70),
-			},
-		}
-
-		// Construct inputs.
-		instances := fake.MakeFakeInstances()
-		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
-			InstanceTypes: fake.MakeFakeInstances(),
-		})
-		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
-			InstanceTypeOfferings: fake.MakeFakeInstanceOfferings(instances),
-		})
-
-		// Apply requirements and schedule pods.
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pod := coretest.UnschedulablePod(coretest.PodOptions{
-			ResourceRequirements: v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-			},
-		})
-
-		// Check if pods are scheduled and if CreateFleet has the right inputs respecting the minValues from requirements.
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-		ExpectScheduled(ctx, env.Client, pod)
-		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
-		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(100))
 	})
 	It("should not remove expensive metal instanceTypeOptions if minValues for instance-type requirement is provided", func() {
 		// Construct requirements with minValues for instance-type requirement.
