@@ -35,7 +35,7 @@ spec:
   # Each term in the array of subnetSelectorTerms is ORed together
   # Within a single term, all conditions are ANDed
   subnetSelectorTerms:
-    # Select on any subnet that has the "karpenter.sh/discovery: ${CLUSTER_NAME}" 
+    # Select on any subnet that has the "karpenter.sh/discovery: ${CLUSTER_NAME}"
     # AND the "environment: test" tag OR any subnet with ID "subnet-09fa4a0a8f233a921"
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
@@ -46,8 +46,8 @@ spec:
   # Each term in the array of securityGroupSelectorTerms is ORed together
   # Within a single term, all conditions are ANDed
   securityGroupSelectorTerms:
-    # Select on any security group that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag 
-    # AND the "environment: test" tag OR any security group with the "my-security-group" name 
+    # Select on any security group that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag
+    # AND the "environment: test" tag OR any security group with the "my-security-group" name
     # OR any security group with ID "sg-063d7acfb4b06c82c"
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
@@ -70,15 +70,15 @@ spec:
   # Each term in the array of amiSelectorTerms is ORed together
   # Within a single term, all conditions are ANDed
   amiSelectorTerms:
-    # Select on any AMI that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag 
-    # AND the "environment: test" tag OR any AMI with the "my-ami" name 
+    # Select on any AMI that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag
+    # AND the "environment: test" tag OR any AMI with the "my-ami" name
     # OR any AMI with ID "ami-123"
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
         environment: test
     - name: my-ami
     - id: ami-123
-      
+
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
 
@@ -252,7 +252,7 @@ This selection logic is modeled as terms, where each term contains multiple cond
 
 ```yaml
 subnetSelectorTerms:
-  # Select on any subnet that has the "karpenter.sh/discovery: ${CLUSTER_NAME}" 
+  # Select on any subnet that has the "karpenter.sh/discovery: ${CLUSTER_NAME}"
   # AND the "environment: test" tag OR any subnet with ID "subnet-09fa4a0a8f233a921"
   - tags:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
@@ -320,8 +320,8 @@ This selection logic is modeled as terms, where each term contains multiple cond
 
 ```yaml
 securityGroupSelectorTerms:
-  # Select on any security group that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag 
-  # AND the "environment: test" tag OR any security group with the "my-security-group" name 
+  # Select on any security group that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag
+  # AND the "environment: test" tag OR any security group with the "my-security-group" name
   # OR any security group with ID "sg-063d7acfb4b06c82c"
   - tags:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
@@ -407,8 +407,8 @@ This selection logic is modeled as terms, where each term contains multiple cond
 
 ```yaml
 amiSelectorTerms:
-  # Select on any AMI that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag 
-  # AND the "environment: test" tag OR any AMI with the "my-ami" name 
+  # Select on any AMI that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag
+  # AND the "environment: test" tag OR any AMI with the "my-ami" name
   # OR any AMI with ID "ami-123"
   - tags:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
@@ -633,25 +633,25 @@ The `instanceStorePolicy` field controls how [instance-store](https://docs.aws.a
 
 If you intend to use these volumes for faster node ephemeral-storage, set `instanceStorePolicy` to `RAID0`:
 
-```yaml	
-spec:	
+```yaml
+spec:
   instanceStorePolicy: RAID0
 ```
 
-This will set the allocatable ephemeral-storage of each node to the total size of the instance-store volume(s).	
+This will set the allocatable ephemeral-storage of each node to the total size of the instance-store volume(s).
 
-The disks must be formatted & mounted in a RAID0 and be the underlying filesystem for the Kubelet & Containerd. Instructions for each AMI family are listed below:	
+The disks must be formatted & mounted in a RAID0 and be the underlying filesystem for the Kubelet & Containerd. Instructions for each AMI family are listed below:
 
-#### AL2	
+#### AL2
 
-On AL2, Karpenter automatically configures the disks through an additional boostrap argument (`--local-disks raid0`). The device name is `/dev/md/0` and its mount point is `/mnt/k8s-disks/0`. You should ensure any additional disk setup does not interfere with these.	
+On AL2, Karpenter automatically configures the disks through an additional boostrap argument (`--local-disks raid0`). The device name is `/dev/md/0` and its mount point is `/mnt/k8s-disks/0`. You should ensure any additional disk setup does not interfere with these.
 
-#### Others	
+#### Others
 
-For all other AMI families, you must configure the disks yourself. Check out the [`setup-local-disks`](https://github.com/awslabs/amazon-eks-ami/blob/master/files/bin/setup-local-disks) script in [amazon-eks-ami](https://github.com/awslabs/amazon-eks-ami) to see how this is done for AL2.	
+For all other AMI families, you must configure the disks yourself. Check out the [`setup-local-disks`](https://github.com/awslabs/amazon-eks-ami/blob/master/files/bin/setup-local-disks) script in [amazon-eks-ami](https://github.com/awslabs/amazon-eks-ami) to see how this is done for AL2.
 
-{{% alert title="Tip" color="secondary" %}}	
-Since the Kubelet & Containerd will be using the instance-store filesystem, you may consider using a more minimal root volume size.	
+{{% alert title="Tip" color="secondary" %}}
+Since the Kubelet & Containerd will be using the instance-store filesystem, you may consider using a more minimal root volume size.
 {{% /alert %}}
 
 ## spec.userData
@@ -872,9 +872,8 @@ spec:
 A boolean field that controls whether instances created by Karpenter for this EC2NodeClass will have an associated public IP address. This overrides the `MapPublicIpOnLaunch` setting applied to the subnet the node is launched in. If this field is not set, the `MapPublicIpOnLaunch` field will be respected.
 
 {{% alert title="Note" color="warning" %}}
-If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, the `associatePublicIPAddress` field is ignored.
-A public IP address may only be associated with a node at launch if a single network interface is configured.
-This is inherently incompatible with instances configured for EFA workloads since Karpenter will configure an EFA for each network card on the instance.
+If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePublicIPAddress` is respected. However, if this `NodeClaim` requests **multiple** EFA resources and the value for `spec.associatePublicIPAddress` is true, the instance will fail to launch. This is due to an EC2 restriction which
+requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
 
 ## status.subnets
