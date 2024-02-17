@@ -54,7 +54,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
@@ -349,15 +348,15 @@ var _ = Describe("InstanceTypes", func() {
 			}
 			return iPrice < jPrice
 		})
-		// Expect that the launch template overrides gives the 60 cheapest instance types
-		expected := sets.NewString(lo.Map(its[:instance.MaxInstanceTypes], func(i *corecloudprovider.InstanceType, _ int) string {
+		// Expect that the launch template overrides gives the 100 cheapest instance types
+		expected := sets.NewString(lo.Map(its[:100], func(i *corecloudprovider.InstanceType, _ int) string {
 			return i.Name
 		})...)
 		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
 
-		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(instance.MaxInstanceTypes))
+		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(100))
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
 			Expect(expected.Has(aws.StringValue(override.InstanceType))).To(BeTrue(), fmt.Sprintf("expected %s to exist in set", aws.StringValue(override.InstanceType)))
 		}
@@ -430,49 +429,6 @@ var _ = Describe("InstanceTypes", func() {
 			Expect(spotPrice).To(BeNumerically("<", cheapestODPrice))
 		}
 	})
-	It("should not remove expensive metal instanceTypeOptions if minValues for instance-type requirement is provided", func() {
-		// Construct requirements with minValues for instance-type requirement.
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
-			{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      corev1beta1.CapacityTypeLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{corev1beta1.CapacityTypeSpot},
-				},
-			},
-			{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpExists,
-				},
-				MinValues: lo.ToPtr(1),
-			},
-		}
-
-		// Apply requirements and schedule pods.
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pod := coretest.UnschedulablePod(coretest.PodOptions{
-			ResourceRequirements: v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-			},
-		})
-
-		// Check if pods are scheduled and if CreateFleet has the expensive instance-types.
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-		ExpectScheduled(ctx, env.Client, pod)
-		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		var expensiveInstanceType bool
-		for _, ltc := range call.LaunchTemplateConfigs {
-			for _, ovr := range ltc.Overrides {
-				if strings.Contains(aws.StringValue(ovr.InstanceType), "metal") {
-					expensiveInstanceType = true
-				}
-			}
-		}
-		Expect(expensiveInstanceType).To(BeTrue())
-	})
 	It("should not remove expensive metal instanceTypeOptions if any of the requirement with minValues is provided", func() {
 		// Construct requirements with minValues for capacityType requirement.
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
@@ -509,37 +465,6 @@ var _ = Describe("InstanceTypes", func() {
 			}
 		}
 		Expect(expensiveInstanceType).To(BeTrue())
-	})
-	It("should de-prioritize metal if instance-type requirement is specified but minValues isn't present", func() {
-		// Construct requirements with instance-type requirement but without minValues.
-		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
-			{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpExists,
-				},
-			},
-		}
-
-		// Apply requirements and schedule pods.
-		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-		pod := coretest.UnschedulablePod(coretest.PodOptions{
-			ResourceRequirements: v1.ResourceRequirements{
-				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-				Limits:   v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
-			},
-		})
-
-		// Check if pods are scheduled and if CreateFleet has the expensive instance-types.
-		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-		ExpectScheduled(ctx, env.Client, pod)
-		Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
-		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-		for _, ltc := range call.LaunchTemplateConfigs {
-			for _, ovr := range ltc.Overrides {
-				Expect(strings.Contains(aws.StringValue(ovr.InstanceType), "metal")).To(BeFalse())
-			}
-		}
 	})
 	It("should de-prioritize metal", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)

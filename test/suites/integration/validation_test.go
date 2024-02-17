@@ -134,9 +134,20 @@ var _ = Describe("Validation", func() {
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"c4.large", "c4.xlarge"},
+					Values:   []string{"insance-type-1", "insance-type-2"},
 				},
 				MinValues: lo.ToPtr(-1)},
+			)
+			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+		})
+		It("should error when minValues for a requirement key is zero", func() {
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"insance-type-1", "insance-type-2"},
+				},
+				MinValues: lo.ToPtr(0)},
 			)
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
@@ -145,7 +156,7 @@ var _ = Describe("Validation", func() {
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"c4.large", "c4.xlarge"},
+					Values:   []string{"insance-type-1", "insance-type-2"},
 				},
 				MinValues: lo.ToPtr(51)},
 			)
@@ -156,7 +167,7 @@ var _ = Describe("Validation", func() {
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"c4.large", "c4.xlarge"},
+					Values:   []string{"insance-type-1", "insance-type-2"},
 				},
 				MinValues: lo.ToPtr(3)},
 			)

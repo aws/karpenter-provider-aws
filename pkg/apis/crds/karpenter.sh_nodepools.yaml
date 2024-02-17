@@ -334,8 +334,8 @@ spec:
                           description: Requirements are layered with GetLabels and applied to every node.
                           items:
                             description: |-
-                              NodeSelectorRequirementWithMinValues introduces flexibility to the NodeSelectorRequirement through minValues
-                              which represents the minimum number of unique values that needs to be considered for a particular requirement.
+                              A node selector requirement with min values is a selector that contains values, a key, an operator that relates the key and values
+                              and minValues that represent the requirement to have at least that many values.
                             properties:
                               key:
                                 description: The label key that the selector applies to.
@@ -397,7 +397,7 @@ spec:
                               rule: 'self.all(x, x.operator == ''In'' ? x.values.size() != 0 : true)'
                             - message: requirements operator 'Gt' or 'Lt' must have a single positive integer value
                               rule: 'self.all(x, (x.operator == ''Gt'' || x.operator == ''Lt'') ? (x.values.size() == 1 && int(x.values[0]) >= 0) : true)'
-                            - message: requirements with 'minValues' must have minimum values defined
+                            - message: requirements with 'minValues' must have at least that many values specified in the 'values' field
                               rule: 'self.all(x, (x.operator == ''In'' && has(x.minValues)) ? x.values.size() >= x.minValues : true)'
                         resources:
                           description: Resources models the resource requirements for the NodeClaim to launch

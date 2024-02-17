@@ -50,8 +50,6 @@ import (
 )
 
 var (
-	// MaxInstanceTypes defines the number of instance type options to pass to CreateFleet
-	MaxInstanceTypes                 = 100
 	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
 
 	instanceStateFilter = &ec2.Filter{
