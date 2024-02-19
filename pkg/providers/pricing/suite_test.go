@@ -55,7 +55,6 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	fmt.Println("xxxx", env)
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -198,9 +197,30 @@ var _ = Describe("Pricing", func() {
 					SpotPrice:        aws.String("1.20"),
 					Timestamp:        &now,
 				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.50"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("c98.large"),
+					SpotPrice:        aws.String("1.10"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c98.large", 1.20),
+				fake.NewOnDemandPrice("c99.large", 1.23),
 			},
 		})
 		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		price, ok := awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1b")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 1.10))
 
 	})
 	It("should update zonal pricing with data from the spot pricing API", func() {
