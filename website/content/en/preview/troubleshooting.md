@@ -29,7 +29,7 @@ Update the zap-logger-config "level" and restart the Karpenter pod(s) to enable 
 
 #### Debug logging via Helm
 
-You can enable debug logging during installation with helm by setting the option `logLevel`.
+You can enable debug logging during installation with Helm by setting the option `logLevel`.
 
 ```
 helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter \
@@ -89,18 +89,18 @@ To do so on AWS increase the `minimum` and `desired` parameters on the node grou
 
 ### Helm Error When Pulling the Chart
 
-If Helm is showing an error when trying to install Karpenter helm charts:
+If Helm is showing an error when trying to install Karpenter Helm charts:
 
 - Ensure you are using a newer Helm version, Helm started supporting OCI images since v3.8.0.
 - Helm does not have an `helm repo add` concept in OCI, so to install Karpenter you no longer need this
 - Verify that the image you are trying to pull actually exists in [gallery.ecr.aws/karpenter](https://gallery.ecr.aws/karpenter/karpenter)
-- Sometimes Helm generates a generic error, you can add the --debug switch to any of the helm commands in this doc for more verbose error messages
+- Sometimes Helm generates a generic error, you can add the --debug switch to any of the Helm commands in this doc for more verbose error messages
 - If you are getting a 403 forbidden error, you can try `docker logout public.ecr.aws` as explained [here](https://docs.aws.amazon.com/AmazonECR/latest/public/public-troubleshooting.html)
-- If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match.
+- If you are receiving this error: `Error: failed to download "oci://public.ecr.aws/karpenter/karpenter" at version "0.17.0"`, then you need to prepend a `v` to the version number: `v0.17.0`. Before Karpenter moved to OCI Helm charts (pre-v0.17.0), both `v0.16.0` and `0.16.0` would work, but OCI charts require an exact version match.
 
 ### Helm Error when installing the `karpenter-crd` chart
 
-Karpenter v0.26.1+ introduced the `karpenter-crd` helm chart. When installing this chart on your cluster, if you have previously added the Karpenter CRDs to your cluster through the `karpenter` controller chart or through `kubectl replace`, Helm will reject the install of the chart due to `invalid ownership metadata`.
+Karpenter v0.26.1+ introduced the `karpenter-crd` Helm chart. When installing this chart on your cluster, if you have previously added the Karpenter CRDs to your cluster through the `karpenter` controller chart or through `kubectl replace`, Helm will reject the install of the chart due to `invalid ownership metadata`.
 
 - In the case of `invalid ownership metadata; label validation error: missing key "app.kubernetes.io/managed-by": must be set to "Helm"` run:
 

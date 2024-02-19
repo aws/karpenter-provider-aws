@@ -1,4 +1,4 @@
-curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml  > $TEMPOUT \
+curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml  > "${TEMPOUT}" \
 && aws cloudformation deploy \
   --stack-name "Karpenter-${CLUSTER_NAME}" \
   --template-file "${TEMPOUT}" \
@@ -26,7 +26,7 @@ iam:
     - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
 
 ## Optionally run on fargate or on k8s 1.23
-# Pod Identity is not available on fargate  
+# Pod Identity is not available on fargate
 # https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html
 # iam:
 #   withOIDC: true
@@ -67,7 +67,7 @@ addons:
 #  - namespace: "${KARPENTER_NAMESPACE}"
 EOF
 
-export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
+export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name "${CLUSTER_NAME}" --query "cluster.endpoint" --output text)"
 export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 
-echo $CLUSTER_ENDPOINT $KARPENTER_IAM_ROLE_ARN
+echo "${CLUSTER_ENDPOINT} ${KARPENTER_IAM_ROLE_ARN}"

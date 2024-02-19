@@ -23,6 +23,8 @@ tools() {
     go install github.com/onsi/ginkgo/v2/ginkgo@latest
     go install github.com/rhysd/actionlint/cmd/actionlint@latest
     go install github.com/mattn/goveralls@latest
+    go install github.com/google/go-containerregistry/cmd/crane@latest
+    go install oras.land/oras/cmd/oras@latest
 
     if ! echo "$PATH" | grep -q "${GOPATH:-undefined}/bin\|$HOME/go/bin"; then
         echo "Go workspace's \"bin\" directory is not in PATH. Run 'export PATH=\"\$PATH:\${GOPATH:-\$HOME/go}/bin\"'."
@@ -33,8 +35,17 @@ kubebuilder() {
     sudo mkdir -p ${KUBEBUILDER_ASSETS}
     sudo chown "${USER}" ${KUBEBUILDER_ASSETS}
     arch=$(go env GOARCH)
-    ln -sf $(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}")/* ${KUBEBUILDER_ASSETS}
+    ln -sf "$(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}")"/* ${KUBEBUILDER_ASSETS}
     find $KUBEBUILDER_ASSETS
+
+    # Install latest binaries for 1.25.x (contains CEL fix)
+    if [[ "${K8S_VERSION}" = "1.25.x" ]] && [[ "$OSTYPE" == "linux"* ]]; then
+        for binary in 'kube-apiserver' 'kubectl'; do
+            rm $KUBEBUILDER_ASSETS/$binary
+            wget -P $KUBEBUILDER_ASSETS dl.k8s.io/v1.25.16/bin/linux/${arch}/${binary}
+            chmod +x $KUBEBUILDER_ASSETS/$binary
+        done
+    fi
 }
 
 main "$@"
