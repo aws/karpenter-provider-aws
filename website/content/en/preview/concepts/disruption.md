@@ -248,6 +248,34 @@ Duration allows compound durations with minutes and hours values such as `10h5m`
 Duration and Schedule must be defined together. When omitted, the budget is always active. When defined, the schedule determines a starting point where the budget will begin being enforced, and the duration determines how long from that starting point the budget will be enforced.
 {{% /alert %}}
 
+#### Reasons 
+The Reasons api field allows one to specify disruption reasons a given budget applies to. If a reason is unspecifed, that budget will apply to all disruption reasons that do not have an active specified budget.
+{{% alert title="Note" color="primary" %}}
+The current supported reasons are "drift,consolidation,emptiness,expiration"
+{{% /alert %}}
+
+#### Popular Budget Customer Scenarios
+- Only Allow UnRestricted Consolidation Outside of business hours 
+```yaml
+# On Weekdays during business hours, don't allow consolidation 
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+metadata:
+  name: default
+spec:
+  disruption:
+    consolidationPolicy: WhenUnderutilized
+    expireAfter: 720h # 30 * 24h = 720h
+    budgets:
+     # When the business hours budget is active, 
+     # It will block all consolidation. All other actions such as drift, Expiration etc will still be allowed to disrupt as much as they like. 
+     - schedule: "0 9 * * mon-fri" 
+       duration: 8h
+       reasons: ["consolidation"]
+       nodes: "0%"
+     # At any point in time, allow 100% disruption for all actions that are not specifed with an active budget during that time. During business hours consolidation will not be allowed, but during all other periods we allow 100% of nodes to be disrupted for consolidation. Since there are no other budgets for other disruption reasons, we will always allow disrupting 100% for expiration, emptiness, or drift. 
+     - nodes: "100%"
+```
 ### Pod-Level Controls
 
 You can block Karpenter from voluntarily choosing to disrupt certain pods by setting the `karpenter.sh/do-not-disrupt: "true"` annotation on the pod. This is useful for pods that you want to run from start to finish without disruption. By opting pods out of this disruption, you are telling Karpenter that it should not voluntarily remove a node containing this pod.
