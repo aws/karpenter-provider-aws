@@ -55,6 +55,7 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	fmt.Println("xxxx", env)
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -177,6 +178,30 @@ var _ = Describe("Pricing", func() {
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.23))
 		Expect(getPricingEstimateMetricValue("c99.large", ec2.UsageClassTypeSpot, "test-zone-1a")).To(BeNumerically("==", 1.23))
+	})
+	It("should update spot pricing even when in isolated-vpc", func() {
+		now := time.Now()
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+			IsolatedVPC: lo.ToPtr(true),
+		}))
+		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c98.large"),
+					SpotPrice:        aws.String("1.20"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+
 	})
 	It("should update zonal pricing with data from the spot pricing API", func() {
 		now := time.Now()
