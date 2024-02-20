@@ -185,3 +185,10 @@ Maximum number of concurrent reconciles per controller
 ### `controller_runtime_active_workers`
 Number of currently used workers per controller
 
+## Cluster State Metrics 
+
+### `cluster_state_node_count`
+Current count of nodes in cluster state
+
+### `cluster_state_synced` 
+Returns 1 if cluster state is synced and 0 otherwise. To be synced it checks that nodeclaims and nodes that are stored in the APIServer have the same representation as Karpenter's cluster state
