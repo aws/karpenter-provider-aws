@@ -47,7 +47,6 @@ func main() {
 		WithControllers(ctx, corecontrollers.NewControllers(
 			op.Clock,
 			op.GetClient(),
-			op.KubernetesInterface,
 			state.NewCluster(op.Clock, op.GetClient(), cloudProvider),
 			op.EventRecorder,
 			cloudProvider,
