@@ -153,7 +153,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	amiResolver := amifamily.New(amiProvider)
 	launchTemplateProvider := launchtemplate.NewProvider(
 		ctx,
-		cache.New(time.Hour, awscache.DefaultCleanupInterval), // Extending TTL for testing purposes, DO NOT MERGE!!!
+		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		amiResolver,
 		securityGroupProvider,
@@ -242,9 +242,6 @@ func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string
 }
 
 func ResolveClusterCIDR(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
-	if cidr := options.FromContext(ctx).ClusterCIDR; cidr != "" {
-		return cidr, nil
-	}
 	out, err := eksAPI.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
 		Name: aws.String(options.FromContext(ctx).ClusterName),
 	})

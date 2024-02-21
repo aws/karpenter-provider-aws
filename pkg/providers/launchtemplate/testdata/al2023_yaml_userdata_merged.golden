@@ -27,7 +27,6 @@ spec:
 --//
 Content-Type: application/node.eks.aws
 
-# User NodeConfig
 apiVersion: node.eks.aws/v1alpha1
 kind: NodeConfig
 spec:

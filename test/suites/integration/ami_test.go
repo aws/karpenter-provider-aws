@@ -150,6 +150,13 @@ var _ = Describe("AMI", func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
+		It("should provision a node using the AL2023 family", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			pod := coretest.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+		})
 		It("should provision a node using the Bottlerocket family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 			pod := coretest.Pod()

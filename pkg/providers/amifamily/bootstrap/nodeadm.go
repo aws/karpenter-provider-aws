@@ -127,11 +127,6 @@ func (n Nodeadm) parseUserData() ([]mime.Entry, error) {
 		if err != nil {
 			return nil, err
 		}
-		for i := range archive {
-			if archive[i].ContentType == mime.ContentTypeNodeConfig {
-				archive[i].Content = fmt.Sprintf("# User NodeConfig\n%s", archive[i].Content)
-			}
-		}
 		return archive, nil
 	}
 	// Fallback to YAML or shall script if UserData is not in MIME format. Determine the content type for the
@@ -139,7 +134,6 @@ func (n Nodeadm) parseUserData() ([]mime.Entry, error) {
 	contentType := mime.ContentTypeShellScript
 	if err := yaml.Unmarshal([]byte(*n.CustomUserData), lo.ToPtr(map[string]interface{}{})); err == nil {
 		contentType = mime.ContentTypeNodeConfig
-		userData = fmt.Sprintf("# User NodeConfig\n%s", userData)
 	}
 	return []mime.Entry{{
 		ContentType: contentType,

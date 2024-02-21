@@ -140,6 +140,16 @@ var _ = Describe("AMIProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(4))
 	})
+	It("should succeed to resolve AMIs (AL2023)", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): amd64AMI,
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version):  arm64AMI,
+		}
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(2))
+	})
 	It("should succeed to resolve AMIs (Bottlerocket)", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 		awsEnv.SSMAPI.Parameters = map[string]string{
@@ -198,6 +208,15 @@ var _ = Describe("AMIProvider", func() {
 			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(2))
+		})
+		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (AL2023)", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): amd64AMI,
+			}
+			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
 		})
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Bottlerocket)", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket

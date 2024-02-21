@@ -420,6 +420,21 @@ var _ = Describe("LaunchTemplates", func() {
 				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
 			})
 		})
+		It("should default AL2023 block device mappings", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(20)))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("gp3"))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
+			})
+		})
 		It("should use custom block device mapping", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 			nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
@@ -1398,7 +1413,6 @@ var _ = Describe("LaunchTemplates", func() {
 
 				// base64 encoded version of "ca-bundle" to ensure the nodeadm bootstrap provider can decode successfully
 				awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
-				options.FromContext(ctx).ClusterCIDR = "10.100.0.0/16"
 			})
 			Context("Kubelet", func() {
 				It("should specify taints in the KubeletConfiguration when specified in NodePool", func() {

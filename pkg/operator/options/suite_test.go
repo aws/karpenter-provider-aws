@@ -62,7 +62,6 @@ var _ = Describe("Options", func() {
 			"--cluster-ca-bundle", "env-bundle",
 			"--cluster-name", "env-cluster",
 			"--cluster-endpoint", "https://env-cluster",
-			"--cluster-cidr", "10.100.0.0/16",
 			"--isolated-vpc",
 			"--vm-memory-overhead-percent", "0.1",
 			"--interruption-queue", "env-cluster",
@@ -74,7 +73,6 @@ var _ = Describe("Options", func() {
 			ClusterCABundle:         lo.ToPtr("env-bundle"),
 			ClusterName:             lo.ToPtr("env-cluster"),
 			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
-			ClusterCIDR:             lo.ToPtr("10.100.0.0/16"),
 			IsolatedVPC:             lo.ToPtr(true),
 			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
@@ -87,7 +85,6 @@ var _ = Describe("Options", func() {
 		os.Setenv("CLUSTER_CA_BUNDLE", "env-bundle")
 		os.Setenv("CLUSTER_NAME", "env-cluster")
 		os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
-		os.Setenv("CLUSTER_CIDR", "10.100.0.0/16")
 		os.Setenv("ISOLATED_VPC", "true")
 		os.Setenv("VM_MEMORY_OVERHEAD_PERCENT", "0.1")
 		os.Setenv("INTERRUPTION_QUEUE", "env-cluster")
@@ -104,7 +101,6 @@ var _ = Describe("Options", func() {
 			ClusterCABundle:         lo.ToPtr("env-bundle"),
 			ClusterName:             lo.ToPtr("env-cluster"),
 			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
-			ClusterCIDR:             lo.ToPtr("10.100.0.0/16"),
 			IsolatedVPC:             lo.ToPtr(true),
 			VMMemoryOverheadPercent: lo.ToPtr[float64](0.1),
 			InterruptionQueue:       lo.ToPtr("env-cluster"),
@@ -146,7 +142,6 @@ func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	Expect(optsA.ClusterCABundle).To(Equal(optsB.ClusterCABundle))
 	Expect(optsA.ClusterName).To(Equal(optsB.ClusterName))
 	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
-	Expect(optsA.ClusterCIDR).To(Equal(optsB.ClusterCIDR))
 	Expect(optsA.IsolatedVPC).To(Equal(optsB.IsolatedVPC))
 	Expect(optsA.VMMemoryOverheadPercent).To(Equal(optsB.VMMemoryOverheadPercent))
 	Expect(optsA.InterruptionQueue).To(Equal(optsB.InterruptionQueue))
