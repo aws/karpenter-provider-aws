@@ -35,7 +35,7 @@ For more information on Karpenter's support for these keys, view [this tracking 
 {{% /alert %}}
 
 {{% alert title="Note" color="warning" %}}
-Karpenter supports using [Kubernetes Common Expression Language](https://kubernetes.io/docs/reference/using-api/cel/) for validating its Custom Resource Definitions out-of-the-box; however, this feature is not supported on versions of Kubernetes < 1.25. If you are running an earlier version of Kubernetes, you will need to use the Karpenter admission webhooks for validation instead. You can enable these webhooks with `--set webhook.enabled=true` when applying the Karpenter helm chart.
+Karpenter supports using [Kubernetes Common Expression Language](https://kubernetes.io/docs/reference/using-api/cel/) for validating its Custom Resource Definitions out-of-the-box; however, this feature is not supported on versions of Kubernetes < 1.25. If you are running an earlier version of Kubernetes, you will need to use the Karpenter admission webhooks for validation instead. You can enable these webhooks with `--set webhook.enabled=true` when applying the Karpenter Helm chart.
 {{% /alert %}}
 
 ## Compatibility issues

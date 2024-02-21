@@ -73,7 +73,8 @@ make test       # E2E correctness tests
 
 ### Change Log Level
 
-By default, `make apply` will set the log level to debug. You can change the log level by setting the log level in your helm values. 
+By default, `make apply` will set the log level to debug. You can change the log level by setting the log level in your Helm values.
+
 ```bash
 --set logLevel=debug
 ```

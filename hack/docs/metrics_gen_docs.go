@@ -284,6 +284,7 @@ func getIdentMapping(identName string) (string, error) {
 		"consistencySubsystem":    "consistency",
 		"batcherSubsystem":        "cloudprovider_batcher",
 		"cloudProviderSubsystem":  "cloudprovider",
+		"stateSubsystem":          "cluster_state",
 	}
 	if v, ok := identMapping[identName]; ok {
 		return v, nil

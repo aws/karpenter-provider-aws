@@ -135,6 +135,14 @@ Number of disruption actions performed. Labeled by disruption method.
 ### `karpenter_consistency_errors`
 Number of consistency checks that have failed.
 
+## Cluster State Metrics
+
+### `karpenter_cluster_state_synced`
+Returns 1 if cluster state is synced and 0 otherwise. Synced checks that nodeclaims and nodes that are stored in the APIServer have the same representation as Karpenter's cluster state
+
+### `karpenter_cluster_state_node_count`
+Current count of nodes in cluster state
+
 ## Cloudprovider Metrics
 
 ### `karpenter_cloudprovider_instance_type_price_estimate`
