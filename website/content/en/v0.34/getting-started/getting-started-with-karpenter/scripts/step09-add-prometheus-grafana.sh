@@ -4,7 +4,6 @@ helm repo update
 
 
 kubectl create namespace monitoring
-export KARPENTER_NAMESPACE=${KARPENTER_NAMESPACE:-kube-system}
 
 curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/prometheus-values.yaml | envsubst | tee prometheus-values.yaml
 helm install --namespace monitoring prometheus prometheus-community/prometheus --values prometheus-values.yaml
