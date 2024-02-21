@@ -197,15 +197,19 @@ func MakeUniqueInstancesAndFamilies(instances []*ec2.InstanceTypeInfo, numInstan
 	var instanceTypes []*ec2.InstanceTypeInfo
 	instanceFamilies := sets.Set[string]{}
 	for _, it := range instances {
+		var found bool
 		for instFamily := range instanceFamilies {
 			if strings.Split(*it.InstanceType, ".")[0] == instFamily {
-				continue
+				found = true
+				break
 			}
 		}
-		instanceTypes = append(instanceTypes, it)
-		instanceFamilies.Insert(strings.Split(*it.InstanceType, ".")[0])
-		if len(instanceFamilies) == numInstanceFamilies {
-			break
+		if !found {
+			instanceTypes = append(instanceTypes, it)
+			instanceFamilies.Insert(strings.Split(*it.InstanceType, ".")[0])
+			if len(instanceFamilies) == numInstanceFamilies {
+				break
+			}
 		}
 	}
 	return instanceTypes, instanceFamilies
