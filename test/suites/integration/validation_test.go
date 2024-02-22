@@ -58,43 +58,48 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})
 		It("should error when a requirement references a restricted label (karpenter.sh/nodepool)", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-				Key:      corev1beta1.NodePoolLabelKey,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"default"},
-			})
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      corev1beta1.NodePoolLabelKey,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"default"},
+				}})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when a requirement uses In but has no values", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceTypeStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{},
-			})
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{},
+				}})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when a requirement uses an unknown operator", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-				Key:      corev1beta1.CapacityTypeLabelKey,
-				Operator: "within",
-				Values:   []string{corev1beta1.CapacityTypeSpot},
-			})
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: "within",
+					Values:   []string{corev1beta1.CapacityTypeSpot},
+				}})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when Gt is used with multiple integer values", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceMemory,
-				Operator: v1.NodeSelectorOpGt,
-				Values:   []string{"1000000", "2000000"},
-			})
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceMemory,
+					Operator: v1.NodeSelectorOpGt,
+					Values:   []string{"1000000", "2000000"},
+				}})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when Lt is used with multiple integer values", func() {
-			nodePool = coretest.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceMemory,
-				Operator: v1.NodeSelectorOpLt,
-				Values:   []string{"1000000", "2000000"},
-			})
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceMemory,
+					Operator: v1.NodeSelectorOpLt,
+					Values:   []string{"1000000", "2000000"},
+				}})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when ttlSecondAfterEmpty is negative", func() {
@@ -122,6 +127,50 @@ var _ = Describe("Validation", func() {
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				ImageGCLowThresholdPercent: ptr.Int32(-10),
 			}
+			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+		})
+		It("should error when minValues for a requirement key is negative", func() {
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"insance-type-1", "insance-type-2"},
+				},
+				MinValues: lo.ToPtr(-1)},
+			)
+			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+		})
+		It("should error when minValues for a requirement key is zero", func() {
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"insance-type-1", "insance-type-2"},
+				},
+				MinValues: lo.ToPtr(0)},
+			)
+			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+		})
+		It("should error when minValues for a requirement key is more than 50", func() {
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"insance-type-1", "insance-type-2"},
+				},
+				MinValues: lo.ToPtr(51)},
+			)
+			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+		})
+		It("should error when minValues for a requirement key is greater than the values specified within In operator", func() {
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"insance-type-1", "insance-type-2"},
+				},
+				MinValues: lo.ToPtr(3)},
+			)
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 	})

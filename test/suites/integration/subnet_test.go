@@ -26,6 +26,8 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
@@ -100,11 +102,12 @@ var _ = Describe("Subnets", func() {
 		Expect(len(subnets)).ToNot(Equal(0))
 		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
-		test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-			Key:      v1.LabelZoneFailureDomainStable,
-			Operator: "In",
-			Values:   []string{shuffledAZs[0]},
-		})
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1.LabelZoneFailureDomainStable,
+				Operator: "In",
+				Values:   []string{shuffledAZs[0]},
+			}})
 		pod := test.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)

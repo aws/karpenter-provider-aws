@@ -33,7 +33,7 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef >}}pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
 
-### Upgrading to v0.34.0+
+### Upgrading to v0.34.1+
 
 [comment]: <> (WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE ALERT SECTION BELOW TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO v0.32 FIRST)
 

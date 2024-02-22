@@ -176,4 +176,3 @@ Maximum number of concurrent reconciles per controller
 
 ### `controller_runtime_active_workers`
 Number of currently used workers per controller
-
