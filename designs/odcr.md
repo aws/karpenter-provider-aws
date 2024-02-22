@@ -42,7 +42,7 @@ metadata:
   name: example-node-class
 spec:
   capacityReservationSpec:
-    capacityReservationPreference: open | None  # Cannot be defined if capacityReservationTarget is specified
+    capacityReservationPreference: open | none | None  # Cannot be defined if capacityReservationTarget is specified
     capacityReservationTarget: # Cannot be defined if capacityReservationPreference is specified
       capacityReservationId: String | None
       capacityReservationResourceGroupArn: String | None
