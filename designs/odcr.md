@@ -116,7 +116,3 @@ The condition will reset if new nodes were able to launch and the Status will re
 #### Error handling
 
 We will avoid updating (unavailableOfferingCache)[https://github.com/aws/karpenter-provider-aws/blob/main/pkg/providers/instance/instance.go#L239C41-L239C58] because the pool is different than rest of AWS. However we may want to create a new unavailable offering cache keyed against Capacity Reservations. _Not sure if we want to support to this during the first iteration_ 
-
-
-
-We 
