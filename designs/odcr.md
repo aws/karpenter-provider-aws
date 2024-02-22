@@ -22,7 +22,7 @@ Both these entities are supported in Launch Template's CapacityReservationTarget
 
 ## Goals
 - Support associating ODCR to EC2NodeClass
-- Define Karpenter's behavior when interacting launching nodes into Capacity Reservation
+- Define Karpenter's behavior when launching nodes into Capacity Reservation
 - Define Karpenter's behavior when encountering errors when attempting to launch nodes into Capacity Reservation
 - Define Karpenter's behavior when capacity reservation is changed
 
@@ -72,5 +72,16 @@ We will propagate this information via [instance](https://github.com/aws/karpent
 ### Failed to launch Nodes into Capacity Reservation
 The main failure scenario is when Capacity Reservation limit is hit and no new nodes can be launched from any Capacity Reservation the launch template targets. 
 
-We will expose this information both in the NodeClaim and EC2NodeClass via Status
+#### Status
+We will expose this information both in the NodeClaim's, EC2NodeClass' and NodePool's Condition Status. _I know that currently NodeClasses and NodePool status do not have conditions but I wanted to see if we are opened to adding Conditions to these resources_
+
 ```yaml
+Status:
+  Conditions:
+    Last Transition Time:  2024-02-22T03:46:42Z
+    Status:                LimitExceeded
+    Type:                  CapacityReservation
+```
+The condition will reset if new nodes were able to launch and the Status will return to `Available`.
+
+#### Retry/ Fallback
