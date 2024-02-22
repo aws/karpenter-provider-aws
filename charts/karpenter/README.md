@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version v0.34.0 \
+  --version 0.34.0 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
