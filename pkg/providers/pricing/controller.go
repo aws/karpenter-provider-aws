@@ -16,8 +16,9 @@ package pricing
 
 import (
 	"context"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"time"
+
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	lop "github.com/samber/lo/parallel"
 	"go.uber.org/multierr"
