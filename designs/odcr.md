@@ -55,6 +55,12 @@ Karpenter will perform validation against the spec to ensure there isn't any vio
 
 ### Launching Nodes into Capacity Reservation
 
+As the first iteration of supporting Capacity Reservation, we won't introduce any prioritization nor fallback when launching nodes against EC2NodeClasses with a
+Capacity Reservation. However, because each node class can have multiple launch template 
+
+
+
+This means that all launch templates created 
 When a node is launched against a CapacityReservation we will defer the handling of node launch to AWS' API. However we will expose Capacity Reservation
 information as labels `karpenter.k8s.aws/capacity-reservation-id` and `karpenter.k8s.aws/capacity-reservation-setting`.
 
