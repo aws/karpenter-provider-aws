@@ -59,10 +59,7 @@ information as labels `karpenter.k8s.aws/capacity-reservation-id` and `karpenter
 
 ```yaml
 Name:               example-node
-Labels:             beta.kubernetes.io/arch=arm64
-                    beta.kubernetes.io/os=linux
-                    karpenter.k8s.aws/instance-category=m
-                    karpenter.k8s.aws/capacity-reservation-id=cr-12345
+Labels:             karpenter.k8s.aws/capacity-reservation-id=cr-12345
                     karpenter.k8s.aws/capacity-reservation-setting=open
                     karpenter.sh/capacity-type=on-demand
 ```
