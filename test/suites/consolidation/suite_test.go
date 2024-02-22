@@ -154,10 +154,11 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
 
 			nodePool = test.ReplaceRequirements(nodePool,
-				v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"2xlarge"},
+				corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceSize,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"2xlarge"},
+					},
 				},
 			)
 			// We're expecting to create 3 nodes, so we'll expect to see at most 2 nodes deleting at one time.
@@ -222,15 +223,19 @@ var _ = Describe("Consolidation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
 
 			nodePool = test.ReplaceRequirements(nodePool,
-				v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceSize,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"xlarge", "2xlarge"},
+				corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1beta1.LabelInstanceSize,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"xlarge", "2xlarge"},
+					},
 				},
 				// Add an Exists operator so that we can select on a fake partition later
-				v1.NodeSelectorRequirement{
-					Key:      "test-partition",
-					Operator: v1.NodeSelectorOpExists,
+				corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      "test-partition",
+						Operator: v1.NodeSelectorOpExists,
+					},
 				},
 			)
 			nodePool.Labels = appLabels
@@ -402,23 +407,29 @@ var _ = Describe("Consolidation", func() {
 					},
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							Requirements: []v1.NodeSelectorRequirement{
+							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
-									Key:      corev1beta1.CapacityTypeLabelKey,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   lo.Ternary(spotToSpot, []string{corev1beta1.CapacityTypeSpot}, []string{corev1beta1.CapacityTypeOnDemand}),
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      corev1beta1.CapacityTypeLabelKey,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   lo.Ternary(spotToSpot, []string{corev1beta1.CapacityTypeSpot}, []string{corev1beta1.CapacityTypeOnDemand}),
+									},
 								},
 								{
-									Key:      v1beta1.LabelInstanceSize,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"medium", "large", "xlarge"},
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1beta1.LabelInstanceSize,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{"medium", "large", "xlarge"},
+									},
 								},
 								{
-									Key:      v1beta1.LabelInstanceFamily,
-									Operator: v1.NodeSelectorOpNotIn,
-									// remove some cheap burstable and the odd c1 instance types so we have
-									// more control over what gets provisioned
-									Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1beta1.LabelInstanceFamily,
+										Operator: v1.NodeSelectorOpNotIn,
+										// remove some cheap burstable and the odd c1 instance types so we have
+										// more control over what gets provisioned
+										Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
+									},
 								},
 							},
 							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
@@ -474,16 +485,20 @@ var _ = Describe("Consolidation", func() {
 					},
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							Requirements: []v1.NodeSelectorRequirement{
+							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
-									Key:      corev1beta1.CapacityTypeLabelKey,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   lo.Ternary(spotToSpot, []string{corev1beta1.CapacityTypeSpot}, []string{corev1beta1.CapacityTypeOnDemand}),
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      corev1beta1.CapacityTypeLabelKey,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   lo.Ternary(spotToSpot, []string{corev1beta1.CapacityTypeSpot}, []string{corev1beta1.CapacityTypeOnDemand}),
+									},
 								},
 								{
-									Key:      v1beta1.LabelInstanceSize,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"large", "2xlarge"},
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1beta1.LabelInstanceSize,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{"large", "2xlarge"},
+									},
 								},
 							},
 							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
@@ -597,16 +612,20 @@ var _ = Describe("Consolidation", func() {
 				},
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []v1.NodeSelectorRequirement{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{
-								Key:      corev1beta1.CapacityTypeLabelKey,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{corev1beta1.CapacityTypeOnDemand},
+								NodeSelectorRequirement: v1.NodeSelectorRequirement{
+									Key:      corev1beta1.CapacityTypeLabelKey,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{corev1beta1.CapacityTypeOnDemand},
+								},
 							},
 							{
-								Key:      v1beta1.LabelInstanceSize,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{"large"},
+								NodeSelectorRequirement: v1.NodeSelectorRequirement{
+									Key:      v1beta1.LabelInstanceSize,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{"large"},
+								},
 							},
 						},
 						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
@@ -652,14 +671,18 @@ var _ = Describe("Consolidation", func() {
 		// instance than on-demand
 		nodePool.Spec.Disruption.ConsolidateAfter = nil
 		test.ReplaceRequirements(nodePool,
-			v1.NodeSelectorRequirement{
-				Key:      corev1beta1.CapacityTypeLabelKey,
-				Operator: v1.NodeSelectorOpExists,
+			corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      corev1beta1.CapacityTypeLabelKey,
+					Operator: v1.NodeSelectorOpExists,
+				},
 			},
-			v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceSize,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"large"},
+			corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"large"},
+				},
 			},
 		)
 		env.ExpectUpdated(nodePool)
