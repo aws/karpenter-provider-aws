@@ -26,7 +26,7 @@ Both these entities are supported in Launch Template's CapacityReservationTarget
 - Define Karpenter's behavior when encountering errors when attempting to launch nodes into Capacity Reservation
 - Define Karpenter's behavior when capacity reservation is changed
 
-## Non-Goal
+## Non-Goals
 _We are keeping the scope of this design very targeted so even if these could be things we eventually support, we aren't scoping them into this design_
 - Supporting prioritization when launching nodes 
 - Supporting any pre-calcaluation of ODCR capacity utilization before node launch
