@@ -284,7 +284,22 @@ Karpenter does not support [in-tree storage plugins](https://kubernetes.io/blog/
 
 #### Pods were scheduled due to a race condition in Kubernetes
 
-Due to [this race condition in Kubernetes](https://github.com/kubernetes/kubernetes/issues/95911), it's possible that the scheduler and the CSINode can race during node registration such that the scheduler assumes that a node can mount more volumes than the node attachments support. There is currently no solve for this problem other than enforcing `toplogySpreadConstraints` and `podAntiAffinity` on your workloads that use PVCs such that you attempt to reduce the number of PVCs that schedule to a given node.
+Due to [this race condition in Kubernetes](https://github.com/kubernetes/kubernetes/issues/95911), it's possible that the scheduler and the CSINode can race during node registration such that the scheduler assumes that a node can mount more volumes than the node attachments support. There is currently no universal solve for this problem other than enforcing `toplogySpreadConstraints` and `podAntiAffinity` on your workloads that use PVCs such that you attempt to reduce the number of PVCs that schedule to a given node.
+
+The following is a non-comprehensive list of CSI drivers which support a startupTaint to eliminate this issue:
+- [aws-ebs-csi-driver](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/install.md#configure-node-startup-taint)
+- [aws-efs-csi-driver](https://github.com/kubernetes-sigs/aws-efs-csi-driver/tree/master/docs#configure-node-startup-taint)
+These taints should be configured via `startupTaints` on your `NodePool`. For example, to enable this for EBS, add the following to your `NodePool`:
+```yaml
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+spec:
+  template:
+    spec:
+      startupTaints:
+        - key: ebs.csi.aws.com/agent-not-ready
+          effect: NoExecute
+```
 
 ### CNI is unable to allocate IPs to pods
 
@@ -358,7 +373,7 @@ then the following solution(s) may resolve your issue.
 #### Solution(s)
 1. Verify that the instance role of the Windows node includes the RBAC permission group `eks:kube-proxy-windows` as shown below.
    This group is required for Windows nodes because in Windows, `kube-proxy` runs as a process on the node, and as such, the node requires the necessary RBAC cluster permissions to allow access to the resources required by `kube-proxy`.
-   For more information, see https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html. 
+   For more information, see https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html.
 ```yaml
 ...
   username: system:node:{{EC2PrivateDNSName}}
@@ -642,7 +657,7 @@ Karpenter [doesn't currently support draining and terminating on spot rebalance 
 
 These two components do not share information between each other, meaning if you have drain and terminate functionality enabled on NTH, NTH may remove a node for a spot rebalance recommendation. Karpenter will replace the node to fulfill the pod capacity that was being fulfilled by the old node; however, Karpenter won't be aware of the reason that that node was terminated. This means that Karpenter may launch the same instance type that was just deprovisioned, causing a spot rebalance recommendation to be sent again. This can result in very short-lived instances where NTH continually removes nodes and Karpeneter re-launches the same instance type over and over again.
 
-Karpenter doesn't recommend reacting to spot rebalance recommendations when running Karpenter with spot nodes; however, if you absolutely require this functionality, note that the above scenario is possible. 
+Karpenter doesn't recommend reacting to spot rebalance recommendations when running Karpenter with spot nodes; however, if you absolutely require this functionality, note that the above scenario is possible.
 Spot instances are time limited and, therefore, interruptible. When a signal is sent by AWS, it triggers actions from NTH and Karpenter, where the former signals a shutdown and the later provisions, creating a recursive situation.
 This can be mitigated by either completely removing NTH or by setting the following values:
 
