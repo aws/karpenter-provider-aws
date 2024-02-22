@@ -24,6 +24,7 @@ Both these entities are supported in Launch Template's CapacityReservationTarget
 - Support associating ODCR to EC2NodeClass
 - Define Karpenter's behavior when interacting launching nodes into Capacity Reservation
 - Define Karpenter's behavior when encountering errors when attempting to launch nodes into Capacity Reservation
+- Define Karpenter's behavior when capacity reservation is changed
 
 ## Non-Goal
 _We are keeping the scope of this design very targeted so even if these could be things we eventually support, we aren't scoping them into this design_
@@ -53,4 +54,21 @@ Karpenter will perform validation against the spec to ensure there isn't any vio
 
 ### Launching Nodes into Capacity Reservation
 
+When a node is launched against a CapacityReservation we will defer the handling of node launch to AWS' API. However we will expose Capacity Reservation
+information as labels `karpenter.k8s.aws/capacity-reservation-id` and `karpenter.k8s.aws/capacity-reservation-setting`.
 
+```yaml
+Name:               example-node
+Labels:             beta.kubernetes.io/arch=arm64
+                    beta.kubernetes.io/os=linux
+                    karpenter.k8s.aws/instance-category=m
+                    karpenter.k8s.aws/capacity-reservation-id=cr-12345
+                    karpenter.k8s.aws/capacity-reservation-setting=open
+                    karpenter.sh/capacity-type=on-demand
+```
+
+`karpenter.k8s.aws/capacity-reservation-id` will be the capacity reservation the node launched from. `karpenter.k8s.aws/capacity-reservation-setting` will depend on the launch template's `capacityReservationSpec`. It will either be a preference or a target.
+
+Will will extract this information by updating [instance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/providers/instance/types.go#L29) and extract it from [DescribeInstance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/batcher/describeinstances.go#L48) [aws doc]([https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#EC2.DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html)https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html).
+
+### Failed to launch Nodes into Capacity Reservation
