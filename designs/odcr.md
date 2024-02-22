@@ -30,6 +30,7 @@ Both these entities are supported in Launch Template's CapacityReservationTarget
 _We are keeping the scope of this design very targeted so even if these could be things we eventually support, we aren't scoping them into this design_
 - Supporting prioritization when launching nodes 
 - Supporting any pre-calcaluation of ODCR capacity utilization before node launch
+- Supporting changes in scaling behavior when ODCR is associated to a NodeClass. _We won't bring up N nodes to match an N node capacity reservation_
 
 ## Proposed Solution
 
@@ -66,6 +67,10 @@ Labels:             karpenter.k8s.aws/capacity-reservation-id=cr-12345
 
 `karpenter.k8s.aws/capacity-reservation-id` will be the capacity reservation the node launched from. `karpenter.k8s.aws/capacity-reservation-setting` will depend on the launch template's `capacityReservationSpec`. It will either be a preference or a target.
 
-Will will extract this information by updating [instance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/providers/instance/types.go#L29) and extract it from [DescribeInstance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/batcher/describeinstances.go#L48) [aws doc]([https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#EC2.DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html)https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html).
+We will propagate this information via [instance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/providers/instance/types.go#L29) by  extracting it from [DescribeInstance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/batcher/describeinstances.go#L48) [aws doc]([https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#EC2.DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html)https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html).
 
 ### Failed to launch Nodes into Capacity Reservation
+The main failure scenario is when Capacity Reservation limit is hit and no new nodes can be launched from any Capacity Reservation the launch template targets. 
+
+We will expose this information both in the NodeClaim and EC2NodeClass via Status
+```yaml
