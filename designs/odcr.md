@@ -116,3 +116,7 @@ The condition will reset if new nodes were able to launch and the Status will re
 #### Error handling
 
 We will avoid updating (unavailableOfferingCache)[https://github.com/aws/karpenter-provider-aws/blob/main/pkg/providers/instance/instance.go#L239C41-L239C58] because the pool is different than rest of AWS. However we may want to create a new unavailable offering cache keyed against Capacity Reservations. _Not sure if we want to support to this during the first iteration_ 
+
+## Open Questions
+- The UX of adding Capacity Reservation feels wrong because NodeClasses previously didn't fully restrict instance types but with Capacity Reservation it kind of does. There isn't a good primative in Karpenter to expose these kinds of restrictions (I think?). I believe this is already an issue where if a NodeClass selects for x86 architecture AMIs but the NodePool allows for ARM architecture instance types that Karpenter may just quietly never spawn ARM instances?
+- I haven't fully investigate the use of the multi-launchtemplate code however I believe there is some fallback logic within On Demand that I haven't fully grasped. Please let me know if I am missing something in this design in avoiding or working around or working with the fallback logic.
