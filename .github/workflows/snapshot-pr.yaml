@@ -1,4 +1,4 @@
-name: PullRequestSnapshot
+name: SnapshotPR
 on:
   workflow_run:
     workflows:
@@ -6,7 +6,7 @@ on:
     types:
       - completed
 jobs:
-  release:
+  snapshot:
     permissions:
       id-token: write
       pull-requests: write
