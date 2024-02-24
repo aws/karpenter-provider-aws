@@ -1448,7 +1448,7 @@ var _ = Describe("LaunchTemplates", func() {
 						})))
 					})
 				})
-				It("should specify labels in the Kublet flags when specified in NodePool", func() {
+				It("should specify labels in the Kubelet flags when specified in NodePool", func() {
 					desiredLabels := map[string]string{
 						"test-label-1": "value-1",
 						"test-label-2": "value-2",
