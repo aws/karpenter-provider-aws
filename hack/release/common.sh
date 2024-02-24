@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-GITHUB_ACCOUNT="aws"
 ECR_GALLERY_NAME="karpenter"
 RELEASE_REPO_ECR="${RELEASE_REPO_ECR:-public.ecr.aws/${ECR_GALLERY_NAME}/}"
-RELEASE_REPO_GH="${RELEASE_REPO_GH:-ghcr.io/${GITHUB_ACCOUNT}/karpenter}"
 
 SNAPSHOT_ECR="021119463062.dkr.ecr.us-east-1.amazonaws.com"
 SNAPSHOT_REPO_ECR="${SNAPSHOT_REPO_ECR:-${SNAPSHOT_ECR}/karpenter/snapshot/}"
 
 CURRENT_MAJOR_VERSION="0"
-
-MAIN_GITHUB_ACCOUNT="aws"
 
 snapshot() {
   local commit_sha version helm_chart_version
@@ -104,7 +100,7 @@ publishHelmChart() {
   cd ..
 
   helm_chart_digest="$(crane digest "${oci_repo}/${helm_chart}:${version}")"
-  cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${oci_repo}/${helm_chart}:${version}@${helm_chart_digest}"
+  cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${oci_repo}${helm_chart}:${version}@${helm_chart_digest}"
 }
 
 cosignOciArtifact() {
@@ -127,7 +123,7 @@ buildDate() {
 
   date_epoch="${1}"
 
-  date -u -r "${date_epoch}" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null
+  date -u --date="@${date_epoch}" "+%Y-%m-%dT%H:%M:%SZ" 2>/dev/null
 }
 
 prepareWebsite() {
