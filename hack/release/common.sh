@@ -88,14 +88,14 @@ publishHelmChart() {
   commit_sha="${4}"
   build_date="${5}"
 
-  ah_config_file_name"${helm_chart}/artifacthub-repo.yaml"
+  ah_config_file_name="${helm_chart}/artifacthub-repo.yaml"
   helm_chart_artifact="${helm_chart}-${version}.tgz"
 
   yq e -i ".appVersion = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
   yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
 
   cd charts
-  [[ -s "${ah_config_file_name}" ]] && oras push "${oci_repo}:artifacthub.io" --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
+  [[ -s "${ah_config_file_name}" ]] && oras push "${oci_repo}/${helm_chart}:artifacthub.io" --config /dev/null:application/vnd.cncf.artifacthub.config.v1+yaml "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
   helm dependency update "${helm_chart}"
   helm lint "${helm_chart}"
   helm package "${helm_chart}" --version "${version}"
@@ -103,8 +103,8 @@ publishHelmChart() {
   rm "${helm_chart_artifact}"
   cd ..
 
-  helm_chart_digest="$(crane digest "${oci_repo}:${version}")"
-  cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${oci_repo}:${version}@${helm_chart_digest}"
+  helm_chart_digest="$(crane digest "${oci_repo}/${helm_chart}:${version}")"
+  cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${oci_repo}/${helm_chart}:${version}@${helm_chart_digest}"
 }
 
 cosignOciArtifact() {
