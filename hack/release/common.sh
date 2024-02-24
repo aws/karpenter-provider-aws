@@ -138,7 +138,7 @@ prepareWebsite() {
   version_parts=(${version//./ })
   short_version="${version_parts[0]}.${version_parts[1]}"
 
-  createNewWebsiteDirectory "${short_version}"
+  createNewWebsiteDirectory "${short_version}" "${version}"
   removeOldWebsiteDirectories
   editWebsiteConfig "${version}"
   editWebsiteVersionsMenu
@@ -199,7 +199,7 @@ editWebsiteVersionsMenu() {
   local versions version
 
   # shellcheck disable=SC2207
-  versions=($(find website/content/en/* -maxdepth 0 -type d -name "*" -print0 | xargs -r -n 1 basename | grep -v "docs\|preview"))
+  versions=($(find website/content/en/* -maxdepth 0 -type d -name "*" -print0 | xargs -0 -r -n 1 basename | grep -v "docs\|preview"))
   versions+=('preview')
 
   yq -i '.params.versions = []' website/hugo.yaml
