@@ -158,9 +158,6 @@ snapshot: ## Builds and publishes snapshot release
 release: ## Builds and publishes stable release
 	$(WITH_GOFLAGS) ./hack/release/release.sh
 
-release-crd: ## Packages and publishes a karpenter-crd helm chart
-	$(WITH_GOFLAGS) ./hack/release/release-crd.sh
-
 prepare-website: ## prepare the website for release
 	./hack/release/prepare-website.sh
 
@@ -186,7 +183,7 @@ update-karpenter: ## Update kubernetes-sigs/karpenter to latest
 	go get -u sigs.k8s.io/karpenter@HEAD
 	go mod tidy
 
-.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release release-crd prepare-website toolchain issues website tidy download update-karpenter
+.PHONY: help presubmit ci-test ci-non-test run test deflake e2etests e2etests-deflake benchmark coverage verify vulncheck licenses image apply install delete docgen codegen stable-release-pr snapshot release prepare-website toolchain issues website tidy download update-karpenter
 
 define newline
 
