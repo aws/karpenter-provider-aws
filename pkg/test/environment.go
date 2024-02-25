@@ -82,6 +82,7 @@ type Environment struct {
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
 	// API
 	ec2api := fake.NewEC2API()
+	eksapi := fake.NewEKSAPI()
 	ssmapi := fake.NewSSMAPI()
 	iamapi := fake.NewIAMAPI()
 
@@ -110,6 +111,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			ctx,
 			launchTemplateCache,
 			ec2api,
+			eksapi,
 			amiResolver,
 			securityGroupProvider,
 			subnetProvider,
@@ -118,7 +120,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),
 			"https://test-cluster",
-			"10.100.0.0/16",
 		)
 	instanceProvider :=
 		instance.NewProvider(ctx,

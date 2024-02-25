@@ -34,7 +34,7 @@ import (
 type Options struct {
 	ClusterName             string
 	ClusterEndpoint         string
-	ClusterCIDR             string
+	ClusterCIDR             *string
 	KubeletConfig           *corev1beta1.KubeletConfiguration
 	Taints                  []core.Taint      `hash:"set"`
 	Labels                  map[string]string `hash:"set"`

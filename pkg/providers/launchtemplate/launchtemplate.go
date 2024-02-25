@@ -29,6 +29,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -64,6 +66,7 @@ type LaunchTemplate struct {
 type Provider struct {
 	sync.Mutex
 	ec2api                  ec2iface.EC2API
+	eksapi                  eksiface.EKSAPI
 	amiFamily               *amifamily.Resolver
 	securityGroupProvider   *securitygroup.Provider
 	subnetProvider          *subnet.Provider
@@ -73,14 +76,15 @@ type Provider struct {
 	KubeDNSIP               net.IP
 	CABundle                *string
 	ClusterEndpoint         string
-	ClusterCIDR             string
+	ClusterCIDR             *string
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver,
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
 	securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, instanceProfileProvider *instanceprofile.Provider,
-	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string, clusterCIDR string) *Provider {
+	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
 		ec2api:                  ec2api,
+		eksapi:                  eksapi,
 		amiFamily:               amiFamily,
 		securityGroupProvider:   securityGroupProvider,
 		subnetProvider:          subnetProvider,
@@ -90,7 +94,6 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 		cm:                      pretty.NewChangeMonitor(),
 		KubeDNSIP:               kubeDNSIP,
 		ClusterEndpoint:         clusterEndpoint,
-		ClusterCIDR:             clusterCIDR,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -426,4 +429,25 @@ func (p *Provider) DeleteLaunchTemplates(ctx context.Context, nodeClass *v1beta1
 		return fmt.Errorf("deleting launch templates, %w", deleteErr)
 	}
 	return nil
+}
+
+func (p *Provider) ResolveClusterCIDR(ctx context.Context) error {
+	if p.ClusterCIDR != nil {
+		return nil
+	}
+	out, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
+		Name: aws.String(options.FromContext(ctx).ClusterName),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to resolve cluster CIDR, %w", err)
+	}
+	if ipv4CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr; ipv4CIDR != nil {
+		p.ClusterCIDR = ipv4CIDR
+		return nil
+	}
+	if ipv6CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr; ipv6CIDR != nil {
+		p.ClusterCIDR = ipv6CIDR
+		return nil
+	}
+	return fmt.Errorf("failed to resolve cluster CIDR")
 }

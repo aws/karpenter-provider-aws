@@ -50,7 +50,7 @@ type Resolver struct {
 type Options struct {
 	ClusterName         string
 	ClusterEndpoint     string
-	ClusterCIDR         string
+	ClusterCIDR         *string
 	InstanceProfile     string
 	CABundle            *string `hash:"ignore"`
 	InstanceStorePolicy *v1beta1.InstanceStorePolicy

@@ -122,12 +122,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	} else {
 		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
 	}
-	clusterCIDR, err := ResolveClusterCIDR(ctx, eks.New(sess))
-	if err != nil {
-		logging.FromContext(ctx).Fatalf("unable to detect the cluster CIDR, %s", err)
-	} else {
-		logging.FromContext(ctx).With("cluster-cidr", clusterCIDR).Debugf("discovered cluster CIDR")
-	}
 	// We perform best-effort on resolving the kube-dns IP
 	kubeDNSIP, err := kubeDNSIP(ctx, operator.KubernetesInterface)
 	if err != nil {
@@ -155,6 +149,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
+		eks.New(sess),
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
@@ -163,7 +158,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		operator.Elected(),
 		kubeDNSIP,
 		clusterEndpoint,
-		clusterCIDR,
 	)
 	instanceTypeProvider := instancetype.NewProvider(
 		*sess.Config.Region,
@@ -239,23 +233,6 @@ func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string
 		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
 	}
 	return *out.Cluster.Endpoint, nil
-}
-
-func ResolveClusterCIDR(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
-	out, err := eksAPI.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
-		Name: aws.String(options.FromContext(ctx).ClusterName),
-	})
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve cluster CIDR, %w", err)
-	}
-
-	if ipv4CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr; ipv4CIDR != nil {
-		return *ipv4CIDR, nil
-	}
-	if ipv6CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr; ipv6CIDR != nil {
-		return *ipv6CIDR, nil
-	}
-	return "", fmt.Errorf("failed to resolve cluster CIDR")
 }
 
 func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {

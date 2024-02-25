@@ -65,7 +65,7 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 			Cluster: admv1alpha1.ClusterDetails{
 				Name:              n.ClusterName,
 				APIServerEndpoint: n.ClusterEndpoint,
-				CIDR:              n.ClusterCIDR,
+				CIDR:              lo.FromPtr(n.ClusterCIDR),
 			},
 		},
 	}
