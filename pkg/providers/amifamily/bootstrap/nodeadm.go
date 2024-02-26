@@ -131,12 +131,14 @@ func (n Nodeadm) parseUserData() ([]mime.Entry, error) {
 	}
 	// Fallback to YAML or shall script if UserData is not in MIME format. Determine the content type for the
 	// generated MIME header depending on the type of the custom UserData.
-	contentType := mime.ContentTypeShellScript
 	if err := yaml.Unmarshal([]byte(*n.CustomUserData), lo.ToPtr(map[string]interface{}{})); err == nil {
-		contentType = mime.ContentTypeNodeConfig
+		return []mime.Entry{{
+			ContentType: mime.ContentTypeNodeConfig,
+			Content:     userData,
+		}}, nil
 	}
 	return []mime.Entry{{
-		ContentType: contentType,
+		ContentType: mime.ContentTypeShellScript,
 		Content:     userData,
 	}}, nil
 }

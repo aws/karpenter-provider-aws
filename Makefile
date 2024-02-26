@@ -119,6 +119,7 @@ vulncheck: ## Verify code vulnerabilities
 	@govulncheck ./pkg/...
 
 licenses: download ## Verifies dependency licenses
+	# TODO: remove nodeadm check once license is updated
 	! go-licenses csv ./... | grep -v -e 'MIT' -e 'Apache-2.0' -e 'BSD-3-Clause' -e 'BSD-2-Clause' -e 'ISC' -e 'MPL-2.0' -e 'github.com/awslabs/amazon-eks-ami/nodeadm'
 
 image: ## Build the Karpenter controller images using ko build

@@ -102,34 +102,4 @@ var _ = Describe("Operator", func() {
 		_, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).To(HaveOccurred())
 	})
-	It("should resolve IPv4 cluster CIDR via call to API", func() {
-		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-			ClusterName: lo.ToPtr("test-cluster"),
-		}))
-		fakeEKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
-			Cluster: &eks.Cluster{
-				KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
-					ServiceIpv4Cidr: lo.ToPtr("10.100.0.0/16"),
-				},
-			},
-		})
-		clusterCIDR, err := awscontext.ResolveClusterCIDR(ctx, fakeEKSAPI)
-		Expect(err).To(BeNil())
-		Expect(clusterCIDR).To(Equal("10.100.0.0/16"))
-	})
-	It("should resolve IPv6 cluster CIDR via call to API", func() {
-		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-			ClusterName: lo.ToPtr("test-cluster"),
-		}))
-		fakeEKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
-			Cluster: &eks.Cluster{
-				KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
-					ServiceIpv6Cidr: lo.ToPtr("2001:db8::/64"),
-				},
-			},
-		})
-		clusterCIDR, err := awscontext.ResolveClusterCIDR(ctx, fakeEKSAPI)
-		Expect(err).To(BeNil())
-		Expect(clusterCIDR).To(Equal("2001:db8::/64"))
-	})
 })

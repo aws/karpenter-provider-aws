@@ -158,6 +158,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		operator.Elected(),
 		kubeDNSIP,
 		clusterEndpoint,
+		nil,
 	)
 	instanceTypeProvider := instancetype.NewProvider(
 		*sess.Config.Region,

@@ -52,6 +52,7 @@ func init() {
 type Environment struct {
 	// API
 	EC2API     *fake.EC2API
+	EKSAPI     *fake.EKSAPI
 	SSMAPI     *fake.SSMAPI
 	IAMAPI     *fake.IAMAPI
 	PricingAPI *fake.PricingAPI
@@ -120,6 +121,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),
 			"https://test-cluster",
+			lo.ToPtr("10.100.0.0/16"),
 		)
 	instanceProvider :=
 		instance.NewProvider(ctx,
@@ -133,6 +135,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 	return &Environment{
 		EC2API:     ec2api,
+		EKSAPI:     eksapi,
 		SSMAPI:     ssmapi,
 		IAMAPI:     iamapi,
 		PricingAPI: fakePricingAPI,
@@ -161,6 +164,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 func (env *Environment) Reset() {
 	env.EC2API.Reset()
+	env.EKSAPI.Reset()
 	env.SSMAPI.Reset()
 	env.IAMAPI.Reset()
 	env.PricingAPI.Reset()

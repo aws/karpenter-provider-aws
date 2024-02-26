@@ -29,6 +29,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/iam"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -105,6 +106,48 @@ var _ = Describe("NodeClassController", func() {
 					},
 				},
 			},
+		})
+	})
+	Context("Cluster CIDR Resolution", func() {
+		BeforeEach(func() {
+			awsEnv.LaunchTemplateProvider.ClusterCIDR = nil
+		})
+		AfterEach(func() {
+			awsEnv.LaunchTemplateProvider.ClusterCIDR = lo.ToPtr("10.100.0.0/16")
+		})
+		It("should only resolve cluster CIDR for AL2023", func() {
+			for _, family := range []string{
+				v1beta1.AMIFamilyAL2,
+				v1beta1.AMIFamilyBottlerocket,
+				v1beta1.AMIFamilyUbuntu,
+				v1beta1.AMIFamilyWindows2019,
+				v1beta1.AMIFamilyWindows2022,
+				v1beta1.AMIFamilyCustom,
+			} {
+				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
+				ExpectApplied(ctx, env.Client, nodeClass)
+				ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+				Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR).To(BeNil())
+			}
+		})
+		It("should resolve cluster CIDR for IPv4 clusters", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR)).To(Equal("10.100.0.0/16"))
+		})
+		It("should resolve cluster CIDR for IPv6 clusters", func() {
+			awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
+				Cluster: &eks.Cluster{
+					KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
+						ServiceIpv6Cidr: lo.ToPtr("2001:db8::/64"),
+					},
+				},
+			})
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
+			ExpectApplied(ctx, env.Client, nodeClass)
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR)).To(Equal("2001:db8::/64"))
 		})
 	})
 	Context("Subnet Status", func() {
