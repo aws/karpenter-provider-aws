@@ -1413,6 +1413,7 @@ var _ = Describe("LaunchTemplates", func() {
 
 				// base64 encoded version of "ca-bundle" to ensure the nodeadm bootstrap provider can decode successfully
 				awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+				awsEnv.LaunchTemplateProvider.ClusterCIDR = lo.ToPtr("10.100.0.0/16")
 			})
 			Context("Kubelet", func() {
 				It("should specify taints in the KubeletConfiguration when specified in NodePool", func() {

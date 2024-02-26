@@ -81,7 +81,7 @@ type Provider struct {
 
 func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
 	securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, instanceProfileProvider *instanceprofile.Provider,
-	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string, clusterCIDR *string) *Provider {
+	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
 		ec2api:                  ec2api,
 		eksapi:                  eksapi,
@@ -94,7 +94,6 @@ func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API
 		cm:                      pretty.NewChangeMonitor(),
 		KubeDNSIP:               kubeDNSIP,
 		ClusterEndpoint:         clusterEndpoint,
-		ClusterCIDR:             clusterCIDR,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
