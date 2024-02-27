@@ -50,8 +50,6 @@ import (
 )
 
 var (
-	// MaxInstanceTypes defines the number of instance type options to pass to CreateFleet
-	MaxInstanceTypes                 = 60
 	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
 
 	instanceStateFilter = &ec2.Filter{
@@ -84,10 +82,10 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 }
 
 func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
-	instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
-	instanceTypes = orderInstanceTypesByPrice(instanceTypes, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...))
-	if len(instanceTypes) > MaxInstanceTypes {
-		instanceTypes = instanceTypes[0:MaxInstanceTypes]
+	schedulingRequirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
+	// Only filter the instances if there are no minValues in the requirement.
+	if !schedulingRequirements.HasMinValues() {
+		instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
 	}
 	tags := getTags(ctx, nodeClass, nodeClaim)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, instanceTypes, tags)
@@ -257,7 +255,7 @@ func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *co
 
 func (p *Provider) checkODFallback(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
-	if p.getCapacityType(nodeClaim, instanceTypes) != corev1beta1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...).Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
+	if p.getCapacityType(nodeClaim, instanceTypes) != corev1beta1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
 		return nil
 	}
 
@@ -287,7 +285,7 @@ func (p *Provider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1be
 	}
 	for _, launchTemplate := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType, launchTemplate.ImageID),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType, launchTemplate.ImageID),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
@@ -359,7 +357,7 @@ func (p *Provider) updateUnavailableOfferingsCache(ctx context.Context, errors [
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
 func (p *Provider) getCapacityType(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
-	requirements := scheduling.NewNodeSelectorRequirements(nodeClaim.
+	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.
 		Spec.Requirements...)
 	if requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
@@ -371,25 +369,6 @@ func (p *Provider) getCapacityType(nodeClaim *corev1beta1.NodeClaim, instanceTyp
 		}
 	}
 	return corev1beta1.CapacityTypeOnDemand
-}
-
-func orderInstanceTypesByPrice(instanceTypes []*cloudprovider.InstanceType, requirements scheduling.Requirements) []*cloudprovider.InstanceType {
-	// Order instance types so that we get the cheapest instance types of the available offerings
-	sort.Slice(instanceTypes, func(i, j int) bool {
-		iPrice := math.MaxFloat64
-		jPrice := math.MaxFloat64
-		if len(instanceTypes[i].Offerings.Available().Compatible(requirements)) > 0 {
-			iPrice = instanceTypes[i].Offerings.Available().Compatible(requirements).Cheapest().Price
-		}
-		if len(instanceTypes[j].Offerings.Available().Compatible(requirements)) > 0 {
-			jPrice = instanceTypes[j].Offerings.Available().Compatible(requirements).Cheapest().Price
-		}
-		if iPrice == jPrice {
-			return instanceTypes[i].Name < instanceTypes[j].Name
-		}
-		return iPrice < jPrice
-	})
-	return instanceTypes
 }
 
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
@@ -407,7 +386,7 @@ func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanc
 // isMixedCapacityLaunch returns true if nodepools and available offerings could potentially allow either a spot or
 // and on-demand node to launch
 func (p *Provider) isMixedCapacityLaunch(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) bool {
-	requirements := scheduling.NewNodeSelectorRequirements(nodeClaim.Spec.Requirements...)
+	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	// requirements must allow both
 	if !requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) ||
 		!requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeOnDemand) {
