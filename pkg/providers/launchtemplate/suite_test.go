@@ -1601,6 +1601,14 @@ var _ = Describe("LaunchTemplates", func() {
 				Entry("shell", lo.ToPtr("al2023_shell_userdata_input.golden"), "al2023_shell_userdata_merged.golden"),
 				Entry("empty", nil, "al2023_userdata_unmerged.golden"),
 			)
+			It("should fail to create launch templates if cluster CIDR is unresolved", func() {
+				awsEnv.LaunchTemplateProvider.ClusterCIDR = nil
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectNotScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
+			})
 		})
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in EC2NodeClass", func() {

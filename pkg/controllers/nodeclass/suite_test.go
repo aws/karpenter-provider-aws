@@ -110,10 +110,8 @@ var _ = Describe("NodeClassController", func() {
 	})
 	Context("Cluster CIDR Resolution", func() {
 		BeforeEach(func() {
+			// Cluster CIDR will only be resolved once per lifetime of the launch template provider, reset to nil between tests
 			awsEnv.LaunchTemplateProvider.ClusterCIDR = nil
-		})
-		AfterEach(func() {
-			awsEnv.LaunchTemplateProvider.ClusterCIDR = lo.ToPtr("10.100.0.0/16")
 		})
 		It("should only resolve cluster CIDR for AL2023", func() {
 			for _, family := range []string{
