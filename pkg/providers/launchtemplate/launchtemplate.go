@@ -439,17 +439,17 @@ func (p *Provider) ResolveClusterCIDR(ctx context.Context) error {
 		Name: aws.String(options.FromContext(ctx).ClusterName),
 	})
 	if err != nil {
-		return fmt.Errorf("failed to resolve cluster CIDR, %w", err)
+		return fmt.Errorf("resolving cluster CIDR, %w", err)
 	}
 	if ipv4CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr; ipv4CIDR != nil {
 		p.ClusterCIDR = ipv4CIDR
-		logging.FromContext(ctx).Debugf("discovered cluster CIDR %q", p.ClusterCIDR)
+		logging.FromContext(ctx).With("cluster-cidr", ipv4CIDR).Debugf("discovered cluster CIDR")
 		return nil
 	}
 	if ipv6CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr; ipv6CIDR != nil {
-		logging.FromContext(ctx).Debugf("discovered cluster CIDR %q", p.ClusterCIDR)
+		logging.FromContext(ctx).With("cluster-cidr", ipv6CIDR).Debugf("discovered cluster CIDR")
 		p.ClusterCIDR = ipv6CIDR
 		return nil
 	}
-	return fmt.Errorf("failed to resolve cluster CIDR")
+	return fmt.Errorf("resolving cluster CIDR, no CIDR found in DescribeCluster response")
 }
