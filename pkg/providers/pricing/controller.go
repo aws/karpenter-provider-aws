@@ -16,6 +16,7 @@ package pricing
 
 import (
 	"context"
+	"knative.dev/pkg/logging"
 	"time"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -51,11 +52,15 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 }
 
 func (c *Controller) updatePricing(ctx context.Context) error {
+	logging.FromContext(ctx).Infof("Updating spot price information")
 	work := []func(ctx context.Context) error{
 		c.pricingProvider.UpdateSpotPricing,
 	}
 
+	// we try to update on demand pricing only if we are not in isolated VPC, as
+	// AWS Price list api might not be accessible for isolated VPCs
 	if !options.FromContext(ctx).IsolatedVPC {
+		logging.FromContext(ctx).Infof("Updating on-demand pricing information")
 		work = append(work, c.pricingProvider.UpdateOnDemandPricing)
 	}
 
