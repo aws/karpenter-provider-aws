@@ -25,7 +25,6 @@ import (
 	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -55,13 +54,10 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
+		pricing.NewController(pricingProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewProvider(ctx, servicesqs.New(sess), options.FromContext(ctx).InterruptionQueue)), unavailableOfferings))
-	}
-	if options.FromContext(ctx).IsolatedVPC {
-		logging.FromContext(ctx).Infof("assuming isolated VPC, only spot pricing information will be updated")
-		controllers = append(controllers, pricing.NewController(pricingProvider))
 	}
 	return controllers
 }
