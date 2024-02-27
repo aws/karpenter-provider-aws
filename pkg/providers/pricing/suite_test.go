@@ -293,7 +293,7 @@ var _ = Describe("Pricing", func() {
 		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 		price, ok := awsEnv.PricingProvider.OnDemandPrice("c5.large")
 		Expect(ok).To(BeTrue())
-		Expect(price).To(BeNumerically(">", 0))
+		Expect(price).To(BeNumerically("==", 0.085))
 
 		price, ok = awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1b")
 		Expect(ok).To(BeTrue())
