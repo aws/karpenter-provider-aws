@@ -63,16 +63,16 @@ Karpenter has permissions to create and manage cloud instances. Karpenter has Ku
 
 ### Threat: Using EC2 CreateTag/DeleteTag Permissions to Orchestrate Instance Creation/Deletion
 
-**Background**: As of v0.28.0, Karpenter creates a mapping between CloudProvider instances and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
+**Background**: As of `0.28.0`, Karpenter creates a mapping between CloudProvider instances and CustomResources in the cluster for capacity tracking. To ensure this mapping is consistent, Karpenter utilizes the following tag keys:
 
 * `karpenter.sh/managed-by`
 * `karpenter.sh/nodepool`
 * `kubernetes.io/cluster/${CLUSTER_NAME}`
-* `karpenter.sh/provisioner-name` (prior to `v0.32.0`)
+* `karpenter.sh/provisioner-name` (prior to `0.32.0`)
 
 Any user that has the ability to Create/Delete tags on CloudProvider instances will have the ability to orchestrate Karpenter to Create/Delete CloudProvider instances as a side effect.
 
-In addition, as of v0.29.0, Karpenter will Drift on Security Groups and Subnets. If a user has the Create/Delete tags permission for either of resources, they can orchestrate Karpenter to Create/Delete CloudProvider instances as a side effect.
+In addition, as of `0.29.0`, Karpenter will Drift on Security Groups and Subnets. If a user has the Create/Delete tags permission for either of resources, they can orchestrate Karpenter to Create/Delete CloudProvider instances as a side effect.
 
 **Threat:** A Cluster Operator attempts to create or delete a tag on a resource discovered by Karpenter. If it has the ability to create a tag it can effectively create or delete CloudProvider instances associated with the tagged resources.
 
