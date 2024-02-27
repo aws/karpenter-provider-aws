@@ -7,7 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.9.0
 	github.com/aws/aws-sdk-go v1.50.25
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623
-	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240212193458-d97e2ad07de4
+	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240226194241-7da3d23779cf
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2

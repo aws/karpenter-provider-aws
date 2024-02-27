@@ -206,7 +206,7 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 // nolint:gocyclo
 func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, nodeClass *v1beta1.EC2NodeClass) *resource.Quantity {
 	// If local store disks have been configured for node ephemeral-storage, use the total size of the disks.
-	if *nodeClass.Spec.AMIFamily == v1beta1.AMIFamilyAL2023 || lo.FromPtr(nodeClass.Spec.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
+	if lo.FromPtr(nodeClass.Spec.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
 		if info.InstanceStorageInfo != nil && info.InstanceStorageInfo.TotalSizeInGB != nil {
 			return resources.Quantity(fmt.Sprintf("%dG", *info.InstanceStorageInfo.TotalSizeInGB))
 		}

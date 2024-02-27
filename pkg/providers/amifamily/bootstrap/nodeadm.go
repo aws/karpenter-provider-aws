@@ -27,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/json"
 	"sigs.k8s.io/yaml"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
 )
 
@@ -75,6 +76,9 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 			return "", fmt.Errorf("decoding CABundle, %w", err)
 		}
 		config.Spec.Cluster.CertificateAuthority = ca
+	}
+	if lo.FromPtr(n.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
+		config.Spec.Instance.LocalStorage.Strategy = admv1alpha1.LocalStorageRAID0
 	}
 	inlineConfig, err := n.generateInlineKubeletConfiguration()
 	if err != nil {

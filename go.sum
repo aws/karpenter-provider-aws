@@ -60,6 +60,8 @@ github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-7523569
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623/go.mod h1:fpKKbSoh7nKrbAw8V44Ov1sgosfUvR1ZtyN9k44zHfY=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240212193458-d97e2ad07de4 h1:xjhyf9wfI3Q/FNogmv2siwg94WBBG0lsKS5Iw+GTEnI=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240212193458-d97e2ad07de4/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
+github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240226194241-7da3d23779cf h1:RH5DuK+nbRBD4S2c0kSXUhNiH4wjkDlOWosra3pBq3k=
+github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240226194241-7da3d23779cf/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=

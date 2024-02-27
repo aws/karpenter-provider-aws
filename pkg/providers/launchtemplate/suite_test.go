@@ -1565,6 +1565,18 @@ var _ = Describe("LaunchTemplates", func() {
 					}),
 				)
 			})
+			It("should set LocalDiskStrategy to Raid0 when specified by the InstanceStorePolicy", func() {
+				nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				ExpectLaunchTemplatesCreatedWithUserDataF(func(ud string) {
+					configs := ExpectUserDataCreatedWithNodeConfigs(ud)
+					Expect(len(configs)).To(Equal(1))
+					Expect(configs[0].Spec.Instance.LocalStorage.Strategy).To(Equal(admv1alpha1.LocalStorageRAID0))
+				})
+			})
 			DescribeTable(
 				"should merge custom user data",
 				func(inputFile *string, mergedFile string) {
@@ -1946,6 +1958,7 @@ func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 		ExpectWithOffset(2, err).To(BeNil())
 		// Newlines are always added for missing TOML fields, so strip them out before comparisons.
+		fmt.Print(string(userData))
 		actualUserData := strings.Replace(string(userData), "\n", "", -1)
 		expectedUserData := strings.Replace(expected, "\n", "", -1)
 		ExpectWithOffset(2, actualUserData).To(Equal(expectedUserData))

@@ -49,17 +49,18 @@ func (a AL2023) DefaultAMIs(version string) []DefaultAMIOutput {
 	}
 }
 
-func (a AL2023) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (a AL2023) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Nodeadm{
 		Options: bootstrap.Options{
-			ClusterName:     a.Options.ClusterName,
-			ClusterEndpoint: a.Options.ClusterEndpoint,
-			ClusterCIDR:     a.Options.ClusterCIDR,
-			KubeletConfig:   kubeletConfig,
-			Taints:          taints,
-			Labels:          labels,
-			CABundle:        caBundle,
-			CustomUserData:  customUserData,
+			ClusterName:         a.Options.ClusterName,
+			ClusterEndpoint:     a.Options.ClusterEndpoint,
+			ClusterCIDR:         a.Options.ClusterCIDR,
+			KubeletConfig:       kubeletConfig,
+			Taints:              taints,
+			Labels:              labels,
+			CABundle:            caBundle,
+			CustomUserData:      customUserData,
+			InstanceStorePolicy: instanceStorePolicy,
 		},
 	}
 }
