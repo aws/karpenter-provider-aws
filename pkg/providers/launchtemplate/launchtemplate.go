@@ -443,11 +443,11 @@ func (p *Provider) ResolveClusterCIDR(ctx context.Context) error {
 	}
 	if ipv4CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr; ipv4CIDR != nil {
 		p.ClusterCIDR = ipv4CIDR
-		logging.FromContext(ctx).With("cluster-cidr", ipv4CIDR).Debugf("discovered cluster CIDR")
+		logging.FromContext(ctx).With("cluster-cidr", *ipv4CIDR).Debugf("discovered cluster CIDR")
 		return nil
 	}
 	if ipv6CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr; ipv6CIDR != nil {
-		logging.FromContext(ctx).With("cluster-cidr", ipv6CIDR).Debugf("discovered cluster CIDR")
+		logging.FromContext(ctx).With("cluster-cidr", *ipv6CIDR).Debugf("discovered cluster CIDR")
 		p.ClusterCIDR = ipv6CIDR
 		return nil
 	}
