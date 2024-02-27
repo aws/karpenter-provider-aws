@@ -423,6 +423,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should default AL2023 block device mappings", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+			awsEnv.LaunchTemplateProvider.ClusterCIDR = lo.ToPtr("10.100.0.0/16")
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
