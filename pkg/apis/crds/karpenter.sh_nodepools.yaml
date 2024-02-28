@@ -524,6 +524,8 @@ spec:
                   description: Resources is the list of resources that have been provisioned.
                   type: object
               type: object
+          required:
+            - spec
           type: object
       served: true
       storage: true
