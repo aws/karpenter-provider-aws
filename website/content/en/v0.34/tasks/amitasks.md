@@ -116,7 +116,7 @@ disruption:
 ```
 
 The `disruption` settings define a few fields that indicate the state of a node that should be disrupted.
-The `consolidationPolicy` field indicates that a node should be disrupted if the node is either empty (`WhenUnderutilized`) or not running any pods (`WhenEmpty`).
+The `consolidationPolicy` field indicates that a node should be disrupted if the node is either underutilized (`WhenUnderutilized`) or not running any pods (`WhenEmpty`).
 With `expireAfter` set to `1440` hours, the node expires after 60 days.
 Extending those values causes longer times without disruption.
 
