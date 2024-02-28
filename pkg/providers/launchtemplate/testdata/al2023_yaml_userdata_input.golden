@@ -1,0 +1,11 @@
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: test-cluster
+    clusterEndpoint: https://test-cluster
+    certificateAuthority: cluster-ca
+    cidr: 10.100.0.0/16
+  kubelet:
+    config:
+      maxPods: 42

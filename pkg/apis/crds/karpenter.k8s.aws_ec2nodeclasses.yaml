@@ -50,6 +50,7 @@ spec:
                 description: AMIFamily is the AMI family that instances use.
                 enum:
                 - AL2
+                - AL2023
                 - Bottlerocket
                 - Ubuntu
                 - Custom

@@ -111,6 +111,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				env.ExpectCreatedNodeCount("==", 1)
 			},
 			Entry("when the AMIFamily is AL2", &v1beta1.AMIFamilyAL2),
+			Entry("when the AMIFamily is AL2023", &v1beta1.AMIFamilyAL2023),
 			Entry("when the AMIFamily is Ubuntu", &v1beta1.AMIFamilyUbuntu),
 			Entry("when the AMIFamily is Bottlerocket", &v1beta1.AMIFamilyBottlerocket),
 		)
