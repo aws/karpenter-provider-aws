@@ -27,7 +27,7 @@ These include:
 
 * **Expiration**: If node expiry is set for a node, the node is marked for deletion after a certain time.
 * [**Consolidation**]({{< relref "../concepts/disruption/#consolidation" >}}): If a node is empty of workloads, or deemed to be inefficiently running workloads, nodes can be deleted and more appropriately featured nodes are brought up to consolidate workloads.
-* [**Drift**]({{< relref "../concepts/disruption/#drift" >}}): Nodes are set for deletion when they drift from the desired state of the machines and new nodes are brought up to replace them.
+* [**Drift**]({{< relref "../concepts/disruption/#drift" >}}): Nodes are set for deletion when they drift from the desired state of the `NodeClaim`s and new nodes are brought up to replace them.
 * [**Interruption**]({{< relref "../concepts/disruption/#interruption" >}}): Nodes are sometimes involuntarily disrupted by things like Spot interruption, health changes, and instance events, requiring new nodes to be deployed.
 
 See [**Automated Methods**]({{< relref "../concepts/disruption/#automated-methods" >}}) for details on how Karpenter uses these automated actions to replace nodes.
@@ -50,7 +50,7 @@ Here are the advantages and challenges of each of the tasks described below:
 * Task 1 (Test AMIs): The safest way, and the one we recommend, for ensuring that a new AMI doesn't break your workloads is to test it before putting it into production. This takes the most effort on your part, but can reduce the risk of failed workloads in production. Note that you can sometimes get different results from your test environment when you roll a new AMI into production, since issues like scale and other factors can elevate problems you might not see in test. So combining this with other tasks, that do things like slow rollouts, can allow you to catch problems before they impact your whole cluster.
 * Task 2 (Lock down AMIs): If workloads require a particluar AMI, this task can make sure that it is the only AMI used by Karpenter. This can be used in combination with Task 1, where you lock down the AMI in production, but allow the newest AMIs in a test cluster while you test your workloads before upgrading production. Keep in mind that this makes upgrades a manual process for you.
 * Task 3 (Disruption budgets): This task can be used as a way of preventing a major problem if a new AMI causes problems with your workloads. With Disruption budgets you can slow the pace of upgrades to nodes with new AMIs or make sure that upgrades only happen during selected dates and times (using crontab). This doesn't prevent a bad AMI from being deployed, but it does give you time to respond if a few upgraded nodes at a time show some distress.
-* Task 4 (Do not interrupt): While this task doesn't represent a larger solution to the problem, it gives you the opportunity to either prevent all nodes or a node running a particular workload from being upgraded. Note that these settings have not impact in cases where the node is not in control of its being removed (such as when the instance it is running on crashes or a Spot instance is reclaimed).
+* Task 4 (Do not interrupt): While this task doesn't represent a larger solution to the problem, it gives you the opportunity to either prevent all nodes or a node running a particular workload from being upgraded. Note that these settings have no impact in cases where the node is not in control of its being removed (such as when the instance it is running on crashes or a Spot instance is reclaimed).
 
 ## Tasks
 
@@ -106,7 +106,6 @@ Here is an example:
 ```bash
 disruption:
   consolidationPolicy: WhenEmpty
-  consolidateAfter: 30s
   expireAfter: 1440h
   budgets:
   - nodes: 15%
@@ -117,8 +116,7 @@ disruption:
 ```
 
 The `disruption` settings define a few fields that indicate the state of a node that should be disrupted.
-The `consolidationPolicy` field indicates that a node should be disrupted if the node is either empty (`WhenEmpty`) or not running any pods (`WhenEmpty`).
-The `consolidateAfter` field indicates how long after a node has been in the defined `consolidationPolicy` state (`30` seconds in the example) before disrupting the node.
+The `consolidationPolicy` field indicates that a node should be disrupted if the node is either empty (`WhenUnderutilized`) or not running any pods (`WhenEmpty`).
 With `expireAfter` set to `1440` hours, the node expires after 60 days.
 Extending those values causes longer times without disruption.
 
