@@ -423,7 +423,7 @@ var _ = Describe("LaunchTemplates", func() {
 		It("should default AL2023 block device mappings", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
-			awsEnv.LaunchTemplateProvider.ClusterCIDR = lo.ToPtr("10.100.0.0/16")
+			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1154,7 +1154,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/br_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserDataMatching(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
@@ -1168,7 +1168,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/br_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserDataMatching(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should not bootstrap when provider ref points to a non-existent EC2NodeClass resource", func() {
 				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
@@ -1368,7 +1368,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
 			})
 			It("should merge in custom user data when Content-Type is before MIME-Version", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_content_type_first_input.golden")
@@ -1381,7 +1381,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
 			})
 			It("should merge in custom user data not in multi-part mime format", func() {
 				content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.golden")
@@ -1394,7 +1394,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
 			})
 			It("should handle empty custom user data", func() {
 				nodeClass.Spec.UserData = nil
@@ -1405,7 +1405,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
 			})
 		})
 		Context("AL2023", func() {
@@ -1414,7 +1414,7 @@ var _ = Describe("LaunchTemplates", func() {
 
 				// base64 encoded version of "ca-bundle" to ensure the nodeadm bootstrap provider can decode successfully
 				awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
-				awsEnv.LaunchTemplateProvider.ClusterCIDR = lo.ToPtr("10.100.0.0/16")
+				awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			})
 			Context("Kubelet", func() {
 				It("should specify taints in the KubeletConfiguration when specified in NodePool", func() {
@@ -1437,7 +1437,7 @@ var _ = Describe("LaunchTemplates", func() {
 					}))
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
-					ExpectLaunchTemplatesCreatedWithUserDataF(func(userData string) {
+					for _, userData := range ExpectLaunchTemplatesCreatedWithUserData() {
 						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
 						Expect(len(configs)).To(Equal(1))
 						taintsRaw, ok := configs[0].Spec.Kubelet.Config["registerWithTaints"]
@@ -1448,7 +1448,7 @@ var _ = Describe("LaunchTemplates", func() {
 						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t v1.Taint, _ int) interface{} {
 							return interface{}(t)
 						})))
-					})
+					}
 				})
 				It("should specify labels in the Kubelet flags when specified in NodePool", func() {
 					desiredLabels := map[string]string{
@@ -1461,8 +1461,7 @@ var _ = Describe("LaunchTemplates", func() {
 					pod := coretest.UnschedulablePod()
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
-
-					ExpectLaunchTemplatesCreatedWithUserDataF(func(userData string) {
+					for _, userData := range ExpectLaunchTemplatesCreatedWithUserData() {
 						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
 						Expect(len(configs)).To(Equal(1))
 						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
@@ -1472,7 +1471,7 @@ var _ = Describe("LaunchTemplates", func() {
 						for label, value := range desiredLabels {
 							Expect(labelFlag).To(ContainSubstring(fmt.Sprintf("%s=%s", label, value)))
 						}
-					})
+					}
 				})
 				DescribeTable(
 					"should specify KubletConfiguration field when specified in NodePool",
@@ -1495,11 +1494,11 @@ var _ = Describe("LaunchTemplates", func() {
 								return runtime.RawExtension{Raw: val}
 							})
 						}()
-						ExpectLaunchTemplatesCreatedWithUserDataF(func(ud string) {
-							configs := ExpectUserDataCreatedWithNodeConfigs(ud)
+						for _, userData := range ExpectLaunchTemplatesCreatedWithUserData() {
+							configs := ExpectUserDataCreatedWithNodeConfigs(userData)
 							Expect(len(configs)).To(Equal(1))
 							Expect(configs[0].Spec.Kubelet.Config[field]).To(Equal(inlineConfig[field]))
-						})
+						}
 					},
 					Entry("systemReserved", "systemReserved", corev1beta1.KubeletConfiguration{
 						SystemReserved: v1.ResourceList{
@@ -1572,11 +1571,11 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				ExpectLaunchTemplatesCreatedWithUserDataF(func(ud string) {
-					configs := ExpectUserDataCreatedWithNodeConfigs(ud)
+				for _, userData := range ExpectLaunchTemplatesCreatedWithUserData() {
+					configs := ExpectUserDataCreatedWithNodeConfigs(userData)
 					Expect(len(configs)).To(Equal(1))
 					Expect(configs[0].Spec.Instance.LocalStorage.Strategy).To(Equal(admv1alpha1.LocalStorageRAID0))
-				})
+				}
 			})
 			DescribeTable(
 				"should merge custom user data",
@@ -1594,21 +1593,13 @@ var _ = Describe("LaunchTemplates", func() {
 					content, err := os.ReadFile("testdata/" + mergedFile)
 					Expect(err).To(BeNil())
 					expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-					ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+					ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
 				},
 				Entry("MIME", lo.ToPtr("al2023_mime_userdata_input.golden"), "al2023_mime_userdata_merged.golden"),
 				Entry("YAML", lo.ToPtr("al2023_yaml_userdata_input.golden"), "al2023_yaml_userdata_merged.golden"),
 				Entry("shell", lo.ToPtr("al2023_shell_userdata_input.golden"), "al2023_shell_userdata_merged.golden"),
 				Entry("empty", nil, "al2023_userdata_unmerged.golden"),
 			)
-			It("should fail to create launch templates if cluster CIDR is unresolved", func() {
-				awsEnv.LaunchTemplateProvider.ClusterCIDR = nil
-				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
-				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-				ExpectNotScheduled(ctx, env.Client, pod)
-				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
-			})
 		})
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in EC2NodeClass", func() {
@@ -1646,7 +1637,7 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				ExpectLaunchTemplatesCreatedWithUserData("special user data")
+				ExpectLaunchTemplatesCreatedWithUserDataMatching("special user data")
 			})
 			It("should correctly use ami selector with specific IDs in EC2NodeClass", func() {
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: "ami-123"}, {ID: "ami-456"}}
@@ -1870,7 +1861,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/windows_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserDataMatching(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1885,7 +1876,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/windows_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserDataMatching(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 		})
 	})
@@ -1960,28 +1951,29 @@ func ExpectLaunchTemplatesCreatedWithUserDataNotContaining(substrings ...string)
 	})
 }
 
-func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
+func ExpectLaunchTemplatesCreatedWithUserDataMatching(expected string) {
 	GinkgoHelper()
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 		ExpectWithOffset(2, err).To(BeNil())
 		// Newlines are always added for missing TOML fields, so strip them out before comparisons.
-		fmt.Print(string(userData))
 		actualUserData := strings.Replace(string(userData), "\n", "", -1)
 		expectedUserData := strings.Replace(expected, "\n", "", -1)
 		ExpectWithOffset(2, actualUserData).To(Equal(expectedUserData))
 	})
 }
 
-func ExpectLaunchTemplatesCreatedWithUserDataF(fn func(userData string)) {
+func ExpectLaunchTemplatesCreatedWithUserData() []string {
 	GinkgoHelper()
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+	userDatas := []string{}
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
 		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
 		ExpectWithOffset(2, err).To(BeNil())
-		fn(string(userData))
+		userDatas = append(userDatas, string(userData))
 	})
+	return userDatas
 }
 
 func ExpectUserDataCreatedWithNodeConfigs(userData string) []admv1alpha1.NodeConfig {

@@ -66,13 +66,9 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 			Cluster: admv1alpha1.ClusterDetails{
 				Name:              n.ClusterName,
 				APIServerEndpoint: n.ClusterEndpoint,
+				CIDR:              lo.FromPtr(n.ClusterCIDR),
 			},
 		},
-	}
-	if cidr := lo.FromPtr(n.ClusterCIDR); cidr != "" {
-		config.Spec.Cluster.CIDR = cidr
-	} else {
-		return "", fmt.Errorf("resolving cluster CIDR")
 	}
 	if lo.FromPtr(n.CABundle) != "" {
 		ca, err := base64.StdEncoding.DecodeString(*n.CABundle)

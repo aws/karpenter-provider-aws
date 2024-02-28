@@ -22,6 +22,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/multierr"
@@ -76,7 +77,7 @@ type Provider struct {
 	KubeDNSIP               net.IP
 	CABundle                *string
 	ClusterEndpoint         string
-	ClusterCIDR             *string
+	ClusterCIDR             atomic.Pointer[string]
 }
 
 func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
@@ -177,7 +178,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	options := &amifamily.Options{
 		ClusterName:         options.FromContext(ctx).ClusterName,
 		ClusterEndpoint:     p.ClusterEndpoint,
-		ClusterCIDR:         p.ClusterCIDR,
+		ClusterCIDR:         p.ClusterCIDR.Load(),
 		InstanceProfile:     instanceProfile,
 		InstanceStorePolicy: nodeClass.Spec.InstanceStorePolicy,
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
@@ -432,24 +433,24 @@ func (p *Provider) DeleteLaunchTemplates(ctx context.Context, nodeClass *v1beta1
 }
 
 func (p *Provider) ResolveClusterCIDR(ctx context.Context) error {
-	if p.ClusterCIDR != nil {
+	if p.ClusterCIDR.Load() != nil {
 		return nil
 	}
 	out, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
 		Name: aws.String(options.FromContext(ctx).ClusterName),
 	})
 	if err != nil {
-		return fmt.Errorf("resolving cluster CIDR, %w", err)
+		return cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("resolving cluster CIDR, %w", err))
 	}
 	if ipv4CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr; ipv4CIDR != nil {
-		p.ClusterCIDR = ipv4CIDR
+		p.ClusterCIDR.Store(ipv4CIDR)
 		logging.FromContext(ctx).With("cluster-cidr", *ipv4CIDR).Debugf("discovered cluster CIDR")
 		return nil
 	}
 	if ipv6CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr; ipv6CIDR != nil {
 		logging.FromContext(ctx).With("cluster-cidr", *ipv6CIDR).Debugf("discovered cluster CIDR")
-		p.ClusterCIDR = ipv6CIDR
+		p.ClusterCIDR.Store(ipv6CIDR)
 		return nil
 	}
-	return fmt.Errorf("resolving cluster CIDR, no CIDR found in DescribeCluster response")
+	return cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("resolving cluster CIDR, no CIDR found in DescribeCluster response"))
 }

@@ -111,9 +111,9 @@ var _ = Describe("NodeClassController", func() {
 	Context("Cluster CIDR Resolution", func() {
 		BeforeEach(func() {
 			// Cluster CIDR will only be resolved once per lifetime of the launch template provider, reset to nil between tests
-			awsEnv.LaunchTemplateProvider.ClusterCIDR = nil
+			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
 		})
-		It("should only resolve cluster CIDR for AL2023", func() {
+		It("shouldn't resolve cluster CIDR for non-AL2023 NodeClasses", func() {
 			for _, family := range []string{
 				v1beta1.AMIFamilyAL2,
 				v1beta1.AMIFamilyBottlerocket,
@@ -125,14 +125,14 @@ var _ = Describe("NodeClassController", func() {
 				nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 				ExpectApplied(ctx, env.Client, nodeClass)
 				ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
-				Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR).To(BeNil())
+				Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load()).To(BeNil())
 			}
 		})
 		It("should resolve cluster CIDR for IPv4 clusters", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
-			Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR)).To(Equal("10.100.0.0/16"))
+			Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("10.100.0.0/16"))
 		})
 		It("should resolve cluster CIDR for IPv6 clusters", func() {
 			awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
@@ -145,7 +145,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
-			Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR)).To(Equal("2001:db8::/64"))
+			Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))
 		})
 	})
 	Context("Subnet Status", func() {
