@@ -285,15 +285,17 @@ var _ = Describe("Pricing", func() {
 		})
 
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+			// these are incorrect prices which are here to ensure that
+			// results from only static pricing are used
 			PriceList: []aws.JSONValue{
-				fake.NewOnDemandPrice("c98.large", 1.20),
-				fake.NewOnDemandPrice("c99.large", 1.23),
+				fake.NewOnDemandPrice("c3.2xlarge", 1.20),
+				fake.NewOnDemandPrice("c5.xlarge", 1.23),
 			},
 		})
 		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
-		price, ok := awsEnv.PricingProvider.OnDemandPrice("c5.large")
+		price, ok := awsEnv.PricingProvider.OnDemandPrice("c3.2xlarge")
 		Expect(ok).To(BeTrue())
-		Expect(price).To(BeNumerically("==", 0.085))
+		Expect(price).To(BeNumerically("==", 0.420000))
 
 		price, ok = awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1b")
 		Expect(ok).To(BeTrue())

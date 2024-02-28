@@ -16,8 +16,9 @@ package pricing
 
 import (
 	"context"
-	"knative.dev/pkg/logging"
 	"time"
+
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
