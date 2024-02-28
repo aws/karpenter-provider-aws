@@ -432,6 +432,8 @@ spec:
                   description: ProviderID of the corresponding node object
                   type: string
               type: object
+          required:
+            - spec
           type: object
       served: true
       storage: true
