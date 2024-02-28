@@ -1154,7 +1154,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/br_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserDataMatching(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
@@ -1168,7 +1168,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/br_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserDataMatching(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should not bootstrap when provider ref points to a non-existent EC2NodeClass resource", func() {
 				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
@@ -1368,7 +1368,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-				ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data when Content-Type is before MIME-Version", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_content_type_first_input.golden")
@@ -1381,7 +1381,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-				ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data not in multi-part mime format", func() {
 				content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.golden")
@@ -1394,7 +1394,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-				ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should handle empty custom user data", func() {
 				nodeClass.Spec.UserData = nil
@@ -1405,7 +1405,7 @@ var _ = Describe("LaunchTemplates", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
 				expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-				ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
+				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 		})
 		Context("AL2023", func() {
@@ -1437,7 +1437,7 @@ var _ = Describe("LaunchTemplates", func() {
 					}))
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
-					for _, userData := range ExpectLaunchTemplatesCreatedWithUserData() {
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
 						Expect(len(configs)).To(Equal(1))
 						taintsRaw, ok := configs[0].Spec.Kubelet.Config["registerWithTaints"]
@@ -1461,7 +1461,7 @@ var _ = Describe("LaunchTemplates", func() {
 					pod := coretest.UnschedulablePod()
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
-					for _, userData := range ExpectLaunchTemplatesCreatedWithUserData() {
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
 						Expect(len(configs)).To(Equal(1))
 						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
@@ -1494,7 +1494,7 @@ var _ = Describe("LaunchTemplates", func() {
 								return runtime.RawExtension{Raw: val}
 							})
 						}()
-						for _, userData := range ExpectLaunchTemplatesCreatedWithUserData() {
+						for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 							configs := ExpectUserDataCreatedWithNodeConfigs(userData)
 							Expect(len(configs)).To(Equal(1))
 							Expect(configs[0].Spec.Kubelet.Config[field]).To(Equal(inlineConfig[field]))
@@ -1571,7 +1571,7 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				for _, userData := range ExpectLaunchTemplatesCreatedWithUserData() {
+				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
 					configs := ExpectUserDataCreatedWithNodeConfigs(userData)
 					Expect(len(configs)).To(Equal(1))
 					Expect(configs[0].Spec.Instance.LocalStorage.Strategy).To(Equal(admv1alpha1.LocalStorageRAID0))
@@ -1593,7 +1593,7 @@ var _ = Describe("LaunchTemplates", func() {
 					content, err := os.ReadFile("testdata/" + mergedFile)
 					Expect(err).To(BeNil())
 					expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
-					ExpectLaunchTemplatesCreatedWithUserDataMatching(expectedUserData)
+					ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 				},
 				Entry("MIME", lo.ToPtr("al2023_mime_userdata_input.golden"), "al2023_mime_userdata_merged.golden"),
 				Entry("YAML", lo.ToPtr("al2023_yaml_userdata_input.golden"), "al2023_yaml_userdata_merged.golden"),
@@ -1645,7 +1645,7 @@ var _ = Describe("LaunchTemplates", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				ExpectLaunchTemplatesCreatedWithUserDataMatching("special user data")
+				ExpectLaunchTemplatesCreatedWithUserData("special user data")
 			})
 			It("should correctly use ami selector with specific IDs in EC2NodeClass", func() {
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: "ami-123"}, {ID: "ami-456"}}
@@ -1869,7 +1869,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/windows_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserDataMatching(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1884,7 +1884,7 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/windows_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserDataMatching(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 		})
 	})
@@ -1959,7 +1959,7 @@ func ExpectLaunchTemplatesCreatedWithUserDataNotContaining(substrings ...string)
 	})
 }
 
-func ExpectLaunchTemplatesCreatedWithUserDataMatching(expected string) {
+func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
 	GinkgoHelper()
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
@@ -1972,7 +1972,7 @@ func ExpectLaunchTemplatesCreatedWithUserDataMatching(expected string) {
 	})
 }
 
-func ExpectLaunchTemplatesCreatedWithUserData() []string {
+func ExpectUserDataExistsFromCreatedLaunchTemplates() []string {
 	GinkgoHelper()
 	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 	userDatas := []string{}
