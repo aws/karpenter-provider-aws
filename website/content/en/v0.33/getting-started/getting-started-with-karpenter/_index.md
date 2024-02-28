@@ -188,6 +188,7 @@ com.amazonaws.<region>.s3 – For pulling container images
 com.amazonaws.<region>.sts – For IAM roles for service accounts
 com.amazonaws.<region>.ssm - For resolving default AMIs
 com.amazonaws.<region>.sqs - For accessing SQS if using interruption handling
+com.amazonaws.<region>.eks - For Karpenter to discover the cluster endpoint
 ```
 
 If you do not currently have these endpoints surfaced in your VPC, you can add the endpoints by running
