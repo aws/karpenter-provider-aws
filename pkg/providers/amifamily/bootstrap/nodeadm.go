@@ -25,6 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/yaml"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -76,6 +77,11 @@ func (n Nodeadm) getNodeConfigYAML() (string, error) {
 			return "", fmt.Errorf("decoding CABundle, %w", err)
 		}
 		config.Spec.Cluster.CertificateAuthority = ca
+	}
+	if cidr := lo.FromPtr(n.ClusterCIDR); cidr != "" {
+		config.Spec.Cluster.CIDR = cidr
+	} else {
+		return "", cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("resolving cluster CIDR"))
 	}
 	if lo.FromPtr(n.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
 		config.Spec.Instance.LocalStorage.Strategy = admv1alpha1.LocalStorageRAID0

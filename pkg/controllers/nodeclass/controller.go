@@ -88,7 +88,9 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		c.resolveInstanceProfile(ctx, nodeClass),
 	)
 	if lo.FromPtr(nodeClass.Spec.AMIFamily) == v1beta1.AMIFamilyAL2023 {
-		err = multierr.Append(err, c.launchTemplateProvider.ResolveClusterCIDR(ctx))
+		if cidrErr := c.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
+			err = multierr.Append(err, fmt.Errorf("resolving cluster CIDR, %w", cidrErr))
+		}
 	}
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()

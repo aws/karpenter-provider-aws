@@ -60,7 +60,6 @@ func (a AL2023) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints
 			Labels:                  labels,
 			CABundle:                caBundle,
 			AWSENILimitedPodDensity: false,
-			ContainerRuntime:        new(string),
 			CustomUserData:          customUserData,
 			InstanceStorePolicy:     instanceStorePolicy,
 		},
