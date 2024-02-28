@@ -40,3 +40,9 @@ runs:
       shell: bash
       run: |
         kubectl describe nodes
+    - name: describe plugins
+      shell: bash
+      env:
+        CLUSTER_NAME: ${{ inputs.cluster_name }}
+      run: |
+        eksctl utils describe-addon-versions --cluster $CLUSTER_NAME
