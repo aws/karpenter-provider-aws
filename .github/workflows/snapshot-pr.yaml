@@ -50,7 +50,7 @@ jobs:
             ~~~
             aws ecr get-login-password --region ${process.env.SNAPSHOT_REGION} | docker login --username AWS --password-stdin ${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com
             
-            helm upgrade --install karpenter oci://${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot --version "0-${process.env.PR_COMMIT}" --namespace "kube-system" --create-namespace \\
+            helm upgrade --install karpenter oci://${process.env.SNAPSHOT_ACCOUNT_ID}.dkr.ecr.${process.env.SNAPSHOT_REGION}.amazonaws.com/karpenter/snapshot/karpenter --version "0-${process.env.PR_COMMIT}" --namespace "kube-system" --create-namespace \\
               --set "settings.clusterName=\${CLUSTER_NAME}" \\
               --set "settings.interruptionQueue=\${CLUSTER_NAME}" \\
               --set controller.resources.requests.cpu=1 \\
