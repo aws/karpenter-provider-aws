@@ -25,20 +25,6 @@ iam:
     permissionPolicyARNs:
     - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
 
-## Optionally run on fargate or on k8s 1.23
-# Pod Identity is not available on fargate  
-# https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html
-# iam:
-#   withOIDC: true
-#   serviceAccounts:
-#   - metadata:
-#       name: karpenter
-#       namespace: "${KARPENTER_NAMESPACE}"
-#     roleName: ${CLUSTER_NAME}-karpenter
-#     attachPolicyARNs:
-#     - arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:policy/KarpenterControllerPolicy-${CLUSTER_NAME}
-#     roleOnly: true
-
 iamIdentityMappings:
 - arn: "arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/KarpenterNodeRole-${CLUSTER_NAME}"
   username: system:node:{{EC2PrivateDNSName}}
@@ -59,12 +45,6 @@ managedNodeGroups:
 
 addons:
 - name: eks-pod-identity-agent
-
-## Optionally run on fargate
-# fargateProfiles:
-# - name: karpenter
-#  selectors:
-#  - namespace: "${KARPENTER_NAMESPACE}"
 EOF
 
 export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
