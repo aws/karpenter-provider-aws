@@ -18,7 +18,7 @@ See [How do I upgrade an EKS Cluster with Karpenter]({{< relref "../faq/#how-do-
 Here is how Karpenter assigns AMIs nodes:
 
 * When you create an `EC2NodeClass`, you are required to set the family of AMIs to use. For example, for the AL2 family, you would set `amiFamily: AL2`.
-* With that `amiFamily` set, any time Karpenter spins up a new node, it uses the latest [Amazon EKS optimized Amazon Linux AMIs](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) release.
+* With that `amiFamily` set, any time Karpenter spins up a new node, it uses the latest [Amazon EKS optimized Amazon Linux 2 AMIs](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) release.
 * Later, if an existing node needs to be replaced, Karpenter checks to see if a newer AMI in the AL2 family is available and automatically uses the new AMI instead to spin up the new node. In other words, you may automatically get an AMI that you have not tested with your workloads.
 
 You can manually delete a node managed by Karpenter, which will cause the default behavior just described to take effect.
@@ -116,7 +116,7 @@ Keep in mind, that this could prevent you from getting critical security patches
 
 ### Task 3: Control the pace of node disruptions
 
-To reduce the risk of a new AMI being deployed immediately to all your nodes and breaking all of your workloads, you can enable Karpenter [**Disruption Budgets**]({{< relref "../concepts/disruption/#disruption-budgets " >}}).
+To reduce the risk of entire workloads being immediately degraded when a new AMI is deployed, you can enable Karpenter [**Disruption Budgets**]({{< relref "../concepts/disruption/#disruption-budgets " >}}).
 Disruption Budgets limit when and to what extent nodes can be disrupted.
 You can prevent disruption based on nodes (a percentage or number of nodes that can be disrupted at a time) and schedule (excluding certain times from disrupting nodes).
 You can set Disruption Budgets in a `NodePool` spec.
