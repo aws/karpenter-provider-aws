@@ -35,6 +35,7 @@ import (
 const sweeperCleanedResourcesTableName = "sweeperCleanedResources"
 
 var excludedClusters = []string{
+	// TODO: @jmdeal remove after SQS investigation
 	"soak-periodic-46287782",
 }
 
