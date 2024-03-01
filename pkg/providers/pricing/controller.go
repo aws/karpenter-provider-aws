@@ -18,10 +18,6 @@ import (
 	"context"
 	"time"
 
-	"knative.dev/pkg/logging"
-
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-
 	lop "github.com/samber/lo/parallel"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -55,14 +51,7 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 func (c *Controller) updatePricing(ctx context.Context) error {
 	work := []func(ctx context.Context) error{
 		c.pricingProvider.UpdateSpotPricing,
-	}
-
-	// we try to update on demand pricing only if we are not in isolated VPC, as
-	// AWS Price list api might not be accessible for isolated VPCs
-	if !options.FromContext(ctx).IsolatedVPC {
-		work = append(work, c.pricingProvider.UpdateOnDemandPricing)
-	} else {
-		logging.FromContext(ctx).Infof("assuming isolated VPC, on-demand pricing information will not be updated")
+		c.pricingProvider.UpdateOnDemandPricing,
 	}
 
 	errs := make([]error, len(work))
