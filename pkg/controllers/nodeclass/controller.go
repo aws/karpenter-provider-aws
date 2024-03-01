@@ -87,6 +87,11 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		c.resolveAMIs(ctx, nodeClass),
 		c.resolveInstanceProfile(ctx, nodeClass),
 	)
+	if lo.FromPtr(nodeClass.Spec.AMIFamily) == v1beta1.AMIFamilyAL2023 {
+		if cidrErr := c.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
+			err = multierr.Append(err, fmt.Errorf("resolving cluster CIDR, %w", cidrErr))
+		}
+	}
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
 		if patchErr := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {

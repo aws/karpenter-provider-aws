@@ -22,6 +22,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"go.uber.org/multierr"
@@ -29,6 +30,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -64,28 +67,31 @@ type LaunchTemplate struct {
 type Provider struct {
 	sync.Mutex
 	ec2api                  ec2iface.EC2API
+	eksapi                  eksiface.EKSAPI
 	amiFamily               *amifamily.Resolver
 	securityGroupProvider   *securitygroup.Provider
 	subnetProvider          *subnet.Provider
 	instanceProfileProvider *instanceprofile.Provider
 	cache                   *cache.Cache
-	caBundle                *string
 	cm                      *pretty.ChangeMonitor
 	KubeDNSIP               net.IP
+	CABundle                *string
 	ClusterEndpoint         string
+	ClusterCIDR             atomic.Pointer[string]
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, amiFamily *amifamily.Resolver,
+func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
 	securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider, instanceProfileProvider *instanceprofile.Provider,
 	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *Provider {
 	l := &Provider{
 		ec2api:                  ec2api,
+		eksapi:                  eksapi,
 		amiFamily:               amiFamily,
 		securityGroupProvider:   securityGroupProvider,
 		subnetProvider:          subnetProvider,
 		instanceProfileProvider: instanceProfileProvider,
 		cache:                   cache,
-		caBundle:                caBundle,
+		CABundle:                caBundle,
 		cm:                      pretty.NewChangeMonitor(),
 		KubeDNSIP:               kubeDNSIP,
 		ClusterEndpoint:         clusterEndpoint,
@@ -172,6 +178,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	options := &amifamily.Options{
 		ClusterName:         options.FromContext(ctx).ClusterName,
 		ClusterEndpoint:     p.ClusterEndpoint,
+		ClusterCIDR:         p.ClusterCIDR.Load(),
 		InstanceProfile:     instanceProfile,
 		InstanceStorePolicy: nodeClass.Spec.InstanceStorePolicy,
 		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
@@ -179,7 +186,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 		}),
 		Tags:          tags,
 		Labels:        labels,
-		CABundle:      p.caBundle,
+		CABundle:      p.CABundle,
 		KubeDNSIP:     p.KubeDNSIP,
 		NodeClassName: nodeClass.Name,
 	}
@@ -423,4 +430,27 @@ func (p *Provider) DeleteLaunchTemplates(ctx context.Context, nodeClass *v1beta1
 		return fmt.Errorf("deleting launch templates, %w", deleteErr)
 	}
 	return nil
+}
+
+func (p *Provider) ResolveClusterCIDR(ctx context.Context) error {
+	if p.ClusterCIDR.Load() != nil {
+		return nil
+	}
+	out, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
+		Name: aws.String(options.FromContext(ctx).ClusterName),
+	})
+	if err != nil {
+		return err
+	}
+	if ipv4CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr; ipv4CIDR != nil {
+		p.ClusterCIDR.Store(ipv4CIDR)
+		logging.FromContext(ctx).With("cluster-cidr", *ipv4CIDR).Debugf("discovered cluster CIDR")
+		return nil
+	}
+	if ipv6CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr; ipv6CIDR != nil {
+		p.ClusterCIDR.Store(ipv6CIDR)
+		logging.FromContext(ctx).With("cluster-cidr", *ipv6CIDR).Debugf("discovered cluster CIDR")
+		return nil
+	}
+	return fmt.Errorf("no CIDR found in DescribeCluster response")
 }

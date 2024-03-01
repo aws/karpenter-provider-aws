@@ -149,6 +149,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
+		eks.New(sess),
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
