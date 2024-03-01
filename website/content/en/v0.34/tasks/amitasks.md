@@ -23,17 +23,12 @@ Here is how Karpenter assigns AMIs nodes:
 
 You can manually delete a node managed by Karpenter, which will cause the default behavior just described to take effect.
 However, there are situations that will cause node replacements with newer AMIs to happen automatically.
-These include: 
-
-* **Expiration**: If node expiry is set for a node, the node is marked for deletion at a certain time after the node is created.
-* [**Consolidation**]({{< relref "../concepts/disruption/#consolidation" >}}): If a node is empty of workloads, or deemed to be inefficiently running workloads, nodes can be deleted and more appropriately featured nodes are brought up to consolidate workloads.
-* [**Drift**]({{< relref "../concepts/disruption/#drift" >}}): Nodes are set for deletion when they drift from the desired state of the NodeClaims and new nodes are brought up to replace them.
-* [**Interruption**]({{< relref "../concepts/disruption/#interruption" >}}): Nodes are sometimes involuntarily disrupted by things like Spot interruption, health changes, and instance events, requiring new nodes to be deployed.
+These include: Expiration (if node expiry is set, the node is marked for deletion at a certain time after the node is created), [**Consolidation**]({{< relref "../concepts/disruption/#consolidation" >}}) (if a node is empty of workloads, or deemed to be inefficiently running workloads, nodes can be deleted and more appropriately featured nodes are brought up to consolidate workloads), [Drift]({{< relref "../concepts/disruption/#drift" >}}) (nodes are set for deletion when they drift from the desired state of the `NodeClaims` and new nodes are brought up to replace them), and [Interruption]({{< relref "../concepts/disruption/#interruption" >}}) (nodes are sometimes involuntarily disrupted by things like Spot interruption, health changes, and instance events, requiring new nodes to be deployed).
 
 See [**Automated Methods**]({{< relref "../concepts/disruption/#automated-methods" >}}) for details on how Karpenter uses these automated actions to replace nodes.
 
 With these types of automated updates in place, there is some risk that the new AMI being used when replacing instances will introduce some regressions or bugs that cause your workloads to be degraded or fail altogether.
-The tasks described below tell you how to take more control over the ways in which Karpenter handles AMI assignments to nodes.
+The tasks described below tell you how to take more control over the ways in which Karpenter selects AMIs for your nodes.
 
 {{% alert title="Important" color="warning" %}}
 If you are new to Karpenter, you should know that the behavior described here is different than you get with Managed Node Groups (MNG). MNG will always use the assigned AMI when it creates a new node and will never automatically upgrade to a new AMI when a new node is required. See [Updating a Managed Node Group](https://docs.aws.amazon.com/eks/latest/userguide/update-managed-node-group.html) to see how you would manually update MNG to use new AMIs.
@@ -49,7 +44,7 @@ Here are the advantages and challenges of each of the tasks described below:
 
 * Task 1 (Test AMIs): The safest way, and the one we recommend, for ensuring that a new AMI doesn't break your workloads is to test it before putting it into production. This takes the most effort on your part, but most effectively models how your workloads will run in production, allowing you to catch issues ahead of time. Note that you can sometimes get different results from your test environment when you roll a new AMI into production, since issues like scale and other factors can elevate problems you might not see in test. So combining this with other tasks, that do things like slow rollouts, can allow you to catch problems before they impact your whole cluster.
 * Task 2 (Lock down AMIs): If workloads require a particluar AMI, this task can make sure that it is the only AMI used by Karpenter. This can be used in combination with Task 1, where you lock down the AMI in production, but allow the newest AMIs in a test cluster while you test your workloads before upgrading production. Keep in mind that this makes upgrades a manual process for you.
-* Task 3 (Disruption budgets): This task can be used as a way of mitigating the scope of impact if a new AMI causes problems with your workloads. With Disruption budgets you can slow the pace of upgrades to nodes with new AMIs or make sure that upgrades only happen during selected dates and times (using `schedule`). This doesn't prevent a bad AMI from being deployed, but it allows you to control when nodes are upgraded, and gives you more time respond to rollout issues.
+* Task 3 ([Disruption budgets]({{< relref "../concepts/disruption/" >}})): This task can be used as a way of mitigating the scope of impact if a new AMI causes problems with your workloads. With Disruption budgets you can slow the pace of upgrades to nodes with new AMIs or make sure that upgrades only happen during selected dates and times (using `schedule`). This doesn't prevent a bad AMI from being deployed, but it allows you to control when nodes are upgraded, and gives you more time respond to rollout issues.
 
 ## Tasks
 
@@ -60,7 +55,7 @@ The following tasks let you have an impact on Karpenter’s behavior as it relat
 Instead of just avoiding AMI upgrades, you can set up test clusters where you can try out new AMI releases before they are put into production.
 For example, you could have:
 
-* **Test clusters**: On these clusters, you can run the latest AMIs for your workloads in a safe environment. The `EC2NodeClass` for these clusters could be set with a chosen `amiFamily`, but no `amiSelectorTerms` set. For example, the `NodePool` and `EC2NodeClass` could begin with the following:
+* **Test clusters**: On lower environment clusters, you can run the latest AMIs for your workloads in a safe environment. The `EC2NodeClass` for these clusters could be set with a chosen `amiFamily`, but no `amiSelectorTerms` set. For example, the `NodePool` and `EC2NodeClass` could begin with the following:
   ```bash
   apiVersion: karpenter.sh/v1beta1
   kind: NodePool
@@ -82,7 +77,7 @@ For example, you could have:
     # The latest AMI in this family will be used
     amiFamily: AL2
   ```
-* **Production clusters**: When you feel that everything is working properly, you can set the latest AMIs to be deployed in your production clusters so they are not upgraded. One way to do that is to use `amiSelectorTerms` to set the tested AMI to be used in your production cluster. Refer to Task 2 for how to choose a particular AMI by `name` or `id`. Remember that it is still best practice to gradually roll new AMIs into your cluster, even if they have been tested. So consider implementing that for your production clusters as described in Task 3.
+* **Production clusters**: After you've confirmed that the AMI works in your lower environments, you can pin the latest AMIs to be deployed in your production clusters to roll out the AMI. One way to do that is to use `amiSelectorTerms` to set the tested AMI to be used in your production cluster. Refer to Task 2 for how to choose a particular AMI by `name` or `id`. Remember that it is still best practice to gradually roll new AMIs into your cluster, even if they have been tested. So consider implementing that for your production clusters as described in Task 3.
 
 ### Task 2: Lock down which AMIs are selected
 
