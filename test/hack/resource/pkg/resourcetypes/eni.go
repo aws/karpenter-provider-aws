@@ -23,6 +23,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"golang.org/x/exp/slices"
 )
 
 type ENI struct {
@@ -41,7 +42,7 @@ func (e *ENI) Global() bool {
 	return false
 }
 
-func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
@@ -58,6 +59,12 @@ func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time) (ids []s
 		}
 
 		for _, ni := range out.NetworkInterfaces {
+			clusterName, found := lo.Find(ni.TagSet, func(tag ec2types.Tag) bool {
+				return *tag.Key == k8sClusterTag
+			})
+			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+				continue
+			}
 			creationDate, found := lo.Find(ni.TagSet, func(tag ec2types.Tag) bool {
 				return *tag.Key == "node.k8s.amazonaws.com/createdAt"
 			})

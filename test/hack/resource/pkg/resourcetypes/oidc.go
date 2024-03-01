@@ -21,8 +21,10 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
+	iamtypes "github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"golang.org/x/exp/slices"
 )
 
 type OIDC struct {
@@ -41,7 +43,7 @@ func (o *OIDC) Global() bool {
 	return true
 }
 
-func (o *OIDC) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
+func (o *OIDC) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (names []string, err error) {
 	out, err := o.iamClient.ListOpenIDConnectProviders(ctx, &iam.ListOpenIDConnectProvidersInput{})
 	if err != nil {
 		return names, err
@@ -58,6 +60,13 @@ func (o *OIDC) GetExpired(ctx context.Context, expirationTime time.Time) (names 
 		})
 		if err != nil {
 			errs[i] = err
+			continue
+		}
+
+		clusterName, found := lo.Find(oicd.Tags, func(tag iamtypes.Tag) bool {
+			return *tag.Key == k8sClusterTag
+		})
+		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
 			continue
 		}
 

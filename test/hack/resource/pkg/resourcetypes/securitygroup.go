@@ -23,6 +23,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"golang.org/x/exp/slices"
 )
 
 type SecurityGroup struct {
@@ -41,7 +42,7 @@ func (sg *SecurityGroup) Global() bool {
 	return false
 }
 
-func (sg *SecurityGroup) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+func (sg *SecurityGroup) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := sg.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
@@ -58,6 +59,12 @@ func (sg *SecurityGroup) GetExpired(ctx context.Context, expirationTime time.Tim
 		}
 
 		for _, sgroup := range out.SecurityGroups {
+			clusterName, found := lo.Find(sgroup.Tags, func(tag ec2types.Tag) bool {
+				return *tag.Key == k8sClusterTag
+			})
+			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+				continue
+			}
 			creationDate, found := lo.Find(sgroup.Tags, func(tag ec2types.Tag) bool {
 				return *tag.Key == "creation-date"
 			})
