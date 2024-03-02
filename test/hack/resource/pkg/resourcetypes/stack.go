@@ -22,6 +22,7 @@ import (
 	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"golang.org/x/exp/slices"
 )
 
 type Stack struct {
@@ -40,7 +41,7 @@ func (s *Stack) Global() bool {
 	return false
 }
 
-func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
+func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (names []string, err error) {
 	var nextToken *string
 	for {
 		out, err := s.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
@@ -55,6 +56,12 @@ func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time) (names
 				s.StackStatus == cloudformationtypes.StackStatusDeleteInProgress
 		})
 		for _, stack := range stacks {
+			clusterName, found := lo.Find(stack.Tags, func(tag cloudformationtypes.Tag) bool {
+				return *tag.Key == k8sClusterTag
+			})
+			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+				continue
+			}
 			if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
 				return lo.FromPtr(t.Key) == karpenterTestingTag || lo.FromPtr(t.Key) == githubRunURLTag
 			}); found && lo.FromPtr(stack.CreationTime).Before(expirationTime) {

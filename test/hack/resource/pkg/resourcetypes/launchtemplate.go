@@ -22,6 +22,7 @@ import (
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	"golang.org/x/exp/slices"
 )
 
 type LaunchTemplate struct {
@@ -40,7 +41,7 @@ func (lt *LaunchTemplate) Global() bool {
 	return false
 }
 
-func (lt *LaunchTemplate) GetExpired(ctx context.Context, expirationTime time.Time) (names []string, err error) {
+func (lt *LaunchTemplate) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (names []string, err error) {
 	var nextToken *string
 	for {
 		out, err := lt.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
@@ -57,6 +58,12 @@ func (lt *LaunchTemplate) GetExpired(ctx context.Context, expirationTime time.Ti
 		}
 
 		for _, launchTemplate := range out.LaunchTemplates {
+			clusterName, found := lo.Find(launchTemplate.Tags, func(tag ec2types.Tag) bool {
+				return *tag.Key == k8sClusterTag
+			})
+			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+				continue
+			}
 			if lo.FromPtr(launchTemplate.CreateTime).Before(expirationTime) {
 				names = append(names, lo.FromPtr(launchTemplate.LaunchTemplateName))
 			}
