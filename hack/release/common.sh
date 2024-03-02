@@ -192,7 +192,7 @@ removeOldWebsiteDirectories() {
 editWebsiteConfig() {
   local version="${1}"
 
-  yq -i ".params.latest_release_version = \"v${version}\"" website/hugo.yaml
+  yq -i ".params.latest_release_version = \"${version}\"" website/hugo.yaml
 }
 
 # editWebsiteVersionsMenu sets relevant releases in the version dropdown menu of the website
