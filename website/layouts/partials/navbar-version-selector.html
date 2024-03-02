@@ -1,7 +1,7 @@
 {{ $pageDir := index (split (path.Dir .Page.RelPermalink) "/") 1 }}
 <!-- special treatment for the homepage. we treat it same as latest docs //-->
 {{ if or (eq $pageDir "docs") (eq $pageDir "") }}
-	{{ $pageDir = printf "%s.%s" ( index ( split .Site.Params.latest_release_version "." ) 0 ) ( index ( split .Site.Params.latest_release_version "." ) 1 ) }}
+	{{ $pageDir = printf "v%s.%s" ( index ( split .Site.Params.latest_release_version "." ) 0 ) ( index ( split .Site.Params.latest_release_version "." ) 1 ) }}
 {{ end }}
 {{ $pagePath := replace .Page.RelPermalink "docs" "" }}
 {{ $pagePath = replace $pagePath $pageDir "" }}
