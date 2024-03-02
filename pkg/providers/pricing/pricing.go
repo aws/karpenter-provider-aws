@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -147,6 +149,13 @@ func (p *Provider) UpdateOnDemandPricing(ctx context.Context) error {
 	var wg sync.WaitGroup
 	var onDemandPrices, onDemandMetalPrices map[string]float64
 	var onDemandErr, onDemandMetalErr error
+
+	// if we are in isolated vpc, skip updating on demand pricing
+	// as pricing api may not be available
+	if options.FromContext(ctx).IsolatedVPC {
+		logging.FromContext(ctx).Infof("assuming isolated VPC, on-demand pricing information will not be updated")
+		return nil
+	}
 
 	wg.Add(1)
 	go func() {

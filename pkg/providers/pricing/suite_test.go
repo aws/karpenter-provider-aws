@@ -262,6 +262,46 @@ var _ = Describe("Pricing", func() {
 		Expect(lo.Map(inp.ProductDescriptions, func(x *string, _ int) string { return *x })).
 			To(ContainElements("Linux/UNIX", "Linux/UNIX (Amazon VPC)"))
 	})
+	It("should return static on-demand data when in isolated-vpc", func() {
+		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
+			IsolatedVPC: lo.ToPtr(true),
+		}))
+		now := time.Now()
+		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.50"),
+					Timestamp:        &now,
+				},
+				{
+					AvailabilityZone: aws.String("test-zone-1b"),
+					InstanceType:     aws.String("c98.large"),
+					SpotPrice:        aws.String("1.10"),
+					Timestamp:        &now,
+				},
+			},
+		})
+
+		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+			// these are incorrect prices which are here to ensure that
+			// results from only static pricing are used
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPrice("c3.2xlarge", 1.20),
+				fake.NewOnDemandPrice("c5.xlarge", 1.23),
+			},
+		})
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		price, ok := awsEnv.PricingProvider.OnDemandPrice("c3.2xlarge")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 0.420000))
+
+		price, ok = awsEnv.PricingProvider.SpotPrice("c98.large", "test-zone-1b")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 1.10))
+		Expect(getPricingEstimateMetricValue("c98.large", ec2.UsageClassTypeSpot, "test-zone-1b")).To(BeNumerically("==", 1.10))
+	})
 })
 
 func getPricingEstimateMetricValue(instanceType string, capacityType string, zone string) float64 {
