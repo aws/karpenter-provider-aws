@@ -16,6 +16,7 @@ package pricing
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	lop "github.com/samber/lo/parallel"
@@ -23,43 +24,42 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
+	"sigs.k8s.io/karpenter/pkg/operator/controller"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
 
 type Controller struct {
-	pricingProvider *Provider
+	pricingProvider *pricing.Provider
 }
 
-func NewController(pricingProvider *Provider) *Controller {
+func NewController(pricingProvider *pricing.Provider) *Controller {
 	return &Controller{
 		pricingProvider: pricingProvider,
 	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	return reconcile.Result{RequeueAfter: 12 * time.Hour}, c.updatePricing(ctx)
-}
-
-func (c *Controller) Name() string {
-	return "pricing"
-}
-
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.NewSingletonManagedBy(m)
-}
-
-func (c *Controller) updatePricing(ctx context.Context) error {
 	work := []func(ctx context.Context) error{
 		c.pricingProvider.UpdateSpotPricing,
 		c.pricingProvider.UpdateOnDemandPricing,
 	}
-
 	errs := make([]error, len(work))
 	lop.ForEach(work, func(f func(ctx context.Context) error, i int) {
 		if err := f(ctx); err != nil {
 			errs[i] = err
 		}
 	})
+	if err := multierr.Combine(errs...); err != nil {
+		return reconcile.Result{}, fmt.Errorf("updating pricing, %w", err)
+	}
+	return reconcile.Result{RequeueAfter: 12 * time.Hour}, nil
+}
 
-	return multierr.Combine(errs...)
+func (c *Controller) Name() string {
+	return "pricing"
+}
+
+func (c *Controller) Builder(_ context.Context, m manager.Manager) controller.Builder {
+	return controller.NewSingletonManagedBy(m)
 }
