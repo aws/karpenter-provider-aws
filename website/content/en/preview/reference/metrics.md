@@ -151,8 +151,11 @@ Current count of nodes in cluster state
 
 ## Cloudprovider Metrics
 
-### `karpenter_cloudprovider_instance_type_price_estimate`
-Estimated hourly price used when making informed decisions on node cost calculation. This is updated once on startup and then every 12 hours.
+### `karpenter_cloudprovider_instance_type_offering_price_estimate`
+Instance type offering estimated estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone.
+
+### `karpenter_cloudprovider_instance_type_offering_available`
+Instance type offering availability, based on instance type, capacity type, and zone
 
 ### `karpenter_cloudprovider_instance_type_memory_bytes`
 Memory, in bytes, for a given instance type.

@@ -118,16 +118,15 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 		return item.([]*cloudprovider.InstanceType), nil
 	}
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+		instanceTypeVCPU.With(prometheus.Labels{
+			instanceTypeLabel: *i.InstanceType,
+		}).Set(float64(aws.Int64Value(i.VCpuInfo.DefaultVCpus)))
+		instanceTypeMemory.With(prometheus.Labels{
+			instanceTypeLabel: *i.InstanceType,
+		}).Set(float64(aws.Int64Value(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
+
 		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], zones, subnetZones))
 	})
-	for _, instanceType := range instanceTypes {
-		InstanceTypeVCPU.With(prometheus.Labels{
-			InstanceTypeLabel: *instanceType.InstanceType,
-		}).Set(float64(aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus)))
-		InstanceTypeMemory.With(prometheus.Labels{
-			InstanceTypeLabel: *instanceType.InstanceType,
-		}).Set(float64(aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * 1024 * 1024))
-	}
 	p.cache.SetDefault(key, result)
 	return result, nil
 }
@@ -167,6 +166,16 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 				Price:        price,
 				Available:    available,
 			})
+			instanceTypeOfferingAvailable.With(prometheus.Labels{
+				instanceTypeLabel: *instanceType.InstanceType,
+				capacityTypeLabel: capacityType,
+				zoneLabel:         zone,
+			}).Set(float64(lo.Ternary(available, 1, 0)))
+			instanceTypeOfferingPriceEstimate.With(prometheus.Labels{
+				instanceTypeLabel: *instanceType.InstanceType,
+				capacityTypeLabel: capacityType,
+				zoneLabel:         zone,
+			}).Set(price)
 		}
 	}
 	return offerings

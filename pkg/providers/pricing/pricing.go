@@ -33,7 +33,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"knative.dev/pkg/logging"
@@ -206,14 +205,6 @@ func (p *Provider) UpdateOnDemandPricing(ctx context.Context) error {
 	}
 
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
-	for instanceType, price := range p.onDemandPrices {
-		InstancePriceEstimate.With(prometheus.Labels{
-			InstanceTypeLabel: instanceType,
-			CapacityTypeLabel: ec2.UsageClassTypeOnDemand,
-			RegionLabel:       p.region,
-			TopologyLabel:     "",
-		}).Set(price)
-	}
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
 		logging.FromContext(ctx).With("instance-type-count", len(p.onDemandPrices)).Debugf("updated on-demand pricing")
 	}
@@ -343,12 +334,6 @@ func (p *Provider) UpdateSpotPricing(ctx context.Context) error {
 				prices[instanceType] = map[string]float64{}
 			}
 			prices[instanceType][az] = spotPrice
-			InstancePriceEstimate.With(prometheus.Labels{
-				InstanceTypeLabel: instanceType,
-				CapacityTypeLabel: ec2.UsageClassTypeSpot,
-				RegionLabel:       p.region,
-				TopologyLabel:     az,
-			}).Set(spotPrice)
 		}
 		return true
 	})

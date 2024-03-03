@@ -23,12 +23,13 @@ import (
 
 const (
 	cloudProviderSubsystem = "cloudprovider"
+	instanceTypeLabel      = "instance_type"
+	capacityTypeLabel      = "capacity_type"
+	zoneLabel              = "zone"
 )
 
 var (
-	InstanceTypeLabel = "instance_type"
-
-	InstanceTypeVCPU = prometheus.NewGaugeVec(
+	instanceTypeVCPU = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: cloudProviderSubsystem,
@@ -36,10 +37,10 @@ var (
 			Help:      "VCPUs cores for a given instance type.",
 		},
 		[]string{
-			InstanceTypeLabel,
-		})
-
-	InstanceTypeMemory = prometheus.NewGaugeVec(
+			instanceTypeLabel,
+		},
+	)
+	instanceTypeMemory = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: cloudProviderSubsystem,
@@ -47,10 +48,36 @@ var (
 			Help:      "Memory, in bytes, for a given instance type.",
 		},
 		[]string{
-			InstanceTypeLabel,
+			instanceTypeLabel,
+		},
+	)
+	instanceTypeOfferingAvailable = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: cloudProviderSubsystem,
+			Name:      "instance_type_offering_available",
+			Help:      "Instance type offering availability, based on instance type, capacity type, and zone",
+		},
+		[]string{
+			instanceTypeLabel,
+			capacityTypeLabel,
+			zoneLabel,
+		},
+	)
+	instanceTypeOfferingPriceEstimate = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: metrics.Namespace,
+			Subsystem: cloudProviderSubsystem,
+			Name:      "instance_type_offering_price_estimate",
+			Help:      "Instance type offering estimated estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone.",
+		},
+		[]string{
+			instanceTypeLabel,
+			capacityTypeLabel,
+			zoneLabel,
 		})
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(InstanceTypeVCPU, InstanceTypeMemory)
+	crmetrics.Registry.MustRegister(instanceTypeVCPU, instanceTypeMemory, instanceTypeOfferingAvailable, instanceTypeOfferingPriceEstimate)
 }
