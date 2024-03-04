@@ -28,6 +28,7 @@ func (o Options) Validate() error {
 		o.validateVMMemoryOverheadPercent(),
 		o.validateAssumeRoleDuration(),
 		o.validateReservedENIs(),
+		o.validateMaxPodsExtraCapacity(),
 		o.validateRequiredFields(),
 	)
 }
@@ -62,6 +63,13 @@ func (o Options) validateVMMemoryOverheadPercent() error {
 func (o Options) validateReservedENIs() error {
 	if o.ReservedENIs < 0 {
 		return fmt.Errorf("reserved-enis cannot be negative")
+	}
+	return nil
+}
+
+func (o Options) validateMaxPodsExtraCapacity() error {
+	if o.MaxPodsExtraCapacity < 0 {
+		return fmt.Errorf("max-pods-extra-capacity cannot be negative")
 	}
 	return nil
 }
