@@ -202,6 +202,6 @@ settings:
     # Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes
     # and the desired state of nodes set in nodepools and nodeclasses
     drift: true
-    # -- spotToSpotConsolidation is disabled by default.
+    # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false
