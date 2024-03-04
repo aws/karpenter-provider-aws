@@ -19,6 +19,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
+	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -54,7 +55,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		nodeclass.NewController(kubeClient, recorder, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
-		pricing.NewController(pricingProvider),
+		controllerspricing.NewController(pricingProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewProvider(ctx, servicesqs.New(sess), options.FromContext(ctx).InterruptionQueue)), unavailableOfferings))

@@ -30,6 +30,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
@@ -45,7 +46,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var controller *pricing.Controller
+var controller *controllerspricing.Controller
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -59,7 +60,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
-	controller = pricing.NewController(awsEnv.PricingProvider)
+	controller = controllerspricing.NewController(awsEnv.PricingProvider)
 })
 
 var _ = AfterSuite(func() {

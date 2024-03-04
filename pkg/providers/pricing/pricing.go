@@ -153,7 +153,9 @@ func (p *Provider) UpdateOnDemandPricing(ctx context.Context) error {
 	// if we are in isolated vpc, skip updating on demand pricing
 	// as pricing api may not be available
 	if options.FromContext(ctx).IsolatedVPC {
-		logging.FromContext(ctx).Infof("assuming isolated VPC, on-demand pricing information will not be updated")
+		if p.cm.HasChanged("on-demand-prices", nil) {
+			logging.FromContext(ctx).Debug("running in an isolated VPC, on-demand pricing information will not be updated")
+		}
 		return nil
 	}
 
