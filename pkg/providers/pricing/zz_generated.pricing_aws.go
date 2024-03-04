@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2023-12-11T13:07:33Z for us-east-1
+// generated at 2024-03-04T13:06:01Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -226,7 +226,8 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"m7g.xlarge": 0.163200,
 		// m7gd family
 		"m7gd.12xlarge": 2.562800, "m7gd.16xlarge": 3.417100, "m7gd.2xlarge": 0.427100, "m7gd.4xlarge": 0.854300,
-		"m7gd.8xlarge": 1.708600, "m7gd.large": 0.106800, "m7gd.medium": 0.053400, "m7gd.xlarge": 0.213600,
+		"m7gd.8xlarge": 1.708600, "m7gd.large": 0.106800, "m7gd.medium": 0.053400, "m7gd.metal": 3.417100,
+		"m7gd.xlarge": 0.213600,
 		// m7i-flex family
 		"m7i-flex.2xlarge": 0.383040, "m7i-flex.4xlarge": 0.766080, "m7i-flex.8xlarge": 1.532160,
 		"m7i-flex.large": 0.095760, "m7i-flex.xlarge": 0.191520,
