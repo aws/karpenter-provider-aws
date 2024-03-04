@@ -441,7 +441,7 @@ Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca
 
 Karpenter allows you to describe NodePool preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 
-For more information on weighting NodePools, see the [Weighting NodePools section]({{<ref "scheduling#weighting-nodepools" >}}) in the scheduling details.
+For more information on weighting NodePools, see the [Weighted NodePools section]({{<ref "scheduling#weighted-nodepools" >}}) in the scheduling docs.
 
 ## Examples
 
