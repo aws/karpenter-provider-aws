@@ -354,3 +354,4 @@ status:
 16. `karpenter.k8s.aws/instance-accelerator-name`
 17. `karpenter.k8s.aws/instance-accelerator-manufacturer`
 18. `karpenter.k8s.aws/instance-accelerator-count`
+19. `karpenter.k8s.aws/instance-performance-mode`

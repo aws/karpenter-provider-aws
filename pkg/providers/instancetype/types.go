@@ -101,6 +101,7 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
 		scheduling.NewRequirement(v1beta1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
+		scheduling.NewRequirement(v1beta1.LabelInstancePerformanceMode, v1.NodeSelectorOpIn, getPerformanceMode(info)),
 	)
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(aws.StringValue(info.InstanceType))
@@ -171,6 +172,19 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 		}
 	}
 	return fmt.Sprint(aws.StringValueSlice(info.ProcessorInfo.SupportedArchitectures)) // Unrecognized, but used for error printing
+}
+
+func getPerformanceMode(info *ec2.InstanceTypeInfo) string {
+	if aws.BoolValue(info.BurstablePerformanceSupported) {
+		return v1beta1.PerformanceModeBurstable
+	}
+
+	// Flex instances are not burstable, but they are not standard either
+	if strings.Contains(aws.StringValue(info.InstanceType), v1beta1.PerformanceModeFlex) {
+		return v1beta1.PerformanceModeFlex
+	}
+
+	return v1beta1.PerformanceModeStandard
 }
 
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
