@@ -119,6 +119,7 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "BareMetal: aws.Bool(%t),\n", lo.FromPtr(info.BareMetal))
 	fmt.Fprintf(src, "Hypervisor: aws.String(\"%s\"),\n", lo.FromPtr(info.Hypervisor))
 	fmt.Fprintf(src, "ProcessorInfo: &ec2.ProcessorInfo{\n")
+	fmt.Fprintf(src, "Manufacturer: aws.String(\"%s\"),\n", lo.FromPtr(info.ProcessorInfo.Manufacturer))
 	fmt.Fprintf(src, "SupportedArchitectures: aws.StringSlice([]string{%s}),\n", getStringSliceData(info.ProcessorInfo.SupportedArchitectures))
 	fmt.Fprintf(src, "},\n")
 	fmt.Fprintf(src, "VCpuInfo: &ec2.VCpuInfo{\n")

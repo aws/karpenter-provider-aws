@@ -90,6 +90,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				v1beta1.LabelInstanceFamily:           "c5",
 				v1beta1.LabelInstanceSize:             "large",
 				v1beta1.LabelInstanceCPU:              "2",
+				v1beta1.LabelInstanceCPUManufacturer:  "intel",
 				v1beta1.LabelInstanceMemory:           "4096",
 				v1beta1.LabelInstanceNetworkBandwidth: "750",
 			}

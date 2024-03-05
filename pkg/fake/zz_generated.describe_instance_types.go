@@ -35,6 +35,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("AWS"),
 				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -65,6 +66,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -125,6 +127,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -173,6 +176,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -212,6 +216,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -251,6 +256,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -281,6 +287,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(true),
 			Hypervisor:                    aws.String(""),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -311,6 +318,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -341,6 +349,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -381,6 +390,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("xen"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -423,6 +433,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -453,6 +464,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("AWS"),
 				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -483,6 +495,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("AWS"),
 				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -513,6 +526,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("AWS"),
 				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
@@ -543,6 +557,7 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			BareMetal:                     aws.Bool(false),
 			Hypervisor:                    aws.String("nitro"),
 			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("Intel"),
 				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
 			},
 			VCpuInfo: &ec2.VCpuInfo{
