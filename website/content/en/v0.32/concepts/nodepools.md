@@ -289,7 +289,7 @@ Karpenter will automatically configure the system and kube reserved resource req
 Karpenter considers these reserved resources when computing the allocatable ephemeral storage on a given instance type.
 If `kubeReserved` is not specified, Karpenter will compute the default reserved [CPU](https://github.com/awslabs/amazon-eks-ami/blob/db28da15d2b696bc08ac3aacc9675694f4a69933/files/bootstrap.sh#L251) and [memory](https://github.com/awslabs/amazon-eks-ami/blob/db28da15d2b696bc08ac3aacc9675694f4a69933/files/bootstrap.sh#L235) resources for the purpose of ephemeral storage computation.
 These defaults are based on the defaults on Karpenter's supported AMI families, which are not the same as the kubelet defaults.
-You should be aware of these defaults when using Custom AMI Families, since if they don't align there may be a difference in Karpenter's computed allocated ephemeral storage and what is actually available on the node.
+You should be aware of the CPU and memory default calculation when using Custom AMI Families. If they don't align, there may be a difference in Karpenter's computed allocatable ephemeral storage and the actually ephemeral storage available on the node.
 {{% /alert %}}
 
 ### Eviction Thresholds
