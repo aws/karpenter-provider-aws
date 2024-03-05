@@ -16,17 +16,19 @@ package cache
 
 import (
 	"fmt"
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	v1 "k8s.io/api/core/v1"
 
 	"sigs.k8s.io/karpenter/pkg/events"
 )
 
-func UnavailableOfferingEvent(instanceType, availabilityZone, capacityType string) events.Event {
+func UnavailableOfferingEvent(nodeClaim *v1beta1.NodeClaim, instanceType, availabilityZone, capacityType string) events.Event {
 	return events.Event{
-		Type:         v1.EventTypeWarning,
-		Reason:       "UnavailableOffering",
-		Message:      fmt.Sprintf(`UnavailableOffering for {"instanceType": %q, "availabilityZone": %q, "capacityType": %q}`, instanceType, availabilityZone, capacityType),
-		DedupeValues: []string{instanceType, availabilityZone, capacityType},
+		InvolvedObject: nodeClaim,
+		Type:           v1.EventTypeWarning,
+		Reason:         "UnavailableOffering",
+		Message:        fmt.Sprintf(`UnavailableOffering for {"instanceType": %q, "availabilityZone": %q, "capacityType": %q}`, instanceType, availabilityZone, capacityType),
+		DedupeValues:   []string{instanceType, availabilityZone, capacityType},
 	}
 }
