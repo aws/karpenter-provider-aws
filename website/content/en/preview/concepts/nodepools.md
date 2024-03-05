@@ -127,12 +127,12 @@ spec:
     # If using 'WhenUnderutilized', Karpenter will consider all nodes for consolidation and attempt to remove or replace Nodes when it discovers that the Node is underutilized and could be changed to reduce cost
     # If using `WhenEmpty`, Karpenter will only consider nodes for consolidation that contain no workload pods
     consolidationPolicy: WhenUnderutilized | WhenEmpty
-    
+
     # The amount of time Karpenter should wait after discovering a consolidation decision
     # This value can currently only be set when the consolidationPolicy is 'WhenEmpty'
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
     consolidateAfter: 30s
-    
+
     # The amount of time a Node can live on the cluster before being removed
     # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
     # You can choose to disable expiration entirely by setting the string value 'Never' here
@@ -140,8 +140,8 @@ spec:
 
     # Budgets control the speed Karpenter can scale down nodes.
     # Karpenter will respect the minimum of the currently active budgets, and will round up
-    # when considering percentages. Duration and Schedule must be set together. 
-    budgets: 
+    # when considering percentages. Duration and Schedule must be set together.
+    budgets:
     - nodes: 10%
     # On Weekdays during business hours, don't do any deprovisioning.
     - schedule: "0 9 * * mon-fri"
@@ -295,7 +295,13 @@ kubelet:
 
 Karpenter will automatically configure the system and kube reserved resource requests on the fly on your behalf. These requests are used to configure your node and to make scheduling decisions for your pods. If you have specific requirements or know that you will have additional capacity requirements, you can optionally override the `--system-reserved` configuration defaults with the `.spec.template.spec.kubelet.systemReserved` values and the `--kube-reserved` configuration defaults with the `.spec.template.spec.kubelet.kubeReserved` values.
 
-For more information on the default `--system-reserved` and `--kube-reserved` configuration refer to the [Kubelet Docs](https://kubernetes.io/docs/tasks/administer-cluster/reserve-compute-resources/#kube-reserved)
+{{% alert title="Note" color="primary" %}}
+Karpenter considers these reserved resources when computing the allocatable ephemeral storage on a given instance type.
+If `kubeReserved` is not specified, Karpenter will compute the default reserved [CPU](https://github.com/awslabs/amazon-eks-ami/blob/db28da15d2b696bc08ac3aacc9675694f4a69933/files/bootstrap.sh#L251) and [memory](https://github.com/awslabs/amazon-eks-ami/blob/db28da15d2b696bc08ac3aacc9675694f4a69933/files/bootstrap.sh#L235) resources for the purpose of ephemeral storage computation.
+These defaults are based on the defaults on Karpenter's supported AMI families, which are not the same as the kubelet defaults.
+You should be aware of the CPU and memory default calculation when using Custom AMI Families. If they don't align, there may be a difference in Karpenter's computed allocatable ephemeral storage and the actually ephemeral storage available on the node.
+{{% /alert %}}
+
 
 ### Eviction Thresholds
 
