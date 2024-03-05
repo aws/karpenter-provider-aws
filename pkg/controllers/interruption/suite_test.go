@@ -80,7 +80,7 @@ func TestAPIs(t *testing.T) {
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	fakeClock = &clock.FakeClock{}
-	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
+	unavailableOfferingsCache = awscache.NewUnavailableOfferings(events.NewRecorder(&record.FakeRecorder{}))
 	sqsapi = &fake.SQSAPI{}
 	sqsProvider = lo.Must(sqs.NewProvider(ctx, sqsapi, "test-cluster"))
 	controller = interruption.NewController(env.Client, fakeClock, events.NewRecorder(&record.FakeRecorder{}), sqsProvider, unavailableOfferingsCache)
