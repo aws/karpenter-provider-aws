@@ -1,0 +1,21 @@
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: test-cluster
+    apiServerEndpoint: https://example.com
+    certificateAuthority: ca-bundle
+    cidr: 10.100.0.0/16
+  kubelet:
+    config:
+      maxPods: 42
+      systemReserved:
+        cpu: 100m
+        memory: 100Mi
+        ephemeral-storage: 1Gi
+    flags:
+      - --node-labels "foo=bar"
+  containerd:
+    config: |
+      [plugins."io.containerd.grpc.v1.cri".containerd]
+      discard_unpacked_layers = false

@@ -208,8 +208,8 @@ spec:
                   description: Requirements are layered with GetLabels and applied to every node.
                   items:
                     description: |-
-                      A node selector requirement is a selector that contains values, a key, and an operator
-                      that relates the key and values.
+                      A node selector requirement with min values is a selector that contains values, a key, an operator that relates the key and values
+                      and minValues that represent the requirement to have at least that many values.
                     properties:
                       key:
                         description: The label key that the selector applies to.
@@ -226,7 +226,14 @@ spec:
                           - message: label "kubernetes.io/hostname" is restricted
                             rule: self != "kubernetes.io/hostname"
                           - message: label domain "karpenter.k8s.aws" is restricted
-                            rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
+                            rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
+                      minValues:
+                        description: |-
+                          This field is ALPHA and can be dropped or replaced at any time
+                          MinValues is the minimum number of unique values required to define the flexibility of the specific requirement.
+                        maximum: 50
+                        minimum: 1
+                        type: integer
                       operator:
                         description: |-
                           Represents a key's relationship to a set of values.
@@ -262,6 +269,8 @@ spec:
                       rule: 'self.all(x, x.operator == ''In'' ? x.values.size() != 0 : true)'
                     - message: requirements operator 'Gt' or 'Lt' must have a single positive integer value
                       rule: 'self.all(x, (x.operator == ''Gt'' || x.operator == ''Lt'') ? (x.values.size() == 1 && int(x.values[0]) >= 0) : true)'
+                    - message: requirements with 'minValues' must have at least that many values specified in the 'values' field
+                      rule: 'self.all(x, (x.operator == ''In'' && has(x.minValues)) ? x.values.size() >= x.minValues : true)'
                 resources:
                   description: Resources models the resource requirements for the NodeClaim to launch
                   properties:
@@ -423,6 +432,8 @@ spec:
                   description: ProviderID of the corresponding node object
                   type: string
               type: object
+          required:
+            - spec
           type: object
       served: true
       storage: true

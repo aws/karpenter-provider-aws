@@ -39,7 +39,7 @@ type Type interface {
 	// Get returns all resources of the type associated with the clusterName
 	Get(ctx context.Context, clusterName string) (ids []string, err error)
 	// GetExpired returns all resources of the type that were provisioned before the expirationTime
-	GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error)
+	GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error)
 	// Cleanup deletes all resources of the type by id and returns the resource ids it succeeded to delete
 	// In general, if all resources can't be deleted by id with a single API call (like with DeleteInstances)
 	// you should call the requests synchronously to avoid rate limiting against the number of requests made

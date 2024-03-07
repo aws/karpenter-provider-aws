@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 )
 
 type VPCEndpoint struct {
@@ -85,7 +86,7 @@ func (v *VPCEndpoint) CountAll(ctx context.Context) (count int, err error) {
 	return count, err
 }
 
-func (v *VPCEndpoint) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+func (v *VPCEndpoint) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := v.ec2Client.DescribeVpcEndpoints(ctx, &ec2.DescribeVpcEndpointsInput{
@@ -101,6 +102,12 @@ func (v *VPCEndpoint) GetExpired(ctx context.Context, expirationTime time.Time) 
 			return ids, err
 		}
 		for _, endpoint := range out.VpcEndpoints {
+			clusterName, found := lo.Find(endpoint.Tags, func(tag ec2types.Tag) bool {
+				return *tag.Key == k8sClusterTag
+			})
+			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+				continue
+			}
 			if endpoint.CreationTimestamp.Before(expirationTime) {
 				ids = append(ids, lo.FromPtr(endpoint.VpcEndpointId))
 			}

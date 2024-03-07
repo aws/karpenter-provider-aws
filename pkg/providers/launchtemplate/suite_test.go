@@ -17,6 +17,7 @@ package launchtemplate_test
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net"
 	"os"
@@ -28,17 +29,20 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	admv1alpha1 "github.com/awslabs/amazon-eks-ami/nodeadm/api/v1alpha1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/yaml"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
@@ -55,6 +59,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
@@ -101,6 +106,7 @@ var _ = BeforeEach(func() {
 
 	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
+	awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("ca-bundle")
 })
 
 var _ = AfterEach(func() {
@@ -120,11 +126,13 @@ var _ = Describe("LaunchTemplates", func() {
 						Labels: map[string]string{coretest.DiscoveryLabel: "unspecified"},
 					},
 					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []v1.NodeSelectorRequirement{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{
-								Key:      corev1beta1.CapacityTypeLabelKey,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{corev1beta1.CapacityTypeOnDemand},
+								NodeSelectorRequirement: v1.NodeSelectorRequirement{
+									Key:      corev1beta1.CapacityTypeLabelKey,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{corev1beta1.CapacityTypeOnDemand},
+								},
 							},
 						},
 						NodeClassRef: &corev1beta1.NodeClassReference{
@@ -141,11 +149,13 @@ var _ = Describe("LaunchTemplates", func() {
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []v1.NodeSelectorRequirement{
+						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{
-								Key:      corev1beta1.CapacityTypeLabelKey,
-								Operator: v1.NodeSelectorOpIn,
-								Values:   []string{corev1beta1.CapacityTypeSpot},
+								NodeSelectorRequirement: v1.NodeSelectorRequirement{
+									Key:      corev1beta1.CapacityTypeLabelKey,
+									Operator: v1.NodeSelectorOpIn,
+									Values:   []string{corev1beta1.CapacityTypeSpot},
+								},
 							},
 						},
 						NodeClassRef: &corev1beta1.NodeClassReference{
@@ -347,11 +357,13 @@ var _ = Describe("LaunchTemplates", func() {
 				"tag1": "tag1value",
 				"tag2": "tag2value",
 			}
-			nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+			nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 				{
-					Key:      corev1beta1.CapacityTypeLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{corev1beta1.CapacityTypeSpot},
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      corev1beta1.CapacityTypeLabelKey,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{corev1beta1.CapacityTypeSpot},
+					},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -396,6 +408,22 @@ var _ = Describe("LaunchTemplates", func() {
 	Context("Block Device Mappings", func() {
 		It("should default AL2 block device mappings", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(len(ltInput.LaunchTemplateData.BlockDeviceMappings)).To(Equal(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeSize).To(Equal(int64(20)))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.VolumeType).To(Equal("gp3"))
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.Iops).To(BeNil())
+			})
+		})
+		It("should default AL2023 block device mappings", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1380,6 +1408,207 @@ var _ = Describe("LaunchTemplates", func() {
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 		})
+		Context("AL2023", func() {
+			BeforeEach(func() {
+				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+
+				// base64 encoded version of "ca-bundle" to ensure the nodeadm bootstrap provider can decode successfully
+				awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
+				awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
+			})
+			Context("Kubelet", func() {
+				It("should specify taints in the KubeletConfiguration when specified in NodePool", func() {
+					desiredTaints := []v1.Taint{
+						{
+							Key:    "test-taint-1",
+							Effect: v1.TaintEffectNoSchedule,
+						},
+						{
+							Key:    "test-taint-2",
+							Effect: v1.TaintEffectNoExecute,
+						},
+					}
+					nodePool.Spec.Template.Spec.Taints = desiredTaints
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod(coretest.UnscheduleablePodOptions(coretest.PodOptions{
+						Tolerations: []v1.Toleration{{
+							Operator: v1.TolerationOpExists,
+						}},
+					}))
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+						Expect(len(configs)).To(Equal(1))
+						taintsRaw, ok := configs[0].Spec.Kubelet.Config["registerWithTaints"]
+						Expect(ok).To(BeTrue())
+						taints := []v1.Taint{}
+						Expect(yaml.Unmarshal(taintsRaw.Raw, &taints)).To(Succeed())
+						Expect(len(taints)).To(Equal(2))
+						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t v1.Taint, _ int) interface{} {
+							return interface{}(t)
+						})))
+					}
+				})
+				It("should specify labels in the Kubelet flags when specified in NodePool", func() {
+					desiredLabels := map[string]string{
+						"test-label-1": "value-1",
+						"test-label-2": "value-2",
+					}
+					nodePool.Spec.Template.Labels = desiredLabels
+
+					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+						configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+						Expect(len(configs)).To(Equal(1))
+						labelFlag, ok := lo.Find(configs[0].Spec.Kubelet.Flags, func(flag string) bool {
+							return strings.HasPrefix(flag, "--node-labels")
+						})
+						Expect(ok).To(BeTrue())
+						for label, value := range desiredLabels {
+							Expect(labelFlag).To(ContainSubstring(fmt.Sprintf("%s=%s", label, value)))
+						}
+					}
+				})
+				DescribeTable(
+					"should specify KubletConfiguration field when specified in NodePool",
+					func(field string, kc corev1beta1.KubeletConfiguration) {
+						nodePool.Spec.Template.Spec.Kubelet = &kc
+						ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+						pod := coretest.UnschedulablePod()
+						ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+						ExpectScheduled(ctx, env.Client, pod)
+
+						// Convert provided KubeletConfiguration to an InlineConfig for comparison with NodeConfig
+						inlineConfig := func() map[string]runtime.RawExtension {
+							configYAML, err := yaml.Marshal(kc)
+							Expect(err).To(BeNil())
+							configMap := map[string]interface{}{}
+							Expect(yaml.Unmarshal(configYAML, &configMap)).To(Succeed())
+							return lo.MapValues(configMap, func(v interface{}, _ string) runtime.RawExtension {
+								val, err := json.Marshal(v)
+								Expect(err).To(BeNil())
+								return runtime.RawExtension{Raw: val}
+							})
+						}()
+						for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+							configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+							Expect(len(configs)).To(Equal(1))
+							Expect(configs[0].Spec.Kubelet.Config[field]).To(Equal(inlineConfig[field]))
+						}
+					},
+					Entry("systemReserved", "systemReserved", corev1beta1.KubeletConfiguration{
+						SystemReserved: v1.ResourceList{
+							v1.ResourceCPU:              resource.MustParse("500m"),
+							v1.ResourceMemory:           resource.MustParse("1Gi"),
+							v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+						},
+					}),
+					Entry("kubeReserved", "kubeReserved", corev1beta1.KubeletConfiguration{
+						KubeReserved: v1.ResourceList{
+							v1.ResourceCPU:              resource.MustParse("500m"),
+							v1.ResourceMemory:           resource.MustParse("1Gi"),
+							v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+						},
+					}),
+					Entry("evictionHard", "evictionHard", corev1beta1.KubeletConfiguration{
+						EvictionHard: map[string]string{
+							"memory.available":  "10%",
+							"nodefs.available":  "15%",
+							"nodefs.inodesFree": "5%",
+						},
+					}),
+					Entry("evictionSoft", "evictionSoft", corev1beta1.KubeletConfiguration{
+						EvictionSoft: map[string]string{
+							"memory.available":  "10%",
+							"nodefs.available":  "15%",
+							"nodefs.inodesFree": "5%",
+						},
+						EvictionSoftGracePeriod: map[string]metav1.Duration{
+							"memory.available":  {Duration: time.Minute},
+							"nodefs.available":  {Duration: time.Second * 180},
+							"nodefs.inodesFree": {Duration: time.Minute * 5},
+						},
+					}),
+					Entry("evictionSoftGracePeriod", "evictionSoftGracePeriod", corev1beta1.KubeletConfiguration{
+						EvictionSoft: map[string]string{
+							"memory.available":  "10%",
+							"nodefs.available":  "15%",
+							"nodefs.inodesFree": "5%",
+						},
+						EvictionSoftGracePeriod: map[string]metav1.Duration{
+							"memory.available":  {Duration: time.Minute},
+							"nodefs.available":  {Duration: time.Second * 180},
+							"nodefs.inodesFree": {Duration: time.Minute * 5},
+						},
+					}),
+					Entry("evictionMaxPodGracePeriod", "evictionMaxPodGracePeriod", corev1beta1.KubeletConfiguration{
+						EvictionMaxPodGracePeriod: lo.ToPtr[int32](300),
+					}),
+					Entry("podsPerCore", "podsPerCore", corev1beta1.KubeletConfiguration{
+						PodsPerCore: lo.ToPtr[int32](2),
+					}),
+					Entry("clusterDNS", "clusterDNS", corev1beta1.KubeletConfiguration{
+						ClusterDNS: []string{"10.0.100.0"},
+					}),
+					Entry("imageGCHighThresholdPercent", "imageGCHighThresholdPercent", corev1beta1.KubeletConfiguration{
+						ImageGCHighThresholdPercent: lo.ToPtr[int32](50),
+					}),
+					Entry("imageGCLowThresholdPercent", "imageGCLowThresholdPercent", corev1beta1.KubeletConfiguration{
+						ImageGCLowThresholdPercent: lo.ToPtr[int32](50),
+					}),
+					Entry("cpuCFSQuota", "cpuCFSQuota", corev1beta1.KubeletConfiguration{
+						CPUCFSQuota: lo.ToPtr(false),
+					}),
+				)
+			})
+			It("should set LocalDiskStrategy to Raid0 when specified by the InstanceStorePolicy", func() {
+				nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectScheduled(ctx, env.Client, pod)
+				for _, userData := range ExpectUserDataExistsFromCreatedLaunchTemplates() {
+					configs := ExpectUserDataCreatedWithNodeConfigs(userData)
+					Expect(len(configs)).To(Equal(1))
+					Expect(configs[0].Spec.Instance.LocalStorage.Strategy).To(Equal(admv1alpha1.LocalStorageRAID0))
+				}
+			})
+			DescribeTable(
+				"should merge custom user data",
+				func(inputFile *string, mergedFile string) {
+					if inputFile != nil {
+						content, err := os.ReadFile("testdata/" + *inputFile)
+						Expect(err).To(BeNil())
+						nodeClass.Spec.UserData = lo.ToPtr(string(content))
+					}
+					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+					ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+					pod := coretest.UnschedulablePod()
+					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+					ExpectScheduled(ctx, env.Client, pod)
+					content, err := os.ReadFile("testdata/" + mergedFile)
+					Expect(err).To(BeNil())
+					expectedUserData := fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name)
+					ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
+				},
+				Entry("MIME", lo.ToPtr("al2023_mime_userdata_input.golden"), "al2023_mime_userdata_merged.golden"),
+				Entry("YAML", lo.ToPtr("al2023_yaml_userdata_input.golden"), "al2023_yaml_userdata_merged.golden"),
+				Entry("shell", lo.ToPtr("al2023_shell_userdata_input.golden"), "al2023_shell_userdata_merged.golden"),
+				Entry("empty", nil, "al2023_userdata_unmerged.golden"),
+			)
+			It("should fail to create launch templates if cluster CIDR is unresolved", func() {
+				awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
+				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
+				pod := coretest.UnschedulablePod()
+				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+				ExpectNotScheduled(ctx, env.Client, pod)
+				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(Equal(0))
+			})
+		})
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in EC2NodeClass", func() {
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
@@ -1502,11 +1731,13 @@ var _ = Describe("LaunchTemplates", func() {
 				}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
-				nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{
+				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
-						Key:      v1.LabelArchStable,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1beta1.ArchitectureAmd64},
+						NodeSelectorRequirement: v1.NodeSelectorRequirement{
+							Key:      v1.LabelArchStable,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{corev1beta1.ArchitectureAmd64},
+						},
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodePool)
@@ -1618,7 +1849,7 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		Context("Windows Custom UserData", func() {
 			BeforeEach(func() {
-				nodePool.Spec.Template.Spec.Requirements = []v1.NodeSelectorRequirement{{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}
+				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}}
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
@@ -1739,4 +1970,33 @@ func ExpectLaunchTemplatesCreatedWithUserData(expected string) {
 		expectedUserData := strings.Replace(expected, "\n", "", -1)
 		ExpectWithOffset(2, actualUserData).To(Equal(expectedUserData))
 	})
+}
+
+func ExpectUserDataExistsFromCreatedLaunchTemplates() []string {
+	GinkgoHelper()
+	Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+	userDatas := []string{}
+	awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(input *ec2.CreateLaunchTemplateInput) {
+		userData, err := base64.StdEncoding.DecodeString(*input.LaunchTemplateData.UserData)
+		ExpectWithOffset(2, err).To(BeNil())
+		userDatas = append(userDatas, string(userData))
+	})
+	return userDatas
+}
+
+func ExpectUserDataCreatedWithNodeConfigs(userData string) []admv1alpha1.NodeConfig {
+	GinkgoHelper()
+	archive, err := mime.NewArchive(userData)
+	Expect(err).To(BeNil())
+	nodeConfigs := lo.FilterMap([]mime.Entry(archive), func(entry mime.Entry, _ int) (admv1alpha1.NodeConfig, bool) {
+		config := admv1alpha1.NodeConfig{}
+		if entry.ContentType != mime.ContentTypeNodeConfig {
+			return config, false
+		}
+		err := yaml.Unmarshal([]byte(entry.Content), &config)
+		Expect(err).To(BeNil())
+		return config, true
+	})
+	Expect(len(nodeConfigs)).To(BeNumerically(">=", 1))
+	return nodeConfigs
 }

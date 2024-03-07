@@ -50,6 +50,7 @@ type Resolver struct {
 type Options struct {
 	ClusterName         string
 	ClusterEndpoint     string
+	ClusterCIDR         *string
 	InstanceProfile     string
 	CABundle            *string `hash:"ignore"`
 	InstanceStorePolicy *v1beta1.InstanceStorePolicy
@@ -175,6 +176,8 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 		return &Windows{Options: options, Version: v1beta1.Windows2022, Build: v1beta1.Windows2022Build}
 	case v1beta1.AMIFamilyCustom:
 		return &Custom{Options: options}
+	case v1beta1.AMIFamilyAL2023:
+		return &AL2023{Options: options}
 	default:
 		return &AL2{Options: options}
 	}

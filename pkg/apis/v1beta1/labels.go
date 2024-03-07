@@ -35,6 +35,7 @@ func init() {
 		LabelInstanceSize,
 		LabelInstanceLocalNVME,
 		LabelInstanceCPU,
+		LabelInstanceCPUManufacturer,
 		LabelInstanceMemory,
 		LabelInstanceNetworkBandwidth,
 		LabelInstanceGPUName,
@@ -75,6 +76,7 @@ var (
 	}
 	AMIFamilyBottlerocket                      = "Bottlerocket"
 	AMIFamilyAL2                               = "AL2"
+	AMIFamilyAL2023                            = "AL2023"
 	AMIFamilyUbuntu                            = "Ubuntu"
 	AMIFamilyWindows2019                       = "Windows2019"
 	AMIFamilyWindows2022                       = "Windows2022"
@@ -102,6 +104,7 @@ var (
 	LabelInstanceLocalNVME                    = Group + "/instance-local-nvme"
 	LabelInstanceSize                         = Group + "/instance-size"
 	LabelInstanceCPU                          = Group + "/instance-cpu"
+	LabelInstanceCPUManufacturer              = Group + "/instance-cpu-manufacturer"
 	LabelInstanceMemory                       = Group + "/instance-memory"
 	LabelInstanceNetworkBandwidth             = Group + "/instance-network-bandwidth"
 	LabelInstanceGPUName                      = Group + "/instance-gpu-name"

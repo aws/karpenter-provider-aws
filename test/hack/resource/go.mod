@@ -12,6 +12,7 @@ require (
 	github.com/samber/lo v1.38.1
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.24.0
+	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17
 )
 
 require (
@@ -30,6 +31,5 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/stretchr/testify v1.8.1 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
-	golang.org/x/exp v0.0.0-20220303212507-bbda1eaf7a17 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

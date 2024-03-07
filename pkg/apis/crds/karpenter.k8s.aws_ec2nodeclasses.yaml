@@ -50,6 +50,7 @@ spec:
                 description: AMIFamily is the AMI family that instances use.
                 enum:
                 - AL2
+                - AL2023
                 - Bottlerocket
                 - Ubuntu
                 - Custom
@@ -482,12 +483,19 @@ spec:
                         type
                       items:
                         description: |-
-                          A node selector requirement is a selector that contains values, a key, and an operator
-                          that relates the key and values.
+                          A node selector requirement with min values is a selector that contains values, a key, an operator that relates the key and values
+                          and minValues that represent the requirement to have at least that many values.
                         properties:
                           key:
                             description: The label key that the selector applies to.
                             type: string
+                          minValues:
+                            description: |-
+                              This field is ALPHA and can be dropped or replaced at any time
+                              MinValues is the minimum number of unique values required to define the flexibility of the specific requirement.
+                            maximum: 50
+                            minimum: 1
+                            type: integer
                           operator:
                             description: |-
                               Represents a key's relationship to a set of values.

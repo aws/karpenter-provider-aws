@@ -1,0 +1,34 @@
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="//"
+
+--//
+Content-Type: application/node.eks.aws
+
+# Karpenter Generated NodeConfig
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+metadata:
+  creationTimestamp: null
+spec:
+  cluster:
+    apiServerEndpoint: https://test-cluster
+    certificateAuthority: Y2EtYnVuZGxlCg==
+    cidr: 10.100.0.0/16
+    name: test-cluster
+  containerd: {}
+  instance:
+    localStorage: {}
+  kubelet:
+    config:
+      clusterDNS:
+      - 10.0.100.10
+      maxPods: 110
+    flags:
+    - --node-labels="karpenter.sh/capacity-type=on-demand,%s=%s,testing/cluster=unspecified"
+
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+--//--

@@ -52,6 +52,7 @@ func init() {
 type Environment struct {
 	// API
 	EC2API     *fake.EC2API
+	EKSAPI     *fake.EKSAPI
 	SSMAPI     *fake.SSMAPI
 	IAMAPI     *fake.IAMAPI
 	PricingAPI *fake.PricingAPI
@@ -82,6 +83,7 @@ type Environment struct {
 func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment {
 	// API
 	ec2api := fake.NewEC2API()
+	eksapi := fake.NewEKSAPI()
 	ssmapi := fake.NewSSMAPI()
 	iamapi := fake.NewIAMAPI()
 
@@ -110,6 +112,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			ctx,
 			launchTemplateCache,
 			ec2api,
+			eksapi,
 			amiResolver,
 			securityGroupProvider,
 			subnetProvider,
@@ -131,6 +134,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 	return &Environment{
 		EC2API:     ec2api,
+		EKSAPI:     eksapi,
 		SSMAPI:     ssmapi,
 		IAMAPI:     iamapi,
 		PricingAPI: fakePricingAPI,
@@ -159,6 +163,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 
 func (env *Environment) Reset() {
 	env.EC2API.Reset()
+	env.EKSAPI.Reset()
 	env.SSMAPI.Reset()
 	env.IAMAPI.Reset()
 	env.PricingAPI.Reset()

@@ -193,9 +193,9 @@ func (k Kompat) Markdown(_ ...Options) string {
 	data := []string{k.Name}
 	for _, c := range k.Compatibility {
 		if c.MaxK8sVersion == "" || c.MinK8sVersion == c.MaxK8sVersion {
-			headers = append(headers, fmt.Sprintf("%s+", c.MinK8sVersion))
+			headers = append(headers, fmt.Sprintf("`%s`+", c.MinK8sVersion))
 		} else {
-			headers = append(headers, fmt.Sprintf("%s - %s", c.MinK8sVersion, c.MaxK8sVersion))
+			headers = append(headers, fmt.Sprintf("`%s` - `%s`", c.MinK8sVersion, c.MaxK8sVersion))
 		}
 		data = append(data, c.AppVersion)
 	}

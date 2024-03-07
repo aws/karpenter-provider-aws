@@ -20,6 +20,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/samber/lo"
 )
 
 const ()
@@ -35,6 +36,10 @@ type EKSAPI struct {
 	EKSAPIBehavior
 }
 
+func NewEKSAPI() *EKSAPI {
+	return &EKSAPI{}
+}
+
 // Reset must be called between tests otherwise tests will pollute
 // each other.
 func (s *EKSAPI) Reset() {
@@ -43,6 +48,12 @@ func (s *EKSAPI) Reset() {
 
 func (s *EKSAPI) DescribeClusterWithContext(_ context.Context, input *eks.DescribeClusterInput, _ ...request.Option) (*eks.DescribeClusterOutput, error) {
 	return s.DescribeClusterBehavior.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
-		return nil, nil
+		return &eks.DescribeClusterOutput{
+			Cluster: &eks.Cluster{
+				KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
+					ServiceIpv4Cidr: lo.ToPtr("10.100.0.0/16"),
+				},
+			},
+		}, nil
 	})
 }

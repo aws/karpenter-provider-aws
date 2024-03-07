@@ -43,13 +43,17 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	BeforeEach(func() {
 		// Make the NodePool requirements fully flexible, so we can match well-known label keys
 		nodePool = test.ReplaceRequirements(nodePool,
-			v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceCategory,
-				Operator: v1.NodeSelectorOpExists,
+			corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpExists,
+				},
 			},
-			v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceGeneration,
-				Operator: v1.NodeSelectorOpExists,
+			corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceGeneration,
+					Operator: v1.NodeSelectorOpExists,
+				},
 			},
 		)
 	})
@@ -86,6 +90,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				v1beta1.LabelInstanceFamily:           "c5",
 				v1beta1.LabelInstanceSize:             "large",
 				v1beta1.LabelInstanceCPU:              "2",
+				v1beta1.LabelInstanceCPUManufacturer:  "intel",
 				v1beta1.LabelInstanceMemory:           "4096",
 				v1beta1.LabelInstanceNetworkBandwidth: "750",
 			}
@@ -256,15 +261,19 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
 			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			test.ReplaceRequirements(nodePool,
-				v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceFamily,
-					Operator: v1.NodeSelectorOpNotIn,
-					Values:   aws.ExcludedInstanceFamilies,
+				corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1beta1.LabelInstanceFamily,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   aws.ExcludedInstanceFamilies,
+					},
 				},
-				v1.NodeSelectorRequirement{
-					Key:      v1.LabelOSStable,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{string(v1.Windows)},
+				corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1.LabelOSStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{string(v1.Windows)},
+					},
 				},
 			)
 			env.ExpectCreated(nodeClass, nodePool, deployment)
@@ -274,9 +283,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		DescribeTable("should support restricted label domain exceptions", func(domain string) {
 			// Assign labels to the nodepool so that it has known values
 			test.ReplaceRequirements(nodePool,
-				v1.NodeSelectorRequirement{Key: domain + "/team", Operator: v1.NodeSelectorOpExists},
-				v1.NodeSelectorRequirement{Key: domain + "/custom-label", Operator: v1.NodeSelectorOpExists},
-				v1.NodeSelectorRequirement{Key: "subdomain." + domain + "/custom-label", Operator: v1.NodeSelectorOpExists},
+				corev1beta1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: domain + "/team", Operator: v1.NodeSelectorOpExists}},
+				corev1beta1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: domain + "/custom-label", Operator: v1.NodeSelectorOpExists}},
+				corev1beta1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: "subdomain." + domain + "/custom-label", Operator: v1.NodeSelectorOpExists}},
 			)
 			nodeSelector := map[string]string{
 				domain + "/team":                        "team-1",
@@ -379,16 +388,20 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 							NodeClassRef: &corev1beta1.NodeClassReference{
 								Name: nodeClass.Name,
 							},
-							Requirements: []v1.NodeSelectorRequirement{
+							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
-									Key:      v1.LabelOSStable,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{string(v1.Linux)},
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1.LabelOSStable,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{string(v1.Linux)},
+									},
 								},
 								{
-									Key:      v1.LabelInstanceTypeStable,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"t3.nano"},
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1.LabelInstanceTypeStable,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{"t3.nano"},
+									},
 								},
 							},
 						},
@@ -403,16 +416,20 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 							NodeClassRef: &corev1beta1.NodeClassReference{
 								Name: nodeClass.Name,
 							},
-							Requirements: []v1.NodeSelectorRequirement{
+							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
-									Key:      v1.LabelOSStable,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{string(v1.Linux)},
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1.LabelOSStable,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{string(v1.Linux)},
+									},
 								},
 								{
-									Key:      v1.LabelInstanceTypeStable,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{"c5.large"},
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1.LabelInstanceTypeStable,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{"c5.large"},
+									},
 								},
 							},
 						},
@@ -433,14 +450,18 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
 					Skip("native sidecar containers are only enabled on EKS 1.29+")
 				}
-				test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCPU,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"1", "2"},
-				}, v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpNotIn,
-					Values:   []string{"t"},
+				test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1beta1.LabelInstanceCPU,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"1", "2"},
+					},
+				}, corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1beta1.LabelInstanceCategory,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   []string{"t"},
+					},
 				})
 				pod := test.Pod(test.PodOptions{
 					InitContainers:       initContainers,
@@ -495,10 +516,12 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
 				Skip("native sidecar containers are only enabled on EKS 1.29+")
 			}
-			test.ReplaceRequirements(nodePool, v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceCategory,
-				Operator: v1.NodeSelectorOpNotIn,
-				Values:   []string{"t"},
+			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceCategory,
+					Operator: v1.NodeSelectorOpNotIn,
+					Values:   []string{"t"},
+				},
 			})
 			pod := test.Pod(test.PodOptions{
 				InitContainers: []v1.Container{

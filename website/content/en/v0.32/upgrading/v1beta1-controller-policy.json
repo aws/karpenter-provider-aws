@@ -142,7 +142,7 @@
     {
       "Sid": "AllowInterruptionQueueActions",
       "Effect": "Allow",
-      "Resource": "arn:aws:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:${CLUSTER_NAME}",
+      "Resource": "arn:${AWS_PARTITION}:sqs:${AWS_REGION}:${AWS_ACCOUNT_ID}:${CLUSTER_NAME}",
       "Action": [
         "sqs:DeleteMessage",
         "sqs:GetQueueUrl",

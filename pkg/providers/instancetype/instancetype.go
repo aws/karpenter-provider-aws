@@ -113,21 +113,20 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	subnetHash, _ := hashstructure.Hash(subnets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.Spec.BlockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s", p.instanceTypesSeqNum, p.instanceTypeOfferingsSeqNum, p.unavailableOfferings.SeqNum, subnetHash, kcHash, blockDeviceMappingsHash, aws.StringValue(nodeClass.Spec.AMIFamily))
+	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%s", p.instanceTypesSeqNum, p.instanceTypeOfferingsSeqNum, p.unavailableOfferings.SeqNum, subnetHash, kcHash, blockDeviceMappingsHash, aws.StringValue((*string)(nodeClass.Spec.InstanceStorePolicy)), aws.StringValue(nodeClass.Spec.AMIFamily))
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
 	}
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
+		instanceTypeVCPU.With(prometheus.Labels{
+			instanceTypeLabel: *i.InstanceType,
+		}).Set(float64(aws.Int64Value(i.VCpuInfo.DefaultVCpus)))
+		instanceTypeMemory.With(prometheus.Labels{
+			instanceTypeLabel: *i.InstanceType,
+		}).Set(float64(aws.Int64Value(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
+
 		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], zones, subnetZones))
 	})
-	for _, instanceType := range instanceTypes {
-		InstanceTypeVCPU.With(prometheus.Labels{
-			InstanceTypeLabel: *instanceType.InstanceType,
-		}).Set(float64(aws.Int64Value(instanceType.VCpuInfo.DefaultVCpus)))
-		InstanceTypeMemory.With(prometheus.Labels{
-			InstanceTypeLabel: *instanceType.InstanceType,
-		}).Set(float64(aws.Int64Value(instanceType.MemoryInfo.SizeInMiB) * 1024 * 1024))
-	}
 	p.cache.SetDefault(key, result)
 	return result, nil
 }
@@ -167,6 +166,16 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 				Price:        price,
 				Available:    available,
 			})
+			instanceTypeOfferingAvailable.With(prometheus.Labels{
+				instanceTypeLabel: *instanceType.InstanceType,
+				capacityTypeLabel: capacityType,
+				zoneLabel:         zone,
+			}).Set(float64(lo.Ternary(available, 1, 0)))
+			instanceTypeOfferingPriceEstimate.With(prometheus.Labels{
+				instanceTypeLabel: *instanceType.InstanceType,
+				capacityTypeLabel: capacityType,
+				zoneLabel:         zone,
+			}).Set(price)
 		}
 	}
 	return offerings

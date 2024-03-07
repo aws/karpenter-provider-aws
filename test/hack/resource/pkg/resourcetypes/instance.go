@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	"golang.org/x/exp/slices"
 )
 
 type Instance struct {
@@ -39,7 +40,7 @@ func (i *Instance) Global() bool {
 	return false
 }
 
-func (i *Instance) GetExpired(ctx context.Context, expirationTime time.Time) (ids []string, err error) {
+func (i *Instance) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
 	var nextToken *string
 	for {
 		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
@@ -61,6 +62,12 @@ func (i *Instance) GetExpired(ctx context.Context, expirationTime time.Time) (id
 
 		for _, res := range out.Reservations {
 			for _, instance := range res.Instances {
+				clusterName, found := lo.Find(instance.Tags, func(tag ec2types.Tag) bool {
+					return *tag.Key == k8sClusterTag
+				})
+				if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+					continue
+				}
 				if lo.FromPtr(instance.LaunchTime).Before(expirationTime) {
 					ids = append(ids, lo.FromPtr(instance.InstanceId))
 				}
