@@ -356,7 +356,7 @@ var _ = Describe("InstanceTypes", func() {
 		call := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 		Expect(call.LaunchTemplateConfigs).To(HaveLen(1))
 
-		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(100))
+		Expect(call.LaunchTemplateConfigs[0].Overrides).To(HaveLen(60))
 		for _, override := range call.LaunchTemplateConfigs[0].Overrides {
 			Expect(expected.Has(aws.StringValue(override.InstanceType))).To(BeTrue(), fmt.Sprintf("expected %s to exist in set", aws.StringValue(override.InstanceType)))
 		}
