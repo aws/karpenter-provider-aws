@@ -297,4 +297,26 @@ var _ = Describe("Pricing", func() {
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.10))
 	})
+	It("should update on-demand pricing with response from the pricing API when in the CN partition", func() {
+		existingPricingProvider := awsEnv.PricingProvider
+		awsEnv.PricingProvider = pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "cn-anywhere-1")
+		defer func(provider *pricing.Provider) {
+			awsEnv.PricingProvider = provider
+		}(existingPricingProvider)
+		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPriceInCurrency("c98.large", 1.20, "CNY"),
+				fake.NewOnDemandPriceInCurrency("c99.large", 1.23, "CNY"),
+			},
+		})
+		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+
+		price, ok := awsEnv.PricingProvider.OnDemandPrice("c98.large")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 1.20))
+
+		price, ok = awsEnv.PricingProvider.OnDemandPrice("c99.large")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 1.23))
+	})
 })
