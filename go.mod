@@ -7,7 +7,7 @@ require (
 	github.com/PuerkitoBio/goquery v1.9.0
 	github.com/aws/aws-sdk-go v1.50.25
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623
-	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240226194241-7da3d23779cf
+	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -28,7 +28,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.17.2
-	sigs.k8s.io/karpenter v0.35.0
+	sigs.k8s.io/karpenter v0.35.1-0.20240306182300-c1abd48d4b39
 	sigs.k8s.io/yaml v1.4.0
 )
 

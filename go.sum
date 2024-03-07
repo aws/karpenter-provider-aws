@@ -58,8 +58,8 @@ github.com/aws/aws-sdk-go v1.50.25 h1:vhiHtLYybv1Nhx3Kv18BBC6L0aPJHaG9aeEsr92W99
 github.com/aws/aws-sdk-go v1.50.25/go.mod h1:LF8svs817+Nz+DmiMQKTO3ubZ/6IaTpq3TjupRn3Eqk=
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623 h1:DQEFtmPyyMVHOyqva+DaWR6iAQG4h0KJbpSJAYlsnEo=
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623/go.mod h1:fpKKbSoh7nKrbAw8V44Ov1sgosfUvR1ZtyN9k44zHfY=
-github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240226194241-7da3d23779cf h1:RH5DuK+nbRBD4S2c0kSXUhNiH4wjkDlOWosra3pBq3k=
-github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240226194241-7da3d23779cf/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
+github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647 h1:8yRBVsjGmI7qQsPWtIrbWP+XfwHO9Wq7gdLVzjqiZFs=
+github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
@@ -759,8 +759,8 @@ sigs.k8s.io/controller-runtime v0.17.2 h1:FwHwD1CTUemg0pW2otk7/U5/i5m2ymzvOXdbeG
 sigs.k8s.io/controller-runtime v0.17.2/go.mod h1:+MngTvIQQQhfXtwfdGw/UOQ/aIaqsYywfCINOtwMO/s=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
-sigs.k8s.io/karpenter v0.35.0 h1:5AAWO1U6+FiBym+8Kh84qqqxbFkJMCP1XwnOPIe4QjE=
-sigs.k8s.io/karpenter v0.35.0/go.mod h1:cUrYd9r91yK9Y4k6N87kdhs0EYTAlp9yimSqFcckxAw=
+sigs.k8s.io/karpenter v0.35.1-0.20240306182300-c1abd48d4b39 h1:qs2pYi4dIp2uaMM+5BIzMgdGHecVgCXY0pUax9Xi7Y8=
+sigs.k8s.io/karpenter v0.35.1-0.20240306182300-c1abd48d4b39/go.mod h1:cUrYd9r91yK9Y4k6N87kdhs0EYTAlp9yimSqFcckxAw=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1 h1:150L+0vs/8DA78h1u02ooW1/fFq/Lwr+sGiqlzvrtq4=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1/go.mod h1:N8hJocpFajUSSeSJ9bOZ77VzejKZaXsTtZo4/u7Io08=
 sigs.k8s.io/yaml v1.4.0 h1:Mk1wCc2gy/F0THH0TAp1QYyJNzRm2KCLy3o5ASXVI5E=
