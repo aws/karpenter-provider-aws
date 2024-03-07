@@ -303,13 +303,25 @@ var _ = Describe("Pricing", func() {
 		defer func(provider *pricing.Provider) {
 			awsEnv.PricingProvider = provider
 		}(existingPricingProvider)
+
+		now := time.Now()
+		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &now,
+				},
+			},
+		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []aws.JSONValue{
 				fake.NewOnDemandPriceInCurrency("c98.large", 1.20, "CNY"),
 				fake.NewOnDemandPriceInCurrency("c99.large", 1.23, "CNY"),
 			},
 		})
-		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 
 		price, ok := awsEnv.PricingProvider.OnDemandPrice("c98.large")
 		Expect(ok).To(BeTrue())
