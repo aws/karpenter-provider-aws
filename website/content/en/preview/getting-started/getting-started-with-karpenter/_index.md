@@ -159,7 +159,7 @@ To avoid additional charges, remove the demo infrastructure from your AWS accoun
 
 This section describes optional ways to configure Karpenter to enhance its capabilities.
 In particular, the following commands deploy a Prometheus and Grafana stack that is suitable for this guide but does not include persistent storage or other configurations that would be necessary for monitoring a production deployment of Karpenter.
-This deployment includes two Karpenter dashboards that are automatically onboarded to Grafana. They provide a variety of visualization examples on Karpenter metrics.
+This deployment includes four Karpenter dashboards that are automatically onboarded to Grafana. They provide a variety of visualization examples on Karpenter metrics.
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step09-add-prometheus-grafana.sh" language="bash"%}}
 

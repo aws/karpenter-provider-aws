@@ -1,0 +1,25 @@
+{{- if .Values.grafanaDashboards.enabled }}
+{{- $dot := . }}
+{{- range $path, $bytes := $.Files.Glob "grafana-dashboards/**" }}
+{{- $dashboardFilename := splitList "/" $path | last }}
+{{- $dashboardName := splitList "." $dashboardFilename | first }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-dashboard-{{ $dashboardName }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    {{- include "karpenter.labels" $dot | nindent 4 }}
+  {{- with $.Values.grafanaDashboards.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  {{- with $.Values.additionalAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  {{ $dashboardFilename }}: |
+    {{- printf "%s" $bytes | nindent 4 }}
+{{- end }}
+{{- end }}

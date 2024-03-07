@@ -29,6 +29,11 @@ serviceMonitor:
   additionalLabels: {}
   # -- Endpoint configuration for the ServiceMonitor.
   endpointConfig: {}
+grafanaDashboards:
+  # -- Specifies whether grafana dashboards should be created.
+  enabled: false
+  # -- Additional labels for the grafana dashboards.
+  additionalLabels: {}
 # -- Number of replicas.
 replicas: 2
 # -- The number of old ReplicaSets to retain to allow rollback.

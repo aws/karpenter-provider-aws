@@ -19,9 +19,3 @@ dashboardProviders:
       editable: true
       options:
         path: /var/lib/grafana/dashboards/default
-dashboards:
-  default:
-    capacity-dashboard:
-      url: https://karpenter.sh/preview/getting-started/getting-started-with-karpenter/karpenter-capacity-dashboard.json
-    performance-dashboard:
-      url: https://karpenter.sh/preview/getting-started/getting-started-with-karpenter/karpenter-performance-dashboard.json
