@@ -45,10 +45,10 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 
 * Karpenter changed the name of the `karpenter_cloudprovider_instance_type_price_estimate` metric to `karpenter_cloudprovider_instance_type_offering_price_estimate` to align with the new `karpenter_cloudprovider_instance_type_offering_available` metric. The `region` label was also dropped from the metric, since this can be inferred from the environment that Karpenter is running in.
 
-### Upgrading to `0.35.0`+
+### Upgrading to `0.35.1`+
 
 {{% alert title="Warning" color="warning" %}}
-`0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.35.0`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
+`0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.35.1`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
 {{% /alert %}}
 
 * Karpenter OCI tags and Helm chart version are now valid semantic versions, meaning that the `v` prefix from the git tag has been removed and they now follow the `x.y.z` pattern.
