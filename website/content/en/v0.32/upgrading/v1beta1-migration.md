@@ -321,6 +321,8 @@ apiVersion: karpenter.sh/v1beta1
 kind: NodePool
 ...
 nodeClassRef:
+  apiVersion: karpenter.k8s.aws/v1beta1
+  kind: EC2NodeClass
   name: default
 ```
 

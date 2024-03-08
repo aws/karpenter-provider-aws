@@ -18,6 +18,8 @@ spec:
           operator: Gt
           values: ["8191"]
       nodeClassRef:
+        apiVersion: karpenter.k8s.aws/v1beta1
+        kind: EC2NodeClass
         name: default
 ---
 apiVersion: karpenter.k8s.aws/v1beta1
