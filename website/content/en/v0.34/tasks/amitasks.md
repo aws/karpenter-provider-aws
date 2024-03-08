@@ -42,13 +42,17 @@ However, with this comes the risk that the new AMI could break or degrade your w
 As the Karpenter team looks for new ways to manage AMIs, the options below offer some means of reducing these risks, based on your own security and ease-of-use requirements.
 Here are the advantages and challenges of each of the options described below:
 
-* Option 1 (Test AMIs): The safest way, and the one we recommend, for ensuring that a new AMI doesn't break your workloads is to test it before putting it into production. This takes the most effort on your part, but most effectively models how your workloads will run in production, allowing you to catch issues ahead of time. Note that you can sometimes get different results from your test environment when you roll a new AMI into production, since issues like scale and other factors can elevate problems you might not see in test. So combining this with other options, that do things like slow rollouts, can allow you to catch problems before they impact your whole cluster.
-* Option 2 (Lock down AMIs): If workloads require a particluar AMI, this option can make sure that it is the only AMI used by Karpenter. This can be used in combination with Option 1, where you lock down the AMI in production, but allow the newest AMIs in a test cluster while you test your workloads before upgrading production. Keep in mind that this makes upgrades a manual process for you.
-* Option 3 ([Disruption budgets]({{< relref "../concepts/disruption/" >}})): This option can be used as a way of mitigating the scope of impact if a new AMI causes problems with your workloads. With Disruption budgets you can slow the pace of upgrades to nodes with new AMIs or make sure that upgrades only happen during selected dates and times (using `schedule`). This doesn't prevent a bad AMI from being deployed, but it allows you to control when nodes are upgraded, and gives you more time respond to rollout issues.
 
-## Task
 
-The following task lays out the options you have to impact Karpenter’s behavior as it relates to how nodes are created and AMIs are consumed.
+
+
+* [Option 1]({{< relref "#option-1-manage-how-amis-are-tested-and-rolled-out" >}}) (Test AMIs): The safest way, and the one we recommend, for ensuring that a new AMI doesn't break your workloads is to test it before putting it into production. This takes the most effort on your part, but most effectively models how your workloads will run in production, allowing you to catch issues ahead of time. Note that you can sometimes get different results from your test environment when you roll a new AMI into production, since issues like scale and other factors can elevate problems you might not see in test. So combining this with other options, that do things like slow rollouts, can allow you to catch problems before they impact your whole cluster.
+* [Option 2]({{< relref "#option-2-lock-down-which-amis-are-selected" >}}) (Lock down AMIs): If workloads require a particluar AMI, this option can make sure that it is the only AMI used by Karpenter. This can be used in combination with Option 1, where you lock down the AMI in production, but allow the newest AMIs in a test cluster while you test your workloads before upgrading production. Keep in mind that this makes upgrades a manual process for you.
+* [Option 3]({{< relref "#option-3-control-the-pace-of-node-disruptions" >}}) ([Disruption budgets]({{< relref "../concepts/disruption/" >}})): This option can be used as a way of mitigating the scope of impact if a new AMI causes problems with your workloads. With Disruption budgets you can slow the pace of upgrades to nodes with new AMIs or make sure that upgrades only happen during selected dates and times (using `schedule`). This doesn't prevent a bad AMI from being deployed, but it allows you to control when nodes are upgraded, and gives you more time respond to rollout issues.
+
+## Options
+
+The following lays out the options you have to impact Karpenter’s behavior as it relates to how nodes are created and AMIs are consumed.
 
 ### Option 1: Manage how AMIs are tested and rolled out
 
