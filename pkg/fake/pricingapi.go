@@ -51,10 +51,10 @@ func (p *PricingAPI) GetProductsPagesWithContext(_ aws.Context, _ *pricing.GetPr
 }
 
 func NewOnDemandPrice(instanceType string, price float64) aws.JSONValue {
-	return NewOnDemandPriceInCurrency(instanceType, price, "USD")
+	return NewOnDemandPriceWithCurrency(instanceType, price, "USD")
 }
 
-func NewOnDemandPriceInCurrency(instanceType string, price float64, currency string) aws.JSONValue {
+func NewOnDemandPriceWithCurrency(instanceType string, price float64, currency string) aws.JSONValue {
 	return aws.JSONValue{
 		"product": map[string]interface{}{
 			"attributes": map[string]interface{}{

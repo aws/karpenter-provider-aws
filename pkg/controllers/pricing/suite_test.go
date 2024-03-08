@@ -317,8 +317,8 @@ var _ = Describe("Pricing", func() {
 		})
 		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
 			PriceList: []aws.JSONValue{
-				fake.NewOnDemandPriceInCurrency("c98.large", 1.20, "CNY"),
-				fake.NewOnDemandPriceInCurrency("c99.large", 1.23, "CNY"),
+				fake.NewOnDemandPriceWithCurrency("c98.large", 1.20, "CNY"),
+				fake.NewOnDemandPriceWithCurrency("c99.large", 1.23, "CNY"),
 			},
 		})
 		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
