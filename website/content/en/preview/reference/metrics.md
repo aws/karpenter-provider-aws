@@ -45,6 +45,9 @@ Node system daemon overhead are the resources reserved for system overhead, the 
 ### `karpenter_nodes_leases_deleted`
 Number of deleted leaked leases.
 
+### `karpenter_nodes_eviction_queue_depth`
+The number of pods currently waiting for a successful eviction in the eviction queue.
+
 ### `karpenter_nodes_created`
 Number of nodes created in total by Karpenter. Labeled by owning nodepool.
 
@@ -63,6 +66,9 @@ The time from pod creation until the pod is running.
 
 ### `karpenter_provisioner_scheduling_simulation_duration_seconds`
 Duration of scheduling simulations used for deprovisioning and provisioning in seconds.
+
+### `karpenter_provisioner_scheduling_queue_depth`
+The number of pods currently waiting to be scheduled.
 
 ### `karpenter_provisioner_scheduling_duration_seconds`
 Duration of scheduling process in seconds.
@@ -152,7 +158,7 @@ Current count of nodes in cluster state
 ## Cloudprovider Metrics
 
 ### `karpenter_cloudprovider_instance_type_offering_price_estimate`
-Instance type offering estimated estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone.
+Instance type offering estimated hourly price used when making informed decisions on node cost calculation, based on instance type, capacity type, and zone.
 
 ### `karpenter_cloudprovider_instance_type_offering_available`
 Instance type offering availability, based on instance type, capacity type, and zone
