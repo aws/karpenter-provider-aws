@@ -160,10 +160,6 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 		// as the cause.
 		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
-	subnets, err := c.subnetProvider.List(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
 	// TODO, break this coupling
 	instanceTypes, err := c.resolveInstanceType(ctx, nodePool.Spec.Template.Spec.Kubelet, nodeClass)
 	if err != nil {
