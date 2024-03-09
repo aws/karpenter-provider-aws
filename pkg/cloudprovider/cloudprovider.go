@@ -148,7 +148,15 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1beta1.NodePool) ([]*cloudprovider.InstanceType, error) {
 	if nodePool == nil {
-		return c.instanceTypeProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
+		subnets, err := c.subnetProvider.List(ctx, &v1beta1.EC2NodeClass{})
+		if err != nil {
+			return nil, err
+		}
+		return c.instanceTypeProvider.List(ctx,
+			// Kubelet Configuration Inputs
+			v1.ResourceList{}, v1.ResourceList{}, map[string]string{}, map[string]string{}, nil, nil,
+			// NodeClass Inputs
+			[]*v1beta1.BlockDeviceMapping{}, nil, nil, subnets)
 	}
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
@@ -160,8 +168,25 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 		// as the cause.
 		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
+	subnets, err := c.subnetProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, err
+	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodePool.Spec.Template.Spec.Kubelet, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx,
+		// Kubelet Configuration Inputs
+		nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
+		nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
+		nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
+		nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
+		nodePool.Spec.Template.Spec.Kubelet.MaxPods,
+		nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
+		// NodeClass Inputs
+		nodeClass.Spec.BlockDeviceMappings,
+		nodeClass.Spec.InstanceStorePolicy,
+		nodeClass.Spec.AMIFamily,
+		subnets,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -239,7 +264,24 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 }
 
 func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClaim.Spec.Kubelet, nodeClass)
+	subnets, err := c.subnetProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types, %w", err)
+	}
+	instanceTypes, err := c.instanceTypeProvider.List(ctx,
+		// Kubelet Configuration Inputs
+		nodeClaim.Spec.Kubelet.KubeReserved,
+		nodeClaim.Spec.Kubelet.SystemReserved,
+		nodeClaim.Spec.Kubelet.EvictionHard,
+		nodeClaim.Spec.Kubelet.EvictionSoft,
+		nodeClaim.Spec.Kubelet.MaxPods,
+		nodeClaim.Spec.Kubelet.PodsPerCore,
+		// NodeClass Inputs
+		nodeClass.Spec.BlockDeviceMappings,
+		nodeClass.Spec.InstanceStorePolicy,
+		nodeClass.Spec.AMIFamily,
+		subnets,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
