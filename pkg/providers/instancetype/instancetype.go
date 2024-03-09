@@ -42,6 +42,7 @@ import (
 
 	"github.com/aws/karpenter-core/pkg/cloudprovider"
 	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"github.com/aws/karpenter-core/pkg/utils/resources"
 )
 
 const (
@@ -111,9 +112,32 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	// Compute fully initialized instance types hash key
 	subnetHash, _ := hashstructure.Hash(subnets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	// TODO: remove kubeReservedHash and systemReservedHash once v1.ResourceList objects are hashed as strings in KubeletConfiguration
+	// For more information on the v1.ResourceList hash issue: https://github.com/kubernetes-sigs/karpenter/issues/1080
+	kubeReservedHash, systemReservedHash := uint64(0), uint64(0)
+	if kc != nil {
+		kubeReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.KubeReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+		systemReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.SystemReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	}
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.Spec.BlockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%t", p.instanceTypesSeqNum, p.instanceTypeOfferingsSeqNum, p.unavailableOfferings.SeqNum, subnetHash, kcHash, blockDeviceMappingsHash, aws.StringValue(nodeClass.Spec.AMIFamily), nodeClass.IsNodeTemplate)
-
+	// TODO: remove volumeSizeHash once resource.Quantity objects get hashed as a string in BlockDeviceMappings
+	// For more information on the resource.Quantity hash issue: https://github.com/aws/karpenter-provider-aws/issues/5447
+	volumeSizeHash, _ := hashstructure.Hash(lo.Reduce(nodeClass.Spec.BlockDeviceMappings, func(agg string, block *v1beta1.BlockDeviceMapping, _ int) string {
+		return fmt.Sprintf("%s/%s", agg, block.EBS.VolumeSize)
+	}, ""), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%t-%016x-%016x-%016x",
+		p.instanceTypesSeqNum,
+		p.instanceTypeOfferingsSeqNum,
+		p.unavailableOfferings.SeqNum,
+		subnetHash,
+		kcHash,
+		blockDeviceMappingsHash,
+		aws.StringValue(nodeClass.Spec.AMIFamily),
+		nodeClass.IsNodeTemplate,
+		volumeSizeHash,
+		kubeReservedHash,
+		systemReservedHash,
+	)
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
 	}
