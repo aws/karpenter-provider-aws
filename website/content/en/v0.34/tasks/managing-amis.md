@@ -139,7 +139,7 @@ Extending those values causes longer times without disruption.
 Settings for budgets in the above example include the following:
 
 * **Percentage of nodes**: From the first `nodes` setting, only `15%` of the NodePool’s nodes can be disrupted at a time.
-* **Number of nodes**: The second `nodes` setting limits the number of nodes that can be disrupted at a time to `3`.
+* **Number of nodes**: The second `nodes` setting limits the number of nodes that can be disrupted at a time to `5`.
 * **Schedule**: The third `nodes` setting uses schedule to say that zero disruptions (`0`) are allowed starting at 7am on Saturday and Sunday and continues for 12 hours.
 The format of the schedule follows the `crontab` format for identifying dates and times.
 See the [crontab](https://man7.org/linux/man-pages/man5/crontab.5.html) page for information on the supported values for these fields.
