@@ -37,7 +37,7 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.35.1/pkg/api
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
-### Upgrading to `0.35.1`+
+### Upgrading to `0.35.0`+
 
 {{% alert title="Warning" color="warning" %}}
 `0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.35.1`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
