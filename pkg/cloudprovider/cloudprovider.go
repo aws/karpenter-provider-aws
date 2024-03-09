@@ -238,8 +238,25 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 	return nodeClass, nil
 }
 
-func (c *CloudProvider) resolveInstanceTypesFromNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := c.resolveInstanceType(ctx, nodeClaim.Spec.Kubelet, nodeClass)
+func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
+	subnets, err := c.subnetProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, fmt.Errorf("getting instance types, %w", err)
+	}
+	instanceTypes, err := c.instanceTypeProvider.List(ctx,
+		// Kubelet Configuration Inputs
+		nodeClaim.Spec.Kubelet.KubeReserved,
+		nodeClaim.Spec.Kubelet.SystemReserved,
+		nodeClaim.Spec.Kubelet.EvictionHard,
+		nodeClaim.Spec.Kubelet.EvictionSoft,
+		nodeClaim.Spec.Kubelet.MaxPods,
+		nodeClaim.Spec.Kubelet.PodsPerCore,
+		// NodeClass Inputs
+		nodeClass.Spec.BlockDeviceMappings,
+		nodeClass.Spec.InstanceStorePolicy,
+		nodeClass.Spec.AMIFamily,
+		subnets,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}
