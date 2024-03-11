@@ -1,6 +1,6 @@
 module github.com/aws/karpenter-provider-aws/website
 
-go 1.21
+go 1.22
 
 require (
 	github.com/google/docsy v0.6.0 // indirect
