@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-03-04T13:06:01Z for us-east-1
+// generated at 2024-03-11T13:05:10Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -86,7 +86,8 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"c7g.xlarge": 0.145000,
 		// c7gd family
 		"c7gd.12xlarge": 2.177300, "c7gd.16xlarge": 2.903000, "c7gd.2xlarge": 0.362900, "c7gd.4xlarge": 0.725800,
-		"c7gd.8xlarge": 1.451500, "c7gd.large": 0.090700, "c7gd.medium": 0.045400, "c7gd.xlarge": 0.181400,
+		"c7gd.8xlarge": 1.451500, "c7gd.large": 0.090700, "c7gd.medium": 0.045400, "c7gd.metal": 2.903000,
+		"c7gd.xlarge": 0.181400,
 		// c7gn family
 		"c7gn.12xlarge": 2.995200, "c7gn.16xlarge": 3.993600, "c7gn.2xlarge": 0.499200, "c7gn.4xlarge": 0.998400,
 		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.xlarge": 0.249600,
@@ -317,7 +318,8 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"r7g.xlarge": 0.214200,
 		// r7gd family
 		"r7gd.12xlarge": 3.265900, "r7gd.16xlarge": 4.354600, "r7gd.2xlarge": 0.544300, "r7gd.4xlarge": 1.088600,
-		"r7gd.8xlarge": 2.177300, "r7gd.large": 0.136100, "r7gd.medium": 0.068000, "r7gd.xlarge": 0.272200,
+		"r7gd.8xlarge": 2.177300, "r7gd.large": 0.136100, "r7gd.medium": 0.068000, "r7gd.metal": 4.354600,
+		"r7gd.xlarge": 0.272200,
 		// r7i family
 		"r7i.12xlarge": 3.175200, "r7i.16xlarge": 4.233600, "r7i.24xlarge": 6.350400, "r7i.2xlarge": 0.529200,
 		"r7i.48xlarge": 12.700800, "r7i.4xlarge": 1.058400, "r7i.8xlarge": 2.116800, "r7i.large": 0.132300,
