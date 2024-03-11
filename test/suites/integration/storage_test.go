@@ -241,7 +241,7 @@ func ExpectSetEBSDriverLimit(limit int) {
 		containers[i].Args = append(containers[i].Args, fmt.Sprintf("--volume-attach-limit=%d", limit))
 		break
 	}
-	Expect(env.Client.Patch(env.Context, ds, client.MergeFrom(stored))).To(Succeed())
+	Expect(env.Client.Patch(env.Context, ds, client.StrategicMergeFrom(stored))).To(Succeed())
 }
 
 func ExpectRemoveEBSDriverLimit() {
@@ -260,5 +260,5 @@ func ExpectRemoveEBSDriverLimit() {
 		})
 		break
 	}
-	Expect(env.Client.Patch(env.Context, ds, client.MergeFrom(stored))).To(Succeed())
+	Expect(env.Client.Patch(env.Context, ds, client.StrategicMergeFrom(stored))).To(Succeed())
 }
