@@ -194,12 +194,12 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1beta1.AnnotationNodeClassHash: nodeClass.Hash(),
+				v1beta1.AnnotationNodeClassHash:           nodeClass.Hash(),
 				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Status.ProviderID = fake.ProviderID(lo.FromPtr(instance.InstanceId))
 			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
-				v1beta1.AnnotationNodeClassHash: nodeClass.Hash(),
+				v1beta1.AnnotationNodeClassHash:           nodeClass.Hash(),
 				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{v1.LabelInstanceTypeStable: selectedInstanceType.Name})
@@ -423,7 +423,6 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 				Expect(err).NotTo(HaveOccurred())
 				Expect(isDrifted).To(BeEmpty())
 			})
-		})
 		})
 	})
 	Context("Subnet Compatibility", func() {

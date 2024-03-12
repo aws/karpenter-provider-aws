@@ -135,7 +135,7 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim,
 	if nodeClaim.IsMachine {
 		ownerHashKey = v1alpha1.AnnotationNodeTemplateHash
 	} else {
-		ownerHashKey = v1beta1.AnnotationNodeClassHash
+		ownerHashKey = v1beta1.AnnotationEC2NodeClassHash
 	}
 	nodeClassHash, foundHashNodeClass := nodeClass.Annotations[ownerHashKey]
 	nodeClaimHash, foundHashNodeClaim := nodeClaim.Annotations[ownerHashKey]
@@ -154,7 +154,7 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim,
 			return ""
 		}
 	}
-	
+
 	if nodeClassHash != nodeClaimHash {
 		return lo.Ternary(nodeClaim.IsMachine, NodeTemplateDrift, NodeClassDrift)
 	}
