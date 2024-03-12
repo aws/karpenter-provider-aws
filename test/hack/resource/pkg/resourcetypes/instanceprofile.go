@@ -16,7 +16,6 @@ package resourcetypes
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -25,6 +24,7 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"golang.org/x/exp/slices"
+	v1 "k8s.io/api/core/v1"
 )
 
 type InstanceProfile struct {
@@ -51,10 +51,6 @@ func (ip *InstanceProfile) GetExpired(ctx context.Context, expirationTime time.T
 
 	errs := make([]error, len(out.InstanceProfiles))
 	for i := range out.InstanceProfiles {
-		// Checking to make sure we are only list resources in the given region
-		if !strings.Contains(lo.FromPtr(out.InstanceProfiles[i].Arn), lo.Must(config.LoadDefaultConfig(ctx)).Region) {
-			continue
-		}
 		profiles, err := ip.iamClient.ListInstanceProfileTags(ctx, &iam.ListInstanceProfileTagsInput{
 			InstanceProfileName: out.InstanceProfiles[i].InstanceProfileName,
 		})
@@ -63,10 +59,15 @@ func (ip *InstanceProfile) GetExpired(ctx context.Context, expirationTime time.T
 			continue
 		}
 
-		clusterName, found := lo.Find(out.InstanceProfiles[i].Tags, func(tag iamtypes.Tag) bool {
-			return *tag.Key == k8sClusterTag
+		clusterName, _ := lo.Find(profiles.Tags, func(tag iamtypes.Tag) bool {
+			return lo.FromPtr(tag.Key) == karpenterTestingTag
 		})
-		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+		// Checking to make sure we are only list resources in the given region
+		region, _ := lo.Find(profiles.Tags, func(tag iamtypes.Tag) bool {
+			return lo.FromPtr(tag.Key) == v1.LabelTopologyZone
+		})
+
+		if slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) || lo.FromPtr(region.Value) != lo.Must(config.LoadDefaultConfig(ctx)).Region {
 			continue
 		}
 
@@ -137,6 +138,7 @@ func (ip *InstanceProfile) Cleanup(ctx context.Context, names []string) ([]strin
 		if err != nil {
 			errs = multierr.Append(errs, err)
 		}
+		deleted = append(deleted, names[i])
 	}
 	return deleted, errs
 }
