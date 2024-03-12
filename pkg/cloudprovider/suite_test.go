@@ -593,10 +593,14 @@ var _ = Describe("CloudProvider", func() {
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
+				v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Status.ProviderID = fake.ProviderID(lo.FromPtr(instance.InstanceId))
-			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+				v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+			})
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{v1.LabelInstanceTypeStable: selectedInstanceType.Name})
 		})
 		It("should not fail if NodeClass does not exist", func() {
@@ -760,8 +764,58 @@ var _ = Describe("CloudProvider", func() {
 				Entry("Subnet Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"sn-key-1": "sn-value-1"}}}}}),
 				Entry("SecurityGroup Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"sg-key": "sg-value"}}}}}),
 			)
-			It("should not return drifted if karpenter.k8s.aws/nodeclass-hash annotation is not present on the NodeClaim", func() {
-				nodeClaim.Annotations = map[string]string{}
+			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash annotation is not present on the NodeClaim", func() {
+				nodeClaim.Annotations = map[string]string{
+					v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+				}
+				nodeClass.Spec.Tags = map[string]string{
+					"Test Key": "Test Value",
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(isDrifted).To(BeEmpty())
+			})
+			It("should not return drifted if the NodeClaim's karpenter.k8s.aws/ec2nodeclass-hash-version annotation does not match the EC2NodeClass's", func() {
+				nodeClass.ObjectMeta.Annotations = map[string]string{
+					v1beta1.AnnotationEC2NodeClassHash:        "test-hash-111111",
+					v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
+				}
+				nodeClaim.ObjectMeta.Annotations = map[string]string{
+					v1beta1.AnnotationEC2NodeClassHash:        "test-hash-222222",
+					v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(isDrifted).To(BeEmpty())
+			})
+			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClass", func() {
+				nodeClass.ObjectMeta.Annotations = map[string]string{
+					v1beta1.AnnotationEC2NodeClassHash: "test-hash-111111",
+				}
+				nodeClaim.ObjectMeta.Annotations = map[string]string{
+					v1beta1.AnnotationEC2NodeClassHash:        "test-hash-222222",
+					v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
+				}
+				// should trigger drift
+				nodeClass.Spec.Tags = map[string]string{
+					"Test Key": "Test Value",
+				}
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
+				Expect(err).NotTo(HaveOccurred())
+				Expect(isDrifted).To(BeEmpty())
+			})
+			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClaim", func() {
+				nodeClass.ObjectMeta.Annotations = map[string]string{
+					v1beta1.AnnotationEC2NodeClassHash:        "test-hash-111111",
+					v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
+				}
+				nodeClaim.ObjectMeta.Annotations = map[string]string{
+					v1beta1.AnnotationEC2NodeClassHash: "test-hash-222222",
+				}
+				// should trigger drift
 				nodeClass.Spec.Tags = map[string]string{
 					"Test Key": "Test Value",
 				}

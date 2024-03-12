@@ -115,6 +115,7 @@ var (
 	LabelInstanceAcceleratorManufacturer      = Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = Group + "/instance-accelerator-count"
 	AnnotationEC2NodeClassHash                = Group + "/ec2nodeclass-hash"
+	AnnotationEC2NodeClassHashVersion         = Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = Group + "/tagged"
 
 	TagNodeClaim = v1beta1.Group + "/nodeclaim"
