@@ -765,7 +765,8 @@ var _ = Describe("Drift", func() {
 			g.Expect(nodePool.Annotations).To(HaveKeyWithValue(corev1beta1.NodePoolHashVersionAnnotationKey, corev1beta1.NodePoolHashVersion))
 			g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(corev1beta1.NodePoolHashAnnotationKey, expectedHash))
 			g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(corev1beta1.NodePoolHashVersionAnnotationKey, corev1beta1.NodePoolHashVersion))
-		})
+		}).WithTimeout(30 * time.Second).Should(Succeed())
+		env.ConsistentlyExpectNodeClaimsNotDrifted(time.Minute, nodeClaim)
 	})
 	It("should update the ec2nodeclass-hash annotation on the ec2nodeclass and nodeclaim when the ec2nodeclass's ec2nodeclass-hash-version annotation does not match the controller hash version", func() {
 		env.ExpectCreated(dep, nodeClass, nodePool)
