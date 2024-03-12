@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
@@ -99,9 +98,6 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	if err != nil {
 		return nil, err
 	}
-	// Get zones from instancetypeOfferings
-	zones := p.getZones(ctx, instanceTypeOfferings)
-	// Constrain zones from subnets
 	subnets, err := p.subnetProvider.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
@@ -111,7 +107,7 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	})...)
 
 	// Compute fully initialized instance types hash key
-	subnetHash, _ := hashstructure.Hash(subnets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	// TODO: remove kubeReservedHash and systemReservedHash once v1.ResourceList objects are hashed as strings in KubeletConfiguration
 	// For more information on the v1.ResourceList hash issue: https://github.com/kubernetes-sigs/karpenter/issues/1080
@@ -130,7 +126,7 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 		p.instanceTypesSeqNum,
 		p.instanceTypeOfferingsSeqNum,
 		p.unavailableOfferings.SeqNum,
-		subnetHash,
+		subnetZonesHash,
 		kcHash,
 		blockDeviceMappingsHash,
 		aws.StringValue((*string)(nodeClass.Spec.InstanceStorePolicy)),
@@ -142,6 +138,18 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
 	}
+
+	// Get all zones across all offerings
+	// We don't use this in the cache key since this is produced from our instanceTypeOfferings which we do cache
+	allZones := sets.New[string]()
+	for _, offeringZones := range instanceTypeOfferings {
+		for zone := range offeringZones {
+			allZones.Insert(zone)
+		}
+	}
+	if p.cm.HasChanged("zones", allZones) {
+		logging.FromContext(ctx).With("zones", allZones.UnsortedList()).Debugf("discovered zones")
+	}
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: *i.InstanceType,
@@ -150,7 +158,7 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 			instanceTypeLabel: *i.InstanceType,
 		}).Set(float64(aws.Int64Value(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
 
-		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], zones, subnetZones))
+		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones))
 	})
 	p.cache.SetDefault(key, result)
 	return result, nil
@@ -204,30 +212,6 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 		}
 	}
 	return offerings
-}
-
-func (p *Provider) getZones(ctx context.Context, instanceTypeOfferings map[string]sets.Set[string]) sets.Set[string] {
-	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
-	// We lock here so that multiple callers to getAvailabilityZones do not result in cache misses and multiple
-	// calls to EC2 when we could have just made one call.
-	// TODO @joinnis: This can be made more efficient by holding a Read lock and only obtaining the Write if not in cache
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	if cached, ok := p.cache.Get(ZonesCacheKey); ok {
-		return cached.(sets.Set[string])
-	}
-	// Get zones from offerings
-	zones := sets.Set[string]{}
-	for _, offeringZones := range instanceTypeOfferings {
-		for zone := range offeringZones {
-			zones.Insert(zone)
-		}
-	}
-	if p.cm.HasChanged("zones", zones) {
-		logging.FromContext(ctx).With("zones", zones.UnsortedList()).Debugf("discovered zones")
-	}
-	p.cache.Set(ZonesCacheKey, zones, 24*time.Hour)
-	return zones
 }
 
 func (p *Provider) getInstanceTypeOfferings(ctx context.Context) (map[string]sets.Set[string], error) {

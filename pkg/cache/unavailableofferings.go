@@ -35,10 +35,14 @@ type UnavailableOfferings struct {
 }
 
 func NewUnavailableOfferings() *UnavailableOfferings {
-	return &UnavailableOfferings{
-		cache:  cache.New(UnavailableOfferingsTTL, DefaultCleanupInterval),
+	uo := &UnavailableOfferings{
+		cache:  cache.New(UnavailableOfferingsTTL, UnavailableOfferingsCleanupInterval),
 		SeqNum: 0,
 	}
+	uo.cache.OnEvicted(func(_ string, _ interface{}) {
+		atomic.AddUint64(&uo.SeqNum, 1)
+	})
+	return uo
 }
 
 // IsUnavailable returns true if the offering appears in the cache
