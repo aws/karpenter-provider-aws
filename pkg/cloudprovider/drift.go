@@ -142,6 +142,19 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim,
 	if !foundHashNodeClass || !foundHashNodeClaim {
 		return ""
 	}
+
+	if nodeClass.IsNodeTemplate {
+		nodeClassHashVersion, foundNodeClassHashVersion := nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion]
+		nodeClaimHashVersion, foundNodeClaimHashVersion := nodeClaim.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion]
+		if !foundNodeClassHashVersion || !foundNodeClaimHashVersion {
+			return ""
+		}
+		// validate that the hash version for the EC2NodeClass is the same as the NodeClaim before evaluating for static drift
+		if nodeClassHashVersion != nodeClaimHashVersion {
+			return ""
+		}
+	}
+	
 	if nodeClassHash != nodeClaimHash {
 		return lo.Ternary(nodeClaim.IsMachine, NodeTemplateDrift, NodeClassDrift)
 	}

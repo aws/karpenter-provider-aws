@@ -284,7 +284,10 @@ func HashAnnotation(nodeClass *v1beta1.EC2NodeClass) map[string]string {
 		nodeTemplate := nodetemplateutil.New(nodeClass)
 		return map[string]string{v1alpha1.AnnotationNodeTemplateHash: nodeTemplate.Hash()}
 	}
-	return map[string]string{v1beta1.AnnotationNodeClassHash: nodeClass.Hash()}
+	return map[string]string{
+		v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+		v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+	}
 }
 
 func createSelectorTags(k string, v string, tagSet []map[string]string) (res []map[string]string) {
