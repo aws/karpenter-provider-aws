@@ -615,7 +615,7 @@ var _ = Describe("Drift", func() {
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeTwo), nodeTwo)).To(Succeed())
 				stored := nodeTwo.DeepCopy()
 				nodeTwo.Spec.Taints = lo.Reject(nodeTwo.Spec.Taints, func(t v1.Taint, _ int) bool { return t.Key == "example.com/another-taint-2" })
-				g.Expect(env.Client.Patch(env.Context, nodeTwo, client.MergeFrom(stored))).To(Succeed())
+				g.Expect(env.Client.Patch(env.Context, nodeTwo, client.StrategicMergeFrom(stored))).To(Succeed())
 			}).Should(Succeed())
 		}
 		env.EventuallyExpectNotFound(pod, node)

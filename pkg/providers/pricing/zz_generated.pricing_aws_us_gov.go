@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2023-12-11T13:07:38Z for us-east-1
+// generated at 2024-03-11T13:05:15Z for us-east-1
 
 var InitialOnDemandPricesUSGov = map[string]map[string]float64{
 	// us-gov-east-1
@@ -74,8 +74,7 @@ var InitialOnDemandPricesUSGov = map[string]map[string]float64{
 		"inf1.24xlarge": 5.953000, "inf1.2xlarge": 0.456000, "inf1.6xlarge": 1.488000, "inf1.xlarge": 0.288000,
 		// m5 family
 		"m5.12xlarge": 2.904000, "m5.16xlarge": 3.872000, "m5.24xlarge": 5.808000, "m5.2xlarge": 0.484000,
-		"m5.4xlarge": 0.968000, "m5.8xlarge": 1.936000, "m5.large": 0.121000, "m5.metal": 5.808000,
-		"m5.xlarge": 0.242000,
+		"m5.4xlarge": 0.968000, "m5.8xlarge": 1.936000, "m5.large": 0.121000, "m5.xlarge": 0.242000,
 		// m5a family
 		"m5a.12xlarge": 2.616000, "m5a.16xlarge": 3.488000, "m5a.24xlarge": 5.232000, "m5a.2xlarge": 0.436000,
 		"m5a.4xlarge": 0.872000, "m5a.8xlarge": 1.744000, "m5a.large": 0.109000, "m5a.xlarge": 0.218000,
