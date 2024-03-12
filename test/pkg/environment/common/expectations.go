@@ -135,7 +135,7 @@ func (env *Environment) ExpectSettingsReplaced(vars ...v1.EnvVar) {
 
 	if !equality.Semantic.DeepEqual(d, stored) {
 		By("replacing environment variables for karpenter deployment")
-		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		Expect(env.Client.Patch(env.Context, d, client.StrategicMergeFrom(stored))).To(Succeed())
 		env.EventuallyExpectKarpenterRestarted()
 	}
 }
@@ -159,7 +159,7 @@ func (env *Environment) ExpectSettingsOverridden(vars ...v1.EnvVar) {
 	}
 	if !equality.Semantic.DeepEqual(d, stored) {
 		By("overriding environment variables for karpenter deployment")
-		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		Expect(env.Client.Patch(env.Context, d, client.StrategicMergeFrom(stored))).To(Succeed())
 		env.EventuallyExpectKarpenterRestarted()
 	}
 }
@@ -179,7 +179,7 @@ func (env *Environment) ExpectSettingsRemoved(vars ...v1.EnvVar) {
 	})
 	if !equality.Semantic.DeepEqual(d, stored) {
 		By("removing environment variables for karpenter deployment")
-		Expect(env.Client.Patch(env.Context, d, client.MergeFrom(stored))).To(Succeed())
+		Expect(env.Client.Patch(env.Context, d, client.StrategicMergeFrom(stored))).To(Succeed())
 		env.EventuallyExpectKarpenterRestarted()
 	}
 }
@@ -329,7 +329,7 @@ func (env *Environment) EventuallyExpectRollout(name, namespace string) {
 		"kubectl.kubernetes.io/restartedAt": time.Now().Format(time.RFC3339),
 	}
 	deploy.Spec.Template.Annotations = lo.Assign(deploy.Spec.Template.Annotations, restartedAtAnnotation)
-	Expect(env.Client.Patch(env.Context, deploy, client.MergeFrom(stored))).To(Succeed())
+	Expect(env.Client.Patch(env.Context, deploy, client.StrategicMergeFrom(stored))).To(Succeed())
 
 	By("waiting for the newly generated deployment to rollout")
 	Eventually(func(g Gomega) {
@@ -696,6 +696,18 @@ func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeC
 	}).Should(Succeed())
 }
 
+func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Duration, nodeClaims ...*corev1beta1.NodeClaim) {
+	GinkgoHelper()
+	nodeClaimNames := lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) string { return nc.Name })
+	By(fmt.Sprintf("consistently expect nodeclaims %s not to be drifted for %s", nodeClaimNames, duration))
+	Consistently(func(g Gomega) {
+		for _, nc := range nodeClaims {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
+			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted)).To(BeNil())
+		}
+	}, duration).Should(Succeed())
+}
+
 func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*corev1beta1.NodeClaim) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
@@ -777,7 +789,7 @@ func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.Obj
 		Expect(len(ds.Spec.Template.Spec.Containers)).To(BeNumerically("==", 1))
 		containers = append(containers, ds.Spec.Template.Spec.Containers[0].Name)
 	}
-	patch := client.MergeFrom(ds.DeepCopy())
+	patch := client.StrategicMergeFrom(ds.DeepCopy())
 	containerNames := sets.New(containers...)
 	for ci := range ds.Spec.Template.Spec.Containers {
 		c := &ds.Spec.Template.Spec.Containers[ci]
@@ -824,7 +836,7 @@ func (env *Environment) ForcePodsToSpread(nodes ...*v1.Node) {
 		Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 		stored := node.DeepCopy()
 		node.Spec.Unschedulable = true
-		Expect(env.Client.Patch(env.Context, node, client.MergeFrom(stored))).To(Succeed())
+		Expect(env.Client.Patch(env.Context, node, client.StrategicMergeFrom(stored))).To(Succeed())
 		for _, pod := range nodePods[maxPodsPerNode:] {
 			env.ExpectDeleted(pod)
 		}
@@ -842,7 +854,7 @@ func (env *Environment) ForcePodsToSpread(nodes ...*v1.Node) {
 	for _, n := range nodes {
 		stored := n.DeepCopy()
 		n.Spec.Unschedulable = false
-		Expect(env.Client.Patch(env.Context, n, client.MergeFrom(stored))).To(Succeed())
+		Expect(env.Client.Patch(env.Context, n, client.StrategicMergeFrom(stored))).To(Succeed())
 	}
 }
 

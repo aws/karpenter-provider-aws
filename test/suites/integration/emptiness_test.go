@@ -111,7 +111,7 @@ var _ = Describe("Emptiness", func() {
 		By("making the nodeclaim empty")
 		persisted := deployment.DeepCopy()
 		deployment.Spec.Replicas = ptr.Int32(0)
-		Expect(env.Client.Patch(env, deployment, client.MergeFrom(persisted))).To(Succeed())
+		Expect(env.Client.Patch(env, deployment, client.StrategicMergeFrom(persisted))).To(Succeed())
 
 		env.EventuallyExpectEmpty(nodeClaim)
 
