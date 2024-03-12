@@ -565,6 +565,18 @@ func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1bet
 	}).Should(Succeed())
 }
 
+func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Duration, nodeClaims ...*corev1beta1.NodeClaim) {
+	GinkgoHelper()
+	nodeClaimNames := lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) string { return nc.Name })
+	By(fmt.Sprintf("consistently expect nodeclaims %s not to be drifted for %s", nodeClaimNames, duration))
+	Consistently(func(g Gomega) {
+		for _, nc := range nodeClaims {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
+			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted)).To(BeNil())
+		}
+	}, duration).Should(Succeed())
+}
+
 func (env *Environment) GetNode(nodeName string) v1.Node {
 	GinkgoHelper()
 	var node v1.Node
