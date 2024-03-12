@@ -711,6 +711,55 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
+	It("should update the ec2nodeclass-hash annotation on the ec2nodeclass and nodeclaim when the ec2nodeclass's ec2nodeclass-hash-version annotation does not match the controller hash version", func() {
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		nodeClass = env.ExpectExists(nodeClass).(*v1beta1.EC2NodeClass)
+		expectedHash := nodeClass.Hash()
+
+		By(fmt.Sprintf("expect nodeclass %s and nodeclaim %s to contain %s and %s annotations", nodeClass.Name, nodeClaim.Name, v1beta1.AnnotationEC2NodeClassHash, v1beta1.AnnotationEC2NodeClassHashVersion))
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+
+			g.Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, expectedHash))
+			g.Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+			g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, expectedHash))
+			g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+		}).WithTimeout(30 * time.Second).Should(Succeed())
+
+		nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+			v1beta1.AnnotationEC2NodeClassHash:        "test-hash-1",
+			v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
+		})
+		// Updating `nodeClass.Spec.Tags` would normally trigger drift on all nodeclaims using the
+		// nodeclass. However, the ec2nodeclass-hash-version does not match the controller hash version, so we will see that
+		// none of the nodeclaims will be drifted and all nodeclaims will have an updated `ec2nodeclass-hash` and `ec2nodeclass-hash-version` annotation
+		nodeClass.Spec.Tags = lo.Assign(nodeClass.Spec.Tags, map[string]string{
+			"test-key": "test-value",
+		})
+		nodeClaim.Annotations = lo.Assign(nodePool.Annotations, map[string]string{
+			v1beta1.AnnotationEC2NodeClassHash:        "test-hash-2",
+			v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
+		})
+
+		// The nodeclaim will need to be updated first, as the hash controller will only be triggered on changes to the nodeclass
+		env.ExpectUpdated(nodeClaim, nodeClass)
+		expectedHash = nodeClass.Hash()
+
+		// Expect all nodeclaims not to be drifted and contain an updated `nodepool-hash` and `nodepool-hash-version` annotation
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClass), nodeClass)).To(Succeed())
+			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+
+			g.Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, expectedHash))
+			g.Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+			g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, expectedHash))
+			g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+		}).WithTimeout(30 * time.Second).Should(Succeed())
+		env.ConsistentlyExpectNodeClaimsNotDrifted(time.Minute, nodeClaim)
+	})
 	Context("Failure", func() {
 		It("should not continue to drift if a node never registers", func() {
 			// launch a new nodeClaim
