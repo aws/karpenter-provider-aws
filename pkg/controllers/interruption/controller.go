@@ -195,7 +195,7 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		zone := nodeClaim.Labels[v1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1beta1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, nodeClaim, string(msg.Kind()), instanceType, zone, v1beta1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {

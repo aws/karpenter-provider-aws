@@ -23,6 +23,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/patrickmn/go-cache"
 	"knative.dev/pkg/logging"
+
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/events"
 )
 
 // UnavailableOfferings stores any offerings that return ICE (insufficient capacity errors) when
@@ -30,14 +33,16 @@ import (
 // GetInstanceTypes responses
 type UnavailableOfferings struct {
 	// key: <capacityType>:<instanceType>:<zone>, value: struct{}{}
-	cache  *cache.Cache
-	SeqNum uint64
+	cache    *cache.Cache
+	SeqNum   uint64
+	recorder events.Recorder
 }
 
-func NewUnavailableOfferings() *UnavailableOfferings {
+func NewUnavailableOfferings(recorder events.Recorder) *UnavailableOfferings {
 	return &UnavailableOfferings{
-		cache:  cache.New(UnavailableOfferingsTTL, DefaultCleanupInterval),
-		SeqNum: 0,
+		cache:    cache.New(UnavailableOfferingsTTL, DefaultCleanupInterval),
+		SeqNum:   0,
+		recorder: recorder,
 	}
 }
 
@@ -48,7 +53,7 @@ func (u *UnavailableOfferings) IsUnavailable(instanceType, zone, capacityType st
 }
 
 // MarkUnavailable communicates recently observed temporary capacity shortages in the provided offerings
-func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableReason, instanceType, zone, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, nodeClaim *v1beta1.NodeClaim, unavailableReason, instanceType, zone, capacityType string) {
 	// even if the key is already in the cache, we still need to call Set to extend the cached entry's TTL
 	logging.FromContext(ctx).With(
 		"reason", unavailableReason,
@@ -58,12 +63,15 @@ func (u *UnavailableOfferings) MarkUnavailable(ctx context.Context, unavailableR
 		"ttl", UnavailableOfferingsTTL).Debugf("removing offering from offerings")
 	u.cache.SetDefault(u.key(instanceType, zone, capacityType), struct{}{})
 	atomic.AddUint64(&u.SeqNum, 1)
+
+	// Add a k8s event for the instance type and zone without the involved object which has an ICE error
+	u.recorder.Publish(UnavailableOfferingEvent(nodeClaim, instanceType, zone, capacityType))
 }
 
-func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, fleetErr *ec2.CreateFleetError, capacityType string) {
+func (u *UnavailableOfferings) MarkUnavailableForFleetErr(ctx context.Context, nodeClaim *v1beta1.NodeClaim, fleetErr *ec2.CreateFleetError, capacityType string) {
 	instanceType := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.InstanceType)
 	zone := aws.StringValue(fleetErr.LaunchTemplateAndOverrides.Overrides.AvailabilityZone)
-	u.MarkUnavailable(ctx, aws.StringValue(fleetErr.ErrorCode), instanceType, zone, capacityType)
+	u.MarkUnavailable(ctx, nodeClaim, aws.StringValue(fleetErr.ErrorCode), instanceType, zone, capacityType)
 }
 
 func (u *UnavailableOfferings) Delete(instanceType string, zone string, capacityType string) {
