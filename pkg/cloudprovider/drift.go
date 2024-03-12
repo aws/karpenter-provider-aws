@@ -135,9 +135,16 @@ func (c *CloudProvider) areSecurityGroupsDrifted(ctx context.Context, ec2Instanc
 }
 
 func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim, nodeClass *v1beta1.EC2NodeClass) cloudprovider.DriftReason {
-	nodeClassHash, foundHashNodeClass := nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]
-	nodeClaimHash, foundHashNodeClaim := nodeClaim.Annotations[v1beta1.AnnotationEC2NodeClassHash]
-	if !foundHashNodeClass || !foundHashNodeClaim {
+	nodeClassHash, foundNodeClassHash := nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]
+	nodeClassHashVersion, foundNodeClassHashVersion := nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion]
+	nodeClaimHash, foundNodeClaimHash := nodeClaim.Annotations[v1beta1.AnnotationEC2NodeClassHash]
+	nodeClaimHashVersion, foundNodeClaimHashVersion := nodeClaim.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion]
+
+	if !foundNodeClassHash || !foundNodeClaimHash || !foundNodeClassHashVersion || !foundNodeClaimHashVersion {
+		return ""
+	}
+	// validate that the hash version for the EC2NodeClass is the same as the NodeClaim before evaluating for static drift
+	if nodeClassHashVersion != nodeClaimHashVersion {
 		return ""
 	}
 	return lo.Ternary(nodeClassHash != nodeClaimHash, NodeClassDrift, "")

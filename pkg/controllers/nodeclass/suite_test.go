@@ -23,6 +23,7 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -758,7 +759,7 @@ var _ = Describe("NodeClassController", func() {
 		})
 	})
 	Context("Static Drift Hash", func() {
-		DescribeTable("should update the static drift hash when static field is updated", func(changes *v1beta1.EC2NodeClass) {
+		DescribeTable("should update the drift hash when static field is updated", func(changes *v1beta1.EC2NodeClass) {
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -785,7 +786,7 @@ var _ = Describe("NodeClassController", func() {
 			Entry("MetadataOptions Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("disabled")}}}),
 			Entry("Context Drift", &v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
 		)
-		It("should not update the static drift hash when dynamic field is updated", func() {
+		It("should not update the drift hash when dynamic field is updated", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -813,6 +814,128 @@ var _ = Describe("NodeClassController", func() {
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
+		})
+		It("should update ec2nodeclass-hash-version annotation when the ec2nodeclass-hash-version on the NodeClass does not match with the controller hash version", func() {
+			nodeClass.Annotations = map[string]string{
+				v1beta1.AnnotationEC2NodeClassHash:        "abceduefed",
+				v1beta1.AnnotationEC2NodeClassHashVersion: "test",
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
+
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+			expectedHash := nodeClass.Hash()
+			// Expect ec2nodeclass-hash on the NodeClass to be updated
+			Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, expectedHash))
+			Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+		})
+		It("should update ec2nodeclass-hash-versions on all NodeClaims when the ec2nodeclass-hash-version does not match with the controller hash version", func() {
+			nodeClass.Annotations = map[string]string{
+				v1beta1.AnnotationEC2NodeClassHash:        "abceduefed",
+				v1beta1.AnnotationEC2NodeClassHashVersion: "test",
+			}
+			nodeClaimOne := coretest.NodeClaim(corev1beta1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						v1beta1.AnnotationEC2NodeClassHash:        "123456",
+						v1beta1.AnnotationEC2NodeClassHashVersion: "test",
+					},
+				},
+				Spec: corev1beta1.NodeClaimSpec{
+					NodeClassRef: &corev1beta1.NodeClassReference{
+						Name: nodeClass.Name,
+					},
+				},
+			})
+			nodeClaimTwo := coretest.NodeClaim(corev1beta1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						v1beta1.AnnotationEC2NodeClassHash:        "123456",
+						v1beta1.AnnotationEC2NodeClassHashVersion: "test",
+					},
+				},
+				Spec: corev1beta1.NodeClaimSpec{
+					NodeClassRef: &corev1beta1.NodeClassReference{
+						Name: nodeClass.Name,
+					},
+				},
+			})
+
+			ExpectApplied(ctx, env.Client, nodeClass, nodeClaimOne, nodeClaimTwo)
+
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			nodeClaimOne = ExpectExists(ctx, env.Client, nodeClaimOne)
+			nodeClaimTwo = ExpectExists(ctx, env.Client, nodeClaimTwo)
+
+			expectedHash := nodeClass.Hash()
+			// Expect ec2nodeclass-hash on the NodeClaims to be updated
+			Expect(nodeClaimOne.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, expectedHash))
+			Expect(nodeClaimOne.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+			Expect(nodeClaimTwo.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, expectedHash))
+			Expect(nodeClaimTwo.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+		})
+		It("should not update ec2nodeclass-hash on all NodeClaims when the ec2nodeclass-hash-version matches the controller hash version", func() {
+			nodeClass.Annotations = map[string]string{
+				v1beta1.AnnotationEC2NodeClassHash:        "abceduefed",
+				v1beta1.AnnotationEC2NodeClassHashVersion: "test-version",
+			}
+			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						v1beta1.AnnotationEC2NodeClassHash:        "1234564654",
+						v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+					},
+				},
+				Spec: corev1beta1.NodeClaimSpec{
+					NodeClassRef: &corev1beta1.NodeClassReference{
+						Name: nodeClass.Name,
+					},
+				},
+			})
+			ExpectApplied(ctx, env.Client, nodeClass, nodeClaim)
+
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+			nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+
+			expectedHash := nodeClass.Hash()
+
+			// Expect ec2nodeclass-hash on the NodeClass to be updated
+			Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, expectedHash))
+			Expect(nodeClass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+			// Expect ec2nodeclass-hash on the NodeClaims to stay the same
+			Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, "1234564654"))
+			Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
+		})
+		It("should not update ec2nodeclass-hash on the NodeClaim if it's drifted and the ec2nodeclass-hash-version does not match the controller hash version", func() {
+			nodeClass.Annotations = map[string]string{
+				v1beta1.AnnotationEC2NodeClassHash:        "abceduefed",
+				v1beta1.AnnotationEC2NodeClassHashVersion: "test",
+			}
+			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
+				ObjectMeta: metav1.ObjectMeta{
+					Annotations: map[string]string{
+						v1beta1.AnnotationEC2NodeClassHash:        "123456",
+						v1beta1.AnnotationEC2NodeClassHashVersion: "test",
+					},
+				},
+				Spec: corev1beta1.NodeClaimSpec{
+					NodeClassRef: &corev1beta1.NodeClassReference{
+						Name: nodeClass.Name,
+					},
+				},
+			})
+			nodeClaim.StatusConditions().MarkTrue(corev1beta1.Drifted)
+			ExpectApplied(ctx, env.Client, nodeClass, nodeClaim)
+
+			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
+			nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
+
+			// Expect ec2nodeclass-hash on the NodeClaims to stay the same
+			Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHash, "123456"))
+			Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationEC2NodeClassHashVersion, v1beta1.EC2NodeClassHashVersion))
 		})
 	})
 	Context("NodeClass Termination", func() {
