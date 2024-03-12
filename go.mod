@@ -1,6 +1,6 @@
 module github.com/aws/karpenter-provider-aws
 
-go 1.21
+go 1.22
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
