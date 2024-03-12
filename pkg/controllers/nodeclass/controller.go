@@ -76,7 +76,13 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	if !nodeClass.IsNodeTemplate {
 		controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
 	}
+	if nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion] != v1beta1.EC2NodeClassHashVersion {
+		if err := c.updateNodeClaimHash(ctx, nodeClass); err != nil {
+			return reconcile.Result{}, err
+		}
+	}
 	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, nodeclassutil.HashAnnotation(nodeClass))
+
 	err := multierr.Combine(
 		c.resolveSubnets(ctx, nodeClass),
 		c.resolveSecurityGroups(ctx, nodeClass),
@@ -216,6 +222,49 @@ func (c *Controller) resolveInstanceProfile(ctx context.Context, nodeClass *v1be
 	return nil
 }
 
+// Updating `ec2nodeclass-hash-version` annotation inside the karpenter controller means a breaking change has been made to the hash calculation.
+// `ec2nodeclass-hash` annotation on the EC2NodeClass will be updated, due to the breaking change, making the `ec2nodeclass-hash` on the NodeClaim different from
+// EC2NodeClass. Since, we cannot rely on the `ec2nodeclass-hash` on the NodeClaims, due to the breaking change, we will need to re-calculate the hash and update the annotation.
+// For more information on the Drift Hash Versioning: https://github.com/kubernetes-sigs/karpenter/blob/main/designs/drift-hash-versioning.md
+func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
+	if nodeClass.IsNodeTemplate {
+		return nil
+	}
+
+	ncList := &corev1beta1.NodeClaimList{}
+	if err := c.kubeClient.List(ctx, ncList, client.MatchingFields{"spec.nodeClassRef.name": nodeClass.Name}); err != nil {
+		return err
+	}
+
+	errs := make([]error, len(ncList.Items))
+	for i := range ncList.Items {
+		nc := ncList.Items[i]
+		stored := nc.DeepCopy()
+
+		if nc.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion] != v1beta1.EC2NodeClassHashVersion {
+			nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
+				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+			})
+
+			// Any NodeClaim that is already drifted will remain drifted if the karpenter.k8s.aws/nodepool-hash-version doesn't match
+			// Since the hashing mechanism has changed we will not be able to determine if the drifted status of the NodeClaim has changed
+			if nc.StatusConditions().GetCondition(corev1beta1.Drifted) == nil {
+				nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
+					v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
+				})
+			}
+
+			if !equality.Semantic.DeepEqual(stored, nc) {
+				if err := c.kubeClient.Patch(ctx, &nc, client.MergeFrom(stored)); err != nil {
+					errs[i] = client.IgnoreNotFound(err)
+				}
+			}
+		}
+	}
+
+	return multierr.Combine(errs...)
+}
+
 var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*NodeClassController)(nil)
 
 //nolint:revive
@@ -230,7 +279,7 @@ func NewNodeClassController(kubeClient client.Client, recorder events.Recorder, 
 	})
 }
 
-func (c *NodeClassController) Name() string {
+func (c *Controller) Name() string {
 	return "nodeclass"
 }
 
