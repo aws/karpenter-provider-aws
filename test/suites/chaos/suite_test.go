@@ -150,7 +150,7 @@ func (t *taintAdder) Reconcile(ctx context.Context, req reconcile.Request) (reco
 	if err := t.kubeClient.Get(ctx, req.NamespacedName, node); err != nil {
 		return reconcile.Result{}, client.IgnoreNotFound(err)
 	}
-	mergeFrom := client.MergeFrom(node.DeepCopy())
+	mergeFrom := client.StrategicMergeFrom(node.DeepCopy())
 	taint := v1.Taint{
 		Key:    "test",
 		Value:  "true",

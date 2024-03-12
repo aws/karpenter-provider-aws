@@ -660,7 +660,7 @@ var _ = Describe("Expiration", func() {
 					g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).To(Succeed())
 					stored := node.DeepCopy()
 					node.Spec.Taints = lo.Reject(node.Spec.Taints, func(t v1.Taint, _ int) bool { return t.Key == "example.com/taint" })
-					g.Expect(env.Client.Patch(env.Context, node, client.MergeFrom(stored))).To(Succeed())
+					g.Expect(env.Client.Patch(env.Context, node, client.StrategicMergeFrom(stored))).To(Succeed())
 				}
 			}).Should(Succeed())
 

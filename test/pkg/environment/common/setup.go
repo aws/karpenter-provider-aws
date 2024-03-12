@@ -145,13 +145,18 @@ func (env *Environment) ExpectTestingFinalizerRemoved(obj client.Object) error {
 	if err := env.Client.Get(env, client.ObjectKeyFromObject(obj), metaObj); err != nil {
 		return client.IgnoreNotFound(err)
 	}
-
 	deepCopy := metaObj.DeepCopy()
 	metaObj.Finalizers = lo.Reject(metaObj.Finalizers, func(finalizer string, _ int) bool {
 		return finalizer == TestingFinalizer
 	})
 
 	if !equality.Semantic.DeepEqual(metaObj, deepCopy) {
+		// If the Group is the "core" APIs, then we can strategic merge patch
+		// CRDs do not currently have support for strategic merge patching, so we can't blindly do it
+		// https://kubernetes.io/docs/concepts/extend-kubernetes/api-extension/custom-resources/#advanced-features-and-flexibility:~:text=Yes-,strategic%2Dmerge%2Dpatch,-The%20new%20endpoints
+		if metaObj.GroupVersionKind().Group == "" {
+			return client.IgnoreNotFound(env.Client.Patch(env, metaObj, client.StrategicMergeFrom(deepCopy)))
+		}
 		return client.IgnoreNotFound(env.Client.Patch(env, metaObj, client.MergeFrom(deepCopy)))
 	}
 	return nil
