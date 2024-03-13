@@ -722,14 +722,56 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(Equal(cloudprovider.AMIDrift))
 		})
 		Context("Static Drift Detection", func() {
-			DescribeTable("should return drifted if the spec is updated",
+			BeforeEach(func() {
+				nodeClass = &v1beta1.EC2NodeClass{
+					ObjectMeta: nodeClass.ObjectMeta,
+					Spec: v1beta1.EC2NodeClassSpec{
+						SubnetSelectorTerms:        nodeClass.Spec.SubnetSelectorTerms,
+						SecurityGroupSelectorTerms: nodeClass.Spec.SecurityGroupSelectorTerms,
+						Role:                       nodeClass.Spec.Role,
+						UserData:                   lo.ToPtr("Fake Userdata"),
+						Tags: map[string]string{
+							"fakeKey": "fakeValue",
+						},
+						Context:                  lo.ToPtr("fake-context"),
+						DetailedMonitoring:       lo.ToPtr(false),
+						AMIFamily:                lo.ToPtr(v1beta1.AMIFamilyAL2023),
+						AssociatePublicIPAddress: lo.ToPtr(false),
+						MetadataOptions: &v1beta1.MetadataOptions{
+							HTTPEndpoint:            lo.ToPtr("disabled"),
+							HTTPProtocolIPv6:        lo.ToPtr("disabled"),
+							HTTPPutResponseHopLimit: lo.ToPtr(int64(1)),
+							HTTPTokens:              lo.ToPtr("optional"),
+						},
+						BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
+							{
+								DeviceName: lo.ToPtr("fakeName"),
+								RootVolume: false,
+								EBS: &v1beta1.BlockDevice{
+									DeleteOnTermination: lo.ToPtr(false),
+									Encrypted:           lo.ToPtr(false),
+									IOPS:                lo.ToPtr(int64(0)),
+									KMSKeyID:            lo.ToPtr("fakeKMSKeyID"),
+									SnapshotID:          lo.ToPtr("fakeSnapshot"),
+									Throughput:          lo.ToPtr(int64(0)),
+									VolumeSize:          resource.NewScaledQuantity(2, resource.Giga),
+									VolumeType:          lo.ToPtr("standard"),
+								},
+							},
+						},
+					},
+				}
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+				nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+			})
+			DescribeTable("should return drifted if a statically drifted EC2NodeClass.Spec field is updated",
 				func(changes v1beta1.EC2NodeClass) {
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 
-					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride))
+					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy))
 					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
@@ -737,13 +779,30 @@ var _ = Describe("CloudProvider", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
 				},
-				Entry("UserData Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
-				Entry("Tags Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
-				Entry("MetadataOptions Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: aws.String("disabled")}}}),
-				Entry("BlockDeviceMappings Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),
-				Entry("Context Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: aws.String("context-2")}}),
-				Entry("DetailedMonitoring Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-				Entry("AMIFamily Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: aws.String(v1beta1.AMIFamilyBottlerocket)}}),
+				Entry("UserData", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: lo.ToPtr("userdata-test-2")}}),
+				Entry("Tags", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+				Entry("Context", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: lo.ToPtr("context-2")}}),
+				Entry("DetailedMonitoring", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
+				Entry("AMIFamily", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: lo.ToPtr(v1beta1.AMIFamilyBottlerocket)}}),
+				Entry("InstanceStorePolicy", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)}}),
+				Entry("AssociatePublicIPAddress", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
+				Entry("MetadataOptions HTTPEndpoint", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),
+				Entry("MetadataOptions HTTPProtocolIPv6", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPProtocolIPv6: lo.ToPtr("enabled")}}}),
+				Entry("MetadataOptions HTTPPutResponseHopLimit", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPPutResponseHopLimit: lo.ToPtr(int64(10))}}}),
+				Entry("MetadataOptions HTTPTokens", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPTokens: lo.ToPtr("required")}}}),
+				Entry("BlockDeviceMapping DeviceName", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: lo.ToPtr("map-device-test-3")}}}}),
+				Entry("BlockDeviceMapping RootVolume", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{RootVolume: true}}}}),
+				Entry("BlockDeviceMapping DeleteOnTermination", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{DeleteOnTermination: lo.ToPtr(true)}}}}}),
+				Entry("BlockDeviceMapping Encrypted", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{Encrypted: lo.ToPtr(true)}}}}}),
+				Entry("BlockDeviceMapping IOPS", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{IOPS: lo.ToPtr(int64(10))}}}}}),
+				Entry("BlockDeviceMapping KMSKeyID", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{KMSKeyID: lo.ToPtr("test")}}}}}),
+				Entry("BlockDeviceMapping SnapshotID", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
+				Entry("BlockDeviceMapping Throughput", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
+				// Karpenter currently have a bug with volumeSize will cause NodeClaims to not be drifted, when the field is updated
+				// TODO: Enable volumeSize once they can be used for static drift
+				// For more information: https://github.com/aws/karpenter-provider-aws/issues/5447
+				// Entry("BlockDeviceMapping VolumeSize", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)}}}}}),
+				Entry("BlockDeviceMapping VolumeType", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
 			)
 			DescribeTable("should not return drifted if dynamic fields are updated",
 				func(changes v1beta1.EC2NodeClass) {
