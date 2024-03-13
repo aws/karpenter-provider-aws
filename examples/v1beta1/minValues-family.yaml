@@ -1,4 +1,5 @@
-# This example will use spot instance type for all provisioned instances and enforces minValues to instance families which means at least that number of unique instance
+# This example will use spot instance type for all provisioned instances
+# and enforces minValues to instance families which means at least that number of unique instance
 # families is required by the scheduler for the NodeClaim creation.
 ---
 apiVersion: karpenter.sh/v1beta1
