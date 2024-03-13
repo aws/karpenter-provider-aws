@@ -116,7 +116,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
 		})
 	}, SpecTimeout(time.Minute*30))
-	It("should scale successfully on a pod-dense scale-up", func(_ context.Context) {
+	DescribeTable("should scale successfully on a pod-dense scale-up", func(minValues bool) {
 		replicasPerNode := 110
 		maxPodDensity := replicasPerNode + dsCount
 		expectedNodeCount := 60
@@ -135,6 +135,17 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		},
 		)
 
+		if minValues {
+			By("replaced one of the nodepool requirements to include minValues")
+			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				// With Prefix Delegation enabled, .large instances can have 434 pods.
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpExists,
+				},
+				MinValues: lo.ToPtr(30),
+			})
+		}
 		env.MeasureProvisioningDurationFor(func() {
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
@@ -154,5 +165,6 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			aws.DeprovisionedNodeCountDimension: strconv.Itoa(0),
 			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
 		})
-	}, SpecTimeout(time.Minute*30))
+	},
+		Entry("if minValues is present in NodePool", true))
 })
