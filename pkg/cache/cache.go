@@ -36,4 +36,8 @@ const (
 const (
 	// DefaultCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
 	DefaultCleanupInterval = time.Minute
+	// UnavailableOfferingsCleanupInterval triggers cache cleanup (lazy eviction) at this interval.
+	// We drop the cleanup interval down for the ICE cache to get quicker reactivity to offerings
+	// that become available after they get evicted from the cache
+	UnavailableOfferingsCleanupInterval = time.Second * 10
 )
