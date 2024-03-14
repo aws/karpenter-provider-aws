@@ -119,6 +119,8 @@ var _ = Describe("NodeClassController", func() {
 				v1beta1.AMIFamilyAL2,
 				v1beta1.AMIFamilyBottlerocket,
 				v1beta1.AMIFamilyUbuntu,
+				v1beta1.AMIFamilyUbuntu2004,
+				v1beta1.AMIFamilyUbuntu2204,
 				v1beta1.AMIFamilyWindows2019,
 				v1beta1.AMIFamilyWindows2022,
 				v1beta1.AMIFamilyCustom,

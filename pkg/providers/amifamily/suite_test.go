@@ -172,6 +172,26 @@ var _ = Describe("AMIProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(2))
 	})
+	It("should succeed to resolve AMIs (Ubuntu2004)", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu2004
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", version): amd64AMI,
+			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
+		}
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(2))
+	})
+	It("should succeed to resolve AMIs (Ubuntu2204)", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu2204
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", version): amd64AMI,
+			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
+		}
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(2))
+	})
 	It("should succeed to resolve AMIs (Windows2019)", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2019
 		awsEnv.SSMAPI.Parameters = map[string]string{
