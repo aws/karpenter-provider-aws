@@ -193,7 +193,7 @@ func (k Kompat) Markdown(_ ...Options) string {
 	data := []string{k.Name}
 	for _, c := range k.Compatibility {
 		if c.MaxK8sVersion == "" || c.MinK8sVersion == c.MaxK8sVersion {
-			headers = append(headers, fmt.Sprintf("`%s`+", c.MinK8sVersion))
+			headers = append(headers, fmt.Sprintf("\\>= `%s`", c.MinK8sVersion))
 		} else {
 			headers = append(headers, fmt.Sprintf("`%s` - `%s`", c.MinK8sVersion, c.MaxK8sVersion))
 		}
@@ -365,7 +365,7 @@ func semverRange(semvers []string, allSemvers ...string) string {
 		allSems := allSemvers
 		sortSemvers(allSems)
 		if allSems[len(allSems)-1] == semvers[len(semvers)-1] {
-			return fmt.Sprintf("%s+", semvers[0])
+			return fmt.Sprintf("\\>= %s", strings.ReplaceAll(semvers[0], ".x", ""))
 		}
 	}
 	return fmt.Sprintf("%s - %s", semvers[0], semvers[len(semvers)-1])

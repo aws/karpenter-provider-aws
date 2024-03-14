@@ -45,7 +45,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="0.35.1"
+export KARPENTER_VERSION="0.35.2"
 export K8S_VERSION="1.29"
 ```
 

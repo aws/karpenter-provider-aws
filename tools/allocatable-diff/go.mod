@@ -1,6 +1,6 @@
 module github.com/aws/karpenter-provider-aws/tools/allocatable-diff
 
-go 1.21
+go 1.22
 
 require (
 	github.com/aws/karpenter-provider-aws v0.33.1-0.20231206223517-f73ccfa65419
@@ -81,7 +81,7 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20231009173412-8bfb1ae86b6c // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20231009173412-8bfb1ae86b6c // indirect
 	google.golang.org/grpc v1.58.3 // indirect
-	google.golang.org/protobuf v1.31.0 // indirect
+	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

@@ -51,6 +51,10 @@ func (p *PricingAPI) GetProductsPagesWithContext(_ aws.Context, _ *pricing.GetPr
 }
 
 func NewOnDemandPrice(instanceType string, price float64) aws.JSONValue {
+	return NewOnDemandPriceWithCurrency(instanceType, price, "USD")
+}
+
+func NewOnDemandPriceWithCurrency(instanceType string, price float64, currency string) aws.JSONValue {
 	return aws.JSONValue{
 		"product": map[string]interface{}{
 			"attributes": map[string]interface{}{
@@ -63,7 +67,7 @@ func NewOnDemandPrice(instanceType string, price float64) aws.JSONValue {
 					"offerTermCode": "JRTCKXETXF",
 					"priceDimensions": map[string]interface{}{
 						"JRTCKXETXF.foo.bar": map[string]interface{}{
-							"pricePerUnit": map[string]interface{}{"USD": fmt.Sprintf("%f", price)},
+							"pricePerUnit": map[string]interface{}{currency: fmt.Sprintf("%f", price)},
 						},
 					},
 				},
