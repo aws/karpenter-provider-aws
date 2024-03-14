@@ -67,7 +67,6 @@ spec:
       # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
       # Operators { In, NotIn, Exists, DoesNotExist, Gt, and Lt } are supported.
       # https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#operators
-      # minValues help define the minimum number of unique values for the requirement key to be considered by the scheduler to schedule the pods.
       requirements:
         - key: "karpenter.k8s.aws/instance-category"
           operator: In
@@ -77,7 +76,6 @@ spec:
         - key: "karpenter.k8s.aws/instance-family"
           operator: In
           values: ["m5","m5d","c5","c5d","c4","r4"]
-          # minValues here enforces the scheduler to consider at least that number of unique instance-family to schedule the pods.
           minValues: 5
         - key: "karpenter.k8s.aws/instance-cpu"
           operator: In
