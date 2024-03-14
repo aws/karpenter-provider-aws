@@ -3904,6 +3904,30 @@ below are the resources available with some assumptions and after the instance o
  |memory|112720Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
+### `c7gd.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|c|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|c7gd|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|131072|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|c7gd.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|112720Mi|
+ |pods|737|
 ## c7gn Family
 ### `c7gn.medium`
 #### Labels
@@ -5838,7 +5862,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-hypervisor|xen|
  |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-network-bandwidth|25000|
- |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-pods|394|
  |karpenter.k8s.aws/instance-size|16xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -5848,8 +5872,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|63770m|
  |ephemeral-storage|17Gi|
- |memory|234021Mi|
- |pods|737|
+ |memory|237794Mi|
+ |pods|394|
 ## hpc7g Family
 ### `hpc7g.4xlarge`
 #### Labels
@@ -11766,6 +11790,30 @@ below are the resources available with some assumptions and after the instance o
  |memory|233962Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
+### `m7gd.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|m|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|m7gd|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|m7gd.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|233962Mi|
+ |pods|737|
 ## m7i Family
 ### `m7i.large`
 #### Labels
@@ -16674,7 +16722,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|1900|
- |karpenter.k8s.aws/instance-memory|196608|
+ |karpenter.k8s.aws/instance-memory|262144|
  |karpenter.k8s.aws/instance-network-bandwidth|15000|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|8xlarge|
@@ -16686,7 +16734,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|31850m|
  |ephemeral-storage|17Gi|
- |memory|178874Mi|
+ |memory|239495Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.12xlarge`
@@ -16700,7 +16748,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-local-nvme|2850|
- |karpenter.k8s.aws/instance-memory|262144|
+ |karpenter.k8s.aws/instance-memory|393216|
  |karpenter.k8s.aws/instance-network-bandwidth|22500|
  |karpenter.k8s.aws/instance-pods|234|
  |karpenter.k8s.aws/instance-size|12xlarge|
@@ -16712,7 +16760,7 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|47810m|
  |ephemeral-storage|17Gi|
- |memory|239495Mi|
+ |memory|360736Mi|
  |pods|234|
  |vpc.amazonaws.com/pod-eni|54|
 ### `r7gd.16xlarge`
@@ -16741,6 +16789,30 @@ below are the resources available with some assumptions and after the instance o
  |memory|476445Mi|
  |pods|737|
  |vpc.amazonaws.com/pod-eni|107|
+### `r7gd.metal`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|r|
+ |karpenter.k8s.aws/instance-cpu|64|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|r7gd|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor||
+ |karpenter.k8s.aws/instance-local-nvme|3800|
+ |karpenter.k8s.aws/instance-memory|524288|
+ |karpenter.k8s.aws/instance-pods|737|
+ |karpenter.k8s.aws/instance-size|metal|
+ |kubernetes.io/arch|arm64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|r7gd.metal|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|63770m|
+ |ephemeral-storage|17Gi|
+ |memory|476445Mi|
+ |pods|737|
 ## r7i Family
 ### `r7i.large`
 #### Labels
