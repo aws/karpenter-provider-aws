@@ -92,7 +92,7 @@ One for your Karpenter node role and one for your existing node group.
 First set the Karpenter release you want to deploy.
 
 ```bash
-export KARPENTER_VERSION=v0.32.7
+export KARPENTER_VERSION=v0.32.8
 ```
 
 We can now generate a full Karpenter deployment yaml from the helm chart.
@@ -133,7 +133,7 @@ Now that our deployment is ready we can create the karpenter namespace, create t
 
 ## Create default NodePool
 
-We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree/v0.32.7/examples/v1beta1) for specific needs.
+We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree/v0.32.8/examples/v1beta1) for specific needs.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step10-create-nodepool.sh" language="bash" %}}
 
