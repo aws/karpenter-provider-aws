@@ -313,7 +313,7 @@ func (p *Provider) onDemandPage(ctx context.Context, prices map[string]float64) 
 
 	return func(output *pricing.GetProductsOutput, b bool) bool {
 		currency := "USD"
-		if p.region == "cn-north-1" {
+		if strings.HasPrefix(p.region, "cn-") {
 			currency = "CNY"
 		}
 		for _, outer := range output.PriceList {

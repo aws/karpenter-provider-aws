@@ -297,4 +297,35 @@ var _ = Describe("Pricing", func() {
 		Expect(ok).To(BeTrue())
 		Expect(price).To(BeNumerically("==", 1.10))
 	})
+	It("should update on-demand pricing with response from the pricing API when in the CN partition", func() {
+		tmpPricingProvider := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "cn-anywhere-1")
+		tmpController := controllerspricing.NewController(tmpPricingProvider)
+
+		now := time.Now()
+		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
+			SpotPriceHistory: []*ec2.SpotPrice{
+				{
+					AvailabilityZone: aws.String("test-zone-1a"),
+					InstanceType:     aws.String("c99.large"),
+					SpotPrice:        aws.String("1.23"),
+					Timestamp:        &now,
+				},
+			},
+		})
+		awsEnv.PricingAPI.GetProductsOutput.Set(&awspricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				fake.NewOnDemandPriceWithCurrency("c98.large", 1.20, "CNY"),
+				fake.NewOnDemandPriceWithCurrency("c99.large", 1.23, "CNY"),
+			},
+		})
+		ExpectReconcileSucceeded(ctx, tmpController, types.NamespacedName{})
+
+		price, ok := tmpPricingProvider.OnDemandPrice("c98.large")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 1.20))
+
+		price, ok = tmpPricingProvider.OnDemandPrice("c99.large")
+		Expect(ok).To(BeTrue())
+		Expect(price).To(BeNumerically("==", 1.23))
+	})
 })
