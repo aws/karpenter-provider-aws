@@ -191,17 +191,6 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		},
 		)
 
-		if minValues {
-			By("replaced one of the nodepool requirements to include minValues")
-			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
-				// With Prefix Delegation enabled, .large instances can have 434 pods.
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpExists,
-				},
-				MinValues: lo.ToPtr(30),
-			})
-		}
 		env.MeasureProvisioningDurationFor(func() {
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
