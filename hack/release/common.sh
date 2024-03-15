@@ -91,7 +91,7 @@ publishHelmChart() {
   yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
 
   cd charts
-  if [[ -s "${ah_config_file_name}" ]]; then
+  if [[ -s "${ah_config_file_name}" ]] && [[ "$oci_repo" == "${RELEASE_REPO_ECR}" ]]; then
     # ECR requires us to create an empty config file for an alternative
     # media type artifact push rather than /dev/null
     # https://github.com/aws/containers-roadmap/issues/1074
