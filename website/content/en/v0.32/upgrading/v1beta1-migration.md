@@ -47,7 +47,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
     ```bash
     export KARPENTER_NAMESPACE=karpenter
-    export KARPENTER_VERSION=v0.32.7
+    export KARPENTER_VERSION=v0.32.8
     export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
     export CLUSTER_NAME="${USER}-karpenter-demo"
     export AWS_REGION="us-west-2"
@@ -60,7 +60,7 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
     ```bash
     TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
+    curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.8/website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
 
     AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION} # use the default region if AWS_REGION isn't defined
     POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
@@ -71,15 +71,15 @@ This procedure assumes you are running the Karpenter controller on cluster and w
     aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
     ```
 
-5. Apply the v0.32.7 Custom Resource Definitions (CRDs):
+5. Apply the v0.32.8 Custom Resource Definitions (CRDs):
 
    ```bash
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.sh_provisioners.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.sh_machines.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.sh_nodepools.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.8/pkg/apis/crds/karpenter.sh_provisioners.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.8/pkg/apis/crds/karpenter.sh_machines.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.8/pkg/apis/crds/karpenter.k8s.aws_awsnodetemplates.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.8/pkg/apis/crds/karpenter.sh_nodepools.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.8/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+    kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.8/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
     ```
 
 6. Upgrade Karpenter to the new version:
@@ -758,7 +758,7 @@ Karpenter v1beta1 introduces changes to some common labels, annotations, and sta
 
 v1beta1 introduces changes to the IAM permissions assigned to the Karpenter controller policy used when deploying Karpenter to your cluster with [IRSA](https://docs.aws.amazon.com/emr/latest/EMR-on-EKS-DevelopmentGuide/setting-up-enable-IAM.html) or [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html).
 
-You can see a full example of the v1beta1 required controller permissions by viewing the [v1beta1 Controller Policy](https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.7/website/content/en/preview/upgrading/v1beta1-controller-policy.json).
+You can see a full example of the v1beta1 required controller permissions by viewing the [v1beta1 Controller Policy](https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.8/website/content/en/preview/upgrading/v1beta1-controller-policy.json).
 
 Additionally, read more detail about the full set of permissions assigned to the Karpenter controller policy in the [CloudFormation Reference Guide]({{< ref "../reference/cloudformation" >}}).
 

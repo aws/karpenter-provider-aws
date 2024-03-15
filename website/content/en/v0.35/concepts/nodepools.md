@@ -71,6 +71,12 @@ spec:
         - key: "karpenter.k8s.aws/instance-category"
           operator: In
           values: ["c", "m", "r"]
+          # minValues here enforces the scheduler to consider at least that number of unique instance-category to schedule the pods.
+          minValues: 2
+        - key: "karpenter.k8s.aws/instance-family"
+          operator: In
+          values: ["m5","m5d","c5","c5d","c4","r4"]
+          minValues: 5
         - key: "karpenter.k8s.aws/instance-cpu"
           operator: In
           values: ["4", "8", "16", "32"]
@@ -223,6 +229,69 @@ Karpenter supports specifying capacity type, which is analogous to [EC2 purchase
 Karpenter prioritizes Spot offerings if the NodePool allows Spot and on-demand instances. If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
+
+Along with the combination of [key,operator,values] in the requirements, Karpenter also supports `minValues` in the NodePool requirements block, allowing the scheduler to be aware of user-specified flexibility minimums while scheduling pods to a cluster. If Karpenter cannot meet this minimum flexibility for each key when scheduling a pod, it will fail the scheduling loop for that NodePool, either falling back to another NodePool which meets the pod requirements or failing scheduling the pod altogether.
+
+For example, the below spec will use spot instance type for all provisioned instances and enforces `minValues` to various keys where it is defined
+i.e at least 2 unique instance families from [c,m,r], 5 unique instance families [eg: "m5","m5d","r4","c5","c5d","c4" etc], 10 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] is required for scheduling the pods.
+
+```yaml
+spec:
+  template:
+    spec:
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+          minValues: 2
+        - key: karpenter.k8s.aws/instance-family
+          operator: Exists
+          minValues: 5
+        - key: node.kubernetes.io/instance-type
+          operator: Exists
+          minValues: 10
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+```
+
+Note that `minValues` can be used with multiple operators and multiple requirements. And if the `minValues` are defined with multiple operators for the same requirement key, scheduler considers the max of all the `minValues` for that requirement. For example, the below spec requires scheduler to consider at least 5 instance-family to schedule the pods.
+
+```yaml
+spec:
+  template:
+    spec:
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+          minValues: 2
+        - key: karpenter.k8s.aws/instance-family
+          operator: Exists
+          minValues: 5
+        - key: karpenter.k8s.aws/instance-family
+          operator: In
+          values: ["m5","m5d","c5","c5d","c4","r4"]
+          minValues: 3
+        - key: node.kubernetes.io/instance-type
+          operator: Exists
+          minValues: 10
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+```
 
 {{% alert title="Recommended" color="primary" %}}
 Karpenter allows you to be extremely flexible with your NodePools by only constraining your instance types in ways that are absolutely necessary for your cluster. By default, Karpenter will enforce that you specify the `spec.template.spec.requirements` field, but will not enforce that you specify any requirements within the field. If you choose to specify `requirements: []`, this means that you will completely flexible to _all_ instance types that your cloud provider supports.

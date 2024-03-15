@@ -48,9 +48,9 @@ cosign verify public.ecr.aws/karpenter/karpenter:0.35.1 \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:2872aea8b875ca1f543d0a4f369364c5c4baf6a463c6b2253a75406a7ab9025b"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:38b7f77ef417c1d52b8f6ba1174b2a070dd6179c230525dace863897891d7c5b"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"0.35.1"` | Tag of the controller image. |
+| controller.image.tag | string | `"0.35.2"` | Tag of the controller image. |
 | controller.metrics.port | int | `8000` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller pod. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
@@ -78,7 +78,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:0.35.1 \
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podDisruptionBudget.name | string | `"karpenter"` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
-| podSecurityContext | object | `{"fsGroup":65536}` | SecurityContext for the pod. |
+| podSecurityContext | object | `{"fsGroup":65532}` | SecurityContext for the pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
