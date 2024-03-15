@@ -1,0 +1,7 @@
+repositoryID: fda7ffc4-4672-4218-8264-321ec3b4e3cc
+owners: []
+#   - name: awsadmin1
+#     email: artifacthub1@aws.com
+ignore:
+  - name: karpenter-crd
+    version: (?:^\d+$)|(?:^v?0\.0\.0)|(?:^v?\d+\-)
