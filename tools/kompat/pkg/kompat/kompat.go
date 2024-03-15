@@ -195,7 +195,7 @@ func (k Kompat) Markdown(_ ...Options) string {
 		if c.MaxK8sVersion == "" || c.MinK8sVersion == c.MaxK8sVersion {
 			headers = append(headers, fmt.Sprintf("\\>= `%s`", c.MinK8sVersion))
 		} else {
-			headers = append(headers, fmt.Sprintf("`%s` - `%s`", c.MinK8sVersion, c.MaxK8sVersion))
+			headers = append(headers, fmt.Sprintf("\\>= `%s` \\<= `%s`", c.MinK8sVersion, c.MaxK8sVersion))
 		}
 		data = append(data, c.AppVersion)
 	}
@@ -368,7 +368,7 @@ func semverRange(semvers []string, allSemvers ...string) string {
 			return fmt.Sprintf("\\>= %s", strings.ReplaceAll(semvers[0], ".x", ""))
 		}
 	}
-	return fmt.Sprintf("%s - %s", semvers[0], semvers[len(semvers)-1])
+	return fmt.Sprintf("\\>= %s \\<= %s", strings.ReplaceAll(semvers[0], ".x", ""), strings.ReplaceAll(semvers[len(semvers)-1], ".x", ""))
 }
 
 func sortSemvers(semvers []string) {
