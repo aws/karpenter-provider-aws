@@ -142,16 +142,16 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 				},
 			},
 		}
-			
+
 		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
-			// minValues is restricted to 30 to have enough instance types to be sent to launch API.
+			// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1.LabelInstanceTypeStable,
 				Operator: v1.NodeSelectorOpExists,
 			},
 			MinValues: lo.ToPtr(30),
 		})
-	
+
 		By("waiting for the deployment to deploy all of its pods")
 		env.ExpectCreated(deployment)
 		env.EventuallyExpectPendingPodCount(selector, replicas)
@@ -229,16 +229,16 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			},
 		},
 		)
-		
+
 		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
-			// minValues is restricted to 30 to have enough instance types to be sent to launch API.
+			// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1.LabelInstanceTypeStable,
 				Operator: v1.NodeSelectorOpExists,
 			},
 			MinValues: lo.ToPtr(30),
 		})
-		
+
 		env.MeasureProvisioningDurationFor(func() {
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
@@ -258,5 +258,5 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			aws.DeprovisionedNodeCountDimension: strconv.Itoa(0),
 			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
 		})
-	},SpecTimeout(time.Minute * 30))
+	}, SpecTimeout(time.Minute*30))
 })
