@@ -45,4 +45,9 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - id: "${ARM_AMI_ID}"
+    - id: "${AMD_AMI_ID}"
+#   - name: amazon-eks-node-"${K8S_VERSION}"-* # <- automatically upgrade when a new AL2 EKS Optimized AMI is released. This is unsafe for production workloads. Validate AMIs in lower environments before deploying them to production.
 EOF
+
