@@ -91,13 +91,13 @@ publishHelmChart() {
   yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
 
   cd charts
-  if [[ -s "${ah_config_file_name}" ]]; then
+  if [[ -s "${ah_config_file_name}" ]] && [[ "$oci_repo" == "${RELEASE_REPO_ECR}" ]]; then
     # ECR requires us to create an empty config file for an alternative
     # media type artifact push rather than /dev/null
     # https://github.com/aws/containers-roadmap/issues/1074
     temp=$(mktemp)
     echo {} > "${temp}"
-    oras push "${oci_repo}/${helm_chart}:artifacthub.io" --config "${temp}:application/vnd.cncf.artifacthub.config.v1+yaml" "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
+    oras push "${oci_repo}${helm_chart}:artifacthub.io" --config "${temp}:application/vnd.cncf.artifacthub.config.v1+yaml" "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
   fi
   helm dependency update "${helm_chart}"
   helm lint "${helm_chart}"
