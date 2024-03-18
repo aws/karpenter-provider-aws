@@ -13,7 +13,7 @@ jobs:
         matrix:
           k8sVersion: ["1.23.x", "1.24.x", "1.25.x", "1.26.x", "1.27.x", "1.28.x", "1.29.x"]
     steps:
-    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
     - uses: ./.github/actions/install-deps
       with:
         k8sVersion: ${{ matrix.k8sVersion }}
