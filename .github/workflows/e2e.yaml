@@ -172,21 +172,9 @@ jobs:
           role: ${{ vars.CI_ROLE_NAME }}
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
-      # In the case of failure, check if the managed node group is unhealthy. If so, do not clean up cluster for further investigation.
-      # TODO: @jmdeal remove after investigation is complete
-      - name: detect unhealthy mng
-        id: detect-unhealthy-mng
-        shell: bash
-        if: failure() || cancelled()
-        run: |
-          if ! kubectl get nodes -l eks.amazonaws.com/nodegroup -oyaml | yq ".items[].status.conditions" | grep -q "KubeletNotReady"; then
-            echo UNHEALTHY="false" >> "$GITHUB_OUTPUT"
-          else
-            echo UNHEALTHY="true" >> "$GITHUB_OUTPUT"
-          fi
       - name: cleanup karpenter and cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}' resources
         uses: ./.github/actions/e2e/cleanup
-        if: always() && inputs.cleanup && (steps.detect-unhealthy-mng.conclusion == 'skipped' || steps.detect-unhealthy-mng.outputs.UNHEALTHY == 'false')
+        if: always() && inputs.cleanup
         with:
           account_id: ${{ vars.CI_ACCOUNT_ID }}
           role: ${{ vars.CI_ROLE_NAME }}
