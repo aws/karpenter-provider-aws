@@ -34,10 +34,7 @@ import (
 
 const sweeperCleanedResourcesTableName = "sweeperCleanedResources"
 
-var excludedClusters = []string{
-	// TODO: @jmdeal remove after SQS investigation
-	"soak-periodic-46287782",
-}
+var excludedClusters = []string{}
 
 func main() {
 	expiration := flag.String("expiration", "12h", "define the expirationTTL of the resources")
