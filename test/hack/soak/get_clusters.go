@@ -36,9 +36,7 @@ type cluster struct {
 
 const expirationTTL = time.Hour * 168 // 7 days
 
-var excludedClustersCleanup = []string{
-	"soak-periodic-46287782",
-}
+var excludedClustersCleanup = []string{}
 
 func main() {
 	ctx := context.Background()
