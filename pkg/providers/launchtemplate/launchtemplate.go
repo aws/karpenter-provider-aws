@@ -54,7 +54,7 @@ import (
 )
 
 const (
-	launchTemplateNameFormat = "karpenter.k8s.aws/%s"
+	launchTemplateNameFormat = "karpenter.k8s.aws/%s-%s"
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
@@ -151,7 +151,14 @@ func launchTemplateName(options *amifamily.LaunchTemplate) string {
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
 	}
-	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash))
+	// TODO: jmdeal@ remove once volume size is hashed as string
+	volumeSizeHash, err := hashstructure.Hash(lo.Reduce(options.BlockDeviceMappings, func(agg string, block *v1beta1.BlockDeviceMapping, _ int) string {
+		return fmt.Sprintf("%s/%s", agg, block.EBS.VolumeSize)
+	}, ""), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	if err != nil {
+		panic(fmt.Sprintf("hashing launch template, %s", err))
+	}
+	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash), fmt.Sprint(volumeSizeHash))
 }
 
 func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
