@@ -72,6 +72,7 @@ spec:
           operator: In
           values: ["c", "m", "r"]
           # minValues here enforces the scheduler to consider at least that number of unique instance-category to schedule the pods.
+          # This field is ALPHA and can be dropped or replaced at any time 
           minValues: 2
         - key: "karpenter.k8s.aws/instance-family"
           operator: In
@@ -178,7 +179,9 @@ These well-known labels may be specified at the NodePool level, or in a workload
 
 For example, an instance type may be specified using a nodeSelector in a pod spec. If the instance type requested is not included in the NodePool list and the NodePool has instance type requirements, Karpenter will not create a node or schedule the pod.
 
-### Instance Types
+### Well-Known Labels
+
+#### Instance Types
 
 - key: `node.kubernetes.io/instance-type`
 - key: `karpenter.k8s.aws/instance-family`
@@ -189,7 +192,7 @@ Generally, instance types should be a list and not a single value. Leaving these
 
 Review [AWS instance types](../instance-types). Most instance types are supported with the exclusion of [non-HVM](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/virtualization_types.html).
 
-### Availability Zones
+#### Availability Zones
 
 - key: `topology.kubernetes.io/zone`
 - value example: `us-east-1c`
@@ -200,7 +203,7 @@ Karpenter can be configured to create nodes in a particular zone. Note that the 
 [Learn more about Availability Zone
 IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
-### Architecture
+#### Architecture
 
 - key: `kubernetes.io/arch`
 - values
@@ -209,7 +212,7 @@ IDs.](https://docs.aws.amazon.com/ram/latest/userguide/working-with-az-ids.html)
 
 Karpenter supports `amd64` nodes, and `arm64` nodes.
 
-### Operating System
+#### Operating System
  - key: `kubernetes.io/os`
  - values
    - `linux`
@@ -217,7 +220,7 @@ Karpenter supports `amd64` nodes, and `arm64` nodes.
 
 Karpenter supports `linux` and `windows` operating systems.
 
-### Capacity Type
+#### Capacity Type
 
 - key: `karpenter.sh/capacity-type`
 - values
@@ -229,6 +232,8 @@ Karpenter supports specifying capacity type, which is analogous to [EC2 purchase
 Karpenter prioritizes Spot offerings if the NodePool allows Spot and on-demand instances. If the provider API (e.g. EC2 Fleet's API) indicates Spot capacity is unavailable, Karpenter caches that result across all attempts to provision EC2 capacity for that instance type and zone for the next 45 seconds. If there are no other possible offerings available for Spot, Karpenter will attempt to provision on-demand instances, generally within milliseconds.
 
 Karpenter also allows `karpenter.sh/capacity-type` to be used as a topology key for enforcing topology-spread.
+
+### Min Values
 
 Along with the combination of [key,operator,values] in the requirements, Karpenter also supports `minValues` in the NodePool requirements block, allowing the scheduler to be aware of user-specified flexibility minimums while scheduling pods to a cluster. If Karpenter cannot meet this minimum flexibility for each key when scheduling a pod, it will fail the scheduling loop for that NodePool, either falling back to another NodePool which meets the pod requirements or failing scheduling the pod altogether.
 
@@ -372,7 +377,6 @@ If `kubeReserved` is not specified, Karpenter will compute the default reserved 
 These defaults are based on the defaults on Karpenter's supported AMI families, which are not the same as the kubelet defaults.
 You should be aware of the CPU and memory default calculation when using Custom AMI Families. If they don't align, there may be a difference in Karpenter's computed allocatable ephemeral storage and the actually ephemeral storage available on the node.
 {{% /alert %}}
-
 
 ### Eviction Thresholds
 
