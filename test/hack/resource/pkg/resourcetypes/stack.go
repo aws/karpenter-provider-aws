@@ -57,7 +57,7 @@ func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time, exclud
 		})
 		for _, stack := range stacks {
 			clusterName, found := lo.Find(stack.Tags, func(tag cloudformationtypes.Tag) bool {
-				return *tag.Key == k8sClusterTag
+				return *tag.Key == karpenterTestingTag
 			})
 			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
 				continue
