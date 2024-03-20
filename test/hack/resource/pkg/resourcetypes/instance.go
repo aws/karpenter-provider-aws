@@ -63,7 +63,7 @@ func (i *Instance) GetExpired(ctx context.Context, expirationTime time.Time, exc
 		for _, res := range out.Reservations {
 			for _, instance := range res.Instances {
 				clusterName, found := lo.Find(instance.Tags, func(tag ec2types.Tag) bool {
-					return *tag.Key == k8sClusterTag
+					return *tag.Key == karpenterTestingTag
 				})
 				if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
 					continue

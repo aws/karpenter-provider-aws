@@ -34,7 +34,9 @@ import (
 
 const sweeperCleanedResourcesTableName = "sweeperCleanedResources"
 
-var excludedClusters = []string{}
+var excludedClusters = []string{
+	"soak-periodic-2213793",
+}
 
 func main() {
 	expiration := flag.String("expiration", "12h", "define the expirationTTL of the resources")
@@ -82,7 +84,7 @@ func main() {
 		// If there's no cluster defined, clean up all expired resources. otherwise, only cleanup the resources associated with the cluster
 		if lo.FromPtr(clusterName) == "" {
 			ids, err = resourceTypes[i].GetExpired(ctx, expirationTime, excludedClusters)
-		} else if !slices.Contains(excludedClusters, *clusterName) {
+		} else if !slices.Contains(excludedClusters, lo.FromPtr(clusterName)) {
 			ids, err = resourceTypes[i].Get(ctx, lo.FromPtr(clusterName))
 		}
 		if err != nil {

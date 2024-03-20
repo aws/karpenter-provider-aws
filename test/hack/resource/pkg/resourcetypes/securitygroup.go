@@ -60,7 +60,7 @@ func (sg *SecurityGroup) GetExpired(ctx context.Context, expirationTime time.Tim
 
 		for _, sgroup := range out.SecurityGroups {
 			clusterName, found := lo.Find(sgroup.Tags, func(tag ec2types.Tag) bool {
-				return *tag.Key == k8sClusterTag
+				return *tag.Key == karpenterTestingTag
 			})
 			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
 				continue
