@@ -15,7 +15,7 @@ Each Capacity Reservation is defined with:
 - The number of instances for which to reserve capacity
 - The instance attributes, including the instance type, tenancy, and platform/OS
 - Instance match criteria
-  - If Capacity Reservation is targeted, only accept instances that matches all attributes + explicitly targeted the capacity reservation
+  - Targeted -- only accept instances that matches all attributes + explicitly targeted the capacity reservation
   - Open if capacity reservation accepts all instances that matches all attributres
 
 AWS also supports grouping Capacity Reservation into Capacity Reservation groups. 
