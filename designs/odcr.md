@@ -16,7 +16,7 @@ Each Capacity Reservation is defined with:
 - The instance attributes, including the instance type, tenancy, and platform/OS
 - Instance match criteria
   - Targeted -- only accept instances that matches all attributes + explicitly targeted the capacity reservation
-  - Open if capacity reservation accepts all instances that matches all attributres
+  - Open -- if capacity reservation accepts all instances that matches all attributes
 
 AWS also supports grouping Capacity Reservation into Capacity Reservation groups. 
 Both these entities are supported in Launch Template's CapacityReservationTarget [definitions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-capacityreservationtarget.html).
