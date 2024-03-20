@@ -33,7 +33,7 @@ import (
 )
 
 type EKS struct {
-	Options          `hash:"string"`
+	Options
 	ContainerRuntime string
 }
 

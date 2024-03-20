@@ -105,14 +105,13 @@ func (o Options) nodeLabelArg() string {
 }
 
 // TODO: jmdeal@ remove once KubeletConfiguration can be properly hashed
-func (o Options) String() string {
-	baseHash, _ := hashstructure.Hash(&o, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+func (o Options) HashReservedResources() string {
 	kubeReservedHash, systemReservedHash := uint64(0), uint64(0)
 	if kc := o.KubeletConfig; kc != nil {
 		kubeReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.KubeReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 		systemReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.SystemReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	}
-	return fmt.Sprintf("%d-%d-%d", baseHash, kubeReservedHash, systemReservedHash)
+	return fmt.Sprintf("%d-%d", kubeReservedHash, systemReservedHash)
 }
 
 // joinParameterArgs joins a map of keys and values by their separator. The separator will sit between the
@@ -137,5 +136,5 @@ type Bootstrapper interface {
 	Script() (string, error)
 
 	// TODO: jmdeal@ remove once KubeletConfiguration can be properly hashed
-	String() string
+	HashReservedResources() string
 }

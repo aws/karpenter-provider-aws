@@ -33,7 +33,7 @@ import (
 )
 
 type Nodeadm struct {
-	Options `hash:"string"`
+	Options
 }
 
 func (n Nodeadm) Script() (string, error) {

@@ -24,7 +24,7 @@ import (
 )
 
 type Windows struct {
-	Options `hash:"string"`
+	Options
 }
 
 // nolint:gocyclo

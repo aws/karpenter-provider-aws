@@ -21,7 +21,7 @@ import (
 )
 
 type Custom struct {
-	Options `hash:"string"`
+	Options
 }
 
 func (e Custom) Script() (string, error) {

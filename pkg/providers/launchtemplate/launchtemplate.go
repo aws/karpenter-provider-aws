@@ -54,7 +54,7 @@ import (
 )
 
 const (
-	launchTemplateNameFormat = "karpenter.k8s.aws/%s-%s"
+	launchTemplateNameFormat = "karpenter.k8s.aws/%s"
 	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
 )
 
@@ -147,18 +147,24 @@ func (p *Provider) Invalidate(ctx context.Context, ltName string, ltID string) {
 }
 
 func launchTemplateName(options *amifamily.LaunchTemplate) string {
-	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		panic(fmt.Sprintf("hashing launch template, %s", err))
-	}
-	// TODO: jmdeal@ remove once volume size is hashed as string
-	volumeSizeHash, err := hashstructure.Hash(lo.Reduce(options.BlockDeviceMappings, func(agg string, block *v1beta1.BlockDeviceMapping, _ int) string {
+	// TODO: jmdeal@ remove custom hash struct once BlockDeviceMapping and KubeletConfiguration hashing is fixed
+	volumeSizeHash, _ := hashstructure.Hash(lo.Reduce(options.BlockDeviceMappings, func(agg string, block *v1beta1.BlockDeviceMapping, _ int) string {
 		return fmt.Sprintf("%s/%s", agg, block.EBS.VolumeSize)
 	}, ""), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	hashStruct := struct {
+		Options               *amifamily.LaunchTemplate
+		VolumeSizeHash        string
+		ReservedResourcesHash string
+	}{
+		Options:               options,
+		VolumeSizeHash:        fmt.Sprint(volumeSizeHash),
+		ReservedResourcesHash: options.UserData.HashReservedResources(),
+	}
+	hash, err := hashstructure.Hash(hashStruct, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
 	}
-	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash), fmt.Sprint(volumeSizeHash))
+	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash))
 }
 
 func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {

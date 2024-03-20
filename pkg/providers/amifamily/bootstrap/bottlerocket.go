@@ -30,7 +30,7 @@ import (
 )
 
 type Bottlerocket struct {
-	Options `hash:"string"`
+	Options
 }
 
 // nolint:gocyclo
