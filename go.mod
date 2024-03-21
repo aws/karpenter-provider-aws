@@ -28,7 +28,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.17.2
-	sigs.k8s.io/karpenter v0.35.1-0.20240315170345-8ab7b7522c13
+	sigs.k8s.io/karpenter v0.35.1-0.20240327174853-c8eda9b5ffc3
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -107,9 +107,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/cloud-provider v0.29.2 // indirect
+	k8s.io/cloud-provider v0.29.3 // indirect
 	k8s.io/component-base v0.29.3 // indirect
-	k8s.io/csi-translation-lib v0.29.2 // indirect
+	k8s.io/csi-translation-lib v0.29.3 // indirect
 	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20231010175941-2dd684a91f00 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
