@@ -70,6 +70,7 @@ type LaunchTemplate struct {
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
 	EFACount            int
+	CapacityType        string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -116,7 +117,7 @@ func New(amiProvider *Provider) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, options *Options) ([]*LaunchTemplate, error) {
+func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	amis, err := r.amiProvider.Get(ctx, nodeClass, options)
 	if err != nil {
@@ -151,7 +152,7 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 			}
 		})
 		for params, instanceTypes := range paramsToInstanceTypes {
-			resolved, err := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, amiFamily, amiID, params.maxPods, params.efaCount, options)
+			resolved, err := r.resolveLaunchTemplate(nodeClass, nodeClaim, instanceTypes, capacityType, amiFamily, amiID, params.maxPods, params.efaCount, options)
 			if err != nil {
 				return nil, err
 			}
@@ -204,7 +205,7 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.Ku
 	return newKubeletConfig
 }
 
-func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType,
+func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
 	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) (*LaunchTemplate, error) {
 	kubeletConfig := &corev1beta1.KubeletConfiguration{}
 	if nodeClaim.Spec.Kubelet != nil {
@@ -231,6 +232,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 		AMIID:               amiID,
 		InstanceTypes:       instanceTypes,
 		EFACount:            efaCount,
+		CapacityType:        capacityType,
 	}
 	if len(resolved.BlockDeviceMappings) == 0 {
 		resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
