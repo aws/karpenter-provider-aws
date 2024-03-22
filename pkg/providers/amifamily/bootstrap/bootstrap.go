@@ -105,6 +105,7 @@ func (o Options) nodeLabelArg() string {
 }
 
 // TODO: jmdeal@ remove once KubeletConfiguration can be properly hashed
+// For more information on the resource.Quantity hash issue: https://github.com/aws/karpenter-provider-aws/issues/5447
 func (o Options) HashReservedResources() string {
 	kubeReservedHash, systemReservedHash := uint64(0), uint64(0)
 	if kc := o.KubeletConfig; kc != nil {
