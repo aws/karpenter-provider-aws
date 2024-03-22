@@ -19,6 +19,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -99,6 +100,17 @@ func (o Options) nodeLabelArg() string {
 	return fmt.Sprintf("--node-labels=%q", strings.Join(labelStrings, ","))
 }
 
+// TODO: jmdeal@ remove once KubeletConfiguration can be properly hashed
+// For more information on the resource.Quantity hash issue: https://github.com/aws/karpenter-provider-aws/issues/5447
+func (o Options) HashReservedResources() string {
+	kubeReservedHash, systemReservedHash := uint64(0), uint64(0)
+	if kc := o.KubeletConfig; kc != nil {
+		kubeReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.KubeReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+		systemReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.SystemReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	}
+	return fmt.Sprintf("%d-%d", kubeReservedHash, systemReservedHash)
+}
+
 // joinParameterArgs joins a map of keys and values by their separator. The separator will sit between the
 // arguments in a comma-separated list i.e. arg1<sep>val1,arg2<sep>val2
 func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator string) string {
@@ -119,4 +131,7 @@ func joinParameterArgs[K comparable, V any](name string, m map[K]V, separator st
 // Examples are the Bottlerocket config and the eks-bootstrap script
 type Bootstrapper interface {
 	Script() (string, error)
+
+	// TODO: jmdeal@ remove once KubeletConfiguration can be properly hashed
+	HashReservedResources() string
 }
