@@ -36,10 +36,10 @@ import (
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator"
+	operatorlogging "sigs.k8s.io/karpenter/pkg/operator/logging"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -69,6 +69,8 @@ func NewEnvironment(t *testing.T) *Environment {
 	ctx, cancel := context.WithCancel(ctx)
 	config := NewConfig()
 	client := NewClient(ctx, config)
+
+	operatorlogging.ConfigureGlobalLoggers(ctx)
 
 	lo.Must0(os.Setenv(system.NamespaceEnvKey, "kube-system"))
 	if val, ok := os.LookupEnv("GIT_REF"); ok {
