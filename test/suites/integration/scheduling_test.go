@@ -92,6 +92,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				v1beta1.LabelInstanceCPU:              "2",
 				v1beta1.LabelInstanceCPUManufacturer:  "intel",
 				v1beta1.LabelInstanceMemory:           "4096",
+				v1beta1.LabelInstanceEBSBandwidth:     "4750",
 				v1beta1.LabelInstanceNetworkBandwidth: "750",
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels

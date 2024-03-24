@@ -346,6 +346,7 @@ status:
 8. `karpenter.k8s.aws/instance-cpu`
 9. `karpenter.k8s.aws/instance-cpu-manufacturer`
 10. `karpenter.k8s.aws/instance-memory`
+11. `karpenter.k8s.aws/instance-ebs-bandwidth`
 11. `karpenter.k8s.aws/instance-network-bandwidth`
 12. `karpenter.k8s.aws/instance-gpu-name`
 13. `karpenter.k8s.aws/instance-gpu-manufacturer`
