@@ -175,6 +175,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		instanceTypeProvider,
 		subnetProvider,
 		launchTemplateProvider,
+		operator.EventRecorder,
 	)
 
 	lo.Must0(operator.Manager.GetFieldIndexer().IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClassRef.name", func(o client.Object) []string {

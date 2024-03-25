@@ -22,6 +22,10 @@ import (
 	"sort"
 	"strings"
 
+	"sigs.k8s.io/karpenter/pkg/events"
+
+	cloudproviderevents "github.com/aws/karpenter-provider-aws/pkg/cloudprovider/events"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -66,10 +70,11 @@ type Provider struct {
 	subnetProvider         *subnet.Provider
 	launchTemplateProvider *launchtemplate.Provider
 	ec2Batcher             *batcher.EC2API
+	recorder               events.Recorder
 }
 
 func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings,
-	instanceTypeProvider *instancetype.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider) *Provider {
+	instanceTypeProvider *instancetype.Provider, subnetProvider *subnet.Provider, launchTemplateProvider *launchtemplate.Provider, recorder events.Recorder) *Provider {
 	return &Provider{
 		region:                 region,
 		ec2api:                 ec2api,
@@ -78,15 +83,19 @@ func NewProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, una
 		subnetProvider:         subnetProvider,
 		launchTemplateProvider: launchTemplateProvider,
 		ec2Batcher:             batcher.EC2(ctx, ec2api),
+		recorder:               recorder,
 	}
 }
 
 func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) (*Instance, error) {
+	filteredITsRequirement := len(instanceTypes)
+	instanceTypesAfterExoticFiltering := 0
 	schedulingRequirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	// Only filter the instances if there are no minValues in the requirement.
 	if !schedulingRequirements.HasMinValues() {
-		instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
+		instanceTypes, instanceTypesAfterExoticFiltering = p.filterInstanceTypes(nodeClaim, instanceTypes)
 	}
+	p.recorder.Publish(cloudproviderevents.FilteredInstanceTypes(nodeClaim, filteredITsRequirement, filteredITsRequirement-instanceTypesAfterExoticFiltering, instanceTypesAfterExoticFiltering-len(instanceTypes), lo.Map(instanceTypes, func(it *cloudprovider.InstanceType, _ int) string { return it.Name })))
 	tags := getTags(ctx, nodeClass, nodeClaim)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, instanceTypes, tags)
 	if awserrors.IsLaunchTemplateNotFound(err) {
@@ -373,14 +382,15 @@ func (p *Provider) getCapacityType(nodeClaim *corev1beta1.NodeClaim, instanceTyp
 
 // filterInstanceTypes is used to provide filtering on the list of potential instance types to further limit it to those
 // that make the most sense given our specific AWS cloudprovider.
-func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+func (p *Provider) filterInstanceTypes(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) ([]*cloudprovider.InstanceType, int) {
 	instanceTypes = filterExoticInstanceTypes(instanceTypes)
+	instanceTypesAfterExoticFiltering := len(instanceTypes)
 	// If we could potentially launch either a spot or on-demand node, we want to filter out the spot instance types that
 	// are more expensive than the cheapest on-demand type.
 	if p.isMixedCapacityLaunch(nodeClaim, instanceTypes) {
 		instanceTypes = filterUnwantedSpot(instanceTypes)
 	}
-	return instanceTypes
+	return instanceTypes, instanceTypesAfterExoticFiltering
 }
 
 // isMixedCapacityLaunch returns true if nodepools and available offerings could potentially allow either a spot or
