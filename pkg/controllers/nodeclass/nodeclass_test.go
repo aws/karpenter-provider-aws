@@ -29,6 +29,8 @@ import (
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
 	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	coretest "github.com/aws/karpenter-core/pkg/test"
 	. "github.com/aws/karpenter-core/pkg/test/expectations"
@@ -702,7 +704,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHash := nodeClass.Hash()
-			Expect(nodeClass.ObjectMeta.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 			Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
 
@@ -711,7 +713,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHashTwo := nodeClass.Hash()
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHashTwo))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHashTwo))
 			Expect(expectedHash).ToNot(Equal(expectedHashTwo))
 
 		},
@@ -729,7 +731,7 @@ var _ = Describe("NodeClassController", func() {
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 			expectedHash := nodeClass.Hash()
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 				{
@@ -750,7 +752,7 @@ var _ = Describe("NodeClassController", func() {
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectReconcileSucceeded(ctx, nodeClassController, client.ObjectKeyFromObject(nodeClass))
 			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-			Expect(nodeClass.Annotations[v1beta1.AnnotationNodeClassHash]).To(Equal(expectedHash))
+			Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 		})
 		It("should update ec2nodeclass-hash-version annotation when the ec2nodeclass-hash-version on the NodeClass does not match with the controller hash version", func() {
 			nodeClass.Annotations = map[string]string{

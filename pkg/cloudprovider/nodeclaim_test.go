@@ -99,7 +99,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationNodeClassHash]
+		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHash]
 		Expect(ok).To(BeTrue())
 	})
 	Context("EC2 Context", func() {
@@ -194,12 +194,12 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1beta1.AnnotationNodeClassHash:           nodeClass.Hash(),
+				v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Status.ProviderID = fake.ProviderID(lo.FromPtr(instance.InstanceId))
 			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
-				v1beta1.AnnotationNodeClassHash:           nodeClass.Hash(),
+				v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{v1.LabelInstanceTypeStable: selectedInstanceType.Name})
@@ -230,7 +230,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			// Assign a fake hash
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1beta1.AnnotationNodeClassHash: "abcdefghijkl",
+				v1beta1.AnnotationEC2NodeClassHash: "abcdefghijkl",
 			})
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -331,7 +331,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 					Expect(isDrifted).To(BeEmpty())
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride))
-					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationNodeClassHash: nodeClass.Hash()})
+					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -354,7 +354,7 @@ var _ = Describe("NodeClaim/CloudProvider", func() {
 					Expect(isDrifted).To(BeEmpty())
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride))
-					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationNodeClassHash: nodeClass.Hash()})
+					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)

@@ -143,7 +143,7 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1beta1.NodeClaim,
 		return ""
 	}
 
-	if nodeClass.IsNodeTemplate {
+	if !nodeClass.IsNodeTemplate {
 		nodeClassHashVersion, foundNodeClassHashVersion := nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion]
 		nodeClaimHashVersion, foundNodeClaimHashVersion := nodeClaim.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion]
 		if !foundNodeClassHashVersion || !foundNodeClaimHashVersion {
