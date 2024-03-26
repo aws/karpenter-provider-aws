@@ -45,7 +45,7 @@ var _ = Describe("CRD Hash", func() {
 			err := env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)
 			g.Expect(err).ToNot(HaveOccurred())
 
-			hash, found := nc.Annotations[v1beta1.AnnotationNodeClassHash]
+			hash, found := nc.Annotations[v1beta1.AnnotationEC2NodeClassHash]
 			g.Expect(found).To(BeTrue())
 			g.Expect(hash).To(Equal(nc.Hash()))
 		})

@@ -270,11 +270,12 @@ func (env *Environment) ExpectPrefixDelegationDisabled() {
 		"ENABLE_PREFIX_DELEGATION", "false", "aws-node")
 }
 
-func (env *Environment) ExpectExists(obj client.Object) {
+func (env *Environment) ExpectExists(obj client.Object) client.Object {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(obj), obj)).To(Succeed())
 	}).WithTimeout(time.Second * 5).Should(Succeed())
+	return obj
 }
 
 func (env *Environment) EventuallyExpectHealthy(pods ...*v1.Pod) {
