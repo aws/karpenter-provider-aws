@@ -25,6 +25,8 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
 
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 
@@ -32,7 +34,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
 
@@ -49,6 +50,7 @@ import (
 const (
 	InstanceTypesCacheKey         = "types"
 	InstanceTypeOfferingsCacheKey = "offerings"
+	ZonesCacheKey                 = "zones"
 )
 
 type Provider struct {
@@ -87,9 +89,7 @@ func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subn
 	}
 }
 
-func (p *Provider) List(ctx context.Context,
-	kubeReserved v1.ResourceList, systemReserved v1.ResourceList, evictionHard map[string]string, evictionSoft map[string]string, maxPods *int32, podsPerCore *int32,
-	blockDeviceMappings []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy, nodeClassAmiFamiliy *string, subnets []*ec2.Subnet) ([]*cloudprovider.InstanceType, error) {
+func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguration, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.GetInstanceTypes(ctx)
 	if err != nil {
@@ -100,31 +100,39 @@ func (p *Provider) List(ctx context.Context,
 	if err != nil {
 		return nil, err
 	}
-
+	subnets, err := p.subnetProvider.List(ctx, nodeClass)
+	if err != nil {
+		return nil, err
+	}
 	subnetZones := sets.New[string](lo.Map(subnets, func(s *ec2.Subnet, _ int) string {
 		return aws.StringValue(s.AvailabilityZone)
 	})...)
 
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	// TODO: remove kubeReservedHash and systemReservedHash once v1.ResourceList objects are hashed as strings in KubeletConfiguration
 	// For more information on the v1.ResourceList hash issue: https://github.com/kubernetes-sigs/karpenter/issues/1080
-	kubeReservedHash, _ := hashstructure.Hash(resources.StringMap(kubeReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	systemReservedHash, _ := hashstructure.Hash(resources.StringMap(systemReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	blockDeviceMappingsHash, _ := hashstructure.Hash(blockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	kubeReservedHash, systemReservedHash := uint64(0), uint64(0)
+	if kc != nil {
+		kubeReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.KubeReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+		systemReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.SystemReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	}
+	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.Spec.BlockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	// TODO: remove volumeSizeHash once resource.Quantity objects get hashed as a string in BlockDeviceMappings
 	// For more information on the resource.Quantity hash issue: https://github.com/aws/karpenter-provider-aws/issues/5447
-	volumeSizeHash, _ := hashstructure.Hash(lo.Reduce(blockDeviceMappings, func(agg string, block *v1beta1.BlockDeviceMapping, _ int) string {
+	volumeSizeHash, _ := hashstructure.Hash(lo.Reduce(nodeClass.Spec.BlockDeviceMappings, func(agg string, block *v1beta1.BlockDeviceMapping, _ int) string {
 		return fmt.Sprintf("%s/%s", agg, block.EBS.VolumeSize)
 	}, ""), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%s-%s-%016x-%016x-%016x",
+	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%s-%016x-%016x-%016x",
 		p.instanceTypesSeqNum,
 		p.instanceTypeOfferingsSeqNum,
 		p.unavailableOfferings.SeqNum,
 		subnetZonesHash,
+		kcHash,
 		blockDeviceMappingsHash,
-		aws.StringValue((*string)(instanceStorePolicy)),
-		aws.StringValue(nodeClassAmiFamiliy),
+		aws.StringValue((*string)(nodeClass.Spec.InstanceStorePolicy)),
+		aws.StringValue(nodeClass.Spec.AMIFamily),
 		volumeSizeHash,
 		kubeReservedHash,
 		systemReservedHash,
@@ -132,7 +140,7 @@ func (p *Provider) List(ctx context.Context,
 	if item, ok := p.cache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
 	}
-	amiFamily := amifamily.GetAMIFamily(nodeClassAmiFamiliy, &amifamily.Options{})
+	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 
 	// Get all zones across all offerings
 	// We don't use this in the cache key since this is produced from our instanceTypeOfferings which we do cache
@@ -153,9 +161,10 @@ func (p *Provider) List(ctx context.Context,
 			instanceTypeLabel: *i.InstanceType,
 		}).Set(float64(aws.Int64Value(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
 
-		return NewInstanceType(ctx, i,
-			p.region, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore, kubeReserved, systemReserved,
-			evictionHard, evictionSoft, amiFamily, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones))
+		return NewInstanceType(ctx, i, p.region,
+			nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy,
+			kc.MaxPods, kc.PodsPerCore, kc.KubeReserved, kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft,
+			amiFamily, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones))
 	})
 	p.cache.SetDefault(key, result)
 	return result, nil
