@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -680,7 +681,7 @@ var _ = Describe("Drift", func() {
 			{
 				DeviceName: awssdk.String("/dev/xvda"),
 				EBS: &v1beta1.BlockDevice{
-					VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+					VolumeSize: resources.Quantity("20Gi"),
 					VolumeType: awssdk.String("gp3"),
 					Encrypted:  awssdk.Bool(true),
 				},
@@ -713,6 +714,37 @@ var _ = Describe("Drift", func() {
 		env.ExpectCreatedOrUpdated(nodeClass)
 
 		env.EventuallyExpectDrifted(nodeClaim)
+
+		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+	})
+	It("should drift the EC2NodeClass on BlockDeviceMappings volume size update", func() {
+		nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
+			{
+				DeviceName: awssdk.String("/dev/xvda"),
+				EBS: &v1beta1.BlockDevice{
+					VolumeSize: resources.Quantity("20Gi"),
+					VolumeType: awssdk.String("gp3"),
+					Encrypted:  awssdk.Bool(true),
+				},
+			},
+		}
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resources.Quantity("100Gi")
+		env.ExpectCreatedOrUpdated()
+
+		By("validating the drifted status condition has propagated")
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted)).ToNot(BeNil())
+			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
 
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(pod)

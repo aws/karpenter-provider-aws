@@ -147,17 +147,12 @@ func (p *Provider) Invalidate(ctx context.Context, ltName string, ltID string) {
 }
 
 func launchTemplateName(options *amifamily.LaunchTemplate) string {
-	// TODO: jmdeal@ remove custom hash struct once BlockDeviceMapping and KubeletConfiguration hashing is fixed, only hash Options
-	volumeSizeHash, _ := hashstructure.Hash(lo.Reduce(options.BlockDeviceMappings, func(agg string, block *v1beta1.BlockDeviceMapping, _ int) string {
-		return fmt.Sprintf("%s/%s", agg, block.EBS.VolumeSize)
-	}, ""), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	// TODO: jmdeal@ remove custom hash struct once KubeletConfiguration hashing is fixed, only hash Options
 	hashStruct := struct {
 		Options               *amifamily.LaunchTemplate
-		VolumeSizeHash        string
 		ReservedResourcesHash string
 	}{
 		Options:               options,
-		VolumeSizeHash:        fmt.Sprint(volumeSizeHash),
 		ReservedResourcesHash: options.UserData.HashReservedResources(),
 	}
 	hash, err := hashstructure.Hash(hashStruct, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
