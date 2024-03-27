@@ -747,7 +747,7 @@ var _ = Describe("InstanceTypes", func() {
 	})
 	Context("Metrics", func() {
 		It("should expose vcpu metrics for instance types", func() {
-			instanceTypes, err := listInstanceTypes(nodePool, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodePool.Spec.Template.Spec.Kubelet, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
 			for _, it := range instanceTypes {
@@ -761,7 +761,7 @@ var _ = Describe("InstanceTypes", func() {
 			}
 		})
 		It("should expose memory metrics for instance types", func() {
-			instanceTypes, err := listInstanceTypes(nodePool, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodePool.Spec.Template.Spec.Kubelet, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
 			for _, it := range instanceTypes {
@@ -775,7 +775,7 @@ var _ = Describe("InstanceTypes", func() {
 			}
 		})
 		It("should expose availability metrics for instance types", func() {
-			instanceTypes, err := listInstanceTypes(nodePool, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodePool.Spec.Template.Spec.Kubelet, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
 			for _, it := range instanceTypes {
@@ -793,7 +793,7 @@ var _ = Describe("InstanceTypes", func() {
 			}
 		})
 		It("should expose pricing metrics for instance types", func() {
-			instanceTypes, err := listInstanceTypes(nodePool, nodeClass)
+			instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodePool.Spec.Template.Spec.Kubelet, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(len(instanceTypes)).To(BeNumerically(">", 0))
 			for _, it := range instanceTypes {
@@ -1741,27 +1741,6 @@ func newInstanceType(nodePool *corev1beta1.NodePool, nodeClass *v1beta1.EC2NodeC
 		nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
 		amiFamily,
 		nil,
-	)
-}
-
-func listInstanceTypes(nodePool *corev1beta1.NodePool, nodeClass *v1beta1.EC2NodeClass) ([]*corecloudprovider.InstanceType, error) {
-	subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
-	Expect(err).To(BeNil())
-	if nodePool.Spec.Template.Spec.Kubelet == nil {
-		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{}
-	}
-	return awsEnv.InstanceTypesProvider.List(
-		ctx,
-		nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
-		nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
-		nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
-		nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
-		nodePool.Spec.Template.Spec.Kubelet.MaxPods,
-		nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
-		nodeClass.Spec.BlockDeviceMappings,
-		nodeClass.Spec.InstanceStorePolicy,
-		nodeClass.Spec.AMIFamily,
-		subnets,
 	)
 }
 
