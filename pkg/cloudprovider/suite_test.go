@@ -798,10 +798,7 @@ var _ = Describe("CloudProvider", func() {
 				Entry("BlockDeviceMapping KMSKeyID", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{KMSKeyID: lo.ToPtr("test")}}}}}),
 				Entry("BlockDeviceMapping SnapshotID", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
 				Entry("BlockDeviceMapping Throughput", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
-				// Karpenter currently have a bug with volumeSize will cause NodeClaims to not be drifted, when the field is updated
-				// TODO: Enable volumeSize once they can be used for static drift
-				// For more information: https://github.com/aws/karpenter-provider-aws/issues/5447
-				// Entry("BlockDeviceMapping VolumeSize", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)}}}}}),
+				Entry("BlockDeviceMapping VolumeSize", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{VolumeSize: resource.NewScaledQuantity(10, resource.Giga)}}}}}),
 				Entry("BlockDeviceMapping VolumeType", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
 			)
 			DescribeTable("should not return drifted if dynamic fields are updated",
