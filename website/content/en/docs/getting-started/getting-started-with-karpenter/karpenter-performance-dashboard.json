@@ -498,7 +498,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "sum(rate(controller_runtime_reconcile_total[10m])) by (controller)",
+                    "expr": "sum(rate(controller_runtime_reconcile_total{job=\"karpenter\"}[10m])) by (controller)",
                     "legendFormat": "{{controller}}",
                     "range": true,
                     "refId": "A"
@@ -542,14 +542,14 @@
                     "type": "prometheus",
                     "uid": "${datasource}"
                 },
-                "definition": "label_values(controller_runtime_reconcile_time_seconds_count, controller)",
+                "definition": "label_values(controller_runtime_reconcile_time_seconds_count{job=\"karpenter\"}, controller)",
                 "hide": 0,
                 "includeAll": false,
                 "multi": false,
                 "name": "controller",
                 "options": [],
                 "query": {
-                    "query": "label_values(controller_runtime_reconcile_time_seconds_count, controller)",
+                    "query": "label_values(controller_runtime_reconcile_time_seconds_count{job=\"karpenter\"}, controller)",
                     "refId": "StandardVariableQuery"
                 },
                 "refresh": 2,

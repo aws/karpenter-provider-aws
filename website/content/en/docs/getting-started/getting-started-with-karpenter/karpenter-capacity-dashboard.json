@@ -87,104 +87,6 @@
                 "h": 5,
                 "w": 24,
                 "x": 0,
-                "y": 0
-            },
-            "id": 13,
-            "options": {
-                "legend": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
-                    "displayMode": "table",
-                    "placement": "right"
-                },
-                "tooltip": {
-                    "mode": "multi",
-                    "sort": "none"
-                }
-            },
-            "pluginVersion": "9.0.5",
-            "targets": [
-                {
-                    "datasource": {
-                        "type": "prometheus",
-                        "uid": "${datasource}"
-                    },
-                    "editorMode": "builder",
-                    "exemplar": false,
-                    "expr": "sum by(action, cluster) (karpenter_deprovisioning_actions_performed)",
-                    "format": "time_series",
-                    "instant": false,
-                    "legendFormat": "{{cluster}}: {{action}}",
-                    "range": true,
-                    "refId": "A"
-                }
-            ],
-            "title": "Deprovisioning Actions Performed",
-            "type": "timeseries"
-        },
-        {
-            "datasource": {
-                "type": "prometheus",
-                "uid": "${datasource}"
-            },
-            "description": "",
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "palette-classic"
-                    },
-                    "custom": {
-                        "axisLabel": "",
-                        "axisPlacement": "auto",
-                        "barAlignment": 0,
-                        "drawStyle": "line",
-                        "fillOpacity": 10,
-                        "gradientMode": "none",
-                        "hideFrom": {
-                            "legend": false,
-                            "tooltip": false,
-                            "viz": false
-                        },
-                        "lineInterpolation": "linear",
-                        "lineWidth": 1,
-                        "pointSize": 5,
-                        "scaleDistribution": {
-                            "type": "linear"
-                        },
-                        "showPoints": "auto",
-                        "spanNulls": false,
-                        "stacking": {
-                            "group": "A",
-                            "mode": "none"
-                        },
-                        "thresholdsStyle": {
-                            "mode": "off"
-                        }
-                    },
-                    "mappings": [],
-                    "min": 0,
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "green",
-                                "value": null
-                            },
-                            {
-                                "color": "red",
-                                "value": 80
-                            }
-                        ]
-                    },
-                    "unit": "none"
-                },
-                "overrides": []
-            },
-            "gridPos": {
-                "h": 5,
-                "w": 24,
-                "x": 0,
                 "y": 5
             },
             "id": 14,
@@ -314,6 +216,199 @@
             "type": "timeseries"
         },
         {
+        "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+        },
+        "fieldConfig": {
+            "defaults": {
+            "color": {
+                "mode": "palette-classic"
+            },
+            "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                "group": "A",
+                "mode": "normal"
+                },
+                "thresholdsStyle": {
+                "mode": "off"
+                }
+            },
+            "mappings": [],
+            "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                {
+                    "color": "green",
+                    "value": null
+                },
+                {
+                    "color": "red",
+                    "value": 80
+                }
+                ]
+            }
+            },
+            "overrides": []
+        },
+        "gridPos": {
+            "h": 6,
+            "w": 24,
+            "x": 0,
+            "y": 10
+        },
+        "id": 12,
+        "options": {
+            "legend": {
+            "calcs": [
+                "last"
+            ],
+            "displayMode": "table",
+            "placement": "right",
+            "showLegend": true
+            },
+            "tooltip": {
+            "mode": "single",
+            "sort": "none"
+            }
+        },
+        "targets": [
+            {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "expr": "sum by(consolidation_type,method)(karpenter_disruption_eligible_nodes)",
+            "legendFormat": "{{label_name}}",
+            "range": true,
+            "refId": "A"
+            }
+        ],
+        "title": "Node Eligibale for Disruptions",
+        "type": "timeseries"
+        },
+        {
+        "datasource": {
+            "type": "prometheus",
+            "uid": "${datasource}"
+        },
+        "description": "See: https://karpenter.sh/v0.35/concepts/disruption/#automated-methods",
+        "fieldConfig": {
+            "defaults": {
+            "color": {
+                "mode": "palette-classic"
+            },
+            "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                "legend": false,
+                "tooltip": false,
+                "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                "type": "linear"
+                },
+                "showPoints": "auto",
+                "spanNulls": false,
+                "stacking": {
+                "group": "A",
+                "mode": "normal"
+                },
+                "thresholdsStyle": {
+                "mode": "off"
+                }
+            },
+            "mappings": [],
+            "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                {
+                    "color": "green",
+                    "value": null
+                },
+                {
+                    "color": "red",
+                    "value": 80
+                }
+                ]
+            }
+            },
+            "overrides": []
+        },
+        "gridPos": {
+            "h": 6,
+            "w": 24,
+            "x": 0,
+            "y": 16
+        },
+        "id": 17,
+        "options": {
+            "legend": {
+            "calcs": [
+                "last"
+            ],
+            "displayMode": "table",
+            "placement": "right",
+            "showLegend": true
+            },
+            "tooltip": {
+            "mode": "single",
+            "sort": "none"
+            }
+        },
+        "targets": [
+            {
+            "datasource": {
+                "type": "prometheus",
+                "uid": "${datasource}"
+            },
+            "editorMode": "code",
+            "expr": "sum by(action,consolidation_type,method)(karpenter_disruption_nodes_disrupted_total{nodepool=~\"$nodepool\"})",
+            "legendFormat": "{{label_name}}",
+            "range": true,
+            "refId": "A"
+            }
+        ],
+        "title": "Node Disruptions: nodepool \"$nodepool\"",
+        "type": "timeseries"
+        },           
+        {
             "datasource": {
                 "type": "prometheus",
                 "uid": "${datasource}"
@@ -372,7 +467,7 @@
                 "h": 6,
                 "w": 24,
                 "x": 0,
-                "y": 15
+                "y": 22
             },
             "id": 12,
             "options": {
