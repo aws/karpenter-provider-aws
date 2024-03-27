@@ -45,6 +45,7 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
+		LabelInstancePerformanceMode,
 		v1.LabelWindowsBuild,
 	)
 }
@@ -81,6 +82,9 @@ var (
 	AMIFamilyWindows2019                       = "Windows2019"
 	AMIFamilyWindows2022                       = "Windows2022"
 	AMIFamilyCustom                            = "Custom"
+	PerformanceModeBurstable                   = "burstable"
+	PerformanceModeFlex                        = "flex"
+	PerformanceModeStandard                    = "standard"
 	Windows2019                                = "2019"
 	Windows2022                                = "2022"
 	WindowsCore                                = "Core"
@@ -114,6 +118,7 @@ var (
 	LabelInstanceAcceleratorName              = Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = Group + "/instance-accelerator-count"
+	LabelInstancePerformanceMode              = Group + "/instance-performance-mode"
 	AnnotationEC2NodeClassHash                = Group + "/ec2nodeclass-hash"
 	AnnotationEC2NodeClassHashVersion         = Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = Group + "/tagged"
