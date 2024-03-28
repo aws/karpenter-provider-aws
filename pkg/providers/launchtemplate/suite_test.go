@@ -53,11 +53,14 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
@@ -822,7 +825,8 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			it := newInstanceType(nodePool, nodeClass, "", info)
+
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -860,7 +864,7 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			it := newInstanceType(nodePool, nodeClass, "", info)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -871,7 +875,7 @@ var _ = Describe("LaunchTemplates", func() {
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			it := newInstanceType(nodePool, nodeClass, "", info)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1565Mi"))
 		})
@@ -1914,6 +1918,27 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 	})
 })
+
+func newInstanceType(nodePool *corev1beta1.NodePool, nodeClass *v1beta1.EC2NodeClass, region string, info *ec2.InstanceTypeInfo) *corecloudprovider.InstanceType {
+	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+	if nodePool.Spec.Template.Spec.Kubelet == nil {
+		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{}
+	}
+	return instancetype.NewInstanceType(ctx,
+		info,
+		region,
+		nodeClass.Spec.BlockDeviceMappings,
+		nodeClass.Spec.InstanceStorePolicy,
+		nodePool.Spec.Template.Spec.Kubelet.MaxPods,
+		nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
+		nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
+		nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
+		nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
+		nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
+		amiFamily,
+		nil,
+	)
+}
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
 func ExpectTags(tags []*ec2.Tag, expected map[string]string) {
