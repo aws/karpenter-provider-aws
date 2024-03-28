@@ -18,6 +18,9 @@ inputs:
   eksctl_version:
     description: "Version of eksctl to install"
     default: v0.169.0
+  private_cluster:
+    description: "Whether the cluster that has to be deleted is private or not. Valid values are 'true' or 'false'"
+    default: 'false'
 runs:
   using: "composite"
   steps:
@@ -28,6 +31,7 @@ runs:
       with:
         version: ${{ inputs.eksctl_version }}
     - name: delete-cluster
+      if: ${{ !inputs.private_cluster }}
       shell: bash
       env:
         CLUSTER_NAME: ${{ inputs.cluster_name }}

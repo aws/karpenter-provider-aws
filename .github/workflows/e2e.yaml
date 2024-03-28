@@ -119,6 +119,13 @@ jobs:
           fi
           echo "Using cluster name \"$CLUSTER_NAME\""
           echo CLUSTER_NAME="$CLUSTER_NAME" >> "$GITHUB_OUTPUT"
+      - name: generate codeBuild region variable
+        env:
+          region: ${{ inputs.region }}
+        run: |
+          # Set codeBuild Region to get the value of codebuild security group and VPC needed to configure private cluster
+          codebuild_region="${region//-/_}"
+          echo CODEBUILD_REGION="$codebuild_region" >> "$GITHUB_ENV"
       - name: setup eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
         if: inputs.cluster_name == ''
         uses: ./.github/actions/e2e/setup-cluster
@@ -138,15 +145,33 @@ jobs:
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
           enable_local_zones: ${{ inputs.suite == 'LocalZone' }}
           cleanup: ${{ inputs.cleanup }}
+          codebuild_role: ${{ vars[format('{0}_CODEBUILD_ROLE', env.CODEBUILD_REGION)] }}
+      - name: run tests for private cluster
+        if: ${{ inputs.suite == 'PrivateCluster' }}
+        uses: ./.github/actions/e2e/run-tests-private-cluster
+        with:
+          # If we are performing the PrivateCluster test suite, then we should just run the 'Integration' test suite
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          prometheus_region: ${{ vars.PROMETHEUS_REGION }}
+          prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
+          region: ${{ inputs.region }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          k8s_version: ${{ inputs.k8s_version }}
+          ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          ecr_region: ${{ vars.SNAPSHOT_REGION }}
+          private_cluster: ${{ inputs.suite == 'PrivateCluster' }}
+          enable_metrics: ${{ inputs.enable_metrics }}
+          metrics_region: ${{ vars.TIMESTREAM_REGION }}
+          node_role: ${{ env.NODE_ROLE }}
+          cleanup: ${{ inputs.cleanup }}
+          codebuild_sg: ${{ vars[format('{0}_CODEBUILD_SG', env.CODEBUILD_REGION)] }}
+          codebuild_vpc: ${{ vars[format('{0}_CODEBUILD_VPC', env.CODEBUILD_REGION)] }}
       - name: run the ${{ inputs.suite }} test suite
+        if: ${{ inputs.suite != 'PrivateCluster' }}
         env:
           SUITE: ${{ inputs.suite }}
           ENABLE_METRICS: ${{ inputs.enable_metrics }}
         run: |
-          # If we are performing the PrivateCluster test suite, then we should just run the 'Integration' test suite
-          if [[ $SUITE == 'PrivateCluster' ]]; then
-            SUITE="Integration"
-          fi
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           # Clean up the cluster before running all tests
           kubectl delete nodepool --all
@@ -166,7 +191,7 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
-        if: failure() || cancelled()
+        if: (failure() || cancelled()) && inputs.suite != 'PrivateCluster'
         with:
           account_id: ${{ vars.CI_ACCOUNT_ID }}
           role: ${{ vars.CI_ROLE_NAME }}
@@ -182,6 +207,7 @@ jobs:
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
           eksctl_version: v0.169.0
+          private_cluster: ${{ inputs.suite == 'PrivateCluster' }}
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:

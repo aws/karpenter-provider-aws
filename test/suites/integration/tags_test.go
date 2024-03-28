@@ -15,6 +15,7 @@ limitations under the License.
 package integration_test
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -108,6 +109,10 @@ var _ = Describe("Tags", func() {
 			nodeClass = test.EC2NodeClass(*nodeClass, v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
 				Tags: map[string]string{"Name": "custom-name", "testing/cluster": env.ClusterName},
 			}})
+			if env.PrivateCluster {
+				nodeClass.Spec.Role = ""
+				nodeClass.Spec.InstanceProfile = lo.ToPtr(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName))
+			}
 			nodePool = coretest.NodePool(*nodePool, corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{

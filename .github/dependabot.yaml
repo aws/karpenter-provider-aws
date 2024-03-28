@@ -123,6 +123,14 @@ updates:
         patterns:
           - '*'
   - package-ecosystem: github-actions
+    directory: .github/actions/e2e/run-tests-private-cluster
+    schedule:
+      interval: weekly
+    groups:
+      action-deps:
+        patterns:
+          - '*'
+  - package-ecosystem: github-actions
     directory: .github/actions/e2e/setup-cluster
     schedule:
       interval: weekly

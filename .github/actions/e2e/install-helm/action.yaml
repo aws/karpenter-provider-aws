@@ -12,10 +12,8 @@ runs:
       env:
         VERSION: ${{ inputs.version }}
       run: |
-        TEMPDIR=$(mktemp -d)
-        curl -fsSL -o "${TEMPDIR}/get_helm.sh" https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
-        chmod 700 "${TEMPDIR}/get_helm.sh"
-        "${TEMPDIR}/get_helm.sh" --version "$VERSION"
+        chmod +x ./hack/scripts/install_helm.sh
+        ./hack/scripts/install_helm.sh
     - name: install helm-diff
       shell: bash
       run: |
