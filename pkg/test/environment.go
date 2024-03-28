@@ -18,6 +18,9 @@ import (
 	"context"
 	"net"
 
+	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/karpenter/pkg/events"
+
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -130,6 +133,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			instanceTypesProvider,
 			subnetProvider,
 			launchTemplateProvider,
+			events.NewRecorder(&record.FakeRecorder{}),
 		)
 
 	return &Environment{
