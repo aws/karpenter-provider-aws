@@ -48,7 +48,6 @@ import (
 const (
 	InstanceTypesCacheKey         = "types"
 	InstanceTypeOfferingsCacheKey = "offerings"
-	ZonesCacheKey                 = "zones"
 )
 
 type Provider struct {
@@ -117,12 +116,7 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 		systemReservedHash, _ = hashstructure.Hash(resources.StringMap(kc.SystemReserved), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	}
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.Spec.BlockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	// TODO: remove volumeSizeHash once resource.Quantity objects get hashed as a string in BlockDeviceMappings
-	// For more information on the resource.Quantity hash issue: https://github.com/aws/karpenter-provider-aws/issues/5447
-	volumeSizeHash, _ := hashstructure.Hash(lo.Reduce(nodeClass.Spec.BlockDeviceMappings, func(agg string, block *v1beta1.BlockDeviceMapping, _ int) string {
-		return fmt.Sprintf("%s/%s", agg, block.EBS.VolumeSize)
-	}, ""), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%s-%016x-%016x-%016x",
+	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%s-%016x-%016x",
 		p.instanceTypesSeqNum,
 		p.instanceTypeOfferingsSeqNum,
 		p.unavailableOfferings.SeqNum,
@@ -131,7 +125,6 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 		blockDeviceMappingsHash,
 		aws.StringValue((*string)(nodeClass.Spec.InstanceStorePolicy)),
 		aws.StringValue(nodeClass.Spec.AMIFamily),
-		volumeSizeHash,
 		kubeReservedHash,
 		systemReservedHash,
 	)

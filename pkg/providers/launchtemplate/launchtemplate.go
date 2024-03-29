@@ -119,14 +119,14 @@ func (p *Provider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClas
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, options)
 	if err != nil {
 		return nil, err
 	}
 	var launchTemplates []*LaunchTemplate
 	for _, resolvedLaunchTemplate := range resolvedLaunchTemplates {
 		// Ensure the launch template exists, or create it
-		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, capacityType, resolvedLaunchTemplate)
+		ec2LaunchTemplate, err := p.ensureLaunchTemplate(ctx, resolvedLaunchTemplate)
 		if err != nil {
 			return nil, err
 		}
@@ -147,7 +147,15 @@ func (p *Provider) Invalidate(ctx context.Context, ltName string, ltID string) {
 }
 
 func launchTemplateName(options *amifamily.LaunchTemplate) string {
-	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	// TODO: jmdeal@ remove custom hash struct once KubeletConfiguration hashing is fixed, only hash Options
+	hashStruct := struct {
+		Options               *amifamily.LaunchTemplate
+		ReservedResourcesHash string
+	}{
+		Options:               options,
+		ReservedResourcesHash: options.UserData.HashReservedResources(),
+	}
+	hash, err := hashstructure.Hash(hashStruct, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
 	}
@@ -205,7 +213,7 @@ func (p *Provider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2N
 	return options, nil
 }
 
-func (p *Provider) ensureLaunchTemplate(ctx context.Context, capacityType string, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := launchTemplateName(options)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
@@ -220,7 +228,7 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, capacityType string
 	})
 	// Create LT if one doesn't exist
 	if awserrors.IsNotFound(err) {
-		launchTemplate, err = p.createLaunchTemplate(ctx, capacityType, options)
+		launchTemplate, err = p.createLaunchTemplate(ctx, options)
 		if err != nil {
 			return nil, fmt.Errorf("creating launch template, %w", err)
 		}
@@ -238,7 +246,7 @@ func (p *Provider) ensureLaunchTemplate(ctx context.Context, capacityType string
 	return launchTemplate, nil
 }
 
-func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
+func (p *Provider) createLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	userData, err := options.UserData.Script()
 	if err != nil {
 		return nil, err
@@ -247,7 +255,7 @@ func (p *Provider) createLaunchTemplate(ctx context.Context, capacityType string
 		{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 	}
 	// Add the spot-instances-request tag if trying to launch spot capacity
-	if capacityType == corev1beta1.CapacityTypeSpot {
+	if options.CapacityType == corev1beta1.CapacityTypeSpot {
 		launchTemplateDataTags = append(launchTemplateDataTags, &ec2.LaunchTemplateTagSpecificationRequest{ResourceType: aws.String(ec2.ResourceTypeSpotInstancesRequest), Tags: utils.MergeTags(options.Tags)})
 	}
 	networkInterfaces := p.generateNetworkInterfaces(options)

@@ -20,6 +20,8 @@ import (
 	"sort"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -140,7 +142,13 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
-		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
+		// We call Update() here rather than Patch() because patching a list with a JSON merge patch
+		// can cause races due to the fact that it fully replaces the list on a change
+		// https://github.com/kubernetes/kubernetes/issues/111643#issuecomment-2016489732
+		if err := c.kubeClient.Update(ctx, nodeClass); err != nil {
+			if errors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			return reconcile.Result{}, client.IgnoreNotFound(fmt.Errorf("removing termination finalizer, %w", err))
 		}
 	}
