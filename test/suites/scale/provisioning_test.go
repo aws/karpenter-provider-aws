@@ -220,24 +220,24 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 		}
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
-			// With Prefix Delegation enabled, .large instances can have 434 pods.
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceSize,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"large"},
+		test.ReplaceRequirements(nodePool,
+			corev1beta1.NodeSelectorRequirementWithMinValues{
+				// With Prefix Delegation enabled, .large instances can have 434 pods.
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"large"},
+				},
 			},
-		},
+			corev1beta1.NodeSelectorRequirementWithMinValues{
+				// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpExists,
+				},
+				MinValues: lo.ToPtr(30),
+			},
 		)
-
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
-			// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1.LabelInstanceTypeStable,
-				Operator: v1.NodeSelectorOpExists,
-			},
-			MinValues: lo.ToPtr(30),
-		})
 
 		env.MeasureProvisioningDurationFor(func() {
 			By("waiting for the deployment to deploy all of its pods")
