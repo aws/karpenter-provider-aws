@@ -31,7 +31,7 @@ var _ = Describe("BlockDeviceMappings", func() {
 			{
 				DeviceName: aws.String("/dev/xvda"),
 				EBS: &v1beta1.BlockDevice{
-					VolumeSize:          resources.Quantity("10G"),
+					VolumeSize:          resources.Quantity("20Gi"),
 					VolumeType:          aws.String("io2"),
 					IOPS:                aws.Int64(1000),
 					Encrypted:           aws.Bool(true),
@@ -51,7 +51,7 @@ var _ = Describe("BlockDeviceMappings", func() {
 		Expect(instance.BlockDeviceMappings[0].Ebs).To(HaveField("DeleteOnTermination", HaveValue(BeTrue())))
 		volume := env.GetVolume(instance.BlockDeviceMappings[0].Ebs.VolumeId)
 		Expect(volume).To(HaveField("Encrypted", HaveValue(BeTrue())))
-		Expect(volume).To(HaveField("Size", HaveValue(Equal(int64(10))))) // Convert G -> Gib (rounded up)
+		Expect(volume).To(HaveField("Size", HaveValue(Equal(int64(20)))))
 		Expect(volume).To(HaveField("Iops", HaveValue(Equal(int64(1000)))))
 		Expect(volume).To(HaveField("VolumeType", HaveValue(Equal("io2"))))
 	})

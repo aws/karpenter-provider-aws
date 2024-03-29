@@ -56,8 +56,9 @@ func init() {
 const WindowsDefaultImage = "mcr.microsoft.com/oss/kubernetes/pause:3.9"
 
 // ExcludedInstanceFamilies denotes instance families that have issues during resource registration due to compatibility
-// issues with versions of the VPR Resource Controller
-var ExcludedInstanceFamilies = []string{"m7a", "r7a", "c7a", "r7i"}
+// issues with versions of the VPR Resource Controller.
+// TODO: jmdeal@ remove a1 from exclusion list once Karpenter implicitly filters a1 instances for AL2023 AMI family (incompatible)
+var ExcludedInstanceFamilies = []string{"m7a", "r7a", "c7a", "r7i", "a1"}
 
 type Environment struct {
 	*common.Environment
@@ -122,7 +123,7 @@ func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamW
 
 func (env *Environment) DefaultEC2NodeClass() *v1beta1.EC2NodeClass {
 	nodeClass := test.EC2NodeClass()
-	nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+	nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 	nodeClass.Spec.Tags = map[string]string{
 		"testing/cluster": env.ClusterName,
 	}
