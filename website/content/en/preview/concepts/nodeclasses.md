@@ -166,6 +166,10 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
 
+{{% alert title="Note" color="primary" %}}
+AL2023 AMIs do not support the `a1` instance family. These instances are automatically filtered out when the `AL2023` AMI family is selected. Refer to the [AL2023 System Requirements Doc](https://docs.aws.amazon.com/linux/al2023/ug/system-requirements.html) for more details.
+{{% /alert %}}
+
 ### AL2
 
 ```bash
