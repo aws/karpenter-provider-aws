@@ -428,7 +428,8 @@ var _ = Describe("Consolidation", func() {
 										Operator: v1.NodeSelectorOpNotIn,
 										// remove some cheap burstable and the odd c1 instance types so we have
 										// more control over what gets provisioned
-										Values: []string{"t2", "t3", "c1", "t3a", "t4g"},
+										// TODO: jmdeal@ remove a1 from exclusion list once Karpenter implicitly filters a1 instances for AL2023 AMI family (incompatible)
+										Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
 									},
 								},
 							},
@@ -498,6 +499,15 @@ var _ = Describe("Consolidation", func() {
 										Key:      v1beta1.LabelInstanceSize,
 										Operator: v1.NodeSelectorOpIn,
 										Values:   []string{"large", "2xlarge"},
+									},
+								},
+								{
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1beta1.LabelInstanceFamily,
+										Operator: v1.NodeSelectorOpNotIn,
+										// remove some cheap burstable and the odd c1 / a1 instance types so we have
+										// more control over what gets provisioned
+										Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
 									},
 								},
 							},
@@ -625,6 +635,15 @@ var _ = Describe("Consolidation", func() {
 									Key:      v1beta1.LabelInstanceSize,
 									Operator: v1.NodeSelectorOpIn,
 									Values:   []string{"large"},
+								},
+							},
+							{
+								NodeSelectorRequirement: v1.NodeSelectorRequirement{
+									Key:      v1beta1.LabelInstanceFamily,
+									Operator: v1.NodeSelectorOpNotIn,
+									// remove some cheap burstable and the odd c1 / a1 instance types so we have
+									// more control over what gets provisioned
+									Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
 								},
 							},
 						},
