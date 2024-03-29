@@ -28,6 +28,37 @@ import (
 var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 	InstanceTypes: []*ec2.InstanceTypeInfo{
 		{
+			InstanceType:                  aws.String("a1.large"),
+			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
+			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
+			BurstablePerformanceSupported: aws.Bool(false),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    aws.String("nitro"),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("AWS"),
+				SupportedArchitectures: aws.StringSlice([]string{"arm64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(2),
+				DefaultVCpus: aws.Int64(2),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(4096),
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:     aws.Int64(3),
+				Ipv4AddressesPerInterface:    aws.Int64(10),
+				EncryptionInTransitSupported: aws.Bool(false),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(3),
+					},
+				},
+			},
+		},
+		{
 			InstanceType:                  aws.String("c6g.large"),
 			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
 			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),

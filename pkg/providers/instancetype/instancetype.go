@@ -143,6 +143,7 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 
 		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones))
 	})
+	result = filterIncompatibleInstanceTypes(nodeClass, result)
 	p.cache.SetDefault(key, result)
 	return result, nil
 }
@@ -272,4 +273,17 @@ func (p *Provider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInf
 	}
 	p.cache.SetDefault(InstanceTypesCacheKey, instanceTypes)
 	return instanceTypes, nil
+}
+
+// filterAMIInstanceTypes is used to filter out instance types which are incompatible with a given EC2NodeClass. AL2023 incompatibility with
+// instances in the a1 instance family is the motivating example.
+func filterIncompatibleInstanceTypes(nodeClass *v1beta1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType) []*cloudprovider.InstanceType {
+	if lo.FromPtr(nodeClass.Spec.AMIFamily) == v1beta1.AMIFamilyAL2023 {
+		instanceTypes = lo.Reject(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
+			// AL2023 requires an ARMv8.2 compliant processor, making the a1 instance family incompatible.
+			// ref: https://docs.aws.amazon.com/linux/al2023/ug/system-requirements.html
+			return lo.Contains(it.Requirements.Get(v1beta1.LabelInstanceFamily).Values(), "a1")
+		})
+	}
+	return instanceTypes
 }

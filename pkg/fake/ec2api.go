@@ -551,6 +551,18 @@ func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *
 	return &ec2.DescribeInstanceTypeOfferingsOutput{
 		InstanceTypeOfferings: []*ec2.InstanceTypeOffering{
 			{
+				InstanceType: aws.String("a1.large"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("a1.large"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
+				InstanceType: aws.String("a1.large"),
+				Location:     aws.String("test-zone-1c"),
+			},
+			{
 				InstanceType: aws.String("m5.large"),
 				Location:     aws.String("test-zone-1a"),
 			},

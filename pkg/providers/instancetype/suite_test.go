@@ -823,6 +823,29 @@ var _ = Describe("InstanceTypes", func() {
 		ExpectScheduled(ctx, env.Client, pod)
 
 	})
+	DescribeTable(
+		"should filter out a1 instances only when the AMIFamily is AL2023",
+		func(amiFamily string) {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(amiFamily)
+			nodeClass.Spec.AMISelectorTerms = append(nodeClass.Spec.AMISelectorTerms, v1beta1.AMISelectorTerm{
+				Name: "*",
+			})
+			pod := coretest.UnschedulablePod()
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod)
+			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
+			Expect(err).To(BeNil())
+			Expect(lo.ContainsBy(instanceTypes, func(it *corecloudprovider.InstanceType) bool {
+				return lo.Contains(it.Requirements.Get(v1beta1.LabelInstanceFamily).Values(), "a1")
+			})).To(Equal(amiFamily != v1beta1.AMIFamilyAL2023))
+		},
+		Entry("AL2", v1beta1.AMIFamilyAL2),
+		Entry("AL2023", v1beta1.AMIFamilyAL2023),
+		Entry("Ubuntu", v1beta1.AMIFamilyUbuntu),
+		Entry("Bottlerocket", v1beta1.AMIFamilyBottlerocket),
+		Entry("Windows2019", v1beta1.AMIFamilyWindows2019),
+		Entry("Windows2022", v1beta1.AMIFamilyWindows2022),
+		Entry("Custom", v1beta1.AMIFamilyCustom),
+	)
 
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo
