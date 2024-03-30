@@ -50,6 +50,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -491,7 +492,6 @@ var _ = Describe("CloudProvider", func() {
 	Context("NodeClaim Drift", func() {
 		var armAMIID, amdAMIID string
 		var validSecurityGroup string
-		var selectedInstanceType *corecloudproivder.InstanceType
 		var instance *ec2.Instance
 		var validSubnet1 string
 		var validSubnet2 string
@@ -572,7 +572,12 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
-			selectedInstanceType = instanceTypes[0]
+			selectedInstanceType, found := lo.Find(instanceTypes, func(it *corecloudproivder.InstanceType) bool {
+				return it.Requirements.Compatible(scheduling.NewRequirements(
+					scheduling.NewRequirement(v1beta1.LabelInstanceFamily, v1.NodeSelectorOpNotIn, "a1"),
+				)) == nil
+			})
+			Expect(found).To(BeTrue())
 
 			// Create the instance we want returned from the EC2 API
 			instance = &ec2.Instance{
@@ -826,7 +831,10 @@ var _ = Describe("CloudProvider", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 				},
-				Entry("AMI Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMISelectorTerms: []v1beta1.AMISelectorTerm{{Tags: map[string]string{"ami-key-1": "ami-value-1"}}}}}),
+				Entry("AMI Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMISelectorTerms: []v1beta1.AMISelectorTerm{
+					{Tags: map[string]string{"ami-key-1": "ami-value-1"}},
+					{Tags: map[string]string{"ami-key-2": "ami-value-2"}},
+				}}}),
 				Entry("Subnet Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"sn-key-1": "sn-value-1"}}}}}),
 				Entry("SecurityGroup Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"sg-key": "sg-value"}}}}}),
 			)
