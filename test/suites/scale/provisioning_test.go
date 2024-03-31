@@ -116,6 +116,62 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
 		})
 	}, SpecTimeout(time.Minute*30))
+	It("should scale successfully on a node-dense scale-up with minValues in the NodePool requirement", Label(debug.NoEvents), func(_ context.Context) {
+		// Disable Prefix Delegation for the node-dense scale-up to not exhaust the IPs
+		// This is required because of the number of Warm ENIs that will be created and the number of IPs
+		// that will be allocated across this large number of nodes, despite the fact that the ENI CIDR space will
+		// be extremely under-utilized
+		env.ExpectPrefixDelegationDisabled()
+		DeferCleanup(func() {
+			env.ExpectPrefixDelegationEnabled()
+		})
+
+		replicasPerNode := 1
+		expectedNodeCount := 500
+		replicas := replicasPerNode * expectedNodeCount
+
+		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+		// Hostname anti-affinity to require one pod on each node
+		deployment.Spec.Template.Spec.Affinity = &v1.Affinity{
+			PodAntiAffinity: &v1.PodAntiAffinity{
+				RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
+					{
+						LabelSelector: deployment.Spec.Selector,
+						TopologyKey:   v1.LabelHostname,
+					},
+				},
+			},
+		}
+
+		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+			// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpExists,
+			},
+			MinValues: lo.ToPtr(30),
+		})
+
+		By("waiting for the deployment to deploy all of its pods")
+		env.ExpectCreated(deployment)
+		env.EventuallyExpectPendingPodCount(selector, replicas)
+
+		env.MeasureProvisioningDurationFor(func() {
+			By("kicking off provisioning by applying the nodePool and nodeClass")
+			env.ExpectCreated(nodePool, nodeClass)
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+		}, map[string]string{
+			aws.TestCategoryDimension:           testGroup,
+			aws.TestNameDimension:               "node-dense",
+			aws.ProvisionedNodeCountDimension:   strconv.Itoa(expectedNodeCount),
+			aws.DeprovisionedNodeCountDimension: strconv.Itoa(0),
+			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
+		})
+	}, SpecTimeout(time.Minute*30))
 	It("should scale successfully on a pod-dense scale-up", func(_ context.Context) {
 		replicasPerNode := 110
 		maxPodDensity := replicasPerNode + dsCount
@@ -133,6 +189,54 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 				Values:   []string{"large"},
 			},
 		},
+		)
+
+		env.MeasureProvisioningDurationFor(func() {
+			By("waiting for the deployment to deploy all of its pods")
+			env.ExpectCreated(deployment)
+			env.EventuallyExpectPendingPodCount(selector, replicas)
+
+			By("kicking off provisioning by applying the nodePool and nodeClass")
+			env.ExpectCreated(nodePool, nodeClass)
+
+			env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
+			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
+			env.EventuallyExpectHealthyPodCount(selector, replicas)
+		}, map[string]string{
+			aws.TestCategoryDimension:           testGroup,
+			aws.TestNameDimension:               "pod-dense",
+			aws.ProvisionedNodeCountDimension:   strconv.Itoa(expectedNodeCount),
+			aws.DeprovisionedNodeCountDimension: strconv.Itoa(0),
+			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
+		})
+	}, SpecTimeout(time.Minute*30))
+	It("should scale successfully on a pod-dense scale-up with minValues in the NodePool requirement", func(_ context.Context) {
+		replicasPerNode := 110
+		maxPodDensity := replicasPerNode + dsCount
+		expectedNodeCount := 60
+		replicas := replicasPerNode * expectedNodeCount
+		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
+		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
+		}
+		test.ReplaceRequirements(nodePool,
+			corev1beta1.NodeSelectorRequirementWithMinValues{
+				// With Prefix Delegation enabled, .large instances can have 434 pods.
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"large"},
+				},
+			},
+			corev1beta1.NodeSelectorRequirementWithMinValues{
+				// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpExists,
+				},
+				MinValues: lo.ToPtr(30),
+			},
 		)
 
 		env.MeasureProvisioningDurationFor(func() {
