@@ -848,10 +848,10 @@ var _ = Describe("InstanceTypes", func() {
 			})
 			It("should override system reserved cpus when specified", func() {
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-					SystemReserved: v1.ResourceList{
-						v1.ResourceCPU:              resource.MustParse("2"),
-						v1.ResourceMemory:           resource.MustParse("20Gi"),
-						v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+					SystemReserved: map[string]string{
+						string(v1.ResourceCPU):              "2",
+						string(v1.ResourceMemory):           "20Gi",
+						string(v1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
 				it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, fake.DefaultRegion, nodeClass, nil)
@@ -869,15 +869,15 @@ var _ = Describe("InstanceTypes", func() {
 			})
 			It("should override kube reserved when specified", func() {
 				it := instancetype.NewInstanceType(ctx, info, &corev1beta1.KubeletConfiguration{
-					SystemReserved: v1.ResourceList{
-						v1.ResourceCPU:              resource.MustParse("1"),
-						v1.ResourceMemory:           resource.MustParse("20Gi"),
-						v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+					SystemReserved: map[string]string{
+						string(v1.ResourceCPU):              "1",
+						string(v1.ResourceMemory):           "20Gi",
+						string(v1.ResourceEphemeralStorage): "1Gi",
 					},
-					KubeReserved: v1.ResourceList{
-						v1.ResourceCPU:              resource.MustParse("2"),
-						v1.ResourceMemory:           resource.MustParse("10Gi"),
-						v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+					KubeReserved: map[string]string{
+						string(v1.ResourceCPU):              "2",
+						string(v1.ResourceMemory):           "10Gi",
+						string(v1.ResourceEphemeralStorage): "2Gi",
 					},
 				}, fake.DefaultRegion, nodeClass, nil)
 				Expect(it.Overhead.KubeReserved.Cpu().String()).To(Equal("2"))
@@ -894,11 +894,11 @@ var _ = Describe("InstanceTypes", func() {
 			Context("Eviction Hard", func() {
 				It("should override eviction threshold when specified as a quantity", func() {
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceMemory): "20Gi",
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceMemory): "10Gi",
 						},
 						EvictionHard: map[string]string{
 							instancetype.MemoryAvailable: "500Mi",
@@ -909,11 +909,11 @@ var _ = Describe("InstanceTypes", func() {
 				})
 				It("should override eviction threshold when specified as a percentage value", func() {
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceMemory): "20Gi",
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceMemory): "10Gi",
 						},
 						EvictionHard: map[string]string{
 							instancetype.MemoryAvailable: "10%",
@@ -924,11 +924,11 @@ var _ = Describe("InstanceTypes", func() {
 				})
 				It("should consider the eviction threshold disabled when specified as 100%", func() {
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceMemory): "20Gi",
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceMemory): "10Gi",
 						},
 						EvictionHard: map[string]string{
 							instancetype.MemoryAvailable: "100%",
@@ -939,11 +939,11 @@ var _ = Describe("InstanceTypes", func() {
 				})
 				It("should used default eviction threshold for memory when evictionHard not specified", func() {
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceMemory): "20Gi",
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceMemory): "10Gi",
 						},
 						EvictionSoft: map[string]string{
 							instancetype.MemoryAvailable: "50Mi",
@@ -956,11 +956,11 @@ var _ = Describe("InstanceTypes", func() {
 			Context("Eviction Soft", func() {
 				It("should override eviction threshold when specified as a quantity", func() {
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceMemory): "20Gi",
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceMemory): "10Gi",
 						},
 						EvictionSoft: map[string]string{
 							instancetype.MemoryAvailable: "500Mi",
@@ -971,11 +971,11 @@ var _ = Describe("InstanceTypes", func() {
 				})
 				It("should override eviction threshold when specified as a percentage value", func() {
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceMemory): "20Gi",
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceMemory): "10Gi",
 						},
 						EvictionHard: map[string]string{
 							instancetype.MemoryAvailable: "5%",
@@ -989,11 +989,11 @@ var _ = Describe("InstanceTypes", func() {
 				})
 				It("should consider the eviction threshold disabled when specified as 100%", func() {
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceMemory): "20Gi",
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceMemory): "10Gi",
 						},
 						EvictionSoft: map[string]string{
 							instancetype.MemoryAvailable: "100%",
@@ -1005,11 +1005,11 @@ var _ = Describe("InstanceTypes", func() {
 				It("should ignore eviction threshold when using Bottlerocket AMI", func() {
 					nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("20Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceMemory): "20Gi",
 						},
-						KubeReserved: v1.ResourceList{
-							v1.ResourceMemory: resource.MustParse("10Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceMemory): "10Gi",
 						},
 						EvictionHard: map[string]string{
 							instancetype.MemoryAvailable: "1Gi",
@@ -1030,11 +1030,11 @@ var _ = Describe("InstanceTypes", func() {
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-					SystemReserved: v1.ResourceList{
-						v1.ResourceMemory: resource.MustParse("20Gi"),
+					SystemReserved: map[string]string{
+						string(v1.ResourceMemory): "20Gi",
 					},
-					KubeReserved: v1.ResourceList{
-						v1.ResourceMemory: resource.MustParse("10Gi"),
+					KubeReserved: map[string]string{
+						string(v1.ResourceMemory): "10Gi",
 					},
 					EvictionSoft: map[string]string{
 						instancetype.MemoryAvailable: "3Gi",
@@ -1048,11 +1048,11 @@ var _ = Describe("InstanceTypes", func() {
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead as a value", func() {
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-					SystemReserved: v1.ResourceList{
-						v1.ResourceMemory: resource.MustParse("20Gi"),
+					SystemReserved: map[string]string{
+						string(v1.ResourceMemory): "20Gi",
 					},
-					KubeReserved: v1.ResourceList{
-						v1.ResourceMemory: resource.MustParse("10Gi"),
+					KubeReserved: map[string]string{
+						string(v1.ResourceMemory): "10Gi",
 					},
 					EvictionSoft: map[string]string{
 						instancetype.MemoryAvailable: "2%",
@@ -1066,11 +1066,11 @@ var _ = Describe("InstanceTypes", func() {
 			})
 			It("should take the greater of evictionHard and evictionSoft for overhead with mixed percentage/value", func() {
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-					SystemReserved: v1.ResourceList{
-						v1.ResourceMemory: resource.MustParse("20Gi"),
+					SystemReserved: map[string]string{
+						string(v1.ResourceMemory): "20Gi",
 					},
-					KubeReserved: v1.ResourceList{
-						v1.ResourceMemory: resource.MustParse("10Gi"),
+					KubeReserved: map[string]string{
+						string(v1.ResourceMemory): "10Gi",
 					},
 					EvictionSoft: map[string]string{
 						instancetype.MemoryAvailable: "10%",
