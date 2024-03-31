@@ -37,6 +37,10 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `0.37.0`+
+
+* Karpenter updated the NodeClass controller naming in the following way: `nodeclass` -> `nodeclass.status`, `nodeclass.hash`, `nodeclass.termination`
+
 ### Upgrading to `0.36.0`+
 
 {{% alert title="Warning" color="warning" %}}
