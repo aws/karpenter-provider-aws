@@ -1,0 +1,51 @@
+name: ImageCanary
+on:
+  schedule:
+  - cron: '0 */1 * * *'
+jobs:
+  ImageCanary:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+    steps:
+    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+    - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+      id: setup-go
+      with:
+        go-version-file: hack/github/get-releases/go.mod
+        check-latest: true
+        cache-dependency-path: "hack/github/get-releases/go.sum"
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@e3dd6a429d7300a6a4c196c26e071d42e0343502 # v4.0.2
+      with:
+        role-to-assume: arn:aws:iam::${{ vars.READONLY_ACCOUNT_ID }}:role/${{ vars.READONLY_ROLE_NAME }}
+        aws-region: ${{ vars.READONLY_REGION }}
+        role-duration-seconds: 900
+    - uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
+      with:
+        registry: ${{ vars.READONLY_ACCOUNT_ID }}.dkr.ecr.${{ vars.READONLY_REGION }}.amazonaws.com
+        logout: true
+    - name: Pull artifacts
+      working-directory: "hack/github/get-releases"
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: |
+        readarray tags < <(go run main.go --latest 4 | yq '.[].ecrTag')
+        for tag in "${tags[@]}"; do
+          for artifact in "karpenter" "karpenter-crd"; do
+            if ! helm pull "oci://public.ecr.aws/karpenter/${artifact}" --version "${tag}"; then
+              printf "failed to pull OCI artifact (artifact: %s, tag: %s)\n" "${image}" "${tag}"
+              exit 1
+            fi
+          done
+          if ! docker pull "public.ecr.aws/karpenter/controller:${tag}"; then
+              printf "failed to pull controller image (tag: %s)\n" "${tag}"
+              exit 1
+          fi
+        done
+    - name: Notify slack of failure
+      if: failure() && github.event_name != 'workflow_run'
+      uses: ./.github/actions/e2e/slack/send-message
+      with:
+        message: ":alert: image canary failure (https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) @channel"
+        url: ${{ secrets.SLACK_WEBHOOK_URL }}
