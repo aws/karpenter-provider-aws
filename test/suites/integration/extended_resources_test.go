@@ -38,6 +38,11 @@ import (
 )
 
 var _ = Describe("Extended Resources", func() {
+	BeforeEach(func() {
+		if env.PrivateCluster {
+			Skip("skipping Extended Resources test for private cluster")
+		}
+	})
 	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
 		ExpectNvidiaDevicePluginCreated()
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
