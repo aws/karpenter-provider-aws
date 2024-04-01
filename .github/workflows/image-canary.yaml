@@ -1,0 +1,23 @@
+name: ImageCanary
+on:
+  workflow_dispatch: {}
+  schedule:
+  - cron: '0 */1 * * *'
+jobs:
+  ImageCanary:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+    - name: Pull image
+      run: |
+        latestTag="$(curl -s "https://api.github.com/repos/${GITHUB_REPOSITORY}/releases/latest" | yq '.tag_name' | tr -d v)"
+        if ! helm pull oci://public.ecr.aws/karpenter/karpenter --version "${latestTag}"; then
+          printf "failed to pull latest image: %s\n" "${latestTag}"
+          exit 1
+        fi
+    - name: Notify slack of failure
+      if: failure() && github.event_name != 'workflow_run'
+      uses: ./.github/actions/e2e/slack/send-message
+      with:
+        message: ":alert: image canary failure (https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) @channel"
+        url: ${{ secrets.SLACK_WEBHOOK_URL }}
