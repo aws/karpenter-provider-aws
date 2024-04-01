@@ -10,6 +10,9 @@ inputs:
   region:
     description: "Region to access AWS"
     required: true
+  prometheus_region:
+    description: "Prometheus region"
+    required: true
   cluster_name:
     description: 'Name of the cluster to be launched by eksctl'
     required: true
@@ -18,6 +21,9 @@ inputs:
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+  private_cluster:
+    description: "Whether the cluster is private or not. Valid values are 'true' or 'false'"
+    default: 'false'
 runs:
   using: "composite"
   steps:
@@ -39,27 +45,11 @@ runs:
     - name: install prometheus
       shell: bash
       env:
+        PROMETHEUS_REGION: ${{ inputs.prometheus_region }}
         REGION: ${{ inputs.region }}
         WORKSPACE_ID: ${{ inputs.workspace_id }}
         ACCOUNT_ID: ${{ inputs.account_id }}
         CLUSTER_NAME: ${{ inputs.cluster_name }}
+        PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
       run: |
-        # Remove service account annotation when dropping support for 1.23
-        helm upgrade --install prometheus prometheus-community/kube-prometheus-stack \
-          -n prometheus \
-          -f ./.github/actions/e2e/install-prometheus/values.yaml \
-          --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.$REGION.amazonaws.com/workspaces/$WORKSPACE_ID/api/v1/remote_write \
-          --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=$REGION \
-          --set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$ACCOUNT_ID:role/prometheus-irsa-$CLUSTER_NAME" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[0].targetLabel=metrics_path" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[0].action=replace" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[0].sourceLabels[0]=__metrics_path__" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[1].targetLabel=clusterName" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[1].replacement=$CLUSTER_NAME" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[2].targetLabel=gitRef" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[2].replacement=$(git rev-parse HEAD)" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[3].targetLabel=mostRecentTag" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[3].replacement=$(git describe --abbrev=0 --tags)" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[4].targetLabel=commitsAfterTag" \
-          --set "kubelet.serviceMonitor.cAdvisorRelabelings[4].replacement=\"$(git describe --tags | cut -d '-' -f 2)\"" \
-          --wait
+        ./test/hack/e2e_scripts/install_prometheus.sh
