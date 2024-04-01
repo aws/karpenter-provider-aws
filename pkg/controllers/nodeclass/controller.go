@@ -93,28 +93,28 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 	})
 
-	err := multierr.Combine(
+	errs := multierr.Combine(
 		c.resolveSubnets(ctx, nodeClass),
 		c.resolveSecurityGroups(ctx, nodeClass),
 		c.resolveAMIs(ctx, nodeClass),
 		c.resolveInstanceProfile(ctx, nodeClass),
 	)
 	if lo.FromPtr(nodeClass.Spec.AMIFamily) == v1beta1.AMIFamilyAL2023 {
-		if cidrErr := c.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
-			err = multierr.Append(err, fmt.Errorf("resolving cluster CIDR, %w", cidrErr))
+		if err := c.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("resolving cluster CIDR, %w", err))
 		}
 	}
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
-		if patchErr := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
-			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
+		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
+			errs = multierr.Append(errs, client.IgnoreNotFound(err))
 		}
-		if patchErr := c.kubeClient.Status().Patch(ctx, statusCopy, client.MergeFrom(stored)); err != nil {
-			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
+		if err := c.kubeClient.Status().Patch(ctx, statusCopy, client.MergeFrom(stored)); err != nil {
+			errs = multierr.Append(errs, client.IgnoreNotFound(err))
 		}
 	}
-	if err != nil {
-		return reconcile.Result{}, err
+	if errs != nil {
+		return reconcile.Result{}, errs
 	}
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
