@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-03-11T13:05:10Z for us-east-1
+// generated at 2024-04-01T13:05:06Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -90,7 +90,8 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"c7gd.xlarge": 0.181400,
 		// c7gn family
 		"c7gn.12xlarge": 2.995200, "c7gn.16xlarge": 3.993600, "c7gn.2xlarge": 0.499200, "c7gn.4xlarge": 0.998400,
-		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.xlarge": 0.249600,
+		"c7gn.8xlarge": 1.996800, "c7gn.large": 0.124800, "c7gn.medium": 0.062400, "c7gn.metal": 3.993600,
+		"c7gn.xlarge": 0.249600,
 		// c7i family
 		"c7i.12xlarge": 2.142000, "c7i.16xlarge": 2.856000, "c7i.24xlarge": 4.284000, "c7i.2xlarge": 0.357000,
 		"c7i.48xlarge": 8.568000, "c7i.4xlarge": 0.714000, "c7i.8xlarge": 1.428000, "c7i.large": 0.089250,
