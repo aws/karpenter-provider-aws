@@ -340,7 +340,9 @@ func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
 
 func systemReservedResources(kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
 	if kc != nil && kc.SystemReserved != nil {
-		return kc.SystemReserved
+		return lo.MapEntries(kc.SystemReserved, func(k string, v string) (v1.ResourceName, resource.Quantity) {
+			return v1.ResourceName(k), resource.MustParse(v)
+		})
 	}
 	return v1.ResourceList{}
 }
@@ -376,7 +378,10 @@ func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFam
 		}
 	}
 	if kc != nil && kc.KubeReserved != nil {
-		return lo.Assign(resources, kc.KubeReserved)
+		kubeReserved := lo.MapEntries(kc.KubeReserved, func(k string, v string) (v1.ResourceName, resource.Quantity) {
+			return v1.ResourceName(k), resource.MustParse(v)
+		})
+		return lo.Assign(resources, kubeReserved)
 	}
 	return resources
 }

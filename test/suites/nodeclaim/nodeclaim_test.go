@@ -119,15 +119,15 @@ var _ = Describe("StandaloneNodeClaim", func() {
 				Kubelet: &corev1beta1.KubeletConfiguration{
 					MaxPods:     lo.ToPtr[int32](110),
 					PodsPerCore: lo.ToPtr[int32](10),
-					SystemReserved: v1.ResourceList{
-						v1.ResourceCPU:              resource.MustParse("200m"),
-						v1.ResourceMemory:           resource.MustParse("200Mi"),
-						v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+					SystemReserved: map[string]string{
+						string(v1.ResourceCPU):              "200m",
+						string(v1.ResourceMemory):           "200Mi",
+						string(v1.ResourceEphemeralStorage): "1Gi",
 					},
-					KubeReserved: v1.ResourceList{
-						v1.ResourceCPU:              resource.MustParse("200m"),
-						v1.ResourceMemory:           resource.MustParse("200Mi"),
-						v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+					KubeReserved: map[string]string{
+						string(v1.ResourceCPU):              "200m",
+						string(v1.ResourceMemory):           "200Mi",
+						string(v1.ResourceEphemeralStorage): "1Gi",
 					},
 					EvictionHard: map[string]string{
 						"memory.available":   "5%",

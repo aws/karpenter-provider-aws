@@ -28,7 +28,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.17.2
-	sigs.k8s.io/karpenter v0.35.1-0.20240329173516-3d51e28cb05f
+	sigs.k8s.io/karpenter v0.35.1-0.20240401162338-a1c2c16bd5d9
 	sigs.k8s.io/yaml v1.4.0
 )
 
