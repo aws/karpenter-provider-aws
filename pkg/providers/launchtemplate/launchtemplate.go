@@ -147,15 +147,7 @@ func (p *Provider) Invalidate(ctx context.Context, ltName string, ltID string) {
 }
 
 func launchTemplateName(options *amifamily.LaunchTemplate) string {
-	// TODO: jmdeal@ remove custom hash struct once KubeletConfiguration hashing is fixed, only hash Options
-	hashStruct := struct {
-		Options               *amifamily.LaunchTemplate
-		ReservedResourcesHash string
-	}{
-		Options:               options,
-		ReservedResourcesHash: options.UserData.HashReservedResources(),
-	}
-	hash, err := hashstructure.Hash(hashStruct, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
 	}

@@ -12,6 +12,8 @@ inputs:
     required: true
   git_ref:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
+  workflow_trigger:
+    description: "Workflow trigger for this run"
 runs:
   using: "composite"
   steps:
@@ -22,8 +24,12 @@ runs:
       shell: bash
       env:
         SUITE: ${{ inputs.suite }}
+        WORKFLOW: ${{ inputs.workflow_trigger }}
       run: |
-        if [[ ${{ github.event_name }} == "schedule" && inputs.suite != "soak" ]]; then
+        if [[ "$WORKFLOW" == 'private_cluster' || "$WORKFLOW" == 'soak' ]]; then
+          SUITE="$WORKFLOW"
+        fi
+        if [[ ${{ github.event_name }} == "schedule" && "$WORKFLOW" != "soak" ]]; then
           RUN_NAME="$SUITE-periodic"
         elif [[ ${{ github.event_name }} == "schedule" ]]; then
           RUN_NAME="soak-periodic"

@@ -46,15 +46,15 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods:     ptr.Int32(110),
 				PodsPerCore: ptr.Int32(10),
-				SystemReserved: v1.ResourceList{
-					v1.ResourceCPU:              resource.MustParse("200m"),
-					v1.ResourceMemory:           resource.MustParse("200Mi"),
-					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+				SystemReserved: map[string]string{
+					string(v1.ResourceCPU):              "200m",
+					string(v1.ResourceMemory):           "200Mi",
+					string(v1.ResourceEphemeralStorage): "1Gi",
 				},
-				KubeReserved: v1.ResourceList{
-					v1.ResourceCPU:              resource.MustParse("200m"),
-					v1.ResourceMemory:           resource.MustParse("200Mi"),
-					v1.ResourceEphemeralStorage: resource.MustParse("1Gi"),
+				KubeReserved: map[string]string{
+					string(v1.ResourceCPU):              "200m",
+					string(v1.ResourceMemory):           "200Mi",
+					string(v1.ResourceEphemeralStorage): "1Gi",
 				},
 				EvictionHard: map[string]string{
 					"memory.available":   "5%",

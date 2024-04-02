@@ -24,8 +24,6 @@ import (
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
-
 	"github.com/aws/aws-sdk-go/aws"
 )
 
@@ -60,10 +58,10 @@ func (b Bottlerocket) Script() (string, error) {
 			s.Settings.Kubernetes.ClusterDNSIP = &b.KubeletConfig.ClusterDNS[0]
 		}
 		if b.KubeletConfig.SystemReserved != nil {
-			s.Settings.Kubernetes.SystemReserved = resources.StringMap(b.KubeletConfig.SystemReserved)
+			s.Settings.Kubernetes.SystemReserved = b.KubeletConfig.SystemReserved
 		}
 		if b.KubeletConfig.KubeReserved != nil {
-			s.Settings.Kubernetes.KubeReserved = resources.StringMap(b.KubeletConfig.KubeReserved)
+			s.Settings.Kubernetes.KubeReserved = b.KubeletConfig.KubeReserved
 		}
 		if b.KubeletConfig.EvictionHard != nil {
 			s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard

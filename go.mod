@@ -5,7 +5,7 @@ go 1.22
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.9.1
-	github.com/aws/aws-sdk-go v1.51.6
+	github.com/aws/aws-sdk-go v1.51.12
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/go-logr/zapr v1.3.0
@@ -28,7 +28,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.17.2
-	sigs.k8s.io/karpenter v0.35.1-0.20240327174853-c8eda9b5ffc3
+	sigs.k8s.io/karpenter v0.35.1-0.20240401162338-a1c2c16bd5d9
 	sigs.k8s.io/yaml v1.4.0
 )
 

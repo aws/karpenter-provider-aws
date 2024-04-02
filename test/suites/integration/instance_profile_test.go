@@ -30,6 +30,11 @@ import (
 )
 
 var _ = Describe("InstanceProfile Generation", func() {
+	BeforeEach(func() {
+		if env.PrivateCluster {
+			Skip("skipping InstanceProfile Generation test for private cluster")
+		}
+	})
 	It("should generate the InstanceProfile when setting the role", func() {
 		pod := coretest.Pod()
 		env.ExpectCreated(nodePool, nodeClass, pod)

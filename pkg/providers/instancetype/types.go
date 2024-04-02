@@ -50,19 +50,19 @@ var (
 )
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string,
-	blockDeviceMapping []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
-	kubeReserved v1.ResourceList, systemReserved v1.ResourceList, evictionHard map[string]string, evictionSoft map[string]string,
+	blockDeviceMappings []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
+	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
 	amiFamily amifamily.AMIFamily, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
 	it := &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
 		Requirements: computeRequirements(info, offerings, region, amiFamily),
 		Offerings:    offerings,
-		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMapping, instanceStorePolicy, maxPods, podsPerCore),
+		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
 			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
 			SystemReserved:    systemReservedResources(systemReserved),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)))) == nil {
@@ -340,14 +340,13 @@ func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(capacity))
 }
 
-func systemReservedResources(systemReserved v1.ResourceList) v1.ResourceList {
-	if systemReserved != nil {
-		return systemReserved
-	}
-	return v1.ResourceList{}
+func systemReservedResources(systemReserved map[string]string) v1.ResourceList {
+	return lo.MapEntries(systemReserved, func(k string, v string) (v1.ResourceName, resource.Quantity) {
+		return v1.ResourceName(k), resource.MustParse(v)
+	})
 }
 
-func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kubeReserved v1.ResourceList) v1.ResourceList {
+func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kubeReserved map[string]string) v1.ResourceList {
 	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
 		pods = eniLimitedPods
 	}
@@ -377,10 +376,9 @@ func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFam
 			resources[v1.ResourceCPU] = *cpuOverhead
 		}
 	}
-	if kubeReserved != nil {
-		return lo.Assign(resources, kubeReserved)
-	}
-	return resources
+	return lo.Assign(resources, lo.MapEntries(kubeReserved, func(k string, v string) (v1.ResourceName, resource.Quantity) {
+		return v1.ResourceName(k), resource.MustParse(v)
+	}))
 }
 
 func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, evictionHard map[string]string, evictionSoft map[string]string) v1.ResourceList {

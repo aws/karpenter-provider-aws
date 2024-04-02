@@ -1,0 +1,159 @@
+name: RunTestsPrivateCluster
+description: 'Installs Karpenter, Prometheus, runs tests on private cluster and performs clean up'
+inputs:
+  account_id:
+    description: "Account ID to access AWS"
+    required: true
+  suite:
+    type: string
+    required: true
+  ecr_account_id:
+    description: "Account ID to access ECR Repository"
+    required: true
+  prometheus_workspace_id:
+    description: "Workspace ID for the Prometheus workspace"
+    required: true
+  metrics_region:
+    description: "Metrics region"
+    required: true
+  node_role:
+    description: "Private cluster node role"
+    required: true
+  region:
+    description: "Region to access AWS"
+    required: true
+  ecr_region:
+    description: "Region to access ECR Repository"
+    required: true
+  prometheus_region:
+    description: Region to access Prometheus
+    required: true
+  cluster_name:
+    description: 'Name of the cluster to be launched by eksctl'
+    required: true
+  k8s_version:
+    description: 'Version of Kubernetes to use for the launched cluster'
+    default: "1.29"
+  private_cluster:
+    description: "Whether to create a private cluster which does not add access to the public internet. Valid values are 'true' or 'false'"
+    default: 'false'
+  enable_metrics:
+    description: "Whether to enable metrics for the cluster"
+    default: 'false'
+  codebuild_sg:
+    description: "Codebuild security group to run private cluster tests"
+    required: true
+  codebuild_vpc:
+    description: "Codebuild VPC to run private cluster tests"
+    required: true
+  cleanup:
+    description: "Whether to cleanup resources on failure"
+    default: 'false'
+runs:
+  using: "composite"
+  steps:
+  - name: login to ecr via docker
+    uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
+    with:
+      registry: ${{ inputs.account_id }}.dkr.ecr.${{ inputs.region }}.amazonaws.com
+      logout: true
+  - name: configure private cluster
+    if: ${{ inputs.private_cluster }}
+    shell: bash
+    env:
+      REGION: ${{ inputs.region }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      REPOSITORY: ${{ github.repository }}
+      RUN_ID: ${{ github.run_id }}
+      CODEBUILD_SG: ${{ inputs.codebuild_sg }}
+      CODEBUILD_VPC: ${{ inputs.codebuild_vpc }}
+    run: |
+      ./test/hack/e2e_scripts/configure_private_cluster.sh
+  - name: run private cluster tests on codebuild
+    env:
+      SUITE: ${{ inputs.suite }}
+      CLUSTER_NAME: ${{ inputs.cluster_name }}
+      INTERRUPTION_QUEUE: ${{ inputs.cluster_name }}
+      REGION: ${{ inputs.region }}
+      HELM_VERSION: v3.12.3 # Pinned to this version since v3.13.0 has issues with anonymous pulls: https://github.com/helm/helm/issues/12423
+      PROMETHEUS_REGION: ${{ inputs.prometheus_region }}
+      WORKSPACE_ID: ${{ inputs.prometheus_workspace_id }}
+      ACCOUNT_ID: ${{ inputs.account_id }}
+      K8S_VERSION: ${{ inputs.k8s_version }}
+      ECR_ACCOUNT_ID: ${{ inputs.ecr_account_id }}
+      ECR_REGION: ${{ inputs.ecr_region }}
+      PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
+      ENABLE_METRICS: ${{ inputs.enable_metrics }}
+      METRICS_REGION: ${{ inputs.metrics_region }}
+      VPC_PEERING_CONNECTION_ID: ${{ env.VPC_PEERING_CONNECTION_ID }}
+      NODE_ROLE: ${{ env.NODE_ROLE }}
+      SG_CB: ${{ inputs.codebuild_sg }}
+      VPC_CB: ${{ inputs.codebuild_vpc }}
+      CLUSTER_VPC_ID: ${{ env.CLUSTER_VPC_ID }}
+      EKS_CLUSTER_SG: ${{ env.EKS_CLUSTER_SG }}
+      CLEANUP: ${{ inputs.cleanup }}
+    uses: aws-actions/aws-codebuild-run-build@b0a7ca5730725c01b45af8866100667e32e0a9b1 #v1.0.15
+    with:
+      project-name: E2EPrivateClusterCodeBuildProject-us-east-1
+      buildspec-override: |
+        version: 0.2
+        phases:
+          install:
+            commands:
+              # Make sure goenv is up to date
+              - cd $HOME/.goenv && git pull --ff-only && cd -
+              # Install Go 1.22
+              - goenv install 1.22 && goenv global 1.22
+          build:
+            commands:
+              - aws eks update-kubeconfig --name $CLUSTER_NAME
+              - ./test/hack/e2e_scripts/noderole_bootstrap_permission.sh
+              - ./test/hack/e2e_scripts/install_helm.sh
+              - helm plugin install https://github.com/databus23/helm-diff || true
+              - aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com
+              - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+              - helm pull prometheus-community/kube-prometheus-stack
+              - kubectl create ns prometheus || true
+              - kubectl label ns prometheus scrape=enabled --overwrite=true
+              - ./test/hack/e2e_scripts/install_prometheus.sh
+              - kubectl label ns kube-system scrape=enabled --overwrite=true
+              - kubectl label ns kube-system pod-security.kubernetes.io/warn=restricted --overwrite=true
+              - ./test/hack/e2e_scripts/install_karpenter.sh
+              - ./test/hack/e2e_scripts/diff_karpenter.sh
+              - kubectl delete nodepool --all
+              - kubectl delete ec2nodeclass --all
+              - kubectl delete deployment --all
+              - PRIVATE_CLUSTER=$CLUSTER_NAME TEST_SUITE=$SUITE ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=$METRICS_REGION GIT_REF="$(git rev-parse HEAD)" CLUSTER_NAME=$CLUSTER_NAME CLUSTER_ENDPOINT="$(aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.endpoint" --output text)" INTERRUPTION_QUEUE=$CLUSTER_NAME make e2etests
+          post_build:
+            commands:
+              # Describe karpenter pods
+              - kubectl describe pods -n kube-system -l app.kubernetes.io/name=karpenter
+              # Describe nodes
+              - kubectl describe nodes
+              - |
+                if [ "${CLEANUP}" = true ]; then
+                  ./test/hack/e2e_scripts/clean_private_cluster.sh
+                fi
+      env-vars-for-codebuild: |
+        SUITE,
+        CLUSTER_NAME,
+        INTERRUPTION_QUEUE,
+        REGION,
+        HELM_VERSION,
+        PROMETHEUS_REGION,
+        WORKSPACE_ID,
+        ACCOUNT_ID,
+        K8S_VERSION,
+        ECR_ACCOUNT_ID,
+        ECR_REGION,
+        PRIVATE_CLUSTER,
+        ENABLE_METRICS,
+        METRICS_REGION,
+        VPC_PEERING_CONNECTION_ID,
+        NODE_ROLE,
+        SG_CB,
+        VPC_CB,
+        CLUSTER_VPC_ID,
+        EKS_CLUSTER_SG,
+        CLEANUP
