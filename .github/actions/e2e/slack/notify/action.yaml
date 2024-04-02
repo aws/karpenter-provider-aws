@@ -26,9 +26,9 @@ runs:
         SUITE: ${{ inputs.suite }}
         WORKFLOW: ${{ inputs.workflow_trigger }}
       run: |
-        if [[ ${{ github.event_name }} == "schedule" && "$WORKFLOW" == 'private_cluster']]; then
+        if [[ ${{ github.event_name }} == "schedule" && "$WORKFLOW" == 'private_cluster' ]]; then
           RUN_NAME="privateCluster-periodic"
-        elif [[ ${{ github.event_name }} == "schedule" && "$WORKFLOW" == 'soak']]; then
+        elif [[ ${{ github.event_name }} == "schedule" && "$WORKFLOW" == 'soak' ]]; then
           RUN_NAME="soak-periodic"
         elif [[ ${{ github.event_name }} == "schedule" ]]; then
           RUN_NAME="$SUITE-periodic"
