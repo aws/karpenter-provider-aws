@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.32.0](https://img.shields.io/badge/Version-0.32.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.32.0](https://img.shields.io/badge/AppVersion-0.32.0-informational?style=flat-square)
+![Version: 0.32.9](https://img.shields.io/badge/Version-0.32.9-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.32.9](https://img.shields.io/badge/AppVersion-0.32.9-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version v0.32.0 \
+  --version v0.32.9 \
   --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN} \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.clusterEndpoint=${CLUSTER_ENDPOINT} \
@@ -35,9 +35,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:92f977a6a9d981155b5404f830a5e7fcf7fbd5ba0cadd0ac66a062de77c036b5"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:0c142050d872cb0ac7b30a188ec36aa765b449718cde0c7e49f7495b28f47c29"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"v0.32.0"` | Tag of the controller image. |
+| controller.image.tag | string | `"v0.32.9"` | Tag of the controller image. |
 | controller.metrics.port | int | `8000` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller pod. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
@@ -76,7 +76,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | serviceMonitor.endpointConfig | object | `{}` | Endpoint configuration for the ServiceMonitor. |
 | settings | object | `{"assumeRoleARN":"","assumeRoleDuration":"15m","aws":{},"batchIdleDuration":"1s","batchMaxDuration":"10s","clusterCABundle":"","clusterEndpoint":"","clusterName":"","featureGates":{"drift":false},"interruptionQueue":"","isolatedVPC":false,"reservedENIs":"0","vmMemoryOverheadPercent":0.075}` | Global Settings to configure Karpenter |
 | settings.assumeRoleARN | string | `""` | Role to assume for calling AWS services. |
-| settings.assumeRoleDuration | string | `"15m"` | Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless aws.assumeRoleARN set. |
+| settings.assumeRoleDuration | string | `"15m"` | Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless assumeRoleARN set. |
 | settings.aws | object | `{}` | AWS-specific settings (Deprecated: The AWS block inside of settings was flattened into settings) |
 | settings.batchIdleDuration | string | `"1s"` | The maximum amount of time with no new ending pods that if exceeded ends the current batching window. If pods arrive faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods will be batched separately. |
 | settings.batchMaxDuration | string | `"10s"` | The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one time which usually results in fewer but larger nodes. |

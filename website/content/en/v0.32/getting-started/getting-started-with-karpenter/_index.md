@@ -44,7 +44,7 @@ authenticate properly by running `aws sts get-caller-identity`.
 After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
-export KARPENTER_VERSION=v0.32.0
+export KARPENTER_VERSION=v0.32.9
 export K8S_VERSION={{< param "latest_k8s_version" >}}
 ```
 
