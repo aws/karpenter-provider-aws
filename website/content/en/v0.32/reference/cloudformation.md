@@ -337,7 +337,7 @@ This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${Cl
 {
   "Sid": "AllowPassingInstanceRole",
   "Effect": "Allow",
-  "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:role/KarpenterNodeRole-${ClusterName}",
+  "Resource": "${KarpenterNodeRole.Arn}",
   "Action": "iam:PassRole",
   "Condition": {
     "StringEquals": {
