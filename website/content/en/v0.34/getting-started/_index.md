@@ -21,6 +21,6 @@ Learn more about Karpenter and how to get started below.
 * [Karpenter EKS Best Practices](https://aws.github.io/aws-eks-best-practices/karpenter/) guide
 * [EC2 Spot Workshop for Karpenter](https://ec2spotworkshops.com/karpenter.html)
 * [EKS Karpenter Workshop](https://www.eksworkshop.com/docs/autoscaling/compute/karpenter/)
-* [Advanced EKS Immersion Karpenter Workshop](https://catalog.workshops.aws/eks-advanced/karpenter/)
+* [Advanced EKS Immersion Karpenter Workshop](https://catalog.us-east-1.prod.workshops.aws/workshops/76a5dd80-3249-4101-8726-9be3eeee09b2/en-US/autoscaling/karpenter)
 * [Karpenter Blueprints](https://github.com/aws-samples/karpenter-blueprints)
 * [Tutorial: Run Kubernetes Clusters for Less with Amazon EC2 Spot and Karpenter](https://community.aws/tutorials/run-kubernetes-clusters-for-less-with-amazon-ec2-spot-and-karpenter#step-6-optional-simulate-spot-interruption)
