@@ -45,7 +45,6 @@ import (
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator"
@@ -176,14 +175,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 	)
-
-	lo.Must0(operator.Manager.GetFieldIndexer().IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClassRef.name", func(o client.Object) []string {
-		nc := o.(*corev1beta1.NodeClaim)
-		if nc.Spec.NodeClassRef == nil {
-			return []string{}
-		}
-		return []string{nc.Spec.NodeClassRef.Name}
-	}), "failed to setup nodeclaim indexer")
 
 	return ctx, &Operator{
 		Operator:                  operator,
