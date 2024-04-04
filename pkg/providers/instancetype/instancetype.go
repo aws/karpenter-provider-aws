@@ -42,6 +42,8 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 )
 
 const (
@@ -104,6 +106,13 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 		return aws.StringValue(s.AvailabilityZone)
 	})...)
 
+	if kc == nil {
+		kc = &corev1beta1.KubeletConfiguration{}
+	}
+	if nodeClass == nil {
+		nodeClass = &v1beta1.EC2NodeClass{}
+	}
+
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
@@ -133,6 +142,7 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	if p.cm.HasChanged("zones", allZones) {
 		logging.FromContext(ctx).With("zones", allZones.UnsortedList()).Debugf("discovered zones")
 	}
+	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 	result := lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: *i.InstanceType,
@@ -141,7 +151,14 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 			instanceTypeLabel: *i.InstanceType,
 		}).Set(float64(aws.Int64Value(i.MemoryInfo.SizeInMiB) * 1024 * 1024))
 
-		return NewInstanceType(ctx, i, kc, p.region, nodeClass, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones))
+		// !!! Important !!!
+		// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
+		// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
+		// !!! Important !!!
+		return NewInstanceType(ctx, i, p.region,
+			nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy,
+			kc.MaxPods, kc.PodsPerCore, kc.KubeReserved, kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft,
+			amiFamily, p.createOfferings(ctx, i, instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones))
 	})
 	p.cache.SetDefault(key, result)
 	return result, nil

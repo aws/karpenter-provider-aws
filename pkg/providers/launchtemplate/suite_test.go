@@ -58,6 +58,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
@@ -135,6 +136,7 @@ var _ = Describe("LaunchTemplates", func() {
 								},
 							},
 						},
+						Kubelet: &corev1beta1.KubeletConfiguration{},
 						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
@@ -822,7 +824,22 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			it := instancetype.NewInstanceType(ctx,
+				info,
+				"",
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nodePool.Spec.Template.Spec.Kubelet.MaxPods,
+				nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
+				nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
+				nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
+				amiFamily,
+				nil,
+			)
+
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -860,7 +877,22 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			it := instancetype.NewInstanceType(ctx,
+				info,
+				"",
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nodePool.Spec.Template.Spec.Kubelet.MaxPods,
+				nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
+				nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
+				nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
+				amiFamily,
+				nil,
+			)
+
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -871,7 +903,21 @@ var _ = Describe("LaunchTemplates", func() {
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			it := instancetype.NewInstanceType(ctx,
+				info,
+				"",
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nodePool.Spec.Template.Spec.Kubelet.MaxPods,
+				nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
+				nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
+				nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
+				amiFamily,
+				nil,
+			)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1565Mi"))
 		})
