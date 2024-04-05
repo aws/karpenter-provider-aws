@@ -49,8 +49,8 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name) || has(x.owner)))"
 	// +kubebuilder:validation:MaxItems:=30
-	// +optional
-	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms,omitempty" hash:"ignore"`
+	// +required
+	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms" hash:"ignore"`
 	// AMIFamily is the AMI family that instances use.
 	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Ubuntu,Custom,Windows2019,Windows2022}
 	// +required

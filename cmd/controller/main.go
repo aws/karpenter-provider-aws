@@ -15,8 +15,12 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/samber/lo"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
@@ -42,6 +46,27 @@ func main() {
 	)
 	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
+
+	client := op.Manager.GetAPIReader()
+	if client == nil {
+		panic("panic: failed to initialize read-client on startup")
+	}
+	nodeClassList := v1beta1.EC2NodeClassList{}
+	err := client.List(ctx, &nodeClassList)
+	if err != nil {
+		panic(fmt.Sprintf("panic: failed to list ec2nodeclasses on startup, %s", err.Error()))
+	}
+
+	ec2ncNames := []string{}
+	for i := range nodeClassList.Items {
+		nc := nodeClassList.Items[i]
+		if nc.Spec.AMISelectorTerms == nil || len(nc.Spec.AMISelectorTerms) == 0 {
+			ec2ncNames = append(ec2ncNames, nc.Name)
+		}
+	}
+	if len(ec2ncNames) != 0 {
+		panic(fmt.Sprintf("panic: detected nodeclasses {%s} with un-set AMISelectorTerms. Upgrade your EC2NodeClass to include AMISelectorTerms to continue.", strings.Join(ec2ncNames, ",")))
+	}
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(

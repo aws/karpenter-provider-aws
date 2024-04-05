@@ -119,7 +119,7 @@ func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, e
 func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
 	var err error
 	var amis AMIs
-	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
+	if nodeClass.Spec.AMISelectorTerms == nil || len(nodeClass.Spec.AMISelectorTerms) == 0 {
 		amis, err = p.getDefaultAMIs(ctx, nodeClass, options)
 		if err != nil {
 			return nil, err

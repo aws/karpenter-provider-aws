@@ -441,6 +441,7 @@ spec:
                 type: string
             required:
             - amiFamily
+            - amiSelectorTerms
             - securityGroupSelectorTerms
             - subnetSelectorTerms
             type: object
