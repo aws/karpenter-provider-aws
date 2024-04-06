@@ -79,10 +79,10 @@ The following cluster configuration will:
 
 {{< tabpane text=true right=false >}}
   {{% tab header="**Create cluster command**:" disabled=true /%}}
-  {{% tab header="With NodeGroup" %}}
+  {{% tab header="Managed NodeGroups" %}}
   {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster.sh" language="bash"%}}
   {{% /tab %}}
-  {{% tab header="With Fargate" %}}
+  {{% tab header="Fargate" %}}
   {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster-fargate.sh" language="bash"%}}
   {{% /tab %}}
 {{< /tabpane >}}
@@ -98,10 +98,10 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 
 {{< tabpane text=true right=false >}}
   {{% tab header="**Karpenter installation command**:" disabled=true /%}}
-  {{% tab header="With NodeGroup" %}}
+  {{% tab header="Managed NodeGroups" %}}
   {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
   {{% /tab %}}
-  {{% tab header="With Fargate" %}}
+  {{% tab header="Fargate" %}}
   {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart-fargate.sh" language="bash"%}}
   {{% /tab %}}
 {{< /tabpane >}}
