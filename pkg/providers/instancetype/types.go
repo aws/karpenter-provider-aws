@@ -139,13 +139,20 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 	if family, ok := amiFamily.(*amifamily.Windows); ok {
 		requirements.Get(v1.LabelWindowsBuild).Insert(family.Build)
 	}
-	// Trn1 Accelerators
-	// TODO: remove function once DescribeInstanceTypes contains the accelerator data
-	// Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
-	if strings.HasPrefix(*info.InstanceType, "trn1") {
-		requirements.Get(v1beta1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
+	// AWS Neuron Accelerators
+	if info.NeuronInfo != nil && len(info.NeuronInfo.NeuronDevices) == 1 {
+		neuron := info.NeuronInfo.NeuronDevices[0]
+		requirements.Get(v1beta1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(neuron.Name)))
+		// Insert AWS since the neuron info does not have a manufacturer field
 		requirements.Get(v1beta1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
-		requirements.Get(v1beta1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(awsNeurons(info)))
+		requirements.Get(v1beta1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(neuron.Count)))
+	}
+	// Media Accelerators
+	if info.MediaAcceleratorInfo != nil && len(info.MediaAcceleratorInfo.Accelerators) == 1 {
+		accelerator := info.MediaAcceleratorInfo.Accelerators[0]
+		requirements.Get(v1beta1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(accelerator.Name)))
+		requirements.Get(v1beta1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
+		requirements.Get(v1beta1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
 	}
 	// CPU Manufacturer, valid options: aws, intel, amd
 	if info.ProcessorInfo != nil {
@@ -177,16 +184,17 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	nodeClass *v1beta1.EC2NodeClass, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
-		v1.ResourceCPU:              *cpu(info),
-		v1.ResourceMemory:           *memory(ctx, info),
-		v1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, nodeClass),
-		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
-		v1beta1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
-		v1beta1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
-		v1beta1.ResourceAMDGPU:      *amdGPUs(info),
-		v1beta1.ResourceAWSNeuron:   *awsNeurons(info),
-		v1beta1.ResourceHabanaGaudi: *habanaGaudis(info),
-		v1beta1.ResourceEFA:         *efas(info),
+		v1.ResourceCPU:                    *cpu(info),
+		v1.ResourceMemory:                 *memory(ctx, info),
+		v1.ResourceEphemeralStorage:       *ephemeralStorage(info, amiFamily, nodeClass),
+		v1.ResourcePods:                   *pods(ctx, info, amiFamily, kc),
+		v1beta1.ResourceAWSPodENI:         *awsPodENI(aws.StringValue(info.InstanceType)),
+		v1beta1.ResourceNVIDIAGPU:         *nvidiaGPUs(info),
+		v1beta1.ResourceAMDGPU:            *amdGPUs(info),
+		v1beta1.ResourceAWSNeuron:         *awsNeurons(info),
+		v1beta1.ResourceXilinxAccelerator: *mediaAccelerators(info),
+		v1beta1.ResourceHabanaGaudi:       *habanaGaudis(info),
+		v1beta1.ResourceEFA:               *efas(info),
 	}
 	return resourceList
 }
@@ -278,18 +286,20 @@ func amdGPUs(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(count))
 }
 
-// TODO: remove trn1 hardcode values once DescribeInstanceTypes contains the accelerator data
-// Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
 func awsNeurons(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	count := int64(0)
-	if *info.InstanceType == "trn1.2xlarge" {
-		count = int64(1)
-	} else if *info.InstanceType == "trn1.32xlarge" {
-		count = int64(16)
-	} else if *info.InstanceType == "trn1n.32xlarge" {
-		count = int64(16)
-	} else if info.InferenceAcceleratorInfo != nil {
+	if info.InferenceAcceleratorInfo != nil {
 		for _, accelerator := range info.InferenceAcceleratorInfo.Accelerators {
+			count += *accelerator.Count
+		}
+	}
+	return resources.Quantity(fmt.Sprint(count))
+}
+
+func mediaAccelerators(info *ec2.InstanceTypeInfo) *resource.Quantity {
+	count := int64(0)
+	if info.MediaAcceleratorInfo != nil {
+		for _, accelerator := range info.MediaAcceleratorInfo.Accelerators {
 			count += *accelerator.Count
 		}
 	}

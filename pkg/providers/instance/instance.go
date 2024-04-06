@@ -450,7 +450,8 @@ func filterExoticInstanceTypes(instanceTypes []*cloudprovider.InstanceType) []*c
 		if !resources.IsZero(it.Capacity[v1beta1.ResourceAWSNeuron]) ||
 			!resources.IsZero(it.Capacity[v1beta1.ResourceAMDGPU]) ||
 			!resources.IsZero(it.Capacity[v1beta1.ResourceNVIDIAGPU]) ||
-			!resources.IsZero(it.Capacity[v1beta1.ResourceHabanaGaudi]) {
+			!resources.IsZero(it.Capacity[v1beta1.ResourceHabanaGaudi]) ||
+			!resources.IsZero(it.Capacity[v1beta1.ResourceXilinxAccelerator]) {
 			continue
 		}
 		genericInstanceTypes = append(genericInstanceTypes, it)

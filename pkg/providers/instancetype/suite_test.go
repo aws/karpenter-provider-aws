@@ -670,6 +670,34 @@ var _ = Describe("InstanceTypes", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
+	It("should launch vt1 instances for Xilinx resource requests", func() {
+		nodeNames := sets.NewString()
+		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
+			{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceTypeStable,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"vt1.6xlarge"},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pods := []*v1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1beta1.ResourceXilinxAccelerator: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1beta1.ResourceXilinxAccelerator: resource.MustParse("1")},
+				},
+			}),
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		for _, pod := range pods {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "trn1.2xlarge"))
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(1))
+	})
 	It("should launch instances for vpc.amazonaws.com/efa resource requests", func() {
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
