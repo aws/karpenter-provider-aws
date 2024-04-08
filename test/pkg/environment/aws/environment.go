@@ -76,7 +76,7 @@ type Environment struct {
 	EKSAPI        *eks.EKS
 	TimeStreamAPI timestreamwriteiface.TimestreamWriteAPI
 
-	SQSProvider *sqs.Provider
+	SQSProvider sqs.Provider
 
 	ClusterName       string
 	ClusterEndpoint   string

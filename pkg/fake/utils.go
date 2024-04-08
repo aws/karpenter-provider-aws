@@ -166,7 +166,7 @@ func MakeInstances() []*ec2.InstanceTypeInfo {
 	ctx := options.ToContext(context.Background(), &options.Options{IsolatedVPC: true})
 	// Use keys from the static pricing data so that we guarantee pricing for the data
 	// Create uniform instance data so all of them schedule for a given pod
-	for _, it := range pricing.NewProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
+	for _, it := range pricing.NewDefaultProvider(ctx, nil, nil, "us-east-1").InstanceTypes() {
 		instanceTypes = append(instanceTypes, &ec2.InstanceTypeInfo{
 			InstanceType: aws.String(it),
 			ProcessorInfo: &ec2.ProcessorInfo{

@@ -43,7 +43,7 @@ var DefaultEBS = v1beta1.BlockDevice{
 
 // Resolver is able to fill-in dynamic launch template parameters
 type Resolver struct {
-	amiProvider *Provider
+	amiProvider Provider
 }
 
 // Options define the static launch template parameters
@@ -111,8 +111,8 @@ func (d DefaultFamily) FeatureFlags() FeatureFlags {
 	}
 }
 
-// New constructs a new launch template Resolver
-func New(amiProvider *Provider) *Resolver {
+// NewResolver constructs a new launch template Resolver
+func NewResolver(amiProvider Provider) *Resolver {
 	return &Resolver{
 		amiProvider: amiProvider,
 	}

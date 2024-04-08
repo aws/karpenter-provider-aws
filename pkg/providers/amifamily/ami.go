@@ -40,12 +40,16 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
-type Provider struct {
+type Provider interface {
+	Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error)
+}
+
+type DefaultProvider struct {
 	cache           *cache.Cache
 	ssm             ssmiface.SSMAPI
 	ec2api          ec2iface.EC2API
 	cm              *pretty.ChangeMonitor
-	versionProvider *version.Provider
+	versionProvider version.Provider
 }
 
 type AMI struct {
@@ -101,8 +105,8 @@ func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) ma
 	return amiIDs
 }
 
-func NewProvider(versionProvider *version.Provider, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
-	return &Provider{
+func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+	return &DefaultProvider{
 		cache:           cache,
 		ssm:             ssm,
 		ec2api:          ec2api,
@@ -112,7 +116,7 @@ func NewProvider(versionProvider *version.Provider, ssm ssmiface.SSMAPI, ec2api 
 }
 
 // Get Returning a list of AMIs with its associated requirements
-func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
+func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
 	var err error
 	var amis AMIs
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
@@ -133,7 +137,7 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, opt
 	return amis, nil
 }
 
-func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {
+func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {
 	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
 		return images.(AMIs), nil
 	}
@@ -171,7 +175,7 @@ func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2Nod
 	return res, nil
 }
 
-func (p *Provider) resolveSSMParameter(ctx context.Context, ssmQuery string) (string, error) {
+func (p *DefaultProvider) resolveSSMParameter(ctx context.Context, ssmQuery string) (string, error) {
 	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
 	if err != nil {
 		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
@@ -180,7 +184,7 @@ func (p *Provider) resolveSSMParameter(ctx context.Context, ssmQuery string) (st
 	return ami, nil
 }
 
-func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm) (AMIs, error) {
+func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm) (AMIs, error) {
 	filterAndOwnerSets := GetFilterAndOwnerSets(terms)
 	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
@@ -279,7 +283,7 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 	return res
 }
 
-func (p *Provider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
+func (p *DefaultProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduling.Requirements {
 	requirements := scheduling.NewRequirements()
 	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
 	architecture := *ec2Image.Architecture

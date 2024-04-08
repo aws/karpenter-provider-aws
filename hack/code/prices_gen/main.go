@@ -108,7 +108,7 @@ func main() {
 	// record prices for each region we are interested in
 	for _, region := range getAWSRegions(opts.partition) {
 		log.Println("fetching for", region)
-		pricingProvider := pricing.NewProvider(ctx, pricing.NewAPI(sess, region), ec2, region)
+		pricingProvider := pricing.NewDefaultProvider(ctx, pricing.NewAPI(sess, region), ec2, region)
 		controller := controllerspricing.NewController(pricingProvider)
 		_, err := controller.Reconcile(ctx, reconcile.Request{NamespacedName: types.NamespacedName{}})
 		if err != nil {

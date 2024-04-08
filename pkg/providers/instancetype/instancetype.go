@@ -51,11 +51,17 @@ const (
 	InstanceTypeOfferingsCacheKey = "offerings"
 )
 
-type Provider struct {
+type Provider interface {
+	LivenessProbe(*http.Request) error
+
+	List(context.Context, *corev1beta1.KubeletConfiguration, *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error)
+}
+
+type DefaultProvider struct {
 	region          string
 	ec2api          ec2iface.EC2API
-	subnetProvider  *subnet.Provider
-	pricingProvider *pricing.Provider
+	subnetProvider  subnet.Provider
+	pricingProvider pricing.Provider
 	// Has one cache entry for all the instance types (key: InstanceTypesCacheKey)
 	// Has one cache entry for all the zones for each subnet selector (key: InstanceTypesZonesCacheKeyPrefix:<hash_of_selector>)
 	// Values cached *before* considering insufficient capacity errors from the unavailableOfferings cache.
@@ -73,9 +79,9 @@ type Provider struct {
 	instanceTypeOfferingsSeqNum uint64
 }
 
-func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider *subnet.Provider,
-	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider *pricing.Provider) *Provider {
-	return &Provider{
+func NewDefaultProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider,
+	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider) *DefaultProvider {
+	return &DefaultProvider{
 		ec2api:               ec2api,
 		region:               region,
 		subnetProvider:       subnetProvider,
@@ -87,7 +93,7 @@ func NewProvider(region string, cache *cache.Cache, ec2api ec2iface.EC2API, subn
 	}
 }
 
-func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguration, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
+func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguration, nodeClass *v1beta1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	// Get InstanceTypes from EC2
 	instanceTypes, err := p.GetInstanceTypes(ctx)
 	if err != nil {
@@ -164,14 +170,14 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	return result, nil
 }
 
-func (p *Provider) LivenessProbe(req *http.Request) error {
+func (p *DefaultProvider) LivenessProbe(req *http.Request) error {
 	if err := p.subnetProvider.LivenessProbe(req); err != nil {
 		return err
 	}
 	return p.pricingProvider.LivenessProbe(req)
 }
 
-func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, instanceTypeZones, zones, subnetZones sets.Set[string]) []cloudprovider.Offering {
+func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, instanceTypeZones, zones, subnetZones sets.Set[string]) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
@@ -214,7 +220,7 @@ func (p *Provider) createOfferings(ctx context.Context, instanceType *ec2.Instan
 	return offerings
 }
 
-func (p *Provider) getInstanceTypeOfferings(ctx context.Context) (map[string]sets.Set[string], error) {
+func (p *DefaultProvider) getInstanceTypeOfferings(ctx context.Context) (map[string]sets.Set[string], error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to getInstanceTypeOfferings do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call.
@@ -250,7 +256,7 @@ func (p *Provider) getInstanceTypeOfferings(ctx context.Context) (map[string]set
 }
 
 // GetInstanceTypes retrieves all instance types from the ec2 DescribeInstanceTypes API using some opinionated filters
-func (p *Provider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
+func (p *DefaultProvider) GetInstanceTypes(ctx context.Context) ([]*ec2.InstanceTypeInfo, error) {
 	// DO NOT REMOVE THIS LOCK ----------------------------------------------------------------------------
 	// We lock here so that multiple callers to GetInstanceTypes do not result in cache misses and multiple
 	// calls to EC2 when we could have just made one call. This lock is here because multiple callers to EC2 result

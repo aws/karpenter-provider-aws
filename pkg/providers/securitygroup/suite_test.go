@@ -46,7 +46,7 @@ var nodeClass *v1beta1.EC2NodeClass
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Provider/AWS")
+	RunSpecs(t, "SecurityGroupProvider")
 }
 
 var _ = BeforeSuite(func() {

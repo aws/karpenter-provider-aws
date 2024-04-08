@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -33,17 +32,19 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
-type Provider struct {
+type Provider interface {
+	List(context.Context, *v1beta1.EC2NodeClass) ([]*ec2.SecurityGroup, error)
+}
+
+type DefaultProvider struct {
 	sync.Mutex
 	ec2api ec2iface.EC2API
 	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
-const TTL = 5 * time.Minute
-
-func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
-	return &Provider{
+func NewDefaultProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+	return &DefaultProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache cache when we utilize the security groups from the EC2NodeClass.status
@@ -51,7 +52,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.SecurityGroup, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -71,7 +72,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([
 	return securityGroups, nil
 }
 
-func (p *Provider) getSecurityGroups(ctx context.Context, filterSets [][]*ec2.Filter) ([]*ec2.SecurityGroup, error) {
+func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]*ec2.Filter) ([]*ec2.SecurityGroup, error) {
 	hash, err := hashstructure.Hash(filterSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err

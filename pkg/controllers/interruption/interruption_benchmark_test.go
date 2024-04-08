@@ -30,6 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"go.uber.org/zap"
@@ -161,8 +162,8 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 
 type providerSet struct {
 	kubeClient  client.Client
-	sqsAPI      *servicesqs.SQS
-	sqsProvider *sqs.Provider
+	sqsAPI      sqsiface.SQSAPI
+	sqsProvider sqs.Provider
 }
 
 func newProviders(ctx context.Context, kubeClient client.Client) providerSet {

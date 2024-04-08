@@ -36,24 +36,27 @@ const (
 	MaxK8sVersion = "1.29"
 )
 
-// Provider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
-// for decision making. The version is cached to help reduce the amount of calls made to the API Server
+type Provider interface {
+	Get(ctx context.Context) (string, error)
+}
 
-type Provider struct {
+// DefaultProvider get the APIServer version. This will be initialized at start up and allows karpenter to have an understanding of the cluster version
+// for decision making. The version is cached to help reduce the amount of calls made to the API Server
+type DefaultProvider struct {
 	cache               *cache.Cache
 	cm                  *pretty.ChangeMonitor
 	kubernetesInterface kubernetes.Interface
 }
 
-func NewProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache) *Provider {
-	return &Provider{
+func NewDefaultProvider(kubernetesInterface kubernetes.Interface, cache *cache.Cache) *DefaultProvider {
+	return &DefaultProvider{
 		cm:                  pretty.NewChangeMonitor(),
 		cache:               cache,
 		kubernetesInterface: kubernetesInterface,
 	}
 }
 
-func (p *Provider) Get(ctx context.Context) (string, error) {
+func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	if version, ok := p.cache.Get(kubernetesVersionCacheKey); ok {
 		return version.(string), nil
 	}

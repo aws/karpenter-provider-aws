@@ -24,32 +24,39 @@ import (
 	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
 )
 
-type Provider struct {
+type Provider interface {
+	Name() string
+	GetSQSMessages(context.Context) ([]*sqs.Message, error)
+	SendMessage(context.Context, interface{}) (string, error)
+	DeleteSQSMessage(context.Context, *sqs.Message) error
+}
+
+type DefaultProvider struct {
 	client sqsiface.SQSAPI
 
 	name string
 	url  string
 }
 
-func NewProvider(ctx context.Context, client sqsiface.SQSAPI, queueName string) (*Provider, error) {
+func NewProvider(ctx context.Context, client sqsiface.SQSAPI, queueName string) (*DefaultProvider, error) {
 	ret, err := client.GetQueueUrlWithContext(ctx, &sqs.GetQueueUrlInput{
 		QueueName: aws.String(queueName),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("fetching queue url, %w", err)
 	}
-	return &Provider{
+	return &DefaultProvider{
 		client: client,
 		name:   queueName,
 		url:    aws.StringValue(ret.QueueUrl),
 	}, nil
 }
 
-func (p *Provider) Name() string {
+func (p *DefaultProvider) Name() string {
 	return p.name
 }
 
-func (p *Provider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
+func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	input := &sqs.ReceiveMessageInput{
 		MaxNumberOfMessages: aws.Int64(10),
 		VisibilityTimeout:   aws.Int64(20), // Seconds
@@ -71,7 +78,7 @@ func (p *Provider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	return result.Messages, nil
 }
 
-func (p *Provider) SendMessage(ctx context.Context, body interface{}) (string, error) {
+func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (string, error) {
 	raw, err := json.Marshal(body)
 	if err != nil {
 		return "", fmt.Errorf("marshaling the passed body as json, %w", err)
@@ -87,7 +94,7 @@ func (p *Provider) SendMessage(ctx context.Context, body interface{}) (string, e
 	return aws.StringValue(result.MessageId), nil
 }
 
-func (p *Provider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
+func (p *DefaultProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 	input := &sqs.DeleteMessageInput{
 		QueueUrl:      aws.String(p.url),
 		ReceiptHandle: msg.ReceiptHandle,
