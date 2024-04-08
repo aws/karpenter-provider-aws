@@ -33,21 +33,26 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
-type Provider struct {
+type Provider interface {
+	Create(context.Context, *v1beta1.EC2NodeClass) (string, error)
+	Delete(context.Context, *v1beta1.EC2NodeClass) error
+}
+
+type DefaultProvider struct {
 	region string
 	iamapi iamiface.IAMAPI
 	cache  *cache.Cache
 }
 
-func NewProvider(region string, iamapi iamiface.IAMAPI, cache *cache.Cache) *Provider {
-	return &Provider{
+func NewProvider(region string, iamapi iamiface.IAMAPI, cache *cache.Cache) *DefaultProvider {
+	return &DefaultProvider{
 		region: region,
 		iamapi: iamapi,
 		cache:  cache,
 	}
 }
 
-func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
+func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
 	tags := lo.Assign(nodeClass.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
 		corev1beta1.ManagedByAnnotationKey:                                            options.FromContext(ctx).ClusterName,
@@ -101,7 +106,7 @@ func (p *Provider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) 
 	return profileName, nil
 }
 
-func (p *Provider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
+func (p *DefaultProvider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
 	profileName := GetProfileName(ctx, p.region, nodeClass)
 	out, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),

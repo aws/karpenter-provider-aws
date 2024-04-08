@@ -70,7 +70,7 @@ var cloudProvider *cloudprovider.CloudProvider
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Provider/AWS")
+	RunSpecs(t, "InstanceTypeProvider")
 }
 
 var _ = BeforeSuite(func() {
@@ -102,7 +102,7 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-var _ = Describe("InstanceTypes", func() {
+var _ = Describe("InstanceTypeProvider", func() {
 	var nodeClass, windowsNodeClass *v1beta1.EC2NodeClass
 	var nodePool, windowsNodePool *corev1beta1.NodePool
 	BeforeEach(func() {

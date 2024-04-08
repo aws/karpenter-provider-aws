@@ -60,14 +60,14 @@ type Controller struct {
 	kubeClient                client.Client
 	clk                       clock.Clock
 	recorder                  events.Recorder
-	sqsProvider               *sqs.Provider
+	sqsProvider               sqs.Provider
 	unavailableOfferingsCache *cache.UnavailableOfferings
 	parser                    *EventParser
 	cm                        *pretty.ChangeMonitor
 }
 
 func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Recorder,
-	sqsProvider *sqs.Provider, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
+	sqsProvider sqs.Provider, unavailableOfferingsCache *cache.UnavailableOfferings) *Controller {
 
 	return &Controller{
 		kubeClient:                kubeClient,

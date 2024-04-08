@@ -56,21 +56,23 @@ import (
 var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)
 
 type Controller struct {
-	kubeClient              client.Client
-	recorder                events.Recorder
-	subnetProvider          *subnet.Provider
-	securityGroupProvider   *securitygroup.Provider
-	amiProvider             *amifamily.Provider
-	instanceProfileProvider *instanceprofile.Provider
-	launchTemplateProvider  *launchtemplate.Provider
+	kubeClient client.Client
+	recorder   events.Recorder
+
+	subnetProvider          subnet.Provider
+	securityGroupProvider   securitygroup.Provider
+	amiProvider             amifamily.Provider
+	instanceProfileProvider instanceprofile.Provider
+	launchTemplateProvider  launchtemplate.Provider
 }
 
-func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, launchTemplateProvider *launchtemplate.Provider) corecontroller.Controller {
+func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
+	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) corecontroller.Controller {
 
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &Controller{
-		kubeClient:              kubeClient,
-		recorder:                recorder,
+		kubeClient: kubeClient,
+		recorder:   recorder,
+
 		subnetProvider:          subnetProvider,
 		securityGroupProvider:   securityGroupProvider,
 		amiProvider:             amiProvider,
@@ -137,7 +139,7 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 		}
 	}
-	if err := c.launchTemplateProvider.DeleteLaunchTemplates(ctx, nodeClass); err != nil {
+	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)

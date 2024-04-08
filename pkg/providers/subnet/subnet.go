@@ -35,7 +35,15 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
-type Provider struct {
+type Provider interface {
+	LivenessProbe(*http.Request) error
+	List(context.Context, *v1beta1.EC2NodeClass) ([]*ec2.Subnet, error)
+	CheckAnyPublicIPAssociations(context.Context, *v1beta1.EC2NodeClass) (bool, error)
+	ZonalSubnetsForLaunch(context.Context, *v1beta1.EC2NodeClass, []*cloudprovider.InstanceType, string) (map[string]*ec2.Subnet, error)
+	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []*ec2.Subnet, string)
+}
+
+type DefaultProvider struct {
 	sync.RWMutex
 	ec2api      ec2iface.EC2API
 	cache       *cache.Cache
@@ -43,8 +51,8 @@ type Provider struct {
 	inflightIPs map[string]int64
 }
 
-func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
-	return &Provider{
+func NewDefaultProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+	return &DefaultProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache when we utilize the resolved subnets from the EC2NodeClass.status
@@ -55,7 +63,7 @@ func NewProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	}
 }
 
-func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.Subnet, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.Subnet, error) {
 	p.Lock()
 	defer p.Unlock()
 	filterSets := getFilterSets(nodeClass.Spec.SubnetSelectorTerms)
@@ -94,7 +102,7 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([
 }
 
 // CheckAnyPublicIPAssociations returns a bool indicating whether all referenced subnets assign public IPv4 addresses to EC2 instances created therein
-func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (bool, error) {
+func (p *DefaultProvider) CheckAnyPublicIPAssociations(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (bool, error) {
 	subnets, err := p.List(ctx, nodeClass)
 	if err != nil {
 		return false, err
@@ -106,7 +114,7 @@ func (p *Provider) CheckAnyPublicIPAssociations(ctx context.Context, nodeClass *
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
-func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
+func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
 	subnets, err := p.List(ctx, nodeClass)
 	if err != nil {
 		return nil, err
@@ -145,7 +153,7 @@ func (p *Provider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1
 }
 
 // UpdateInflightIPs is used to refresh the in-memory IP usage by adding back unused IPs after a CreateFleet response is returned
-func (p *Provider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInput, createFleetOutput *ec2.CreateFleetOutput, instanceTypes []*cloudprovider.InstanceType,
+func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInput, createFleetOutput *ec2.CreateFleetOutput, instanceTypes []*cloudprovider.InstanceType,
 	subnets []*ec2.Subnet, capacityType string) {
 	p.Lock()
 	defer p.Unlock()
@@ -203,14 +211,14 @@ func (p *Provider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInput, cre
 	}
 }
 
-func (p *Provider) LivenessProbe(_ *http.Request) error {
+func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {
 	p.Lock()
 	//nolint: staticcheck
 	p.Unlock()
 	return nil
 }
 
-func (p *Provider) minPods(instanceTypes []*cloudprovider.InstanceType, zone string, capacityType string) int64 {
+func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, zone string, capacityType string) int64 {
 	// filter for instance types available in the zone and capacity type being requested
 	filteredInstanceTypes := lo.Filter(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
 		offering, ok := it.Offerings.Get(capacityType, zone)
