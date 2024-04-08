@@ -3,7 +3,7 @@ on:
   schedule:
   - cron: '0 */1 * * *'
 jobs:
-  ImageCanary:
+  image-canary:
     runs-on: ubuntu-latest
     permissions:
       id-token: write # aws-actions/configure-aws-credentials@v4.0.1
@@ -26,6 +26,7 @@ jobs:
     - name: Pull artifacts
       env:
         GH_TOKEN: ${{ github.token }}
+        GH_REPO: 'aws/karpenter-provider-aws'
       run: |
         # Translates a git tag to the corresponding ECR tag. Starting with Karpenter v0.35.0 the leading v is dropped in the ECR tag.
         function getECRTag() {
@@ -38,20 +39,29 @@ jobs:
             echo "${tag}"
         }
 
+        # Pull the OCI artifacts / controller images for the 10 latest releases
         readarray tags < <(gh release list --json tagName -L 10 | yq '.[].tagName')
         for tag in "${tags[@]}"; do
           tag="$(getECRTag "${tag}")"
           for artifact in "karpenter" "karpenter-crd"; do
             if ! helm pull "oci://public.ecr.aws/karpenter/${artifact}" --version "${tag}"; then
-              printf "failed to pull OCI artifact (artifact: %s, tag: %s)\n" "${image}" "${tag}"
+              printf "failed to pull OCI artifact from ECR (artifact: %s, tag: %s)\n" "${image}" "${tag}"
               exit 1
             fi
           done
           if ! docker pull "public.ecr.aws/karpenter/controller:${tag}"; then
-              printf "failed to pull controller image (tag: %s)\n" "${tag}"
+              printf "failed to pull controller image from ECR (tag: %s)\n" "${tag}"
               exit 1
           fi
         done
+
+        # Check that the charts.karpenter.sh repo is still working until removed
+        helm repo add https://charts.karpenter.sh/
+        helm repo update
+        if ! helm pull karpenter/karpenter; then
+          printf "failed to pull chart from charts.karpenter.sh"
+          exit 1
+        fi
     - name: Notify slack of failure
       if: failure() && github.event_name != 'workflow_run'
       uses: ./.github/actions/e2e/slack/send-message
