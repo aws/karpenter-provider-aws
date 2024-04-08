@@ -77,7 +77,15 @@ The following cluster configuration will:
 * Create a role to allow spot instances.
 * Run Helm to install Karpenter
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster.sh" language="bash"%}}
+{{< tabpane text=true right=false >}}
+  {{% tab header="**Create cluster command**:" disabled=true /%}}
+  {{% tab header="Managed NodeGroups" %}}
+  {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster.sh" language="bash"%}}
+  {{% /tab %}}
+  {{% tab header="Fargate" %}}
+  {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster-fargate.sh" language="bash"%}}
+  {{% /tab %}}
+{{< /tabpane >}}
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
 
@@ -88,7 +96,15 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 
 ### 4. Install Karpenter
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
+{{< tabpane text=true right=false >}}
+  {{% tab header="**Karpenter installation command**:" disabled=true /%}}
+  {{% tab header="Managed NodeGroups" %}}
+  {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
+  {{% /tab %}}
+  {{% tab header="Fargate" %}}
+  {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart-fargate.sh" language="bash"%}}
+  {{% /tab %}}
+{{< /tabpane >}}
 
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
