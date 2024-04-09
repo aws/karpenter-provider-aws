@@ -45,6 +45,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -62,6 +63,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 )
 
@@ -317,6 +319,109 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(awsEnv.EC2API.CreateFleetBehavior.FailedCalls()).To(BeNumerically("==", 1))
 			Expect(awsEnv.EC2API.CreateFleetBehavior.SuccessfulCalls()).To(BeNumerically("==", 2))
 
+		})
+		// Testing launch template hash key will produce unique hashes
+		It("should generate different launch template names based on amifamily option configuration", func() {
+			options := []*amifamily.Options{
+				{},
+				{ClusterName: "test-name"},
+				{ClusterEndpoint: "test-endpoint"},
+				{ClusterCIDR: lo.ToPtr("test-cidr")},
+				{InstanceProfile: "test-profile"},
+				{InstanceStorePolicy: lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)},
+				{SecurityGroups: []v1beta1.SecurityGroup{{Name: "test-sg"}}},
+				{Tags: map[string]string{"test-key": "test-value"}},
+				{KubeDNSIP: net.ParseIP("192.0.0.2")},
+				{AssociatePublicIPAddress: lo.ToPtr(true)},
+				{NodeClassName: "test-name"},
+			}
+			launchtemplateResult := []string{}
+			for _, option := range options {
+				lt := &amifamily.LaunchTemplate{Options: option}
+				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
+			}
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 11))
+			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
+		})
+		It("should not generate different launch template names based on CABundle and Labels", func() {
+			options := []*amifamily.Options{
+				{},
+				{CABundle: lo.ToPtr("test-bundle")},
+				{Labels: map[string]string{"test-key": "test-value"}},
+			}
+			launchtemplateResult := []string{}
+			for _, option := range options {
+				lt := &amifamily.LaunchTemplate{Options: option}
+				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
+			}
+			Expect(len(lo.Uniq(launchtemplateResult))).To(BeNumerically("==", 1))
+			Expect(lo.Uniq(launchtemplateResult)[0]).To(Equal(launchtemplate.LaunchTemplateName(&amifamily.LaunchTemplate{Options: &amifamily.Options{}})))
+		})
+		It("should generate different launch template names based on kubelet configuration", func() {
+			kubeletChanges := []*corev1beta1.KubeletConfiguration{
+				{},
+				{KubeReserved: map[string]string{string(v1.ResourceCPU): "20"}},
+				{SystemReserved: map[string]string{string(v1.ResourceMemory): "10Gi"}},
+				{EvictionHard: map[string]string{"memory.available": "52%"}},
+				{EvictionSoft: map[string]string{"nodefs.available": "132%"}},
+				{MaxPods: aws.Int32(20)},
+			}
+			launchtemplateResult := []string{}
+			for _, kubelet := range kubeletChanges {
+				lt := &amifamily.LaunchTemplate{UserData: bootstrap.EKS{Options: bootstrap.Options{KubeletConfig: kubelet}}}
+				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
+			}
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 6))
+			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
+		})
+		It("should generate different launch template names based on bootstrap configuration", func() {
+			bootstrapOptions := []*bootstrap.Options{
+				{},
+				{ClusterName: "test-name"},
+				{ClusterEndpoint: "test-endpoint"},
+				{ClusterCIDR: lo.ToPtr("test-cidr")},
+				{Taints: []v1.Taint{{Key: "test-key", Value: "test-value"}}},
+				{Labels: map[string]string{"test-key": "test-value"}},
+				{CABundle: lo.ToPtr("test-bundle")},
+				{AWSENILimitedPodDensity: true},
+				{ContainerRuntime: lo.ToPtr("test-cri")},
+				{CustomUserData: lo.ToPtr("test-cidr")},
+			}
+			launchtemplateResult := []string{}
+			for _, option := range bootstrapOptions {
+				lt := &amifamily.LaunchTemplate{UserData: bootstrap.EKS{Options: *option}}
+				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
+			}
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 10))
+			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
+		})
+		It("should generate different launch template names based on launchtemplate option configuration", func() {
+			launchtemplates := []*amifamily.LaunchTemplate{
+				{},
+				{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: lo.ToPtr("test-block")}}},
+				{AMIID: "test-ami"},
+				{DetailedMonitoring: true},
+				{EFACount: 12},
+				{CapacityType: "spot"},
+			}
+			launchtemplateResult := []string{}
+			for _, lt := range launchtemplates {
+				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
+			}
+			Expect(len(launchtemplateResult)).To(BeNumerically("==", 6))
+			Expect(lo.Uniq(launchtemplateResult)).To(Equal(launchtemplateResult))
+		})
+		It("should not generate different launch template names based on instance types", func() {
+			launchtemplates := []*amifamily.LaunchTemplate{
+				{},
+				{InstanceTypes: []*corecloudprovider.InstanceType{{Name: "test-instance-type"}}},
+			}
+			launchtemplateResult := []string{}
+			for _, lt := range launchtemplates {
+				launchtemplateResult = append(launchtemplateResult, launchtemplate.LaunchTemplateName(lt))
+			}
+			Expect(len(lo.Uniq(launchtemplateResult))).To(BeNumerically("==", 1))
+			Expect(lo.Uniq(launchtemplateResult)[0]).To(Equal(launchtemplate.LaunchTemplateName(&amifamily.LaunchTemplate{})))
 		})
 	})
 	Context("Labels", func() {

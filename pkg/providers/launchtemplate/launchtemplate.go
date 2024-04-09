@@ -154,7 +154,7 @@ func (p *DefaultProvider) InvalidateCache(ctx context.Context, ltName string, lt
 	p.cache.Delete(ltName)
 }
 
-func launchTemplateName(options *amifamily.LaunchTemplate) string {
+func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
 	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		panic(fmt.Sprintf("hashing launch template, %s", err))
@@ -215,7 +215,7 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1bet
 
 func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
-	name := launchTemplateName(options)
+	name := LaunchTemplateName(options)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
 	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
@@ -260,7 +260,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	}
 	networkInterfaces := p.generateNetworkInterfaces(options)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(launchTemplateName(options)),
+		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
