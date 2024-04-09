@@ -1,0 +1,19 @@
+name: E2EPrivateClusterTrigger
+on:
+  schedule:
+    - cron: '7 0 * * 4'
+jobs:
+  private-cluster-trigger:
+    if: github.repository == 'aws/karpenter-provider-aws'
+    permissions:
+      id-token: write # aws-actions/configure-aws-credentials@v4.0.1
+      statuses: write # ./.github/actions/commit-status/start
+    uses: ./.github/workflows/e2e.yaml
+    with:
+      suite: Integration
+      region: us-east-1
+      workflow_trigger: "private_cluster"
+      cleanup: true
+      codebuild_region: US_EAST_1
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}

@@ -58,6 +58,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
@@ -76,7 +77,7 @@ var cloudProvider *cloudprovider.CloudProvider
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Provider/AWS")
+	RunSpecs(t, "LaunchTemplateProvider")
 }
 
 var _ = BeforeSuite(func() {
@@ -113,7 +114,7 @@ var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
 })
 
-var _ = Describe("LaunchTemplates", func() {
+var _ = Describe("LaunchTemplate Provider", func() {
 	var nodePool *corev1beta1.NodePool
 	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
@@ -135,6 +136,7 @@ var _ = Describe("LaunchTemplates", func() {
 								},
 							},
 						},
+						Kubelet: &corev1beta1.KubeletConfiguration{},
 						NodeClassRef: &corev1beta1.NodeClassReference{
 							Name: nodeClass.Name,
 						},
@@ -822,7 +824,22 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			it := instancetype.NewInstanceType(ctx,
+				info,
+				"",
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nodePool.Spec.Template.Spec.Kubelet.MaxPods,
+				nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
+				nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
+				nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
+				amiFamily,
+				nil,
+			)
+
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -860,7 +877,22 @@ var _ = Describe("LaunchTemplates", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			it := instancetype.NewInstanceType(ctx,
+				info,
+				"",
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nodePool.Spec.Template.Spec.Kubelet.MaxPods,
+				nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
+				nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
+				nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
+				amiFamily,
+				nil,
+			)
+
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
@@ -871,7 +903,21 @@ var _ = Describe("LaunchTemplates", func() {
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
-			it := instancetype.NewInstanceType(ctx, info, nodePool.Spec.Template.Spec.Kubelet, "", nodeClass, nil)
+			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			it := instancetype.NewInstanceType(ctx,
+				info,
+				"",
+				nodeClass.Spec.BlockDeviceMappings,
+				nodeClass.Spec.InstanceStorePolicy,
+				nodePool.Spec.Template.Spec.Kubelet.MaxPods,
+				nodePool.Spec.Template.Spec.Kubelet.PodsPerCore,
+				nodePool.Spec.Template.Spec.Kubelet.KubeReserved,
+				nodePool.Spec.Template.Spec.Kubelet.SystemReserved,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionHard,
+				nodePool.Spec.Template.Spec.Kubelet.EvictionSoft,
+				amiFamily,
+				nil,
+			)
 			overhead := it.Overhead.Total()
 			Expect(overhead.Memory().String()).To(Equal("1565Mi"))
 		})
@@ -894,10 +940,10 @@ var _ = Describe("LaunchTemplates", func() {
 		})
 		It("should specify --system-reserved when overriding system reserved values", func() {
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				SystemReserved: v1.ResourceList{
-					v1.ResourceCPU:              resource.MustParse("500m"),
-					v1.ResourceMemory:           resource.MustParse("1Gi"),
-					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+				SystemReserved: map[string]string{
+					string(v1.ResourceCPU):              "500m",
+					string(v1.ResourceMemory):           "1Gi",
+					string(v1.ResourceEphemeralStorage): "2Gi",
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -915,16 +961,16 @@ var _ = Describe("LaunchTemplates", func() {
 				rem := string(userData)[(i + len(arg)):]
 				i = strings.Index(rem, "'")
 				for k, v := range nodePool.Spec.Template.Spec.Kubelet.SystemReserved {
-					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k.String(), v.String())))
+					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k, v)))
 				}
 			})
 		})
 		It("should specify --kube-reserved when overriding system reserved values", func() {
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				KubeReserved: v1.ResourceList{
-					v1.ResourceCPU:              resource.MustParse("500m"),
-					v1.ResourceMemory:           resource.MustParse("1Gi"),
-					v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+				KubeReserved: map[string]string{
+					string(v1.ResourceCPU):              "500m",
+					string(v1.ResourceMemory):           "1Gi",
+					string(v1.ResourceEphemeralStorage): "2Gi",
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -942,7 +988,7 @@ var _ = Describe("LaunchTemplates", func() {
 				rem := string(userData)[(i + len(arg)):]
 				i = strings.Index(rem, "'")
 				for k, v := range nodePool.Spec.Template.Spec.Kubelet.KubeReserved {
-					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k.String(), v.String())))
+					Expect(rem[:i]).To(ContainSubstring(fmt.Sprintf("%v=%v", k, v)))
 				}
 			})
 		})
@@ -1189,10 +1235,10 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should override system reserved values in user data", func() {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-					SystemReserved: v1.ResourceList{
-						v1.ResourceCPU:              resource.MustParse("2"),
-						v1.ResourceMemory:           resource.MustParse("3Gi"),
-						v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+					SystemReserved: map[string]string{
+						string(v1.ResourceCPU):              "2",
+						string(v1.ResourceMemory):           "3Gi",
+						string(v1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodePool)
@@ -1214,10 +1260,10 @@ var _ = Describe("LaunchTemplates", func() {
 			It("should override kube reserved values in user data", func() {
 				ExpectApplied(ctx, env.Client, nodeClass)
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-					KubeReserved: v1.ResourceList{
-						v1.ResourceCPU:              resource.MustParse("2"),
-						v1.ResourceMemory:           resource.MustParse("3Gi"),
-						v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+					KubeReserved: map[string]string{
+						string(v1.ResourceCPU):              "2",
+						string(v1.ResourceMemory):           "3Gi",
+						string(v1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodePool)
@@ -1501,17 +1547,17 @@ var _ = Describe("LaunchTemplates", func() {
 						}
 					},
 					Entry("systemReserved", "systemReserved", corev1beta1.KubeletConfiguration{
-						SystemReserved: v1.ResourceList{
-							v1.ResourceCPU:              resource.MustParse("500m"),
-							v1.ResourceMemory:           resource.MustParse("1Gi"),
-							v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+						SystemReserved: map[string]string{
+							string(v1.ResourceCPU):              "500m",
+							string(v1.ResourceMemory):           "1Gi",
+							string(v1.ResourceEphemeralStorage): "2Gi",
 						},
 					}),
 					Entry("kubeReserved", "kubeReserved", corev1beta1.KubeletConfiguration{
-						KubeReserved: v1.ResourceList{
-							v1.ResourceCPU:              resource.MustParse("500m"),
-							v1.ResourceMemory:           resource.MustParse("1Gi"),
-							v1.ResourceEphemeralStorage: resource.MustParse("2Gi"),
+						KubeReserved: map[string]string{
+							string(v1.ResourceCPU):              "500m",
+							string(v1.ResourceMemory):           "1Gi",
+							string(v1.ResourceEphemeralStorage): "2Gi",
 						},
 					}),
 					Entry("evictionHard", "evictionHard", corev1beta1.KubeletConfiguration{

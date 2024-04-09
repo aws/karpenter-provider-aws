@@ -32,6 +32,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -79,7 +80,7 @@ var _ = Describe("Drift", func() {
 	var selector labels.Selector
 	var numPods int
 	BeforeEach(func() {
-		amdAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		amdAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", 1)
 		numPods = 1
 		// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
 		dep = coretest.Deployment(coretest.DeploymentOptions{
@@ -398,15 +399,14 @@ var _ = Describe("Drift", func() {
 	It("should disrupt nodes that have drifted due to AMIs", func() {
 		// Choose and old, static image. The 1.23 image is incompatible with EKS 1.29 so fallback to a newer image.
 		parameterName := lo.Ternary(lo.Must(strconv.Atoi(strings.Split(env.GetK8sVersion(0), ".")[1])) >= 29,
-			"/aws/service/eks/optimized-ami/1.27/amazon-linux-2/amazon-eks-node-1.27-v20240129/image_id",
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2/amazon-eks-node-1.23-v20230322/image_id",
+			"/aws/service/eks/optimized-ami/1.27/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.27-v20240307/image_id",
+			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/arm64/standard/amazon-eks-node-al2023-arm64-standard-1.23-v20240307/image_id",
 		)
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: awssdk.String(parameterName)})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
-		nodeClass.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
@@ -427,11 +427,11 @@ var _ = Describe("Drift", func() {
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 		version := env.GetK8sVersion(1)
 		armParameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version)),
+			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version)),
 		})
 		Expect(err).To(BeNil())
 		armAMI := *armParameter.Parameter.Value
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: armAMI}}
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
@@ -453,15 +453,18 @@ var _ = Describe("Drift", func() {
 	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
 		version := env.GetK8sVersion(1)
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
-		// choose an old static image
+		// Choose an old static image (AL2023 AMIs don't exist for 1.22)
+		parameterName := lo.Ternary(lo.Must(strconv.Atoi(strings.Split(env.GetK8sVersion(0), ".")[1])) == 23,
+			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/arm64/standard/amazon-eks-node-al2023-arm64-standard-1.23-v20240307/image_id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version),
+		)
 		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version)),
+			Name: awssdk.String(parameterName),
 		})
 		Expect(err).To(BeNil())
 		oldCustomAMI := *parameter.Parameter.Value
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
-		nodeClass.Spec.UserData = awssdk.String(fmt.Sprintf("#!/bin/bash\n/etc/eks/bootstrap.sh '%s'", env.ClusterName))
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -673,14 +676,14 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectNotFound(pod, node)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	},
-		Entry("UserData", v1beta1.EC2NodeClassSpec{UserData: awssdk.String("#!/bin/bash\n/etc/eks/bootstrap.sh")}),
+		Entry("UserData", v1beta1.EC2NodeClassSpec{UserData: awssdk.String("#!/bin/bash\necho \"Hello, AL2023\"")}),
 		Entry("Tags", v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}),
 		Entry("MetadataOptions", v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPTokens: awssdk.String("required"), HTTPPutResponseHopLimit: awssdk.Int64(10)}}),
 		Entry("BlockDeviceMappings", v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 			{
 				DeviceName: awssdk.String("/dev/xvda"),
 				EBS: &v1beta1.BlockDevice{
-					VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
+					VolumeSize: resources.Quantity("20Gi"),
 					VolumeType: awssdk.String("gp3"),
 					Encrypted:  awssdk.Bool(true),
 				},
@@ -713,6 +716,37 @@ var _ = Describe("Drift", func() {
 		env.ExpectCreatedOrUpdated(nodeClass)
 
 		env.EventuallyExpectDrifted(nodeClaim)
+
+		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
+		env.ExpectUpdated(pod)
+		env.EventuallyExpectNotFound(pod, node)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+	})
+	It("should drift the EC2NodeClass on BlockDeviceMappings volume size update", func() {
+		nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
+			{
+				DeviceName: awssdk.String("/dev/xvda"),
+				EBS: &v1beta1.BlockDevice{
+					VolumeSize: resources.Quantity("20Gi"),
+					VolumeType: awssdk.String("gp3"),
+					Encrypted:  awssdk.Bool(true),
+				},
+			},
+		}
+		env.ExpectCreated(dep, nodeClass, nodePool)
+		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
+		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
+		node := env.ExpectCreatedNodeCount("==", 1)[0]
+
+		nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resources.Quantity("100Gi")
+		env.ExpectCreatedOrUpdated(nodeClass)
+
+		By("validating the drifted status condition has propagated")
+		Eventually(func(g Gomega) {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted)).ToNot(BeNil())
+			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+		}).Should(Succeed())
 
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
 		env.ExpectUpdated(pod)

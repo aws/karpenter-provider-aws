@@ -38,9 +38,15 @@ import (
 )
 
 var _ = Describe("Extended Resources", func() {
+	BeforeEach(func() {
+		if env.PrivateCluster {
+			Skip("skipping Extended Resources test for private cluster")
+		}
+	})
 	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
 		ExpectNvidiaDevicePluginCreated()
-
+		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -232,6 +238,8 @@ var _ = Describe("Extended Resources", func() {
 		}
 		// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
 		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
+		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{

@@ -46,7 +46,7 @@ var nodeClass *v1beta1.EC2NodeClass
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Provider/AWS")
+	RunSpecs(t, "SecurityGroupProvider")
 }
 
 var _ = BeforeSuite(func() {
@@ -264,6 +264,71 @@ var _ = Describe("SecurityGroupProvider", func() {
 				GroupName: aws.String("securityGroup-test3"),
 			},
 		}, securityGroups)
+	})
+	Context("Provider Cache", func() {
+		It("should resolve security groups from cache that are filtered by id", func() {
+			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsOutput.Clone().SecurityGroups
+			for _, sg := range expectedSecurityGroups {
+				nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+					{
+						ID: *sg.GroupId,
+					},
+				}
+				// Call list to request from aws and store in the cache
+				_, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
+			}
+
+			for _, cachedObject := range awsEnv.SecurityGroupCache.Items() {
+				cachedSecurityGroup := cachedObject.Object.([]*ec2.SecurityGroup)
+				Expect(cachedSecurityGroup).To(HaveLen(1))
+				lo.Contains(expectedSecurityGroups, cachedSecurityGroup[0])
+			}
+		})
+		It("should resolve security groups from cache that are filtered by Name", func() {
+			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsOutput.Clone().SecurityGroups
+			for _, sg := range expectedSecurityGroups {
+				nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+					{
+						Name: *sg.GroupName,
+					},
+				}
+				// Call list to request from aws and store in the cache
+				_, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
+			}
+
+			for _, cachedObject := range awsEnv.SecurityGroupCache.Items() {
+				cachedSecurityGroup := cachedObject.Object.([]*ec2.SecurityGroup)
+				Expect(cachedSecurityGroup).To(HaveLen(1))
+				lo.Contains(expectedSecurityGroups, cachedSecurityGroup[0])
+			}
+		})
+		It("should resolve security groups from cache that are filtered by tags", func() {
+			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsOutput.Clone().SecurityGroups
+			tagSet := lo.Map(expectedSecurityGroups, func(sg *ec2.SecurityGroup, _ int) map[string]string {
+				tag, _ := lo.Find(sg.Tags, func(tag *ec2.Tag) bool {
+					return lo.FromPtr(tag.Key) == "Name"
+				})
+				return map[string]string{"Name": lo.FromPtr(tag.Value)}
+			})
+			for _, tag := range tagSet {
+				nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+					{
+						Tags: tag,
+					},
+				}
+				// Call list to request from aws and store in the cache
+				_, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
+			}
+
+			for _, cachedObject := range awsEnv.SubnetCache.Items() {
+				cachedSecurityGroup := cachedObject.Object.([]*ec2.SecurityGroup)
+				Expect(cachedSecurityGroup).To(HaveLen(1))
+				lo.Contains(expectedSecurityGroups, cachedSecurityGroup[0])
+			}
+		})
 	})
 })
 

@@ -46,7 +46,7 @@ var nodeClass *v1beta1.EC2NodeClass
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Provider/AWS")
+	RunSpecs(t, "SubnetProvider")
 }
 
 var _ = BeforeSuite(func() {
@@ -238,6 +238,52 @@ var _ = Describe("SubnetProvider", func() {
 			onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(onlyPrivate).To(BeTrue())
+		})
+	})
+	Context("Provider Cache", func() {
+		It("should resolve subnets from cache that are filtered by id", func() {
+			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
+			for _, subnet := range expectedSubnets {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+					{
+						ID: *subnet.SubnetId,
+					},
+				}
+				// Call list to request from aws and store in the cache
+				_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
+			}
+
+			for _, cachedObject := range awsEnv.SubnetCache.Items() {
+				cachedSubnet := cachedObject.Object.([]*ec2.Subnet)
+				Expect(cachedSubnet).To(HaveLen(1))
+				lo.Contains(expectedSubnets, cachedSubnet[0])
+			}
+		})
+		It("should resolve subnets from cache that are filtered by tags", func() {
+			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
+			tagSet := lo.Map(expectedSubnets, func(subnet *ec2.Subnet, _ int) map[string]string {
+				tag, _ := lo.Find(subnet.Tags, func(tag *ec2.Tag) bool {
+					return lo.FromPtr(tag.Key) == "Name"
+				})
+				return map[string]string{"Name": lo.FromPtr(tag.Value)}
+			})
+			for _, tag := range tagSet {
+				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+					{
+						Tags: tag,
+					},
+				}
+				// Call list to request from aws and store in the cache
+				_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
+			}
+
+			for _, cachedObject := range awsEnv.SubnetCache.Items() {
+				cachedSubnet := cachedObject.Object.([]*ec2.Subnet)
+				Expect(cachedSubnet).To(HaveLen(1))
+				lo.Contains(expectedSubnets, cachedSubnet[0])
+			}
 		})
 	})
 })

@@ -45,7 +45,6 @@ import (
 	"k8s.io/client-go/transport"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator"
@@ -77,16 +76,16 @@ type Operator struct {
 	Session                   *session.Session
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
 	EC2API                    ec2iface.EC2API
-	SubnetProvider            *subnet.Provider
-	SecurityGroupProvider     *securitygroup.Provider
-	InstanceProfileProvider   *instanceprofile.Provider
-	AMIProvider               *amifamily.Provider
+	SubnetProvider            subnet.Provider
+	SecurityGroupProvider     securitygroup.Provider
+	InstanceProfileProvider   instanceprofile.Provider
+	AMIProvider               amifamily.Provider
 	AMIResolver               *amifamily.Resolver
-	LaunchTemplateProvider    *launchtemplate.Provider
-	PricingProvider           *pricing.Provider
-	VersionProvider           *version.Provider
-	InstanceTypesProvider     *instancetype.Provider
-	InstanceProvider          *instance.Provider
+	LaunchTemplateProvider    launchtemplate.Provider
+	PricingProvider           pricing.Provider
+	VersionProvider           version.Provider
+	InstanceTypesProvider     instancetype.Provider
+	InstanceProvider          instance.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -133,19 +132,19 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
-	subnetProvider := subnet.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	securityGroupProvider := securitygroup.NewProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
-	pricingProvider := pricing.NewProvider(
+	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
 		ec2api,
 		*sess.Config.Region,
 	)
-	versionProvider := version.NewProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiProvider := amifamily.NewProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiResolver := amifamily.New(amiProvider)
-	launchTemplateProvider := launchtemplate.NewProvider(
+	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	amiResolver := amifamily.NewResolver(amiProvider)
+	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
@@ -159,7 +158,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		kubeDNSIP,
 		clusterEndpoint,
 	)
-	instanceTypeProvider := instancetype.NewProvider(
+	instanceTypeProvider := instancetype.NewDefaultProvider(
 		*sess.Config.Region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,
@@ -167,7 +166,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		unavailableOfferingsCache,
 		pricingProvider,
 	)
-	instanceProvider := instance.NewProvider(
+	instanceProvider := instance.NewDefaultProvider(
 		ctx,
 		aws.StringValue(sess.Config.Region),
 		ec2api,
@@ -176,14 +175,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		subnetProvider,
 		launchTemplateProvider,
 	)
-
-	lo.Must0(operator.Manager.GetFieldIndexer().IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClassRef.name", func(o client.Object) []string {
-		nc := o.(*corev1beta1.NodeClaim)
-		if nc.Spec.NodeClassRef == nil {
-			return []string{}
-		}
-		return []string{nc.Spec.NodeClassRef.Name}
-	}), "failed to setup nodeclaim indexer")
 
 	return ctx, &Operator{
 		Operator:                  operator,

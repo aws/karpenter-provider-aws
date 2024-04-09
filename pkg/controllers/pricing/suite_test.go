@@ -51,7 +51,7 @@ var controller *controllerspricing.Controller
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Provider/AWS")
+	RunSpecs(t, "Pricing")
 }
 
 var _ = BeforeSuite(func() {
@@ -84,7 +84,7 @@ var _ = Describe("Pricing", func() {
 		"should return correct static data for all partitions",
 		func(staticPricing map[string]map[string]float64) {
 			for region, prices := range staticPricing {
-				provider := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, region)
+				provider := pricing.NewDefaultProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, region)
 				for instance, price := range prices {
 					val, ok := provider.OnDemandPrice(instance)
 					Expect(ok).To(BeTrue())
@@ -298,7 +298,7 @@ var _ = Describe("Pricing", func() {
 		Expect(price).To(BeNumerically("==", 1.10))
 	})
 	It("should update on-demand pricing with response from the pricing API when in the CN partition", func() {
-		tmpPricingProvider := pricing.NewProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "cn-anywhere-1")
+		tmpPricingProvider := pricing.NewDefaultProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "cn-anywhere-1")
 		tmpController := controllerspricing.NewController(tmpPricingProvider)
 
 		now := time.Now()

@@ -30,10 +30,10 @@ import (
 )
 
 type Controller struct {
-	pricingProvider *pricing.Provider
+	pricingProvider pricing.Provider
 }
 
-func NewController(pricingProvider *pricing.Provider) *Controller {
+func NewController(pricingProvider pricing.Provider) *Controller {
 	return &Controller{
 		pricingProvider: pricingProvider,
 	}

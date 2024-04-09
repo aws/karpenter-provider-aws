@@ -20,6 +20,8 @@ import (
 	"sort"
 	"time"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -54,21 +56,23 @@ import (
 var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)
 
 type Controller struct {
-	kubeClient              client.Client
-	recorder                events.Recorder
-	subnetProvider          *subnet.Provider
-	securityGroupProvider   *securitygroup.Provider
-	amiProvider             *amifamily.Provider
-	instanceProfileProvider *instanceprofile.Provider
-	launchTemplateProvider  *launchtemplate.Provider
+	kubeClient client.Client
+	recorder   events.Recorder
+
+	subnetProvider          subnet.Provider
+	securityGroupProvider   securitygroup.Provider
+	amiProvider             amifamily.Provider
+	instanceProfileProvider instanceprofile.Provider
+	launchTemplateProvider  launchtemplate.Provider
 }
 
-func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider *subnet.Provider, securityGroupProvider *securitygroup.Provider,
-	amiProvider *amifamily.Provider, instanceProfileProvider *instanceprofile.Provider, launchTemplateProvider *launchtemplate.Provider) corecontroller.Controller {
+func NewController(kubeClient client.Client, recorder events.Recorder, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
+	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) corecontroller.Controller {
 
 	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &Controller{
-		kubeClient:              kubeClient,
-		recorder:                recorder,
+		kubeClient: kubeClient,
+		recorder:   recorder,
+
 		subnetProvider:          subnetProvider,
 		securityGroupProvider:   securityGroupProvider,
 		amiProvider:             amiProvider,
@@ -91,28 +95,28 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 	})
 
-	err := multierr.Combine(
+	errs := multierr.Combine(
 		c.resolveSubnets(ctx, nodeClass),
 		c.resolveSecurityGroups(ctx, nodeClass),
 		c.resolveAMIs(ctx, nodeClass),
 		c.resolveInstanceProfile(ctx, nodeClass),
 	)
 	if lo.FromPtr(nodeClass.Spec.AMIFamily) == v1beta1.AMIFamilyAL2023 {
-		if cidrErr := c.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
-			err = multierr.Append(err, fmt.Errorf("resolving cluster CIDR, %w", cidrErr))
+		if err := c.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
+			errs = multierr.Append(errs, fmt.Errorf("resolving cluster CIDR, %w", err))
 		}
 	}
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		statusCopy := nodeClass.DeepCopy()
-		if patchErr := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
-			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
+		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
+			errs = multierr.Append(errs, client.IgnoreNotFound(err))
 		}
-		if patchErr := c.kubeClient.Status().Patch(ctx, statusCopy, client.MergeFrom(stored)); err != nil {
-			err = multierr.Append(err, client.IgnoreNotFound(patchErr))
+		if err := c.kubeClient.Status().Patch(ctx, statusCopy, client.MergeFrom(stored)); err != nil {
+			errs = multierr.Append(errs, client.IgnoreNotFound(err))
 		}
 	}
-	if err != nil {
-		return reconcile.Result{}, err
+	if errs != nil {
+		return reconcile.Result{}, errs
 	}
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
@@ -135,12 +139,18 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 			return reconcile.Result{}, fmt.Errorf("deleting instance profile, %w", err)
 		}
 	}
-	if err := c.launchTemplateProvider.DeleteLaunchTemplates(ctx, nodeClass); err != nil {
+	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}
 	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
-		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
+		// We call Update() here rather than Patch() because patching a list with a JSON merge patch
+		// can cause races due to the fact that it fully replaces the list on a change
+		// https://github.com/kubernetes/kubernetes/issues/111643#issuecomment-2016489732
+		if err := c.kubeClient.Update(ctx, nodeClass); err != nil {
+			if errors.IsConflict(err) {
+				return reconcile.Result{Requeue: true}, nil
+			}
 			return reconcile.Result{}, client.IgnoreNotFound(fmt.Errorf("removing termination finalizer, %w", err))
 		}
 	}

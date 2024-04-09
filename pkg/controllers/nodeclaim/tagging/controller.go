@@ -40,10 +40,10 @@ import (
 
 type Controller struct {
 	kubeClient       client.Client
-	instanceProvider *instance.Provider
+	instanceProvider instance.Provider
 }
 
-func NewController(kubeClient client.Client, instanceProvider *instance.Provider) corecontroller.Controller {
+func NewController(kubeClient client.Client, instanceProvider instance.Provider) corecontroller.Controller {
 	return corecontroller.Typed[*corev1beta1.NodeClaim](kubeClient, &Controller{
 		kubeClient:       kubeClient,
 		instanceProvider: instanceProvider,

@@ -54,17 +54,18 @@ import (
 var _ cloudprovider.CloudProvider = (*CloudProvider)(nil)
 
 type CloudProvider struct {
-	instanceTypeProvider  *instancetype.Provider
-	instanceProvider      *instance.Provider
-	kubeClient            client.Client
-	amiProvider           *amifamily.Provider
-	securityGroupProvider *securitygroup.Provider
-	subnetProvider        *subnet.Provider
-	recorder              events.Recorder
+	kubeClient client.Client
+	recorder   events.Recorder
+
+	instanceTypeProvider  instancetype.Provider
+	instanceProvider      instance.Provider
+	amiProvider           amifamily.Provider
+	securityGroupProvider securitygroup.Provider
+	subnetProvider        subnet.Provider
 }
 
-func New(instanceTypeProvider *instancetype.Provider, instanceProvider *instance.Provider, recorder events.Recorder,
-	kubeClient client.Client, amiProvider *amifamily.Provider, securityGroupProvider *securitygroup.Provider, subnetProvider *subnet.Provider) *CloudProvider {
+func New(instanceTypeProvider instancetype.Provider, instanceProvider instance.Provider, recorder events.Recorder,
+	kubeClient client.Client, amiProvider amifamily.Provider, securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider:  instanceTypeProvider,
 		instanceProvider:      instanceProvider,
@@ -209,6 +210,16 @@ func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *corev1beta1.No
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "aws"
+}
+
+func (c *CloudProvider) GetSupportedNodeClasses() []schema.GroupVersionKind {
+	return []schema.GroupVersionKind{
+		{
+			Group:   v1beta1.SchemeGroupVersion.Group,
+			Version: v1beta1.SchemeGroupVersion.Version,
+			Kind:    "EC2NodeClass",
+		},
+	}
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*v1beta1.EC2NodeClass, error) {

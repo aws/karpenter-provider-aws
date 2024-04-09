@@ -45,7 +45,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="0.35.2"
+export KARPENTER_VERSION="0.35.4"
 export K8S_VERSION="1.29"
 ```
 
@@ -77,7 +77,15 @@ The following cluster configuration will:
 * Create a role to allow spot instances.
 * Run Helm to install Karpenter
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster.sh" language="bash"%}}
+{{< tabpane text=true right=false >}}
+  {{% tab header="**Create cluster command**:" disabled=true /%}}
+  {{% tab header="Managed NodeGroups" %}}
+  {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster.sh" language="bash"%}}
+  {{% /tab %}}
+  {{% tab header="Fargate" %}}
+  {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster-fargate.sh" language="bash"%}}
+  {{% /tab %}}
+{{< /tabpane >}}
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
 
@@ -88,7 +96,15 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 
 ### 4. Install Karpenter
 
-{{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
+{{< tabpane text=true right=false >}}
+  {{% tab header="**Karpenter installation command**:" disabled=true /%}}
+  {{% tab header="Managed NodeGroups" %}}
+  {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart.sh" language="bash"%}}
+  {{% /tab %}}
+  {{% tab header="Fargate" %}}
+  {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step08-apply-helm-chart-fargate.sh" language="bash"%}}
+  {{% /tab %}}
+{{< /tabpane >}}
 
 {{% alert title="DNS Policy Notice" color="warning" %}}
 Karpenter uses the `ClusterFirst` pod DNS policy by default. This is the Kubernetes cluster default and this ensures that Karpetner can reach-out to internal Kubernetes services during its lifetime. There may be cases where you do not have the DNS service that you are using on your cluster up-and-running before Karpenter starts up. The most common case of this is you want Karpenter to manage the node capacity where your DNS service pods are running.

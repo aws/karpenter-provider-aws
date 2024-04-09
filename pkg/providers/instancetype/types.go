@@ -49,19 +49,20 @@ var (
 	instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
 )
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, kc *corev1beta1.KubeletConfiguration,
-	region string, nodeClass *v1beta1.EC2NodeClass, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string,
+	blockDeviceMappings []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
+	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
+	amiFamily amifamily.AMIFamily, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
-	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 	it := &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
 		Requirements: computeRequirements(info, offerings, region, amiFamily),
 		Offerings:    offerings,
-		Capacity:     computeCapacity(ctx, info, amiFamily, nodeClass, kc),
+		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
-			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, kc), ENILimitedPods(ctx, info), amiFamily, kc),
-			SystemReserved:    systemReservedResources(kc),
-			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, nodeClass), amiFamily, kc),
+			KubeReserved:      kubeReservedResources(cpu(info), pods(ctx, info, amiFamily, maxPods, podsPerCore), ENILimitedPods(ctx, info), amiFamily, kubeReserved),
+			SystemReserved:    systemReservedResources(systemReserved),
+			EvictionThreshold: evictionThreshold(memory(ctx, info), ephemeralStorage(info, amiFamily, blockDeviceMappings, instanceStorePolicy), amiFamily, evictionHard, evictionSoft),
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)))) == nil {
@@ -174,13 +175,14 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 }
 
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
-	nodeClass *v1beta1.EC2NodeClass, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+	blockDeviceMapping []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy,
+	maxPods *int32, podsPerCore *int32) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
 		v1.ResourceCPU:              *cpu(info),
 		v1.ResourceMemory:           *memory(ctx, info),
-		v1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, nodeClass),
-		v1.ResourcePods:             *pods(ctx, info, amiFamily, kc),
+		v1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
+		v1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore),
 		v1beta1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
 		v1beta1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
 		v1beta1.ResourceAMDGPU:      *amdGPUs(info),
@@ -208,16 +210,16 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 }
 
 // Setting ephemeral-storage to be either the default value, what is defined in blockDeviceMappings, or the combined size of local store volumes.
-func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, nodeClass *v1beta1.EC2NodeClass) *resource.Quantity {
+func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy) *resource.Quantity {
 	// If local store disks have been configured for node ephemeral-storage, use the total size of the disks.
-	if lo.FromPtr(nodeClass.Spec.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
+	if lo.FromPtr(instanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
 		if info.InstanceStorageInfo != nil && info.InstanceStorageInfo.TotalSizeInGB != nil {
 			return resources.Quantity(fmt.Sprintf("%dG", *info.InstanceStorageInfo.TotalSizeInGB))
 		}
 	}
-	if len(nodeClass.Spec.BlockDeviceMappings) != 0 {
+	if len(blockDeviceMappings) != 0 {
 		// First check if there's a root volume configured in blockDeviceMappings.
-		if blockDeviceMapping, ok := lo.Find(nodeClass.Spec.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
 			return bdm.RootVolume
 		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 			return blockDeviceMapping.EBS.VolumeSize
@@ -225,11 +227,11 @@ func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 		switch amiFamily.(type) {
 		case *amifamily.Custom:
 			// We can't know if a custom AMI is going to have a volume size.
-			volumeSize := nodeClass.Spec.BlockDeviceMappings[len(nodeClass.Spec.BlockDeviceMappings)-1].EBS.VolumeSize
+			volumeSize := blockDeviceMappings[len(blockDeviceMappings)-1].EBS.VolumeSize
 			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
 			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
-			if blockDeviceMapping, ok := lo.Find(nodeClass.Spec.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
 				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
 			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 				return blockDeviceMapping.EBS.VolumeSize
@@ -338,14 +340,13 @@ func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
 	return resources.Quantity(fmt.Sprint(capacity))
 }
 
-func systemReservedResources(kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
-	if kc != nil && kc.SystemReserved != nil {
-		return kc.SystemReserved
-	}
-	return v1.ResourceList{}
+func systemReservedResources(systemReserved map[string]string) v1.ResourceList {
+	return lo.MapEntries(systemReserved, func(k string, v string) (v1.ResourceName, resource.Quantity) {
+		return v1.ResourceName(k), resource.MustParse(v)
+	})
 }
 
-func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFamily amifamily.AMIFamily, kubeReserved map[string]string) v1.ResourceList {
 	if amiFamily.FeatureFlags().UsesENILimitedMemoryOverhead {
 		pods = eniLimitedPods
 	}
@@ -375,28 +376,24 @@ func kubeReservedResources(cpus, pods, eniLimitedPods *resource.Quantity, amiFam
 			resources[v1.ResourceCPU] = *cpuOverhead
 		}
 	}
-	if kc != nil && kc.KubeReserved != nil {
-		return lo.Assign(resources, kc.KubeReserved)
-	}
-	return resources
+	return lo.Assign(resources, lo.MapEntries(kubeReserved, func(k string, v string) (v1.ResourceName, resource.Quantity) {
+		return v1.ResourceName(k), resource.MustParse(v)
+	}))
 }
 
-func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, kc *corev1beta1.KubeletConfiguration) v1.ResourceList {
+func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, amiFamily amifamily.AMIFamily, evictionHard map[string]string, evictionSoft map[string]string) v1.ResourceList {
 	overhead := v1.ResourceList{
 		v1.ResourceMemory:           resource.MustParse("100Mi"),
 		v1.ResourceEphemeralStorage: resource.MustParse(fmt.Sprint(math.Ceil(float64(storage.Value()) / 100 * 10))),
 	}
-	if kc == nil {
-		return overhead
-	}
 
 	override := v1.ResourceList{}
 	var evictionSignals []map[string]string
-	if kc.EvictionHard != nil {
-		evictionSignals = append(evictionSignals, kc.EvictionHard)
+	if evictionHard != nil {
+		evictionSignals = append(evictionSignals, evictionHard)
 	}
-	if kc.EvictionSoft != nil && amiFamily.FeatureFlags().EvictionSoftEnabled {
-		evictionSignals = append(evictionSignals, kc.EvictionSoft)
+	if evictionSoft != nil && amiFamily.FeatureFlags().EvictionSoftEnabled {
+		evictionSignals = append(evictionSignals, evictionSoft)
 	}
 
 	for _, m := range evictionSignals {
@@ -413,19 +410,19 @@ func evictionThreshold(memory *resource.Quantity, storage *resource.Quantity, am
 	return lo.Assign(overhead, override)
 }
 
-func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, kc *corev1beta1.KubeletConfiguration) *resource.Quantity {
+func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, maxPods *int32, podsPerCore *int32) *resource.Quantity {
 	var count int64
 	switch {
-	case kc != nil && kc.MaxPods != nil:
-		count = int64(ptr.Int32Value(kc.MaxPods))
+	case maxPods != nil:
+		count = int64(ptr.Int32Value(maxPods))
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info).Value()
 	default:
 		count = 110
 
 	}
-	if kc != nil && ptr.Int32Value(kc.PodsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
-		count = lo.Min([]int64{int64(ptr.Int32Value(kc.PodsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})
+	if ptr.Int32Value(podsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
+		count = lo.Min([]int64{int64(ptr.Int32Value(podsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})
 	}
 	return resources.Quantity(fmt.Sprint(count))
 }

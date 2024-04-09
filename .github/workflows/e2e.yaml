@@ -47,6 +47,8 @@ on:
       enable_metrics:
         type: boolean
         default: false
+      codebuild_region:
+        type: string
   workflow_call:
     inputs:
       git_ref:
@@ -67,6 +69,8 @@ on:
         type: boolean
         required: true
       workflow_trigger:
+        type: string
+      codebuild_region:
         type: string
       cluster_name:
         type: string
@@ -130,7 +134,7 @@ jobs:
           k8s_version: ${{ inputs.k8s_version }}
           eksctl_version: v0.169.0
           ip_family: ${{ contains(inputs.suite, 'IPv6') && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
-          private_cluster: ${{ inputs.suite == 'PrivateCluster' }}
+          private_cluster: ${{ inputs.workflow_trigger == 'private_cluster' }}
           git_ref: ${{ inputs.git_ref }}
           ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
           ecr_region: ${{ vars.SNAPSHOT_REGION }}
@@ -138,15 +142,33 @@ jobs:
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
           enable_local_zones: ${{ inputs.suite == 'LocalZone' }}
           cleanup: ${{ inputs.cleanup }}
+          codebuild_role: ${{ vars[format('{0}_CODEBUILD_ROLE', inputs.codebuild_region)] }}
+      - name: run tests for private cluster
+        if: ${{ inputs.workflow_trigger == 'private_cluster' }}
+        uses: ./.github/actions/e2e/run-tests-private-cluster
+        with:
+          cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+          suite: ${{ inputs.suite }}
+          prometheus_region: ${{ vars.PROMETHEUS_REGION }}
+          prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
+          region: ${{ inputs.region }}
+          account_id: ${{ vars.CI_ACCOUNT_ID }}
+          k8s_version: ${{ inputs.k8s_version }}
+          ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
+          ecr_region: ${{ vars.SNAPSHOT_REGION }}
+          private_cluster: ${{ inputs.workflow_trigger == 'private_cluster' }}
+          enable_metrics: ${{ inputs.enable_metrics }}
+          metrics_region: ${{ vars.TIMESTREAM_REGION }}
+          node_role: ${{ env.NODE_ROLE }}
+          cleanup: ${{ inputs.cleanup }}
+          codebuild_sg: ${{ vars[format('{0}_CODEBUILD_SG', inputs.codebuild_region)] }}
+          codebuild_vpc: ${{ vars[format('{0}_CODEBUILD_VPC', inputs.codebuild_region)] }}
       - name: run the ${{ inputs.suite }} test suite
+        if: ${{ inputs.workflow_trigger != 'private_cluster' }}
         env:
           SUITE: ${{ inputs.suite }}
           ENABLE_METRICS: ${{ inputs.enable_metrics }}
         run: |
-          # If we are performing the PrivateCluster test suite, then we should just run the 'Integration' test suite
-          if [[ $SUITE == 'PrivateCluster' ]]; then
-            SUITE="Integration"
-          fi
           aws eks update-kubeconfig --name ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           # Clean up the cluster before running all tests
           kubectl delete nodepool --all
@@ -162,11 +184,12 @@ jobs:
         with:
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           url: ${{ inputs.workflow_trigger == 'soak' && secrets.SLACK_WEBHOOK_SOAK_URL || secrets.SLACK_WEBHOOK_URL }}
-          suite: ${{ inputs.workflow_trigger == 'soak' && 'soak' || inputs.suite }}
+          suite: ${{ inputs.suite }}
           git_ref: ${{ inputs.git_ref }}
+          workflow_trigger: ${{ inputs.workflow_trigger }}
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
-        if: failure() || cancelled()
+        if: (failure() || cancelled()) && inputs.workflow_trigger != 'private_cluster'
         with:
           account_id: ${{ vars.CI_ACCOUNT_ID }}
           role: ${{ vars.CI_ROLE_NAME }}
@@ -182,6 +205,7 @@ jobs:
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.git_ref }}
           eksctl_version: v0.169.0
+          private_cluster: ${{ inputs.workflow_trigger == 'private_cluster' }}
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:

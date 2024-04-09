@@ -66,7 +66,7 @@ const (
 var ctx context.Context
 var env *coretest.Environment
 var sqsapi *fake.SQSAPI
-var sqsProvider *sqs.Provider
+var sqsProvider *sqs.DefaultProvider
 var unavailableOfferingsCache *awscache.UnavailableOfferings
 var fakeClock *clock.FakeClock
 var controller *interruption.Controller

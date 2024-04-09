@@ -50,6 +50,7 @@ func main() {
 		resourcetypes.NewOIDC(iamClient),
 		resourcetypes.NewInstanceProfile(iamClient),
 		resourcetypes.NewStack(cloudFormationClient),
+		resourcetypes.NewVPCPeeringConnection(ec2Client),
 	}
 
 	for i := range resourceTypes {

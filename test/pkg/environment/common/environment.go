@@ -171,6 +171,14 @@ func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1
 				Values:   []string{"2"},
 			},
 		},
+		// Filter out a1 instance types, which are incompatible with AL2023 AMIs
+		{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1beta1.LabelInstanceFamily,
+				Operator: v1.NodeSelectorOpNotIn,
+				Values:   []string{"a1"},
+			},
+		},
 	}
 	nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
 	nodePool.Spec.Disruption.ExpireAfter.Duration = nil

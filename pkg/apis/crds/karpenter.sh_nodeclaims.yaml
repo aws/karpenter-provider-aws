@@ -140,11 +140,8 @@ spec:
                       type: integer
                     kubeReserved:
                       additionalProperties:
-                        anyOf:
-                          - type: integer
-                          - type: string
+                        type: string
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
                       description: KubeReserved contains resources reserved for Kubernetes system components.
                       type: object
                       x-kubernetes-validations:
@@ -169,11 +166,8 @@ spec:
                       type: integer
                     systemReserved:
                       additionalProperties:
-                        anyOf:
-                          - type: integer
-                          - type: string
+                        type: string
                         pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                        x-kubernetes-int-or-string: true
                       description: SystemReserved contains resources reserved for OS system daemons and kernel memory.
                       type: object
                       x-kubernetes-validations:
