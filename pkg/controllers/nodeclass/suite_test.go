@@ -44,7 +44,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -1016,7 +1015,7 @@ var _ = Describe("NodeClassController", func() {
 	Context("NodeClass Termination", func() {
 		var profileName string
 		BeforeEach(func() {
-			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+			profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, fake.DefaultRegion, nodeClass.Name)
 		})
 		It("should not delete the NodeClass if launch template deletion fails", func() {
 			launchTemplateName := aws.String(fake.LaunchTemplateName())
@@ -1189,7 +1188,7 @@ var _ = Describe("NodeClassController", func() {
 	Context("Instance Profile Status", func() {
 		var profileName string
 		BeforeEach(func() {
-			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+			profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, fake.DefaultRegion, nodeClass.Name)
 		})
 		It("should create the instance profile when it doesn't exist", func() {
 			nodeClass.Spec.Role = "test-role"
