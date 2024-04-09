@@ -115,14 +115,14 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(cluster) (karpenter_nodes_created)",
+          "expr": "sum by(cluster,nodepool) (karpenter_nodes_created{nodepool=~\"$nodepool\"})",
           "format": "time_series",
           "legendFormat": "{{cluster}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Nodes Created",
+      "title": "Nodes Created: nodepool \"$nodepool\"",
       "type": "timeseries"
     },
     {
@@ -215,14 +215,14 @@
             "uid": "${datasource}"
           },
           "editorMode": "builder",
-          "expr": "sum by(cluster) (karpenter_nodes_terminated)",
+          "expr": "sum by(cluster,nodepool) (karpenter_nodes_terminated{nodepool=~\"$nodepool\"})",
           "format": "time_series",
           "legendFormat": "{{cluster}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Nodes Terminated",
+      "title": "Nodes Terminated: nodepool \"$nodepool\"",
       "type": "timeseries"
     },
     {
