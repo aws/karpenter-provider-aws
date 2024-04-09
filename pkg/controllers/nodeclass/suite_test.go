@@ -35,7 +35,6 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -43,7 +42,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -66,8 +64,6 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...), coretest.WithFieldIndexers(test.EC2NodeClassFieldIndexer(ctx)))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 
 	nodeClassController = nodeclass.NewController(env.Client, events.NewRecorder(&record.FakeRecorder{}), awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
@@ -77,13 +73,9 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	awsEnv.Reset()
-})
-
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
+	awsEnv.Reset()
 })
 
 var _ = Describe("NodeClassController", func() {
@@ -1016,7 +1008,7 @@ var _ = Describe("NodeClassController", func() {
 	Context("NodeClass Termination", func() {
 		var profileName string
 		BeforeEach(func() {
-			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+			profileName = instanceprofile.GetProfileName(fake.DefaultRegion, nodeClass)
 		})
 		It("should not delete the NodeClass if launch template deletion fails", func() {
 			launchTemplateName := aws.String(fake.LaunchTemplateName())
@@ -1189,7 +1181,7 @@ var _ = Describe("NodeClassController", func() {
 	Context("Instance Profile Status", func() {
 		var profileName string
 		BeforeEach(func() {
-			profileName = instanceprofile.GetProfileName(ctx, fake.DefaultRegion, nodeClass)
+			profileName = instanceprofile.GetProfileName(fake.DefaultRegion, nodeClass)
 		})
 		It("should create the instance profile when it doesn't exist", func() {
 			nodeClass.Spec.Role = "test-role"

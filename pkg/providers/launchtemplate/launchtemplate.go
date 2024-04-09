@@ -42,7 +42,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
@@ -184,7 +184,7 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1bet
 		return nil, fmt.Errorf("no security groups exist given constraints")
 	}
 	options := &amifamily.Options{
-		ClusterName:         options.FromContext(ctx).ClusterName,
+		ClusterName:         global.Config.ClusterName,
 		ClusterEndpoint:     p.ClusterEndpoint,
 		ClusterCIDR:         p.ClusterCIDR.Load(),
 		InstanceProfile:     instanceProfile,
@@ -361,7 +361,7 @@ func (p *DefaultProvider) volumeSize(quantity *resource.Quantity) *int64 {
 // hydrateCache queries for existing Launch Templates created by Karpenter for the current cluster and adds to the LT cache.
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
-	clusterName := options.FromContext(ctx).ClusterName
+	clusterName := global.Config.ClusterName
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
@@ -410,7 +410,7 @@ func (p *DefaultProvider) getInstanceProfile(nodeClass *v1beta1.EC2NodeClass) (s
 }
 
 func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-	clusterName := options.FromContext(ctx).ClusterName
+	clusterName := global.Config.ClusterName
 	var ltNames []*string
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{
@@ -445,7 +445,7 @@ func (p *DefaultProvider) ResolveClusterCIDR(ctx context.Context) error {
 		return nil
 	}
 	out, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
-		Name: aws.String(options.FromContext(ctx).ClusterName),
+		Name: aws.String(global.Config.ClusterName),
 	})
 	if err != nil {
 		return err

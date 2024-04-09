@@ -19,6 +19,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
 	"github.com/aws/karpenter-provider-aws/pkg/webhooks"
 
@@ -30,6 +31,7 @@ import (
 )
 
 func main() {
+	lo.Must0(global.Initialize())
 	ctx, op := operator.NewOperator(coreoperator.NewOperator())
 	awsCloudProvider := cloudprovider.New(
 		op.InstanceTypesProvider,

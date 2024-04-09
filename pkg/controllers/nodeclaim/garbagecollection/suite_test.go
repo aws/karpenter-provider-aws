@@ -40,7 +40,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/garbagecollection"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -62,7 +62,6 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	ctx = options.ToContext(ctx, test.Options())
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
@@ -104,7 +103,7 @@ var _ = Describe("GarbageCollection", func() {
 			},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
+					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", global.Config.ClusterName)),
 					Value: aws.String("owned"),
 				},
 				{
@@ -117,7 +116,7 @@ var _ = Describe("GarbageCollection", func() {
 				},
 				{
 					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-					Value: aws.String(options.FromContext(ctx).ClusterName),
+					Value: aws.String(global.Config.ClusterName),
 				},
 			},
 			PrivateDnsName: aws.String(fake.PrivateDNSName()),
@@ -131,7 +130,6 @@ var _ = Describe("GarbageCollection", func() {
 	AfterEach(func() {
 		ExpectCleanedUp(ctx, env.Client)
 	})
-
 	It("should delete an instance if there is no NodeClaim owner", func() {
 		// Launch time was 1m ago
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
@@ -172,7 +170,7 @@ var _ = Describe("GarbageCollection", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", global.Config.ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -185,7 +183,7 @@ var _ = Describe("GarbageCollection", func() {
 						},
 						{
 							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-							Value: aws.String(options.FromContext(ctx).ClusterName),
+							Value: aws.String(global.Config.ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),
@@ -230,7 +228,7 @@ var _ = Describe("GarbageCollection", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", global.Config.ClusterName)),
 							Value: aws.String("owned"),
 						},
 					},
@@ -339,7 +337,7 @@ var _ = Describe("GarbageCollection", func() {
 					},
 					Tags: []*ec2.Tag{
 						{
-							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
+							Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", global.Config.ClusterName)),
 							Value: aws.String("owned"),
 						},
 						{
@@ -348,7 +346,7 @@ var _ = Describe("GarbageCollection", func() {
 						},
 						{
 							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-							Value: aws.String(options.FromContext(ctx).ClusterName),
+							Value: aws.String(global.Config.ClusterName),
 						},
 					},
 					PrivateDnsName: aws.String(fake.PrivateDNSName()),

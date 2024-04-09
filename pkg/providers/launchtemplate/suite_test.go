@@ -48,7 +48,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
@@ -57,7 +56,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
@@ -82,8 +81,6 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 
@@ -100,11 +97,6 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options())
-	cluster.Reset()
-	awsEnv.Reset()
-
 	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 	awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("ca-bundle")
@@ -112,6 +104,8 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
+	cluster.Reset()
+	awsEnv.Reset()
 })
 
 var _ = Describe("LaunchTemplate Provider", func() {
@@ -819,9 +813,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 
 		It("should calculate memory overhead based on eni limited pods", func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-			}))
+			global.Config.VMMemoryOverheadPercent = 0
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -872,9 +864,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 
 		It("should calculate memory overhead based on eni limited pods", func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-			}))
+			global.Config.VMMemoryOverheadPercent = 0
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -897,9 +887,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(overhead.Memory().String()).To(Equal("993Mi"))
 		})
 		It("should calculate memory overhead based on max pods", func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-			}))
+			global.Config.VMMemoryOverheadPercent = 0
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}

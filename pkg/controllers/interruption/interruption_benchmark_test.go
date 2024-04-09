@@ -45,16 +45,13 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
+	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
-	"github.com/aws/karpenter-provider-aws/pkg/test"
-
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
-	coretest "sigs.k8s.io/karpenter/pkg/test"
 )
 
 var r = rand.New(rand.NewSource(time.Now().Unix()))
@@ -79,12 +76,9 @@ func BenchmarkNotification100(b *testing.B) {
 func benchmarkNotificationController(b *testing.B, messageCount int) {
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("message-count", messageCount))
 	fakeClock = &clock.FakeClock{}
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-		ClusterName:       lo.ToPtr("karpenter-notification-benchmarking"),
-		IsolatedVPC:       lo.ToPtr(true),
-		InterruptionQueue: lo.ToPtr("test-cluster"),
-	}))
+	global.Config.ClusterName = "karpenter-notification-benchmarking"
+	global.Config.IsolatedVPC = true
+	global.Config.InterruptionQueue = "test-cluster"
 	env = coretest.NewEnvironment(scheme.Scheme)
 	// Stop the coretest environment after the coretest completes
 	defer func() {
@@ -183,7 +177,7 @@ func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
 
 func (p *providerSet) makeInfrastructure(ctx context.Context) error {
 	if _, err := p.sqsAPI.CreateQueueWithContext(ctx, &servicesqs.CreateQueueInput{
-		QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueueName),
+		QueueName: lo.ToPtr(global.Config.InterruptionQueueName),
 		Attributes: map[string]*string{
 			servicesqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
 		},

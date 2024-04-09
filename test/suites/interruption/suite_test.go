@@ -19,7 +19,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -32,8 +31,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
@@ -57,9 +54,6 @@ func TestInterruption(t *testing.T) {
 }
 
 var _ = BeforeEach(func() {
-	env.Context = options.ToContext(env.Context, test.Options(test.OptionsFields{
-		InterruptionQueue: lo.ToPtr(env.InterruptionQueue),
-	}))
 	env.BeforeEach()
 	nodeClass = env.DefaultEC2NodeClass()
 	nodePool = env.DefaultNodePool(nodeClass)

@@ -39,7 +39,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/batcher"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
@@ -95,7 +95,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1beta1.EC2Node
 	if !schedulingRequirements.HasMinValues() {
 		instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
 	}
-	tags := getTags(ctx, nodeClass, nodeClaim)
+	tags := getTags(nodeClass, nodeClaim)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, instanceTypes, tags)
 	if awserrors.IsLaunchTemplateNotFound(err) {
 		// retry once if launch template is not found. This allows karpenter to generate a new LT if the
@@ -144,7 +144,7 @@ func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 			},
 			{
 				Name:   aws.String("tag-key"),
-				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)}),
+				Values: aws.StringSlice([]string{fmt.Sprintf("kubernetes.io/cluster/%s", global.Config.ClusterName)}),
 			},
 			instanceStateFilter,
 		},
@@ -251,12 +251,12 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1beta1
 	return createFleetOutput.Instances[0], nil
 }
 
-func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim) map[string]string {
+func getTags(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim) map[string]string {
 	staticTags := map[string]string{
-		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
-		corev1beta1.NodePoolLabelKey:       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
-		corev1beta1.ManagedByAnnotationKey: options.FromContext(ctx).ClusterName,
-		v1beta1.LabelNodeClass:             nodeClass.Name,
+		fmt.Sprintf("kubernetes.io/cluster/%s", global.Config.ClusterName): "owned",
+		corev1beta1.NodePoolLabelKey:                                       nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
+		corev1beta1.ManagedByAnnotationKey:                                 global.Config.ClusterName,
+		v1beta1.LabelNodeClass:                                             nodeClass.Name,
 	}
 	return lo.Assign(nodeClass.Spec.Tags, staticTags)
 }

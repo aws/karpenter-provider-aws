@@ -32,12 +32,11 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/tagging"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -59,8 +58,6 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 	taggingController = tagging.NewController(env.Client, awsEnv.InstanceProvider)
 })
@@ -68,12 +65,9 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = BeforeEach(func() {
-	awsEnv.Reset()
-})
-
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
+	awsEnv.Reset()
 })
 
 var _ = Describe("TaggingController", func() {
@@ -86,7 +80,7 @@ var _ = Describe("TaggingController", func() {
 			},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName)),
+					Key:   aws.String(fmt.Sprintf("kubernetes.io/cluster/%s", global.Config.ClusterName)),
 					Value: aws.String("owned"),
 				},
 				{
@@ -95,7 +89,7 @@ var _ = Describe("TaggingController", func() {
 				},
 				{
 					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
-					Value: aws.String(options.FromContext(ctx).ClusterName),
+					Value: aws.String(global.Config.ClusterName),
 				},
 			},
 			PrivateDnsName: aws.String(fake.PrivateDNSName()),

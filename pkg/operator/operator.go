@@ -52,7 +52,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
@@ -89,13 +89,18 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
+	lo.Must0(global.Initialize())
 	config := &aws.Config{
 		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
 	}
 
-	if assumeRoleARN := options.FromContext(ctx).AssumeRoleARN; assumeRoleARN != "" {
+	if assumeRoleARN := global.Config.AssumeRoleARN; assumeRoleARN != "" {
 		config.Credentials = stscreds.NewCredentials(session.Must(session.NewSession()), assumeRoleARN,
-			func(provider *stscreds.AssumeRoleProvider) { setDurationAndExpiry(ctx, provider) })
+			func(provider *stscreds.AssumeRoleProvider) {
+				provider.Duration = global.Config.AssumeRoleDuration
+				provider.ExpiryWindow = time.Duration(10) * time.Second
+			},
+		)
 	}
 
 	sess := withUserAgent(session.Must(session.NewSession(
@@ -136,7 +141,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
-		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
 		ec2api,
 		*sess.Config.Region,
@@ -153,7 +157,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		securityGroupProvider,
 		subnetProvider,
 		instanceProfileProvider,
-		lo.Must(getCABundle(ctx, operator.GetConfig())),
+		lo.Must(getCABundle(operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
 		clusterEndpoint,
@@ -213,12 +217,12 @@ func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
 }
 
 func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
-	clusterEndpointFromOptions := options.FromContext(ctx).ClusterEndpoint
+	clusterEndpointFromOptions := global.Config.ClusterEndpoint
 	if clusterEndpointFromOptions != "" {
 		return clusterEndpointFromOptions, nil // cluster endpoint is explicitly set
 	}
 	out, err := eksAPI.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
-		Name: aws.String(options.FromContext(ctx).ClusterName),
+		Name: aws.String(global.Config.ClusterName),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to resolve cluster endpoint, %w", err)
@@ -226,12 +230,12 @@ func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string
 	return *out.Cluster.Endpoint, nil
 }
 
-func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {
+func getCABundle(restConfig *rest.Config) (*string, error) {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
 	// within the same cluster it's managing.
-	if caBundle := options.FromContext(ctx).ClusterCABundle; caBundle != "" {
+	if caBundle := global.Config.ClusterCABundle; caBundle != "" {
 		return lo.ToPtr(caBundle), nil
 	}
 	transportConfig, err := restConfig.TransportConfig()
@@ -258,9 +262,4 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 		return nil, fmt.Errorf("parsing cluster IP")
 	}
 	return kubeDNSIP, nil
-}
-
-func setDurationAndExpiry(ctx context.Context, provider *stscreds.AssumeRoleProvider) {
-	provider.Duration = options.FromContext(ctx).AssumeRoleDuration
-	provider.ExpiryWindow = time.Duration(10) * time.Second
 }

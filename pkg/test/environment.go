@@ -29,6 +29,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
@@ -99,7 +100,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
-	pricingProvider := pricing.NewDefaultProvider(ctx, fakePricingAPI, ec2api, fake.DefaultRegion)
+	pricingProvider := pricing.NewDefaultProvider(fakePricingAPI, ec2api, fake.DefaultRegion)
 	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache)
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache)
@@ -188,4 +189,9 @@ func (env *Environment) Reset() {
 			}
 		}
 	}
+	_ = global.Initialize(
+		"--cluster-name", "test-cluster",
+		"--cluster-endpoint", "https://test-cluster",
+		"--vm-memory-overhead-percent", "0.075",
+	)
 }

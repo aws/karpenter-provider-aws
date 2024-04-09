@@ -25,8 +25,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -38,6 +36,8 @@ import (
 	"knative.dev/pkg/logging"
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 )
 
 var initialOnDemandPrices = lo.Assign(InitialOnDemandPricesAWS, InitialOnDemandPricesUSGov, InitialOnDemandPricesCN)
@@ -105,7 +105,7 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
 }
 
-func NewDefaultProvider(_ context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *DefaultProvider {
+func NewDefaultProvider(pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *DefaultProvider {
 	p := &DefaultProvider{
 		region:  region,
 		ec2:     ec2Api,
@@ -164,7 +164,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 
 	// if we are in isolated vpc, skip updating on demand pricing
 	// as pricing api may not be available
-	if options.FromContext(ctx).IsolatedVPC {
+	if global.Config.IsolatedVPC {
 		if p.cm.HasChanged("on-demand-prices", nil) {
 			logging.FromContext(ctx).Debug("running in an isolated VPC, on-demand pricing information will not be updated")
 		}

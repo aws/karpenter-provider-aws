@@ -42,7 +42,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -53,7 +52,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -75,8 +74,6 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
@@ -90,16 +87,14 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options())
-	cluster.Reset()
-	awsEnv.Reset()
 	awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10")
 	awsEnv.LaunchTemplateProvider.ClusterEndpoint = "https://test-cluster"
 })
 
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
+	cluster.Reset()
+	awsEnv.Reset()
 })
 
 var _ = Describe("InstanceTypeProvider", func() {
@@ -857,9 +852,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-				ClusterName: lo.ToPtr("karpenter-cluster"),
-			}))
+			global.Config.ClusterName = "karpenter-cluster"
 
 			var ok bool
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
@@ -975,9 +968,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		Context("Eviction Thresholds", func() {
 			BeforeEach(func() {
-				ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-					VMMemoryOverheadPercent: lo.ToPtr[float64](0),
-				}))
+				global.Config.VMMemoryOverheadPercent = 0
 			})
 			Context("Eviction Hard", func() {
 				It("should override eviction threshold when specified as a quantity", func() {
@@ -1433,9 +1424,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should reserve ENIs when aws.reservedENIs is set and is used in max-pods calculation", func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-				ReservedENIs: lo.ToPtr(1),
-			}))
+			global.Config.ReservedENIs = 1
 
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())
@@ -1467,9 +1456,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
 		})
 		It("should reserve ENIs when aws.reservedENIs is set and not go below 0 ENIs in max-pods calculation", func() {
-			ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-				ReservedENIs: lo.ToPtr(1_000_000),
-			}))
+			global.Config.ReservedENIs = 1_000_000
 
 			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
 			Expect(err).To(BeNil())

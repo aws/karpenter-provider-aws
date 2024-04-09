@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package options
+package global
 
 import (
 	"fmt"
@@ -22,52 +22,52 @@ import (
 	"go.uber.org/multierr"
 )
 
-func (o Options) Validate() error {
+func (c config) Validate() error {
 	return multierr.Combine(
-		o.validateEndpoint(),
-		o.validateVMMemoryOverheadPercent(),
-		o.validateAssumeRoleDuration(),
-		o.validateReservedENIs(),
-		o.validateRequiredFields(),
+		c.validateEndpoint(),
+		c.validateVMMemoryOverheadPercent(),
+		c.validateAssumeRoleDuration(),
+		c.validateReservedENIs(),
+		c.validateRequiredFields(),
 	)
 }
 
-func (o Options) validateAssumeRoleDuration() error {
-	if o.AssumeRoleDuration < time.Minute*15 {
+func (c config) validateAssumeRoleDuration() error {
+	if c.AssumeRoleDuration < time.Minute*15 {
 		return fmt.Errorf("assume-role-duration cannot be less than 15 minutes")
 	}
 	return nil
 }
 
-func (o Options) validateEndpoint() error {
-	if o.ClusterEndpoint == "" {
+func (c config) validateEndpoint() error {
+	if c.ClusterEndpoint == "" {
 		return nil
 	}
-	endpoint, err := url.Parse(o.ClusterEndpoint)
+	endpoint, err := url.Parse(c.ClusterEndpoint)
 	// url.Parse() will accept a lot of input without error; make
 	// sure it's a real URL
 	if err != nil || !endpoint.IsAbs() || endpoint.Hostname() == "" {
-		return fmt.Errorf("%q is not a valid cluster-endpoint URL", o.ClusterEndpoint)
+		return fmt.Errorf("%q is not a valid cluster-endpoint URL", c.ClusterEndpoint)
 	}
 	return nil
 }
 
-func (o Options) validateVMMemoryOverheadPercent() error {
-	if o.VMMemoryOverheadPercent < 0 {
+func (c config) validateVMMemoryOverheadPercent() error {
+	if c.VMMemoryOverheadPercent < 0 {
 		return fmt.Errorf("vm-memory-overhead-percent cannot be negative")
 	}
 	return nil
 }
 
-func (o Options) validateReservedENIs() error {
-	if o.ReservedENIs < 0 {
+func (c config) validateReservedENIs() error {
+	if c.ReservedENIs < 0 {
 		return fmt.Errorf("reserved-enis cannot be negative")
 	}
 	return nil
 }
 
-func (o Options) validateRequiredFields() error {
-	if o.ClusterName == "" {
+func (c config) validateRequiredFields() error {
+	if c.ClusterName == "" {
 		return fmt.Errorf("missing field, cluster-name")
 	}
 	return nil

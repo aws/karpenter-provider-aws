@@ -25,14 +25,13 @@ import (
 	awspricing "github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/types"
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -56,8 +55,6 @@ func TestAWS(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
 	controller = controllerspricing.NewController(awsEnv.PricingProvider)
@@ -68,15 +65,9 @@ var _ = AfterSuite(func() {
 	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
 })
 
-var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, coretest.Options())
-	ctx = options.ToContext(ctx, test.Options())
-
-	awsEnv.Reset()
-})
-
 var _ = AfterEach(func() {
 	ExpectCleanedUp(ctx, env.Client)
+	awsEnv.Reset()
 })
 
 var _ = Describe("Pricing", func() {
@@ -84,7 +75,7 @@ var _ = Describe("Pricing", func() {
 		"should return correct static data for all partitions",
 		func(staticPricing map[string]map[string]float64) {
 			for region, prices := range staticPricing {
-				provider := pricing.NewDefaultProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, region)
+				provider := pricing.NewDefaultProvider(awsEnv.PricingAPI, awsEnv.EC2API, region)
 				for instance, price := range prices {
 					val, ok := provider.OnDemandPrice(instance)
 					Expect(ok).To(BeTrue())
@@ -259,9 +250,7 @@ var _ = Describe("Pricing", func() {
 			To(ContainElements("Linux/UNIX", "Linux/UNIX (Amazon VPC)"))
 	})
 	It("should return static on-demand data when in isolated-vpc", func() {
-		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-			IsolatedVPC: lo.ToPtr(true),
-		}))
+		global.Config.IsolatedVPC = true
 		now := time.Now()
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(&ec2.DescribeSpotPriceHistoryOutput{
 			SpotPriceHistory: []*ec2.SpotPrice{
@@ -298,7 +287,7 @@ var _ = Describe("Pricing", func() {
 		Expect(price).To(BeNumerically("==", 1.10))
 	})
 	It("should update on-demand pricing with response from the pricing API when in the CN partition", func() {
-		tmpPricingProvider := pricing.NewDefaultProvider(ctx, awsEnv.PricingAPI, awsEnv.EC2API, "cn-anywhere-1")
+		tmpPricingProvider := pricing.NewDefaultProvider(awsEnv.PricingAPI, awsEnv.EC2API, "cn-anywhere-1")
 		tmpController := controllerspricing.NewController(tmpPricingProvider)
 
 		now := time.Now()

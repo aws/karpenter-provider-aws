@@ -25,16 +25,15 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	"github.com/aws/karpenter-provider-aws/pkg/fake"
-	awscontext "github.com/aws/karpenter-provider-aws/pkg/operator"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/test"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "knative.dev/pkg/logging/testing"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
+	"github.com/aws/karpenter-provider-aws/pkg/operator"
 )
 
 var ctx context.Context
@@ -70,17 +69,13 @@ var _ = AfterEach(func() {
 
 var _ = Describe("Operator", func() {
 	It("should resolve endpoint if set via configuration", func() {
-		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-			ClusterEndpoint: lo.ToPtr("https://api.test-cluster.k8s.local"),
-		}))
-		endpoint, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
+		global.Config.ClusterEndpoint = "https://api.test-cluster.k8s.local"
+		endpoint, err := operator.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://api.test-cluster.k8s.local"))
 	})
 	It("should resolve endpoint if not set, via call to API", func() {
-		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-			ClusterEndpoint: lo.ToPtr(""),
-		}))
+		global.Config.ClusterEndpoint = ""
 		fakeEKSAPI.DescribeClusterBehavior.Output.Set(
 			&eks.DescribeClusterOutput{
 				Cluster: &eks.Cluster{
@@ -89,17 +84,15 @@ var _ = Describe("Operator", func() {
 			},
 		)
 
-		endpoint, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
+		endpoint, err := operator.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(endpoint).To(Equal("https://cluster-endpoint.test-cluster.k8s.local"))
 	})
 	It("should propagate error if API fails", func() {
-		ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-			ClusterEndpoint: lo.ToPtr(""),
-		}))
+		global.Config.ClusterEndpoint = ""
 		fakeEKSAPI.DescribeClusterBehavior.Error.Set(errors.New("test error"))
 
-		_, err := awscontext.ResolveClusterEndpoint(ctx, fakeEKSAPI)
+		_, err := operator.ResolveClusterEndpoint(ctx, fakeEKSAPI)
 		Expect(err).To(HaveOccurred())
 	})
 })

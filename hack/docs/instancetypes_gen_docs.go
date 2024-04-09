@@ -34,17 +34,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
+	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
-	coretest "sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	awscloudprovider "github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
-	"github.com/aws/karpenter-provider-aws/pkg/test"
-
-	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 // FakeManager is a manager that takes all the utilized calls from the operator setup
@@ -84,14 +80,11 @@ func main() {
 	lo.Must0(os.Setenv("AWS_SDK_LOAD_CONFIG", "true"))
 	lo.Must0(os.Setenv("AWS_REGION", "us-east-1"))
 
-	ctx := coreoptions.ToContext(context.Background(), coretest.Options())
-	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
-		ClusterName:     lo.ToPtr("docs-gen"),
-		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
-		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
-	}))
+	global.Initialize("--cluster-name", "docs-gen",
+		"--cluster-endpoint", "https://docs-gen.aws",
+		"--isolated-vpc")
 
-	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
+	ctx, op := operator.NewOperator(context.Background(), &coreoperator.Operator{
 		Manager:             &FakeManager{},
 		KubernetesInterface: kubernetes.NewForConfigOrDie(&rest.Config{}),
 	})

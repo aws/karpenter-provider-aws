@@ -21,9 +21,9 @@ import (
 	"os"
 	"strings"
 
-	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	coreglobal "sigs.k8s.io/karpenter/pkg/global"
 
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/global"
 )
 
 func main() {
@@ -50,11 +50,11 @@ func main() {
 	topDoc := fmt.Sprintf("%s%s\n\n", startDocSections[0], genStart)
 	bottomDoc := fmt.Sprintf("\n%s%s", genEnd, endDocSections[1])
 
-	fs := &coreoptions.FlagSet{
+	fs := &coreglobal.FlagSet{
 		FlagSet: flag.NewFlagSet("karpenter", flag.ContinueOnError),
 	}
-	(&coreoptions.Options{}).AddFlags(fs)
-	(&options.Options{}).AddFlags(fs)
+	coreglobal.AddFlags(fs)
+	global.AddFlags(fs)
 
 	envVarsBlock := "| Environment Variable | CLI Flag | Description |\n"
 	envVarsBlock += "|--|--|--|\n"

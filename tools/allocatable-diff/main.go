@@ -30,12 +30,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/config"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
-	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
 var clusterName string
