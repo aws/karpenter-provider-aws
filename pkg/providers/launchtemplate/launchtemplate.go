@@ -77,9 +77,9 @@ type DefaultProvider struct {
 	ec2api                  ec2iface.EC2API
 	eksapi                  eksiface.EKSAPI
 	amiFamily               *amifamily.Resolver
-	securityGroupProvider   *securitygroup.DefaultProvider
-	subnetProvider          *subnet.DefaultProvider
-	instanceProfileProvider *instanceprofile.DefaultProvider
+	securityGroupProvider   securitygroup.Provider
+	subnetProvider          subnet.Provider
+	instanceProfileProvider instanceprofile.Provider
 	cache                   *cache.Cache
 	cm                      *pretty.ChangeMonitor
 	KubeDNSIP               net.IP
@@ -88,8 +88,8 @@ type DefaultProvider struct {
 	ClusterCIDR             atomic.Pointer[string]
 }
 
-func NewProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
-	securityGroupProvider *securitygroup.DefaultProvider, subnetProvider *subnet.DefaultProvider, instanceProfileProvider *instanceprofile.DefaultProvider,
+func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
+	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider, instanceProfileProvider instanceprofile.Provider,
 	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *DefaultProvider {
 	l := &DefaultProvider{
 		ec2api:                  ec2api,
