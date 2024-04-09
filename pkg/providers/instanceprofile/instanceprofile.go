@@ -36,6 +36,7 @@ import (
 type Provider interface {
 	Create(context.Context, *v1beta1.EC2NodeClass) (string, error)
 	Delete(context.Context, *v1beta1.EC2NodeClass) error
+	GetProfileName(ctx context.Context, region, nodeClassName string) string
 }
 
 type DefaultProvider struct {
@@ -59,7 +60,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1beta1.EC2Node
 		v1beta1.LabelNodeClass:                                                        nodeClass.Name,
 		v1.LabelTopologyRegion:                                                        p.region,
 	})
-	profileName := GetProfileName(ctx, p.region, nodeClass)
+	profileName := p.GetProfileName(ctx, p.region, nodeClass.Name)
 
 	// An instance profile exists for this NodeClass
 	if _, ok := p.cache.Get(string(nodeClass.UID)); ok {
@@ -107,7 +108,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1beta1.EC2Node
 }
 
 func (p *DefaultProvider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-	profileName := GetProfileName(ctx, p.region, nodeClass)
+	profileName := p.GetProfileName(ctx, p.region, nodeClass.Name)
 	out, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
 	})
@@ -134,6 +135,6 @@ func (p *DefaultProvider) Delete(ctx context.Context, nodeClass *v1beta1.EC2Node
 
 // GetProfileName gets the string for the profile name based on the cluster name and the NodeClass UUID.
 // The length of this string can never exceed the maximum instance profile name limit of 128 characters.
-func GetProfileName(ctx context.Context, region string, nodeClass *v1beta1.EC2NodeClass) string {
-	return fmt.Sprintf("%s_%d", options.FromContext(ctx).ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, nodeClass.Name), hashstructure.FormatV2, nil)))
+func (p *DefaultProvider) GetProfileName(ctx context.Context, region, nodeClassName string) string {
+	return fmt.Sprintf("%s_%d", options.FromContext(ctx).ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, nodeClassName), hashstructure.FormatV2, nil)))
 }
