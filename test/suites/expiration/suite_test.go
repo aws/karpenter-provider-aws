@@ -497,6 +497,7 @@ var _ = Describe("Expiration", func() {
 		// Set the expireAfter to "Never" to make sure new node isn't deleted
 		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
 		// racing at the end of the E2E test, leaking node resources into subsequent tests
+		env.EventuallyExpectNodeClaimCount("==", 2)
 		nodePool.Spec.Disruption.ExpireAfter.Duration = nil
 		env.ExpectUpdated(nodePool)
 
@@ -561,6 +562,7 @@ var _ = Describe("Expiration", func() {
 		// Set the expireAfter to "Never" to make sure new node isn't deleted
 		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
 		// racing at the end of the E2E test, leaking node resources into subsequent tests
+		env.EventuallyExpectNodeClaimCount("==", 2)
 		nodePool.Spec.Disruption.ExpireAfter.Duration = nil
 		env.ExpectUpdated(nodePool)
 
