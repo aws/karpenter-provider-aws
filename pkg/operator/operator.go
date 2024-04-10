@@ -95,10 +95,10 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	if assumeRoleARN := options.FromContext(ctx).AssumeRoleARN; assumeRoleARN != "" {
 		config.Credentials = stscreds.NewCredentials(session.Must(session.NewSession()), assumeRoleARN,
-			func(provider *stscreds.AssumeRoleProvider) { setDurationAndExpiry(ctx, provider) })
+			func(provider *stscreds.AssumeRoleProvider) { SetDurationAndExpiry(ctx, provider) })
 	}
 
-	sess := withUserAgent(session.Must(session.NewSession(
+	sess := WithUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
 			config,
 			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
@@ -111,7 +111,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
 	ec2api := ec2.New(sess)
-	if err := checkEC2Connectivity(ctx, ec2api); err != nil {
+	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
 		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
 	}
 	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
@@ -122,7 +122,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
 	}
 	// We perform best-effort on resolving the kube-dns IP
-	kubeDNSIP, err := kubeDNSIP(ctx, operator.KubernetesInterface)
+	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
 	if err != nil {
 		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
 		// https://github.com/aws/karpenter-provider-aws/issues/2787
@@ -153,7 +153,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		securityGroupProvider,
 		subnetProvider,
 		instanceProfileProvider,
-		lo.Must(getCABundle(ctx, operator.GetConfig())),
+		lo.Must(GetCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
 		clusterEndpoint,
@@ -194,16 +194,16 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	}
 }
 
-// withUserAgent adds a karpenter specific user-agent string to AWS session
-func withUserAgent(sess *session.Session) *session.Session {
+// WithUserAgent adds a karpenter specific user-agent string to AWS session
+func WithUserAgent(sess *session.Session) *session.Session {
 	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
 	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
 	return sess
 }
 
-// checkEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
+// CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.
-func checkEC2Connectivity(ctx context.Context, api *ec2.EC2) error {
+func CheckEC2Connectivity(ctx context.Context, api ec2iface.EC2API) error {
 	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
 	var aerr awserr.Error
 	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
@@ -226,7 +226,7 @@ func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string
 	return *out.Cluster.Endpoint, nil
 }
 
-func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {
+func GetCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) {
 	// Discover CA Bundle from the REST client. We could alternatively
 	// have used the simpler client-go InClusterConfig() method.
 	// However, that only works when Karpenter is running as a Pod
@@ -245,7 +245,7 @@ func getCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
 
-func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
+func KubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {
 	if kubernetesInterface == nil {
 		return nil, fmt.Errorf("no K8s client provided")
 	}
@@ -260,7 +260,7 @@ func kubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (n
 	return kubeDNSIP, nil
 }
 
-func setDurationAndExpiry(ctx context.Context, provider *stscreds.AssumeRoleProvider) {
+func SetDurationAndExpiry(ctx context.Context, provider *stscreds.AssumeRoleProvider) {
 	provider.Duration = options.FromContext(ctx).AssumeRoleDuration
 	provider.ExpiryWindow = time.Duration(10) * time.Second
 }
