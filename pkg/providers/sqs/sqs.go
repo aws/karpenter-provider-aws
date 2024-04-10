@@ -26,6 +26,7 @@ import (
 
 type Provider interface {
 	Name() string
+	QueueURL() string
 	GetSQSMessages(context.Context) ([]*sqs.Message, error)
 	SendMessage(context.Context, interface{}) (string, error)
 	DeleteSQSMessage(context.Context, *sqs.Message) error
@@ -56,6 +57,10 @@ func (p *DefaultProvider) Name() string {
 	return p.name
 }
 
+func (p *DefaultProvider) QueueURL() string {
+	return p.url
+}
+
 func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
 	input := &sqs.ReceiveMessageInput{
 		MaxNumberOfMessages: aws.Int64(10),
@@ -67,7 +72,7 @@ func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, e
 		MessageAttributeNames: []*string{
 			aws.String(sqs.QueueAttributeNameAll),
 		},
-		QueueUrl: aws.String(p.url),
+		QueueUrl: aws.String(p.QueueURL()),
 	}
 
 	result, err := p.client.ReceiveMessageWithContext(ctx, input)
@@ -85,7 +90,7 @@ func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (st
 	}
 	input := &sqs.SendMessageInput{
 		MessageBody: aws.String(string(raw)),
-		QueueUrl:    aws.String(p.url),
+		QueueUrl:    aws.String(p.QueueURL()),
 	}
 	result, err := p.client.SendMessageWithContext(ctx, input)
 	if err != nil {
@@ -96,7 +101,7 @@ func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (st
 
 func (p *DefaultProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 	input := &sqs.DeleteMessageInput{
-		QueueUrl:      aws.String(p.url),
+		QueueUrl:      aws.String(p.QueueURL()),
 		ReceiptHandle: msg.ReceiptHandle,
 	}
 
