@@ -76,7 +76,7 @@ build() {
 }
 
 publishHelmChart() {
-  local oci_repo helm_chart version commit_sha build_date ah_config_file_name helm_chart_artifact helm_chart_digest
+  local oci_repo helm_chart version commit_sha build_date helm_chart_artifact helm_chart_digest
 
   oci_repo="${1}"
   helm_chart="${2}"
@@ -84,21 +84,15 @@ publishHelmChart() {
   commit_sha="${4}"
   build_date="${5}"
 
-  ah_config_file_name="${helm_chart}/artifacthub-repo.yaml"
   helm_chart_artifact="${helm_chart}-${version}.tgz"
+
+  updateAhConfig "${oci_repo}" "${helm_chart}"
 
   yq e -i ".appVersion = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
   yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
 
   cd charts
-  if [[ -s "${ah_config_file_name}" ]] && [[ "$oci_repo" == "${RELEASE_REPO_ECR}" ]]; then
-    # ECR requires us to create an empty config file for an alternative
-    # media type artifact push rather than /dev/null
-    # https://github.com/aws/containers-roadmap/issues/1074
-    temp=$(mktemp)
-    echo {} > "${temp}"
-    oras push "${oci_repo}${helm_chart}:artifacthub.io" --config "${temp}:application/vnd.cncf.artifacthub.config.v1+yaml" "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
-  fi
+  
   helm dependency update "${helm_chart}"
   helm lint "${helm_chart}"
   helm package "${helm_chart}" --version "${version}"
@@ -108,6 +102,41 @@ publishHelmChart() {
 
   helm_chart_digest="$(crane digest "${oci_repo}/${helm_chart}:${version}")"
   cosignOciArtifact "${version}" "${commit_sha}" "${build_date}" "${oci_repo}${helm_chart}:${version}@${helm_chart_digest}"
+}
+
+updateAhConfig() {
+  local oci_repo helm_chart ah_config_path image_config_path image_config media_type oci_repository oci_image old_config_digest blob_digest
+
+  oci_repo="${1}"
+  helm_chart="${2}"
+
+  ah_config_path="./charts/${helm_chart}/artifacthub-repo.yaml"
+
+  if [[ -f "${ah_config_path}" ]] && [[ "${oci_repo}" == "${RELEASE_REPO_ECR}" ]]; then
+    # ECR requires us to create an empty config file for an alternative
+    # media type artifact push rather than /dev/null
+    # https://github.com/aws/containers-roadmap/issues/1074
+    image_config_path="$(mktemp)"
+    echo "{}" > "${image_config_path}"
+
+    image_config="${image_config_path}:application/vnd.cncf.artifacthub.config.v1+yaml"
+    media_type="application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
+    oci_repository="${oci_repo}${helm_chart}"
+    oci_image="${oci_repository}:artifacthub.io"
+
+    old_config_digest="$(crane digest "${oci_image}" || true)"
+
+    if [[ -n "${old_config_digest}" ]]; then
+      blob_digest="$(oras manifest fetch --output - "${oci_repository}@${old_config_digest}" | jq -r --arg mediaType "${media_type}" '.layers[] | select(.mediaType == $mediaType) | .digest')"
+
+      if [[ "$(oras blob fetch --output - "${oci_repository}@${blob_digest}")" != "$(cat "${ah_config_path}")" ]]; then
+        oras push --config "${image_config}" "${oci_image}" "${ah_config_path}:${media_type}"
+        crane delete "${oci_repository}@${old_config_digest}"
+      fi
+    else
+      oras push --config "${image_config}" "${oci_image}" "${ah_config_path}:${media_type}"
+    fi
+  fi
 }
 
 cosignOciArtifact() {
