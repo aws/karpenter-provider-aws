@@ -170,6 +170,15 @@ var _ = Describe("CloudProvider", func() {
 		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHash]
 		Expect(ok).To(BeTrue())
 	})
+	It("should return NodeClass Hash Version on the nodeClaim", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderNodeClaim).ToNot(BeNil())
+		v, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion]
+		Expect(ok).To(BeTrue())
+		Expect(v).To(Equal(v1beta1.EC2NodeClassHashVersion))
+	})
 	Context("EC2 Context", func() {
 		contextID := "context-1234"
 		It("should set context on the CreateFleet request if specified on the NodePool", func() {
