@@ -21,22 +21,26 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 )
 
+// ResourceOwner is an object that manages an instance profile
+type ResourceOwner interface {
+	GetUID() types.UID
+	InstanceProfileName(string, string) string
+	InstanceProfileRole() string
+	InstanceProfileTags(string) map[string]string
+}
+
 type Provider interface {
-	Create(context.Context, *v1beta1.EC2NodeClass) (string, error)
-	Delete(context.Context, *v1beta1.EC2NodeClass) error
-	GetProfileName(ctx context.Context, region, nodeClassName string) string
+	Create(context.Context, ResourceOwner) (string, error)
+	Delete(context.Context, ResourceOwner) error
 }
 
 type DefaultProvider struct {
@@ -45,7 +49,7 @@ type DefaultProvider struct {
 	cache  *cache.Cache
 }
 
-func NewProvider(region string, iamapi iamiface.IAMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(region string, iamapi iamiface.IAMAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		region: region,
 		iamapi: iamapi,
@@ -53,17 +57,12 @@ func NewProvider(region string, iamapi iamiface.IAMAPI, cache *cache.Cache) *Def
 	}
 }
 
-func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (string, error) {
-	tags := lo.Assign(nodeClass.Spec.Tags, map[string]string{
-		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
-		corev1beta1.ManagedByAnnotationKey:                                            options.FromContext(ctx).ClusterName,
-		v1beta1.LabelNodeClass:                                                        nodeClass.Name,
-		v1.LabelTopologyRegion:                                                        p.region,
-	})
-	profileName := p.GetProfileName(ctx, p.region, nodeClass.Name)
+func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, error) {
+	profileName := m.InstanceProfileName(options.FromContext(ctx).ClusterName, p.region)
+	tags := lo.Assign(m.InstanceProfileTags(options.FromContext(ctx).ClusterName), map[string]string{v1.LabelTopologyRegion: p.region})
 
 	// An instance profile exists for this NodeClass
-	if _, ok := p.cache.Get(string(nodeClass.UID)); ok {
+	if _, ok := p.cache.Get(string(m.GetUID())); ok {
 		return profileName, nil
 	}
 	// Validate if the instance profile exists and has the correct role assigned to it
@@ -87,7 +86,7 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1beta1.EC2Node
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 	if len(instanceProfile.Roles) == 1 {
-		if aws.StringValue(instanceProfile.Roles[0].RoleName) == nodeClass.Spec.Role {
+		if aws.StringValue(instanceProfile.Roles[0].RoleName) == m.InstanceProfileRole() {
 			return profileName, nil
 		}
 		if _, err = p.iamapi.RemoveRoleFromInstanceProfileWithContext(ctx, &iam.RemoveRoleFromInstanceProfileInput{
@@ -99,16 +98,16 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1beta1.EC2Node
 	}
 	if _, err = p.iamapi.AddRoleToInstanceProfileWithContext(ctx, &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
-		RoleName:            aws.String(nodeClass.Spec.Role),
+		RoleName:            aws.String(m.InstanceProfileRole()),
 	}); err != nil {
-		return "", fmt.Errorf("adding role %q to instance profile %q, %w", nodeClass.Spec.Role, profileName, err)
+		return "", fmt.Errorf("adding role %q to instance profile %q, %w", m.InstanceProfileRole(), profileName, err)
 	}
-	p.cache.SetDefault(string(nodeClass.UID), nil)
-	return profileName, nil
+	p.cache.SetDefault(string(m.GetUID()), nil)
+	return aws.StringValue(instanceProfile.InstanceProfileName), nil
 }
 
-func (p *DefaultProvider) Delete(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-	profileName := p.GetProfileName(ctx, p.region, nodeClass.Name)
+func (p *DefaultProvider) Delete(ctx context.Context, m ResourceOwner) error {
+	profileName := m.InstanceProfileName(options.FromContext(ctx).ClusterName, p.region)
 	out, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
 	})
@@ -131,10 +130,4 @@ func (p *DefaultProvider) Delete(ctx context.Context, nodeClass *v1beta1.EC2Node
 		return awserrors.IgnoreNotFound(fmt.Errorf("deleting instance profile %q, %w", profileName, err))
 	}
 	return nil
-}
-
-// GetProfileName gets the string for the profile name based on the cluster name and the NodeClass UUID.
-// The length of this string can never exceed the maximum instance profile name limit of 128 characters.
-func (p *DefaultProvider) GetProfileName(ctx context.Context, region, nodeClassName string) string {
-	return fmt.Sprintf("%s_%d", options.FromContext(ctx).ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", region, nodeClassName), hashstructure.FormatV2, nil)))
 }
