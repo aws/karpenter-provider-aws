@@ -21,9 +21,9 @@ spec:
     matchLabels:
       {{- include "karpenter.selectorLabels" . | nindent 6 }}
   endpoints:
-  - port: http-metrics
-    path: /metrics
+    - port: http-metrics
+      path: /metrics
     {{- with .Values.serviceMonitor.endpointConfig }}
-      {{- toYaml . | nindent 4 }}
+      {{- toYaml . | nindent 6 }}
     {{- end }}
 {{- end -}}
