@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,7 +33,7 @@ import (
 var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 	var profileName string
 	BeforeEach(func() {
-		profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, fake.DefaultRegion, nodeClass.Name)
+		profileName = nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, fake.DefaultRegion)
 	})
 	It("should create the instance profile when it doesn't exist", func() {
 		nodeClass.Spec.Role = "test-role"

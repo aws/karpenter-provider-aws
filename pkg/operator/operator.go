@@ -134,7 +134,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
 		pricing.NewAPI(sess, *sess.Config.Region),
@@ -152,7 +152,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
-		instanceProfileProvider,
 		lo.Must(GetCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,

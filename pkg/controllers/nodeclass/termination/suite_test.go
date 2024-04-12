@@ -105,7 +105,8 @@ var _ = Describe("NodeClass Termination", func() {
 				},
 			},
 		})
-		profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, fake.DefaultRegion, nodeClass.Name)
+		profileName = nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, fake.DefaultRegion)
+
 	})
 	It("should not delete the NodeClass if launch template deletion fails", func() {
 		launchTemplateName := aws.String(fake.LaunchTemplateName())
