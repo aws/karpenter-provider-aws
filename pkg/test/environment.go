@@ -116,7 +116,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			amiResolver,
 			securityGroupProvider,
 			subnetProvider,
-			instanceProfileProvider,
 			ptr.String("ca-bundle"),
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),

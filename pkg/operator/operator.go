@@ -152,7 +152,6 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
-		instanceProfileProvider,
 		lo.Must(GetCABundle(ctx, operator.GetConfig())),
 		operator.Elected(),
 		kubeDNSIP,
