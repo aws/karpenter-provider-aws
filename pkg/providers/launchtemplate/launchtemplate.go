@@ -44,7 +44,6 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -74,35 +73,33 @@ type LaunchTemplate struct {
 
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api                  ec2iface.EC2API
-	eksapi                  eksiface.EKSAPI
-	amiFamily               *amifamily.Resolver
-	securityGroupProvider   securitygroup.Provider
-	subnetProvider          subnet.Provider
-	instanceProfileProvider instanceprofile.Provider
-	cache                   *cache.Cache
-	cm                      *pretty.ChangeMonitor
-	KubeDNSIP               net.IP
-	CABundle                *string
-	ClusterEndpoint         string
-	ClusterCIDR             atomic.Pointer[string]
+	ec2api                ec2iface.EC2API
+	eksapi                eksiface.EKSAPI
+	amiFamily             *amifamily.Resolver
+	securityGroupProvider securitygroup.Provider
+	subnetProvider        subnet.Provider
+	cache                 *cache.Cache
+	cm                    *pretty.ChangeMonitor
+	KubeDNSIP             net.IP
+	CABundle              *string
+	ClusterEndpoint       string
+	ClusterCIDR           atomic.Pointer[string]
 }
 
 func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
-	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider, instanceProfileProvider instanceprofile.Provider,
+	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider,
 	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *DefaultProvider {
 	l := &DefaultProvider{
-		ec2api:                  ec2api,
-		eksapi:                  eksapi,
-		amiFamily:               amiFamily,
-		securityGroupProvider:   securityGroupProvider,
-		subnetProvider:          subnetProvider,
-		instanceProfileProvider: instanceProfileProvider,
-		cache:                   cache,
-		CABundle:                caBundle,
-		cm:                      pretty.NewChangeMonitor(),
-		KubeDNSIP:               kubeDNSIP,
-		ClusterEndpoint:         clusterEndpoint,
+		ec2api:                ec2api,
+		eksapi:                eksapi,
+		amiFamily:             amiFamily,
+		securityGroupProvider: securityGroupProvider,
+		subnetProvider:        subnetProvider,
+		cache:                 cache,
+		CABundle:              caBundle,
+		cm:                    pretty.NewChangeMonitor(),
+		KubeDNSIP:             kubeDNSIP,
+		ClusterEndpoint:       clusterEndpoint,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
