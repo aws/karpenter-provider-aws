@@ -53,10 +53,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
-const (
-	launchTemplateNameFormat = "karpenter.k8s.aws/%s"
-	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
-)
+var karpenterManagedTagKey = fmt.Sprintf("%s/cluster", v1beta1.Group)
 
 type Provider interface {
 	EnsureAll(context.Context, *v1beta1.EC2NodeClass, *corev1beta1.NodeClaim,
@@ -155,11 +152,7 @@ func (p *DefaultProvider) InvalidateCache(ctx context.Context, ltName string, lt
 }
 
 func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
-	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		panic(fmt.Sprintf("hashing launch template, %s", err))
-	}
-	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash))
+	return fmt.Sprintf("%s/%d", v1beta1.Group, lo.Must(hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})))
 }
 
 func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
