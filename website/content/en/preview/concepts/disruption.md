@@ -85,7 +85,7 @@ spec:
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
-`consolidateAfter` can **not** be set if `consolidationPolicy` is `WhenUnderutilized`. See [kubernetes-sigs/karpenter#735](https://github.com/kubernetes-sigs/karpenter/issues/735) for more information.
+`consolidateAfter` **cannot** be set if `consolidationPolicy` is set to `WhenUnderutilized`. See [kubernetes-sigs/karpenter#735](https://github.com/kubernetes-sigs/karpenter/issues/735) for more information.
 {{% /alert %}}
 
 ### Consolidation
