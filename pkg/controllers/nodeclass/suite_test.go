@@ -1015,7 +1015,7 @@ var _ = Describe("NodeClassController", func() {
 	Context("NodeClass Termination", func() {
 		var profileName string
 		BeforeEach(func() {
-			profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, fake.DefaultRegion, nodeClass.Name)
+			profileName = nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, fake.DefaultRegion)
 		})
 		It("should not delete the NodeClass if launch template deletion fails", func() {
 			launchTemplateName := aws.String(fake.LaunchTemplateName())
@@ -1188,7 +1188,7 @@ var _ = Describe("NodeClassController", func() {
 	Context("Instance Profile Status", func() {
 		var profileName string
 		BeforeEach(func() {
-			profileName = awsEnv.InstanceProfileProvider.GetProfileName(ctx, fake.DefaultRegion, nodeClass.Name)
+			profileName = nodeClass.InstanceProfileName(options.FromContext(ctx).ClusterName, fake.DefaultRegion)
 		})
 		It("should create the instance profile when it doesn't exist", func() {
 			nodeClass.Spec.Role = "test-role"
