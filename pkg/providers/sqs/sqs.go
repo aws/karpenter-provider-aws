@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
@@ -34,26 +35,19 @@ type Provider interface {
 type DefaultProvider struct {
 	client sqsiface.SQSAPI
 
-	name string
-	url  string
+	queueURL string
 }
 
-func NewProvider(ctx context.Context, client sqsiface.SQSAPI, queueName string) (*DefaultProvider, error) {
-	ret, err := client.GetQueueUrlWithContext(ctx, &sqs.GetQueueUrlInput{
-		QueueName: aws.String(queueName),
-	})
-	if err != nil {
-		return nil, fmt.Errorf("fetching queue url, %w", err)
-	}
+func NewDefaultProvider(client sqsiface.SQSAPI, queueURL string) (*DefaultProvider, error) {
 	return &DefaultProvider{
-		client: client,
-		name:   queueName,
-		url:    aws.StringValue(ret.QueueUrl),
+		client:   client,
+		queueURL: queueURL,
 	}, nil
 }
 
 func (p *DefaultProvider) Name() string {
-	return p.name
+	ss := strings.Split(p.queueURL, "/")
+	return ss[len(ss)-1]
 }
 
 func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, error) {
@@ -67,7 +61,7 @@ func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, e
 		MessageAttributeNames: []*string{
 			aws.String(sqs.QueueAttributeNameAll),
 		},
-		QueueUrl: aws.String(p.url),
+		QueueUrl: aws.String(p.queueURL),
 	}
 
 	result, err := p.client.ReceiveMessageWithContext(ctx, input)
@@ -85,7 +79,7 @@ func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (st
 	}
 	input := &sqs.SendMessageInput{
 		MessageBody: aws.String(string(raw)),
-		QueueUrl:    aws.String(p.url),
+		QueueUrl:    aws.String(p.queueURL),
 	}
 	result, err := p.client.SendMessageWithContext(ctx, input)
 	if err != nil {
@@ -96,7 +90,7 @@ func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (st
 
 func (p *DefaultProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message) error {
 	input := &sqs.DeleteMessageInput{
-		QueueUrl:      aws.String(p.url),
+		QueueUrl:      aws.String(p.queueURL),
 		ReceiptHandle: msg.ReceiptHandle,
 	}
 
