@@ -58,7 +58,9 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		controllerspricing.NewController(pricingProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
-		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewProvider(ctx, servicesqs.New(sess), options.FromContext(ctx).InterruptionQueue)), unavailableOfferings))
+		sqsapi := servicesqs.New(sess)
+		out := lo.Must(sqsapi.GetQueueUrlWithContext(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
+		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl))), unavailableOfferings))
 	}
 	return controllers
 }
