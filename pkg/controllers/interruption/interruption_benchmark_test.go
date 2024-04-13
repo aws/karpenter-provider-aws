@@ -24,6 +24,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/avast/retry-go"
 	"github.com/aws/aws-sdk-go/aws"
 	awsclient "github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
@@ -95,14 +96,15 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 		}
 	}()
 
-	providers := newProviders(env.Context, env.Client)
-	if err := providers.makeInfrastructure(ctx); err != nil {
+	providers := newProviders(ctx, env.Client)
+	queueURL, err := providers.makeInfrastructure(ctx)
+	if err != nil {
 		b.Fatalf("standing up infrastructure, %v", err)
 	}
 	// Cleanup the infrastructure after the coretest completes
 	defer func() {
 		if err := retry.Do(func() error {
-			return providers.cleanupInfrastructure(ctx)
+			return providers.cleanupInfrastructure(queueURL)
 		}); err != nil {
 			b.Fatalf("deleting infrastructure, %v", err)
 		}
@@ -174,31 +176,29 @@ func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
 		),
 	))
 	sqsAPI := servicesqs.New(sess)
+	out := lo.Must(sqsAPI.GetQueueUrlWithContext(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
 	return providerSet{
 		kubeClient:  kubeClient,
 		sqsAPI:      sqsAPI,
-		sqsProvider: sqs.NewProvider(ctx, sqsAPI, "test-cluster"),
+		sqsProvider: lo.Must(sqs.NewDefaultProvider(sqsAPI, lo.FromPtr(out.QueueUrl))),
 	}
 }
 
-func (p *providerSet) makeInfrastructure(ctx context.Context) error {
-	if _, err := p.sqsAPI.CreateQueueWithContext(ctx, &servicesqs.CreateQueueInput{
-		QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueueName),
+func (p *providerSet) makeInfrastructure(ctx context.Context) (string, error) {
+	out, err := p.sqsAPI.CreateQueueWithContext(ctx, &servicesqs.CreateQueueInput{
+		QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue),
 		Attributes: map[string]*string{
 			servicesqs.QueueAttributeNameMessageRetentionPeriod: aws.String("1200"), // 20 minutes for this test
 		},
-	}); err != nil {
-		return fmt.Errorf("creating servicesqs queue, %w", err)
+	})
+	if err != nil {
+		return "", fmt.Errorf("creating servicesqs queue, %w", err)
 	}
-	return nil
+	return lo.FromPtr(out.QueueUrl), nil
 }
 
-func (p *providerSet) cleanupInfrastructure(ctx context.Context) error {
-	queueURL, err := p.sqsProvider.DiscoverQueueURL(ctx)
-	if err != nil {
-		return fmt.Errorf("discovering queue url for deletion, %w", err)
-	}
-	if _, err = p.sqsAPI.DeleteQueueWithContext(ctx, &servicesqs.DeleteQueueInput{
+func (p *providerSet) cleanupInfrastructure(queueURL string) error {
+	if _, err := p.sqsAPI.DeleteQueueWithContext(ctx, &servicesqs.DeleteQueueInput{
 		QueueUrl: lo.ToPtr(queueURL),
 	}); err != nil {
 		return fmt.Errorf("deleting servicesqs queue, %w", err)
@@ -220,11 +220,11 @@ func (p *providerSet) monitorMessagesProcessed(ctx context.Context, eventRecorde
 	totalProcessed := 0
 	go func() {
 		for totalProcessed < expectedProcessed {
-			totalProcessed = eventRecorder.Calls(events.InstanceStopping(coretest.Node()).Reason) +
-				eventRecorder.Calls(events.InstanceTerminating(coretest.Node()).Reason) +
-				eventRecorder.Calls(events.InstanceUnhealthy(coretest.Node()).Reason) +
-				eventRecorder.Calls(events.InstanceRebalanceRecommendation(coretest.Node()).Reason) +
-				eventRecorder.Calls(events.InstanceSpotInterrupted(coretest.Node()).Reason)
+			totalProcessed = eventRecorder.Calls(events.Stopping(coretest.Node(), coretest.NodeClaim())[0].Reason) +
+				eventRecorder.Calls(events.Stopping(coretest.Node(), coretest.NodeClaim())[0].Reason) +
+				eventRecorder.Calls(events.Unhealthy(coretest.Node(), coretest.NodeClaim())[0].Reason) +
+				eventRecorder.Calls(events.RebalanceRecommendation(coretest.Node(), coretest.NodeClaim())[0].Reason) +
+				eventRecorder.Calls(events.SpotInterrupted(coretest.Node(), coretest.NodeClaim())[0].Reason)
 			logging.FromContext(ctx).With("processed-message-count", totalProcessed).Infof("processed messages from the queue")
 			time.Sleep(time.Second)
 		}
