@@ -12,6 +12,10 @@ metadata:
 spec:
   type: ClusterIP
   ports:
+    - name: http
+      port: {{ .Values.controller.healthProbe.port }}
+      targetPort: http
+      protocol: TCP
     - name: http-metrics
       port: {{ .Values.controller.metrics.port }}
       targetPort: http-metrics
