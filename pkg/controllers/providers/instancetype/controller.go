@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package pricing
+package instancetype
 
 import (
 	"context"
@@ -23,26 +23,25 @@ import (
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
 
-	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 )
 
 type Controller struct {
-	pricingProvider pricing.Provider
+	instancetypeProvider instancetype.Provider
 }
 
-func NewController(pricingProvider pricing.Provider) *Controller {
+func NewController(instancetypeProvider instancetype.Provider) *Controller {
 	return &Controller{
-		pricingProvider: pricingProvider,
+		instancetypeProvider: instancetypeProvider,
 	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
 	work := []func(ctx context.Context) error{
-		c.pricingProvider.UpdateSpotPricing,
-		c.pricingProvider.UpdateOnDemandPricing,
+		c.instancetypeProvider.UpdateInstanceTypes,
+		c.instancetypeProvider.UpdateInstanceTypeOfferings,
 	}
 	errs := make([]error, len(work))
 	lop.ForEach(work, func(f func(ctx context.Context) error, i int) {
@@ -51,15 +50,16 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		}
 	})
 	if err := multierr.Combine(errs...); err != nil {
-		return reconcile.Result{}, fmt.Errorf("updating pricing, %w", err)
+		return reconcile.Result{}, fmt.Errorf("updating instancetype, %w", err)
 	}
 	return reconcile.Result{RequeueAfter: 12 * time.Hour}, nil
 }
 
 func (c *Controller) Name() string {
-	return "providers.pricing"
+	return "providers.instancetype"
 }
 
 func (c *Controller) Builder(_ context.Context, m manager.Manager) controller.Builder {
+	// Includes a default exponential failure rate limiter of base: time.Millisecond, and max: 1000*time.Second
 	return controller.NewSingletonManagedBy(m)
 }

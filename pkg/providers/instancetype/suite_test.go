@@ -155,6 +155,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
 
 	It("should support individual instance type labels", func() {
@@ -333,6 +335,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
 			InstanceTypeOfferings: fake.MakeInstanceOfferings(instances),
 		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -376,6 +380,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
 			InstanceTypeOfferings: fake.MakeInstanceOfferings(instances),
 		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
@@ -392,6 +398,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		awsEnv.EC2API.DescribeSpotPriceHistoryOutput.Set(generateSpotPricing(cloudProvider, nodePool))
 		Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -732,9 +740,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("7600G")))
 	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
-		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
-		for _, info := range instanceInfo {
+		for _, info := range instanceInfo.InstanceTypes {
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -754,10 +762,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 	})
 	It("should set pods to 110 if AMI Family doesn't support", func() {
-		instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
 
-		for _, info := range instanceInfo {
+		for _, info := range instanceInfo.InstanceTypes {
 			amiFamily := amifamily.GetAMIFamily(windowsNodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -864,9 +872,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}))
 
 			var ok bool
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			info, ok = lo.Find(instanceInfo, func(i *ec2.InstanceTypeInfo) bool {
+			info, ok = lo.Find(instanceInfo.InstanceTypes, func(i *ec2.InstanceTypeInfo) bool {
 				return aws.StringValue(i.InstanceType) == "m5.xlarge"
 			})
 			Expect(ok).To(BeTrue())
@@ -1343,9 +1351,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 		})
 		It("should default max pods based off of network interfaces", func() {
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			for _, info := range instanceInfo {
+			for _, info := range instanceInfo.InstanceTypes {
 				if *info.InstanceType == "t3.large" {
 					amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
@@ -1385,12 +1393,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should set max-pods to user-defined value if specified", func() {
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods: ptr.Int32(10),
 			}
-			for _, info := range instanceInfo {
+			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1410,12 +1418,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should override max-pods value", func() {
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				MaxPods: ptr.Int32(10),
 			}
-			for _, info := range instanceInfo {
+			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1439,9 +1447,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ReservedENIs: lo.ToPtr(1),
 			}))
 
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			t3Large, ok := lo.Find(instanceInfo, func(info *ec2.InstanceTypeInfo) bool {
+			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info *ec2.InstanceTypeInfo) bool {
 				return *info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
@@ -1473,9 +1481,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ReservedENIs: lo.ToPtr(1_000_000),
 			}))
 
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
-			t3Large, ok := lo.Find(instanceInfo, func(info *ec2.InstanceTypeInfo) bool {
+			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info *ec2.InstanceTypeInfo) bool {
 				return *info.InstanceType == "t3.large"
 			})
 			Expect(ok).To(Equal(true))
@@ -1504,12 +1512,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
 		})
 		It("should override pods-per-core value", func() {
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(1),
 			}
-			for _, info := range instanceInfo {
+			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1529,13 +1537,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should take the minimum of pods-per-core and max-pods", func() {
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(4),
 				MaxPods:     ptr.Int32(20),
 			}
-			for _, info := range instanceInfo {
+			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1555,13 +1563,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should ignore pods-per-core when using Bottlerocket AMI", func() {
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(1),
 			}
-			for _, info := range instanceInfo {
+			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 				it := instancetype.NewInstanceType(ctx,
 					info,
@@ -1582,12 +1590,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should take limited pod density to be the default pods number when pods-per-core is 0", func() {
-			instanceInfo, err := awsEnv.InstanceTypesProvider.GetInstanceTypes(ctx)
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(0),
 			}
-			for _, info := range instanceInfo {
+			for _, info := range instanceInfo.InstanceTypes {
 				if *info.InstanceType == "t3.large" {
 					amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 					it := instancetype.NewInstanceType(ctx,
@@ -1917,7 +1925,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				}
 			}
 
-			awsEnv.InstanceTypeCache.Flush()
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).To(BeNil())
 			instanceTypeNames := sets.NewString()
@@ -2275,7 +2282,7 @@ func uniqueInstanceTypeList(instanceTypesLists [][]*corecloudprovider.InstanceTy
 func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *corev1beta1.NodePool) *ec2.DescribeSpotPriceHistoryOutput {
 	rsp := &ec2.DescribeSpotPriceHistoryOutput{}
 	instanceTypes, err := cp.GetInstanceTypes(ctx, nodePool)
-	awsEnv.InstanceTypeCache.Flush()
+	awsEnv.InstanceTypesProvider.Reset()
 	Expect(err).To(Succeed())
 	t := fakeClock.Now()
 
