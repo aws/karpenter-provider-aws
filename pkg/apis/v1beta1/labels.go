@@ -49,11 +49,8 @@ func init() {
 	)
 }
 
-const (
-	TerminationFinalizer = Group + "/termination"
-)
-
 var (
+	TerminationFinalizer   = Group + "/termination"
 	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                  v1beta1.ArchitectureAmd64,
 		v1beta1.ArchitectureArm64: v1beta1.ArchitectureArm64,

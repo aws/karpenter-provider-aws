@@ -20,9 +20,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-const Group = "karpenter.k8s.aws"
-
 var (
+	Group              = "karpenter.k8s.aws"
 	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1beta1"}
 	SchemeBuilder      = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
 		scheme.AddKnownTypes(SchemeGroupVersion,
