@@ -103,7 +103,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	subnetProvider := subnet.NewDefaultProvider(ec2api, subnetCache)
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache)
-	instanceProfileProvider := instanceprofile.NewProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
 	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmapi, ec2api, ec2Cache)
 	amiResolver := amifamily.NewResolver(amiProvider)
 	instanceTypesProvider := instancetype.NewDefaultProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
@@ -116,7 +116,6 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 			amiResolver,
 			securityGroupProvider,
 			subnetProvider,
-			instanceProfileProvider,
 			ptr.String("ca-bundle"),
 			make(chan struct{}),
 			net.ParseIP("10.0.100.10"),

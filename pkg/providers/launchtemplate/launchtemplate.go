@@ -44,7 +44,6 @@ import (
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
@@ -53,10 +52,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
-const (
-	launchTemplateNameFormat = "karpenter.k8s.aws/%s"
-	karpenterManagedTagKey   = "karpenter.k8s.aws/cluster"
-)
+var karpenterManagedTagKey = fmt.Sprintf("%s/cluster", v1beta1.Group)
 
 type Provider interface {
 	EnsureAll(context.Context, *v1beta1.EC2NodeClass, *corev1beta1.NodeClaim,
@@ -74,35 +70,33 @@ type LaunchTemplate struct {
 
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api                  ec2iface.EC2API
-	eksapi                  eksiface.EKSAPI
-	amiFamily               *amifamily.Resolver
-	securityGroupProvider   securitygroup.Provider
-	subnetProvider          subnet.Provider
-	instanceProfileProvider instanceprofile.Provider
-	cache                   *cache.Cache
-	cm                      *pretty.ChangeMonitor
-	KubeDNSIP               net.IP
-	CABundle                *string
-	ClusterEndpoint         string
-	ClusterCIDR             atomic.Pointer[string]
+	ec2api                ec2iface.EC2API
+	eksapi                eksiface.EKSAPI
+	amiFamily             *amifamily.Resolver
+	securityGroupProvider securitygroup.Provider
+	subnetProvider        subnet.Provider
+	cache                 *cache.Cache
+	cm                    *pretty.ChangeMonitor
+	KubeDNSIP             net.IP
+	CABundle              *string
+	ClusterEndpoint       string
+	ClusterCIDR           atomic.Pointer[string]
 }
 
 func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
-	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider, instanceProfileProvider instanceprofile.Provider,
+	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider,
 	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *DefaultProvider {
 	l := &DefaultProvider{
-		ec2api:                  ec2api,
-		eksapi:                  eksapi,
-		amiFamily:               amiFamily,
-		securityGroupProvider:   securityGroupProvider,
-		subnetProvider:          subnetProvider,
-		instanceProfileProvider: instanceProfileProvider,
-		cache:                   cache,
-		CABundle:                caBundle,
-		cm:                      pretty.NewChangeMonitor(),
-		KubeDNSIP:               kubeDNSIP,
-		ClusterEndpoint:         clusterEndpoint,
+		ec2api:                ec2api,
+		eksapi:                eksapi,
+		amiFamily:             amiFamily,
+		securityGroupProvider: securityGroupProvider,
+		subnetProvider:        subnetProvider,
+		cache:                 cache,
+		CABundle:              caBundle,
+		cm:                    pretty.NewChangeMonitor(),
+		KubeDNSIP:             kubeDNSIP,
+		ClusterEndpoint:       clusterEndpoint,
 	}
 	l.cache.OnEvicted(l.cachedEvictedFunc(ctx))
 	go func() {
@@ -154,12 +148,8 @@ func (p *DefaultProvider) InvalidateCache(ctx context.Context, ltName string, lt
 	p.cache.Delete(ltName)
 }
 
-func launchTemplateName(options *amifamily.LaunchTemplate) string {
-	hash, err := hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	if err != nil {
-		panic(fmt.Sprintf("hashing launch template, %s", err))
-	}
-	return fmt.Sprintf(launchTemplateNameFormat, fmt.Sprint(hash))
+func LaunchTemplateName(options *amifamily.LaunchTemplate) string {
+	return fmt.Sprintf("%s/%d", v1beta1.Group, lo.Must(hashstructure.Hash(options, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})))
 }
 
 func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, labels, tags map[string]string) (*amifamily.Options, error) {
@@ -215,7 +205,7 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1bet
 
 func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
-	name := launchTemplateName(options)
+	name := LaunchTemplateName(options)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
 	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
@@ -260,7 +250,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	}
 	networkInterfaces := p.generateNetworkInterfaces(options)
 	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
-		LaunchTemplateName: aws.String(launchTemplateName(options)),
+		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
 			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
@@ -385,7 +375,7 @@ func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, in
 			return
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
-		if _, err := p.ec2api.DeleteLaunchTemplate(&ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); awserrors.IgnoreNotFound(err) != nil {
+		if _, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); awserrors.IgnoreNotFound(err) != nil {
 			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
 			return
 		}

@@ -36,7 +36,9 @@ type cluster struct {
 
 const expirationTTL = time.Hour * 168 // 7 days
 
-var excludedClustersCleanup = []string{}
+var excludedClustersCleanup = []string{
+	"soak-periodic-2785632730",
+}
 
 func main() {
 	ctx := context.Background()
@@ -55,15 +57,11 @@ func main() {
 			createNewCluster = false
 		}
 
-		if strings.HasPrefix(c, "soak-periodic-") {
+		if strings.HasPrefix(c, "soak-periodic-") && !slices.Contains(excludedClustersCleanup, c) {
 			outputList = append(outputList, &cluster{
-				Name:   c,
-				GitRef: clusterDetails.Cluster.Tags["test/git_ref"],
-				Cleanup: lo.Ternary(
-					slices.Contains(excludedClustersCleanup, c),
-					false,
-					clusterDetails.Cluster.CreatedAt.Before(expirationTime),
-				),
+				Name:    c,
+				GitRef:  clusterDetails.Cluster.Tags["test/git_ref"],
+				Cleanup: clusterDetails.Cluster.CreatedAt.Before(expirationTime),
 			})
 		}
 	}

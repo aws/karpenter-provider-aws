@@ -5,8 +5,9 @@ go 1.22
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.9.1
-	github.com/aws/aws-sdk-go v1.51.16
-	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20231207011214-752356948623
+	github.com/avast/retry-go v3.0.0+incompatible
+	github.com/aws/aws-sdk-go v1.51.21
+	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
@@ -14,7 +15,7 @@ require (
 	github.com/onsi/ginkgo/v2 v2.17.1
 	github.com/onsi/gomega v1.32.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pelletier/go-toml/v2 v2.2.0
+	github.com/pelletier/go-toml/v2 v2.2.1
 	github.com/prometheus/client_golang v1.19.0
 	github.com/samber/lo v1.39.0
 	go.uber.org/multierr v1.11.0
@@ -27,8 +28,8 @@ require (
 	k8s.io/client-go v0.29.3
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
-	sigs.k8s.io/controller-runtime v0.17.2
-	sigs.k8s.io/karpenter v0.35.1-0.20240404200702-545d88a836d4
+	sigs.k8s.io/controller-runtime v0.17.3
+	sigs.k8s.io/karpenter v0.36.0
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -37,7 +38,6 @@ require (
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2 // indirect
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
-	github.com/avast/retry-go v3.0.0+incompatible // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
