@@ -74,7 +74,7 @@ func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
 // UserData returns the exact same string for equivalent input,
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
-// AL2 userdata also works on Ubuntu
+// AL2 userdata also works on all Ubuntu variants
 func (a AL2) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{

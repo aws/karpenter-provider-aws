@@ -27,6 +27,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	versionchecker "k8s.io/apimachinery/pkg/util/version"
 	. "knative.dev/pkg/logging/testing"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -172,6 +173,31 @@ var _ = Describe("AMIProvider", func() {
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(2))
 	})
+	It("should succeed to resolve AMIs (Ubuntu2004)", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu2004
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", version): amd64AMI,
+			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
+		}
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		Expect(err).ToNot(HaveOccurred())
+		Expect(amis).To(HaveLen(2))
+	})
+	It("should succeed to resolve AMIs (Ubuntu2204)", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu2204
+		k8sVersion := versionchecker.MustParseGeneric(version)
+		awsEnv.SSMAPI.Parameters = map[string]string{
+			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", version): amd64AMI,
+			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
+		}
+		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		if k8sVersion.LessThan(versionchecker.MustParseGeneric("1.29")) {
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(2))
+		} else {
+			Expect(err).To(HaveOccurred())
+		}
+	})
 	It("should succeed to resolve AMIs (Windows2019)", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2019
 		awsEnv.SSMAPI.Parameters = map[string]string{
@@ -241,6 +267,33 @@ var _ = Describe("AMIProvider", func() {
 			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(1))
+		})
+		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Ubuntu2004)", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu2004
+			// No AMD64 AMI exists here
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
+			}
+			// Only 1 of the requirements sets for the SSM aliases will resolve
+			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			Expect(err).ToNot(HaveOccurred())
+			Expect(amis).To(HaveLen(1))
+		})
+		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Ubuntu2204)", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu2204
+			k8sVersion := versionchecker.MustParseGeneric(version)
+			// No AMD64 AMI exists here
+			awsEnv.SSMAPI.Parameters = map[string]string{
+				fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
+			}
+			// Only 1 of the requirements sets for the SSM aliases will resolve
+			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			if k8sVersion.LessThan(versionchecker.MustParseGeneric("1.29")) {
+				Expect(err).ToNot(HaveOccurred())
+				Expect(amis).To(HaveLen(1))
+			} else {
+				Expect(err).To(HaveOccurred())
+			}
 		})
 	})
 	Context("AMI Tag Requirements", func() {

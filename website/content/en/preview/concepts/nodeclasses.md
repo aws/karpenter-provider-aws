@@ -164,7 +164,7 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 ## spec.amiFamily
 
-AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
+AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Ubuntu`, `Ubuntu2004`, `Ubuntu2204`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
 
 ### AL2
 
@@ -228,7 +228,7 @@ max-pods = 110
 'karpenter.sh/nodepool' = 'test'
 ```
 
-### Ubuntu
+### Ubuntu/Ubuntu2004/Ubuntu2204
 
 ```bash
 MIME-Version: 1.0
@@ -639,7 +639,7 @@ spec:
         encrypted: true
 ```
 
-### Ubuntu
+### Ubuntu/Ubuntu2004/Ubuntu2204
 ```yaml
 spec:
   blockDeviceMappings:
@@ -749,7 +749,8 @@ For more examples on configuring fields for different AMI families, see the [exa
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
-### AL2/Ubuntu
+### AL2/Ubuntu/Ubuntu2004/Ubuntu2204
+
 
 * Your UserData can be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
 * Karpenter will transform your custom user-data as a MIME part, if necessary, and then merge a final MIME part to the end of your UserData parts which will bootstrap the worker node. Karpenter will have full control over all the parameters being passed to the bootstrap script.

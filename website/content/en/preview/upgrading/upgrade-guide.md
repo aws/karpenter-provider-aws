@@ -68,7 +68,7 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
-The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+. This new AMI version is __not currently__ supported for users relying on AMI auto-discovery with the Ubuntu AMI family. More details can be found in this [GitHub issue](https://github.com/aws/karpenter-provider-aws/issues/5572). Please review this issue before upgrading to Kubernetes 1.29 if you are using the Ubuntu AMI family. Upgrading to 1.29 without making any changes to your EC2NodeClass will result in Karpenter being unable to create new nodes.
+The Ubuntu EKS optimized AMI has moved from 20.04 to 22.04 for Kubernetes 1.29+. For more conventience, Ubuntu2004 and Ubuntu2204 AMI families have been introduced to explectly select Ubuntu version. For backward compatibility, Ubuntu AMI family is equivalent to Ubuntu2004 AMI family. Ubuntu2204 AMI family can be used for Kubernetes 1.29+ only. Using Ubuntu2204 with Kubernetes versions earlier than 1.29 in EC2NodeClass will result in Karpenter being unable to create new nodes.
 {{% /alert %}}
 
 * Karpenter now supports `nodepool.spec.disruption.budgets`, which allows users to control the speed of disruption in the cluster. Since this requires an update to the Custom Resource, before upgrading, you should re-apply the new updates to the CRDs. Check out [Disruption Budgets]({{<ref "../concepts/disruption#disruption-budgets" >}}) for more.

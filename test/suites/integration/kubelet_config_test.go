@@ -15,6 +15,7 @@ limitations under the License.
 package integration_test
 
 import (
+	"fmt"
 	"math"
 	"time"
 
@@ -37,6 +38,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	versionchecker "k8s.io/apimachinery/pkg/util/version"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
@@ -89,11 +92,21 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
-				// TODO (jmdeal@): remove once 22.04 AMIs are supported
-				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.GetK8sVersion(0) == "1.29" {
+				k8sVersion := versionchecker.MustParseGeneric(env.GetK8sVersion(0))
+				// TODO (jmdeal@): remove once 22.04 AMIs are supported and based on confirmation if 20.04 will continue to be supported for the new versions and if 24.04 will be supported.
+				if (*amiFamily == v1beta1.AMIFamilyUbuntu || *amiFamily == v1beta1.AMIFamilyUbuntu2004) && k8sVersion.LessThan(versionchecker.MustParseGeneric("1.30")) {
 					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
-						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
-						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
+						fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+						fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+					}, func(arg string, _ int) v1beta1.AMISelectorTerm {
+						parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
+						Expect(err).To(BeNil())
+						return v1beta1.AMISelectorTerm{ID: *parameter.Parameter.Value}
+					})
+				} else if *amiFamily == v1beta1.AMIFamilyUbuntu2204 && k8sVersion.AtLeast(versionchecker.MustParseGeneric("1.29")) {
+					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
+						fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+						fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
 					}, func(arg string, _ int) v1beta1.AMISelectorTerm {
 						parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
 						Expect(err).To(BeNil())
@@ -113,6 +126,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			Entry("when the AMIFamily is AL2", &v1beta1.AMIFamilyAL2),
 			Entry("when the AMIFamily is AL2023", &v1beta1.AMIFamilyAL2023),
 			Entry("when the AMIFamily is Ubuntu", &v1beta1.AMIFamilyUbuntu),
+			Entry("when the AMIFamily is Ubuntu2004", &v1beta1.AMIFamilyUbuntu2004),
+			Entry("when the AMIFamily is Ubuntu2204", &v1beta1.AMIFamilyUbuntu2204),
 			Entry("when the AMIFamily is Bottlerocket", &v1beta1.AMIFamilyBottlerocket),
 		)
 		DescribeTable("Windows AMIFamilies",

@@ -75,6 +75,8 @@ var (
 	AMIFamilyAL2                               = "AL2"
 	AMIFamilyAL2023                            = "AL2023"
 	AMIFamilyUbuntu                            = "Ubuntu"
+	AMIFamilyUbuntu2004                        = "Ubuntu2004"
+	AMIFamilyUbuntu2204                        = "Ubuntu2204"
 	AMIFamilyWindows2019                       = "Windows2019"
 	AMIFamilyWindows2022                       = "Windows2022"
 	AMIFamilyCustom                            = "Custom"

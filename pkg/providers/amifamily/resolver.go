@@ -170,7 +170,11 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	case v1beta1.AMIFamilyBottlerocket:
 		return &Bottlerocket{Options: options}
 	case v1beta1.AMIFamilyUbuntu:
-		return &Ubuntu{Options: options}
+		return &Ubuntu2004{Options: options}
+	case v1beta1.AMIFamilyUbuntu2004:
+		return &Ubuntu2004{Options: options}
+	case v1beta1.AMIFamilyUbuntu2204:
+		return &Ubuntu2204{Options: options}
 	case v1beta1.AMIFamilyWindows2019:
 		return &Windows{Options: options, Version: v1beta1.Windows2019, Build: v1beta1.Windows2019Build}
 	case v1beta1.AMIFamilyWindows2022:

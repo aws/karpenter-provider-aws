@@ -38,6 +38,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+
+	versionchecker "k8s.io/apimachinery/pkg/util/version"
 )
 
 var _ = Describe("AMI", func() {
@@ -155,11 +157,72 @@ var _ = Describe("AMI", func() {
 		})
 		It("should provision a node using the Ubuntu family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
-			// TODO (jmdeal@): remove once 22.04 AMIs are supported
-			if env.GetK8sVersion(0) == "1.29" {
+			k8sVersion := versionchecker.MustParseGeneric(env.GetK8sVersion(0))
+			// TODO (jmdeal@): remove once 22.04 AMIs are supported and based on confirmation if 20.04 will continue to be supported for the new versions and if 24.04 will be supported.
+			if k8sVersion.LessThan(versionchecker.MustParseGeneric("1.30")) {
 				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
 					"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
 					"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
+				}, func(arg string, _ int) v1beta1.AMISelectorTerm {
+					parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
+					Expect(err).To(BeNil())
+					return v1beta1.AMISelectorTerm{ID: *parameter.Parameter.Value}
+				})
+			}
+			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
+			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter-provider-aws/issues/4472)
+			nodePool = coretest.ReplaceRequirements(nodePool,
+				corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1beta1.LabelInstanceFamily,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   awsenv.ExcludedInstanceFamilies,
+					},
+				},
+			)
+			pod := coretest.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+		})
+		It("should provision a node using the Ubuntu2004 family", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu2004
+			k8sVersion := versionchecker.MustParseGeneric(env.GetK8sVersion(0))
+			// TODO (jmdeal@): remove once 22.04 AMIs are supported and based on confirmation if 20.04 will continue to be supported for the new versions and if 24.04 will be supported.
+			if k8sVersion.LessThan(versionchecker.MustParseGeneric("1.30")) {
+				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+				}, func(arg string, _ int) v1beta1.AMISelectorTerm {
+					parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
+					Expect(err).To(BeNil())
+					return v1beta1.AMISelectorTerm{ID: *parameter.Parameter.Value}
+				})
+			}
+			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
+			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter-provider-aws/issues/4472)
+			nodePool = coretest.ReplaceRequirements(nodePool,
+				corev1beta1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{
+						Key:      v1beta1.LabelInstanceFamily,
+						Operator: v1.NodeSelectorOpNotIn,
+						Values:   awsenv.ExcludedInstanceFamilies,
+					},
+				},
+			)
+			pod := coretest.Pod()
+			env.ExpectCreated(nodeClass, nodePool, pod)
+			env.EventuallyExpectHealthy(pod)
+			env.ExpectCreatedNodeCount("==", 1)
+		})
+		It("should provision a node using the Ubuntu2204 family", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu2204
+			k8sVersion := versionchecker.MustParseGeneric(env.GetK8sVersion(0))
+			// TODO (jmdeal@): remove once 22.04 AMIs are supported and based on confirmation if 20.04 will continue to be supported for the new versions and if 24.04 will be supported.
+			if k8sVersion.AtLeast(versionchecker.MustParseGeneric("1.29")) {
+				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
 				}, func(arg string, _ int) v1beta1.AMISelectorTerm {
 					parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
 					Expect(err).To(BeNil())

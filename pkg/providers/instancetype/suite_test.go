@@ -2094,6 +2094,36 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
 			})
 		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Ubuntu2004 Root volume", func() {
+			nodeClass.Spec.AMIFamily = aws.String(v1beta1.AMIFamilyUbuntu2004)
+			nodeClass.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/sda1")
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/sda1"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
+		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Ubuntu2204 Root volume", func() {
+			nodeClass.Spec.AMIFamily = aws.String(v1beta1.AMIFamilyUbuntu2204)
+			nodeClass.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/sda1")
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("20Gi")))
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings).To(HaveLen(1))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].DeviceName).To(Equal("/dev/sda1"))
+				Expect(*ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs.SnapshotId).To(Equal("snap-xxxxxxxx"))
+			})
+		})
 	})
 	Context("Metadata Options", func() {
 		It("should default metadata options on generated launch template", func() {

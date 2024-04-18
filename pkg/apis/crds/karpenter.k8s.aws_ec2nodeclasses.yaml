@@ -53,6 +53,8 @@ spec:
                 - AL2023
                 - Bottlerocket
                 - Ubuntu
+                - Ubuntu2004
+                - Ubuntu2204
                 - Custom
                 - Windows2019
                 - Windows2022

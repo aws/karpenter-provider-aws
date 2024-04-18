@@ -52,7 +52,7 @@ type EC2NodeClassSpec struct {
 	// +optional
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms,omitempty" hash:"ignore"`
 	// AMIFamily is the AMI family that instances use.
-	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Ubuntu,Custom,Windows2019,Windows2022}
+	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Ubuntu,Ubuntu2004,Ubuntu2204,Custom,Windows2019,Windows2022}
 	// +required
 	AMIFamily *string `json:"amiFamily"`
 	// UserData to be applied to the provisioned nodes.
