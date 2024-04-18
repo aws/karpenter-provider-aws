@@ -30,7 +30,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/pricing"
+	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"

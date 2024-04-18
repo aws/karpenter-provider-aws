@@ -22,7 +22,7 @@ import (
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
 	nodeclassstatus "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	nodeclasstermination "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/termination"
-	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/pricing"
+	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
 	"github.com/aws/aws-sdk-go/aws/session"
