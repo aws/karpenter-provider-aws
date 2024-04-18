@@ -52,8 +52,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
-var karpenterManagedTagKey = fmt.Sprintf("%s/cluster", v1beta1.Group)
-
 type Provider interface {
 	EnsureAll(context.Context, *v1beta1.EC2NodeClass, *corev1beta1.NodeClaim,
 		[]*cloudprovider.InstanceType, string, map[string]string) ([]*LaunchTemplate, error)
@@ -275,7 +273,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-				Tags:         utils.MergeTags(options.Tags, map[string]string{karpenterManagedTagKey: options.ClusterName, v1beta1.LabelNodeClass: options.NodeClassName}),
+				Tags:         utils.MergeTags(options.Tags, map[string]string{v1beta1.TagManagedLaunchTemplate: options.ClusterName, v1beta1.LabelNodeClass: options.NodeClassName}),
 			},
 		},
 	})
@@ -352,9 +350,9 @@ func (p *DefaultProvider) volumeSize(quantity *resource.Quantity) *int64 {
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	clusterName := options.FromContext(ctx).ClusterName
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", karpenterManagedTagKey, "tag-value", clusterName))
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", v1beta1.TagManagedLaunchTemplate, "tag-value", clusterName))
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
-		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}}},
+		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.TagManagedLaunchTemplate)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
 			p.cache.SetDefault(*lt.LaunchTemplateName, lt)
@@ -404,7 +402,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1beta1.EC2N
 	var ltNames []*string
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{
-			{Name: aws.String(fmt.Sprintf("tag:%s", karpenterManagedTagKey)), Values: []*string{aws.String(clusterName)}},
+			{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.TagManagedLaunchTemplate)), Values: []*string{aws.String(clusterName)}},
 			{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}},
 		},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {

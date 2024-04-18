@@ -117,6 +117,7 @@ var (
 	AnnotationEC2NodeClassHashVersion         = Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = Group + "/tagged"
 
-	TagNodeClaim = v1beta1.Group + "/nodeclaim"
-	TagName      = "Name"
+	TagNodeClaim             = v1beta1.Group + "/nodeclaim"
+	TagManagedLaunchTemplate = Group + "/cluster"
+	TagName                  = "Name"
 )
