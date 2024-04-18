@@ -242,8 +242,16 @@ var _ = Describe("SubnetProvider", func() {
 	})
 	Context("Provider Cache", func() {
 		It("should resolve subnets from cache that are filtered by id", func() {
-			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
-			for _, subnet := range expectedSubnets {
+			expectedSubnets, err := awsEnv.EC2API.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{
+				Filters: []*ec2.Filter{
+					{
+						Name:   lo.ToPtr("tag-key"),
+						Values: []*string{lo.ToPtr("*")},
+					},
+				},
+			})
+			Expect(err).To(BeNil())
+			for _, subnet := range expectedSubnets.Subnets {
 				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 					{
 						ID: *subnet.SubnetId,
@@ -257,12 +265,20 @@ var _ = Describe("SubnetProvider", func() {
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
 				cachedSubnet := cachedObject.Object.([]*ec2.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
-				lo.Contains(expectedSubnets, cachedSubnet[0])
+				lo.Contains(expectedSubnets.Subnets, cachedSubnet[0])
 			}
 		})
 		It("should resolve subnets from cache that are filtered by tags", func() {
-			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
-			tagSet := lo.Map(expectedSubnets, func(subnet *ec2.Subnet, _ int) map[string]string {
+			expectedSubnets, err := awsEnv.EC2API.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{
+				Filters: []*ec2.Filter{
+					{
+						Name:   lo.ToPtr("tag-key"),
+						Values: []*string{lo.ToPtr("*")},
+					},
+				},
+			})
+			Expect(err).To(BeNil())
+			tagSet := lo.Map(expectedSubnets.Subnets, func(subnet *ec2.Subnet, _ int) map[string]string {
 				tag, _ := lo.Find(subnet.Tags, func(tag *ec2.Tag) bool {
 					return lo.FromPtr(tag.Key) == "Name"
 				})
@@ -282,7 +298,7 @@ var _ = Describe("SubnetProvider", func() {
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
 				cachedSubnet := cachedObject.Object.([]*ec2.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
-				lo.Contains(expectedSubnets, cachedSubnet[0])
+				lo.Contains(expectedSubnets.Subnets, cachedSubnet[0])
 			}
 		})
 	})

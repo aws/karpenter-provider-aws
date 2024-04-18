@@ -39,10 +39,12 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudproivder "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
@@ -138,6 +140,20 @@ var _ = Describe("CloudProvider", func() {
 				},
 			},
 		})
+		nodeClass.Status.Subnets = []v1beta1.Subnet{
+			{
+				ID:   "subnet-test1",
+				Zone: "test-zone-1a",
+			},
+			{
+				ID:   "subnet-test2",
+				Zone: "test-zone-1b",
+			},
+			{
+				ID:   "subnet-test3",
+				Zone: "test-zone-1c",
+			},
+		}
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
@@ -586,6 +602,16 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
+			nodeClass.Status.Subnets = []v1beta1.Subnet{
+				{
+					ID:   validSubnet1,
+					Zone: "zone-1",
+				},
+				{
+					ID:   validSubnet2,
+					Zone: "zone-2",
+				},
+			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
@@ -661,7 +687,8 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should return an error if subnets are empty", func() {
 			awsEnv.SubnetCache.Flush()
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{}})
+			nodeClass.Status.Subnets = []v1beta1.Subnet{}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
@@ -774,6 +801,18 @@ var _ = Describe("CloudProvider", func() {
 									VolumeSize:          resource.NewScaledQuantity(2, resource.Giga),
 									VolumeType:          lo.ToPtr("standard"),
 								},
+							},
+						},
+					},
+					Status: v1beta1.EC2NodeClassStatus{
+						Subnets: []v1beta1.Subnet{
+							{
+								ID:   validSubnet1,
+								Zone: "zone-1",
+							},
+							{
+								ID:   validSubnet2,
+								Zone: "zone-2",
 							},
 						},
 					},
@@ -944,7 +983,9 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
+			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeClass))
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -958,8 +999,10 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(11),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
+			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(1)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeClass))
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -994,6 +1037,8 @@ var _ = Describe("CloudProvider", func() {
 			}})
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeClass))
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
@@ -1026,6 +1071,7 @@ var _ = Describe("CloudProvider", func() {
 				},
 			})
 			ExpectApplied(ctx, env.Client, nodePool2, nodeClass2)
+			ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeClass2))
 			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1beta1.NodePoolLabelKey: nodePool2.Name}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)

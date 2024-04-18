@@ -39,8 +39,8 @@ type Provider interface {
 	LivenessProbe(*http.Request) error
 	List(context.Context, *v1beta1.EC2NodeClass) ([]*ec2.Subnet, error)
 	CheckAnyPublicIPAssociations(context.Context, *v1beta1.EC2NodeClass) (bool, error)
-	ZonalSubnetsForLaunch(context.Context, *v1beta1.EC2NodeClass, []*cloudprovider.InstanceType, string) (map[string]*ec2.Subnet, error)
-	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []*ec2.Subnet, string)
+	ZonalSubnetsForLaunch(context.Context, *v1beta1.EC2NodeClass, []*cloudprovider.InstanceType, string) (map[string]v1beta1.Subnet, error)
+	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []v1beta1.Subnet, string)
 }
 
 type DefaultProvider struct {
@@ -87,7 +87,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		}
 		for i := range output.Subnets {
 			subnets[lo.FromPtr(output.Subnets[i].SubnetId)] = output.Subnets[i]
-			delete(p.inflightIPs, lo.FromPtr(output.Subnets[i].SubnetId)) // remove any previously tracked IP addresses since we just refreshed from EC2
+			p.inflightIPs[lo.FromPtr(output.Subnets[i].SubnetId)] = lo.FromPtr(output.Subnets[i].AvailableIpAddressCount) // remove any previously tracked IP addresses since we just refreshed from EC2
 		}
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
@@ -114,47 +114,30 @@ func (p *DefaultProvider) CheckAnyPublicIPAssociations(ctx context.Context, node
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
-func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]*ec2.Subnet, error) {
-	subnets, err := p.List(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
-	if len(subnets) == 0 {
+func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, instanceTypes []*cloudprovider.InstanceType, capacityType string) (map[string]v1beta1.Subnet, error) {
+	if len(nodeClass.Status.Subnets) == 0 {
 		return nil, fmt.Errorf("no subnets matched selector %v", nodeClass.Spec.SubnetSelectorTerms)
 	}
 	p.Lock()
 	defer p.Unlock()
 	// sort subnets in ascending order of available IP addresses and populate map with most available subnet per AZ
-	zonalSubnets := map[string]*ec2.Subnet{}
-	sort.Slice(subnets, func(i, j int) bool {
-		iIPs := aws.Int64Value(subnets[i].AvailableIpAddressCount)
-		jIPs := aws.Int64Value(subnets[j].AvailableIpAddressCount)
-		// override ip count from ec2.Subnet if we've tracked launches
-		if ips, ok := p.inflightIPs[*subnets[i].SubnetId]; ok {
-			iIPs = ips
-		}
-		if ips, ok := p.inflightIPs[*subnets[j].SubnetId]; ok {
-			jIPs = ips
-		}
-		return iIPs < jIPs
+	zonalSubnets := map[string]v1beta1.Subnet{}
+	sort.Slice(nodeClass.Status.Subnets, func(i, j int) bool {
+		return p.inflightIPs[nodeClass.Status.Subnets[i].ID] < p.inflightIPs[nodeClass.Status.Subnets[j].ID]
 	})
-	for _, subnet := range subnets {
-		zonalSubnets[*subnet.AvailabilityZone] = subnet
+	for _, subnet := range nodeClass.Status.Subnets {
+		zonalSubnets[subnet.Zone] = subnet
 	}
 	for _, subnet := range zonalSubnets {
-		predictedIPsUsed := p.minPods(instanceTypes, *subnet.AvailabilityZone, capacityType)
-		prevIPs := *subnet.AvailableIpAddressCount
-		if trackedIPs, ok := p.inflightIPs[*subnet.SubnetId]; ok {
-			prevIPs = trackedIPs
-		}
-		p.inflightIPs[*subnet.SubnetId] = prevIPs - predictedIPsUsed
+		predictedIPsUsed := p.minPods(instanceTypes, subnet.Zone, capacityType)
+		p.inflightIPs[subnet.ID] = p.inflightIPs[subnet.ID] - predictedIPsUsed
 	}
 	return zonalSubnets, nil
 }
 
 // UpdateInflightIPs is used to refresh the in-memory IP usage by adding back unused IPs after a CreateFleet response is returned
 func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInput, createFleetOutput *ec2.CreateFleetOutput, instanceTypes []*cloudprovider.InstanceType,
-	subnets []*ec2.Subnet, capacityType string) {
+	subnets []v1beta1.Subnet, capacityType string) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -193,19 +176,19 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 		if !lo.Contains(subnetIDsToAddBackIPs, *cachedSubnet.SubnetId) {
 			continue
 		}
-		originalSubnet, ok := lo.Find(subnets, func(subnet *ec2.Subnet) bool {
-			return *subnet.SubnetId == *cachedSubnet.SubnetId
+		originalSubnet, ok := lo.Find(subnets, func(subnet v1beta1.Subnet) bool {
+			return subnet.ID == *cachedSubnet.SubnetId
 		})
 		if !ok {
 			continue
 		}
 		// If the cached subnet IP address count hasn't changed from the original subnet used to
 		// launch the instance, then we need to update the tracked IPs
-		if *originalSubnet.AvailableIpAddressCount == *cachedSubnet.AvailableIpAddressCount {
+		if p.inflightIPs[originalSubnet.ID] == *cachedSubnet.AvailableIpAddressCount {
 			// other IPs deducted were opportunistic and need to be readded since Fleet didn't pick those subnets to launch into
-			if ips, ok := p.inflightIPs[*originalSubnet.SubnetId]; ok {
-				minPods := p.minPods(instanceTypes, *originalSubnet.AvailabilityZone, capacityType)
-				p.inflightIPs[*originalSubnet.SubnetId] = ips + minPods
+			if ips, ok := p.inflightIPs[originalSubnet.ID]; ok {
+				minPods := p.minPods(instanceTypes, originalSubnet.Zone, capacityType)
+				p.inflightIPs[originalSubnet.ID] = ips + minPods
 			}
 		}
 	}
