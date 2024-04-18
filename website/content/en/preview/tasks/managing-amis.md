@@ -11,7 +11,7 @@ Below we describe how Karpenter assigns AMIs to nodes when they are first deploy
 Later, it describes the options you have to assert control over how AMIs are used by Karpenter for your clusters.
 
 Features for managing AMIs described here should be considered as part of the larger upgrade policies that you have for your clusters.
-See [How do I upgrade an EKS Cluster with Karpenter]({{< relref "../faq/#how-do-i-upgrade-an-eks-cluster-with-karpenter" >}}) for details on this process. 
+See [How do I upgrade an EKS Cluster with Karpenter]({{< relref "../faq/#how-do-i-upgrade-an-eks-cluster-with-karpenter" >}}) for details on this process.
 
 ## How Karpenter assigns AMIs to nodes
 
@@ -76,7 +76,7 @@ For example, you could have:
     name: default
   spec:
     # The latest AMI in this family will be used
-    amiFamily: AL2
+    amiFamily: AL2023
   ```
 * **Production clusters**: After you've confirmed that the AMI works in your lower environments, you can pin the latest AMIs to be deployed in your production clusters to roll out the AMI. One way to do that is to use `amiSelectorTerms` to set the tested AMI to be used in your production cluster. Refer to Option 2 for how to choose a particular AMI by `name` or `id`. Remember that it is still best practice to gradually roll new AMIs into your cluster, even if they have been tested. So consider implementing that for your production clusters as described in Option 3.
 
@@ -107,7 +107,7 @@ amiSelectorTerms:
 - id: ami-052c9ea013e6e3567
 ```
 
-See the [**spec.amiSelectorTerms**]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) section of the NodeClasses page for details. 
+See the [**spec.amiSelectorTerms**]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) section of the NodeClasses page for details.
 Keep in mind, that this could prevent you from getting critical security patches when new AMIs are available, but it does give you control over exactly which AMI is running.
 
 

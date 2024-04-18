@@ -65,6 +65,23 @@ spec:
                     AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
                     If multiple fields are used for selection, the requirements are ANDed.
                   properties:
+                    eksOptimized:
+                      description: EKSOptimized test
+                      properties:
+                        family:
+                          description: Family is the AMI family to use when selecting
+                            AMIs.
+                          enum:
+                          - AL2
+                          - AL2023
+                          - Bottlerocket
+                          - Ubuntu
+                          - Windows2019
+                          - Windows2022
+                          type: string
+                      required:
+                      - family
+                      type: object
                     id:
                       description: ID is the ami id in EC2
                       pattern: ami-[0-9a-z]+
@@ -92,14 +109,24 @@ spec:
                         rule: self.all(k, k != '' && self[k] != '')
                   type: object
                 maxItems: 30
+                minItems: 1
                 type: array
                 x-kubernetes-validations:
-                - message: expected at least one, got none, ['tags', 'id', 'name']
-                  rule: self.all(x, has(x.tags) || has(x.id) || has(x.name))
+                - message: expected at least one, got none, ['eksOptimized', 'tags',
+                    'id', 'name']
+                  rule: self.all(x, has(x.eksOptimized) || has(x.tags) || has(x.id)
+                    || has(x.name))
                 - message: '''id'' is mutually exclusive, cannot be set with a combination
                     of other fields in amiSelectorTerms'
-                  rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.name) ||
-                    has(x.owner)))'
+                  rule: '!self.all(x, has(x.id) && (has(x.eksOptimized) || has(x.tags)
+                    || has(x.name) || has(x.owner)))'
+                - message: '''eksOptimized'' is mutually exclusive, cannot be set
+                    with a combination of other fields in amiSelectorTerms'
+                  rule: '!self.all(x, has(x.eksOptimized) && (has(x.id) || has(x.tags)
+                    || has(x.name) || has(x.owner)))'
+                - message: '`eksOptimized'' is mutually exclusive, cannot be set with
+                    other terms'
+                  rule: '!(self.exists(x, has(x.eksOptimized)) && self.size() != 1)'
               associatePublicIPAddress:
                 description: AssociatePublicIPAddress controls if public IP addresses
                   are assigned to instances that are launched with the nodeclass.
@@ -446,9 +473,6 @@ spec:
             - subnetSelectorTerms
             type: object
             x-kubernetes-validations:
-            - message: amiSelectorTerms is required when amiFamily == 'Custom'
-              rule: 'self.amiFamily == ''Custom'' ? self.amiSelectorTerms.size() !=
-                0 : true'
             - message: must specify exactly one of ['role', 'instanceProfile']
               rule: (has(self.role) && !has(self.instanceProfile)) || (!has(self.role)
                 && has(self.instanceProfile))
@@ -457,6 +481,11 @@ spec:
                 this.
               rule: (has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile)
                 && has(self.instanceProfile))
+            - message: amiFamily must match amiSelectorTerms[].eksOptimized.family
+                or be 'Custom'
+              rule: 'self.amiFamily == ''Custom'' || (self.amiSelectorTerms.exists(x,
+                has(x.eksOptimized)) ? self.amiSelectorTerms.exists(x, has(x.eksOptimized)
+                && x.eksOptimized.family == self.amiFamily) : true)'
           status:
             description: EC2NodeClassStatus contains the resolved state of the EC2NodeClass
             properties:

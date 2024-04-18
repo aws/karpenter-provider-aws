@@ -46,8 +46,11 @@ type EC2NodeClassSpec struct {
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name) || has(x.owner)))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['eksOptimized', 'tags', 'id', 'name']",rule="self.all(x, has(x.eksOptimized) || has(x.tags) || has(x.id) || has(x.name))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.eksOptimized) || has(x.tags) || has(x.name) || has(x.owner)))"
+	// +kubebuilder:validation:XValidation:message="'eksOptimized' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.eksOptimized) && (has(x.id) || has(x.tags) || has(x.name) || has(x.owner)))"
+	// +kubebuilder:validation:XValidation:message="`eksOptimized' is mutually exclusive, cannot be set with other terms",rule="!(self.exists(x, has(x.eksOptimized)) && self.size() != 1)"
+	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms" hash:"ignore"`
@@ -155,6 +158,9 @@ type SecurityGroupSelectorTerm struct {
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
 // If multiple fields are used for selection, the requirements are ANDed.
 type AMISelectorTerm struct {
+	// EKSOptimized is an object which when configured allows Karpenter to select the latest AMI from an optimized family.
+	// +optional
+	EKSOptimized *EKSOptimized `json:"eksOptimized,omitempty"`
 	// Tags is a map of key/value tags used to select subnets
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
@@ -173,6 +179,12 @@ type AMISelectorTerm struct {
 	// You can specify a combination of AWS account IDs, "self", "amazon", and "aws-marketplace"
 	// +optional
 	Owner string `json:"owner,omitempty"`
+}
+
+type EKSOptimized struct {
+	// Family is the AMI family to use when selecting AMIs.
+	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Ubuntu,Windows2019,Windows2022}
+	Family string `json:"family"`
 }
 
 // MetadataOptions contains parameters for specifying the exposure of the
@@ -324,9 +336,9 @@ type EC2NodeClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// +kubebuilder:validation:XValidation:message="amiSelectorTerms is required when amiFamily == 'Custom'",rule="self.amiFamily == 'Custom' ? self.amiSelectorTerms.size() != 0 : true"
 	// +kubebuilder:validation:XValidation:message="must specify exactly one of ['role', 'instanceProfile']",rule="(has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))"
 	// +kubebuilder:validation:XValidation:message="changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="amiFamily must match amiSelectorTerms[].eksOptimized.family or be 'Custom'",rule="self.amiFamily == 'Custom' || (self.amiSelectorTerms.exists(x, has(x.eksOptimized)) ? self.amiSelectorTerms.exists(x, has(x.eksOptimized) && x.eksOptimized.family == self.amiFamily) : true)"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 }

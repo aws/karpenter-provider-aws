@@ -16,6 +16,7 @@ package v1beta1_test
 
 import (
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -318,6 +319,129 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("AMISelectorTerms", func() {
+		It("should fail when amiSelectorTerms is nil", func() {
+			nc.Spec.AMISelectorTerms = nil
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when len(amiSelectorTerms) is zero", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		DescribeTable(
+			"should succeed with a valid eksOptimized familiy",
+			func(family string) {
+				nc.Spec.AMIFamily = &family
+				nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+					EKSOptimized: &v1beta1.EKSOptimized{Family: family},
+				}}
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			},
+			Entry("AL2", v1beta1.AMIFamilyAL2),
+			Entry("AL2023", v1beta1.AMIFamilyAL2023),
+			Entry("Bottlerocket", v1beta1.AMIFamilyBottlerocket),
+			Entry("Windows2019", v1beta1.AMIFamilyWindows2019),
+			Entry("Windows2022", v1beta1.AMIFamilyWindows2022),
+			Entry("Ubuntu", v1beta1.AMIFamilyUbuntu),
+		)
+		It("should fail with an empty eksOptimized AMI Family", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{},
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail with an invalid eksOptimized AMI Family", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: "foo"},
+			}}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when eksOptimized family is specified with other fields", func() {
+			for _, modifier := range []*v1beta1.AMISelectorTerm{
+				{Tags: map[string]string{"*": "*"}},
+				{ID: "foo"},
+				{Name: "foo"},
+				{Owner: "foo"},
+			} {
+				nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+					EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2},
+				}}
+				Expect(mergo.Merge(&nc.Spec.AMISelectorTerms[0], modifier)).To(Succeed())
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			}
+		})
+		It("should fail when EKSOptimized is specified with other terms", func() {
+			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2}},
+				{ID: "foo"},
+			}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		It("should fail when the eksOptimized family doesn't match amiFamily", func() {
+			families := []string{
+				v1beta1.AMIFamilyAL2,
+				v1beta1.AMIFamilyAL2023,
+				v1beta1.AMIFamilyUbuntu,
+				v1beta1.AMIFamilyBottlerocket,
+				v1beta1.AMIFamilyWindows2019,
+				v1beta1.AMIFamilyWindows2022,
+			}
+			for i := range families {
+				for j := range families {
+					if i == j {
+						continue
+					}
+					nc = test.EC2NodeClass(v1beta1.EC2NodeClass{
+						Spec: v1beta1.EC2NodeClassSpec{
+							AMIFamily: &families[i],
+							AMISelectorTerms: []v1beta1.AMISelectorTerm{{
+								EKSOptimized: &v1beta1.EKSOptimized{Family: families[j]},
+							}},
+						},
+					})
+					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+				}
+			}
+		})
+		It("should succed when the eksOptimized family matches amiFamily", func() {
+			for _, family := range []string{
+				v1beta1.AMIFamilyAL2,
+				v1beta1.AMIFamilyAL2023,
+				v1beta1.AMIFamilyUbuntu,
+				v1beta1.AMIFamilyBottlerocket,
+				v1beta1.AMIFamilyWindows2019,
+				v1beta1.AMIFamilyWindows2022,
+			} {
+				nc = test.EC2NodeClass(v1beta1.EC2NodeClass{
+					Spec: v1beta1.EC2NodeClassSpec{
+						AMIFamily: lo.ToPtr(family),
+						AMISelectorTerms: []v1beta1.AMISelectorTerm{{
+							EKSOptimized: &v1beta1.EKSOptimized{Family: family},
+						}},
+					},
+				})
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			}
+		})
+		It("should succed when the amiFamily is 'Custom' for any optimized ami", func() {
+			for _, family := range []string{
+				v1beta1.AMIFamilyAL2,
+				v1beta1.AMIFamilyAL2023,
+				v1beta1.AMIFamilyUbuntu,
+				v1beta1.AMIFamilyBottlerocket,
+				v1beta1.AMIFamilyWindows2019,
+				v1beta1.AMIFamilyWindows2022,
+			} {
+				nc = test.EC2NodeClass(v1beta1.EC2NodeClass{
+					Spec: v1beta1.EC2NodeClassSpec{
+						AMIFamily: lo.ToPtr(v1beta1.AMIFamilyCustom),
+						AMISelectorTerms: []v1beta1.AMISelectorTerm{{
+							EKSOptimized: &v1beta1.EKSOptimized{Family: family},
+						}},
+					},
+				})
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			}
+		})
 		It("should succeed with a valid ami selector on tags", func() {
 			nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
@@ -450,10 +574,6 @@ var _ = Describe("CEL/Validation", func() {
 					Owner: "123456789",
 				},
 			}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
-		It("should fail when AMIFamily is Custom and not AMISelectorTerms", func() {
-			nc.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
