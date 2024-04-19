@@ -41,6 +41,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:0.36.0 \
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
 | additionalAnnotations | object | `{}` | Additional annotations to add into metadata. |
+| serviceAnnotations | object | `{}` | Additional annotations to add into service metadata. |
 | additionalClusterRoleRules | list | `[]` | Specifies additional rules for the core ClusterRole. |
 | additionalLabels | object | `{}` | Additional labels to add into metadata. |
 | affinity | object | `{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"karpenter.sh/nodepool","operator":"DoesNotExist"}]}]}},"podAntiAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"topologyKey":"kubernetes.io/hostname"}]}}` | Affinity rules for scheduling the pod. If an explicit label selector is not provided for pod affinity or pod anti-affinity one will be created from the pod selector labels. |
