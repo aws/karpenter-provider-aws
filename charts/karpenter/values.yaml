@@ -191,7 +191,8 @@ settings:
   isolatedVPC: false
   # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
   vmMemoryOverheadPercent: 0.075
-  # -- interruptionQueue is disabled if not specified. Enabling interruption handling may
+  # -- Interruption queue is the name of the SQS queue used for processing interruption events from EC2
+  # Interruption handling is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
   interruptionQueue: ""
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved
