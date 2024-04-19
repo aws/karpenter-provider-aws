@@ -223,7 +223,7 @@ spec:
 
 #### Schedule
 Schedule is a cronjob schedule. Generally, the cron syntax is five space-delimited values with options below, with additional special macros like `@yearly`, `@monthly`, `@weekly`, `@daily`, `@hourly`.
-Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for more information on how to follow the cron syntax.
+Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#writing-a-cronjob-spec) for more information on how to follow the cron syntax. Timezones are not currently supported. Schedules are always in UTC.
 
 ```bash
 # ┌───────────── minute (0 - 59)
@@ -236,10 +236,6 @@ Follow the [Kubernetes documentation](https://kubernetes.io/docs/concepts/worklo
 # │ │ │ │ │
 # * * * * *
 ```
-
-{{% alert title="Note" color="primary" %}}
-Timezones are not supported. Most images default to UTC, but it is best practice to ensure this is the case when considering how to define your budgets.
-{{% /alert %}}
 
 #### Duration
 Duration allows compound durations with minutes and hours values such as `10h5m` or `30m` or `160h`. Since cron syntax does not accept denominations smaller than minutes, users can only define minutes or hours.
