@@ -146,6 +146,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
 	It("should create unique launch templates for multiple identical nodeClasses", func() {
 		nodeClass2 := test.EC2NodeClass()
