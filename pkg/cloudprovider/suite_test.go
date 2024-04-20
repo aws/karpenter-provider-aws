@@ -138,6 +138,8 @@ var _ = Describe("CloudProvider", func() {
 				},
 			},
 		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
 	It("should return an ICE error when there are no instance types to launch", func() {
 		// Specify no instance types and expect to receive a capacity error
@@ -230,6 +232,8 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
@@ -324,6 +328,8 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
@@ -425,6 +431,8 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+			Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 			Expect(awsEnv.PricingProvider.UpdateSpotPricing(ctx)).To(Succeed())
 			instanceNames := lo.Map(uniqInstanceTypes, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
