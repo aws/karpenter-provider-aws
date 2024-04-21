@@ -191,7 +191,7 @@ var _ = Describe("AMIProvider", func() {
 			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
 		}
 		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
-		if k8sVersion.LessThan(versionchecker.MustParseGeneric("1.29")) {
+		if k8sVersion.AtLeast(versionchecker.MustParseGeneric("1.29")) {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(2))
 		} else {
@@ -288,7 +288,7 @@ var _ = Describe("AMIProvider", func() {
 			}
 			// Only 1 of the requirements sets for the SSM aliases will resolve
 			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
-			if k8sVersion.LessThan(versionchecker.MustParseGeneric("1.29")) {
+			if k8sVersion.AtLeast(versionchecker.MustParseGeneric("1.29")) {
 				Expect(err).ToNot(HaveOccurred())
 				Expect(amis).To(HaveLen(1))
 			} else {
