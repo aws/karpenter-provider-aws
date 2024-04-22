@@ -259,6 +259,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Image:            aws.WindowsDefaultImage,
 			}})
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.Windows2022},
+			}}
 			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			test.ReplaceRequirements(nodePool,
 				corev1beta1.NodeSelectorRequirementWithMinValues{

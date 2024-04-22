@@ -134,7 +134,11 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		})
-		nodeClass.Spec.AMISelectorTerms = nil
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+			EKSOptimized: &v1beta1.EKSOptimized{
+				Family: v1beta1.AMIFamilyAL2,
+			},
+		}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -237,7 +241,11 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):  "ami-id-456",
 		}
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-		nodeClass.Spec.AMISelectorTerms = nil
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+			EKSOptimized: &v1beta1.EKSOptimized{
+				Family: v1beta1.AMIFamilyBottlerocket,
+			},
+		}}
 		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 			Images: []*ec2.Image{
 				{

@@ -164,6 +164,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 		windowsNodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: v1beta1.EC2NodeClassSpec{
 				AMIFamily: &v1beta1.AMIFamilyWindows2022,
+				AMISelectorTerms: []v1beta1.AMISelectorTerm{{
+					EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyWindows2022},
+				}},
 			},
 			Status: v1beta1.EC2NodeClassStatus{
 				InstanceProfile: "test-profile",
@@ -1243,6 +1246,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 				})
 				It("should ignore eviction threshold when using Bottlerocket AMI", func() {
 					nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+					nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+						EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+					}}
 					nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 						SystemReserved: map[string]string{
 							string(v1.ResourceMemory): "20Gi",
@@ -1609,6 +1615,9 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+			}}
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
 				PodsPerCore: ptr.Int32(1),
 			}
@@ -2053,7 +2062,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 	})
 	Context("Ephemeral Storage", func() {
 		BeforeEach(func() {
-			nodeClass.Spec.AMIFamily = aws.String(v1beta1.AMIFamilyAL2)
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2},
+			}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
@@ -2064,7 +2076,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for custom AMIs", func() {
-			nodeClass.Spec.AMIFamily = aws.String(v1beta1.AMIFamilyCustom)
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
 					Tags: map[string]string{
@@ -2098,7 +2110,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for AL2023 Root volume", func() {
-			nodeClass.Spec.AMIFamily = aws.String(v1beta1.AMIFamilyAL2023)
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2023},
+			}}
 			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
 			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -2114,7 +2129,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Bottlerocket Root volume", func() {
-			nodeClass.Spec.AMIFamily = aws.String(v1beta1.AMIFamilyBottlerocket)
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+			}}
 			nodeClass.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/xvdb")
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -2130,7 +2148,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for Ubuntu Root volume", func() {
-			nodeClass.Spec.AMIFamily = aws.String(v1beta1.AMIFamilyUbuntu)
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyUbuntu},
+			}}
 			nodeClass.Spec.BlockDeviceMappings[0].DeviceName = aws.String("/dev/sda1")
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -2248,7 +2269,14 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodeClassChanges := []*v1beta1.EC2NodeClass{
 				{}, // Testing the base case black EC2NodeClass
 				{Spec: v1beta1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)}},
-				{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: &v1beta1.AMIFamilyUbuntu}},
+				{
+					Spec: v1beta1.EC2NodeClassSpec{
+						AMIFamily: &v1beta1.AMIFamilyUbuntu,
+						AMISelectorTerms: []v1beta1.AMISelectorTerm{{
+							EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyUbuntu},
+						}},
+					},
+				},
 				{
 					Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{

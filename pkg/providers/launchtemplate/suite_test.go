@@ -591,6 +591,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should default AL2023 block device mappings", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2023},
+			}}
 			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
 			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -694,6 +697,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+			}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1044,6 +1050,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+			}}
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -1069,6 +1078,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+			}}
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
@@ -1351,6 +1363,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+					EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+				}}
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
 			It("should merge in custom user data", func() {
@@ -1624,6 +1639,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Context("AL2023", func() {
 			BeforeEach(func() {
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+					EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2023},
+				}}
 
 				// base64 encoded version of "ca-bundle" to ensure the nodeadm bootstrap provider can decode successfully
 				awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
@@ -1815,6 +1833,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			)
 			It("should fail to create launch templates if cluster CIDR is unresolved", func() {
 				awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
+				fmt.Printf("nodeClass: %s\n", string(lo.Must(json.Marshal(nodeClass))))
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2068,6 +2087,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			BeforeEach(func() {
 				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}}
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+					EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyWindows2022},
+				}}
 				nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
 			It("should merge and bootstrap with custom user data", func() {
