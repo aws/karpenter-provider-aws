@@ -117,18 +117,18 @@ func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, e
 
 // Get Returning a list of AMIs with its associated requirements
 func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
-	var err error
-	var amis AMIs
-	if nodeClass.Spec.AMISelectorTerms == nil || len(nodeClass.Spec.AMISelectorTerms) == 0 {
-		amis, err = p.getDefaultAMIs(ctx, nodeClass, options)
+	amis, err := p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms)
+	if err != nil {
+		return nil, err
+	}
+	if term, ok := lo.Find(nodeClass.Spec.AMISelectorTerms, func(term v1beta1.AMISelectorTerm) bool {
+		return term.EKSOptimized != nil
+	}); ok {
+		optimizedAMIs, err := p.getOptimizedAMIs(ctx, term.EKSOptimized.Family, options)
 		if err != nil {
 			return nil, err
 		}
-	} else {
-		amis, err = p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms)
-		if err != nil {
-			return nil, err
-		}
+		amis = append(amis, optimizedAMIs...)
 	}
 	amis.Sort()
 	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), amis) {
@@ -137,17 +137,16 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	return amis, nil
 }
 
-func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {
-	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
+func (p *DefaultProvider) getOptimizedAMIs(ctx context.Context, family string, options *Options) (res AMIs, err error) {
+	if images, ok := p.cache.Get(family); ok {
 		return images.(AMIs), nil
 	}
-	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
+	amiFamily := GetAMIFamily(&family, options)
 	kubernetesVersion, err := p.versionProvider.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
 	}
-	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion)
-	for _, ami := range defaultAMIs {
+	for _, ami := range amiFamily.DefaultAMIs(kubernetesVersion) {
 		if id, err := p.resolveSSMParameter(ctx, ami.Query); err != nil {
 			logging.FromContext(ctx).With("query", ami.Query).Errorf("discovering amis from ssm, %s", err)
 		} else {
@@ -171,7 +170,7 @@ func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1
 	}); err != nil {
 		return nil, fmt.Errorf("describing images, %w", err)
 	}
-	p.cache.SetDefault(lo.FromPtr(nodeClass.Spec.AMIFamily), res)
+	p.cache.SetDefault(family, res)
 	return res, nil
 }
 
@@ -243,6 +242,8 @@ func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwn
 	idFilter := &ec2.Filter{Name: aws.String("image-id")}
 	for _, term := range terms {
 		switch {
+		case term.EKSOptimized != nil:
+			continue
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
 		default:
