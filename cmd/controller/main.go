@@ -15,10 +15,10 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/samber/lo"
+	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
@@ -48,24 +48,17 @@ func main() {
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
 	client := op.Manager.GetAPIReader()
-	if client == nil {
-		panic("panic: failed to initialize read-client on startup")
-	}
 	nodeClassList := v1beta1.EC2NodeClassList{}
 	err := client.List(ctx, &nodeClassList)
 	if err != nil {
-		panic(fmt.Sprintf("panic: failed to list ec2nodeclasses on startup, %s", err.Error()))
+		logging.FromContext(ctx).Fatalf("failed to list ec2nodeclasses on startup, %s", err.Error())
 	}
 
-	ec2ncNames := []string{}
-	for i := range nodeClassList.Items {
-		nc := nodeClassList.Items[i]
-		if nc.Spec.AMISelectorTerms == nil || len(nc.Spec.AMISelectorTerms) == 0 {
-			ec2ncNames = append(ec2ncNames, nc.Name)
-		}
-	}
-	if len(ec2ncNames) != 0 {
-		panic(fmt.Sprintf("panic: detected nodeclasses {%s} with un-set AMISelectorTerms. Upgrade your EC2NodeClass to include AMISelectorTerms to continue.", strings.Join(ec2ncNames, ",")))
+	invalidNodeClasses := lo.FilterMap(nodeClassList.Items, func(nc v1beta1.EC2NodeClass, _ int) (string, bool) {
+		return nc.Name, len(nc.Spec.AMISelectorTerms) == 0
+	})
+	if len(invalidNodeClasses) != 0 {
+		logging.FromContext(ctx).Fatalf("detected nodeclasses {%s} with un-set AMISelectorTerms. Upgrade your EC2NodeClass to include AMISelectorTerms to continue.", strings.Join(invalidNodeClasses, ","))
 	}
 
 	op.
