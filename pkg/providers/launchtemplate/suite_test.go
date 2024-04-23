@@ -51,12 +51,14 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -146,6 +148,38 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
+		nodeClass.Status.AMIs = []v1beta1.AMI{
+			{
+				ID: "ami-test1",
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+				).NodeSelectorRequirements(),
+			},
+			{
+				ID: "ami-test2",
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
+				).NodeSelectorRequirements(),
+			},
+			{
+				ID: "ami-test3",
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
+				).NodeSelectorRequirements(),
+			},
+			{
+				ID: "ami-test4",
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
+					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+				).NodeSelectorRequirements(),
+			},
+		}
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
@@ -171,6 +205,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
+		nodeClass2.Status.AMIs = nodeClass.Status.AMIs
 		pods := []*v1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
 				{
@@ -1765,14 +1800,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in EC2NodeClass", func() {
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				nodeClass.Status.AMIs = []v1beta1.AMI{
 					{
-						Name:         aws.String(coretest.RandomName()),
-						ImageId:      aws.String("ami-123"),
-						Architecture: aws.String("x86_64"),
-						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						ID: "ami-123",
+						Requirements: scheduling.NewRequirements(
+							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						).NodeSelectorRequirements(),
 					},
-				}})
+				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1786,14 +1821,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Spec.UserData = aws.String("special user data")
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
-				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				nodeClass.Status.AMIs = []v1beta1.AMI{
 					{
-						Name:         aws.String(coretest.RandomName()),
-						ImageId:      aws.String("ami-123"),
-						Architecture: aws.String("x86_64"),
-						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						ID: "ami-123",
+						Requirements: scheduling.NewRequirements(
+							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						).NodeSelectorRequirements(),
 					},
-				}})
+				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1822,6 +1857,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
+				_, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+				Expect(err).To(BeNil())
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
 				actualFilter := awsEnv.EC2API.CalledWithDescribeImagesInput.Pop().Filters
 				expectedFilter := []*ec2.Filter{
@@ -1833,21 +1870,21 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(actualFilter).To(Equal(expectedFilter))
 			})
 			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
-				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
-					{
-						Name:         aws.String(coretest.RandomName()),
-						ImageId:      aws.String("ami-123"),
-						Architecture: aws.String("x86_64"),
-						CreationDate: aws.String("2022-08-15T12:00:00Z"),
-					},
-					{
-						Name:         aws.String(coretest.RandomName()),
-						ImageId:      aws.String("ami-456"),
-						Architecture: aws.String("arm64"),
-						CreationDate: aws.String("2022-08-10T12:00:00Z"),
-					},
-				}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Status.AMIs = []v1beta1.AMI{
+					{
+						ID: "ami-123",
+						Requirements: scheduling.NewRequirements(
+							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						).NodeSelectorRequirements(),
+					},
+					{
+						ID: "ami-456",
+						Requirements: scheduling.NewRequirements(
+							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
+						).NodeSelectorRequirements(),
+					},
+				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1884,6 +1921,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
+				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeClass))
 				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
@@ -1906,6 +1945,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			It("should fail if no amis match selector.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Status.AMIs = []v1beta1.AMI{}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1916,6 +1956,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Status.AMIs = []v1beta1.AMI{
+					{
+						ID: "ami-123",
+						Requirements: scheduling.NewRequirements(
+							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, "newnew"),
+						).NodeSelectorRequirements(),
+					},
+				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1927,14 +1975,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				awsEnv.SSMAPI.Parameters = map[string]string{
 					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): "test-ami-123",
 				}
-				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
+				nodeClass.Status.AMIs = []v1beta1.AMI{
 					{
-						Name:         aws.String(coretest.RandomName()),
-						ImageId:      aws.String("test-ami-123"),
-						Architecture: aws.String("x86_64"),
-						CreationDate: aws.String("2022-08-15T12:00:00Z"),
+						ID: "test-ami-123",
+						Requirements: scheduling.NewRequirements(
+							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						).NodeSelectorRequirements(),
 					},
-				}})
+				}
 				ExpectApplied(ctx, env.Client, nodeClass)
 				ExpectApplied(ctx, env.Client, nodePool)
 				pod := coretest.UnschedulablePod()
