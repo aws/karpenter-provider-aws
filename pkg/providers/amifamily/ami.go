@@ -81,12 +81,12 @@ func (a AMIs) Sort() {
 	})
 }
 
-func (a AMIs) String() string {
+func String(amis []v1beta1.AMI) string {
 	var sb strings.Builder
-	ids := lo.Map(a, func(a AMI, _ int) string { return a.AmiID })
-	if len(a) > 25 {
+	ids := lo.Map(amis, func(a v1beta1.AMI, _ int) string { return a.ID })
+	if len(amis) > 25 {
 		sb.WriteString(strings.Join(ids[:25], ", "))
-		sb.WriteString(fmt.Sprintf(" and %d other(s)", len(a)-25))
+		sb.WriteString(fmt.Sprintf(" and %d other(s)", len(amis)-25))
 	} else {
 		sb.WriteString(strings.Join(ids, ", "))
 	}
@@ -94,12 +94,12 @@ func (a AMIs) String() string {
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
+func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1beta1.AMI) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		for _, ami := range a {
-			if err := instanceType.Requirements.Compatible(ami.Requirements, scheduling.AllowUndefinedWellKnownLabels); err == nil {
-				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
+		for _, ami := range amis {
+			if err := instanceType.Requirements.Compatible(scheduling.NewNodeSelectorRequirementsWithMinValues(ami.Requirements...), scheduling.AllowUndefinedWellKnownLabels); err == nil {
+				amiIDs[ami.ID] = append(amiIDs[ami.ID], instanceType)
 				break
 			}
 		}
