@@ -25,6 +25,7 @@ const (
 	interruptionSubsystem  = "interruption"
 	messageTypeLabel       = "message_type"
 	actionTypeLabel        = "action_type"
+	nodePoolLabel          = "nodepool"
 	terminationReasonLabel = "interruption"
 )
 
@@ -62,7 +63,10 @@ var (
 			Name:      "actions_performed",
 			Help:      "Number of notification actions performed. Labeled by action",
 		},
-		[]string{actionTypeLabel},
+		[]string{
+			actionTypeLabel,
+			metrics.NodePoolLabel,
+		},
 	)
 )
 
