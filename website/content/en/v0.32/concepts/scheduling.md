@@ -104,8 +104,6 @@ Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/s
 You must enable Pod ENI support in the AWS VPC CNI Plugin before enabling Pod ENI support in Karpenter.  Please refer to the [Security Groups for Pods documentation](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) for instructions.
 {{% /alert %}}
 
-Now that Pod ENI support is enabled in the AWS VPC CNI Plugin, you can enable Pod ENI support in Karpenter by setting the `settings.aws.enablePodENI` Helm chart value to `true`.
-
 Here is an example of a pod-eni resource defined in a deployment manifest:
 ```
 spec:
