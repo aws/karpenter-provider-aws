@@ -292,7 +292,8 @@ type BlockDevice struct {
 	// + TODO: Add the CEL resources.quantity type after k8s 1.29
 	// + https://github.com/kubernetes/apiserver/commit/b137c256373aec1c5d5810afbabb8932a19ecd2a#diff-838176caa5882465c9d6061febd456397a3e2b40fb423ed36f0cabb1847ecb4dR190
 	// +kubebuilder:validation:Pattern:="^((?:[1-9][0-9]{0,3}|[1-4][0-9]{4}|[5][0-8][0-9]{3}|59000)Gi|(?:[1-9][0-9]{0,3}|[1-5][0-9]{4}|[6][0-3][0-9]{3}|64000)G|([1-9]||[1-5][0-7]|58)Ti|([1-9]||[1-5][0-9]|6[0-3]|64)T)$"
-	// +kubebuilder:validation:XIntOrString
+	// +kubebuilder:validation:Schemaless
+	// +kubebuilder:validation:Type:=string
 	// +optional
 	VolumeSize *resource.Quantity `json:"volumeSize,omitempty" hash:"string"`
 	// VolumeType of the block device.

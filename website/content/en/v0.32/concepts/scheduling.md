@@ -104,8 +104,6 @@ Refer to general [Kubernetes GPU](https://kubernetes.io/docs/tasks/manage-gpus/s
 You must enable Pod ENI support in the AWS VPC CNI Plugin before enabling Pod ENI support in Karpenter.  Please refer to the [Security Groups for Pods documentation](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) for instructions.
 {{% /alert %}}
 
-Now that Pod ENI support is enabled in the AWS VPC CNI Plugin, you can enable Pod ENI support in Karpenter by setting the `settings.aws.enablePodENI` Helm chart value to `true`.
-
 Here is an example of a pod-eni resource defined in a deployment manifest:
 ```
 spec:
@@ -625,19 +623,73 @@ If using Gt/Lt operators, make sure to use values under the actual label values 
 The `Exists` operator can be used on a NodePool to provide workload segregation across nodes.
 
 ```yaml
-...
-requirements:
-- key: company.com/team
-  operator: Exists
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+spec:
+  template:
+    spec:
+      requirements:
+        - key: company.com/team
+          operator: Exists
 ...
 ```
 
-With the requirement on the NodePool, workloads can optionally specify a custom value as a required node affinity or node selector.  Karpenter will then label the nodes it launches for these pods which prevents `kube-scheduler` from scheduling conflicting pods to those nodes.  This provides a way to more dynamically isolate workloads without requiring a unique NodePool for each workload subset.
+With this requirement on the NodePool, workloads can specify the same key (e.g. `company.com/team`) with custom values (e.g. `team-a`, `team-b`, etc.) as a required `nodeAffinity` or `nodeSelector`. Karpenter will then apply the key/value pair to nodes it launches dynamically based on the pod's node requirements.
+
+If each set of pods that can schedule with this NodePool specifies this key in its `nodeAffinity` or `nodeSelector`, you can isolate pods onto different nodes based on their values. This provides a way to more dynamically isolate workloads without requiring a unique NodePool for each workload subset.
+
+For example, providing the following `nodeSelectors` would isolate the pods for each of these deployments on different nodes.
+
+#### Team A Deployment
 
 ```yaml
-nodeSelector:
-  company.com/team: team-a
+apiVersion: v1
+kind: Deployment
+metadata:
+  name: team-a-deployment
+spec:
+  replicas: 5
+  template:
+    spec:
+      nodeSelector:
+        company.com/team: team-a
 ```
+
+#### Team A Node
+
+```yaml
+apiVersion: v1
+kind: Node
+metadata:
+  labels:
+    company.com/team: team-a
+```
+
+#### Team B Deployment
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: team-b-deployment
+spec:
+  replicas: 5
+  template:
+    spec:
+      nodeSelector:
+        company.com/team: team-b
+```
+
+#### Team B Node
+
+```yaml
+apiVersion: v1
+kind: Node
+metadata:
+  labels:
+    company.com/team: team-b
+```
+
 {{% alert title="Note" color="primary" %}}
 If a workload matches the NodePool but doesn't specify a label, Karpenter will generate a random label for the node.
 {{% /alert %}}
