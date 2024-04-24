@@ -28,8 +28,8 @@ kind: EC2NodeClass
 metadata:
   name: default
 spec:
-  # Required, resolves a default ami and userdata
-  amiFamily: AL2
+  # Required, configures the bootstrapping mode
+  amiFamily: AL2023
 
   # Required, discovers subnets to attach to instances
   # Each term in the array of subnetSelectorTerms is ORed together
@@ -66,7 +66,7 @@ spec:
   # Must specify one of "role" or "instanceProfile" for Karpenter to launch nodes
   instanceProfile: "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
 
-  # Optional, discovers amis to override the amiFamily's default amis
+  # Required, discovers amis.
   # Each term in the array of amiSelectorTerms is ORed together
   # Within a single term, all conditions are ANDed
   amiSelectorTerms:
@@ -78,6 +78,11 @@ spec:
         environment: test
     - name: my-ami
     - id: ami-123
+
+    # Automatically select the latest EKS optimzed AMI for the given AMI family.
+    # Note: This term is mutually exclusive and may not be specified with other AMI selector terms
+    # - eksOptimized:
+    #     family: AL2023
 
   # Optional, use instance-store volumes for node ephemeral-storage
   instanceStorePolicy: RAID0
@@ -164,7 +169,7 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 ## spec.amiFamily
 
-AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
+AMIFamily is a required field that dictates the bootstrapping logic for nodes provisioned through this `EC2NodeClass`. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. Default generated UserData for each of the supported AMI families is shown below.
 
 ### AL2
 
@@ -263,10 +268,6 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 & $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
 </powershell>
 ```
-
-{{% alert title="Note" color="primary" %}}
-Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). In the case of the `Custom` AMIFamily, no default AMIs are defined. As a result, `amiSelectorTerms` must be specified to inform Karpenter on which custom AMIs are to be used.
-{{% /alert %}}
 
 ### Custom
 
@@ -429,13 +430,17 @@ spec:
 
 ## spec.amiSelectorTerms
 
-AMI Selector Terms are used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). **When you specify `amiSelectorTerms`, you fully override the default AMIs that are selected on by your EC2NodeClass [`amiFamily`]({{< ref "#specamifamily" >}}).**
+AMI Selector Terms are used to select which AMIs Karpenter will use when launching nodes with this `EC2NodeClass`. You can opt-in to the latest EKS optimized AMIs through an `eksOptimzed` term or AMIs can be discovered through ids, ownders, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 
 {{% alert title="Note" color="primary" %}}
 [`amiFamily`]({{< ref "#specamifamily" >}}) determines the bootstrapping mode, while `amiSelectorTerms` specifies specific AMIs to be used. Therefore, you need to ensure consistency between [`amiFamily`]({{< ref "#specamifamily" >}}) and `amiSelectorTerms` to avoid conflicts during bootstrapping.
 {{% /alert %}}
 
-This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
+This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match.
+Effectively, all requirements within a single term are ANDed together.
+It's possible that you may want to select on two different AMIs that have unrelated requirements.
+In this case, you can specify multiple terms which will be ORed together to form your selection logic.
+The example below shows how this selection logic is fulfilled.
 
 ```yaml
 amiSelectorTerms:
@@ -449,12 +454,34 @@ amiSelectorTerms:
   - id: ami-123
 ```
 
-This field is optional, and Karpenter will use the latest EKS-optimized AMIs for the AMIFamily if no amiSelectorTerms are specified. To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To ensure that AMIs are owned by the expected owner, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
+To select the latest EKS optimized AMIs, use the `eksOptimized` field in the selector term. To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To ensure that AMIs are owned by the expected owner, use the `owner` field - you can use a combination of account aliases (e.g. `self`, `amazon`, `your-aws-account-name`) and account IDs.
 
 If owner is not set for `name`, it defaults to `self,amazon`, preventing Karpenter from inadvertently selecting an AMI that is owned by a different account. Tags don't require an owner as tags can only be discovered by the user who created them.
 
 {{% alert title="Tip" color="secondary" %}}
 AMIs may be specified by any AWS tag, including `Name`. Selecting by tag or by name using wildcards (`*`) is supported.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+The `eksOptimized` term is mutually exclusive. When an `eksOptimized` term is specified, other requirements may not be added to the term and no other terms may be specified. The following examples would be invalid:
+
+```yaml
+  amiSelectorTerms:
+    - eksOptimzed:
+        family: AL2023
+      # Can not specify other fields with eksOptimzed
+      tags:
+        karpenter.sh/discover: "${CLUSTER_NAME}"
+        environment: test
+```
+
+```yaml
+  amiSelectorTerms:
+    - eksOptimzed:
+      family: AL2023
+    # Can not specify other terms with eksOptimzed
+    - id: ami-123
+```
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
@@ -467,6 +494,13 @@ If `amiSelectorTerms` match more than one AMI, Karpenter will automatically dete
 {{% /alert %}}
 
 #### Examples
+
+Select EKS optimzed AMIs by family:
+```yaml
+  amiSelectorTerms:
+    - eksOptimized:
+        family: AL2023
+```
 
 Select all with a specified tag:
 ```yaml
@@ -584,7 +618,7 @@ spec:
 
 ## spec.blockDeviceMappings
 
-The `blockDeviceMappings` field in an `EC2NodeClass` can be used to control the [Elastic Block Storage (EBS) volumes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html#instance-block-device-mapping) that Karpenter attaches to provisioned nodes. Karpenter uses default block device mappings for the AMIFamily specified. For example, the `Bottlerocket` AMI Family defaults with two block device mappings, one for Bottlerocket's control volume and the other for container resources such as images and logs.
+The `blockDeviceMappings` field in an `EC2NodeClass` can be used to control the [Elastic Block Storage (EBS) volumes](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/block-device-mapping-concepts.html#instance-block-device-mapping) that Karpenter attaches to provisioned nodes. Karpenter uses default block device mappings for the [AMIFamily]({{< ref "#specamifamily" >}}) specified. For example, the `Bottlerocket` AMI Family defaults with two block device mappings, one for Bottlerocket's control volume and the other for container resources such as images and logs.
 
 ```yaml
 spec:
@@ -601,7 +635,7 @@ spec:
         snapshotID: snap-0123456789
 ```
 
-The following blockDeviceMapping defaults are used for each `AMIFamily` if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
+The following blockDeviceMapping defaults are used for each [AMIFamily]({{< ref "#specamifamily" >}}) if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
 
 ### AL2
 ```yaml
@@ -684,7 +718,7 @@ spec:
 
 This will set the allocatable ephemeral-storage of each node to the total size of the instance-store volume(s).
 
-The disks must be formatted & mounted in a RAID0 and be the underlying filesystem for the Kubelet & Containerd. Instructions for each AMI family are listed below:
+The disks must be formatted & mounted in a RAID0 and be the underlying filesystem for the Kubelet & Containerd. Instructions for each [AMIFamily]({{< ref "#specamifamily" >}}) are listed below:
 
 #### AL2
 
@@ -1157,15 +1191,40 @@ status:
 
 ## status.amis
 
-[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, and `requirements` of either the default AMIs for the [`spec.amiFamily`]({{< ref "#specamifamily" >}}) or the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}) if this field is specified.
+[`status.amis`]({{< ref "#statusamis" >}}) contains the resolved `id`, `name`, and `requirements` of the AMIs selected by the [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}).
 
-#### Examples
-
-Default AMIs resolved from the AL2 AMIFamily:
+When discovering AMIs via id, owner, tags, and/or name, Karpenter will only discover a `kubernetes.io/arch` requirement.
 
 ```yaml
 spec:
-  amiFamily: AL2
+  amiSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}"
+status:
+  amis:
+  - id: ami-01234567890123456
+    name: custom-ami-amd64
+    requirements:
+    - key: kubernetes.io/arch
+      operator: In
+      values:
+      - amd64
+  - id: ami-01234567890123456
+    name: custom-ami-arm64
+    requirements:
+    - key: kubernetes.io/arch
+      operator: In
+      values:
+      - arm64
+```
+
+However, specifying an `eksOptimized` term may allow Karpenter to discover more requirements.
+
+```yaml
+spec:
+  amiSelectorTerms:
+    - eksOptimized:
+        family: AL2
 status:
   amis:
   - id: ami-03c3a3dcda64f5b75
@@ -1208,32 +1267,6 @@ status:
       operator: DoesNotExist
     - key: karpenter.k8s.aws/instance-accelerator-count
       operator: DoesNotExist
-```
-
-AMIs resolved from [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}):
-
-```yaml
-spec:
-  amiFamily: AL2
-  amiSelectorTerms:
-    - tags:
-        karpenter.sh/discovery: "${CLUSTER_NAME}"
-status:
-  amis:
-  - id: ami-01234567890123456
-    name: custom-ami-amd64
-    requirements:
-    - key: kubernetes.io/arch
-      operator: In
-      values:
-      - amd64
-  - id: ami-01234567890123456
-    name: custom-ami-arm64
-    requirements:
-    - key: kubernetes.io/arch
-      operator: In
-      values:
-      - arm64
 ```
 
 ## status.instanceProfile
