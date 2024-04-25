@@ -125,6 +125,10 @@ runs:
               - kubectl delete ec2nodeclass --all
               - kubectl delete deployment --all
               - PRIVATE_CLUSTER=$CLUSTER_NAME TEST_SUITE=$SUITE ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=$METRICS_REGION GIT_REF="$(git rev-parse HEAD)" CLUSTER_NAME=$CLUSTER_NAME CLUSTER_ENDPOINT="$(aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.endpoint" --output text)" INTERRUPTION_QUEUE=$CLUSTER_NAME make e2etests
+              - aws logs put-retention-policy --log-group-name /aws/containerinsights/$CLUSTER_NAME/application --retention-in-days 30
+              - aws logs put-retention-policy --log-group-name /aws/containerinsights/$CLUSTER_NAME/dataplane --retention-in-days 30
+              - aws logs put-retention-policy --log-group-name /aws/containerinsights/$CLUSTER_NAME/host --retention-in-days 30
+              - aws logs put-retention-policy --log-group-name /aws/containerinsights/$CLUSTER_NAME/performance --retention-in-days 30
           post_build:
             commands:
               # Describe karpenter pods

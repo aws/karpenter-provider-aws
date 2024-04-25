@@ -28,23 +28,23 @@ If you get the error `invalid ownership metadata; label validation error:` while
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter Helm chart:
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.36.0/pkg/apis/crds/karpenter.sh_nodepools.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.36.0/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.36.0/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.36.1/pkg/apis/crds/karpenter.sh_nodepools.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.36.1/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.36.1/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
 
 <!--
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
-### Upgrading to `0.36.0`+
+### Upgrading to `0.36.1`+
 
 {{% alert title="Warning" color="warning" %}}
-`0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.36.0`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
+`0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.36.1`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
-   v0.36.x introduces update to drift that restricts rollback. When rolling back from >=v0.36.0, note that v0.32.9+, v0.33.4+, v0.34.5+, v0.35.4+ are the patch versions that support rollback. If Karpenter is rolled back to an older patch version, Karpenter can potentially drift all the nodes in the cluster.
+   v0.36.x introduces update to drift that restricts rollback. When rolling back from >=v0.36.1, note that v0.32.9+, v0.33.4+, v0.34.5+, v0.35.4+ are the patch versions that support rollback. If Karpenter is rolled back to an older patch version, Karpenter can potentially drift all the nodes in the cluster.
 {{% /alert %}}
 
 * Karpenter changed the name of the `karpenter_cloudprovider_instance_type_price_estimate` metric to `karpenter_cloudprovider_instance_type_offering_price_estimate` to align with the new `karpenter_cloudprovider_instance_type_offering_available` metric. The `region` label was also dropped from the metric, since this can be inferred from the environment that Karpenter is running in.
