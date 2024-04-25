@@ -140,20 +140,39 @@ var _ = Describe("CloudProvider", func() {
 				},
 			},
 		})
-		nodeClass.Status.Subnets = []v1beta1.Subnet{
-			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+		nodeClass.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			SecurityGroups: []v1beta1.SecurityGroup{
+				{
+					ID:   "sg-test1",
+					Name: "securityGroup-test1",
+				},
+				{
+					ID:   "sg-test2",
+					Name: "securityGroup-test2",
+				},
+				{
+					ID:   "sg-test3",
+					Name: "securityGroup-test3",
+				},
 			},
-			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
-			},
-			{
-				ID:   "subnet-test3",
-				Zone: "test-zone-1c",
+			Subnets: []v1beta1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+				{
+					ID:   "subnet-test3",
+					Zone: "test-zone-1c",
+				},
 			},
 		}
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
@@ -612,6 +631,11 @@ var _ = Describe("CloudProvider", func() {
 					Zone: "zone-2",
 				},
 			}
+			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+				{
+					ID: validSecurityGroup,
+				},
+			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
@@ -698,7 +722,8 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should return an error if the security groups are empty", func() {
-			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{}})
+			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -719,18 +744,17 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should return drifted if more security groups are present than instance security groups then discovered from nodeclass", func() {
-			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
-				SecurityGroups: []*ec2.SecurityGroup{
-					{
-						GroupId:   aws.String(validSecurityGroup),
-						GroupName: aws.String("test-securitygroup"),
-					},
-					{
-						GroupId:   aws.String(fake.SecurityGroupID()),
-						GroupName: aws.String("test-securitygroup"),
-					},
+			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+				{
+					ID:   validSecurityGroup,
+					Name: "test-securitygroup",
 				},
-			})
+				{
+					ID:   fake.SecurityGroupID(),
+					Name: "test-securitygroup",
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
@@ -813,6 +837,11 @@ var _ = Describe("CloudProvider", func() {
 							{
 								ID:   validSubnet2,
 								Zone: "zone-2",
+							},
+						},
+						SecurityGroups: []v1beta1.SecurityGroup{
+							{
+								ID: validSecurityGroup,
 							},
 						},
 					},
@@ -977,6 +1006,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(foundNonGPULT).To(BeTrue())
 		})
 		It("should launch instances into subnet with the most available IP addresses", func() {
+			awsEnv.SubnetCache.Flush()
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
@@ -993,6 +1023,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
 		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
+			awsEnv.SubnetCache.Flush()
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
@@ -1055,6 +1086,13 @@ var _ = Describe("CloudProvider", func() {
 					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
 						{
 							Tags: map[string]string{"*": "*"},
+						},
+					},
+				},
+				Status: v1beta1.EC2NodeClassStatus{
+					SecurityGroups: []v1beta1.SecurityGroup{
+						{
+							ID: "sg-test1",
 						},
 					},
 				},

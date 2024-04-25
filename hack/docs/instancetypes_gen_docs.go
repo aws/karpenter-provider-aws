@@ -98,6 +98,12 @@ func main() {
 	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider,
 		op.EventRecorder, op.GetClient(), op.AMIProvider, op.SecurityGroupProvider, op.SubnetProvider)
 
+	if err := op.InstanceTypesProvider.UpdateInstanceTypes(ctx); err != nil {
+		log.Fatalf("updating instance types, %s", err)
+	}
+	if err := op.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx); err != nil {
+		log.Fatalf("updating instance types offerings, %s", err)
+	}
 	instanceTypes, err := cp.GetInstanceTypes(ctx, nil)
 	if err != nil {
 		log.Fatalf("listing instance types, %s", err)

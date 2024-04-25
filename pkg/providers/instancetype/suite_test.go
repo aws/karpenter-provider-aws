@@ -155,6 +155,42 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		})
+
+		nodeClass.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			SecurityGroups: []v1beta1.SecurityGroup{
+				{
+					ID: "sg-test1",
+				},
+				{
+					ID: "sg-test2",
+				},
+				{
+					ID: "sg-test3",
+				},
+			},
+			Subnets: []v1beta1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+				{
+					ID:   "subnet-test3",
+					Zone: "test-zone-1c",
+				},
+			},
+		}
+		windowsNodeClass.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			SecurityGroups:  nodeClass.Status.SecurityGroups,
+			Subnets:         nodeClass.Status.Subnets,
+		}
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
@@ -851,6 +887,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 	})
 	It("should launch instances in local zones", func() {
+		nodeClass.Status.Subnets = []v1beta1.Subnet{
+			{
+				ID:   "subnet-test1",
+				Zone: "test-zone-1a-local",
+			},
+		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			NodeRequirements: []v1.NodeSelectorRequirement{{
@@ -861,7 +903,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
-
 	})
 
 	Context("Overhead", func() {

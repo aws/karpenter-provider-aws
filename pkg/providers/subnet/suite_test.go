@@ -225,6 +225,14 @@ var _ = Describe("SubnetProvider", func() {
 					Tags: map[string]string{"foo": "bar"},
 				},
 			}
+			nodeClass.Status.Subnets = []v1beta1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+			}
+			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
 			onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(onlyPrivate).To(BeFalse())
@@ -235,6 +243,14 @@ var _ = Describe("SubnetProvider", func() {
 					ID: "subnet-test2",
 				},
 			}
+			nodeClass.Status.Subnets = []v1beta1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+			}
+			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
 			onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(onlyPrivate).To(BeTrue())

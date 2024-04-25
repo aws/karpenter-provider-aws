@@ -31,8 +31,6 @@ const (
 	InstanceTypesAndZonesTTL = 5 * time.Minute
 	// InstanceProfileTTL is the time before we refresh checking instance profile existence at IAM
 	InstanceProfileTTL = 15 * time.Minute
-	// SubnetTTL is the time before we remove subnets that have been refreshed
-	SubnetTTL = 5 * time.Minute
 )
 
 const (

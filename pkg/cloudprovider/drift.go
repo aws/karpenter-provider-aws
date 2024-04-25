@@ -25,9 +25,6 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
@@ -54,7 +51,7 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev
 	if err != nil {
 		return "", fmt.Errorf("calculating ami drift, %w", err)
 	}
-	securitygroupDrifted, err := c.areSecurityGroupsDrifted(ctx, instance, nodeClass)
+	securitygroupDrifted, err := c.areSecurityGroupsDrifted(instance, nodeClass)
 	if err != nil {
 		return "", fmt.Errorf("calculating securitygroup drift, %w", err)
 	}
@@ -114,14 +111,10 @@ func (c *CloudProvider) isSubnetDrifted(instance *instance.Instance, nodeClass *
 
 // Checks if the security groups are drifted, by comparing the security groups returned from the SecurityGroupProvider
 // to the ec2 instance security groups
-func (c *CloudProvider) areSecurityGroupsDrifted(ctx context.Context, ec2Instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
-	securitygroup, err := c.securityGroupProvider.List(ctx, nodeClass)
-	if err != nil {
-		return "", err
-	}
-	securityGroupIds := sets.New(lo.Map(securitygroup, func(sg *ec2.SecurityGroup, _ int) string { return aws.StringValue(sg.GroupId) })...)
+func (c *CloudProvider) areSecurityGroupsDrifted(ec2Instance *instance.Instance, nodeClass *v1beta1.EC2NodeClass) (cloudprovider.DriftReason, error) {
+	securityGroupIds := sets.New(lo.Map(nodeClass.Status.SecurityGroups, func(sg v1beta1.SecurityGroup, _ int) string { return sg.ID })...)
 	if len(securityGroupIds) == 0 {
-		return "", fmt.Errorf("no security groups are discovered")
+		return "", fmt.Errorf("no security groups are present in the status")
 	}
 
 	if !securityGroupIds.Equal(sets.New(ec2Instance.SecurityGroupIDs...)) {

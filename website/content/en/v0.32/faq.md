@@ -227,7 +227,7 @@ Karpenter's native interruption handling offers two main benefits over the stand
 1. You don't have to manage and maintain a separate component to exclusively handle interruption events.
 2. Karpenter's native interruption handling coordinates with other deprovisioning so that consolidation, expiration, etc. can be aware of interruption events and vice-versa.
 
-### Why am I receiving QueueNotFound errors when I set `--interruption-queue-name`?
+### Why am I receiving QueueNotFound errors when I set `--interruption-queue`?
 Karpenter requires a queue to exist that receives event messages from EC2 and health services in order to handle interruption messages properly for nodes.
 
 Details on the types of events that Karpenter handles can be found in the [Interruption Handling Docs]({{< ref "./concepts/disruption/#interruption" >}}).

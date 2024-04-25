@@ -146,6 +146,36 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
+		nodeClass.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			SecurityGroups: []v1beta1.SecurityGroup{
+				{
+					ID: "sg-test1",
+				},
+				{
+					ID: "sg-test2",
+				},
+				{
+					ID: "sg-test3",
+				},
+			},
+			Subnets: []v1beta1.Subnet{
+				{
+					ID:   "subnet-test1",
+					Zone: "test-zone-1a",
+				},
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+				{
+					ID:   "subnet-test3",
+					Zone: "test-zone-1c",
+				},
+			},
+		}
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
@@ -171,6 +201,32 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
+		nodeClass2.Status.SecurityGroups = []v1beta1.SecurityGroup{
+			{
+				ID: "sg-test1",
+			},
+			{
+				ID: "sg-test2",
+			},
+			{
+				ID: "sg-test3",
+			},
+		}
+		nodeClass2.Status.Subnets = []v1beta1.Subnet{
+			{
+				ID:   "subnet-test1",
+				Zone: "test-zone-1a",
+			},
+			{
+				ID:   "subnet-test2",
+				Zone: "test-zone-1b",
+			},
+			{
+				ID:   "subnet-test3",
+				Zone: "test-zone-1c",
+			},
+		}
+
 		pods := []*v1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
 				{
@@ -1951,6 +2007,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					{Tags: map[string]string{"Name": "test-subnet-3"}},
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1962,6 +2020,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					{Tags: map[string]string{"Name": "test-subnet-2"}},
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+				Expect(err).To(BeNil())
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
