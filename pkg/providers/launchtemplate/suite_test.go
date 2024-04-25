@@ -148,36 +148,50 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
-		nodeClass.Status.AMIs = []v1beta1.AMI{
-			{
-				ID: "ami-test1",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-				).NodeSelectorRequirements(),
+		nodeClass.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			AMIs: []v1beta1.AMI{
+				{
+					ID: "ami-test1",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test2",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test3",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test4",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+					).NodeSelectorRequirements(),
+				},
 			},
-			{
-				ID: "ami-test2",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
-				).NodeSelectorRequirements(),
-			},
-			{
-				ID: "ami-test3",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
-				).NodeSelectorRequirements(),
-			},
-			{
-				ID: "ami-test4",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-				).NodeSelectorRequirements(),
+			SecurityGroups: []v1beta1.SecurityGroup{
+				{
+					ID: "sg-test1",
+				},
+				{
+					ID: "sg-test2",
+				},
+				{
+					ID: "sg-test3",
+				},
 			},
 		}
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
@@ -205,7 +219,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
-		nodeClass2.Status.AMIs = nodeClass.Status.AMIs
+		nodeClass2.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			AMIs:            nodeClass.Status.AMIs,
+			SecurityGroups:  nodeClass.Status.SecurityGroups,
+		}
 		pods := []*v1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
 				{
@@ -1857,7 +1875,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				_, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+				_, err := awsEnv.AMIProvider.List(ctx, nodeClass, &amifamily.Options{})
 				Expect(err).To(BeNil())
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
 				actualFilter := awsEnv.EC2API.CalledWithDescribeImagesInput.Pop().Filters

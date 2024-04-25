@@ -108,36 +108,50 @@ var _ = Describe("InstanceProvider", func() {
 				},
 			},
 		})
-		nodeClass.Status.AMIs = []v1beta1.AMI{
-			{
-				ID: "ami-test1",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-				).NodeSelectorRequirements(),
+		nodeClass.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			AMIs: []v1beta1.AMI{
+				{
+					ID: "ami-test1",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test2",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test3",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test4",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+					).NodeSelectorRequirements(),
+				},
 			},
-			{
-				ID: "ami-test2",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
-				).NodeSelectorRequirements(),
-			},
-			{
-				ID: "ami-test3",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
-				).NodeSelectorRequirements(),
-			},
-			{
-				ID: "ami-test4",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-				).NodeSelectorRequirements(),
+			SecurityGroups: []v1beta1.SecurityGroup{
+				{
+					ID: "sg-test1",
+				},
+				{
+					ID: "sg-test2",
+				},
+				{
+					ID: "sg-test3",
+				},
 			},
 		}
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
@@ -145,6 +159,7 @@ var _ = Describe("InstanceProvider", func() {
 	})
 	It("should return an ICE error when all attempted instance types return an ICE error", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{
 			{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 			{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},

@@ -32,7 +32,7 @@ type AMI struct {
 }
 
 func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
-	amis, err := a.amiProvider.Get(ctx, nodeClass, &amifamily.Options{})
+	amis, err := a.amiProvider.List(ctx, nodeClass, &amifamily.Options{})
 	if err != nil {
 		return reconcile.Result{}, err
 	}

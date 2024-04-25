@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -42,11 +41,10 @@ import (
 )
 
 type Provider interface {
-	Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error)
+	List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error)
 }
 
 type DefaultProvider struct {
-	sync.RWMutex
 	cache           *cache.Cache
 	ssm             ssmiface.SSMAPI
 	ec2api          ec2iface.EC2API
@@ -81,7 +79,7 @@ func (a AMIs) Sort() {
 	})
 }
 
-func String(amis []v1beta1.AMI) string {
+func PrettyFormat(amis []v1beta1.AMI) string {
 	var sb strings.Builder
 	ids := lo.Map(amis, func(a v1beta1.AMI, _ int) string { return a.ID })
 	if len(amis) > 25 {
@@ -94,7 +92,7 @@ func String(amis []v1beta1.AMI) string {
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1beta1.AMI) map[string][]*cloudprovider.InstanceType {
+func MapToInstanceTypes(amis []v1beta1.AMI, instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
@@ -118,10 +116,7 @@ func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, e
 }
 
 // Get Returning a list of AMIs with its associated requirements
-func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
-	p.Lock()
-	defer p.Unlock()
-
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
 	var err error
 	var amis AMIs
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {

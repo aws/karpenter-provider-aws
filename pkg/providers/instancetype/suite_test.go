@@ -155,47 +155,65 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		})
-		nodeClass.Status.AMIs = []v1beta1.AMI{
-			{
-				ID: "ami-test1",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-				).NodeSelectorRequirements(),
+		nodeClass.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			AMIs: []v1beta1.AMI{
+				{
+					ID: "ami-test1",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test2",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test3",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
+					).NodeSelectorRequirements(),
+				},
+				{
+					ID: "ami-test4",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
+						scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+						scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+					).NodeSelectorRequirements(),
+				},
 			},
-			{
-				ID: "ami-test2",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
-				).NodeSelectorRequirements(),
-			},
-			{
-				ID: "ami-test3",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
-				).NodeSelectorRequirements(),
-			},
-			{
-				ID: "ami-test4",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-					scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-				).NodeSelectorRequirements(),
+			SecurityGroups: []v1beta1.SecurityGroup{
+				{
+					ID: "sg-test1",
+				},
+				{
+					ID: "sg-test2",
+				},
+				{
+					ID: "sg-test3",
+				},
 			},
 		}
-		windowsNodeClass.Status.AMIs = []v1beta1.AMI{
-			{
-				ID: "ami-window-test1",
-				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-					scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
-					scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpIn, v1beta1.Windows2022Build),
-				).NodeSelectorRequirements(),
+		windowsNodeClass.Status = v1beta1.EC2NodeClassStatus{
+			InstanceProfile: "test-profile",
+			AMIs: []v1beta1.AMI{
+				{
+					ID: "ami-window-test1",
+					Requirements: scheduling.NewRequirements(
+						scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+						scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
+						scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpIn, v1beta1.Windows2022Build),
+					).NodeSelectorRequirements(),
+				},
 			},
+			SecurityGroups: nodeClass.Status.SecurityGroups,
 		}
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())

@@ -119,7 +119,7 @@ func (p *DefaultProvider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2N
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, options)
 	if err != nil {
 		return nil, err
 	}
@@ -163,13 +163,15 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1bet
 	if err != nil {
 		return nil, err
 	}
+	// Relying on the status rather than an API call means that Karpenter is subject to a race
+	// condition where EC2NodeClass spec changes haven't propagated to the status once a node
+	// has launched.
+	// If a user changes their EC2NodeClass and shortly after Karpenter launches a node,
+	// in the worst case, the node could be drifted and re-created.
+	// TODO @aengeda: add status generation fields to gate node creation until the status is updated from a spec change
 	// Get constrained security groups
-	securityGroups, err := p.securityGroupProvider.List(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
-	if len(securityGroups) == 0 {
-		return nil, fmt.Errorf("no security groups exist given constraints")
+	if len(nodeClass.Status.SecurityGroups) == 0 {
+		return nil, fmt.Errorf("no security groups are present in the status")
 	}
 	options := &amifamily.Options{
 		ClusterName:         options.FromContext(ctx).ClusterName,
@@ -177,14 +179,12 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1bet
 		ClusterCIDR:         p.ClusterCIDR.Load(),
 		InstanceProfile:     instanceProfile,
 		InstanceStorePolicy: nodeClass.Spec.InstanceStorePolicy,
-		SecurityGroups: lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
-			return v1beta1.SecurityGroup{ID: aws.StringValue(s.GroupId), Name: aws.StringValue(s.GroupName)}
-		}),
-		Tags:          tags,
-		Labels:        labels,
-		CABundle:      p.CABundle,
-		KubeDNSIP:     p.KubeDNSIP,
-		NodeClassName: nodeClass.Name,
+		SecurityGroups:      nodeClass.Status.SecurityGroups,
+		Tags:                tags,
+		Labels:              labels,
+		CABundle:            p.CABundle,
+		KubeDNSIP:           p.KubeDNSIP,
+		NodeClassName:       nodeClass.Name,
 	}
 	if nodeClass.Spec.AssociatePublicIPAddress != nil {
 		options.AssociatePublicIPAddress = nodeClass.Spec.AssociatePublicIPAddress

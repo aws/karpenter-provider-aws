@@ -174,7 +174,7 @@ If you require handling for Spot Rebalance Recommendations, you can use the [AWS
 
 Karpenter enables this feature by watching an SQS queue which receives critical events from AWS services which may affect your nodes. Karpenter requires that an SQS queue be provisioned and EventBridge rules and targets be added that forward interruption events from AWS services to the SQS queue. Karpenter provides details for provisioning this infrastructure in the [CloudFormation template in the Getting Started Guide](../../getting-started/getting-started-with-karpenter/#create-the-karpenter-infrastructure-and-iam-roles).
 
-To enable interruption handling, configure the `--interruption-queue-name` CLI argument with the name of the interruption queue provisioned to handle interruption events.
+To enable interruption handling, configure the `--interruption-queue` CLI argument with the name of the interruption queue provisioned to handle interruption events.
 
 ## Controls
 

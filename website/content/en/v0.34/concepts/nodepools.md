@@ -150,7 +150,7 @@ spec:
       duration: 8h
       nodes: "0"
 
-  # Resource limits constrain the total size of the cluster.
+  # Resource limits constrain the total size of the pool.
   # Limits prevent Karpenter from creating new instances once the limit is exceeded.
   limits:
     cpu: "1000"
