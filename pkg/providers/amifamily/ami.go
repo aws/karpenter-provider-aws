@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -45,6 +46,7 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
+	sync.RWMutex
 	cache           *cache.Cache
 	ssm             ssmiface.SSMAPI
 	ec2api          ec2iface.EC2API
@@ -117,6 +119,9 @@ func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, e
 
 // Get Returning a list of AMIs with its associated requirements
 func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
+	p.Lock()
+	defer p.Unlock()
+
 	var err error
 	var amis AMIs
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
