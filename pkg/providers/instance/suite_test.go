@@ -106,11 +106,23 @@ var _ = Describe("InstanceProvider", func() {
 				},
 			},
 		})
+		nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+			{
+				ID: "sg-test1",
+			},
+			{
+				ID: "sg-test2",
+			},
+			{
+				ID: "sg-test3",
+			},
+		}
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
 	It("should return an ICE error when all attempted instance types return an ICE error", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{
 			{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 			{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},

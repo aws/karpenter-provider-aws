@@ -155,6 +155,28 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		})
+		nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+			{
+				ID: "sg-test1",
+			},
+			{
+				ID: "sg-test2",
+			},
+			{
+				ID: "sg-test3",
+			},
+		}
+		windowsNodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+			{
+				ID: "sg-test1",
+			},
+			{
+				ID: "sg-test2",
+			},
+			{
+				ID: "sg-test3",
+			},
+		}
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})

@@ -138,6 +138,20 @@ var _ = Describe("CloudProvider", func() {
 				},
 			},
 		})
+		nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+			{
+				ID:   "sg-test1",
+				Name: "securityGroup-test1",
+			},
+			{
+				ID:   "sg-test2",
+				Name: "securityGroup-test2",
+			},
+			{
+				ID:   "sg-test3",
+				Name: "securityGroup-test3",
+			},
+		}
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
@@ -586,6 +600,11 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
+			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+				{
+					ID: validSecurityGroup,
+				},
+			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
@@ -671,7 +690,8 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should return an error if the security groups are empty", func() {
-			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{SecurityGroups: []*ec2.SecurityGroup{}})
+			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -692,18 +712,17 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should return drifted if more security groups are present than instance security groups then discovered from nodeclass", func() {
-			awsEnv.EC2API.DescribeSecurityGroupsOutput.Set(&ec2.DescribeSecurityGroupsOutput{
-				SecurityGroups: []*ec2.SecurityGroup{
-					{
-						GroupId:   aws.String(validSecurityGroup),
-						GroupName: aws.String("test-securitygroup"),
-					},
-					{
-						GroupId:   aws.String(fake.SecurityGroupID()),
-						GroupName: aws.String("test-securitygroup"),
-					},
+			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+				{
+					ID:   validSecurityGroup,
+					Name: "test-securitygroup",
 				},
-			})
+				{
+					ID:   fake.SecurityGroupID(),
+					Name: "test-securitygroup",
+				},
+			}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
@@ -774,6 +793,13 @@ var _ = Describe("CloudProvider", func() {
 									VolumeSize:          resource.NewScaledQuantity(2, resource.Giga),
 									VolumeType:          lo.ToPtr("standard"),
 								},
+							},
+						},
+					},
+					Status: v1beta1.EC2NodeClassStatus{
+						SecurityGroups: []v1beta1.SecurityGroup{
+							{
+								ID: validSecurityGroup,
 							},
 						},
 					},
@@ -1010,6 +1036,13 @@ var _ = Describe("CloudProvider", func() {
 					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
 						{
 							Tags: map[string]string{"*": "*"},
+						},
+					},
+				},
+				Status: v1beta1.EC2NodeClassStatus{
+					SecurityGroups: []v1beta1.SecurityGroup{
+						{
+							ID: "sg-test1",
 						},
 					},
 				},

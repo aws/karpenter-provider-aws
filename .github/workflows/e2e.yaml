@@ -132,7 +132,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.169.0
+          eksctl_version: v0.175.0
           ip_family: ${{ contains(inputs.suite, 'IPv6') && 'IPv6' || 'IPv4' }} # Set the value to IPv6 if IPv6 suite, else IPv4
           private_cluster: ${{ inputs.workflow_trigger == 'private_cluster' }}
           git_ref: ${{ inputs.git_ref }}
@@ -187,6 +187,15 @@ jobs:
           suite: ${{ inputs.suite }}
           git_ref: ${{ inputs.git_ref }}
           workflow_trigger: ${{ inputs.workflow_trigger }}
+      - name: add log retention policy
+        if: ${{ inputs.workflow_trigger != 'private_cluster' }}
+        env:
+          CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
+        run: |
+          aws logs put-retention-policy --log-group-name /aws/containerinsights/"$CLUSTER_NAME"/application --retention-in-days 30
+          aws logs put-retention-policy --log-group-name /aws/containerinsights/"$CLUSTER_NAME"/dataplane --retention-in-days 30
+          aws logs put-retention-policy --log-group-name /aws/containerinsights/"$CLUSTER_NAME"/host --retention-in-days 30
+          aws logs put-retention-policy --log-group-name /aws/containerinsights/"$CLUSTER_NAME"/performance --retention-in-days 30
       - name: dump logs on failure
         uses: ./.github/actions/e2e/dump-logs
         if: (failure() || cancelled()) && inputs.workflow_trigger != 'private_cluster'
