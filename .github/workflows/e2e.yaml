@@ -188,7 +188,7 @@ jobs:
           git_ref: ${{ inputs.git_ref }}
           workflow_trigger: ${{ inputs.workflow_trigger }}
       - name: add log retention policy
-        if: ${{ inputs.workflow_trigger != 'private_cluster' }}
+        if: (success() || failure()) && inputs.workflow_trigger != 'private_cluster'
         env:
           CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
         run: |
