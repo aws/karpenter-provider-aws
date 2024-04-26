@@ -49,7 +49,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['eksOptimized', 'tags', 'id', 'name']",rule="self.all(x, has(x.eksOptimized) || has(x.tags) || has(x.id) || has(x.name))"
 	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.eksOptimized) || has(x.tags) || has(x.name) || has(x.owner)))"
 	// +kubebuilder:validation:XValidation:message="'eksOptimized' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.eksOptimized) && (has(x.id) || has(x.tags) || has(x.name) || has(x.owner)))"
-	// +kubebuilder:validation:XValidation:message="`eksOptimized' is mutually exclusive, cannot be set with other terms",rule="!(self.exists(x, has(x.eksOptimized)) && self.size() != 1)"
+	// +kubebuilder:validation:XValidation:message="'eksOptimized' is mutually exclusive, cannot be set with other terms",rule="!(self.exists(x, has(x.eksOptimized)) && self.size() != 1)"
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
@@ -158,7 +158,7 @@ type SecurityGroupSelectorTerm struct {
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
 // If multiple fields are used for selection, the requirements are ANDed.
 type AMISelectorTerm struct {
-	// EKSOptimized is an object which when configured allows Karpenter to select the latest AMI from an optimized family.
+	// EKSOptimized is an object which, when configured, allows Karpenter to automatically select the latest AMI from an optimized family.
 	// +optional
 	EKSOptimized *EKSOptimized `json:"eksOptimized,omitempty"`
 	// Tags is a map of key/value tags used to select subnets
@@ -182,7 +182,7 @@ type AMISelectorTerm struct {
 }
 
 type EKSOptimized struct {
-	// Family is the AMI family to use when selecting AMIs.
+	// Family is the AMI family to use when selecting EKS optimized AMIs.
 	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Ubuntu,Windows2019,Windows2022}
 	Family string `json:"family"`
 }

@@ -115,7 +115,7 @@ func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, e
 	}
 }
 
-// Get Returning a list of AMIs with its associated requirements
+// Get returns a list of AMIs with their associated requirements
 func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
 	amis, err := p.getAMIs(ctx, nodeClass.Spec.AMISelectorTerms)
 	if err != nil {

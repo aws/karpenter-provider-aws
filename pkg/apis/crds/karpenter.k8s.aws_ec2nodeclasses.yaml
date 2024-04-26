@@ -66,11 +66,13 @@ spec:
                     If multiple fields are used for selection, the requirements are ANDed.
                   properties:
                     eksOptimized:
-                      description: EKSOptimized test
+                      description: EKSOptimized is an object which, when configured,
+                        allows Karpenter to automatically select the latest AMI from
+                        an optimized family.
                       properties:
                         family:
                           description: Family is the AMI family to use when selecting
-                            AMIs.
+                            EKS optimized AMIs.
                           enum:
                           - AL2
                           - AL2023
@@ -124,8 +126,8 @@ spec:
                     with a combination of other fields in amiSelectorTerms'
                   rule: '!self.all(x, has(x.eksOptimized) && (has(x.id) || has(x.tags)
                     || has(x.name) || has(x.owner)))'
-                - message: '`eksOptimized'' is mutually exclusive, cannot be set with
-                    other terms'
+                - message: '''eksOptimized'' is mutually exclusive, cannot be set
+                    with other terms'
                   rule: '!(self.exists(x, has(x.eksOptimized)) && self.size() != 1)'
               associatePublicIPAddress:
                 description: AssociatePublicIPAddress controls if public IP addresses

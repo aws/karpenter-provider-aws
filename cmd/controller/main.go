@@ -51,14 +51,14 @@ func main() {
 	nodeClassList := v1beta1.EC2NodeClassList{}
 	err := client.List(ctx, &nodeClassList)
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("failed to list ec2nodeclasses on startup, %s", err.Error())
+		logging.FromContext(ctx).Fatalf("failed to list EC2NodeClasses on startup, %s", err.Error())
 	}
 
 	invalidNodeClasses := lo.FilterMap(nodeClassList.Items, func(nc v1beta1.EC2NodeClass, _ int) (string, bool) {
 		return nc.Name, len(nc.Spec.AMISelectorTerms) == 0
 	})
 	if len(invalidNodeClasses) != 0 {
-		logging.FromContext(ctx).Fatalf("detected nodeclasses {%s} with un-set AMISelectorTerms. Upgrade your EC2NodeClass to include AMISelectorTerms to continue.", strings.Join(invalidNodeClasses, ","))
+		logging.FromContext(ctx).With("ec2nodeclasses", strings.Join(invalidNodeClasses, ",")).Fatalf("detected EC2NodeClasses with un-set AMISelectorTerms. Upgrade your EC2NodeClasses to include AMISelectorTerms to continue.")
 	}
 
 	op.
