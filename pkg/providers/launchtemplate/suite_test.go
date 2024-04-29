@@ -1833,7 +1833,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			)
 			It("should fail to create launch templates if cluster CIDR is unresolved", func() {
 				awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
-				fmt.Printf("nodeClass: %s\n", string(lo.Must(json.Marshal(nodeClass))))
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)

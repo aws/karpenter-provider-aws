@@ -15,6 +15,8 @@ limitations under the License.
 package main
 
 import (
+	"context"
+	"fmt"
 	"strings"
 
 	"github.com/samber/lo"
@@ -26,6 +28,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
 	"github.com/aws/karpenter-provider-aws/pkg/webhooks"
 
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider/metrics"
 	corecontrollers "sigs.k8s.io/karpenter/pkg/controllers"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
@@ -47,18 +50,8 @@ func main() {
 	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)
 
-	client := op.Manager.GetAPIReader()
-	nodeClassList := v1beta1.EC2NodeClassList{}
-	err := client.List(ctx, &nodeClassList)
-	if err != nil {
-		logging.FromContext(ctx).Fatalf("failed to list EC2NodeClasses on startup, %s", err.Error())
-	}
-
-	invalidNodeClasses := lo.FilterMap(nodeClassList.Items, func(nc v1beta1.EC2NodeClass, _ int) (string, bool) {
-		return nc.Name, len(nc.Spec.AMISelectorTerms) == 0
-	})
-	if len(invalidNodeClasses) != 0 {
-		logging.FromContext(ctx).With("ec2nodeclasses", strings.Join(invalidNodeClasses, ",")).Fatalf("detected EC2NodeClasses with un-set AMISelectorTerms. Upgrade your EC2NodeClasses to include AMISelectorTerms to continue.")
+	if err := validateEC2NodeClasses(ctx, op.GetAPIReader()); err != nil {
+		logging.FromContext(ctx).Fatalf("validating EC2NodeClasses, %s", err)
 	}
 
 	op.
@@ -89,4 +82,19 @@ func main() {
 		)...).
 		WithWebhooks(ctx, webhooks.NewWebhooks()...).
 		Start(ctx)
+}
+
+// validateEC2NodeClasses ensures all EC2NodeClasses specify AMISelectorTerms (required as of v0.37.0)
+func validateEC2NodeClasses(ctx context.Context, reader client.Reader) error {
+	nodeClassList := v1beta1.EC2NodeClassList{}
+	err := reader.List(ctx, &nodeClassList)
+	if err != nil {
+		return fmt.Errorf("listing EC2NodeClasses on startup, %s", err.Error())
+	}
+	if invalidNodeClasses := lo.FilterMap(nodeClassList.Items, func(nc v1beta1.EC2NodeClass, _ int) (string, bool) {
+		return nc.Name, len(nc.Spec.AMISelectorTerms) == 0
+	}); len(invalidNodeClasses) != 0 {
+		return fmt.Errorf("detected EC2NodeClasses with un-set AMISelectorTerms (%s), refer to the 0.37.0+ upgrade guide: https://karpenter.sh/upgrading/upgrade-guide/#upgrading-to-0370", strings.Join(invalidNodeClasses, ","))
+	}
+	return nil
 }

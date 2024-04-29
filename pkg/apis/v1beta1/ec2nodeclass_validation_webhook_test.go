@@ -340,7 +340,7 @@ var _ = Describe("Webhook/Validation", func() {
 			Expect(nc.Validate(ctx)).ToNot(Succeed())
 		})
 		DescribeTable(
-			"should succeed with a valid eksOptimized familiy",
+			"should succeed with a valid eksOptimized family",
 			func(family string) {
 				nc.Spec.AMIFamily = &family
 				nc.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
@@ -414,7 +414,7 @@ var _ = Describe("Webhook/Validation", func() {
 				}
 			}
 		})
-		It("should succed when the eksOptimized family matches amiFamily", func() {
+		It("should succeed when the eksOptimized family matches amiFamily", func() {
 			for _, family := range []string{
 				v1beta1.AMIFamilyAL2,
 				v1beta1.AMIFamilyAL2023,
