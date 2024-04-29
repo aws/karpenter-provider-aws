@@ -4,6 +4,7 @@ on:
     branches:
       - 'main'
       - 'release-v*'
+      - 'staging/*'
 jobs:
   dryrun-gen:
     permissions:
