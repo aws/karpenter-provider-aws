@@ -1252,6 +1252,15 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip 'fd4b:121b:812b::a'")
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--ip-family ipv6")
 		})
+		It("should specify --dns-cluster-ip and not --ip-family when running in an ipv4 cluster with multiple clusterDNS", func() {
+			awsEnv.LaunchTemplateProvider.KubeDNSIP = net.ParseIP("10.0.100.10,10.0.100.11")
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.100.10,10.0.100.11'")
+			ExpectLaunchTemplatesCreatedWithUserDataNotContaining("--ip-family ipv6")
+		})
 		It("should specify --dns-cluster-ip when running in an ipv4 cluster", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()

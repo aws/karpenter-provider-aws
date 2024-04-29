@@ -119,6 +119,14 @@ func (e EKS) isIPv6() bool {
 	if e.KubeletConfig == nil || len(e.KubeletConfig.ClusterDNS) == 0 {
 		return false
 	}
+
+	ips := strings.Split(e.KubeletConfig.ClusterDNS[0], ",")
+	for _, ip := range ips {
+		if net.ParseIP(strings.TrimSpace(ip)).To4() == nil {
+			return true
+		}
+	}
+
 	return net.ParseIP(e.KubeletConfig.ClusterDNS[0]).To4() == nil
 }
 
