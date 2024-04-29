@@ -31,6 +31,10 @@ const (
 	InstanceTypesAndZonesTTL = 5 * time.Minute
 	// InstanceProfileTTL is the time before we refresh checking instance profile existence at IAM
 	InstanceProfileTTL = 15 * time.Minute
+	// AvailableIPAddressTTL is time to drop AvailableIPAddress data if it is not updated within the TTL
+	AvailableIPAddressTTL = 2 * time.Minute
+	// AvailableIPAddressTTL is time to drop AssociatePublicIPAddressTTL data if it is not updated within the TTL
+	AssociatePublicIPAddressTTL = 2 * time.Minute
 )
 
 const (

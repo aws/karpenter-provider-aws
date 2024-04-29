@@ -108,7 +108,38 @@ var _ = Describe("InstanceTypeProvider", func() {
 	var nodeClass, windowsNodeClass *v1beta1.EC2NodeClass
 	var nodePool, windowsNodePool *corev1beta1.NodePool
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass()
+		nodeClass = test.EC2NodeClass(
+			v1beta1.EC2NodeClass{
+				Status: v1beta1.EC2NodeClassStatus{
+					InstanceProfile: "test-profile",
+					SecurityGroups: []v1beta1.SecurityGroup{
+						{
+							ID: "sg-test1",
+						},
+						{
+							ID: "sg-test2",
+						},
+						{
+							ID: "sg-test3",
+						},
+					},
+					Subnets: []v1beta1.Subnet{
+						{
+							ID:   "subnet-test1",
+							Zone: "test-zone-1a",
+						},
+						{
+							ID:   "subnet-test2",
+							Zone: "test-zone-1b",
+						},
+						{
+							ID:   "subnet-test3",
+							Zone: "test-zone-1c",
+						},
+					},
+				},
+			},
+		)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -134,6 +165,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Spec: v1beta1.EC2NodeClassSpec{
 				AMIFamily: &v1beta1.AMIFamilyWindows2022,
 			},
+			Status: v1beta1.EC2NodeClassStatus{
+				InstanceProfile: "test-profile",
+				SecurityGroups:  nodeClass.Status.SecurityGroups,
+				Subnets:         nodeClass.Status.Subnets,
+			},
 		})
 		windowsNodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
@@ -155,40 +191,6 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		})
-
-		nodeClass.Status = v1beta1.EC2NodeClassStatus{
-			InstanceProfile: "test-profile",
-			SecurityGroups: []v1beta1.SecurityGroup{
-				{
-					ID: "sg-test1",
-				},
-				{
-					ID: "sg-test2",
-				},
-				{
-					ID: "sg-test3",
-				},
-			},
-			Subnets: []v1beta1.Subnet{
-				{
-					ID:   "subnet-test1",
-					Zone: "test-zone-1a",
-				},
-				{
-					ID:   "subnet-test2",
-					Zone: "test-zone-1b",
-				},
-				{
-					ID:   "subnet-test3",
-					Zone: "test-zone-1c",
-				},
-			},
-		}
-		windowsNodeClass.Status = v1beta1.EC2NodeClassStatus{
-			InstanceProfile: "test-profile",
-			SecurityGroups:  nodeClass.Status.SecurityGroups,
-			Subnets:         nodeClass.Status.Subnets,
-		}
 		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
 		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())

@@ -225,14 +225,6 @@ var _ = Describe("SubnetProvider", func() {
 					Tags: map[string]string{"foo": "bar"},
 				},
 			}
-			nodeClass.Status.Subnets = []v1beta1.Subnet{
-				{
-					ID:   "subnet-test1",
-					Zone: "test-zone-1a",
-				},
-			}
-			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
-			Expect(err).To(BeNil())
 			onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(onlyPrivate).To(BeFalse())
@@ -245,8 +237,8 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			nodeClass.Status.Subnets = []v1beta1.Subnet{
 				{
-					ID:   "subnet-test1",
-					Zone: "test-zone-1a",
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
 				},
 			}
 			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
@@ -258,16 +250,8 @@ var _ = Describe("SubnetProvider", func() {
 	})
 	Context("Provider Cache", func() {
 		It("should resolve subnets from cache that are filtered by id", func() {
-			expectedSubnets, err := awsEnv.EC2API.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{
-				Filters: []*ec2.Filter{
-					{
-						Name:   lo.ToPtr("tag-key"),
-						Values: []*string{lo.ToPtr("*")},
-					},
-				},
-			})
-			Expect(err).To(BeNil())
-			for _, subnet := range expectedSubnets.Subnets {
+			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
+			for _, subnet := range expectedSubnets {
 				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 					{
 						ID: *subnet.SubnetId,
@@ -281,20 +265,12 @@ var _ = Describe("SubnetProvider", func() {
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
 				cachedSubnet := cachedObject.Object.([]*ec2.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
-				lo.Contains(expectedSubnets.Subnets, cachedSubnet[0])
+				lo.Contains(expectedSubnets, cachedSubnet[0])
 			}
 		})
 		It("should resolve subnets from cache that are filtered by tags", func() {
-			expectedSubnets, err := awsEnv.EC2API.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{
-				Filters: []*ec2.Filter{
-					{
-						Name:   lo.ToPtr("tag-key"),
-						Values: []*string{lo.ToPtr("*")},
-					},
-				},
-			})
-			Expect(err).To(BeNil())
-			tagSet := lo.Map(expectedSubnets.Subnets, func(subnet *ec2.Subnet, _ int) map[string]string {
+			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
+			tagSet := lo.Map(expectedSubnets, func(subnet *ec2.Subnet, _ int) map[string]string {
 				tag, _ := lo.Find(subnet.Tags, func(tag *ec2.Tag) bool {
 					return lo.FromPtr(tag.Key) == "Name"
 				})
@@ -314,7 +290,7 @@ var _ = Describe("SubnetProvider", func() {
 			for _, cachedObject := range awsEnv.SubnetCache.Items() {
 				cachedSubnet := cachedObject.Object.([]*ec2.Subnet)
 				Expect(cachedSubnet).To(HaveLen(1))
-				lo.Contains(expectedSubnets.Subnets, cachedSubnet[0])
+				lo.Contains(expectedSubnets, cachedSubnet[0])
 			}
 		})
 	})
