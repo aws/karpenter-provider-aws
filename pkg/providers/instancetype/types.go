@@ -205,7 +205,13 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 	}
 	mem := resources.Quantity(fmt.Sprintf("%dMi", sizeInMib))
 	// Account for VM overhead in calculation
-	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*options.FromContext(ctx).VMMemoryOverheadPercent/1024/1024)))))
+	var vmMemoryOverheadPercent float64
+	if perInstanceOverhead, ok := options.FromContext(ctx).PerInstanceTypeVMMemoryOverheadPercent[aws.StringValue(info.InstanceType)]; ok {
+		vmMemoryOverheadPercent = perInstanceOverhead
+	} else {
+		vmMemoryOverheadPercent = options.FromContext(ctx).VMMemoryOverheadPercent
+	}
+	mem.Sub(resource.MustParse(fmt.Sprintf("%dMi", int64(math.Ceil(float64(mem.Value())*vmMemoryOverheadPercent/1024/1024)))))
 	return mem
 }
 

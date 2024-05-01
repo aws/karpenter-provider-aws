@@ -20,6 +20,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 	"time"
 
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -33,15 +35,16 @@ func init() {
 type optionsKey struct{}
 
 type Options struct {
-	AssumeRoleARN           string
-	AssumeRoleDuration      time.Duration
-	ClusterCABundle         string
-	ClusterName             string
-	ClusterEndpoint         string
-	IsolatedVPC             bool
-	VMMemoryOverheadPercent float64
-	InterruptionQueue       string
-	ReservedENIs            int
+	AssumeRoleARN                          string
+	AssumeRoleDuration                     time.Duration
+	ClusterCABundle                        string
+	ClusterName                            string
+	ClusterEndpoint                        string
+	IsolatedVPC                            bool
+	VMMemoryOverheadPercent                float64
+	InterruptionQueue                      string
+	ReservedENIs                           int
+	PerInstanceTypeVMMemoryOverheadPercent PerInstanceTypeVMMemoryOverheadPercent
 }
 
 func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
@@ -52,6 +55,7 @@ func (o *Options) AddFlags(fs *coreoptions.FlagSet) {
 	fs.StringVar(&o.ClusterEndpoint, "cluster-endpoint", env.WithDefaultString("CLUSTER_ENDPOINT", ""), "The external kubernetes cluster endpoint for new nodes to connect with. If not specified, will discover the cluster endpoint using DescribeCluster API.")
 	fs.BoolVarWithEnv(&o.IsolatedVPC, "isolated-vpc", "ISOLATED_VPC", false, "If true, then assume we can't reach AWS services which don't have a VPC endpoint. This also has the effect of disabling look-ups to the AWS on-demand pricing endpoint.")
 	fs.Float64Var(&o.VMMemoryOverheadPercent, "vm-memory-overhead-percent", env.WithDefaultFloat64("VM_MEMORY_OVERHEAD_PERCENT", 0.075), "The VM memory overhead as a percent that will be subtracted from the total memory for all instance types.")
+	fs.Var(&o.PerInstanceTypeVMMemoryOverheadPercent, "per-instance-type-vm-memory-overhead-percent", "The VM memory overhead as a percent that will be subtracted from the total memory for specific instance types. For instance types that are not specified, the default vm-memory-overhead-percent will be used instead. The input is comma-separated pairs, ex. 'c6a.large=0.07,c6a.4xlarge=0.05'")
 	fs.StringVar(&o.InterruptionQueue, "interruption-queue", env.WithDefaultString("INTERRUPTION_QUEUE", ""), "Interruption queue is the name of the SQS queue used for processing interruption events from EC2. Interruption handling is disabled if not specified. Enabling interruption handling may require additional permissions on the controller service account. Additional permissions are outlined in the docs.")
 	fs.IntVar(&o.ReservedENIs, "reserved-enis", env.WithDefaultInt("RESERVED_ENIS", 0), "Reserved ENIs are not included in the calculations for max-pods or kube-reserved. This is most often used in the VPC CNI custom networking setup https://docs.aws.amazon.com/eks/latest/userguide/cni-custom-network.html.")
 }
@@ -83,4 +87,28 @@ func FromContext(ctx context.Context) *Options {
 		return nil
 	}
 	return retval.(*Options)
+}
+
+type PerInstanceTypeVMMemoryOverheadPercent map[string]float64
+
+func (m *PerInstanceTypeVMMemoryOverheadPercent) String() string {
+	return fmt.Sprintf("%v", *m)
+}
+
+func (m *PerInstanceTypeVMMemoryOverheadPercent) Set(value string) error {
+	*m = make(map[string]float64)
+	instanceTypes := strings.Split(value, ",")
+	for _, instanceTypeAndOverhead := range instanceTypes {
+		parts := strings.Split(instanceTypeAndOverhead, "=")
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid instance type vm memory overhead format: %s", instanceTypeAndOverhead)
+		}
+		instanceType := parts[0]
+		vmMemoryOverheadPercent, err := strconv.ParseFloat(parts[1], 64)
+		if err != nil {
+			return fmt.Errorf("invalid value: %s", vmMemoryOverheadPercent)
+		}
+		(*m)[instanceType] = vmMemoryOverheadPercent
+	}
+	return nil
 }

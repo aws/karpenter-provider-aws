@@ -26,6 +26,7 @@ func (o Options) Validate() error {
 	return multierr.Combine(
 		o.validateEndpoint(),
 		o.validateVMMemoryOverheadPercent(),
+		o.validatePerInstanceVMMemoryOverheadPercent(),
 		o.validateAssumeRoleDuration(),
 		o.validateReservedENIs(),
 		o.validateRequiredFields(),
@@ -55,6 +56,15 @@ func (o Options) validateEndpoint() error {
 func (o Options) validateVMMemoryOverheadPercent() error {
 	if o.VMMemoryOverheadPercent < 0 {
 		return fmt.Errorf("vm-memory-overhead-percent cannot be negative")
+	}
+	return nil
+}
+
+func (o Options) validatePerInstanceVMMemoryOverheadPercent() error {
+	for instanceType, percent := range o.PerInstanceTypeVMMemoryOverheadPercent {
+		if percent < 0 {
+			return fmt.Errorf("per-instance-vm-memory-overhead-percent cannot be negative: %s", instanceType)
+		}
 	}
 	return nil
 }
