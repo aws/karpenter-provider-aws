@@ -354,13 +354,6 @@ var _ = Describe("Expiration", func() {
 						Values:   []string{"xlarge"},
 					},
 				},
-				// Add an Exists operator so that we can select on a fake partition later
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      "test-partition",
-						Operator: v1.NodeSelectorOpExists,
-					},
-				},
 			)
 			nodePool.Labels = appLabels
 			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.
@@ -371,33 +364,28 @@ var _ = Describe("Expiration", func() {
 			// Make 5 pods all with different deployments and different test partitions, so that each pod can be put
 			// on a separate node.
 			selector = labels.SelectorFromSet(appLabels)
-			numPods = 5
-			deployments := make([]*appsv1.Deployment, numPods)
-			for i := range lo.Range(numPods) {
-				deployments[i] = coretest.Deployment(coretest.DeploymentOptions{
-					Replicas: 1,
-					PodOptions: coretest.PodOptions{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: appLabels,
-						},
-						NodeSelector: map[string]string{"test-partition": fmt.Sprintf("%d", i)},
-						// Each xlarge has 4 cpu, so each node should fit no more than 1 pod.
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceCPU: resource.MustParse("3"),
-							},
-						},
+			deployment := coretest.Deployment(coretest.DeploymentOptions{
+				Replicas: 5,
+				PodOptions: coretest.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: appLabels,
 					},
-				})
-			}
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: appLabels,
+						},
+					}},
+				},
+			})
 
-			env.ExpectCreated(nodeClass, nodePool, deployments[0], deployments[1], deployments[2], deployments[3], deployments[4])
+			env.ExpectCreated(nodeClass, nodePool, deployment)
 
 			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
 			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
 
 			// Check that all daemonsets and deployment pods are online
-			env.EventuallyExpectHealthyPodCount(selector, numPods)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(appLabels), numPods)
 
 			By("cordoning and adding finalizer to the nodes")
 			// Add a finalizer to each node so that we can stop termination disruptions
