@@ -166,6 +166,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
 		Expect(node.Annotations).To(HaveKeyWithValue("custom-annotation", "custom-value"))
 		Expect(node.Labels).To(HaveKeyWithValue("custom-label", "custom-value"))
+		Expect(node.Labels).To(HaveKeyWithValue("karpenter.k8s.aws/ec2nodeclass", nodeClass.Name))
 		Expect(node.Spec.Taints).To(ContainElements(
 			v1.Taint{
 				Key:    "custom-taint",
