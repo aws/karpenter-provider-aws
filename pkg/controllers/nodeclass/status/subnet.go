@@ -54,5 +54,5 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass)
 		}
 	})
 
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }
