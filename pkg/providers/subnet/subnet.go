@@ -43,7 +43,7 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	sync.RWMutex
+	sync.Mutex
 	ec2api                        ec2iface.EC2API
 	cache                         *cache.Cache
 	availableIPAddressCache       *cache.Cache

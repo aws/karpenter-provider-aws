@@ -46,7 +46,7 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	sync.RWMutex
+	sync.Mutex
 	cache           *cache.Cache
 	ssm             ssmiface.SSMAPI
 	ec2api          ec2iface.EC2API
@@ -204,7 +204,7 @@ func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelect
 			// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
 			Filters:    lo.Ternary(len(filtersAndOwners.Filters) > 0, filtersAndOwners.Filters, nil),
 			Owners:     lo.Ternary(len(filtersAndOwners.Owners) > 0, aws.StringSlice(filtersAndOwners.Owners), nil),
-			MaxResults: aws.Int64(500),
+			MaxResults: aws.Int64(1000),
 		}, func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for i := range page.Images {
 				reqs := p.getRequirementsFromImage(page.Images[i])
