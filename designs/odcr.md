@@ -30,8 +30,7 @@ Both these entities are supported in Launch Template's CapacityReservationTarget
 ## Non-Goals
 
 _We are keeping the scope of this design very targeted so even if these could be things we eventually support, we aren't scoping them into this design_
-- Supporting prioritization when launching nodes 
-- Supporting any pre-calcaluation of ODCR capacity utilization before node launch
+- Supporting prioritization when launching nodes. We will delegate this to weights within NodePools. 
 - Supporting changes in scaling behavior when ODCR is associated to a NodeClass. _We won't bring up N nodes to match an N node capacity reservation_
 
 ## Proposed Solution
@@ -60,8 +59,8 @@ Karpenter will perform validation against the spec to ensure there isn't any vio
 
 #### All Launch Templates are associated with the specified Capacity Reservation
 
-EC2NodeClass currently supports automatically generating Launch Templates based on instance types and their AMI requirements however as the first iteration of supporting Capacity Reservation, we won't introduce any prioritization nor fallback nor safeguard when launching nodes against EC2NodeClasses with a Capacity Reservation. This means that it is the
-user's responsibility to ensure the Capacity Reservation associated to a EC2NodeClasses will include instance types the EC2NodeClasses could launch. Otherwise the EC2NodeClasses will fail during provisioning.
+EC2NodeClass currently supports automatically generating Launch Templates based on instance types and their AMI requirements however as the first iteration of supporting Capacity Reservation, we won't introduce any prioritization nor fallback when launching nodes against EC2NodeClasses with a Capacity Reservation. This means that it is the
+user's responsibility to ensure the Capacity Reservation associated to a EC2NodeClasses will include instance types the EC2NodeClasses could launch. Otherwise the EC2NodeClasses will fail during provisioning. (We tested this behavior where CreateFleet will fail to provision without fallback to OD if capacity is exceeded).
 
 This also means that we will not allow a EC2NodeClass be able to create Spot instances when user specified a Capacity Reservation. 
 
@@ -70,29 +69,35 @@ We will skip [checkODFallback](https://github.com/aws/karpenter-provider-aws/blo
 _Note that these aren't permanent restrictions but simply narrowing down what features exist in the first iteration of supporting Capacity Reservation_ 
 
 Pros: 
-- This puts the onus of checking on the user. It doesn't require checking if a Capacity Reservation satisfy the requirements of an instance type by assuming the users is doing this. It makes no assumption about what a Capacity Reservation can do nor implies can do. This is helpful because if there is expectation that Karpenter does this we may be asked to
+- This puts the onus of checking on the user. It doesn't require checking if a Capacity Reservation satisfy the requirements of an instance type by assuming the users is doing this. It makes no assumption about what a Capacity Reservation can do nor implies can do (Open to checking if Capacity is at limit prior to calling CreateFleet). This is helpful because if there is expectation that Karpenter does this we may be asked to
 support checking if there is capacity in the reservation before launching nodes which would significantly increase the scope of this design.
+- This forces users who wish to leverage fallback and prioritization to use NodePool weights rather than relying on EC2NodeClass.
 
 Cons:
-- This implementation is overly restrictive causing it to be difficult to use. Its possible that the restrictions makes it too hard for users to use EC2NodeClasses effectively.
+- This implementation is overly restrictive causing it to be difficult to use. Its possible that the restrictions makes it too difficult for users to use EC2NodeClasses effectively.
 
-Both a pro and a con:
-- This forces users who wish to leverage fallback and prioritization to use NodePool weights rather than relying on EC2NodeClass. I can't tell if this is a good or a bad thing but in my
-  opinion it isn't always clear what Karpenter wants users to do in this aspect.
+#### Pricing and consolidation
+
+Pricing play less of a role during provisioning because NodePool weights will be considered first and in this design we believe ODCR NodeClasses, hence NodePool, won't fall back to OD nodes. So 
+pricing won't matter in node creation (?).
+
+However during consolidation pricing does matter as it affects which candidate will be [prioritized](https://github.com/kubernetes-sigs/karpenter/blob/75826eb51589e546fffb594bfefa91f3850e6c82/pkg/controllers/disruption/consolidation.go#L156). Since all capacity instances are paid ahead of time, their cost is already incurred. Users would likely want to prioritize filling their capacition
+reservation first then fall back into other instances. Because of this reserved instances should likely show up as 0 dollar pricing when we calculate the instance pricing. Since each candidate is tied to a NodePool, we should be able to safely override the pricing per node under a capacity reservation.
 
 #### Labels
 
 When a node is launched against a CapacityReservation we will expose Capacity Reservation
-information as labels `karpenter.k8s.aws/capacity-reservation-id` and `karpenter.k8s.aws/capacity-reservation-setting`.
+information as labels `karpenter.k8s.aws/capacity-reservation-id`. This is helpful for users to identify those nodes that are being used
+by a capacity reservation and the id of the reservation. Scenarios such as tracking how many nodes are under each capacity reservation and then
+checking how close to limit of the reservation.
 
 ```yaml
 Name:               example-node
 Labels:             karpenter.k8s.aws/capacity-reservation-id=cr-12345
-                    karpenter.k8s.aws/capacity-reservation-setting=open
                     karpenter.sh/capacity-type=on-demand
 ```
 
-`karpenter.k8s.aws/capacity-reservation-id` will be the capacity reservation the node launched from. `karpenter.k8s.aws/capacity-reservation-setting` will depend on the launch template's `capacityReservationSpec`. It will either be a preference or a target.
+`karpenter.k8s.aws/capacity-reservation-id` will be the capacity reservation the node launched from. 
 
 We will propagate this information via [instance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/providers/instance/types.go#L29) by extracting it from [DescribeInstance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/batcher/describeinstances.go#L48) [aws doc]([https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#EC2.DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html)https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html).
 
