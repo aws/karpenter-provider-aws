@@ -86,7 +86,7 @@ var _ = Describe("Tags", func() {
 	})
 
 	Context("Tagging Controller", func() {
-		It("should tag with karpenter.sh/nodeclaim and Name tag", func() {
+		It("should tag with karpenter.sh/nodeclaim, karpenter.k8s.aws/ec2nodeclass, karpenter.sh/nodepool, kubernetes.io/cluster/$ClusterName and Name tag", func() {
 			pod := coretest.Pod()
 
 			env.ExpectCreated(nodePool, nodeClass, pod)
@@ -103,6 +103,9 @@ var _ = Describe("Tags", func() {
 			nodeInstance := instance.NewInstance(lo.ToPtr(env.GetInstance(node.Name)))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", node.Name))
 			Expect(nodeInstance.Tags).To(HaveKey("karpenter.sh/nodeclaim"))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue("karpenter.k8s.aws/ec2nodeclass", nodeClass.Name))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue("karpenter.sh/nodepool", nodePool.Name))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue("kubernetes.io/cluster/"+env.ClusterName, "owned"))
 		})
 
 		It("shouldn't overwrite custom Name tags", func() {
