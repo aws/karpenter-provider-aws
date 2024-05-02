@@ -48,7 +48,7 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
-Starting at `v0.37.0`, the `ec2nodeclass.spec.amiSelectorTerms` field is required. When upgrading from previous Karpetner versions, the controller will continue to panic until `amiSelectorTerms` have been specified for all `EC2NodeClasses` applied to the cluster. Please refer to the [`AMISelectorTerms` documentation]({{<ref "../concepts/nodeclasses#spec-amiFamily" >}}) for more details.
+Starting at `v0.37.0`, the `ec2nodeclass.spec.amiSelectorTerms` field is required. When upgrading from previous Karpenter versions, the controller will continue to panic until `amiSelectorTerms` have been specified for all `EC2NodeClasses` applied to the cluster. Please refer to the [`AMISelectorTerms` documentation]({{<ref "../concepts/nodeclasses#spec-amiFamily" >}}) for more details.
 {{% /alert %}}
 
 * Karpenter updated the NodeClass controller naming in the following way: `nodeclass` -> `nodeclass.status`, `nodeclass.hash`, `nodeclass.termination`

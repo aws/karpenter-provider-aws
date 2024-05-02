@@ -431,7 +431,7 @@ spec:
 
 ## spec.amiSelectorTerms
 
-AMI Selector Terms are used to select which AMIs Karpenter will use when launching nodes with this `EC2NodeClass`. You can opt-in to the latest EKS optimized AMIs through an `eksOptimzed` term or AMIs can be discovered through ids, ownders, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
+AMI Selector Terms are used to select which AMIs Karpenter will use when launching nodes with this `EC2NodeClass`. You can opt-in to the latest EKS optimized AMIs by using the `eksOptimized` term or AMIs can be discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 
 {{% alert title="Note" color="primary" %}}
 [`amiFamily`]({{< ref "#specamifamily" >}}) determines the bootstrapping mode, while `amiSelectorTerms` specifies specific AMIs to be used. Therefore, you need to ensure consistency between [`amiFamily`]({{< ref "#specamifamily" >}}) and `amiSelectorTerms` to avoid conflicts during bootstrapping.

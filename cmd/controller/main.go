@@ -94,7 +94,7 @@ func validateEC2NodeClasses(ctx context.Context, reader client.Reader) error {
 	if invalidNodeClasses := lo.FilterMap(nodeClassList.Items, func(nc v1beta1.EC2NodeClass, _ int) (string, bool) {
 		return nc.Name, len(nc.Spec.AMISelectorTerms) == 0
 	}); len(invalidNodeClasses) != 0 {
-		return fmt.Errorf("detected EC2NodeClasses with un-set AMISelectorTerms (%s), refer to the 0.37.0+ upgrade guide: https://karpenter.sh/upgrading/upgrade-guide/#upgrading-to-0370", strings.Join(invalidNodeClasses, ","))
+		return fmt.Errorf("detected EC2NodeClasses with un-set AMISelectorTerms (%s), refer to the 0.37.0+ upgrade guide: https://karpenter.sh/docs/upgrading/upgrade-guide/#upgrading-to-0370", strings.Join(invalidNodeClasses, ","))
 	}
 	return nil
 }
