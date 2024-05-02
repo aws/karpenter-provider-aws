@@ -57,6 +57,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -120,7 +121,38 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	var nodePool *corev1beta1.NodePool
 	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass()
+		nodeClass = test.EC2NodeClass(
+			v1beta1.EC2NodeClass{
+				Status: v1beta1.EC2NodeClassStatus{
+					InstanceProfile: "test-profile",
+					SecurityGroups: []v1beta1.SecurityGroup{
+						{
+							ID: "sg-test1",
+						},
+						{
+							ID: "sg-test2",
+						},
+						{
+							ID: "sg-test3",
+						},
+					},
+					Subnets: []v1beta1.Subnet{
+						{
+							ID:   "subnet-test1",
+							Zone: "test-zone-1a",
+						},
+						{
+							ID:   "subnet-test2",
+							Zone: "test-zone-1b",
+						},
+						{
+							ID:   "subnet-test3",
+							Zone: "test-zone-1c",
+						},
+					},
+				},
+			},
+		)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -146,17 +178,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
-		nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-			{
-				ID: "sg-test1",
-			},
-			{
-				ID: "sg-test2",
-			},
-			{
-				ID: "sg-test3",
-			},
-		}
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
@@ -193,6 +216,21 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ID: "sg-test3",
 			},
 		}
+		nodeClass2.Status.Subnets = []v1beta1.Subnet{
+			{
+				ID:   "subnet-test1",
+				Zone: "test-zone-1a",
+			},
+			{
+				ID:   "subnet-test2",
+				Zone: "test-zone-1b",
+			},
+			{
+				ID:   "subnet-test3",
+				Zone: "test-zone-1c",
+			},
+		}
+
 		pods := []*v1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
 				{
@@ -1973,6 +2011,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					{Tags: map[string]string{"Name": "test-subnet-3"}},
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeClass))
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1984,6 +2024,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					{Tags: map[string]string{"Name": "test-subnet-2"}},
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+				ExpectReconcileSucceeded(ctx, controller, client.ObjectKeyFromObject(nodeClass))
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)

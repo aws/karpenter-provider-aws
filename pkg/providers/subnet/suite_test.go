@@ -235,6 +235,14 @@ var _ = Describe("SubnetProvider", func() {
 					ID: "subnet-test2",
 				},
 			}
+			nodeClass.Status.Subnets = []v1beta1.Subnet{
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+			}
+			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+			Expect(err).To(BeNil())
 			onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass)
 			Expect(err).To(BeNil())
 			Expect(onlyPrivate).To(BeTrue())

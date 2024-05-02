@@ -101,27 +101,26 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 	defer p.muInstanceTypeInfo.RUnlock()
 	defer p.muInstanceTypeOfferings.RUnlock()
 
-	if len(p.instanceTypesInfo) == 0 {
-		return nil, fmt.Errorf("no instance types found")
-	}
-	if len(p.instanceTypeOfferings) == 0 {
-		return nil, fmt.Errorf("no instance types offerings found")
-	}
-
-	subnets, err := p.subnetProvider.List(ctx, nodeClass)
-	if err != nil {
-		return nil, err
-	}
-	subnetZones := sets.New[string](lo.Map(subnets, func(s *ec2.Subnet, _ int) string {
-		return aws.StringValue(s.AvailabilityZone)
-	})...)
-
 	if kc == nil {
 		kc = &corev1beta1.KubeletConfiguration{}
 	}
 	if nodeClass == nil {
 		nodeClass = &v1beta1.EC2NodeClass{}
 	}
+
+	if len(p.instanceTypesInfo) == 0 {
+		return nil, fmt.Errorf("no instance types found")
+	}
+	if len(p.instanceTypeOfferings) == 0 {
+		return nil, fmt.Errorf("no instance types offerings found")
+	}
+	if len(nodeClass.Status.Subnets) == 0 {
+		return nil, fmt.Errorf("no subnets found")
+	}
+
+	subnetZones := sets.New(lo.Map(nodeClass.Status.Subnets, func(s v1beta1.Subnet, _ int) string {
+		return aws.StringValue(&s.Zone)
+	})...)
 
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
