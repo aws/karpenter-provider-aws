@@ -112,6 +112,15 @@ amiSelectorTerms:
   - id: ami-052c9ea013e6e3567
 ```
 
+Alternatively, AMIs can be discovered via tags. Once an AMI has been validated in a lower environment, it can be tagged for discovery by Karpenter. Karpenter will then begin using the new AMI without requiring an update to your `EC2NodeClasses`.
+
+```yaml
+amiSelectorTerms:
+  - tags:
+      karpenter.sh/discovery: "${CLUSTER_NAME}"
+      environment: prod
+```
+
 See the [**spec.amiSelectorTerms**]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) section of the NodeClasses page for details.
 Keep in mind, that this could prevent you from getting critical security patches when new AMIs are available, but it does give you control over exactly which AMI is running.
 

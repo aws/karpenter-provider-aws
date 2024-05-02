@@ -1226,7 +1226,7 @@ status:
       - arm64
 ```
 
-However, specifying an `eksOptimized` term may allow Karpenter to discover more requirements.
+However, specifying an `eksOptimized` term will allow Karpenter to discover additional requirement when available. For example, when using the AL2 EKS optimized family Karpenter will also discover accelerated AMIs and add the appropriate requirements.
 
 ```yaml
 spec:
