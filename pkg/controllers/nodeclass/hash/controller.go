@@ -16,13 +16,10 @@ package hash
 
 import (
 	"context"
-	"time"
 
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -31,6 +28,8 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
+
+	"github.com/awslabs/operatorpkg/reasonable"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
@@ -78,11 +77,7 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 		NewControllerManagedBy(m).
 		For(&v1beta1.EC2NodeClass{}).
 		WithOptions(controller.Options{
-			RateLimiter: workqueue.NewMaxOfRateLimiter(
-				workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 1*time.Minute),
-				// 10 qps, 100 bucket size
-				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
-			),
+			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
 		}))
 }

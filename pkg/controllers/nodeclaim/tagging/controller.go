@@ -23,11 +23,14 @@ import (
 	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/samber/lo"
+
+	"github.com/awslabs/operatorpkg/reasonable"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
@@ -85,8 +88,11 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 			For(&corev1beta1.NodeClaim{}).
 			WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
 				return isTaggable(o.(*corev1beta1.NodeClaim))
-			})),
-	)
+			})).
+			// Ok with using the default MaxConcurrentReconciles of 1 to avoid throttling from CreateTag write API
+			WithOptions(controller.Options{
+				RateLimiter: reasonable.RateLimiter(),
+			}))
 }
 
 func (c *Controller) tagInstance(ctx context.Context, nc *corev1beta1.NodeClaim, id string) error {
