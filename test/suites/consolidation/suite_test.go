@@ -560,7 +560,14 @@ var _ = Describe("Consolidation", func() {
 						},
 					},
 					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")},
+						Requests: v1.ResourceList{
+							v1.ResourceCPU: func() resource.Quantity {
+								dsOverhead := env.GetDaemonSetOverhead(nodePool)
+								base := lo.ToPtr(resource.MustParse("1800m"))
+								base.Sub(*dsOverhead.Cpu())
+								return *base
+							}(),
+						},
 					},
 				},
 			})
@@ -673,7 +680,13 @@ var _ = Describe("Consolidation", func() {
 					},
 				},
 				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")},
+					Requests: v1.ResourceList{v1.ResourceCPU: func() resource.Quantity {
+						dsOverhead := env.GetDaemonSetOverhead(nodePool)
+						base := lo.ToPtr(resource.MustParse("1800m"))
+						base.Sub(*dsOverhead.Cpu())
+						return *base
+					}(),
+					},
 				},
 			},
 		})
