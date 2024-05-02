@@ -117,6 +117,30 @@ type EC2NodeClassSpec struct {
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
 	Context *string `json:"context,omitempty"`
+
+	// CapacityReservationSpec is the capacity reservation specification for the node class.
+	// +optional
+	CapacityReservationSpec *CapacityReservationSpec `json:"capacityReservationSpec,omitempty"`
+}
+
+type CapacityReservationSpec struct {
+	// CapacityReservationPreference is the capacity reservation preference for the node class.
+	// Cannot be defined if capacityReservationTarget is specified
+	// +optional
+	CapacityReservationPreference string `json:"capacityReservationPreference,omitempty"` // open | none | None  Cannot be defined if capacityReservationTarget is specified
+
+	// CapacityReservationTarget is the capacity reservation target for the node class.
+	// +optional
+	CapacityReservationTarget CapacityReservationTarget `json:"capacityReservationTarget,omitempty"`
+}
+
+type CapacityReservationTarget struct {
+	// CapacityReservationID is a string of the capacity reservation ID.
+	// +optional
+	CapacityReservationID string `json:"capacityReservationID,omitempty"`
+	// CapacityReservationResourceGroupArn is a string of the capacity reservation resource group arn.
+	// +optional
+	CapacityReservationResourceGroupArn string `json:"capacityReservationResourceGroupArn,omitempty"`
 }
 
 // SubnetSelectorTerm defines selection logic for a subnet used by Karpenter to launch nodes.

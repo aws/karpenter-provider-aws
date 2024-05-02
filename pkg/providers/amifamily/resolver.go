@@ -74,6 +74,7 @@ type LaunchTemplate struct {
 	DetailedMonitoring  bool
 	EFACount            int
 	CapacityType        string
+	CapacityReservation *string
 }
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
@@ -129,7 +130,26 @@ func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, 
 	if len(amis) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amis.MapToInstanceTypes(instanceTypes)
+
+	capacityUsage, err := r.amiProvider.GetCapacityReservation(ctx, nodeClass)
+	if err != nil {
+		return nil, err
+	}
+	instanceTypesFiltered := lo.Filter(instanceTypes, func(instanceType *cloudprovider.InstanceType, i int) bool {
+		if nodeClass.Spec.CapacityReservationSpec != nil {
+			for instanceType := range instanceTypes {
+				if instanceTypes[instanceType].Name == *capacityUsage.InstanceType {
+					return true
+				}
+			}
+			return false
+		} else {
+			return true
+		}
+
+	})
+
+	mappedAMIs := amis.MapToInstanceTypes(instanceTypesFiltered)
 	if len(mappedAMIs) == 0 {
 		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
 	}
@@ -239,6 +259,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 		InstanceTypes:       instanceTypes,
 		EFACount:            efaCount,
 		CapacityType:        capacityType,
+		CapacityReservation: lo.Ternary(nodeClass.Spec.CapacityReservationSpec == nil, nil, &nodeClass.Spec.CapacityReservationSpec.CapacityReservationTarget.CapacityReservationID),
 	}
 	if len(resolved.BlockDeviceMappings) == 0 {
 		resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()

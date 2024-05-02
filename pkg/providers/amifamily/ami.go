@@ -42,6 +42,7 @@ import (
 
 type Provider interface {
 	Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error)
+	GetCapacityReservation(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (*ec2.GetCapacityReservationUsageOutput, error)
 }
 
 type DefaultProvider struct {
@@ -135,6 +136,17 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 		logging.FromContext(ctx).With("ids", amis, "count", len(amis)).Debugf("discovered amis")
 	}
 	return amis, nil
+}
+
+func (p *DefaultProvider) GetCapacityReservation(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (capRes *ec2.GetCapacityReservationUsageOutput, err error) {
+	capacityReservation, err := p.ec2api.GetCapacityReservationUsageWithContext(ctx, &ec2.GetCapacityReservationUsageInput{
+		CapacityReservationId: &nodeClass.Spec.CapacityReservationSpec.CapacityReservationTarget.CapacityReservationID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("getting capacity reservation usage, %w", err)
+	}
+	return capacityReservation, nil
+
 }
 
 func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {

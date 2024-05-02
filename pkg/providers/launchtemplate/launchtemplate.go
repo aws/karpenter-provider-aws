@@ -269,6 +269,11 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 			},
 			NetworkInterfaces: networkInterfaces,
 			TagSpecifications: launchTemplateDataTags,
+			CapacityReservationSpecification: lo.Ternary(options.CapacityReservation == nil, nil, &ec2.LaunchTemplateCapacityReservationSpecificationRequest{
+				CapacityReservationTarget: &ec2.CapacityReservationTarget{
+					CapacityReservationId: aws.String(*options.CapacityReservation),
+				},
+			}),
 		},
 		TagSpecifications: []*ec2.TagSpecification{
 			{

@@ -38,6 +38,12 @@ type SecurityGroup struct {
 	Name string `json:"name,omitempty"`
 }
 
+// type CapacityReservation struct {
+// 	// ID of the security group
+// 	// +optional
+// 	CapacityReservationInstanceType string `json:"CapacityReservationInstanceType,omitempty"`
+// }
+
 // AMI contains resolved AMI selector values utilized for node launch
 type AMI struct {
 	// ID of the AMI
@@ -68,4 +74,6 @@ type EC2NodeClassStatus struct {
 	// InstanceProfile contains the resolved instance profile for the role
 	// +optional
 	InstanceProfile string `json:"instanceProfile,omitempty"`
+
+	// CapacityReservation
 }
