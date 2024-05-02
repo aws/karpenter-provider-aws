@@ -486,7 +486,7 @@ The `eksOptimized` term is mutually exclusive. When an `eksOptimized` term is sp
 ```yaml
   amiSelectorTerms:
     - eksOptimzed:
-      family: AL2023
+        family: AL2023
     # Can not specify other terms with eksOptimzed
     - id: ami-123
 ```
