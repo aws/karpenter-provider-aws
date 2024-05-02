@@ -89,6 +89,7 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 			WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
 				return isTaggable(o.(*corev1beta1.NodeClaim))
 			})).
+			// Ok with using the default MaxConcurrentReconciles of 1 to avoid throttling from CreateTag write API
 			WithOptions(controller.Options{
 				RateLimiter: reasonable.RateLimiter(),
 			}))
