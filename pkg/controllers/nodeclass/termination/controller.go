@@ -41,9 +41,10 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 
+	"github.com/awslabs/operatorpkg/reasonable"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
-	"github.com/awslabs/operatorpkg/reasonable"
 )
 
 var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)

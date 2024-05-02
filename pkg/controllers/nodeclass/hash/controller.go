@@ -29,8 +29,9 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/awslabs/operatorpkg/reasonable"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 var _ corecontroller.TypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)

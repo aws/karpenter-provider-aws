@@ -29,13 +29,14 @@ import (
 	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
 
+	"github.com/awslabs/operatorpkg/reasonable"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
-	"github.com/awslabs/operatorpkg/reasonable"
 )
 
 var _ corecontroller.TypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)
