@@ -28,7 +28,7 @@ kind: EC2NodeClass
 metadata:
   name: default
 spec:
-  # Required, configures the bootstrapping mode
+  # Required, configures the bootstrapping mode (UserData formatting, default BlockDeviceMappings)
   amiFamily: AL2023
 
   # Required, discovers subnets to attach to instances
@@ -79,8 +79,9 @@ spec:
     - name: my-ami
     - id: ami-123
 
-    # Automatically select the latest EKS optimzed AMI for the given AMI family.
-    # Note: This term is mutually exclusive and may not be specified with other AMI selector terms
+    # Automatically select the latest EKS optimzed AMI for the given AMI family. This will result in AMIs being
+    # being automatically upgraded which may impact cluster stability.
+    # Note: This term is mutually exclusive and may not be specified with other AMI selector terms.
     # - eksOptimized:
     #     family: AL2023
 
@@ -169,7 +170,7 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 ## spec.amiFamily
 
-AMIFamily is a required field that dictates the bootstrapping logic for nodes provisioned through this `EC2NodeClass`. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. Default generated UserData for each of the supported AMI families is shown below.
+AMIFamily is a required field that dictates the bootstrapping logic for nodes provisioned through this `EC2NodeClass`. Bootstrapping logic includes the format of generated UserData and default BlockDeviceMappings. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Ubuntu`, `Windows2019`, `Windows2022` and `Custom`. Default generated UserData for each of the supported AMI families is shown below.
 
 ### AL2
 
@@ -460,6 +461,13 @@ If owner is not set for `name`, it defaults to `self,amazon`, preventing Karpent
 
 {{% alert title="Tip" color="secondary" %}}
 AMIs may be specified by any AWS tag, including `Name`. Selecting by tag or by name using wildcards (`*`) is supported.
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+If a new AMI is released that matches your `amiSelectorTerms`, that new AMI will be used when launching new nodes.
+Additionally, if you have drift enabled, nodes with the original AMI will be drifted and replaced with nodes with the updated AMI.
+This has the benefit of ensuring your nodes are always running the latest AMIs with the latest security patches, but may also result in impacted application stability.
+Please refer to the [managing AMIs task]({{< relref "../tasks/managing-amis.md" >}}) for Karpenter's recommended best practices.
 {{% /alert %}}
 
 {{% alert title="Note" color="primary" %}}
