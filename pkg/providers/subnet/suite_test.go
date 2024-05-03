@@ -219,19 +219,20 @@ var _ = Describe("SubnetProvider", func() {
 			}, subnets)
 		})
 	})
-	Context("CheckAnyPublicIPAssociations", func() {
-		It("should note that no subnets assign a public IPv4 address to EC2 instances on launch", func() {
+	Context("AssociatePublicIPAddress", func() {
+		It("should be false when no subnets assign a public IPv4 address to EC2 instances on launch", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 				{
 					ID:   "subnet-test1",
 					Tags: map[string]string{"foo": "bar"},
 				},
 			}
-			onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass)
+			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			Expect(onlyPrivate).To(BeFalse())
+			associatePublicIP := awsEnv.SubnetProvider.AssociatePublicIPAddressValue(nodeClass)
+			Expect(lo.FromPtr(associatePublicIP)).To(BeFalse())
 		})
-		It("should note that at least one subnet assigns a public IPv4 address to EC2instances on launch", func() {
+		It("should be nil when at least one subnet assigns a public IPv4 address to EC2instances on launch", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
 				{
 					ID: "subnet-test2",
@@ -245,9 +246,24 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			_, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			onlyPrivate, err := awsEnv.SubnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass)
-			Expect(err).To(BeNil())
-			Expect(onlyPrivate).To(BeTrue())
+			associatePublicIP := awsEnv.SubnetProvider.AssociatePublicIPAddressValue(nodeClass)
+			Expect(associatePublicIP).To(BeNil())
+		})
+		It("should be nil when no subnet data is present in the provider cache", func() {
+			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+				{
+					ID: "subnet-test2",
+				},
+			}
+			nodeClass.Status.Subnets = []v1beta1.Subnet{
+				{
+					ID:   "subnet-test2",
+					Zone: "test-zone-1b",
+				},
+			}
+			awsEnv.SubnetCache.Flush() // remove any subnet data that might be in the subnetCache
+			associatePublicIP := awsEnv.SubnetProvider.AssociatePublicIPAddressValue(nodeClass)
+			Expect(associatePublicIP).To(BeNil())
 		})
 	})
 	Context("Provider Cache", func() {
