@@ -49,14 +49,14 @@ var (
 	instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
 )
 
-func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string,
+func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string, nodeClassName string,
 	blockDeviceMappings []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
 	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
 	amiFamily amifamily.AMIFamily, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
 	it := &cloudprovider.InstanceType{
 		Name:         aws.StringValue(info.InstanceType),
-		Requirements: computeRequirements(info, offerings, region, amiFamily),
+		Requirements: computeRequirements(info, offerings, region, amiFamily, nodeClassName),
 		Offerings:    offerings,
 		Capacity:     computeCapacity(ctx, info, amiFamily, blockDeviceMappings, instanceStorePolicy, maxPods, podsPerCore),
 		Overhead: &cloudprovider.InstanceTypeOverhead{
@@ -72,7 +72,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region str
 }
 
 //nolint:gocyclo
-func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Offerings, region string, amiFamily amifamily.AMIFamily) scheduling.Requirements {
+func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Offerings, region string, amiFamily amifamily.AMIFamily, nodeClassName string) scheduling.Requirements {
 	requirements := scheduling.NewRequirements(
 		// Well Known Upstream
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
@@ -84,6 +84,7 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		// Well Known to Karpenter
 		scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
 		// Well Known to AWS
+		scheduling.NewRequirement(v1beta1.LabelNodeClass, v1.NodeSelectorOpIn, nodeClassName),
 		scheduling.NewRequirement(v1beta1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1beta1.LabelInstanceCPUManufacturer, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.MemoryInfo.SizeInMiB))),

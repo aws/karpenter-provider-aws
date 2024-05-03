@@ -107,6 +107,21 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
 		})
+		It("should support well-known labels for node classes", func() {
+			selectors.Insert(v1beta1.LabelNodeClass) // Add node selector keys to selectors used in testing to ensure we test all labels
+			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1beta1.LabelNodeClass,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{nodeClass.Name},
+					},
+				},
+			}})
+			env.ExpectCreated(nodeClass, nodePool, deployment)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			env.ExpectCreatedNodeCount("==", 1)
+		})
 		It("should support well-known labels for local NVME storage", func() {
 			selectors.Insert(v1beta1.LabelInstanceLocalNVME) // Add node selector keys to selectors used in testing to ensure we test all labels
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{

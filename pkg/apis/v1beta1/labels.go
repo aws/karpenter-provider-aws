@@ -27,6 +27,7 @@ import (
 func init() {
 	v1beta1.RestrictedLabelDomains = v1beta1.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
 	v1beta1.WellKnownLabels = v1beta1.WellKnownLabels.Insert(
+		LabelNodeClass,
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,

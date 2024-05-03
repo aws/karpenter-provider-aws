@@ -126,7 +126,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.Spec.BlockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%s",
+	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%s-%s",
 		p.instanceTypesSeqNum,
 		p.instanceTypeOfferingsSeqNum,
 		p.unavailableOfferings.SeqNum,
@@ -135,6 +135,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 		blockDeviceMappingsHash,
 		aws.StringValue((*string)(nodeClass.Spec.InstanceStorePolicy)),
 		aws.StringValue(nodeClass.Spec.AMIFamily),
+		nodeClass.Name,
 	)
 	if item, ok := p.instanceTypesCache.Get(key); ok {
 		return item.([]*cloudprovider.InstanceType), nil
@@ -164,7 +165,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 		// Any changes to the values passed into the NewInstanceType method will require making updates to the cache key
 		// so that Karpenter is able to cache the set of InstanceTypes based on values that alter the set of instance types
 		// !!! Important !!!
-		return NewInstanceType(ctx, i, p.region,
+		return NewInstanceType(ctx, i, p.region, nodeClass.Name,
 			nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy,
 			kc.MaxPods, kc.PodsPerCore, kc.KubeReserved, kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft,
 			amiFamily, p.createOfferings(ctx, i, p.instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones))
