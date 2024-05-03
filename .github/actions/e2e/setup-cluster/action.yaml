@@ -151,9 +151,11 @@ runs:
           disableIMDSv1: true
           minSize: 2
           maxSize: 2
+          taints:
+          - key: CriticalAddonsOnly
+            value: "true"
+            effect: NoSchedule
           iam:
-            withAddonPolicies:
-              cloudWatch: true
             instanceRolePermissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       cloudWatch:
         clusterLogging:
@@ -173,8 +175,6 @@ runs:
         $KARPENTER_IAM
         withOIDC: true
       addons:
-      - name: amazon-cloudwatch-observability
-        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: vpc-cni
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: coredns
@@ -211,11 +211,6 @@ runs:
       else
         eksctl ${cmd} cluster -f clusterconfig.yaml
       fi
-
-      # Adding taints after all necessary pods have scheduled to the manged node group nodes
-      # amazon-cloudwatch-observability pods do no not tolerate CriticalAddonsOnly=true:NoSchedule and 
-      # amazon-cloudwatch-observability addons does not allow to add tolerations to the addon pods as part of the advanced configuration
-      kubectl taint nodes CriticalAddonsOnly=true:NoSchedule --all
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash
