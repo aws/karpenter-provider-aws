@@ -263,16 +263,6 @@ var _ = Describe("Drift", func() {
 		})
 		It("should respect budgets for non-empty replace drift", func() {
 			appLabels := map[string]string{"app": "large-app"}
-
-			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceSize,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"xlarge"},
-					},
-				},
-			)
 			nodePool.Labels = appLabels
 			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.
 			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
@@ -280,8 +270,10 @@ var _ = Describe("Drift", func() {
 			}}
 
 			// Create a 5 pod deployment with hostname inter-pod anti-affinity to ensure each pod is placed on a unique node
+			numPods = 5
+			selector = labels.SelectorFromSet(appLabels)
 			deployment := coretest.Deployment(coretest.DeploymentOptions{
-				Replicas: 5,
+				Replicas: int32(numPods),
 				PodOptions: coretest.PodOptions{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: appLabels,
@@ -297,11 +289,11 @@ var _ = Describe("Drift", func() {
 
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 
-			originalNodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 5)
-			originalNodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+			originalNodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", numPods)
+			originalNodes := env.EventuallyExpectCreatedNodeCount("==", numPods)
 
 			// Check that all deployment pods are online
-			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(appLabels), numPods)
+			env.EventuallyExpectHealthyPodCount(selector, numPods)
 
 			By("cordoning and adding finalizer to the nodes")
 			// Add a finalizer to each node so that we can stop termination disruptions
