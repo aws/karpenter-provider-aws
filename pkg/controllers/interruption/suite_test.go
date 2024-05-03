@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"testing"
 	"time"
 
@@ -115,6 +116,19 @@ var _ = Describe("InterruptionHandling", func() {
 			},
 		})
 	})
+	var ExpectTaintToBePresentOnNode = func(node *v1.Node, taintValue string) {
+		Eventually(func() (bool, error) {
+			if err := env.Client.Get(ctx, client.ObjectKeyFromObject(node), node); err != nil {
+				return false, err
+			}
+			for _, taint := range node.Spec.Taints {
+				if taint.Key == v1beta1.InterruptionTaintKey && taint.Value == taintValue {
+					return true, nil
+				}
+			}
+			return false, nil
+		}, ReconcilerPropagationTime, RequestInterval).Should(BeTrue(), fmt.Sprintf("Expected the taint value: %s to be present on the node", taintValue))
+	}
 	Context("Processing Messages", func() {
 		It("should delete the NodeClaim when receiving a spot interruption warning", func() {
 			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
@@ -122,6 +136,8 @@ var _ = Describe("InterruptionHandling", func() {
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
+
+			ExpectTaintToBePresentOnNode(node, v1beta1.InterruptionSpotInterruptionTaintValue)
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -131,6 +147,7 @@ var _ = Describe("InterruptionHandling", func() {
 
 			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
+			ExpectTaintToBePresentOnNode(node, v1beta1.InterruptionScheduledChangeTaintValue)
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})

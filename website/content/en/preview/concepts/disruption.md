@@ -179,6 +179,7 @@ If interruption-handling is enabled, Karpenter will watch for upcoming involunta
 * Instance Stopping Events
 
 When Karpenter detects one of these events will occur to your nodes, it automatically taints, drains, and terminates the node(s) ahead of the interruption event to give the maximum amount of time for workload cleanup prior to compute disruption. This enables scenarios where the `terminationGracePeriod` for your workloads may be long or cleanup for your workloads is critical, and you want enough time to be able to gracefully clean-up your pods.
+The node will also be tainted according to the interruption, the taint key is `karpenter.k8s.aws/interruption`, the value denotes which interruption is happening to the node.
 
 For Spot interruptions, the NodePool will start a new node as soon as it sees the Spot interruption warning. Spot interruptions have a __2 minute notice__ before Amazon EC2 reclaims the instance. Karpenter's average node startup time means that, generally, there is sufficient time for the new node to become ready and to move the pods to the new node before the NodeClaim is reclaimed.
 

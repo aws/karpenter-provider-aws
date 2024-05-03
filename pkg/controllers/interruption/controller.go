@@ -32,9 +32,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
@@ -143,7 +144,7 @@ func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error)
 }
 
 // handleMessage takes an action against every node involved in the message that is owned by a NodePool
-func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap map[string]*v1beta1.NodeClaim,
+func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap map[string]*corev1beta1.NodeClaim,
 	nodeInstanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
 
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("messageKind", msg.Kind()))
@@ -179,7 +180,7 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqsapi.Message) err
 }
 
 // handleNodeClaim retrieves the action for the message and then performs the appropriate action against the node
-func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *v1beta1.NodeClaim, node *v1.Node) error {
+func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *corev1beta1.NodeClaim, node *v1.Node) error {
 	action := actionForMessage(msg)
 	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name, "action", string(action)))
 	if node != nil {
@@ -195,17 +196,42 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		zone := nodeClaim.Labels[v1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[v1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, v1beta1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, corev1beta1.CapacityTypeSpot)
 		}
 	}
 	if action != NoAction {
+		if err := c.taintNode(ctx, msg.Kind(), node); err != nil {
+			return err
+		}
 		return c.deleteNodeClaim(ctx, nodeClaim, node)
 	}
 	return nil
 }
 
+func (c *Controller) taintNode(ctx context.Context, msgKind messages.Kind, node *v1.Node) error {
+	stored := node.DeepCopy()
+	taint := v1.Taint{
+		Key:    v1beta1.InterruptionTaintKey,
+		Effect: "NoSchedule",
+	}
+	switch msgKind {
+	case messages.RebalanceRecommendationKind:
+		taint.Value = v1beta1.InterruptionRebalanceRecommendationTaintValue
+	case messages.ScheduledChangeKind:
+		taint.Value = v1beta1.InterruptionScheduledChangeTaintValue
+	case messages.SpotInterruptionKind:
+		taint.Value = v1beta1.InterruptionSpotInterruptionTaintValue
+	case messages.StateChangeKind:
+		taint.Value = v1beta1.InterruptionStateChangeTaintValue
+	case messages.NoOpKind:
+		return nil
+	}
+	node.Spec.Taints = append(node.Spec.Taints, taint)
+	return c.kubeClient.Patch(ctx, node, client.StrategicMergeFrom(stored))
+}
+
 // deleteNodeClaim removes the NodeClaim from the api-server
-func (c *Controller) deleteNodeClaim(ctx context.Context, nodeClaim *v1beta1.NodeClaim, node *v1.Node) error {
+func (c *Controller) deleteNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim, node *v1.Node) error {
 	if !nodeClaim.DeletionTimestamp.IsZero() {
 		return nil
 	}
@@ -216,14 +242,14 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, nodeClaim *v1beta1.Nod
 	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, nodeClaim)...)
 	metrics.NodeClaimsTerminatedCounter.With(prometheus.Labels{
 		metrics.ReasonLabel:       terminationReasonLabel,
-		metrics.NodePoolLabel:     nodeClaim.Labels[v1beta1.NodePoolLabelKey],
-		metrics.CapacityTypeLabel: nodeClaim.Labels[v1beta1.CapacityTypeLabelKey],
+		metrics.NodePoolLabel:     nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
+		metrics.CapacityTypeLabel: nodeClaim.Labels[corev1beta1.CapacityTypeLabelKey],
 	}).Inc()
 	return nil
 }
 
 // notifyForMessage publishes the relevant alert based on the message kind
-func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *v1beta1.NodeClaim, n *v1.Node) {
+func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *corev1beta1.NodeClaim, n *v1.Node) {
 	switch msg.Kind() {
 	case messages.RebalanceRecommendationKind:
 		c.recorder.Publish(interruptionevents.RebalanceRecommendation(n, nodeClaim)...)
@@ -248,9 +274,9 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *v1beta1.N
 
 // makeNodeClaimInstanceIDMap builds a map between the instance id that is stored in the
 // NodeClaim .status.providerID and the NodeClaim
-func (c *Controller) makeNodeClaimInstanceIDMap(ctx context.Context) (map[string]*v1beta1.NodeClaim, error) {
-	m := map[string]*v1beta1.NodeClaim{}
-	nodeClaimList := &v1beta1.NodeClaimList{}
+func (c *Controller) makeNodeClaimInstanceIDMap(ctx context.Context) (map[string]*corev1beta1.NodeClaim, error) {
+	m := map[string]*corev1beta1.NodeClaim{}
+	nodeClaimList := &corev1beta1.NodeClaimList{}
 	if err := c.kubeClient.List(ctx, nodeClaimList); err != nil {
 		return nil, err
 	}
