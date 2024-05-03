@@ -104,10 +104,6 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 	if kc == nil {
 		kc = &corev1beta1.KubeletConfiguration{}
 	}
-	if nodeClass == nil {
-		nodeClass = &v1beta1.EC2NodeClass{}
-	}
-
 	if len(p.instanceTypesInfo) == 0 {
 		return nil, fmt.Errorf("no instance types found")
 	}

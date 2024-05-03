@@ -136,7 +136,7 @@ jobs:
           suite: Upgrade
           git_ref: ${{ inputs.to_git_ref }}
       - name: add log retention policy
-        if: ${{ inputs.workflow_trigger != 'private_cluster' }}
+        if: always() && inputs.workflow_trigger != 'private_cluster'
         env:
           CLUSTER_NAME: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
         run: |
