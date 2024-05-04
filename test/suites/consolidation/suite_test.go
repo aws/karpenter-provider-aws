@@ -510,6 +510,14 @@ var _ = Describe("Consolidation", func() {
 										Values: []string{"t2", "t3", "c1", "t3a", "t4g", "a1"},
 									},
 								},
+								// Specify Linux in the NodePool to filter out Windows only DS when discovering DS overhead
+								{
+									NodeSelectorRequirement: v1.NodeSelectorRequirement{
+										Key:      v1.LabelOSStable,
+										Operator: v1.NodeSelectorOpIn,
+										Values:   []string{string(v1.Linux)},
+									},
+								},
 							},
 							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
 						},
