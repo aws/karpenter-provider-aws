@@ -45,6 +45,7 @@ import (
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
+	coreresources "sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -901,4 +902,25 @@ func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 		}
 		return true
 	})
+}
+
+func (env *Environment) GetDaemonSetOverhead(np *corev1beta1.NodePool) v1.ResourceList {
+	GinkgoHelper()
+
+	// Performs the same logic as the scheduler to get the number of daemonset
+	// pods that we estimate we will need to schedule as overhead to each node
+	daemonSetList := &appsv1.DaemonSetList{}
+	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
+
+	return coreresources.RequestsForPods(lo.FilterMap(daemonSetList.Items, func(ds appsv1.DaemonSet, _ int) (*v1.Pod, bool) {
+		p := &v1.Pod{Spec: ds.Spec.Template.Spec}
+		nodeClaimTemplate := pscheduling.NewNodeClaimTemplate(np)
+		if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).Tolerates(p); err != nil {
+			return nil, false
+		}
+		if err := nodeClaimTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
+			return nil, false
+		}
+		return p, true
+	})...)
 }

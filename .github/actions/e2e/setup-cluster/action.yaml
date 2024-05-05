@@ -213,9 +213,21 @@ runs:
       fi
 
       # Adding taints after all necessary pods have scheduled to the manged node group nodes
-      # amazon-cloudwatch-observability pods do no not tolerate CriticalAddonsOnly=true:NoSchedule and 
+      # amazon-cloudwatch-observability pods do no not tolerate CriticalAddonsOnly=true:NoSchedule and
       # amazon-cloudwatch-observability addons does not allow to add tolerations to the addon pods as part of the advanced configuration
       kubectl taint nodes CriticalAddonsOnly=true:NoSchedule --all
+
+      # We delete DaemonSets that we don't care about because it causes inconsistencies in scheduling due to
+      # dcgm-exporter and neuron-monitor selecting on specific instance types
+      # See https://github.com/kubernetes-sigs/karpenter/issues/715 for more detail
+      kubectl delete daemonsets -n amazon-cloudwatch dcgm-exporter neuron-monitor
+
+      # We patch the priorityClass onto all DaemonSets to ensure that DaemonSets always schedule to nodes so we don't get scheduling inconsistencies
+      # See https://karpenter.sh/docs/faq/#when-deploying-an-additional-daemonset-to-my-cluster-why-does-karpenter-not-scale-up-my-nodes-to-support-the-extra-daemonset for more detail
+      # Additionally, we patch an everything toleration onto the daemonsets to prevent them from being included in drain operations.
+      for DAEMONSET in "cloudwatch-agent" "cloudwatch-agent-windows" "fluent-bit" "fluent-bit-windows"; do
+        kubectl patch daemonset -n amazon-cloudwatch $DAEMONSET -p '{"spec":{"template":{"spec":{"priorityClassName":"system-node-critical","tolerations": [{"operator": "Exists"}]}}}}' --type=merge
+      done
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash

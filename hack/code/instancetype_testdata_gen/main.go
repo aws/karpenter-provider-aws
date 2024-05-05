@@ -130,6 +130,23 @@ func getInstanceTypeInfo(info *ec2.InstanceTypeInfo) string {
 	fmt.Fprintf(src, "SizeInMiB: aws.Int64(%d),\n", lo.FromPtr(info.MemoryInfo.SizeInMiB))
 	fmt.Fprintf(src, "},\n")
 
+	if info.EbsInfo != nil {
+		fmt.Fprintf(src, "EbsInfo: &ec2.EbsInfo{\n")
+		if info.EbsInfo.EbsOptimizedInfo != nil {
+			fmt.Fprintf(src, "EbsOptimizedInfo: &ec2.EbsOptimizedInfo{\n")
+			fmt.Fprintf(src, "BaselineBandwidthInMbps: aws.Int64(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.BaselineBandwidthInMbps))
+			fmt.Fprintf(src, "BaselineIops: aws.Int64(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.BaselineIops))
+			fmt.Fprintf(src, "BaselineThroughputInMBps: aws.Float64(%.2f),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.BaselineThroughputInMBps))
+			fmt.Fprintf(src, "MaximumBandwidthInMbps: aws.Int64(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps))
+			fmt.Fprintf(src, "MaximumIops: aws.Int64(%d),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumIops))
+			fmt.Fprintf(src, "MaximumThroughputInMBps: aws.Float64(%.2f),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedInfo.MaximumThroughputInMBps))
+			fmt.Fprintf(src, "},\n")
+		}
+		fmt.Fprintf(src, "EbsOptimizedSupport: aws.String(\"%s\"),\n", lo.FromPtr(info.EbsInfo.EbsOptimizedSupport))
+		fmt.Fprintf(src, "EncryptionSupport: aws.String(\"%s\"),\n", lo.FromPtr(info.EbsInfo.EncryptionSupport))
+		fmt.Fprintf(src, "NvmeSupport: aws.String(\"%s\"),\n", lo.FromPtr(info.EbsInfo.NvmeSupport))
+		fmt.Fprintf(src, "},\n")
+	}
 	if info.InferenceAcceleratorInfo != nil {
 		fmt.Fprintf(src, "InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{\n")
 		fmt.Fprintf(src, "Accelerators: []*ec2.InferenceDeviceInfo{\n")

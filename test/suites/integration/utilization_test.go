@@ -25,6 +25,8 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
+	"github.com/samber/lo"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 
@@ -49,8 +51,20 @@ var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), fun
 			},
 		)
 		deployment := test.Deployment(test.DeploymentOptions{
-			Replicas:   100,
-			PodOptions: test.PodOptions{ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1.5")}}}})
+			Replicas: 100,
+			PodOptions: test.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{
+						v1.ResourceCPU: func() resource.Quantity {
+							dsOverhead := env.GetDaemonSetOverhead(nodePool)
+							base := lo.ToPtr(resource.MustParse("1800m"))
+							base.Sub(*dsOverhead.Cpu())
+							return *base
+						}(),
+					},
+				},
+			},
+		})
 
 		env.ExpectCreated(nodeClass, nodePool, deployment)
 		env.EventuallyExpectHealthyPodCountWithTimeout(time.Minute*10, labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
