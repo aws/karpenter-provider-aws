@@ -26,7 +26,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type DescribeInstancesBatcher struct {
@@ -56,7 +56,7 @@ func (b *DescribeInstancesBatcher) DescribeInstances(ctx context.Context, descri
 func FilterHasher(ctx context.Context, input *ec2.DescribeInstancesInput) uint64 {
 	hash, err := hashstructure.Hash(input.Filters, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
-		logging.FromContext(ctx).Errorf("error hashing")
+		log.FromContext(ctx).Error(err, "failed hashing input filters")
 	}
 	return hash
 }

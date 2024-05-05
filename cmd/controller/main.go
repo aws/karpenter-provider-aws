@@ -31,6 +31,7 @@ import (
 
 func main() {
 	ctx, op := operator.NewOperator(coreoperator.NewOperator())
+
 	awsCloudProvider := cloudprovider.New(
 		op.InstanceTypesProvider,
 		op.InstanceProvider,

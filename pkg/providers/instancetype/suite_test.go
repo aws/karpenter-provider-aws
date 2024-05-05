@@ -38,7 +38,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
-	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -50,7 +49,10 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
+
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"

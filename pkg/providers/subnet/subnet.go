@@ -26,7 +26,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
@@ -107,11 +107,11 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
 	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), subnets) {
-		logging.FromContext(ctx).
-			With("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) string {
+		log.FromContext(ctx).
+			WithValues("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) string {
 				return fmt.Sprintf("%s (%s)", aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone))
 			})).
-			Debugf("discovered subnets")
+			V(1).Info("discovered subnets")
 	}
 	return lo.Values(subnets), nil
 }

@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type CreateFleetBatcher struct {
@@ -70,7 +70,7 @@ func execCreateFleetBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.CreateFleetI
 			for _, instanceID := range reservation.InstanceIds {
 				requestIdx++
 				if requestIdx >= len(inputs) {
-					logging.FromContext(ctx).Errorf("received more instances than requested, ignoring instance %s", aws.StringValue(instanceID))
+					log.FromContext(ctx).Error(fmt.Errorf("received more instances than requested, ignoring instance %s", aws.StringValue(instanceID)), "received error while batching")
 					continue
 				}
 				results = append(results, Result[ec2.CreateFleetOutput]{
