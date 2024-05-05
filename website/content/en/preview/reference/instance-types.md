@@ -20,6 +20,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|a1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -45,6 +46,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|a1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -70,6 +72,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|a1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -95,6 +98,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|a1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -120,6 +124,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|a1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -145,6 +150,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|a1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -335,6 +341,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -358,6 +365,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -381,6 +389,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -404,6 +413,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -427,6 +437,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -452,6 +463,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -477,6 +489,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -502,6 +515,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -527,6 +541,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -552,6 +567,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -577,6 +593,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -602,6 +619,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -627,6 +645,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -652,6 +671,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -678,6 +698,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -703,6 +724,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -728,6 +750,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -753,6 +776,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -778,6 +802,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -803,6 +828,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -828,6 +854,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6300|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -853,6 +880,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -879,6 +907,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -905,6 +934,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -931,6 +961,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -957,6 +988,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -983,6 +1015,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1009,6 +1042,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1035,6 +1069,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6300|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1061,6 +1096,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1088,6 +1124,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1114,6 +1151,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1140,6 +1178,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1166,6 +1205,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1192,6 +1232,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1218,6 +1259,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1244,6 +1286,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1270,6 +1313,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1296,6 +1340,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1323,6 +1368,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1348,6 +1394,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1373,6 +1420,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1398,6 +1446,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1423,6 +1472,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1449,6 +1499,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1475,6 +1526,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -1502,6 +1554,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1527,6 +1580,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1552,6 +1606,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1577,6 +1632,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1602,6 +1658,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1627,6 +1684,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1652,6 +1710,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1677,6 +1736,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1702,6 +1762,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1727,6 +1788,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1753,6 +1815,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1780,6 +1843,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1805,6 +1869,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1830,6 +1895,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1855,6 +1921,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1880,6 +1947,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1905,6 +1973,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1930,6 +1999,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14250|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1955,6 +2025,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -1980,6 +2051,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2006,6 +2078,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2032,6 +2105,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2058,6 +2132,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2084,6 +2159,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2110,6 +2186,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2136,6 +2213,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2162,6 +2240,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14250|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2188,6 +2267,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2214,6 +2294,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|c6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2241,6 +2322,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6gn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2266,6 +2348,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6gn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2291,6 +2374,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6gn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2316,6 +2400,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6gn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2341,6 +2426,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6gn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2366,6 +2452,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6gn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2391,6 +2478,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|28500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6gn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2416,6 +2504,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6gn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2443,6 +2532,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2468,6 +2558,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2493,6 +2584,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2518,6 +2610,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2543,6 +2636,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2568,6 +2662,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2593,6 +2688,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2618,6 +2714,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2643,6 +2740,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2669,6 +2767,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2696,6 +2795,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2722,6 +2822,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2748,6 +2849,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2774,6 +2876,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2800,6 +2903,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2826,6 +2930,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2852,6 +2957,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2878,6 +2984,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2904,6 +3011,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2931,6 +3039,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2959,6 +3068,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -2984,6 +3094,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3009,6 +3120,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3034,6 +3146,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3059,6 +3172,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3084,6 +3198,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|37500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3109,6 +3224,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|50000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3134,6 +3250,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|75000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3159,6 +3276,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3185,6 +3303,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -3212,6 +3331,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3237,6 +3357,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3262,6 +3383,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3287,6 +3409,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3312,6 +3435,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3337,6 +3461,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3362,6 +3487,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3387,6 +3513,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3412,6 +3539,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3437,6 +3565,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3462,6 +3591,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3488,6 +3618,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3515,6 +3646,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3540,6 +3672,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3565,6 +3698,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3590,6 +3724,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3615,6 +3750,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3640,6 +3776,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3665,6 +3802,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3690,6 +3828,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3716,6 +3855,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3743,6 +3883,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3769,6 +3910,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3795,6 +3937,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3821,6 +3964,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3847,6 +3991,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3873,6 +4018,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3899,6 +4045,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3925,6 +4072,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3952,6 +4100,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -3979,6 +4128,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4004,6 +4154,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4029,6 +4180,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4054,6 +4206,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4079,6 +4232,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4104,6 +4258,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4129,6 +4284,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4154,6 +4310,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4180,6 +4337,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7gn|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4205,6 +4363,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4230,6 +4389,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4255,6 +4415,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4280,6 +4441,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4305,6 +4467,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4330,6 +4493,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4355,6 +4519,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4380,6 +4545,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4405,6 +4571,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4430,6 +4597,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4456,6 +4624,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|c7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -4483,6 +4652,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|d2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -4506,6 +4676,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|d2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -4529,6 +4700,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|d2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -4552,6 +4724,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|d2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -4577,6 +4750,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4603,6 +4777,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4629,6 +4804,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4655,6 +4831,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4682,6 +4859,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4708,6 +4886,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4734,6 +4913,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4760,6 +4940,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4786,6 +4967,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4812,6 +4994,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|d3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4839,6 +5022,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|dl|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|dl1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -4872,6 +5056,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1700|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|f1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -4897,6 +5082,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|f1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -4922,6 +5108,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|f1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -4948,6 +5135,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -4977,6 +5165,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -5006,6 +5195,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -5036,6 +5226,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|850|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g3s|
  |karpenter.k8s.aws/instance-generation|3|
@@ -5065,6 +5256,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5096,6 +5288,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5127,6 +5320,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5158,6 +5352,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5189,6 +5384,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6300|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4ad|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5221,6 +5417,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5252,6 +5449,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5283,6 +5481,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5314,6 +5513,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5346,6 +5546,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5378,6 +5579,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5410,6 +5612,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g4dn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -5443,6 +5646,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5474,6 +5678,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5505,6 +5710,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5536,6 +5742,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|16000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5568,6 +5775,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|16000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5600,6 +5808,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|16000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5632,6 +5841,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5664,6 +5874,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|g5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5697,6 +5908,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5727,6 +5939,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5757,6 +5970,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5787,6 +6001,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5817,6 +6032,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
@@ -5847,6 +6063,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|g5g|
  |karpenter.k8s.aws/instance-generation|5|
@@ -6176,6 +6393,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|h1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -6200,6 +6418,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|h1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -6224,6 +6443,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|h1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -6248,6 +6468,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|h1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -6273,6 +6494,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|hpc7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -6298,6 +6520,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|hpc7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -6323,6 +6546,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|hpc7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -6443,6 +6667,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|425|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|i3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6468,6 +6693,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|850|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|i3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6493,6 +6719,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1700|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|i3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6518,6 +6745,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|i3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6543,6 +6771,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|i3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6568,6 +6797,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|i3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6593,6 +6823,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|i3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6620,6 +6851,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6646,6 +6878,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6672,6 +6905,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6698,6 +6932,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6724,6 +6959,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6750,6 +6986,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6777,6 +7014,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6804,6 +7042,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i3en|
  |karpenter.k8s.aws/instance-generation|3|
@@ -6832,6 +7071,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -6858,6 +7098,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -6884,6 +7125,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -6910,6 +7152,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -6936,6 +7179,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -6962,6 +7206,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -6990,6 +7235,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7015,6 +7261,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7041,6 +7288,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7067,6 +7315,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7093,6 +7342,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7119,6 +7369,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7145,6 +7396,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7171,6 +7423,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7197,6 +7450,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7224,6 +7478,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|i4i|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7252,6 +7507,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|im4gn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7278,6 +7534,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|im4gn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7304,6 +7561,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|im4gn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7330,6 +7588,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|im4gn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7356,6 +7615,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|im4gn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7382,6 +7642,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|im4gn|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7413,6 +7674,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|inf1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -7442,6 +7704,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|inf1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -7471,6 +7734,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|inf1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -7500,6 +7764,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|inf1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -7531,6 +7796,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|inf2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -7560,6 +7826,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|inf2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -7589,6 +7856,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|inf2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -7618,6 +7886,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|inf2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -7645,6 +7914,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|is4gen|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7671,6 +7941,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|is4gen|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7697,6 +7968,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|is4gen|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7723,6 +7995,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|is4gen|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7749,6 +8022,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|is4gen|
  |karpenter.k8s.aws/instance-generation|4|
@@ -7775,6 +8049,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|is4gen|
  |karpenter.k8s.aws/instance-generation|4|
@@ -8058,6 +8333,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|450|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -8081,6 +8357,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -8104,6 +8381,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -8127,6 +8405,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -8150,6 +8429,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|40|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -8174,6 +8454,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -8199,6 +8480,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8224,6 +8506,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8249,6 +8532,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8274,6 +8558,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8299,6 +8584,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8324,6 +8610,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8349,6 +8636,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13600|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8374,6 +8662,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8399,6 +8688,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8425,6 +8715,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8450,6 +8741,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8475,6 +8767,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8500,6 +8793,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8525,6 +8819,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8550,6 +8845,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8575,6 +8871,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8600,6 +8897,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8626,6 +8924,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8652,6 +8951,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8678,6 +8978,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8704,6 +9005,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8730,6 +9032,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8756,6 +9059,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8782,6 +9086,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8808,6 +9113,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8835,6 +9141,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8861,6 +9168,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8887,6 +9195,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8913,6 +9222,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8939,6 +9249,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8965,6 +9276,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -8991,6 +9303,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13600|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9017,6 +9330,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9043,6 +9357,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9070,6 +9385,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9096,6 +9412,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9122,6 +9439,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9148,6 +9466,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9174,6 +9493,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9200,6 +9520,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9226,6 +9547,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13600|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9252,6 +9574,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9279,6 +9602,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9307,6 +9631,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9332,6 +9657,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9357,6 +9683,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9382,6 +9709,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9407,6 +9735,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9432,6 +9761,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9457,6 +9787,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13600|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9482,6 +9813,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9508,6 +9840,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9535,6 +9868,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5zn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9560,6 +9894,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5zn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9585,6 +9920,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5zn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9610,6 +9946,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5zn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9635,6 +9972,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5zn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9660,6 +9998,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5zn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9686,6 +10025,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m5zn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -9713,6 +10053,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9738,6 +10079,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9763,6 +10105,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9788,6 +10131,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9813,6 +10157,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9838,6 +10183,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9863,6 +10209,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9888,6 +10235,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9913,6 +10261,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9938,6 +10287,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9964,6 +10314,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -9991,6 +10342,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10016,6 +10368,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10041,6 +10394,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10066,6 +10420,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10091,6 +10446,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10116,6 +10472,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10141,6 +10498,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14250|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10166,6 +10524,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10191,6 +10550,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10217,6 +10577,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10243,6 +10604,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10269,6 +10631,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10295,6 +10658,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10321,6 +10685,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10347,6 +10712,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10373,6 +10739,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14250|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10399,6 +10766,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10425,6 +10793,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|m6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10452,6 +10821,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10477,6 +10847,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10502,6 +10873,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10527,6 +10899,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10552,6 +10925,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10577,6 +10951,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10602,6 +10977,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10627,6 +11003,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10652,6 +11029,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10678,6 +11056,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10705,6 +11084,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10731,6 +11111,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10757,6 +11138,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10783,6 +11165,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10809,6 +11192,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10835,6 +11219,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10861,6 +11246,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10887,6 +11273,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10913,6 +11300,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10940,6 +11328,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10968,6 +11357,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -10994,6 +11384,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11020,6 +11411,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11046,6 +11438,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11072,6 +11465,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11098,6 +11492,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|37500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11124,6 +11519,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|50000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11150,6 +11546,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|75000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11176,6 +11573,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11203,6 +11601,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11231,6 +11630,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11256,6 +11656,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11281,6 +11682,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11306,6 +11708,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11331,6 +11734,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11356,6 +11760,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|37500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11381,6 +11786,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|50000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11406,6 +11812,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|75000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11431,6 +11838,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11457,6 +11865,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -11484,6 +11893,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11509,6 +11919,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11534,6 +11945,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11559,6 +11971,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11584,6 +11997,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11609,6 +12023,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11634,6 +12049,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11659,6 +12075,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11684,6 +12101,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11709,6 +12127,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11734,6 +12153,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11760,6 +12180,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11787,6 +12208,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11812,6 +12234,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11837,6 +12260,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11862,6 +12286,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11887,6 +12312,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11912,6 +12338,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11937,6 +12364,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11962,6 +12390,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -11988,6 +12417,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12015,6 +12445,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12041,6 +12472,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12067,6 +12499,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12093,6 +12526,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12119,6 +12553,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12145,6 +12580,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12171,6 +12607,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12197,6 +12634,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12224,6 +12662,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12251,6 +12690,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12276,6 +12716,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12301,6 +12742,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12326,6 +12768,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12351,6 +12794,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12376,6 +12820,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12401,6 +12846,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12426,6 +12872,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12451,6 +12898,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12476,6 +12924,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12502,6 +12951,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12529,6 +12979,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i-flex|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12554,6 +13005,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i-flex|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12579,6 +13031,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i-flex|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12604,6 +13057,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i-flex|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12629,6 +13083,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|m7i-flex|
  |karpenter.k8s.aws/instance-generation|7|
@@ -12655,6 +13110,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -12683,6 +13139,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|5000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -12712,6 +13169,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p2|
  |karpenter.k8s.aws/instance-generation|2|
@@ -12742,6 +13200,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -12770,6 +13229,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -12799,6 +13259,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|p3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -12829,6 +13290,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|p3dn|
  |karpenter.k8s.aws/instance-generation|3|
@@ -12862,6 +13324,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|p4d|
  |karpenter.k8s.aws/instance-generation|4|
@@ -12895,6 +13358,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|p5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13045,6 +13509,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|425|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -13069,6 +13534,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|850|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -13093,6 +13559,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1700|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -13117,6 +13584,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -13141,6 +13609,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -13165,6 +13634,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r4|
  |karpenter.k8s.aws/instance-generation|4|
@@ -13190,6 +13660,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13215,6 +13686,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13240,6 +13712,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13265,6 +13738,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13290,6 +13764,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13315,6 +13790,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13340,6 +13816,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13600|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13365,6 +13842,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13390,6 +13868,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13416,6 +13895,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13441,6 +13921,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13466,6 +13947,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13491,6 +13973,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13516,6 +13999,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13541,6 +14025,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13566,6 +14051,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13591,6 +14077,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13570|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5a|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13617,6 +14104,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13643,6 +14131,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13669,6 +14158,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13695,6 +14185,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2880|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13721,6 +14212,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13747,6 +14239,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13773,6 +14266,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13799,6 +14293,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13570|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5ad|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13826,6 +14321,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13851,6 +14347,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13876,6 +14373,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13901,6 +14399,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13926,6 +14425,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13951,6 +14451,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -13976,6 +14477,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14001,6 +14503,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14026,6 +14529,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5b|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14052,6 +14556,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14078,6 +14583,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14104,6 +14610,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14130,6 +14637,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14156,6 +14664,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14182,6 +14691,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14208,6 +14718,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13600|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14234,6 +14745,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14260,6 +14772,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r5d|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14287,6 +14800,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14313,6 +14827,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14339,6 +14854,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14365,6 +14881,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14391,6 +14908,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14417,6 +14935,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14443,6 +14962,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13600|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14469,6 +14989,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14496,6 +15017,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5dn|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14524,6 +15046,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14549,6 +15072,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14574,6 +15098,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14599,6 +15124,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14624,6 +15150,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|6800|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14649,6 +15176,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14674,6 +15202,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|13600|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14699,6 +15228,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14725,6 +15255,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r5n|
  |karpenter.k8s.aws/instance-generation|5|
@@ -14752,6 +15283,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14777,6 +15309,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14802,6 +15335,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14827,6 +15361,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14852,6 +15387,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14877,6 +15413,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14902,6 +15439,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14927,6 +15465,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14952,6 +15491,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -14977,6 +15517,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15003,6 +15544,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6a|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15030,6 +15572,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15055,6 +15598,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15080,6 +15624,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15105,6 +15650,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15130,6 +15676,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15155,6 +15702,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15180,6 +15728,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14250|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15205,6 +15754,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15230,6 +15780,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6g|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15256,6 +15807,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15282,6 +15834,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15308,6 +15861,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15334,6 +15888,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15360,6 +15915,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15386,6 +15942,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15412,6 +15969,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14250|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15438,6 +15996,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15464,6 +16023,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|r6gd|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15491,6 +16051,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15516,6 +16077,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15541,6 +16103,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15566,6 +16129,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15591,6 +16155,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15616,6 +16181,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15641,6 +16207,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15666,6 +16233,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15691,6 +16259,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15717,6 +16286,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6i|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15744,6 +16314,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15770,6 +16341,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15796,6 +16368,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15822,6 +16395,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15848,6 +16422,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15874,6 +16449,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15900,6 +16476,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15926,6 +16503,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15952,6 +16530,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -15979,6 +16558,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6id|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16007,6 +16587,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16033,6 +16614,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16059,6 +16641,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16085,6 +16668,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16111,6 +16695,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16137,6 +16722,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|37500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16163,6 +16749,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|50000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16189,6 +16776,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|75000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16215,6 +16803,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16242,6 +16831,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6idn|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16270,6 +16860,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16295,6 +16886,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16320,6 +16912,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16345,6 +16938,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16370,6 +16964,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|25000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16395,6 +16990,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|37500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16420,6 +17016,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|50000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16445,6 +17042,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|75000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16470,6 +17068,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16496,6 +17095,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r6in|
  |karpenter.k8s.aws/instance-generation|6|
@@ -16523,6 +17123,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16548,6 +17149,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16573,6 +17175,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16598,6 +17201,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16623,6 +17227,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16648,6 +17253,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16673,6 +17279,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16698,6 +17305,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16723,6 +17331,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16748,6 +17357,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16773,6 +17383,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16799,6 +17410,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7a|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16826,6 +17438,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16851,6 +17464,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16876,6 +17490,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16901,6 +17516,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16926,6 +17542,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16951,6 +17568,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -16976,6 +17594,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17001,6 +17620,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17027,6 +17647,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7g|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17054,6 +17675,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17080,6 +17702,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17106,6 +17729,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17132,6 +17756,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17158,6 +17783,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17184,6 +17810,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17210,6 +17837,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17236,6 +17864,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17263,6 +17892,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7gd|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17290,6 +17920,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17315,6 +17946,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17340,6 +17972,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17365,6 +17998,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17390,6 +18024,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17415,6 +18050,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|15000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17440,6 +18076,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17465,6 +18102,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17490,6 +18128,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|30000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17515,6 +18154,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17541,6 +18181,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7i|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17568,6 +18209,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17593,6 +18235,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17618,6 +18261,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17643,6 +18287,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17668,6 +18313,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|10000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17693,6 +18339,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17718,6 +18365,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17743,6 +18391,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17768,6 +18417,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -17794,6 +18444,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|r7iz|
  |karpenter.k8s.aws/instance-generation|7|
@@ -18007,6 +18658,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18031,6 +18683,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18055,6 +18708,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18079,6 +18733,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18103,6 +18758,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18127,6 +18783,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18151,6 +18808,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18176,6 +18834,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3a|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18200,6 +18859,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3a|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18224,6 +18884,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3a|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18248,6 +18909,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3a|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18272,6 +18934,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3a|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18296,6 +18959,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3a|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18320,6 +18984,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t3a|
  |karpenter.k8s.aws/instance-generation|3|
@@ -18345,6 +19010,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -18369,6 +19035,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -18393,6 +19060,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -18417,6 +19085,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2085|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -18441,6 +19110,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -18465,6 +19135,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -18489,6 +19160,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|2780|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|t4g|
  |karpenter.k8s.aws/instance-generation|4|
@@ -18517,6 +19189,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|trn1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18547,6 +19220,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|trn1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18579,6 +19253,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|trn1n|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18608,6 +19283,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u-12tb1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18633,6 +19309,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u-18tb1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18658,6 +19335,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u-24tb1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18683,6 +19361,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|224|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u-3tb1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18709,6 +19388,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|224|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u-6tb1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18733,6 +19413,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u-6tb1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18758,6 +19439,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|38000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|u-9tb1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18783,6 +19465,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|vt1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18808,6 +19491,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|vt1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18833,6 +19517,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|vt1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18860,6 +19545,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18884,6 +19570,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x1|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18909,6 +19596,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x1e|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18933,6 +19621,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x1e|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18957,6 +19646,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|1750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x1e|
  |karpenter.k8s.aws/instance-generation|1|
@@ -18981,6 +19671,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x1e|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19005,6 +19696,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|7000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x1e|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19029,6 +19721,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x1e|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19054,6 +19747,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19080,6 +19774,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19106,6 +19801,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19132,6 +19828,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19158,6 +19855,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19184,6 +19882,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19210,6 +19909,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|14250|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19236,6 +19936,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19262,6 +19963,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|x2gd|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19289,6 +19991,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2idn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19315,6 +20018,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2idn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19341,6 +20045,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2idn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19368,6 +20073,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2idn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19396,6 +20102,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iedn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19422,6 +20129,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iedn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19448,6 +20156,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iedn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19474,6 +20183,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|20000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iedn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19500,6 +20210,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|40000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iedn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19526,6 +20237,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iedn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19552,6 +20264,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iedn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19579,6 +20292,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|80000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iedn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19607,6 +20321,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iezn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19632,6 +20347,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iezn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19657,6 +20373,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iezn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19682,6 +20399,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|12000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iezn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19707,6 +20425,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iezn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19733,6 +20452,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
  |karpenter.k8s.aws/instance-family|x2iezn|
  |karpenter.k8s.aws/instance-generation|2|
@@ -19760,6 +20480,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|z1d|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19786,6 +20507,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|z1d|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19812,6 +20534,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|3170|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|z1d|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19838,6 +20561,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|4750|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|z1d|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19864,6 +20588,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|9500|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|z1d|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19890,6 +20615,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|z1d|
  |karpenter.k8s.aws/instance-generation|1|
@@ -19916,6 +20642,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|19000|
  |karpenter.k8s.aws/instance-encryption-in-transit-supported|false|
  |karpenter.k8s.aws/instance-family|z1d|
  |karpenter.k8s.aws/instance-generation|1|
