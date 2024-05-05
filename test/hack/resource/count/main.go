@@ -44,7 +44,7 @@ func main() {
 	resourceTypes := []resourcetypes.Type{
 		resourcetypes.NewInstance(ec2Client),
 		resourcetypes.NewVPCEndpoint(ec2Client),
-		resourcetypes.NewENI(ec2Client),
+		resourcetypes.NewENI(ec2Client, cloudFormationClient),
 		resourcetypes.NewSecurityGroup(ec2Client),
 		resourcetypes.NewLaunchTemplate(ec2Client),
 		resourcetypes.NewOIDC(iamClient),

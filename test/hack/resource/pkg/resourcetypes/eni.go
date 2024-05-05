@@ -16,9 +16,12 @@ package resourcetypes
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudformation"
+	cloudformationtypes "github.com/aws/aws-sdk-go-v2/service/cloudformation/types"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
@@ -27,11 +30,12 @@ import (
 )
 
 type ENI struct {
-	ec2Client *ec2.Client
+	ec2Client            *ec2.Client
+	cloudFormationClient *cloudformation.Client
 }
 
-func NewENI(ec2Client *ec2.Client) *ENI {
-	return &ENI{ec2Client: ec2Client}
+func NewENI(ec2Client *ec2.Client, cloudFormationClient *cloudformation.Client) *ENI {
+	return &ENI{ec2Client: ec2Client, cloudFormationClient: cloudFormationClient}
 }
 
 func (e *ENI) String() string {
@@ -85,6 +89,8 @@ func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time, excluded
 			break
 		}
 	}
+	vpcIDs, err := e.getVpcResourceControllerENIs(ctx, expirationTime, excludedClusters)
+	ids = append(ids, vpcIDs...)
 	return ids, err
 }
 
@@ -153,4 +159,60 @@ func (e *ENI) Cleanup(ctx context.Context, ids []string) ([]string, error) {
 	}
 
 	return deleted, errs
+}
+
+// get-vpc-resource-controller-enis is to get leaked ENIs by the vpc-resource-controller
+// Issue: https://github.com/aws/karpenter-provider-aws/issues/5582
+func (e *ENI) getVpcResourceControllerENIs(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
+	var nextToken *string
+	for {
+		out, err := e.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
+			NextToken: nextToken,
+		})
+		if err != nil {
+			fmt.Println("dfdsf", err)
+			return ids, err
+		}
+
+		stacks := lo.Reject(out.Stacks, func(s cloudformationtypes.Stack, _ int) bool {
+			return s.StackStatus == cloudformationtypes.StackStatusDeleteComplete ||
+				s.StackStatus == cloudformationtypes.StackStatusDeleteInProgress ||
+				lo.FromPtr(s.CreationTime).After(expirationTime)
+		})
+		for _, stack := range stacks {
+			clusterName, found := lo.Find(stack.Tags, func(tag cloudformationtypes.Tag) bool {
+				return *tag.Key == karpenterTestingTag
+			})
+			if found {
+				if slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+					continue
+				}
+				out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
+					Filters: []ec2types.Filter{
+						{
+							Name:   lo.ToPtr("tag-key"),
+							Values: []string{fmt.Sprintf("kubernetes.io/cluster/%s", lo.FromPtr(clusterName.Value))},
+						},
+						{
+							Name:   lo.ToPtr("tag:eks:eni:owner"),
+							Values: []string{"eks-vpc-resource-controller"},
+						},
+					},
+				})
+				if err != nil {
+					return ids, err
+				}
+				lo.ForEach(out.NetworkInterfaces, func(ni ec2types.NetworkInterface, _ int) {
+					ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
+				})
+			}
+
+		}
+
+		nextToken = out.NextToken
+		if nextToken == nil {
+			break
+		}
+	}
+	return ids, err
 }
