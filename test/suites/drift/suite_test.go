@@ -35,8 +35,6 @@ import (
 	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/ssm"
-
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -402,11 +400,7 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
-		armParameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersionWithOffset(1))),
-		})
-		Expect(err).To(BeNil())
-		armAMI := *armParameter.Parameter.Value
+		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: armAMI}}
 
@@ -842,11 +836,7 @@ var _ = Describe("Drift", func() {
 			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
 
 			// Drift the nodeClaim with bad configuration that will not register a NodeClaim
-			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-				Name: awssdk.String("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"),
-			})
-			Expect(err).ToNot(HaveOccurred())
-			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: *parameter.Parameter.Value}}
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: env.GetAMIBySSMPath("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs")}}
 			env.ExpectCreatedOrUpdated(nodeClass)
 
 			env.EventuallyExpectDrifted(startingNodeClaimState...)
