@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -41,6 +42,7 @@ import (
 )
 
 type Provider struct {
+	sync.Mutex
 	cache           *cache.Cache
 	ssm             ssmiface.SSMAPI
 	ec2api          ec2iface.EC2API
@@ -113,6 +115,9 @@ func NewProvider(versionProvider *version.Provider, ssm ssmiface.SSMAPI, ec2api 
 
 // Get Returning a list of AMIs with its associated requirements
 func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
+	p.Lock()
+	defer p.Unlock()
+
 	var err error
 	var amis AMIs
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
@@ -195,7 +200,7 @@ func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm)
 			// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
 			Filters:    lo.Ternary(len(filtersAndOwners.Filters) > 0, filtersAndOwners.Filters, nil),
 			Owners:     lo.Ternary(len(filtersAndOwners.Owners) > 0, aws.StringSlice(filtersAndOwners.Owners), nil),
-			MaxResults: aws.Int64(500),
+			MaxResults: aws.Int64(1000),
 		}, func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for i := range page.Images {
 				reqs := p.getRequirementsFromImage(page.Images[i])
