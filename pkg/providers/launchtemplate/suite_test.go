@@ -51,7 +51,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
-	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 
@@ -122,70 +121,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	var nodePool *corev1beta1.NodePool
 	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(
-			v1beta1.EC2NodeClass{
-				Status: v1beta1.EC2NodeClassStatus{
-					InstanceProfile: "test-profile",
-					SecurityGroups: []v1beta1.SecurityGroup{
-						{
-							ID: "sg-test1",
-						},
-						{
-							ID: "sg-test2",
-						},
-						{
-							ID: "sg-test3",
-						},
-					},
-					Subnets: []v1beta1.Subnet{
-						{
-							ID:   "subnet-test1",
-							Zone: "test-zone-1a",
-						},
-						{
-							ID:   "subnet-test2",
-							Zone: "test-zone-1b",
-						},
-						{
-							ID:   "subnet-test3",
-							Zone: "test-zone-1c",
-						},
-					},
-					AMIs: []v1beta1.AMI{
-						{
-							ID: "ami-test1",
-							Requirements: scheduling.NewRequirements(
-								scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-								scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-								scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-							).NodeSelectorRequirements(),
-						},
-						{
-							ID: "ami-test2",
-							Requirements: scheduling.NewRequirements(
-								scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-								scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
-							).NodeSelectorRequirements(),
-						},
-						{
-							ID: "ami-test3",
-							Requirements: scheduling.NewRequirements(
-								scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-								scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
-							).NodeSelectorRequirements(),
-						},
-						{
-							ID: "ami-test4",
-							Requirements: scheduling.NewRequirements(
-								scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-								scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-								scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-							).NodeSelectorRequirements(),
-						},
-					},
-				},
-			},
-		)
+		nodeClass = test.EC2NodeClass()
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -219,11 +155,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	It("should create unique launch templates for multiple identical nodeClasses", func() {
 		nodeClass2 := test.EC2NodeClass(v1beta1.EC2NodeClass{
 			Status: v1beta1.EC2NodeClassStatus{
-				Subnets:        nodeClass.Status.Subnets,
-				SecurityGroups: nodeClass.Status.SecurityGroups,
-				AMIs:           nodeClass.Status.AMIs,
+				InstanceProfile: "test-profile",
+				Subnets:         nodeClass.Status.Subnets,
+				SecurityGroups:  nodeClass.Status.SecurityGroups,
+				AMIs:            nodeClass.Status.AMIs,
 			},
 		})
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass2) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
 		nodePool2 := coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -1841,9 +1780,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Status.AMIs = []v1beta1.AMI{
 					{
 						ID: "ami-123",
-						Requirements: scheduling.NewRequirements(
-							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-						).NodeSelectorRequirements(),
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+						},
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1862,9 +1801,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Status.AMIs = []v1beta1.AMI{
 					{
 						ID: "ami-123",
-						Requirements: scheduling.NewRequirements(
-							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-						).NodeSelectorRequirements(),
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+						},
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1895,7 +1834,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
-				_, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+				_, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 				Expect(err).To(BeNil())
 				Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 2))
 				actualFilter := awsEnv.EC2API.CalledWithDescribeImagesInput.Pop().Filters
@@ -1912,15 +1851,15 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Status.AMIs = []v1beta1.AMI{
 					{
 						ID: "ami-123",
-						Requirements: scheduling.NewRequirements(
-							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-						).NodeSelectorRequirements(),
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+						},
 					},
 					{
 						ID: "ami-456",
-						Requirements: scheduling.NewRequirements(
-							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-						).NodeSelectorRequirements(),
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
+						},
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1997,9 +1936,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Status.AMIs = []v1beta1.AMI{
 					{
 						ID: "ami-123",
-						Requirements: scheduling.NewRequirements(
-							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, "newnew"),
-						).NodeSelectorRequirements(),
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{"newnew"}},
+						},
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -2016,9 +1955,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				nodeClass.Status.AMIs = []v1beta1.AMI{
 					{
 						ID: "test-ami-123",
-						Requirements: scheduling.NewRequirements(
-							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-						).NodeSelectorRequirements(),
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(corev1beta1.ArchitectureAmd64)}},
+						},
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodeClass)

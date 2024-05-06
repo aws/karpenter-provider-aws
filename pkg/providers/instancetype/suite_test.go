@@ -108,70 +108,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	var nodeClass, windowsNodeClass *v1beta1.EC2NodeClass
 	var nodePool, windowsNodePool *corev1beta1.NodePool
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(
-			v1beta1.EC2NodeClass{
-				Status: v1beta1.EC2NodeClassStatus{
-					InstanceProfile: "test-profile",
-					SecurityGroups: []v1beta1.SecurityGroup{
-						{
-							ID: "sg-test1",
-						},
-						{
-							ID: "sg-test2",
-						},
-						{
-							ID: "sg-test3",
-						},
-					},
-					Subnets: []v1beta1.Subnet{
-						{
-							ID:   "subnet-test1",
-							Zone: "test-zone-1a",
-						},
-						{
-							ID:   "subnet-test2",
-							Zone: "test-zone-1b",
-						},
-						{
-							ID:   "subnet-test3",
-							Zone: "test-zone-1c",
-						},
-					},
-					AMIs: []v1beta1.AMI{
-						{
-							ID: "ami-test1",
-							Requirements: scheduling.NewRequirements(
-								scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-								scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-								scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-							).NodeSelectorRequirements(),
-						},
-						{
-							ID: "ami-test2",
-							Requirements: scheduling.NewRequirements(
-								scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-								scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
-							).NodeSelectorRequirements(),
-						},
-						{
-							ID: "ami-test3",
-							Requirements: scheduling.NewRequirements(
-								scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-								scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
-							).NodeSelectorRequirements(),
-						},
-						{
-							ID: "ami-test4",
-							Requirements: scheduling.NewRequirements(
-								scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-								scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-								scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-							).NodeSelectorRequirements(),
-						},
-					},
-				},
-			},
-		)
+		nodeClass = test.EC2NodeClass()
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -204,11 +141,11 @@ var _ = Describe("InstanceTypeProvider", func() {
 				AMIs: []v1beta1.AMI{
 					{
 						ID: "ami-window-test1",
-						Requirements: scheduling.NewRequirements(
-							scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-							scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
-							scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpIn, v1beta1.Windows2022Build),
-						).NodeSelectorRequirements(),
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+							{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}},
+							{Key: v1.LabelWindowsBuild, Operator: v1.NodeSelectorOpIn, Values: []string{v1beta1.Windows2022Build}},
+						},
 					},
 				},
 			},
