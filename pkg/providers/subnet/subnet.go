@@ -44,7 +44,7 @@ type Provider interface {
 }
 
 type DefaultProvider struct {
-	sync.RWMutex
+	sync.Mutex
 	ec2api      ec2iface.EC2API
 	cache       *cache.Cache
 	cm          *pretty.ChangeMonitor
