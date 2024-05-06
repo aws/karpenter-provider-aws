@@ -17,8 +17,6 @@ package drift_test
 import (
 	"fmt"
 	"sort"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -80,7 +78,11 @@ var _ = Describe("Drift", func() {
 	var selector labels.Selector
 	var numPods int
 	BeforeEach(func() {
-		amdAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", 1)
+		amdAMI = lo.Ternary(env.K8sMinorVersion() == 23,
+			// Pin to a specific, earlier version of the AMI since a 1.22 version doesn't exist for AL2023
+			env.GetAMIBySSMPath("/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240213/image_id"),
+			env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1))),
+		)
 		numPods = 1
 		// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
 		dep = coretest.Deployment(coretest.DeploymentOptions{
@@ -376,13 +378,10 @@ var _ = Describe("Drift", func() {
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
 		// Choose and old, static image. The 1.23 image is incompatible with EKS 1.29 so fallback to a newer image.
-		parameterName := lo.Ternary(lo.Must(strconv.Atoi(strings.Split(env.GetK8sVersion(0), ".")[1])) >= 29,
-			"/aws/service/eks/optimized-ami/1.27/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.27-v20240307/image_id",
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/arm64/standard/amazon-eks-node-al2023-arm64-standard-1.23-v20240307/image_id",
+		oldCustomAMI := lo.Ternary(env.K8sMinorVersion() >= 29,
+			env.GetAMIBySSMPath("/aws/service/eks/optimized-ami/1.27/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.27-v20240307/image_id"),
+			env.GetAMIBySSMPath("/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/arm64/standard/amazon-eks-node-al2023-arm64-standard-1.23-v20240307/image_id"),
 		)
-		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: awssdk.String(parameterName)})
-		Expect(err).To(BeNil())
-		oldCustomAMI := *parameter.Parameter.Value
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
 
@@ -403,9 +402,8 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
-		version := env.GetK8sVersion(1)
 		armParameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version)),
+			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersionWithOffset(1))),
 		})
 		Expect(err).To(BeNil())
 		armAMI := *armParameter.Parameter.Value
@@ -429,18 +427,12 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
-		version := env.GetK8sVersion(1)
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 		// Choose an old static image (AL2023 AMIs don't exist for 1.22)
-		parameterName := lo.Ternary(lo.Must(strconv.Atoi(strings.Split(env.GetK8sVersion(0), ".")[1])) == 23,
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/arm64/standard/amazon-eks-node-al2023-arm64-standard-1.23-v20240307/image_id",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version),
+		oldCustomAMI := lo.Ternary(env.K8sMinorVersion() == 23,
+			env.GetAMIBySSMPath("/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/arm64/standard/amazon-eks-node-al2023-arm64-standard-1.23-v20240307/image_id"),
+			env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersionWithOffset(1))),
 		)
-		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String(parameterName),
-		})
-		Expect(err).To(BeNil())
-		oldCustomAMI := *parameter.Parameter.Value
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
 

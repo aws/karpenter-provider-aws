@@ -49,7 +49,7 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(securityGroups).ToNot(HaveLen(0))
 		Expect(subnets).ToNot(HaveLen(0))
 
-		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", env.K8sVersionWithOffset(1)))
 		instanceProfileName = fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
 		roleName = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 		instanceInput = &ec2.RunInstancesInput{

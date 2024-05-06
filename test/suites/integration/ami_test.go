@@ -43,7 +43,7 @@ import (
 var _ = Describe("AMI", func() {
 	var customAMI string
 	BeforeEach(func() {
-		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", 1)
+		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
 	})
 
 	It("should use the AMI defined by the AMI Selector Terms", func() {
@@ -61,7 +61,7 @@ var _ = Describe("AMI", func() {
 	})
 	It("should use the most recent AMI when discovering multiple", func() {
 		// choose an old static image
-		oldCustomAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240307/image_id", 1)
+		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240307/image_id", env.K8sVersionWithOffset(1)))
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 			{
 				ID: customAMI,
@@ -156,7 +156,7 @@ var _ = Describe("AMI", func() {
 		It("should provision a node using the Ubuntu family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
 			// TODO (jmdeal@): remove once 22.04 AMIs are supported
-			if env.GetK8sVersion(0) == "1.29" {
+			if env.K8sMinorVersion() >= 29 {
 				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
 					"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
 					"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
@@ -184,7 +184,7 @@ var _ = Describe("AMI", func() {
 		})
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
-			al2AMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+			al2AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
 					ID: al2AMI,

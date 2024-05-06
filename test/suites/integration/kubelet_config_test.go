@@ -90,7 +90,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
-				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.GetK8sVersion(0) == "1.29" {
+				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.K8sMinorVersion() >= 29 {
 					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
 						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
 						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
