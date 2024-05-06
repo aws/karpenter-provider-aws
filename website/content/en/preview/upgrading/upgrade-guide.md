@@ -39,6 +39,14 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 
 ### Upgrading to `0.37.0`+
 
+{{% alert title="Warning" color="warning" %}}
+`0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.37.0`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
+{{% /alert %}}
+
+{{% alert title="Warning" color="warning" %}}
+Starting at `0.37.0`, the `ec2nodeclass.spec.amiSelectorTerms` field is required. When upgrading from previous Karpenter versions, the controller will continue to panic until `amiSelectorTerms` have been specified for all `EC2NodeClasses` applied to the cluster. Please refer to the [`AMISelectorTerms` documentation]({{<ref "../concepts/nodeclasses#spec-amiFamily" >}}) for more details.
+{{% /alert %}}
+
 * Karpenter updated the NodeClass controller naming in the following way: `nodeclass` -> `nodeclass.status`, `nodeclass.hash`, `nodeclass.termination`
 
 ### Upgrading to `0.36.0`+

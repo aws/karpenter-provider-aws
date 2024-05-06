@@ -38,6 +38,13 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 	if options.Spec.AMIFamily == nil {
 		options.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
 	}
+	if options.Spec.AMISelectorTerms == nil {
+		options.Spec.AMISelectorTerms = append(options.Spec.AMISelectorTerms, v1beta1.AMISelectorTerm{
+			EKSOptimized: &v1beta1.EKSOptimized{
+				Family: v1beta1.AMIFamilyAL2,
+			},
+		})
+	}
 	if options.Spec.Role == "" {
 		options.Spec.Role = "test-role"
 		options.Status.InstanceProfile = "test-profile"

@@ -89,6 +89,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
+				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+					EKSOptimized: &v1beta1.EKSOptimized{Family: *amiFamily},
+				}}
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
 				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.GetK8sVersion(0) == "1.29" {
 					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
@@ -123,6 +126,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				})
 
 				nodeClass.Spec.AMIFamily = amiFamily
+				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+					EKSOptimized: &v1beta1.EKSOptimized{Family: *amiFamily},
+				}}
 				// Need to enable nodepool-level OS-scoping for now since DS evaluation is done off of the nodepool
 				// requirements, not off of the instance type options so scheduling can fail if nodepool aren't
 				// properly scoped
@@ -230,6 +236,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+			EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+		}}
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
 		test.ReplaceRequirements(nodePool,

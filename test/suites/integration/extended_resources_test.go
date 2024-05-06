@@ -47,6 +47,9 @@ var _ = Describe("Extended Resources", func() {
 		ExpectNvidiaDevicePluginCreated()
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+			EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2},
+		}}
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -79,6 +82,9 @@ var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
 		// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+			EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+		}}
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -240,6 +246,9 @@ var _ = Describe("Extended Resources", func() {
 		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+			EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2},
+		}}
 
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{

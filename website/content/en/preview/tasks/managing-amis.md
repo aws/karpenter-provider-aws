@@ -11,15 +11,20 @@ Below we describe how Karpenter assigns AMIs to nodes when they are first deploy
 Later, it describes the options you have to assert control over how AMIs are used by Karpenter for your clusters.
 
 Features for managing AMIs described here should be considered as part of the larger upgrade policies that you have for your clusters.
-See [How do I upgrade an EKS Cluster with Karpenter]({{< relref "../faq/#how-do-i-upgrade-an-eks-cluster-with-karpenter" >}}) for details on this process. 
+See [How do I upgrade an EKS Cluster with Karpenter]({{< relref "../faq/#how-do-i-upgrade-an-eks-cluster-with-karpenter" >}}) for details on this process.
 
 ## How Karpenter assigns AMIs to nodes
 
-Here is how Karpenter assigns AMIs nodes:
+When you create an `EC2NodeClass`, you are required to set a set of [AMI selector terms]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}). These dictate which AMI Karpenter uses when provisioning EC2 instances.
+The easiest way to get started with Karpenter is to allow it to select AMIs automatically using the `eksOptimized` term. The following example will select the latest [EKS optimized AL2023 AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) for your workload.
 
-* When you create an `EC2NodeClass`, you are required to set the family of AMIs to use. For example, for the AL2 family, you would set `amiFamily: AL2`.
-* With that `amiFamily` set, any time Karpenter spins up a new node, it uses the latest [Amazon EKS optimized Amazon Linux 2 AMIs](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-ami.html) release.
-* Later, if an existing node needs to be replaced, Karpenter checks to see if a newer AMI in the AL2 family is available and automatically uses the new AMI instead to spin up the new node. In other words, you may automatically get an AMI that you have not tested with your workloads.
+```yaml
+amiSelectorTerms:
+  - eksOptimized:
+      family: AL2023
+```
+
+Later, if an existing node needs to be replaced, Karpenter checks to see if a newer AMI in the AL2023 family is available and automatically uses the new AMI instead to spin up the new node. In other words, you may automatically get an AMI that you have not tested with your workloads.
 
 You can manually delete a node managed by Karpenter, which will cause the default behavior just described to take effect.
 However, there are situations that will cause node replacements with newer AMIs to happen automatically.
@@ -55,7 +60,7 @@ The following lays out the options you have to impact Karpenter’s behavior as 
 Instead of just avoiding AMI upgrades, you can set up test clusters where you can try out new AMI releases before they are put into production.
 For example, you could have:
 
-* **Test clusters**: On lower environment clusters, you can run the latest AMIs for your workloads in a safe environment. The `EC2NodeClass` for these clusters could be set with a chosen `amiFamily`, but no `amiSelectorTerms` set. For example, the `NodePool` and `EC2NodeClass` could begin with the following:
+* **Test clusters**: On lower environment clusters, you can run the latest AMIs for your workloads in a safe environment. For example, the `NodePool` and `EC2NodeClass` could begin with the following:
 
   ```yaml
   apiVersion: karpenter.sh/v1beta1
@@ -75,14 +80,20 @@ For example, you could have:
   metadata:
     name: default
   spec:
-    # The latest AMI in this family will be used
-    amiFamily: AL2
+    # amiFamily dictates the bootstrapping mode (i.e. UserData format and default block device mappings).
+    # This must match the `eksOptimized.family` term or be 'Custom'.
+    amiFamily: AL2023
+
+    amiSelectorTerms:
+      - eksOptimized:
+          # The latest AMI in this family will be used
+          family: AL2023
   ```
-* **Production clusters**: After you've confirmed that the AMI works in your lower environments, you can pin the latest AMIs to be deployed in your production clusters to roll out the AMI. One way to do that is to use `amiSelectorTerms` to set the tested AMI to be used in your production cluster. Refer to Option 2 for how to choose a particular AMI by `name` or `id`. Remember that it is still best practice to gradually roll new AMIs into your cluster, even if they have been tested. So consider implementing that for your production clusters as described in Option 3.
+* **Production clusters**: After you've confirmed that the AMI works in your lower environments, you can pin the latest AMIs to be deployed in your production clusters to roll out the AMI. Refer to Option 2 for how to choose a particular AMI by `name` or `id`. Remember that it is still best practice to gradually roll new AMIs into your cluster, even if they have been tested. So consider implementing that for your production clusters as described in Option 3.
 
 ### Option 2: Lock down which AMIs are selected
 
-Instead of letting Karpenter always run the latest AMI, you can change Karpenter’s default behavior.
+Instead of letting Karpenter always run the latest AMI, you can select specific AMIs.
 When you configure the [**EC2NodeClass**]({{< relref "../concepts/nodeclasses" >}}), you can set a specific AMI that you want Karpenter to always choose, using the `amiSelectorTerms` field.
 This prevents a new and potentially untested AMI from replacing existing nodes when those nodes are terminated.
 
@@ -91,23 +102,26 @@ These examples show two different ways to identify the same AMI:
 
 ```yaml
 amiSelectorTerms:
-- tags:
-    karpenter.sh/discovery: "${CLUSTER_NAME}"
-    environment: prod
-- name: al2023-ami-2023.3.20240219.0-kernel-6.1-x86_64
+  - name: al2023-ami-2023.3.20240219.0-kernel-6.1-x86_64
 ```
 
 or
 
 ```yaml
 amiSelectorTerms:
-- tags:
-    karpenter.sh/discovery: "${CLUSTER_NAME}"
-    environment: prod
-- id: ami-052c9ea013e6e3567
+  - id: ami-052c9ea013e6e3567
 ```
 
-See the [**spec.amiSelectorTerms**]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) section of the NodeClasses page for details. 
+Alternatively, AMIs can be discovered via tags. Once an AMI has been validated in a lower environment, it can be tagged for discovery by Karpenter. Karpenter will then begin using the new AMI without requiring an update to your `EC2NodeClasses`.
+
+```yaml
+amiSelectorTerms:
+  - tags:
+      karpenter.sh/discovery: "${CLUSTER_NAME}"
+      environment: prod
+```
+
+See the [**spec.amiSelectorTerms**]({{< relref "../concepts/nodeclasses/#specamiselectorterms" >}}) section of the NodeClasses page for details.
 Keep in mind, that this could prevent you from getting critical security patches when new AMIs are available, but it does give you control over exactly which AMI is running.
 
 

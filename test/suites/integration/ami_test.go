@@ -135,12 +135,18 @@ var _ = Describe("AMI", func() {
 		It("should provision a node using the AL2 family", func() {
 			pod := coretest.Pod()
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2},
+			}}
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should provision a node using the AL2023 family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2023},
+			}}
 			pod := coretest.Pod()
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
@@ -148,6 +154,9 @@ var _ = Describe("AMI", func() {
 		})
 		It("should provision a node using the Bottlerocket family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+			}}
 			pod := coretest.Pod()
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
@@ -155,6 +164,9 @@ var _ = Describe("AMI", func() {
 		})
 		It("should provision a node using the Ubuntu family", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyUbuntu},
+			}}
 			// TODO (jmdeal@): remove once 22.04 AMIs are supported
 			if env.GetK8sVersion(0) == "1.29" {
 				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
@@ -227,6 +239,9 @@ var _ = Describe("AMI", func() {
 			content, err := os.ReadFile("testdata/al2_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2},
+			}}
 			nodeClass.Spec.UserData = aws.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
@@ -248,6 +263,9 @@ var _ = Describe("AMI", func() {
 			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyAL2},
+			}}
 			nodeClass.Spec.UserData = aws.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
@@ -269,6 +287,9 @@ var _ = Describe("AMI", func() {
 			content, err := os.ReadFile("testdata/br_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyBottlerocket},
+			}}
 			nodeClass.Spec.UserData = aws.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
@@ -293,6 +314,9 @@ var _ = Describe("AMI", func() {
 			content, err := os.ReadFile("testdata/windows_userdata_input.ps1")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{
+				EKSOptimized: &v1beta1.EKSOptimized{Family: v1beta1.AMIFamilyWindows2022},
+			}}
 			nodeClass.Spec.UserData = aws.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}

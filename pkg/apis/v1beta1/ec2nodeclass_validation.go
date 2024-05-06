@@ -20,6 +20,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
@@ -72,6 +73,11 @@ func (in *EC2NodeClassSpec) validate(_ context.Context) (errs *apis.FieldError) 
 	}
 	if in.Role == "" && in.InstanceProfile == nil {
 		errs = errs.Also(apis.ErrMissingOneOf(rolePath, instanceProfilePath))
+	}
+	if term, ok := lo.Find(in.AMISelectorTerms, func(t AMISelectorTerm) bool {
+		return t.EKSOptimized != nil
+	}); ok && lo.FromPtr(in.AMIFamily) != term.EKSOptimized.Family && lo.FromPtr(in.AMIFamily) != AMIFamilyCustom {
+		errs = errs.Also(apis.ErrGeneric(`amiFamily must match amiSelectorTerms[].eksOptimized.family or be 'Custom'`))
 	}
 	return errs.Also(
 		in.validateSubnetSelectorTerms().ViaField(subnetSelectorTermsPath),
@@ -128,6 +134,14 @@ func (in *SecurityGroupSelectorTerm) validate() (errs *apis.FieldError) {
 }
 
 func (in *EC2NodeClassSpec) validateAMISelectorTerms() (errs *apis.FieldError) {
+	if len(in.AMISelectorTerms) == 0 {
+		errs = errs.Also(apis.ErrMissingOneOf())
+	}
+	if lo.ContainsBy(in.AMISelectorTerms, func(term AMISelectorTerm) bool {
+		return term.EKSOptimized != nil
+	}) && len(in.AMISelectorTerms) > 1 {
+		errs = errs.Also(apis.ErrGeneric(`"eksOptimized" is mutually exclusive, cannot be set with other terms`))
+	}
 	for _, term := range in.AMISelectorTerms {
 		errs = errs.Also(term.validate())
 	}
@@ -137,10 +151,12 @@ func (in *EC2NodeClassSpec) validateAMISelectorTerms() (errs *apis.FieldError) {
 //nolint:gocyclo
 func (in *AMISelectorTerm) validate() (errs *apis.FieldError) {
 	errs = errs.Also(validateTags(in.Tags).ViaField("tags"))
-	if len(in.Tags) == 0 && in.ID == "" && in.Name == "" {
-		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id", "name"))
-	} else if in.ID != "" && (len(in.Tags) > 0 || in.Name != "" || in.Owner != "") {
+	if len(in.Tags) == 0 && in.ID == "" && in.Name == "" && in.EKSOptimized == nil {
+		errs = errs.Also(apis.ErrGeneric("expect at least one, got none", "tags", "id", "name", "eksOptimized"))
+	} else if in.ID != "" && (len(in.Tags) > 0 || in.Name != "" || in.Owner != "" || in.EKSOptimized != nil) {
 		errs = errs.Also(apis.ErrGeneric(`"id" is mutually exclusive, cannot be set with a combination of other fields in`))
+	} else if in.EKSOptimized != nil && (len(in.Tags) > 0 || in.Name != "" || in.Owner != "" || in.ID != "") {
+		errs = errs.Also(apis.ErrGeneric(`"eksOptimized" is mutually exclusive, cannot be set with a combination of other fields in`))
 	}
 	return errs
 }
