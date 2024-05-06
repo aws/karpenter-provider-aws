@@ -483,18 +483,18 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				EfaInfo: &ec2.EfaInfo{
 					MaximumEfaInterfaces: aws.Int64(2),
 				},
-				MaximumNetworkInterfaces:     aws.Int64(14),
+				MaximumNetworkInterfaces:     aws.Int64(16),
 				Ipv4AddressesPerInterface:    aws.Int64(50),
 				EncryptionInTransitSupported: aws.Bool(true),
 				DefaultNetworkCardIndex:      aws.Int64(0),
 				NetworkCards: []*ec2.NetworkCardInfo{
 					{
 						NetworkCardIndex:         aws.Int64(0),
-						MaximumNetworkInterfaces: aws.Int64(7),
+						MaximumNetworkInterfaces: aws.Int64(8),
 					},
 					{
 						NetworkCardIndex:         aws.Int64(1),
-						MaximumNetworkInterfaces: aws.Int64(7),
+						MaximumNetworkInterfaces: aws.Int64(8),
 					},
 				},
 			},
