@@ -76,7 +76,7 @@ func (a AMIs) Sort() {
 			return a[i].Name < a[j].Name
 		}
 		iHash, _ := hashstructure.Hash(a[i].Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{})
-		jHash, _ := hashstructure.Hash(a[i].Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{})
+		jHash, _ := hashstructure.Hash(a[j].Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{})
 		return iHash < jHash
 	})
 }
