@@ -30,8 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
-
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -572,13 +570,9 @@ var _ = Describe("Expiration", func() {
 			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
 
 			// Set a configuration that will not register a NodeClaim
-			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-				Name: lo.ToPtr("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"),
-			})
-			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
-					ID: *parameter.Parameter.Value,
+					ID: env.GetAMIBySSMPath("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"),
 				},
 			}
 			env.ExpectCreatedOrUpdated(nodeClass)
