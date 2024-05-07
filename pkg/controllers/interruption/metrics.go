@@ -25,7 +25,6 @@ const (
 	interruptionSubsystem  = "interruption"
 	messageTypeLabel       = "message_type"
 	actionTypeLabel        = "action_type"
-	nodePoolLabel          = "nodepool"
 	terminationReasonLabel = "interruption"
 )
 
