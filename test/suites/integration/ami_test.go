@@ -17,6 +17,7 @@ package integration_test
 import (
 	"encoding/base64"
 	"fmt"
+	"github.com/aws/aws-sdk-go/service/ssm"
 	"os"
 	"strings"
 	"time"
@@ -157,8 +158,8 @@ var _ = Describe("AMI", func() {
 			// TODO (jmdeal@): remove once 22.04 AMIs are supported and based on confirmation if 20.04 will continue to be supported for the new versions and if 24.04 will be supported.
 			if env.K8sMinorVersion() < 30 {
 				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
-					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
-					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.K8sVersion()),
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.K8sVersion()),
 				}, func(ssmPath string, _ int) v1beta1.AMISelectorTerm {
 					return v1beta1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
 				})
@@ -184,8 +185,8 @@ var _ = Describe("AMI", func() {
 			// TODO (jmdeal@): remove once 22.04 AMIs are supported and based on confirmation if 20.04 will continue to be supported for the new versions and if 24.04 will be supported.
 			if env.K8sMinorVersion() < 30 {
 				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
-					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
-					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.K8sVersion()),
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.K8sVersion()),
 				}, func(arg string, _ int) v1beta1.AMISelectorTerm {
 					parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
 					Expect(err).To(BeNil())
@@ -213,8 +214,8 @@ var _ = Describe("AMI", func() {
 			// TODO (jmdeal@): remove once 22.04 AMIs are supported and based on confirmation if 20.04 will continue to be supported for the new versions and if 24.04 will be supported.
 			if env.K8sMinorVersion() >= 29 {
 				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
-					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
-					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.K8sVersion()),
+					fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.K8sVersion()),
 				}, func(arg string, _ int) v1beta1.AMISelectorTerm {
 					parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
 					Expect(err).To(BeNil())
