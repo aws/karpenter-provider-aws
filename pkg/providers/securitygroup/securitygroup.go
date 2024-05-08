@@ -78,7 +78,9 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 		return nil, err
 	}
 	if sg, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return sg.([]*ec2.SecurityGroup), nil
+		// Ensure what's returned from this function is a deep-copy of the slice (not a deep-copy of the data itself)
+		// so that modifications to the ordering of the data don't affect the original
+		return append([]*ec2.SecurityGroup{}, sg.([]*ec2.SecurityGroup)...), nil
 	}
 	securityGroups := map[string]*ec2.SecurityGroup{}
 	for _, filters := range filterSets {
