@@ -27,7 +27,6 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -37,9 +36,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
-	versionchecker "k8s.io/apimachinery/pkg/util/version"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
@@ -92,9 +88,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
-				k8sVersion := versionchecker.MustParseGeneric(env.GetK8sVersion(0))
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported and based on confirmation if 20.04 will continue to be supported for the new versions and if 24.04 will be supported.
-				if (*amiFamily == v1beta1.AMIFamilyUbuntu || *amiFamily == v1beta1.AMIFamilyUbuntu2004) && k8sVersion.LessThan(versionchecker.MustParseGeneric("1.30")) {
+				if (*amiFamily == v1beta1.AMIFamilyUbuntu || *amiFamily == v1beta1.AMIFamilyUbuntu2004) && env.K8sMinorVersion() < 30 {
 					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
 						fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
 						fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
@@ -107,10 +102,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
 						fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
 						fmt.Sprintf("/aws/service/canonical/ubuntu/eks/22.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", env.GetK8sVersion(0)),
-					}, func(arg string, _ int) v1beta1.AMISelectorTerm {
-						parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
-						Expect(err).To(BeNil())
-						return v1beta1.AMISelectorTerm{ID: *parameter.Parameter.Value}
+					}, func(ssmPath string, _ int) v1beta1.AMISelectorTerm {
+						return v1beta1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
 					})
 				}
 				pod := test.Pod(test.PodOptions{

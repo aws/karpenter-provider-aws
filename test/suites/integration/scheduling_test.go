@@ -448,7 +448,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		DescribeTable(
 			"should provision a right-sized node when a pod has InitContainers (cpu)",
 			func(expectedNodeCPU string, containerRequirements v1.ResourceRequirements, initContainers ...v1.Container) {
-				if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
+				if env.K8sMinorVersion() < 29 {
 					Skip("native sidecar containers are only enabled on EKS 1.29+")
 				}
 
@@ -549,7 +549,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}),
 		)
 		It("should provision a right-sized node when a pod has InitContainers (mixed resources)", func() {
-			if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
+			if env.K8sMinorVersion() < 29 {
 				Skip("native sidecar containers are only enabled on EKS 1.29+")
 			}
 			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{

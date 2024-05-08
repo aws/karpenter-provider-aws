@@ -512,6 +512,64 @@ var _ = Describe("AMIProvider", func() {
 				},
 			))
 		})
+		It("should sort amis with the same name and creation date consistently", func() {
+			amis := amifamily.AMIs{
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-4-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-3-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-2-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-1-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+			}
+
+			amis.Sort()
+			Expect(amis).To(Equal(
+				amifamily.AMIs{
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-1-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-2-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-3-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-4-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Requirements: scheduling.NewRequirements(),
+					},
+				},
+			))
+		})
 	})
 })
 
