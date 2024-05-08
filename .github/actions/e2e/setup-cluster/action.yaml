@@ -174,6 +174,8 @@ runs:
         withOIDC: true
       addons:
       - name: amazon-cloudwatch-observability
+        # Pin addon version due to undiagnosed e2e failures after 1.6.0 release
+        version: '1.5.5-eksbuild.1'
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: vpc-cni
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
