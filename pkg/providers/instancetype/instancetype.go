@@ -133,7 +133,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 		aws.StringValue(nodeClass.Spec.AMIFamily),
 	)
 	if item, ok := p.instanceTypesCache.Get(key); ok {
-		// Ensure what's returned from this function is a deep-copy of the slice (not a deep-copy of the data itself)
+		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
 		// so that modifications to the ordering of the data don't affect the original
 		return append([]*cloudprovider.InstanceType{}, item.([]*cloudprovider.InstanceType)...), nil
 	}
