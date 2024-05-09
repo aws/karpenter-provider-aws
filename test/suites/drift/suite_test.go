@@ -838,6 +838,9 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(startingNodeClaimState...)
 
+			// Only drift a single node at a time due to default budgets
+			driftedNodeClaimState := env.EventuallyExpectCreatedNodeClaimCount("==", int(numPods)+1)
+
 			// Expect nodes To get tainted
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
@@ -849,7 +852,17 @@ var _ = Describe("Drift", func() {
 			Eventually(func(g Gomega) {
 				nodeClaims := &corev1beta1.NodeClaimList{}
 				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-				g.Expect(nodeClaims.Items).To(HaveLen(int(numPods)))
+				replacementNodeClaims := lo.FilterMap(driftedNodeClaimState, func(nc *corev1beta1.NodeClaim, _ int) (types.UID, bool) {
+					if lo.ContainsBy(startingNodeClaimState, func(snc *corev1beta1.NodeClaim) bool {
+						return snc.UID == nc.UID
+					}) {
+						return "", false
+					}
+					return nc.UID, true
+				})
+				g.Expect(lo.ContainsBy(nodeClaims.Items, func(nc corev1beta1.NodeClaim) bool {
+					return lo.Contains(replacementNodeClaims, nc.UID)
+				})).To(BeFalse())
 			}).WithTimeout(6 * time.Minute).Should(Succeed())
 
 			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed
