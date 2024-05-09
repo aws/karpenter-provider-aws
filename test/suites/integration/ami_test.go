@@ -42,7 +42,7 @@ import (
 var _ = Describe("AMI", func() {
 	var customAMI string
 	BeforeEach(func() {
-		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
+		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 	})
 
 	It("should use the AMI defined by the AMI Selector Terms", func() {
@@ -59,8 +59,8 @@ var _ = Describe("AMI", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should use the most recent AMI when discovering multiple", func() {
-		// choose an old static image
-		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240307/image_id", env.K8sVersionWithOffset(1)))
+		// choose an old static image that will definitely have an older creation date
+		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240307/image_id", env.K8sVersion()))
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 			{
 				ID: customAMI,
