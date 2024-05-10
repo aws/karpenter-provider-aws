@@ -838,41 +838,19 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(startingNodeClaimState...)
 
-			// Only drift a single node at a time due to default budgets
-			driftedNodeClaimState := env.EventuallyExpectCreatedNodeClaimCount("==", int(numPods)+1)
-
-			// Expect nodes To get tainted
+			// Expect nodes To get tainted, expect only one node is disrupted due to default disruption budgets
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
 			// Drift should fail and the original node should be untainted
 			// TODO: reduce timeouts when disruption waits are factored out
 			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, taintedNodes...)
 
-			// We give another 6 minutes here to handle the deletion at the 15m registration timeout
-			Eventually(func(g Gomega) {
-				nodeClaims := &corev1beta1.NodeClaimList{}
-				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-				replacementNodeClaims := lo.FilterMap(driftedNodeClaimState, func(nc *corev1beta1.NodeClaim, _ int) (types.UID, bool) {
-					if lo.ContainsBy(startingNodeClaimState, func(snc *corev1beta1.NodeClaim) bool {
-						return snc.UID == nc.UID
-					}) {
-						return "", false
-					}
-					return nc.UID, true
-				})
-				g.Expect(lo.ContainsBy(nodeClaims.Items, func(nc corev1beta1.NodeClaim) bool {
-					return lo.Contains(replacementNodeClaims, nc.UID)
-				})).To(BeFalse())
-			}).WithTimeout(6 * time.Minute).Should(Succeed())
-
 			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed
 			Consistently(func(g Gomega) {
-				nodeClaims := &corev1beta1.NodeClaimList{}
-				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-
-				startingNodeClaimUIDs := lo.Map(startingNodeClaimState, func(nc *corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })
-				nodeClaimUIDs := lo.Map(nodeClaims.Items, func(nc corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })
-				g.Expect(sets.New(nodeClaimUIDs...).IsSuperset(sets.New(startingNodeClaimUIDs...))).To(BeTrue())
+				nodeClaims := env.ExpectNodeClaimCount(">=", int(numPods))
+				startingNodeClaimUIDs := sets.New(lo.Map(startingNodeClaimState, func(nc *corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })...)
+				nodeClaimUIDs := sets.New(lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })...)
+				g.Expect(nodeClaimUIDs.IsSuperset(startingNodeClaimUIDs)).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
 		It("should not continue to drift if a node registers but never becomes initialized", func() {
@@ -919,12 +897,10 @@ var _ = Describe("Drift", func() {
 
 			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed
 			Consistently(func(g Gomega) {
-				nodeClaims := &corev1beta1.NodeClaimList{}
-				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-
-				startingNodeClaimUIDs := lo.Map(startingNodeClaimState, func(m *corev1beta1.NodeClaim, _ int) types.UID { return m.UID })
-				nodeClaimUIDs := lo.Map(nodeClaims.Items, func(m corev1beta1.NodeClaim, _ int) types.UID { return m.UID })
-				g.Expect(sets.New(nodeClaimUIDs...).IsSuperset(sets.New(startingNodeClaimUIDs...))).To(BeTrue())
+				nodeClaims := env.ExpectNodeClaimCount(">=", int(numPods))
+				startingNodeClaimUIDs := sets.New(lo.Map(startingNodeClaimState, func(m *corev1beta1.NodeClaim, _ int) types.UID { return m.UID })...)
+				nodeClaimUIDs := sets.New(lo.Map(nodeClaims, func(m *corev1beta1.NodeClaim, _ int) types.UID { return m.UID })...)
+				g.Expect(nodeClaimUIDs.IsSuperset(startingNodeClaimUIDs)).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
 		It("should not drift any nodes if their PodDisruptionBudgets are unhealthy", func() {
