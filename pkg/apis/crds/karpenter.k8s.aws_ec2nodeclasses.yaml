@@ -506,6 +506,7 @@ spec:
                             items:
                               type: string
                             type: array
+                            x-kubernetes-list-type: atomic
                         required:
                         - key
                         - operator
