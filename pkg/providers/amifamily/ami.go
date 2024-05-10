@@ -135,7 +135,9 @@ func (p *Provider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, opt
 
 func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {
 	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
-		return images.(AMIs), nil
+		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
+		// to the data don't affect the original
+		return append(AMIs{}, images.(AMIs)...), nil
 	}
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	kubernetesVersion, err := p.versionProvider.Get(ctx)
@@ -187,7 +189,9 @@ func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm)
 		return nil, err
 	}
 	if images, ok := p.cache.Get(fmt.Sprintf("%d", hash)); ok {
-		return images.(AMIs), nil
+		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
+		// to the data don't affect the original
+		return append(AMIs{}, images.(AMIs)...), nil
 	}
 	images := map[uint64]AMI{}
 	for _, filtersAndOwners := range filterAndOwnerSets {
