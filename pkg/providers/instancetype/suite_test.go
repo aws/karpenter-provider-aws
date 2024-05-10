@@ -21,6 +21,7 @@ import (
 	"net"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -736,7 +737,6 @@ var _ = Describe("InstanceTypes", func() {
 		ExpectScheduled(ctx, env.Client, pod)
 
 	})
-
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
@@ -1605,6 +1605,41 @@ var _ = Describe("InstanceTypes", func() {
 				Expect(*ltInput.LaunchTemplateData.MetadataOptions.HttpTokens).To(Equal(ec2.LaunchTemplateHttpTokensStateOptional))
 			})
 		})
+	})
+	It("should not cause data races when calling List() simultaneously", func() {
+		mu := sync.RWMutex{}
+		var instanceTypeOrder []string
+		wg := sync.WaitGroup{}
+		for i := 0; i < 10000; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer GinkgoRecover()
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Sort everything in parallel and ensure that we don't get data races
+				sort.Slice(instanceTypes, func(i, j int) bool {
+					return instanceTypes[i].Name < instanceTypes[j].Name
+				})
+				// Get the ordering of the instance types based on name
+				tempInstanceTypeOrder := lo.Map(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) string {
+					return i.Name
+				})
+				// Expect that all the elements in the instance type list are unique
+				Expect(lo.Uniq(tempInstanceTypeOrder)).To(HaveLen(len(tempInstanceTypeOrder)))
+
+				// We have to lock since we are doing simultaneous access to this value
+				mu.Lock()
+				if len(instanceTypeOrder) == 0 {
+					instanceTypeOrder = tempInstanceTypeOrder
+				} else {
+					Expect(tempInstanceTypeOrder).To(BeEquivalentTo(instanceTypeOrder))
+				}
+				mu.Unlock()
+			}()
+		}
+		wg.Wait()
 	})
 })
 
