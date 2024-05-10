@@ -18,6 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/karpenter-core/pkg/apis/v1alpha5"
+	corev1beta1 "github.com/aws/karpenter-core/pkg/apis/v1beta1"
 	coreoptions "github.com/aws/karpenter-core/pkg/operator/options"
 	"github.com/aws/karpenter-core/pkg/operator/scheme"
 	"github.com/aws/karpenter-core/pkg/scheduling"
@@ -75,7 +77,7 @@ var _ = BeforeEach(func() {
 			{
 				Name:         aws.String(amd64AMI),
 				ImageId:      aws.String("amd64-ami-id"),
-				CreationDate: aws.String(time.Now().Format(time.RFC3339)),
+				CreationDate: aws.String(time.Time{}.Format(time.RFC3339)),
 				Architecture: aws.String("x86_64"),
 				Tags: []*ec2.Tag{
 					{Key: aws.String("Name"), Value: aws.String(amd64AMI)},
@@ -85,7 +87,7 @@ var _ = BeforeEach(func() {
 			{
 				Name:         aws.String(arm64AMI),
 				ImageId:      aws.String("arm64-ami-id"),
-				CreationDate: aws.String(time.Now().Add(time.Minute).Format(time.RFC3339)),
+				CreationDate: aws.String(time.Time{}.Add(time.Minute).Format(time.RFC3339)),
 				Architecture: aws.String("arm64"),
 				Tags: []*ec2.Tag{
 					{Key: aws.String("Name"), Value: aws.String(arm64AMI)},
@@ -95,7 +97,7 @@ var _ = BeforeEach(func() {
 			{
 				Name:         aws.String(amd64NvidiaAMI),
 				ImageId:      aws.String("amd64-nvidia-ami-id"),
-				CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
+				CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
 				Architecture: aws.String("x86_64"),
 				Tags: []*ec2.Tag{
 					{Key: aws.String("Name"), Value: aws.String(amd64NvidiaAMI)},
@@ -105,7 +107,7 @@ var _ = BeforeEach(func() {
 			{
 				Name:         aws.String(arm64NvidiaAMI),
 				ImageId:      aws.String("arm64-nvidia-ami-id"),
-				CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
+				CreationDate: aws.String(time.Time{}.Add(2 * time.Minute).Format(time.RFC3339)),
 				Architecture: aws.String("arm64"),
 				Tags: []*ec2.Tag{
 					{Key: aws.String("Name"), Value: aws.String(arm64NvidiaAMI)},
@@ -186,6 +188,49 @@ var _ = Describe("AMIProvider", func() {
 		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(0))
+	})
+	It("should not cause data races when calling Get() simultaneously", func() {
+		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			{
+				ID: "amd64-ami-id",
+			},
+			{
+				ID: "arm64-ami-id",
+			},
+		}
+		wg := sync.WaitGroup{}
+		for i := 0; i < 10000; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer GinkgoRecover()
+				images, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(images).To(HaveLen(2))
+				// Sort everything in parallel and ensure that we don't get data races
+				images.Sort()
+				Expect(images).To(BeEquivalentTo([]amifamily.AMI{
+					{
+						Name:         arm64AMI,
+						AmiID:        "arm64-ami-id",
+						CreationDate: time.Time{}.Add(time.Minute).Format(time.RFC3339),
+						Requirements: scheduling.NewLabelRequirements(map[string]string{
+							v1.LabelArchStable: corev1beta1.ArchitectureArm64,
+						}),
+					},
+					{
+						Name:         amd64AMI,
+						AmiID:        "amd64-ami-id",
+						CreationDate: time.Time{}.Format(time.RFC3339),
+						Requirements: scheduling.NewLabelRequirements(map[string]string{
+							v1.LabelArchStable: corev1beta1.ArchitectureAmd64,
+						}),
+					},
+				}))
+			}()
+		}
+		wg.Wait()
 	})
 	Context("SSM Alias Missing", func() {
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Al2)", func() {
