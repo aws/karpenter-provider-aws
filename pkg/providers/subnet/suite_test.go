@@ -16,6 +16,8 @@ package subnet_test
 
 import (
 	"context"
+	"sort"
+	"sync"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -238,6 +240,81 @@ var _ = Describe("SubnetProvider", func() {
 			Expect(err).To(BeNil())
 			Expect(onlyPrivate).To(BeTrue())
 		})
+	})
+	It("should not cause data races when calling List() simultaneously", func() {
+		wg := sync.WaitGroup{}
+		for i := 0; i < 10000; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer GinkgoRecover()
+				subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(subnets).To(HaveLen(3))
+				// Sort everything in parallel and ensure that we don't get data races
+				sort.Slice(subnets, func(i, j int) bool {
+					if int(*subnets[i].AvailableIpAddressCount) != int(*subnets[j].AvailableIpAddressCount) {
+						return int(*subnets[i].AvailableIpAddressCount) > int(*subnets[j].AvailableIpAddressCount)
+					}
+					return *subnets[i].SubnetId < *subnets[j].SubnetId
+				})
+				Expect(subnets).To(BeEquivalentTo([]*ec2.Subnet{
+					{
+						AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+						AvailableIpAddressCount: lo.ToPtr[int64](100),
+						SubnetId:                lo.ToPtr("subnet-test1"),
+						MapPublicIpOnLaunch:     lo.ToPtr(false),
+						Tags: []*ec2.Tag{
+							{
+								Key:   lo.ToPtr("Name"),
+								Value: lo.ToPtr("test-subnet-1"),
+							},
+							{
+								Key:   lo.ToPtr("foo"),
+								Value: lo.ToPtr("bar"),
+							},
+						},
+					},
+					{
+						AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+						AvailableIpAddressCount: lo.ToPtr[int64](100),
+						MapPublicIpOnLaunch:     lo.ToPtr(true),
+						SubnetId:                lo.ToPtr("subnet-test2"),
+
+						Tags: []*ec2.Tag{
+							{
+								Key:   lo.ToPtr("Name"),
+								Value: lo.ToPtr("test-subnet-2"),
+							},
+							{
+								Key:   lo.ToPtr("foo"),
+								Value: lo.ToPtr("bar"),
+							},
+						},
+					},
+					{
+						AvailabilityZone:        lo.ToPtr("test-zone-1c"),
+						AvailableIpAddressCount: lo.ToPtr[int64](100),
+						SubnetId:                lo.ToPtr("subnet-test3"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   lo.ToPtr("Name"),
+								Value: lo.ToPtr("test-subnet-3"),
+							},
+							{
+								Key: lo.ToPtr("TestTag"),
+							},
+							{
+								Key:   lo.ToPtr("foo"),
+								Value: lo.ToPtr("bar"),
+							},
+						},
+					},
+				}))
+			}()
+		}
+		wg.Wait()
 	})
 })
 
