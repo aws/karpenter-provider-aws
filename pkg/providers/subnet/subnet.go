@@ -68,7 +68,9 @@ func (p *Provider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([
 		return nil, err
 	}
 	if subnets, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return subnets.([]*ec2.Subnet), nil
+		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
+		// so that modifications to the ordering of the data don't affect the original
+		return append([]*ec2.Subnet{}, subnets.([]*ec2.Subnet)...), nil
 	}
 
 	// Ensure that all the subnets that are returned here are unique
