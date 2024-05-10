@@ -100,7 +100,9 @@ func (p *Provider) List(ctx context.Context, kc *corev1beta1.KubeletConfiguratio
 	key := fmt.Sprintf("%d-%d-%s-%016x-%016x", p.instanceTypesSeqNum, p.unavailableOfferings.SeqNum, nodeClass.UID, instanceTypeZonesHash, kcHash)
 
 	if item, ok := p.cache.Get(key); ok {
-		return item.([]*cloudprovider.InstanceType), nil
+		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
+		// so that modifications to the ordering of the data don't affect the original
+		return append([]*cloudprovider.InstanceType{}, item.([]*cloudprovider.InstanceType)...), nil
 	}
 	// Reject any instance types that don't have any offerings due to zone
 	result := lo.Reject(lo.Map(instanceTypes, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
