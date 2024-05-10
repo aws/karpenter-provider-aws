@@ -812,7 +812,7 @@ var _ = Describe("Drift", func() {
 		env.ConsistentlyExpectNodeClaimsNotDrifted(time.Minute, nodeClaim)
 	})
 	Context("Failure", func() {
-		It("should not continue to drift if a node never registers", func() {
+		It("should not disrupt a drifted node if the replacement node never registers", func() {
 			// launch a new nodeClaim
 			var numPods int32 = 2
 			dep := coretest.Deployment(coretest.DeploymentOptions{
@@ -845,7 +845,9 @@ var _ = Describe("Drift", func() {
 			// TODO: reduce timeouts when disruption waits are factored out
 			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, taintedNodes...)
 
-			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed
+			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed.
+			// Assert this over several minutes to ensure a subsequent disruption controller pass doesn't
+			// successfully schedule the evicted pods to the in-flight nodeclaim and disrupt the original node
 			Consistently(func(g Gomega) {
 				nodeClaims := env.ExpectNodeClaimCount(">=", int(numPods))
 				startingNodeClaimUIDs := sets.New(lo.Map(startingNodeClaimState, func(nc *corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })...)
@@ -853,7 +855,7 @@ var _ = Describe("Drift", func() {
 				g.Expect(nodeClaimUIDs.IsSuperset(startingNodeClaimUIDs)).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
-		It("should not continue to drift if a node registers but never becomes initialized", func() {
+		It("should not disrupt a drifted node if the replacement node registers but never initialized", func() {
 			// launch a new nodeClaim
 			var numPods int32 = 2
 			dep := coretest.Deployment(coretest.DeploymentOptions{
@@ -879,7 +881,7 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(startingNodeClaimState...)
 
-			// Expect nodes to be tainted
+			// Expect nodes To get tainted, expect only one node is disrupted due to default disruption budgets
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
 			// Drift should fail and original node should be untainted
@@ -896,6 +898,8 @@ var _ = Describe("Drift", func() {
 			Expect(nodeClaimList.Items).To(HaveLen(int(numPods) + 1))
 
 			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed
+			// Assert this over several minutes to ensure a subsequent disruption controller pass doesn't
+			// successfully schedule the evicted pods to the in-flight nodeclaim and disrupt the original node
 			Consistently(func(g Gomega) {
 				nodeClaims := env.ExpectNodeClaimCount(">=", int(numPods))
 				startingNodeClaimUIDs := sets.New(lo.Map(startingNodeClaimState, func(m *corev1beta1.NodeClaim, _ int) types.UID { return m.UID })...)
