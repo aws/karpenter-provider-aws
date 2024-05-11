@@ -368,9 +368,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		Eventually(func(g Gomega) {
 			temp := &corev1beta1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), temp)).To(Succeed())
-			g.Expect(temp.StatusConditions().GetCondition(corev1beta1.Launched).IsTrue()).To(BeTrue())
-			g.Expect(temp.StatusConditions().GetCondition(corev1beta1.Registered).IsFalse()).To(BeTrue())
-			g.Expect(temp.StatusConditions().GetCondition(corev1beta1.Initialized).IsFalse()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Get(corev1beta1.ConditionTypeLaunched).IsTrue()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Get(corev1beta1.ConditionTypeRegistered).IsFalse()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Get(corev1beta1.ConditionTypeInitialized).IsFalse()).To(BeTrue())
 		}).Should(Succeed())
 
 		// Expect that the nodeClaim is eventually de-provisioned due to the registration timeout

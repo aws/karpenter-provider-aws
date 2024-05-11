@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.53.0
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
-	github.com/awslabs/operatorpkg v0.0.0-20240502203521-a2115dcf4ac0
+	github.com/awslabs/operatorpkg v0.0.0-20240509171849-455f977cee10
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
 	github.com/mitchellh/hashstructure/v2 v2.0.2
@@ -29,7 +29,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.18.2
-	sigs.k8s.io/karpenter v0.36.1-0.20240510144555-8ed47ded76f6
+	sigs.k8s.io/karpenter v0.36.1-0.20240513160924-49ce67fb94eb
 	sigs.k8s.io/yaml v1.4.0
 )
 

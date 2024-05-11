@@ -705,8 +705,8 @@ var _ = Describe("Drift", func() {
 		By("validating the drifted status condition has propagated")
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
-			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted)).ToNot(BeNil())
-			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+			g.Expect(nodeClaim.StatusConditions().Get(corev1beta1.ConditionTypeDrifted)).ToNot(BeNil())
+			g.Expect(nodeClaim.StatusConditions().Get(corev1beta1.ConditionTypeDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)

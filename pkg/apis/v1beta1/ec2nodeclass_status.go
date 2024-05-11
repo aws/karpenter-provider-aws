@@ -74,7 +74,7 @@ type EC2NodeClassStatus struct {
 	Conditions []op.Condition `json:"conditions,omitempty"`
 }
 
-var (
+const (
 	// 	ConditionTypeNodeClassReady = "Ready" condition indicates that subnets, security groups, AMIs and instance profile for nodeClass were resolved
 	ConditionTypeNodeClassReady = "Ready"
 )

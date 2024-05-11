@@ -266,7 +266,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 				},
 			},
 		})
-		nodeClaim.StatusConditions().MarkTrue(corev1beta1.Drifted)
+		nodeClaim.StatusConditions().SetTrue(corev1beta1.ConditionTypeDrifted)
 		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim)
 
 		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
