@@ -26,9 +26,9 @@ helm upgrade --install karpenter "${CHART}" \
   --set settings.clusterName="$CLUSTER_NAME" \
   --set settings.interruptionQueue="$CLUSTER_NAME" \
   --set settings.featureGates.spotToSpotConsolidation=true \
-  --set controller.resources.requests.cpu=3 \
+  --set controller.resources.requests.cpu=5 \
   --set controller.resources.requests.memory=3Gi \
-  --set controller.resources.limits.cpu=3 \
+  --set controller.resources.limits.cpu=5 \
   --set controller.resources.limits.memory=3Gi \
   --set serviceMonitor.enabled=true \
   --set serviceMonitor.additionalLabels.scrape=enabled \
