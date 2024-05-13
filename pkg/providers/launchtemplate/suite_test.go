@@ -30,6 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	admv1alpha1 "github.com/awslabs/amazon-eks-ami/nodeadm/api/v1alpha1"
+	opstatus "github.com/awslabs/operatorpkg/status"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -121,8 +122,39 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	var nodePool *corev1beta1.NodePool
 	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass()
-		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
+		nodeClass = test.EC2NodeClass(
+			v1beta1.EC2NodeClass{
+				Status: v1beta1.EC2NodeClassStatus{
+					InstanceProfile: "test-profile",
+					SecurityGroups: []v1beta1.SecurityGroup{
+						{
+							ID: "sg-test1",
+						},
+						{
+							ID: "sg-test2",
+						},
+						{
+							ID: "sg-test3",
+						},
+					},
+					Subnets: []v1beta1.Subnet{
+						{
+							ID:   "subnet-test1",
+							Zone: "test-zone-1a",
+						},
+						{
+							ID:   "subnet-test2",
+							Zone: "test-zone-1b",
+						},
+						{
+							ID:   "subnet-test3",
+							Zone: "test-zone-1c",
+						},
+					},
+				},
+			},
+		)
+		nodeClass.StatusConditions().SetTrue(opstatus.ConditionReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -184,7 +216,32 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
-		nodeClass2.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
+		nodeClass2.Status.SecurityGroups = []v1beta1.SecurityGroup{
+			{
+				ID: "sg-test1",
+			},
+			{
+				ID: "sg-test2",
+			},
+			{
+				ID: "sg-test3",
+			},
+		}
+		nodeClass2.Status.Subnets = []v1beta1.Subnet{
+			{
+				ID:   "subnet-test1",
+				Zone: "test-zone-1a",
+			},
+			{
+				ID:   "subnet-test2",
+				Zone: "test-zone-1b",
+			},
+			{
+				ID:   "subnet-test3",
+				Zone: "test-zone-1c",
+			},
+		}
+		nodeClass2.StatusConditions().SetTrue(opstatus.ConditionReady)
 
 		pods := []*v1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
