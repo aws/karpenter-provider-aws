@@ -116,6 +116,7 @@ var _ = Describe("CloudProvider", func() {
 	var nodeClaim *corev1beta1.NodeClaim
 	var _ = BeforeEach(func() {
 		nodeClass = test.EC2NodeClass()
+		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -144,6 +145,12 @@ var _ = Describe("CloudProvider", func() {
 		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+	})
+	It("should not proceed with instance creation of nodeClass in not ready", func() {
+		nodeClass.StatusConditions().SetFalse(v1beta1.ConditionTypeNodeClassReady, "NodeClassNotReady", "NodeClass not ready")
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		_, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(HaveOccurred())
 	})
 	It("should return an ICE error when there are no instance types to launch", func() {
 		// Specify no instance types and expect to receive a capacity error

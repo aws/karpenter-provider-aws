@@ -231,9 +231,11 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileFailed(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(BeNil())
+		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).Message).To(Equal("unable to resolve subnets"))
 	})
 	It("Should not resolve a invalid selectors for an updated subnet selector", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -264,8 +266,10 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileFailed(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(BeNil())
+		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).Message).To(Equal("unable to resolve subnets"))
 	})
 })

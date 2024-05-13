@@ -219,6 +219,16 @@ var _ = Describe("AMI", func() {
 			nc := EventuallyExpectAMIsToExist(nodeClass)
 			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
 			Expect(nc.Status.AMIs[0].ID).To(Equal(customAMI))
+			env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, "")
+		})
+		It("should have ec2nodeClass status as not ready since AMI was not resolved", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+				{
+					ID: "ami-123",
+				},
+			}
+			env.ExpectCreated(nodeClass)
+			env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, false, "unable to resolve AMIs")
 		})
 	})
 

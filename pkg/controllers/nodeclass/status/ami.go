@@ -36,11 +36,11 @@ type AMI struct {
 func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
 	}
 	if len(amis) == 0 {
 		nodeClass.Status.AMIs = nil
-		return reconcile.Result{}, fmt.Errorf("no amis exist given constraints")
+		return reconcile.Result{}, nil
 	}
 	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1beta1.AMI {
 		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item corev1beta1.NodeSelectorRequirementWithMinValues, _ int) v1.NodeSelectorRequirement {

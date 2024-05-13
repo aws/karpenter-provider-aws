@@ -110,6 +110,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	var nodePool, windowsNodePool *corev1beta1.NodePool
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass()
+		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -151,6 +152,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		})
+		windowsNodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		windowsNodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
