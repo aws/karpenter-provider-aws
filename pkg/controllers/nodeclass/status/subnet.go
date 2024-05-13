@@ -35,11 +35,11 @@ type Subnet struct {
 func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	subnets, err := s.subnetProvider.List(ctx, nodeClass)
 	if err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("getting subnets, %w", err)
 	}
 	if len(subnets) == 0 {
 		nodeClass.Status.Subnets = nil
-		return reconcile.Result{}, fmt.Errorf("no subnets exist given constraints %v", nodeClass.Spec.SubnetSelectorTerms)
+		return reconcile.Result{}, nil
 	}
 	sort.Slice(subnets, func(i, j int) bool {
 		if int(*subnets[i].AvailableIpAddressCount) != int(*subnets[j].AvailableIpAddressCount) {

@@ -141,6 +141,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		)
+		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -172,6 +173,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				Subnets:         nodeClass.Status.Subnets,
 			},
 		})
+		windowsNodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		windowsNodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{

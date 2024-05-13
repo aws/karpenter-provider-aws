@@ -153,6 +153,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		)
+		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -230,6 +231,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Zone: "test-zone-1c",
 			},
 		}
+		nodeClass2.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 
 		pods := []*v1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
