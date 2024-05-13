@@ -50,7 +50,7 @@ inputs:
 runs:
   using: "composite"
   steps:
-  - uses: actions/checkout@0ad4b8fadaa221de15dcec353f45205ec38ea70b # v4.1.4
+  - uses: actions/checkout@44c2b7a8a4ea60a981eaca3cf939b5f4305c123b # v4.1.5
     with:
       ref: ${{ inputs.git_ref }}
   - uses: ./.github/actions/e2e/install-eksctl
@@ -174,6 +174,8 @@ runs:
         withOIDC: true
       addons:
       - name: amazon-cloudwatch-observability
+        # Pin addon version due to undiagnosed e2e failures after 1.6.0 release
+        version: '1.5.5-eksbuild.1'
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: vpc-cni
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
@@ -215,12 +217,13 @@ runs:
       # Adding taints after all necessary pods have scheduled to the manged node group nodes
       # amazon-cloudwatch-observability pods do no not tolerate CriticalAddonsOnly=true:NoSchedule and
       # amazon-cloudwatch-observability addons does not allow to add tolerations to the addon pods as part of the advanced configuration
-      kubectl taint nodes CriticalAddonsOnly=true:NoSchedule --all
+      # Overwrite existing taints to ensure we don't fail here on upgrade
+      kubectl taint nodes CriticalAddonsOnly=true:NoSchedule --all --overwrite
 
       # We delete DaemonSets that we don't care about because it causes inconsistencies in scheduling due to
       # dcgm-exporter and neuron-monitor selecting on specific instance types
       # See https://github.com/kubernetes-sigs/karpenter/issues/715 for more detail
-      kubectl delete daemonsets -n amazon-cloudwatch dcgm-exporter neuron-monitor
+      kubectl delete daemonsets -n amazon-cloudwatch dcgm-exporter neuron-monitor --ignore-not-found
 
       # We patch the priorityClass onto all DaemonSets to ensure that DaemonSets always schedule to nodes so we don't get scheduling inconsistencies
       # See https://karpenter.sh/docs/faq/#when-deploying-an-additional-daemonset-to-my-cluster-why-does-karpenter-not-scale-up-my-nodes-to-support-the-extra-daemonset for more detail
