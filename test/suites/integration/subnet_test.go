@@ -18,9 +18,11 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/onsi/gomega/types"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -122,7 +124,7 @@ var _ = Describe("Subnets", func() {
 	It("should have the NodeClass status for subnets", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSubnets(env, nodeClass)
-		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, "")
+		env.EventuallyExpectStatusCondition(nodeClass, metav1.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 	})
 	It("should have the NodeClass status as not ready since subnets were not resolved", func() {
 		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -131,7 +133,7 @@ var _ = Describe("Subnets", func() {
 			},
 		}
 		env.ExpectCreated(nodeClass)
-		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, false, "unable to resolve subnets")
+		env.EventuallyExpectStatusCondition(nodeClass, metav1.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve Subnets"})
 	})
 })
 

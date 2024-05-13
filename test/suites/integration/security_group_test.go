@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -75,7 +77,7 @@ var _ = Describe("SecurityGroups", func() {
 	It("should update the EC2NodeClass status security groups", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSecurityGroups(env, nodeClass)
-		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, "")
+		env.EventuallyExpectStatusCondition(nodeClass, metav1.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 	})
 
 	It("should have the NodeClass status as not ready since security groups were not resolved", func() {
@@ -85,7 +87,7 @@ var _ = Describe("SecurityGroups", func() {
 			},
 		}
 		env.ExpectCreated(nodeClass)
-		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, false, "unable to resolve security groups")
+		env.EventuallyExpectStatusCondition(nodeClass, metav1.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve security groups"})
 	})
 })
 

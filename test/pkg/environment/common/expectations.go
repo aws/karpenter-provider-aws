@@ -927,13 +927,15 @@ func (env *Environment) GetDaemonSetOverhead(np *corev1beta1.NodePool) v1.Resour
 	})...)
 }
 
-func (env *Environment) EventuallyExpectNodeClassStatusCondition(nodeClass *v1beta1.EC2NodeClass, condition string, status bool, message string) {
+func (env *Environment) EventuallyExpectStatusCondition(nodeClass *v1beta1.EC2NodeClass, condition metav1.Condition) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		nc := &v1beta1.EC2NodeClass{}
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)).To(Succeed())
-		statusCondition := nc.StatusConditions().Get(condition)
-		g.Expect(statusCondition.IsTrue()).To(Equal(status))
-		g.Expect(statusCondition.Message).To(Equal(message))
+		statusCondition := nc.StatusConditions().Get(condition.Type)
+		g.Expect(statusCondition).ToNot(BeNil())
+		g.Expect(statusCondition.Status).To(Equal(condition.Status))
+		g.Expect(statusCondition.Message).To(Equal(condition.Message))
+		g.Expect(statusCondition.Reason).To(Equal(condition.Reason))
 	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

@@ -180,7 +180,7 @@ var _ = Describe("CloudProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
 	It("should not proceed with instance creation of nodeClass in not ready", func() {
-		nodeClass.StatusConditions().SetFalse(opstatus.ConditionReady, "NodeClass not ready", "NodeClass not ready")
+		nodeClass.StatusConditions().SetFalse(opstatus.ConditionReady, "NodeClassNotReady", "NodeClass not ready")
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		_, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(HaveOccurred())
