@@ -19,6 +19,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/awslabs/operatorpkg/status"
 	"k8s.io/apimachinery/pkg/runtime"
 	apisv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 )
@@ -316,6 +317,13 @@ func (in *EC2NodeClassStatus) DeepCopyInto(out *EC2NodeClassStatus) {
 	if in.AMIs != nil {
 		in, out := &in.AMIs, &out.AMIs
 		*out = make([]AMI, len(*in))
+		for i := range *in {
+			(*in)[i].DeepCopyInto(&(*out)[i])
+		}
+	}
+	if in.Conditions != nil {
+		in, out := &in.Conditions, &out.Conditions
+		*out = make([]status.Condition, len(*in))
 		for i := range *in {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}

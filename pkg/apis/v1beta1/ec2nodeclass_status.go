@@ -15,6 +15,7 @@ limitations under the License.
 package v1beta1
 
 import (
+	op "github.com/awslabs/operatorpkg/status"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 )
 
@@ -68,4 +69,24 @@ type EC2NodeClassStatus struct {
 	// InstanceProfile contains the resolved instance profile for the role
 	// +optional
 	InstanceProfile string `json:"instanceProfile,omitempty"`
+	// Conditions contains signals for health and readiness
+	// +optional
+	Conditions []op.Condition `json:"conditions,omitempty"`
+}
+
+var (
+	// 	ConditionTypeNodeClassReady = "Ready" condition indicates that subnets, security groups, AMIs and instance profile for nodeClass were resolved
+	ConditionTypeNodeClassReady = "Ready"
+)
+
+func (in *EC2NodeClass) StatusConditions() op.ConditionSet {
+	return op.NewReadyConditions(ConditionTypeNodeClassReady).For(in)
+}
+
+func (in *EC2NodeClass) GetConditions() []op.Condition {
+	return in.Status.Conditions
+}
+
+func (in *EC2NodeClass) SetConditions(conditions []op.Condition) {
+	in.Status.Conditions = conditions
 }
