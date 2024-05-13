@@ -1434,7 +1434,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						amiFamily,
 						nil,
 					)
-					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 394))
 				}
 			}
 		})
@@ -1676,7 +1676,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						amiFamily,
 						nil,
 					)
-					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 394))
 				}
 			}
 		})
