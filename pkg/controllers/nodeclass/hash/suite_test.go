@@ -22,10 +22,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/aws/aws-sdk-go/aws"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -45,7 +45,7 @@ import (
 var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
-var hashController corecontroller.Controller
+var hashController *hash.Controller
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -100,7 +100,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 	})
 	DescribeTable("should update the drift hash when static field is updated", func(changes *v1beta1.EC2NodeClass) {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, hashController), client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		expectedHash := nodeClass.Hash()
@@ -109,7 +109,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride)).To(Succeed())
 
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, hashController), client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		expectedHashTwo := nodeClass.Hash()
@@ -127,7 +127,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 	)
 	It("should not update the drift hash when dynamic field is updated", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, hashController), client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		expectedHash := nodeClass.Hash()
@@ -150,7 +150,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		}
 
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, hashController), client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHash]).To(Equal(expectedHash))
 	})
@@ -161,7 +161,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
 
-		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, hashController), client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		expectedHash := nodeClass.Hash()
@@ -203,7 +203,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 
 		ExpectApplied(ctx, env.Client, nodeClass, nodeClaimOne, nodeClaimTwo)
 
-		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, hashController), client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		nodeClaimOne = ExpectExists(ctx, env.Client, nodeClaimOne)
 		nodeClaimTwo = ExpectExists(ctx, env.Client, nodeClaimTwo)
@@ -235,7 +235,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		})
 		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim)
 
-		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, hashController), client.ObjectKeyFromObject(nodeClass))
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 
@@ -269,7 +269,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		nodeClaim.StatusConditions().SetTrue(corev1beta1.ConditionTypeDrifted)
 		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim)
 
-		ExpectReconcileSucceeded(ctx, hashController, client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, hashController), client.ObjectKeyFromObject(nodeClass))
 		nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 
 		// Expect ec2nodeclass-hash on the NodeClaims to stay the same

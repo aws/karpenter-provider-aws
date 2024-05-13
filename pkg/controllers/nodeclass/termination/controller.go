@@ -20,6 +20,8 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	"knative.dev/pkg/logging"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
@@ -37,17 +39,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
+	"github.com/awslabs/operatorpkg/reasonable"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
-
-	"github.com/awslabs/operatorpkg/reasonable"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 )
-
-var _ corecontroller.FinalizingTypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)
 
 type Controller struct {
 	kubeClient              client.Client
@@ -57,21 +55,27 @@ type Controller struct {
 }
 
 func NewController(kubeClient client.Client, recorder events.Recorder,
-	instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) corecontroller.Controller {
+	instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) *Controller {
 
-	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &Controller{
+	return &Controller{
 		kubeClient:              kubeClient,
 		recorder:                recorder,
 		instanceProfileProvider: instanceProfileProvider,
 		launchTemplateProvider:  launchTemplateProvider,
-	})
+	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("nodeclass.termination").With("ec2nodeclass", nodeClass.Name))
+	ctx = injection.WithControllerName(ctx, "nodeclass.termination")
+
+	if !nodeClass.GetDeletionTimestamp().IsZero() {
+		return c.finalize(ctx, nodeClass)
+	}
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (c *Controller) finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
 	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
@@ -107,13 +111,9 @@ func (c *Controller) Finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) Name() string {
-	return "nodeclass.termination"
-}
-
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(controllerruntime.
-		NewControllerManagedBy(m).
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("nodeclass.termination").
 		For(&v1beta1.EC2NodeClass{}).
 		Watches(
 			&corev1beta1.NodeClaim{},
@@ -134,5 +134,6 @@ func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontrolle
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
-		}))
+		}).
+		Complete(reconcile.AsReconciler[*v1beta1.EC2NodeClass](m.GetClient(), c))
 }

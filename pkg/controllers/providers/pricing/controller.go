@@ -56,10 +56,8 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	return reconcile.Result{RequeueAfter: 12 * time.Hour}, nil
 }
 
-func (c *Controller) Name() string {
-	return "providers.pricing"
-}
-
-func (c *Controller) Builder(_ context.Context, m manager.Manager) controller.Builder {
-	return controller.NewSingletonManagedBy(m)
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controller.NewSingletonManagedBy(m).
+		Named("providers.pricing").
+		Complete(c)
 }

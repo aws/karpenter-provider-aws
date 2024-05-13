@@ -20,33 +20,34 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/awslabs/operatorpkg/reasonable"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
-
-var _ corecontroller.TypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)
 
 type Controller struct {
 	kubeClient client.Client
 }
 
-func NewController(kubeClient client.Client) corecontroller.Controller {
-	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &Controller{
+func NewController(kubeClient client.Client) *Controller {
+	return &Controller{
 		kubeClient: kubeClient,
-	})
+	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("nodeclass.hash").With("ec2nodeclass", nodeClass.Name))
+	ctx = injection.WithControllerName(ctx, "nodeclass.hash")
+
 	stored := nodeClass.DeepCopy()
 
 	if nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion] != v1beta1.EC2NodeClassHashVersion {
@@ -68,18 +69,15 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) Name() string {
-	return "nodeclass.hash"
-}
-
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(controllerruntime.
-		NewControllerManagedBy(m).
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("nodeclass.hash").
 		For(&v1beta1.EC2NodeClass{}).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
-		}))
+		}).
+		Complete(reconcile.AsReconciler[*v1beta1.EC2NodeClass](m.GetClient(), c))
 }
 
 // Updating `ec2nodeclass-hash-version` annotation inside the karpenter controller means a breaking change has been made to the hash calculation.
