@@ -166,7 +166,7 @@ func (p *DefaultProvider) Delete(ctx context.Context, id string) error {
 		if awserrors.IsNotFound(err) {
 			return cloudprovider.NewNodeClaimNotFoundError(fmt.Errorf("instance already terminated"))
 		}
-		if _, e := p.Get(ctx, id); err != nil {
+		if _, e := p.Get(ctx, id); e != nil {
 			if cloudprovider.IsNodeClaimNotFoundError(e) {
 				return e
 			}
