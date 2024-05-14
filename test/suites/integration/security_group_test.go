@@ -75,7 +75,7 @@ var _ = Describe("SecurityGroups", func() {
 	It("should update the EC2NodeClass status security groups", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSecurityGroups(env, nodeClass)
-		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, "")
+		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, v1beta1.ConditionTypeNodeClassReady)
 	})
 
 	It("should have the NodeClass status as not ready since security groups were not resolved", func() {
