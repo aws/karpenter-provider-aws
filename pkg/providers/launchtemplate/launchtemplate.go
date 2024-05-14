@@ -188,15 +188,13 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1bet
 	}
 	if nodeClass.Spec.AssociatePublicIPAddress != nil {
 		options.AssociatePublicIPAddress = nodeClass.Spec.AssociatePublicIPAddress
-	} else if ok, err := p.subnetProvider.CheckAnyPublicIPAssociations(ctx, nodeClass); err != nil {
-		return nil, err
-	} else if !ok {
+	} else {
 		// when `AssociatePublicIPAddress` is not specified in the `EC2NodeClass` spec,
 		// If all referenced subnets do not assign public IPv4 addresses to EC2 instances therein, we explicitly set
 		// AssociatePublicIPAddress to 'false' in the Launch Template, generated based on this configuration struct.
 		// This is done to help comply with AWS account policies that require explicitly setting of that field to 'false'.
 		// https://github.com/aws/karpenter-provider-aws/issues/3815
-		options.AssociatePublicIPAddress = aws.Bool(false)
+		options.AssociatePublicIPAddress = p.subnetProvider.AssociatePublicIPAddressValue(nodeClass)
 	}
 	return options, nil
 }
