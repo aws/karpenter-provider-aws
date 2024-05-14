@@ -194,7 +194,6 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 			metrics.NodePoolLabel: nodeClaim.Labels[v1beta1.NodePoolLabelKey],
 		},
 	).Inc()
-	actionsPerformed.WithLabelValues(string(action)).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
 	if msg.Kind() == messages.SpotInterruptionKind {
