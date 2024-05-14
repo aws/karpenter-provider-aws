@@ -138,7 +138,10 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 		if ips, ok := p.inflightIPs[*subnets[j].SubnetId]; ok {
 			jIPs = ips
 		}
-		return iIPs < jIPs
+		if iIPs != jIPs {
+			return iIPs < jIPs
+		}
+		return *subnets[i].SubnetId < *subnets[j].SubnetId
 	})
 	for _, subnet := range subnets {
 		zonalSubnets[*subnet.AvailabilityZone] = subnet
