@@ -838,7 +838,7 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(startingNodeClaimState...)
 
-			// Expect nodes To get tainted, expect only one node is disrupted due to default disruption budgets
+			// Expect only a single node to be tainted due to default disruption budgets
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
 			// Drift should fail and the original node should be untainted
@@ -849,9 +849,10 @@ var _ = Describe("Drift", func() {
 			// Assert this over several minutes to ensure a subsequent disruption controller pass doesn't
 			// successfully schedule the evicted pods to the in-flight nodeclaim and disrupt the original node
 			Consistently(func(g Gomega) {
-				nodeClaims := env.ExpectNodeClaimCount(">=", int(numPods))
+				nodeClaims := &corev1beta1.NodeClaimList{}
+				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
 				startingNodeClaimUIDs := sets.New(lo.Map(startingNodeClaimState, func(nc *corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })...)
-				nodeClaimUIDs := sets.New(lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })...)
+				nodeClaimUIDs := sets.New(lo.Map(nodeClaims.Items, func(nc corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })...)
 				g.Expect(nodeClaimUIDs.IsSuperset(startingNodeClaimUIDs)).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
@@ -881,7 +882,7 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(startingNodeClaimState...)
 
-			// Expect nodes To get tainted, expect only one node is disrupted due to default disruption budgets
+			// Expect only a single node to get tainted due to default disruption budgets
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
 			// Drift should fail and original node should be untainted
@@ -901,9 +902,10 @@ var _ = Describe("Drift", func() {
 			// Assert this over several minutes to ensure a subsequent disruption controller pass doesn't
 			// successfully schedule the evicted pods to the in-flight nodeclaim and disrupt the original node
 			Consistently(func(g Gomega) {
-				nodeClaims := env.ExpectNodeClaimCount(">=", int(numPods))
+				nodeClaims := &corev1beta1.NodeClaimList{}
+				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
 				startingNodeClaimUIDs := sets.New(lo.Map(startingNodeClaimState, func(m *corev1beta1.NodeClaim, _ int) types.UID { return m.UID })...)
-				nodeClaimUIDs := sets.New(lo.Map(nodeClaims, func(m *corev1beta1.NodeClaim, _ int) types.UID { return m.UID })...)
+				nodeClaimUIDs := sets.New(lo.Map(nodeClaims.Items, func(m corev1beta1.NodeClaim, _ int) types.UID { return m.UID })...)
 				g.Expect(nodeClaimUIDs.IsSuperset(startingNodeClaimUIDs)).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})

@@ -479,13 +479,12 @@ func (env *Environment) ExpectNodeCount(comparator string, count int) {
 	Expect(len(nodeList.Items)).To(BeNumerically(comparator, count))
 }
 
-func (env *Environment) ExpectNodeClaimCount(comparator string, count int) []*corev1beta1.NodeClaim {
+func (env *Environment) ExpectNodeClaimCount(comparator string, count int) {
 	GinkgoHelper()
 
 	nodeClaimList := &corev1beta1.NodeClaimList{}
 	Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 	Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
-	return lo.ToSlicePtr(nodeClaimList.Items)
 }
 
 func NodeClaimNames(nodeClaims []*corev1beta1.NodeClaim) []string {
