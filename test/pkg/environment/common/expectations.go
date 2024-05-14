@@ -25,6 +25,8 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
+	"github.com/awslabs/operatorpkg/status"
+	op "github.com/awslabs/operatorpkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -927,15 +929,9 @@ func (env *Environment) GetDaemonSetOverhead(np *corev1beta1.NodePool) v1.Resour
 	})...)
 }
 
-func (env *Environment) EventuallyExpectStatusCondition(nodeClass *v1beta1.EC2NodeClass, condition metav1.Condition) {
+func (env *Environment) EventuallyExpectStatusCondition(nodeClass *v1beta1.EC2NodeClass, conditions ...status.Condition) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
-		nc := &v1beta1.EC2NodeClass{}
-		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)).To(Succeed())
-		statusCondition := nc.StatusConditions().Get(condition.Type)
-		g.Expect(statusCondition).ToNot(BeNil())
-		g.Expect(statusCondition.Status).To(Equal(condition.Status))
-		g.Expect(statusCondition.Message).To(Equal(condition.Message))
-		g.Expect(statusCondition.Reason).To(Equal(condition.Reason))
+		op.ExpectStatusConditions(nodeClass, conditions...)
 	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

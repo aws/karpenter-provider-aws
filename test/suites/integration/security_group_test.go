@@ -77,7 +77,7 @@ var _ = Describe("SecurityGroups", func() {
 	It("should update the EC2NodeClass status security groups", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSecurityGroups(env, nodeClass)
-		env.EventuallyExpectStatusCondition(nodeClass, metav1.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+		env.EventuallyExpectStatusCondition(nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 	})
 
 	It("should have the NodeClass status as not ready since security groups were not resolved", func() {
@@ -87,7 +87,7 @@ var _ = Describe("SecurityGroups", func() {
 			},
 		}
 		env.ExpectCreated(nodeClass)
-		env.EventuallyExpectStatusCondition(nodeClass, metav1.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve security groups"})
+		env.EventuallyExpectStatusCondition(nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve security groups"})
 	})
 })
 

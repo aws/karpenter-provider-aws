@@ -84,15 +84,11 @@ var _ = Describe("InstanceProfile Generation", func() {
 		instance := env.GetInstance(node.Name)
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
 		Expect(lo.FromPtr(instance.IamInstanceProfile.Arn)).To(ContainSubstring(nodeClass.Status.InstanceProfile))
-<<<<<<< HEAD
-		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, "")
-=======
-		env.EventuallyExpectStatusCondition(nodeClass, metav1.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
->>>>>>> 74974d2b (adjust)
+		env.EventuallyExpectStatusCondition(nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 	})
 	It("should have the EC2NodeClass status as not ready since Instance Profile was not resolved", func() {
 		nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", "invalidRole")
 		env.ExpectCreated(nodeClass)
-		env.EventuallyExpectStatusCondition(nodeClass, metav1.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve instance profile"})
+		env.EventuallyExpectStatusCondition(nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve instance profile"})
 	})
 })
