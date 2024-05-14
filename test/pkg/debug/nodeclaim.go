@@ -60,10 +60,10 @@ func (c *NodeClaimController) Reconcile(ctx context.Context, req reconcile.Reque
 
 func (c *NodeClaimController) GetInfo(nc *corev1beta1.NodeClaim) string {
 	return fmt.Sprintf("ready=%t launched=%t registered=%t initialized=%t",
-		nc.StatusConditions().IsHappy(),
-		nc.StatusConditions().GetCondition(corev1beta1.Launched).IsTrue(),
-		nc.StatusConditions().GetCondition(corev1beta1.Registered).IsTrue(),
-		nc.StatusConditions().GetCondition(corev1beta1.Initialized).IsTrue(),
+		nc.StatusConditions().Root().IsTrue(),
+		nc.StatusConditions().Get(corev1beta1.ConditionTypeLaunched).IsTrue(),
+		nc.StatusConditions().Get(corev1beta1.ConditionTypeRegistered).IsTrue(),
+		nc.StatusConditions().Get(corev1beta1.ConditionTypeInitialized).IsTrue(),
 	)
 }
 

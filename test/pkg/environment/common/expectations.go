@@ -674,7 +674,7 @@ func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1bet
 		for _, nc := range nodeClaims {
 			temp := &corev1beta1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), temp)).Should(Succeed())
-			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Root().IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -684,7 +684,7 @@ func (env *Environment) EventuallyExpectExpired(nodeClaims ...*corev1beta1.NodeC
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeExpired).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -694,7 +694,7 @@ func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeC
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -706,7 +706,7 @@ func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Dur
 	Consistently(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted)).To(BeNil())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted)).To(BeNil())
 		}
 	}, duration).Should(Succeed())
 }
@@ -716,7 +716,7 @@ func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*corev1beta1.NodeCla
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Empty).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeEmpty).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
