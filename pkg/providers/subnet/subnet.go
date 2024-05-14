@@ -37,7 +37,7 @@ import (
 type Provider interface {
 	LivenessProbe(*http.Request) error
 	List(context.Context, *v1beta1.EC2NodeClass) ([]*ec2.Subnet, error)
-	AssociatePublicIPAddressValue( *v1beta1.EC2NodeClass) (*bool)
+	AssociatePublicIPAddressValue(*v1beta1.EC2NodeClass) *bool
 	ZonalSubnetsForLaunch(context.Context, *v1beta1.EC2NodeClass, []*cloudprovider.InstanceType, string) (map[string]*Subnet, error)
 	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []*Subnet, string)
 }
