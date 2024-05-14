@@ -77,7 +77,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
 		}).
-		Complete(reconcile.AsReconciler[*v1beta1.EC2NodeClass](m.GetClient(), c))
+		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }
 
 // Updating `ec2nodeclass-hash-version` annotation inside the karpenter controller means a breaking change has been made to the hash calculation.

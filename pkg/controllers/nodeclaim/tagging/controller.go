@@ -91,7 +91,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		WithOptions(controller.Options{
 			RateLimiter: reasonable.RateLimiter(),
 		}).
-		Complete(reconcile.AsReconciler[*corev1beta1.NodeClaim](m.GetClient(), c))
+		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }
 
 func (c *Controller) tagInstance(ctx context.Context, nc *corev1beta1.NodeClaim, id string) error {

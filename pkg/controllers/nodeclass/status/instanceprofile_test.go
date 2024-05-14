@@ -23,7 +23,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
@@ -40,7 +39,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 	It("should create the instance profile when it doesn't exist", func() {
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -59,7 +58,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -83,7 +82,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -107,7 +106,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -120,7 +119,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(lo.FromPtr(nodeClass.Spec.InstanceProfile)))
@@ -129,7 +128,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
 
 		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())

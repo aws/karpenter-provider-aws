@@ -113,5 +113,5 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
 		}).
-		Complete(reconcile.AsReconciler[*v1beta1.EC2NodeClass](m.GetClient(), c))
+		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }

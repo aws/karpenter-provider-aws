@@ -1034,7 +1034,7 @@ var _ = Describe("CloudProvider", func() {
 			}})
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, controller), client.ObjectKeyFromObject(nodeClass))
+			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, controller), client.ObjectKeyFromObject(nodeClass))
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1052,7 +1052,7 @@ var _ = Describe("CloudProvider", func() {
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(1)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, controller), client.ObjectKeyFromObject(nodeClass))
+			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, controller), client.ObjectKeyFromObject(nodeClass))
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -1088,7 +1088,7 @@ var _ = Describe("CloudProvider", func() {
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, controller), client.ObjectKeyFromObject(nodeClass))
+			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, controller), client.ObjectKeyFromObject(nodeClass))
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
@@ -1129,7 +1129,7 @@ var _ = Describe("CloudProvider", func() {
 				},
 			})
 			ExpectApplied(ctx, env.Client, nodePool2, nodeClass2)
-			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, controller), client.ObjectKeyFromObject(nodeClass2))
+			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, controller), client.ObjectKeyFromObject(nodeClass2))
 			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1beta1.NodePoolLabelKey: nodePool2.Name}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)

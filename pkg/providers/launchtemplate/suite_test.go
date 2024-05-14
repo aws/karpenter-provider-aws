@@ -1981,7 +1981,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-				ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, controller), client.ObjectKeyFromObject(nodeClass))
+				ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, controller), client.ObjectKeyFromObject(nodeClass))
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1994,7 +1994,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-				ExpectReconcileSucceeded(ctx, reconcile.AsReconciler[*v1beta1.EC2NodeClass](env.Client, controller), client.ObjectKeyFromObject(nodeClass))
+				ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, controller), client.ObjectKeyFromObject(nodeClass))
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
