@@ -19,14 +19,15 @@ import (
 
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/equality"
+	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 	"sigs.k8s.io/karpenter/pkg/utils/result"
 
 	"github.com/awslabs/operatorpkg/reasonable"
@@ -38,8 +39,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
-
-var _ corecontroller.TypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)
 
 type nodeClassStatusReconciler interface {
 	Reconcile(context.Context, *v1beta1.EC2NodeClass) (reconcile.Result, error)
@@ -56,8 +55,8 @@ type Controller struct {
 }
 
 func NewController(kubeClient client.Client, subnetProvider subnet.Provider, securityGroupProvider securitygroup.Provider,
-	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &Controller{
+	amiProvider amifamily.Provider, instanceProfileProvider instanceprofile.Provider, launchTemplateProvider launchtemplate.Provider) *Controller {
+	return &Controller{
 		kubeClient: kubeClient,
 
 		ami:             &AMI{amiProvider: amiProvider},
@@ -65,10 +64,13 @@ func NewController(kubeClient client.Client, subnetProvider subnet.Provider, sec
 		securitygroup:   &SecurityGroup{securityGroupProvider: securityGroupProvider},
 		instanceprofile: &InstanceProfile{instanceProfileProvider: instanceProfileProvider},
 		readiness:       &Readiness{launchTemplateProvider: launchTemplateProvider},
-	})
+	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("nodeclass.status").With("ec2nodeclass", nodeClass.Name))
+	ctx = injection.WithControllerName(ctx, "nodeclass.status")
+
 	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
 		stored := nodeClass.DeepCopy()
 		controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
@@ -103,16 +105,13 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	return result.Min(results...), nil
 }
 
-func (c *Controller) Name() string {
-	return "nodeclass.status"
-}
-
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(controllerruntime.
-		NewControllerManagedBy(m).
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("nodeclass.status").
 		For(&v1beta1.EC2NodeClass{}).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
-		}))
+		}).
+		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }

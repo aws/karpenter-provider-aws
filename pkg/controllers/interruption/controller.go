@@ -121,12 +121,10 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) Name() string {
-	return "interruption"
-}
-
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.NewSingletonManagedBy(m)
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return corecontroller.NewSingletonManagedBy(m).
+		Named("interruption").
+		Complete(c)
 }
 
 // parseMessage parses the passed SQS message into an internal Message interface

@@ -48,10 +48,6 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 	}
 }
 
-func (c *Controller) Name() string {
-	return "nodeclaim.garbagecollection"
-}
-
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
 	// We LIST machines on the CloudProvider BEFORE we grab Machines/Nodes on the cluster so that we make sure that, if
 	// LISTing instances takes a long time, our information is more updated by the time we get to Machine and Node LIST
@@ -107,6 +103,8 @@ func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.Node
 	return nil
 }
 
-func (c *Controller) Builder(_ context.Context, m manager.Manager) controller.Builder {
-	return controller.NewSingletonManagedBy(m)
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controller.NewSingletonManagedBy(m).
+		Named("nodeclaim.garbagecollection").
+		Complete(c)
 }

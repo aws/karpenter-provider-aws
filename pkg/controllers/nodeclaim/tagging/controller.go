@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/samber/lo"
 
@@ -38,7 +39,6 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 )
 
 type Controller struct {
@@ -46,18 +46,17 @@ type Controller struct {
 	instanceProvider instance.Provider
 }
 
-func NewController(kubeClient client.Client, instanceProvider instance.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*corev1beta1.NodeClaim](kubeClient, &Controller{
+func NewController(kubeClient client.Client, instanceProvider instance.Provider) *Controller {
+	return &Controller{
 		kubeClient:       kubeClient,
 		instanceProvider: instanceProvider,
-	})
-}
-
-func (c *Controller) Name() string {
-	return "nodeclaim.tagging"
+	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (reconcile.Result, error) {
+	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("nodeclaim.tagging").With("nodeclaim", nodeClaim.Name))
+	ctx = injection.WithControllerName(ctx, "nodeclaim.tagging")
+
 	stored := nodeClaim.DeepCopy()
 	if !isTaggable(nodeClaim) {
 		return reconcile.Result{}, nil
@@ -81,18 +80,18 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeC
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(
-		controllerruntime.
-			NewControllerManagedBy(m).
-			For(&corev1beta1.NodeClaim{}).
-			WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
-				return isTaggable(o.(*corev1beta1.NodeClaim))
-			})).
-			// Ok with using the default MaxConcurrentReconciles of 1 to avoid throttling from CreateTag write API
-			WithOptions(controller.Options{
-				RateLimiter: reasonable.RateLimiter(),
-			}))
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("nodeclaim.tagging").
+		For(&corev1beta1.NodeClaim{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
+			return isTaggable(o.(*corev1beta1.NodeClaim))
+		})).
+		// Ok with using the default MaxConcurrentReconciles of 1 to avoid throttling from CreateTag write API
+		WithOptions(controller.Options{
+			RateLimiter: reasonable.RateLimiter(),
+		}).
+		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }
 
 func (c *Controller) tagInstance(ctx context.Context, nc *corev1beta1.NodeClaim, id string) error {

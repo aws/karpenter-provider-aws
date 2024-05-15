@@ -31,7 +31,6 @@ import (
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
-	"sigs.k8s.io/karpenter/pkg/operator/controller"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -52,7 +51,7 @@ import (
 var ctx context.Context
 var awsEnv *test.Environment
 var env *coretest.Environment
-var garbageCollectionController controller.Controller
+var garbageCollectionController *garbagecollection.Controller
 var cloudProvider *cloudprovider.CloudProvider
 
 func TestAPIs(t *testing.T) {

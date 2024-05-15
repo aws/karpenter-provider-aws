@@ -27,8 +27,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-
 	"sigs.k8s.io/karpenter/pkg/operator/controller"
+
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 )
 
@@ -55,7 +55,7 @@ func New(ctx context.Context, config *rest.Config, kubeClient client.Client) *Mo
 		},
 	}))
 	for _, c := range newControllers(kubeClient) {
-		lo.Must0(c.Builder(ctx, mgr).Complete(c), "failed to register controller")
+		lo.Must0(c.Register(ctx, mgr), "failed to register controller")
 	}
 	ctx, cancel := context.WithCancel(ctx) // this context is only meant for monitor start/stop
 	return &Monitor{
