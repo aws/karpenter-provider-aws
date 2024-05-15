@@ -115,41 +115,7 @@ var _ = Describe("CloudProvider", func() {
 	var nodePool *corev1beta1.NodePool
 	var nodeClaim *corev1beta1.NodeClaim
 	var _ = BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(
-			v1beta1.EC2NodeClass{
-				Status: v1beta1.EC2NodeClassStatus{
-					InstanceProfile: "test-profile",
-					SecurityGroups: []v1beta1.SecurityGroup{
-						{
-							ID:   "sg-test1",
-							Name: "securityGroup-test1",
-						},
-						{
-							ID:   "sg-test2",
-							Name: "securityGroup-test2",
-						},
-						{
-							ID:   "sg-test3",
-							Name: "securityGroup-test3",
-						},
-					},
-					Subnets: []v1beta1.Subnet{
-						{
-							ID:   "subnet-test1",
-							Zone: "test-zone-1a",
-						},
-						{
-							ID:   "subnet-test2",
-							Zone: "test-zone-1b",
-						},
-						{
-							ID:   "subnet-test3",
-							Zone: "test-zone-1c",
-						},
-					},
-				},
-			},
-		)
+		nodeClass = test.EC2NodeClass()
 		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
@@ -631,19 +597,36 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			nodeClass.Status.Subnets = []v1beta1.Subnet{
-				{
-					ID:   validSubnet1,
-					Zone: "zone-1",
+			nodeClass.Status = v1beta1.EC2NodeClassStatus{
+				InstanceProfile: "test-profile",
+				Subnets: []v1beta1.Subnet{
+					{
+						ID:   validSubnet1,
+						Zone: "zone-1",
+					},
+					{
+						ID:   validSubnet2,
+						Zone: "zone-2",
+					},
 				},
-				{
-					ID:   validSubnet2,
-					Zone: "zone-2",
+				SecurityGroups: []v1beta1.SecurityGroup{
+					{
+						ID: validSecurityGroup,
+					},
 				},
-			}
-			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-				{
-					ID: validSecurityGroup,
+				AMIs: []v1beta1.AMI{
+					{
+						ID: armAMIID,
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
+						},
+					},
+					{
+						ID: amdAMIID,
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+						},
+					},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -794,6 +777,14 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMIID}}
+			nodeClass.Status.AMIs = []v1beta1.AMI{
+				{
+					ID: amdAMIID,
+					Requirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+					},
+				},
+			}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
@@ -801,6 +792,12 @@ var _ = Describe("CloudProvider", func() {
 		})
 		Context("Static Drift Detection", func() {
 			BeforeEach(func() {
+				armRequirements := []v1.NodeSelectorRequirement{
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
+				}
+				amdRequirements := []v1.NodeSelectorRequirement{
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+				}
 				nodeClass = &v1beta1.EC2NodeClass{
 					ObjectMeta: nodeClass.ObjectMeta,
 					Spec: v1beta1.EC2NodeClassSpec{
@@ -839,6 +836,7 @@ var _ = Describe("CloudProvider", func() {
 						},
 					},
 					Status: v1beta1.EC2NodeClassStatus{
+						InstanceProfile: "test-profile",
 						Subnets: []v1beta1.Subnet{
 							{
 								ID:   validSubnet1,
@@ -852,6 +850,16 @@ var _ = Describe("CloudProvider", func() {
 						SecurityGroups: []v1beta1.SecurityGroup{
 							{
 								ID: validSecurityGroup,
+							},
+						},
+						AMIs: []v1beta1.AMI{
+							{
+								ID:           armAMIID,
+								Requirements: armRequirements,
+							},
+							{
+								ID:           amdAMIID,
+								Requirements: amdRequirements,
 							},
 						},
 					},
@@ -1100,6 +1108,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 				Status: v1beta1.EC2NodeClassStatus{
+					AMIs: nodeClass.Status.AMIs,
 					SecurityGroups: []v1beta1.SecurityGroup{
 						{
 							ID: "sg-test1",

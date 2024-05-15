@@ -16,7 +16,7 @@ package v1beta1
 
 import (
 	op "github.com/awslabs/operatorpkg/status"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Subnet contains resolved Subnet selector values utilized for node launch
@@ -49,7 +49,7 @@ type AMI struct {
 	Name string `json:"name,omitempty"`
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
-	Requirements []corev1beta1.NodeSelectorRequirementWithMinValues `json:"requirements"`
+	Requirements []v1.NodeSelectorRequirement `json:"requirements"`
 }
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass

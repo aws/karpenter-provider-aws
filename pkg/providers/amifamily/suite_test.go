@@ -137,7 +137,7 @@ var _ = Describe("AMIProvider", func() {
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   amd64NvidiaAMI,
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): arm64AMI,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(4))
 	})
@@ -147,7 +147,7 @@ var _ = Describe("AMIProvider", func() {
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): amd64AMI,
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version):  arm64AMI,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(2))
 	})
@@ -159,7 +159,7 @@ var _ = Describe("AMIProvider", func() {
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMI,
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/latest/image_id", version):  arm64NvidiaAMI,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(6))
 	})
@@ -169,7 +169,7 @@ var _ = Describe("AMIProvider", func() {
 			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", version): amd64AMI,
 			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(2))
 	})
@@ -178,7 +178,7 @@ var _ = Describe("AMIProvider", func() {
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", version): amd64AMI,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(1))
 	})
@@ -187,13 +187,13 @@ var _ = Describe("AMIProvider", func() {
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", version): amd64AMI,
 		}
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(1))
 	})
 	It("should succeed to resolve AMIs (Custom)", func() {
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
-		amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(0))
 	})
@@ -212,7 +212,7 @@ var _ = Describe("AMIProvider", func() {
 			go func() {
 				defer wg.Done()
 				defer GinkgoRecover()
-				images, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+				images, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 				Expect(err).ToNot(HaveOccurred())
 
 				Expect(images).To(HaveLen(2))
@@ -249,7 +249,7 @@ var _ = Describe("AMIProvider", func() {
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/recommended/image_id", version): arm64AMI,
 			}
 			// Only 2 of the requirements sets for the SSM aliases will resolve
-			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(2))
 		})
@@ -258,7 +258,7 @@ var _ = Describe("AMIProvider", func() {
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): amd64AMI,
 			}
-			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(1))
 		})
@@ -271,7 +271,7 @@ var _ = Describe("AMIProvider", func() {
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):         arm64AMI,
 			}
 			// Only 4 of the requirements sets for the SSM aliases will resolve
-			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(4))
 		})
@@ -282,7 +282,7 @@ var _ = Describe("AMIProvider", func() {
 				fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
 			}
 			// Only 1 of the requirements sets for the SSM aliases will resolve
-			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(1))
 		})
@@ -314,7 +314,7 @@ var _ = Describe("AMIProvider", func() {
 					Tags: map[string]string{"*": "*"},
 				},
 			}
-			amis, err := awsEnv.AMIProvider.Get(ctx, nodeClass, &amifamily.Options{})
+			amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(amis).To(HaveLen(1))
 			Expect(amis).To(ConsistOf(amifamily.AMI{

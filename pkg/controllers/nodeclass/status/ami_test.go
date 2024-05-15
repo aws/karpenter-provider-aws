@@ -142,88 +142,68 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			{
 				Name: "test-ami-3",
 				ID:   "ami-id-789",
-				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+				Requirements: []v1.NodeSelectorRequirement{
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1beta1.ArchitectureArm64},
-						},
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{corev1beta1.ArchitectureArm64},
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceGPUCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
+						Key:      v1beta1.LabelInstanceGPUCount,
+						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceAcceleratorCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
+						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 				},
 			},
 			{
 				Name: "test-ami-2",
 				ID:   "ami-id-456",
-				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+				Requirements: []v1.NodeSelectorRequirement{
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1beta1.ArchitectureAmd64},
-						},
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{corev1beta1.ArchitectureAmd64},
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceGPUCount,
-							Operator: v1.NodeSelectorOpExists,
-						},
+						Key:      v1beta1.LabelInstanceGPUCount,
+						Operator: v1.NodeSelectorOpExists,
 					},
 				},
 			},
 			{
 				Name: "test-ami-2",
 				ID:   "ami-id-456",
-				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+				Requirements: []v1.NodeSelectorRequirement{
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1beta1.ArchitectureAmd64},
-						},
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{corev1beta1.ArchitectureAmd64},
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceAcceleratorCount,
-							Operator: v1.NodeSelectorOpExists,
-						},
+						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Operator: v1.NodeSelectorOpExists,
 					},
 				},
 			},
 			{
 				Name: "test-ami-1",
 				ID:   "ami-id-123",
-				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+				Requirements: []v1.NodeSelectorRequirement{
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1beta1.ArchitectureAmd64},
-						},
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{corev1beta1.ArchitectureAmd64},
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceGPUCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
+						Key:      v1beta1.LabelInstanceGPUCount,
+						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceAcceleratorCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
+						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 				},
 			},
@@ -270,50 +250,38 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			{
 				Name: "test-ami-2",
 				ID:   "ami-id-456",
-				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+				Requirements: []v1.NodeSelectorRequirement{
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1beta1.ArchitectureArm64},
-						},
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{corev1beta1.ArchitectureArm64},
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceGPUCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
+						Key:      v1beta1.LabelInstanceGPUCount,
+						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceAcceleratorCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
+						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 				},
 			},
 			{
 				Name: "test-ami-1",
 				ID:   "ami-id-123",
-				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+				Requirements: []v1.NodeSelectorRequirement{
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1beta1.ArchitectureAmd64},
-						},
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{corev1beta1.ArchitectureAmd64},
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceGPUCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
+						Key:      v1beta1.LabelInstanceGPUCount,
+						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceAcceleratorCount,
-							Operator: v1.NodeSelectorOpDoesNotExist,
-						},
+						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 				},
 			},
@@ -328,16 +296,11 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				{
 					Name: "test-ami-3",
 					ID:   "ami-test3",
-					Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
-						{
-							NodeSelectorRequirement: v1.NodeSelectorRequirement{
-								Key:      "kubernetes.io/arch",
-								Operator: "In",
-								Values: []string{
-									"amd64",
-								},
-							},
-						},
+					Requirements: []v1.NodeSelectorRequirement{{
+						Key:      v1.LabelArchStable,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{corev1beta1.ArchitectureAmd64},
+					},
 					},
 				},
 			},
