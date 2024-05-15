@@ -42,7 +42,6 @@ import (
 	clock "k8s.io/utils/clock/testing"
 	. "knative.dev/pkg/logging/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/yaml"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -1981,7 +1980,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-				ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, controller), client.ObjectKeyFromObject(nodeClass))
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1994,7 +1993,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-				ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, controller), client.ObjectKeyFromObject(nodeClass))
+				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)

@@ -19,13 +19,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/samber/lo"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -117,7 +114,7 @@ var _ = Describe("TaggingController", func() {
 		})
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, taggingController), client.ObjectKeyFromObject(nodeClaim))
+		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1beta1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
 			return *tag.Key == v1beta1.TagName
@@ -133,7 +130,7 @@ var _ = Describe("TaggingController", func() {
 		})
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, taggingController), client.ObjectKeyFromObject(nodeClaim))
+		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1beta1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
 			return *tag.Key == v1beta1.TagName
@@ -150,7 +147,7 @@ var _ = Describe("TaggingController", func() {
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
 		ExpectDeleted(ctx, env.Client, nodeClaim)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, taggingController), client.ObjectKeyFromObject(nodeClaim))
+		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 	})
 
 	It("should gracefully handle missing instance", func() {
@@ -163,7 +160,7 @@ var _ = Describe("TaggingController", func() {
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
 		awsEnv.EC2API.Instances.Delete(*ec2Instance.InstanceId)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, taggingController), client.ObjectKeyFromObject(nodeClaim))
+		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1beta1.AnnotationInstanceTagged)))
 	})
 
@@ -180,7 +177,7 @@ var _ = Describe("TaggingController", func() {
 
 		ExpectApplied(ctx, env.Client, nodeClaim)
 		Expect(env.Client.Delete(ctx, nodeClaim)).To(Succeed())
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, taggingController), client.ObjectKeyFromObject(nodeClaim))
+		ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 		Expect(nodeClaim.Annotations).To(Not(HaveKey(v1beta1.AnnotationInstanceTagged)))
 		Expect(lo.ContainsBy(ec2Instance.Tags, func(tag *ec2.Tag) bool {
 			return *tag.Key == v1beta1.TagName
@@ -206,7 +203,7 @@ var _ = Describe("TaggingController", func() {
 			awsEnv.EC2API.Instances.Store(*ec2Instance.InstanceId, ec2Instance)
 
 			ExpectApplied(ctx, env.Client, nodeClaim)
-			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, taggingController), client.ObjectKeyFromObject(nodeClaim))
+			ExpectObjectReconciled(ctx, env.Client, taggingController, nodeClaim)
 			nodeClaim = ExpectExists(ctx, env.Client, nodeClaim)
 			Expect(nodeClaim.Annotations).To(HaveKey(v1beta1.AnnotationInstanceTagged))
 

@@ -33,7 +33,7 @@ require (
 	sigs.k8s.io/yaml v1.4.0
 )
 
-replace sigs.k8s.io/karpenter => github.com/jonathan-innis/karpenter v0.0.4-0.20240513012929-b1a7f9ab3cc2
+replace sigs.k8s.io/karpenter => github.com/jonathan-innis/karpenter v0.0.4-0.20240515023244-3e226aa5317c
 
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect

@@ -16,7 +16,6 @@ package status_test
 
 import (
 	_ "knative.dev/pkg/system/testing"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -50,7 +49,7 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 	})
 	It("should update status condition on nodeClass as Ready", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Conditions).To(HaveLen(1))
 		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsTrue()).To(BeTrue())
@@ -62,7 +61,7 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 			},
 		}
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsFalse()).To(BeTrue())

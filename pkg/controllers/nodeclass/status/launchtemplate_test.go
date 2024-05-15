@@ -15,12 +15,9 @@ limitations under the License.
 package status_test
 
 import (
-	_ "knative.dev/pkg/system/testing"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/samber/lo"
+	_ "knative.dev/pkg/system/testing"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -65,14 +62,14 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		} {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 			Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load()).To(BeNil())
 		}
 	})
 	It("should resolve cluster CIDR for IPv4 clusters", func() {
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("10.100.0.0/16"))
 	})
 	It("should resolve cluster CIDR for IPv6 clusters", func() {
@@ -85,7 +82,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		})
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, reconcile.AsReconciler(env.Client, statusController), client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))
 	})
 })
