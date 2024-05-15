@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -42,7 +41,7 @@ import (
 )
 
 type Provider interface {
-	Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error)
+	List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (AMIs, error)
 }
 
 type DefaultProvider struct {
@@ -76,25 +75,13 @@ func (a AMIs) Sort() {
 	})
 }
 
-func (a AMIs) String() string {
-	var sb strings.Builder
-	ids := lo.Map(a, func(a AMI, _ int) string { return a.AmiID })
-	if len(a) > 25 {
-		sb.WriteString(strings.Join(ids[:25], ", "))
-		sb.WriteString(fmt.Sprintf(" and %d other(s)", len(a)-25))
-	} else {
-		sb.WriteString(strings.Join(ids, ", "))
-	}
-	return sb.String()
-}
-
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
+func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1beta1.AMI) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		for _, ami := range a {
-			if err := instanceType.Requirements.Compatible(ami.Requirements, scheduling.AllowUndefinedWellKnownLabels); err == nil {
-				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
+		for _, ami := range amis {
+			if err := instanceType.Requirements.Compatible(scheduling.NewNodeSelectorRequirements(ami.Requirements...), scheduling.AllowUndefinedWellKnownLabels); err == nil {
+				amiIDs[ami.ID] = append(amiIDs[ami.ID], instanceType)
 				break
 			}
 		}
@@ -113,14 +100,14 @@ func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, e
 }
 
 // Get Returning a list of AMIs with its associated requirements
-func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (AMIs, error) {
 	p.Lock()
 	defer p.Unlock()
 
 	var err error
 	var amis AMIs
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
-		amis, err = p.getDefaultAMIs(ctx, nodeClass, options)
+		amis, err = p.getDefaultAMIs(ctx, nodeClass)
 		if err != nil {
 			return nil, err
 		}
@@ -137,13 +124,13 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	return amis, nil
 }
 
-func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {
+func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (res AMIs, err error) {
 	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
 		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
 		// to the data don't affect the original
 		return append(AMIs{}, images.(AMIs)...), nil
 	}
-	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
+	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, &Options{})
 	kubernetesVersion, err := p.versionProvider.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)

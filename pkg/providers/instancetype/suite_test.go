@@ -109,38 +109,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	var nodeClass, windowsNodeClass *v1beta1.EC2NodeClass
 	var nodePool, windowsNodePool *corev1beta1.NodePool
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(
-			v1beta1.EC2NodeClass{
-				Status: v1beta1.EC2NodeClassStatus{
-					InstanceProfile: "test-profile",
-					SecurityGroups: []v1beta1.SecurityGroup{
-						{
-							ID: "sg-test1",
-						},
-						{
-							ID: "sg-test2",
-						},
-						{
-							ID: "sg-test3",
-						},
-					},
-					Subnets: []v1beta1.Subnet{
-						{
-							ID:   "subnet-test1",
-							Zone: "test-zone-1a",
-						},
-						{
-							ID:   "subnet-test2",
-							Zone: "test-zone-1b",
-						},
-						{
-							ID:   "subnet-test3",
-							Zone: "test-zone-1c",
-						},
-					},
-				},
-			},
-		)
+		nodeClass = test.EC2NodeClass()
 		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
@@ -171,6 +140,16 @@ var _ = Describe("InstanceTypeProvider", func() {
 				InstanceProfile: "test-profile",
 				SecurityGroups:  nodeClass.Status.SecurityGroups,
 				Subnets:         nodeClass.Status.Subnets,
+				AMIs: []v1beta1.AMI{
+					{
+						ID: "ami-window-test1",
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+							{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}},
+							{Key: v1.LabelWindowsBuild, Operator: v1.NodeSelectorOpIn, Values: []string{v1beta1.Windows2022Build}},
+						},
+					},
+				},
 			},
 		})
 		windowsNodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)

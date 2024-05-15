@@ -119,7 +119,7 @@ func (p *DefaultProvider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2N
 	if err != nil {
 		return nil, err
 	}
-	resolvedLaunchTemplates, err := p.amiFamily.Resolve(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, options)
+	resolvedLaunchTemplates, err := p.amiFamily.Resolve(nodeClass, nodeClaim, instanceTypes, capacityType, options)
 	if err != nil {
 		return nil, err
 	}
