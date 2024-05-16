@@ -83,7 +83,7 @@ var _ = Describe("InstanceProfile Generation", func() {
 		instance := env.GetInstance(node.Name)
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
 		Expect(lo.FromPtr(instance.IamInstanceProfile.Arn)).To(ContainSubstring(nodeClass.Status.InstanceProfile))
-		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, v1beta1.ConditionTypeNodeClassReady)
+		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, "")
 	})
 	It("should have the EC2NodeClass status as not ready since Instance Profile was not resolved", func() {
 		nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", "invalidRole")
