@@ -78,6 +78,7 @@ runs:
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides "ClusterName=$CLUSTER_NAME" \
         --tags "testing/type=e2e" "testing/cluster=$CLUSTER_NAME" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=$CLUSTER_NAME"
+      aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name KarpenterNodeRole-$CLUSTER_NAME
   - name: create or upgrade cluster
     shell: bash
     env:
