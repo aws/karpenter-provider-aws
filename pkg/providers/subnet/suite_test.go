@@ -107,6 +107,7 @@ var _ = Describe("SubnetProvider", func() {
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr(""),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 			}, subnets)

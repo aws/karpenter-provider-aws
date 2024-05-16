@@ -208,6 +208,17 @@ var _ = Describe("CloudProvider", func() {
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
 		Expect(cloudProviderNodeClaim.Status.ImageID).ToNot(BeEmpty())
 	})
+	It("should return availability zone ID as a label on the nodeClaim", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderNodeClaim).ToNot(BeNil())
+		zone, ok := cloudProviderNodeClaim.GetLabels()[v1.LabelTopologyZone]
+		Expect(ok).To(BeTrue())
+		zoneID, ok := cloudProviderNodeClaim.GetLabels()[v1beta1.LabelInstanceAvailabilityZoneID]
+		Expect(ok).To(BeTrue())
+		Expect(zoneID).To(Equal(awsEnv.SubnetProvider.ZoneInfo()[zone]))
+	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)

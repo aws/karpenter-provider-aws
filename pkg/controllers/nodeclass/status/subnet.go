@@ -49,8 +49,9 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass)
 	})
 	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1beta1.Subnet {
 		return v1beta1.Subnet{
-			ID:   *ec2subnet.SubnetId,
-			Zone: *ec2subnet.AvailabilityZone,
+			ID:     *ec2subnet.SubnetId,
+			Zone:   *ec2subnet.AvailabilityZone,
+			ZoneID: *ec2subnet.AvailabilityZoneId,
 		}
 	})
 

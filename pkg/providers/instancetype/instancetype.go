@@ -35,6 +35,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -165,7 +166,8 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 		return NewInstanceType(ctx, i, p.region,
 			nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy,
 			kc.MaxPods, kc.PodsPerCore, kc.KubeReserved, kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft,
-			amiFamily, p.createOfferings(ctx, i, p.instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones))
+			amiFamily, p.createOfferings(ctx, i, p.instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones, p.subnetProvider.ZoneInfo()),
+		)
 	})
 	p.instanceTypesCache.SetDefault(key, result)
 	return result, nil
@@ -249,7 +251,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
-func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, instanceTypeZones, zones, subnetZones sets.Set[string]) []cloudprovider.Offering {
+func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, instanceTypeZones, zones, subnetZones sets.Set[string], zoneInfo map[string]string) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
@@ -271,11 +273,16 @@ func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2
 				continue
 			}
 			available := !isUnavailable && ok && instanceTypeZones.Has(zone) && subnetZones.Has(zone)
+
+			// supported on 1.30 and not less
 			offerings = append(offerings, cloudprovider.Offering{
-				Zone:         zone,
-				CapacityType: capacityType,
-				Price:        price,
-				Available:    available,
+				Constraints: map[string]string{
+					corev1beta1.CapacityTypeLabelKey:        capacityType,
+					v1.LabelTopologyZone:                    zone,
+					v1beta1.LabelInstanceAvailabilityZoneID: zoneInfo[zone],
+				},
+				Price:     price,
+				Available: available,
 			})
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: *instanceType.InstanceType,
@@ -297,3 +304,11 @@ func (p *DefaultProvider) Reset() {
 	p.instanceTypeOfferings = map[string]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 }
+
+// func requirements(ct, zone, zoneID string) scheduling.Requirements {
+// 	return scheduling.NewLabelRequirements(map[string]string{
+// 		corev1beta1.CapacityTypeLabelKey:        ct,
+// 		v1.LabelTopologyZone:                    zone,
+// 		v1beta1.LabelInstanceAvailabilityZoneID: zoneID,
+// 	})
+// }

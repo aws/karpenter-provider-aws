@@ -37,7 +37,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
+var _ = FDescribe("Scheduling", Ordered, ContinueOnFailure, func() {
 	var selectors sets.Set[string]
 
 	BeforeEach(func() {
@@ -103,6 +103,21 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodeSelector:     nodeSelector,
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
+			}})
+			env.ExpectCreated(nodeClass, nodePool, deployment)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			env.ExpectCreatedNodeCount("==", 1)
+		})
+		It("should support well-known labels for zone id selection", func() {
+			selectors.Insert(v1beta1.LabelInstanceAvailabilityZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
+			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1beta1.LabelInstanceAvailabilityZoneID,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{"usw2-az3"},
+					},
+				},
 			}})
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))

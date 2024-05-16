@@ -298,9 +298,10 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(ctx context.Context, nodeClas
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
 	}
+	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	for _, launchTemplate := range launchTemplates {
 		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
-			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(v1.LabelTopologyZone), capacityType, launchTemplate.ImageID),
+			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, capacityType, launchTemplate.ImageID),
 			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
@@ -318,7 +319,7 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(ctx context.Context, nodeClas
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, zones *scheduling.Requirement, capacityType string, image string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, reqs scheduling.Requirements, capacityType string, image string) []*ec2.FleetLaunchTemplateOverridesRequest {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
@@ -335,16 +336,16 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 		})
 		unwrappedOfferings = append(unwrappedOfferings, ofs...)
 	}
-
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for _, offering := range unwrappedOfferings {
-		if capacityType != offering.CapacityType {
+		if capacityType != offering.Constraints[corev1beta1.CapacityTypeLabelKey] {
 			continue
 		}
-		if !zones.Has(offering.Zone) {
+		if !reqs.Get(v1.LabelTopologyZone).Has(offering.Constraints[v1.LabelTopologyZone]) ||
+			!reqs.Get(v1beta1.LabelInstanceAvailabilityZoneID).Has(offering.Constraints[v1beta1.LabelInstanceAvailabilityZoneID]) {
 			continue
 		}
-		subnet, ok := zonalSubnets[offering.Zone]
+		subnet, ok := zonalSubnets[offering.Constraints[v1.LabelTopologyZone]]
 		if !ok {
 			continue
 		}
@@ -377,7 +378,7 @@ func (p *DefaultProvider) getCapacityType(nodeClaim *corev1beta1.NodeClaim, inst
 	if requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
 			for _, offering := range instanceType.Offerings.Available() {
-				if requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) && offering.CapacityType == corev1beta1.CapacityTypeSpot {
+				if requirements.Get(v1.LabelTopologyZone).Has(offering.Constraints[v1.LabelTopologyZone]) && offering.Constraints[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeSpot {
 					return corev1beta1.CapacityTypeSpot
 				}
 			}
@@ -412,8 +413,8 @@ func (p *DefaultProvider) isMixedCapacityLaunch(nodeClaim *corev1beta1.NodeClaim
 	if requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
 			for _, offering := range instanceType.Offerings.Available() {
-				if requirements.Get(v1.LabelTopologyZone).Has(offering.Zone) {
-					if offering.CapacityType == corev1beta1.CapacityTypeSpot {
+				if requirements.Get(v1.LabelTopologyZone).Has(offering.Constraints[v1.LabelTopologyZone]) {
+					if offering.Constraints[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeSpot {
 						hasSpotOfferings = true
 					} else {
 						hasODOffering = true
@@ -432,7 +433,7 @@ func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType) []*cloudpro
 	// first, find the price of our cheapest available on-demand instance type that could support this node
 	for _, it := range instanceTypes {
 		for _, o := range it.Offerings.Available() {
-			if o.CapacityType == corev1beta1.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
+			if o.Constraints[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
 				cheapestOnDemand = o.Price
 			}
 		}
