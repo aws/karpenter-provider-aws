@@ -20,7 +20,6 @@ import (
 
 	_ "knative.dev/pkg/system/testing"
 
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -41,7 +40,7 @@ var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
 var nodeClass *v1beta1.EC2NodeClass
-var statusController corecontroller.Controller
+var statusController *status.Controller
 
 func TestAPIs(t *testing.T) {
 	ctx = TestContextWithLogger(t)

@@ -45,6 +45,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(4096),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(630),
+					BaselineIops:             aws.Int64(3600),
+					BaselineThroughputInMBps: aws.Float64(78.75),
+					MaximumBandwidthInMbps:   aws.Int64(4750),
+					MaximumIops:              aws.Int64(20000),
+					MaximumThroughputInMBps:  aws.Float64(593.75),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(3),
 				Ipv4AddressesPerInterface:    aws.Int64(10),
@@ -75,6 +88,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(786432),
+			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(19000),
+					BaselineIops:             aws.Int64(80000),
+					BaselineThroughputInMBps: aws.Float64(2375.00),
+					MaximumBandwidthInMbps:   aws.Int64(19000),
+					MaximumIops:              aws.Int64(80000),
+					MaximumThroughputInMBps:  aws.Float64(2375.00),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
 			},
 			GpuInfo: &ec2.GpuInfo{
 				Gpus: []*ec2.GpuDeviceInfo{
@@ -137,6 +163,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(131072),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(9500),
+					BaselineIops:             aws.Int64(40000),
+					BaselineThroughputInMBps: aws.Float64(1187.50),
+					MaximumBandwidthInMbps:   aws.Int64(9500),
+					MaximumIops:              aws.Int64(40000),
+					MaximumThroughputInMBps:  aws.Float64(1187.50),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			GpuInfo: &ec2.GpuInfo{
 				Gpus: []*ec2.GpuDeviceInfo{
 					{
@@ -186,6 +225,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(16384),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(1190),
+					BaselineIops:             aws.Int64(6000),
+					BaselineThroughputInMBps: aws.Float64(148.75),
+					MaximumBandwidthInMbps:   aws.Int64(4750),
+					MaximumIops:              aws.Int64(20000),
+					MaximumThroughputInMBps:  aws.Float64(593.75),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
 				Accelerators: []*ec2.InferenceDeviceInfo{
 					{
@@ -225,6 +277,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(49152),
+			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(4750),
+					BaselineIops:             aws.Int64(20000),
+					BaselineThroughputInMBps: aws.Float64(593.75),
+					MaximumBandwidthInMbps:   aws.Int64(4750),
+					MaximumIops:              aws.Int64(20000),
+					MaximumThroughputInMBps:  aws.Float64(593.75),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
 			},
 			InferenceAcceleratorInfo: &ec2.InferenceAcceleratorInfo{
 				Accelerators: []*ec2.InferenceDeviceInfo{
@@ -266,6 +331,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(8192),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(650),
+					BaselineIops:             aws.Int64(3600),
+					BaselineThroughputInMBps: aws.Float64(81.25),
+					MaximumBandwidthInMbps:   aws.Int64(4750),
+					MaximumIops:              aws.Int64(18750),
+					MaximumThroughputInMBps:  aws.Float64(593.75),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(3),
 				Ipv4AddressesPerInterface:    aws.Int64(10),
@@ -296,6 +374,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(393216),
+			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(19000),
+					BaselineIops:             aws.Int64(80000),
+					BaselineThroughputInMBps: aws.Float64(2375.00),
+					MaximumBandwidthInMbps:   aws.Int64(19000),
+					MaximumIops:              aws.Int64(80000),
+					MaximumThroughputInMBps:  aws.Float64(2375.00),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(15),
@@ -328,6 +419,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(16384),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(1150),
+					BaselineIops:             aws.Int64(6000),
+					BaselineThroughputInMBps: aws.Float64(143.75),
+					MaximumBandwidthInMbps:   aws.Int64(4750),
+					MaximumIops:              aws.Int64(18750),
+					MaximumThroughputInMBps:  aws.Float64(593.75),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(4),
 				Ipv4AddressesPerInterface:    aws.Int64(15),
@@ -359,6 +463,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(524288),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(100000),
+					BaselineIops:             aws.Int64(400000),
+					BaselineThroughputInMBps: aws.Float64(12500.00),
+					MaximumBandwidthInMbps:   aws.Int64(100000),
+					MaximumIops:              aws.Int64(400000),
+					MaximumThroughputInMBps:  aws.Float64(12500.00),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			InstanceStorageInfo: &ec2.InstanceStorageInfo{NvmeSupport: aws.String("required"),
 				TotalSizeInGB: aws.Int64(7600),
 			},
@@ -366,18 +483,18 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 				EfaInfo: &ec2.EfaInfo{
 					MaximumEfaInterfaces: aws.Int64(2),
 				},
-				MaximumNetworkInterfaces:     aws.Int64(14),
+				MaximumNetworkInterfaces:     aws.Int64(16),
 				Ipv4AddressesPerInterface:    aws.Int64(50),
 				EncryptionInTransitSupported: aws.Bool(true),
 				DefaultNetworkCardIndex:      aws.Int64(0),
 				NetworkCards: []*ec2.NetworkCardInfo{
 					{
 						NetworkCardIndex:         aws.Int64(0),
-						MaximumNetworkInterfaces: aws.Int64(7),
+						MaximumNetworkInterfaces: aws.Int64(8),
 					},
 					{
 						NetworkCardIndex:         aws.Int64(1),
-						MaximumNetworkInterfaces: aws.Int64(7),
+						MaximumNetworkInterfaces: aws.Int64(8),
 					},
 				},
 			},
@@ -399,6 +516,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(249856),
+			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(7000),
+					BaselineIops:             aws.Int64(40000),
+					BaselineThroughputInMBps: aws.Float64(875.00),
+					MaximumBandwidthInMbps:   aws.Int64(7000),
+					MaximumIops:              aws.Int64(40000),
+					MaximumThroughputInMBps:  aws.Float64(875.00),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("unsupported"),
 			},
 			GpuInfo: &ec2.GpuInfo{
 				Gpus: []*ec2.GpuDeviceInfo{
@@ -443,6 +573,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(8192),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(695),
+					BaselineIops:             aws.Int64(4000),
+					BaselineThroughputInMBps: aws.Float64(86.88),
+					MaximumBandwidthInMbps:   aws.Int64(2780),
+					MaximumIops:              aws.Int64(15700),
+					MaximumThroughputInMBps:  aws.Float64(347.50),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(3),
 				Ipv4AddressesPerInterface:    aws.Int64(12),
@@ -473,6 +616,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(4096),
+			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(347),
+					BaselineIops:             aws.Int64(2000),
+					BaselineThroughputInMBps: aws.Float64(43.38),
+					MaximumBandwidthInMbps:   aws.Int64(2085),
+					MaximumIops:              aws.Int64(11800),
+					MaximumThroughputInMBps:  aws.Float64(260.62),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
 			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(3),
@@ -505,6 +661,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(2048),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(174),
+					BaselineIops:             aws.Int64(1000),
+					BaselineThroughputInMBps: aws.Float64(21.75),
+					MaximumBandwidthInMbps:   aws.Int64(2085),
+					MaximumIops:              aws.Int64(11800),
+					MaximumThroughputInMBps:  aws.Float64(260.62),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(3),
 				Ipv4AddressesPerInterface:    aws.Int64(4),
@@ -536,6 +705,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(16384),
 			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(695),
+					BaselineIops:             aws.Int64(4000),
+					BaselineThroughputInMBps: aws.Float64(86.88),
+					MaximumBandwidthInMbps:   aws.Int64(2780),
+					MaximumIops:              aws.Int64(15700),
+					MaximumThroughputInMBps:  aws.Float64(347.50),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
 			NetworkInfo: &ec2.NetworkInfo{
 				MaximumNetworkInterfaces:     aws.Int64(4),
 				Ipv4AddressesPerInterface:    aws.Int64(15),
@@ -566,6 +748,19 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 			MemoryInfo: &ec2.MemoryInfo{
 				SizeInMiB: aws.Int64(32768),
+			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(5000),
+					BaselineIops:             aws.Int64(16250),
+					BaselineThroughputInMBps: aws.Float64(625.00),
+					MaximumBandwidthInMbps:   aws.Int64(20000),
+					MaximumIops:              aws.Int64(65000),
+					MaximumThroughputInMBps:  aws.Float64(2500.00),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
 			},
 			InstanceStorageInfo: &ec2.InstanceStorageInfo{NvmeSupport: aws.String("required"),
 				TotalSizeInGB: aws.Int64(474),

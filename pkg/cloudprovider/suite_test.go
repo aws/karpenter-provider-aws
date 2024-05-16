@@ -27,7 +27,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
-
 	clock "k8s.io/utils/clock/testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -39,6 +38,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -114,6 +114,7 @@ var _ = Describe("CloudProvider", func() {
 	var nodeClaim *corev1beta1.NodeClaim
 	var _ = BeforeEach(func() {
 		nodeClass = test.EC2NodeClass()
+		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -138,22 +139,16 @@ var _ = Describe("CloudProvider", func() {
 				},
 			},
 		})
-		nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-			{
-				ID:   "sg-test1",
-				Name: "securityGroup-test1",
-			},
-			{
-				ID:   "sg-test2",
-				Name: "securityGroup-test2",
-			},
-			{
-				ID:   "sg-test3",
-				Name: "securityGroup-test3",
-			},
-		}
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+	})
+	It("should not proceed with instance creation of nodeClass in not ready", func() {
+		nodeClass.StatusConditions().SetFalse(v1beta1.ConditionTypeNodeClassReady, "NodeClassNotReady", "NodeClass not ready")
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		_, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(HaveOccurred())
 	})
 	It("should return an ICE error when there are no instance types to launch", func() {
 		// Specify no instance types and expect to receive a capacity error
@@ -600,9 +595,36 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-				{
-					ID: validSecurityGroup,
+			nodeClass.Status = v1beta1.EC2NodeClassStatus{
+				InstanceProfile: "test-profile",
+				Subnets: []v1beta1.Subnet{
+					{
+						ID:   validSubnet1,
+						Zone: "zone-1",
+					},
+					{
+						ID:   validSubnet2,
+						Zone: "zone-2",
+					},
+				},
+				SecurityGroups: []v1beta1.SecurityGroup{
+					{
+						ID: validSecurityGroup,
+					},
+				},
+				AMIs: []v1beta1.AMI{
+					{
+						ID: armAMIID,
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
+						},
+					},
+					{
+						ID: amdAMIID,
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+						},
+					},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -680,7 +702,8 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should return an error if subnets are empty", func() {
 			awsEnv.SubnetCache.Flush()
-			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{}})
+			nodeClass.Status.Subnets = []v1beta1.Subnet{}
+			ExpectApplied(ctx, env.Client, nodeClass)
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
@@ -752,6 +775,14 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMIID}}
+			nodeClass.Status.AMIs = []v1beta1.AMI{
+				{
+					ID: amdAMIID,
+					Requirements: []v1.NodeSelectorRequirement{
+						{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+					},
+				},
+			}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
@@ -759,6 +790,12 @@ var _ = Describe("CloudProvider", func() {
 		})
 		Context("Static Drift Detection", func() {
 			BeforeEach(func() {
+				armRequirements := []v1.NodeSelectorRequirement{
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
+				}
+				amdRequirements := []v1.NodeSelectorRequirement{
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+				}
 				nodeClass = &v1beta1.EC2NodeClass{
 					ObjectMeta: nodeClass.ObjectMeta,
 					Spec: v1beta1.EC2NodeClassSpec{
@@ -797,9 +834,30 @@ var _ = Describe("CloudProvider", func() {
 						},
 					},
 					Status: v1beta1.EC2NodeClassStatus{
+						InstanceProfile: "test-profile",
+						Subnets: []v1beta1.Subnet{
+							{
+								ID:   validSubnet1,
+								Zone: "zone-1",
+							},
+							{
+								ID:   validSubnet2,
+								Zone: "zone-2",
+							},
+						},
 						SecurityGroups: []v1beta1.SecurityGroup{
 							{
 								ID: validSecurityGroup,
+							},
+						},
+						AMIs: []v1beta1.AMI{
+							{
+								ID:           armAMIID,
+								Requirements: armRequirements,
+							},
+							{
+								ID:           amdAMIID,
+								Requirements: amdRequirements,
 							},
 						},
 					},
@@ -964,13 +1022,16 @@ var _ = Describe("CloudProvider", func() {
 			Expect(foundNonGPULT).To(BeTrue())
 		})
 		It("should launch instances into subnet with the most available IP addresses", func() {
+			awsEnv.SubnetCache.Flush()
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(100),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
+			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -978,14 +1039,17 @@ var _ = Describe("CloudProvider", func() {
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
 		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
+			awsEnv.SubnetCache.Flush()
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(11),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
+			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(1)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -1020,6 +1084,8 @@ var _ = Describe("CloudProvider", func() {
 			}})
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
@@ -1040,6 +1106,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 				Status: v1beta1.EC2NodeClassStatus{
+					AMIs: nodeClass.Status.AMIs,
 					SecurityGroups: []v1beta1.SecurityGroup{
 						{
 							ID: "sg-test1",
@@ -1059,6 +1126,7 @@ var _ = Describe("CloudProvider", func() {
 				},
 			})
 			ExpectApplied(ctx, env.Client, nodePool2, nodeClass2)
+			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass2)
 			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1beta1.NodePoolLabelKey: nodePool2.Name}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)

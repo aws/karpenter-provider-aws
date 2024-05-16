@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-03-18T13:06:23Z for us-east-1
+// generated at 2024-05-13T13:06:50Z for us-east-1
 
 var InitialOnDemandPricesUSGov = map[string]map[string]float64{
 	// us-gov-east-1
@@ -74,7 +74,8 @@ var InitialOnDemandPricesUSGov = map[string]map[string]float64{
 		"inf1.24xlarge": 5.953000, "inf1.2xlarge": 0.456000, "inf1.6xlarge": 1.488000, "inf1.xlarge": 0.288000,
 		// m5 family
 		"m5.12xlarge": 2.904000, "m5.16xlarge": 3.872000, "m5.24xlarge": 5.808000, "m5.2xlarge": 0.484000,
-		"m5.4xlarge": 0.968000, "m5.8xlarge": 1.936000, "m5.large": 0.121000, "m5.xlarge": 0.242000,
+		"m5.4xlarge": 0.968000, "m5.8xlarge": 1.936000, "m5.large": 0.121000, "m5.metal": 5.808000,
+		"m5.xlarge": 0.242000,
 		// m5a family
 		"m5a.12xlarge": 2.616000, "m5a.16xlarge": 3.488000, "m5a.24xlarge": 5.232000, "m5a.2xlarge": 0.436000,
 		"m5a.4xlarge": 0.872000, "m5a.8xlarge": 1.744000, "m5a.large": 0.109000, "m5a.xlarge": 0.218000,
@@ -135,6 +136,10 @@ var InitialOnDemandPricesUSGov = map[string]map[string]float64{
 		"r6i.12xlarge": 3.624000, "r6i.16xlarge": 4.832000, "r6i.24xlarge": 7.248000, "r6i.2xlarge": 0.604000,
 		"r6i.32xlarge": 9.664000, "r6i.4xlarge": 1.208000, "r6i.8xlarge": 2.416000, "r6i.large": 0.151000,
 		"r6i.metal": 9.664000, "r6i.xlarge": 0.302000,
+		// r7i family
+		"r7i.12xlarge": 3.805200, "r7i.16xlarge": 5.073600, "r7i.24xlarge": 7.610400, "r7i.2xlarge": 0.634200,
+		"r7i.48xlarge": 15.220800, "r7i.4xlarge": 1.268400, "r7i.8xlarge": 2.536800, "r7i.large": 0.158550,
+		"r7i.metal-24xl": 8.371440, "r7i.metal-48xl": 15.220800, "r7i.xlarge": 0.317100,
 		// t3 family
 		"t3.2xlarge": 0.390400, "t3.large": 0.097600, "t3.medium": 0.048800, "t3.micro": 0.012200,
 		"t3.nano": 0.006100, "t3.small": 0.024400, "t3.xlarge": 0.195200,

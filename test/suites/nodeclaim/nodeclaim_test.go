@@ -15,7 +15,6 @@ limitations under the License.
 package nodeclaim_test
 
 import (
-	"encoding/base64"
 	"fmt"
 	"os"
 	"time"
@@ -269,16 +268,16 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should create a NodeClaim with custom labels passed through the userData", func() {
-		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		customAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 		// Update the userData for the instance input with the correct NodePool
-		rawContent, err := os.ReadFile("testdata/al2_userdata_custom_labels_input.sh")
+		rawContent, err := os.ReadFile("testdata/al2023_userdata_custom_labels_input.yaml")
 		Expect(err).ToNot(HaveOccurred())
 
-		// Create userData that adds custom labels through the --kubelet-extra-args
+		// Create userData that adds custom labels through the --node-labels
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: customAMI}}
-		nodeClass.Spec.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
-			env.ClusterEndpoint, env.ExpectCABundle()))))
+		nodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName,
+			env.ClusterEndpoint, env.ExpectCABundle()))
 
 		nodeClaim := test.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
@@ -319,17 +318,17 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNodeClaimsReady(nodeClaim)
 	})
 	It("should delete a NodeClaim after the registration timeout when the node doesn't register", func() {
-		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		customAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 		// Update the userData for the instance input with the correct NodePool
-		rawContent, err := os.ReadFile("testdata/al2_userdata_input.sh")
+		rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
 		Expect(err).ToNot(HaveOccurred())
 
-		// Create userData that adds custom labels through the --kubelet-extra-args
+		// Create userData that adds custom labels through the --node-labels
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: customAMI}}
 
 		// Giving bad clusterName and clusterEndpoint to the userData
-		nodeClass.Spec.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), "badName", "badEndpoint", env.ExpectCABundle()))))
+		nodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), "badName", "badEndpoint", env.ExpectCABundle()))
 
 		nodeClaim := test.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
@@ -369,9 +368,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		Eventually(func(g Gomega) {
 			temp := &corev1beta1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), temp)).To(Succeed())
-			g.Expect(temp.StatusConditions().GetCondition(corev1beta1.Launched).IsTrue()).To(BeTrue())
-			g.Expect(temp.StatusConditions().GetCondition(corev1beta1.Registered).IsFalse()).To(BeTrue())
-			g.Expect(temp.StatusConditions().GetCondition(corev1beta1.Initialized).IsFalse()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Get(corev1beta1.ConditionTypeLaunched).IsTrue()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Get(corev1beta1.ConditionTypeRegistered).IsFalse()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Get(corev1beta1.ConditionTypeInitialized).IsFalse()).To(BeTrue())
 		}).Should(Succeed())
 
 		// Expect that the nodeClaim is eventually de-provisioned due to the registration timeout

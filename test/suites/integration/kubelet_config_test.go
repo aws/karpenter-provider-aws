@@ -26,7 +26,6 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -36,7 +35,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
@@ -90,14 +88,12 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
-				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.GetK8sVersion(0) == "1.29" {
+				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.K8sMinorVersion() >= 29 {
 					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
 						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
 						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
-					}, func(arg string, _ int) v1beta1.AMISelectorTerm {
-						parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
-						Expect(err).To(BeNil())
-						return v1beta1.AMISelectorTerm{ID: *parameter.Parameter.Value}
+					}, func(ssmPath string, _ int) v1beta1.AMISelectorTerm {
+						return v1beta1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
 					})
 				}
 				pod := test.Pod(test.PodOptions{

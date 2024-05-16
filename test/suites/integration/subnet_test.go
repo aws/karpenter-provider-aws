@@ -122,6 +122,16 @@ var _ = Describe("Subnets", func() {
 	It("should have the NodeClass status for subnets", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSubnets(env, nodeClass)
+		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, "")
+	})
+	It("should have the NodeClass status as not ready since subnets were not resolved", func() {
+		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+			{
+				Tags: map[string]string{"karpenter.sh/discovery": "invalidName"},
+			},
+		}
+		env.ExpectCreated(nodeClass)
+		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, false, "unable to resolve subnets")
 	})
 })
 

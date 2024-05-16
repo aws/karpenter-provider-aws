@@ -85,11 +85,22 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
 		nodePool.Spec.Limits = nil
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceHypervisor,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{"nitro"},
-			}})
+		test.ReplaceRequirements(nodePool, []corev1beta1.NodeSelectorRequirementWithMinValues{
+			{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceHypervisor,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"nitro"},
+				},
+			},
+			// Ensure that all pods can fit on to the provisioned nodes including all daemonsets
+			{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      v1beta1.LabelInstanceSize,
+					Operator: v1.NodeSelectorOpIn,
+					Values:   []string{"large"},
+				},
+			},
+		}...)
 		deploymentOptions = test.DeploymentOptions{
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{

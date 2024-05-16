@@ -55,11 +55,9 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	return reconcile.Result{RequeueAfter: 12 * time.Hour}, nil
 }
 
-func (c *Controller) Name() string {
-	return "providers.instancetype"
-}
-
-func (c *Controller) Builder(_ context.Context, m manager.Manager) controller.Builder {
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	// Includes a default exponential failure rate limiter of base: time.Millisecond, and max: 1000*time.Second
-	return controller.NewSingletonManagedBy(m)
+	return controller.NewSingletonManagedBy(m).
+		Named("providers.instancetype").
+		Complete(c)
 }

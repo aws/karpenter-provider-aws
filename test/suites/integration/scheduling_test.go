@@ -92,6 +92,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				v1beta1.LabelInstanceCPU:              "2",
 				v1beta1.LabelInstanceCPUManufacturer:  "intel",
 				v1beta1.LabelInstanceMemory:           "4096",
+				v1beta1.LabelInstanceEBSBandwidth:     "4750",
 				v1beta1.LabelInstanceNetworkBandwidth: "750",
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
@@ -447,14 +448,40 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		DescribeTable(
 			"should provision a right-sized node when a pod has InitContainers (cpu)",
 			func(expectedNodeCPU string, containerRequirements v1.ResourceRequirements, initContainers ...v1.Container) {
-				if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
+				if env.K8sMinorVersion() < 29 {
 					Skip("native sidecar containers are only enabled on EKS 1.29+")
 				}
+
+				labels := map[string]string{"test": test.RandomName()}
+				// Create a buffer pod to even out the total resource requests regardless of the daemonsets on the cluster. Assumes
+				// CPU is the resource in contention and that total daemonset CPU requests <= 3.
+				dsBufferPod := test.Pod(test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: labels,
+					},
+					PodRequirements: []v1.PodAffinityTerm{{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: labels,
+						},
+						TopologyKey: v1.LabelHostname,
+					}},
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU: func() resource.Quantity {
+								dsOverhead := env.GetDaemonSetOverhead(nodePool)
+								base := lo.ToPtr(resource.MustParse("3"))
+								base.Sub(*dsOverhead.Cpu())
+								return *base
+							}(),
+						},
+					},
+				})
+
 				test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceCPU,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"1", "2"},
+						Values:   []string{"4", "8"},
 					},
 				}, corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
@@ -464,15 +491,24 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					},
 				})
 				pod := test.Pod(test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: labels,
+					},
+					PodRequirements: []v1.PodAffinityTerm{{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: labels,
+						},
+						TopologyKey: v1.LabelHostname,
+					}},
 					InitContainers:       initContainers,
 					ResourceRequirements: containerRequirements,
 				})
-				env.ExpectCreated(nodePool, nodeClass, pod)
+				env.ExpectCreated(nodePool, nodeClass, dsBufferPod, pod)
 				env.EventuallyExpectHealthy(pod)
 				node := env.ExpectCreatedNodeCount("==", 1)[0]
 				Expect(node.ObjectMeta.GetLabels()[v1beta1.LabelInstanceCPU]).To(Equal(expectedNodeCPU))
 			},
-			Entry("sidecar requirements + later init requirements do exceed container requirements", "2", v1.ResourceRequirements{
+			Entry("sidecar requirements + later init requirements do exceed container requirements", "8", v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
@@ -484,7 +520,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 			})),
-			Entry("sidecar requirements + later init requirements do not exceed container requirements", "1", v1.ResourceRequirements{
+			Entry("sidecar requirements + later init requirements do not exceed container requirements", "4", v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
@@ -496,7 +532,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
 			})),
-			Entry("init container requirements exceed all later requests", "2", v1.ResourceRequirements{
+			Entry("init container requirements exceed all later requests", "8", v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, v1.Container{
 				RestartPolicy: lo.ToPtr(v1.ContainerRestartPolicyAlways),
@@ -513,7 +549,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}),
 		)
 		It("should provision a right-sized node when a pod has InitContainers (mixed resources)", func() {
-			if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
+			if env.K8sMinorVersion() < 29 {
 				Skip("native sidecar containers are only enabled on EKS 1.29+")
 			}
 			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
