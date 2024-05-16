@@ -31,7 +31,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"knative.dev/pkg/logging"
-
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
@@ -49,9 +48,12 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
-var (
+const (
 	instanceTypeFlexibilityThreshold = 5 // falling back to on-demand without flexibility risks insufficient capacity errors
+	maxInstanceTypes                 = 60
+)
 
+var (
 	instanceStateFilter = &ec2.Filter{
 		Name:   aws.String("instance-state-name"),
 		Values: aws.StringSlice([]string{ec2.InstanceStateNamePending, ec2.InstanceStateNameRunning, ec2.InstanceStateNameStopping, ec2.InstanceStateNameStopped, ec2.InstanceStateNameShuttingDown}),
@@ -94,6 +96,10 @@ func (p *DefaultProvider) Create(ctx context.Context, nodeClass *v1beta1.EC2Node
 	// Only filter the instances if there are no minValues in the requirement.
 	if !schedulingRequirements.HasMinValues() {
 		instanceTypes = p.filterInstanceTypes(nodeClaim, instanceTypes)
+	}
+	instanceTypes, err := cloudprovider.InstanceTypes(instanceTypes).Truncate(schedulingRequirements, maxInstanceTypes)
+	if err != nil {
+		return nil, fmt.Errorf("truncating instance types, %w", err)
 	}
 	tags := getTags(ctx, nodeClass, nodeClaim)
 	fleetInstance, err := p.launchInstance(ctx, nodeClass, nodeClaim, instanceTypes, tags)
