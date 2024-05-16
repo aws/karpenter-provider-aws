@@ -101,27 +101,22 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 	defer p.muInstanceTypeInfo.RUnlock()
 	defer p.muInstanceTypeOfferings.RUnlock()
 
+	if kc == nil {
+		kc = &corev1beta1.KubeletConfiguration{}
+	}
 	if len(p.instanceTypesInfo) == 0 {
 		return nil, fmt.Errorf("no instance types found")
 	}
 	if len(p.instanceTypeOfferings) == 0 {
 		return nil, fmt.Errorf("no instance types offerings found")
 	}
-
-	subnets, err := p.subnetProvider.List(ctx, nodeClass)
-	if err != nil {
-		return nil, err
+	if len(nodeClass.Status.Subnets) == 0 {
+		return nil, fmt.Errorf("no subnets found")
 	}
-	subnetZones := sets.New[string](lo.Map(subnets, func(s *ec2.Subnet, _ int) string {
-		return aws.StringValue(s.AvailabilityZone)
+
+	subnetZones := sets.New(lo.Map(nodeClass.Status.Subnets, func(s v1beta1.Subnet, _ int) string {
+		return aws.StringValue(&s.Zone)
 	})...)
-
-	if kc == nil {
-		kc = &corev1beta1.KubeletConfiguration{}
-	}
-	if nodeClass == nil {
-		nodeClass = &v1beta1.EC2NodeClass{}
-	}
 
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
@@ -138,7 +133,9 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 		aws.StringValue(nodeClass.Spec.AMIFamily),
 	)
 	if item, ok := p.instanceTypesCache.Get(key); ok {
-		return item.([]*cloudprovider.InstanceType), nil
+		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
+		// so that modifications to the ordering of the data don't affect the original
+		return append([]*cloudprovider.InstanceType{}, item.([]*cloudprovider.InstanceType)...), nil
 	}
 
 	// Get all zones across all offerings

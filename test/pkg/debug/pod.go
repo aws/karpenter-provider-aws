@@ -31,7 +31,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
 )
 
@@ -43,10 +42,6 @@ func NewPodController(kubeClient client.Client) *PodController {
 	return &PodController{
 		kubeClient: kubeClient,
 	}
-}
-
-func (c *PodController) Name() string {
-	return "pod"
 }
 
 func (c *PodController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -73,9 +68,9 @@ func (c *PodController) GetInfo(p *v1.Pod) string {
 		pod.IsProvisionable(p), p.Status.Phase, p.Spec.NodeName, p.OwnerReferences, containerInfo.String())
 }
 
-func (c *PodController) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(controllerruntime.
-		NewControllerManagedBy(m).
+func (c *PodController) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("pod").
 		For(&v1.Pod{}).
 		WithEventFilter(predicate.And(
 			predicate.Funcs{
@@ -89,5 +84,6 @@ func (c *PodController) Builder(_ context.Context, m manager.Manager) corecontro
 				return o.GetNamespace() != "kube-system"
 			}),
 		)).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		Complete(c)
 }

@@ -327,7 +327,15 @@ func (env *Environment) ExpectParsedProviderID(providerID string) string {
 	return providerIDSplit[len(providerIDSplit)-1]
 }
 
-func (env *Environment) GetK8sVersion(offset int) string {
+func (env *Environment) K8sVersion() string {
+	GinkgoHelper()
+
+	return env.K8sVersionWithOffset(0)
+}
+
+func (env *Environment) K8sVersionWithOffset(offset int) string {
+	GinkgoHelper()
+
 	serverVersion, err := env.KubeClient.Discovery().ServerVersion()
 	Expect(err).To(BeNil())
 	minorVersion, err := strconv.Atoi(strings.TrimSuffix(serverVersion.Minor, "+"))
@@ -338,18 +346,19 @@ func (env *Environment) GetK8sVersion(offset int) string {
 	return fmt.Sprintf("%s.%d", serverVersion.Major, minorVersion-offset)
 }
 
-func (env *Environment) GetK8sMinorVersion(offset int) (int, error) {
-	version, err := strconv.Atoi(strings.Split(env.GetK8sVersion(offset), ".")[1])
-	if err != nil {
-		return 0, err
-	}
-	return version, nil
+func (env *Environment) K8sMinorVersion() int {
+	GinkgoHelper()
+
+	version, err := strconv.Atoi(strings.Split(env.K8sVersion(), ".")[1])
+	Expect(err).ToNot(HaveOccurred())
+	return version
 }
 
-func (env *Environment) GetCustomAMI(amiPath string, versionOffset int) string {
-	version := env.GetK8sVersion(versionOffset)
+func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
+	GinkgoHelper()
+
 	parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-		Name: aws.String(fmt.Sprintf(amiPath, version)),
+		Name: aws.String(ssmPath),
 	})
 	Expect(err).To(BeNil())
 	return *parameter.Parameter.Value

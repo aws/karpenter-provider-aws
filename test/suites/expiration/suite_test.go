@@ -30,8 +30,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
-
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -345,56 +343,34 @@ var _ = Describe("Expiration", func() {
 		})
 		It("should respect budgets for non-empty replace expiration", func() {
 			appLabels := map[string]string{"app": "large-app"}
-
-			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceSize,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"xlarge"},
-					},
-				},
-				// Add an Exists operator so that we can select on a fake partition later
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      "test-partition",
-						Operator: v1.NodeSelectorOpExists,
-					},
-				},
-			)
 			nodePool.Labels = appLabels
 			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.
 			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
 				Nodes: "3",
 			}}
 
-			// Make 5 pods all with different deployments and different test partitions, so that each pod can be put
-			// on a separate node.
+			// Create a 5 pod deployment with hostname inter-pod anti-affinity to ensure each pod is placed on a unique node
 			selector = labels.SelectorFromSet(appLabels)
 			numPods = 5
-			deployments := make([]*appsv1.Deployment, numPods)
-			for i := range lo.Range(numPods) {
-				deployments[i] = coretest.Deployment(coretest.DeploymentOptions{
-					Replicas: 1,
-					PodOptions: coretest.PodOptions{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: appLabels,
-						},
-						NodeSelector: map[string]string{"test-partition": fmt.Sprintf("%d", i)},
-						// Each xlarge has 4 cpu, so each node should fit no more than 1 pod.
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceCPU: resource.MustParse("3"),
-							},
-						},
+			deployment := coretest.Deployment(coretest.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: coretest.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: appLabels,
 					},
-				})
-			}
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: appLabels,
+						},
+					}},
+				},
+			})
 
-			env.ExpectCreated(nodeClass, nodePool, deployments[0], deployments[1], deployments[2], deployments[3], deployments[4])
+			env.ExpectCreated(nodeClass, nodePool, deployment)
 
-			env.EventuallyExpectCreatedNodeClaimCount("==", 5)
-			nodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+			env.EventuallyExpectCreatedNodeClaimCount("==", numPods)
+			nodes := env.EventuallyExpectCreatedNodeCount("==", numPods)
 
 			// Check that all daemonsets and deployment pods are online
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -594,13 +570,9 @@ var _ = Describe("Expiration", func() {
 			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
 
 			// Set a configuration that will not register a NodeClaim
-			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-				Name: lo.ToPtr("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"),
-			})
-			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
-					ID: *parameter.Parameter.Value,
+					ID: env.GetAMIBySSMPath("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"),
 				},
 			}
 			env.ExpectCreatedOrUpdated(nodeClass)

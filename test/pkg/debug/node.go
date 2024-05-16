@@ -31,7 +31,6 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 )
 
@@ -43,10 +42,6 @@ func NewNodeController(kubeClient client.Client) *NodeController {
 	return &NodeController{
 		kubeClient: kubeClient,
 	}
-}
-
-func (c *NodeController) Name() string {
-	return "node"
 }
 
 func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -66,9 +61,9 @@ func (c *NodeController) GetInfo(ctx context.Context, n *v1.Node) string {
 	return fmt.Sprintf("ready=%s schedulable=%t initialized=%s pods=%d taints=%v", nodeutils.GetCondition(n, v1.NodeReady).Status, !n.Spec.Unschedulable, n.Labels[v1beta1.NodeInitializedLabelKey], len(pods), n.Spec.Taints)
 }
 
-func (c *NodeController) Builder(ctx context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(controllerruntime.
-		NewControllerManagedBy(m).
+func (c *NodeController) Register(ctx context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("node").
 		For(&v1.Node{}).
 		WithEventFilter(predicate.And(
 			predicate.Funcs{
@@ -82,5 +77,6 @@ func (c *NodeController) Builder(ctx context.Context, m manager.Manager) corecon
 				return o.GetLabels()[v1beta1.NodePoolLabelKey] != ""
 			}),
 		)).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		Complete(c)
 }

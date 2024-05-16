@@ -106,17 +106,8 @@ var _ = Describe("InstanceProvider", func() {
 				},
 			},
 		})
-		nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-			{
-				ID: "sg-test1",
-			},
-			{
-				ID: "sg-test2",
-			},
-			{
-				ID: "sg-test3",
-			},
-		}
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})

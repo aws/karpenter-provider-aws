@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -109,6 +110,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	var nodePool, windowsNodePool *corev1beta1.NodePool
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass()
+		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -134,7 +136,23 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Spec: v1beta1.EC2NodeClassSpec{
 				AMIFamily: &v1beta1.AMIFamilyWindows2022,
 			},
+			Status: v1beta1.EC2NodeClassStatus{
+				InstanceProfile: "test-profile",
+				SecurityGroups:  nodeClass.Status.SecurityGroups,
+				Subnets:         nodeClass.Status.Subnets,
+				AMIs: []v1beta1.AMI{
+					{
+						ID: "ami-window-test1",
+						Requirements: []v1.NodeSelectorRequirement{
+							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+							{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}},
+							{Key: v1.LabelWindowsBuild, Operator: v1.NodeSelectorOpIn, Values: []string{v1beta1.Windows2022Build}},
+						},
+					},
+				},
+			},
 		})
+		windowsNodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
 		windowsNodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -155,28 +173,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		})
-		nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-			{
-				ID: "sg-test1",
-			},
-			{
-				ID: "sg-test2",
-			},
-			{
-				ID: "sg-test3",
-			},
-		}
-		windowsNodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
-			{
-				ID: "sg-test1",
-			},
-			{
-				ID: "sg-test2",
-			},
-			{
-				ID: "sg-test3",
-			},
-		}
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
@@ -203,6 +201,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceCPU:                          "32",
 			v1beta1.LabelInstanceCPUManufacturer:              "intel",
 			v1beta1.LabelInstanceMemory:                       "131072",
+			v1beta1.LabelInstanceEBSBandwidth:                 "9500",
 			v1beta1.LabelInstanceNetworkBandwidth:             "50000",
 			v1beta1.LabelInstanceGPUName:                      "t4",
 			v1beta1.LabelInstanceGPUManufacturer:              "nvidia",
@@ -256,6 +255,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceCPU:                          "32",
 			v1beta1.LabelInstanceCPUManufacturer:              "intel",
 			v1beta1.LabelInstanceMemory:                       "131072",
+			v1beta1.LabelInstanceEBSBandwidth:                 "9500",
 			v1beta1.LabelInstanceNetworkBandwidth:             "50000",
 			v1beta1.LabelInstanceGPUName:                      "t4",
 			v1beta1.LabelInstanceGPUManufacturer:              "nvidia",
@@ -307,6 +307,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceCPU:                          "8",
 			v1beta1.LabelInstanceCPUManufacturer:              "intel",
 			v1beta1.LabelInstanceMemory:                       "16384",
+			v1beta1.LabelInstanceEBSBandwidth:                 "4750",
 			v1beta1.LabelInstanceNetworkBandwidth:             "5000",
 			v1beta1.LabelInstanceAcceleratorName:              "inferentia",
 			v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
@@ -873,6 +874,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 	})
 	It("should launch instances in local zones", func() {
+		nodeClass.Status.Subnets = []v1beta1.Subnet{
+			{
+				ID:   "subnet-test1",
+				Zone: "test-zone-1a-local",
+			},
+		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			NodeRequirements: []v1.NodeSelectorRequirement{{
@@ -883,9 +890,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		})
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
-
 	})
-
 	Context("Overhead", func() {
 		var info *ec2.InstanceTypeInfo
 		BeforeEach(func() {
@@ -1410,7 +1415,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						amiFamily,
 						nil,
 					)
-					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 394))
 				}
 			}
 		})
@@ -1652,7 +1657,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 						amiFamily,
 						nil,
 					)
-					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 345))
+					Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", 394))
 				}
 			}
 		})
@@ -2285,6 +2290,41 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Based on the nodeclass configuration, we expect to have 5 unique set of instance types
 			uniqueInstanceTypeList(instanceTypeResult)
 		})
+	})
+	It("should not cause data races when calling List() simultaneously", func() {
+		mu := sync.RWMutex{}
+		var instanceTypeOrder []string
+		wg := sync.WaitGroup{}
+		for i := 0; i < 10000; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer GinkgoRecover()
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+
+				// Sort everything in parallel and ensure that we don't get data races
+				sort.Slice(instanceTypes, func(i, j int) bool {
+					return instanceTypes[i].Name < instanceTypes[j].Name
+				})
+				// Get the ordering of the instance types based on name
+				tempInstanceTypeOrder := lo.Map(instanceTypes, func(i *corecloudprovider.InstanceType, _ int) string {
+					return i.Name
+				})
+				// Expect that all the elements in the instance type list are unique
+				Expect(lo.Uniq(tempInstanceTypeOrder)).To(HaveLen(len(tempInstanceTypeOrder)))
+
+				// We have to lock since we are doing simultaneous access to this value
+				mu.Lock()
+				if len(instanceTypeOrder) == 0 {
+					instanceTypeOrder = tempInstanceTypeOrder
+				} else {
+					Expect(tempInstanceTypeOrder).To(BeEquivalentTo(instanceTypeOrder))
+				}
+				mu.Unlock()
+			}()
+		}
+		wg.Wait()
 	})
 })
 

@@ -197,6 +197,19 @@ Karpenter (controller and webhook deployment) container images must be in or cop
 
 {{% alert title="Note" color="primary" %}}
 
+There is currently no VPC private endpoint for the [IAM API](https://docs.aws.amazon.com/IAM/latest/APIReference/welcome.html). As a result, you cannot use the default `spec.role` field in your `EC2NodeClass`. Instead, you need to provision and manage an instance profile manually and then specify Karpenter to use this instance profile through the `spec.instanceProfile` field.
+
+You can provision an instance profile manually and assign a Node role to it by calling the following command
+
+```bash
+aws iam create-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${CLUSTER_NAME}"
+aws iam add-role-to-instance-profile --instance-profile-name "KarpenterNodeInstanceProfile-${CLUSTER_NAME}" --role-name "KarpenterNodeRole-${CLUSTER_NAME}"
+```
+
+{{% /alert %}}
+
+{{% alert title="Note" color="primary" %}}
+
 There is currently no VPC private endpoint for the [Price List Query API](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/using-price-list-query-api.html). As a result, pricing data can go stale over time. By default, Karpenter ships a static price list that is updated when each binary is released.
 
 Failed requests for pricing data will result in the following error messages

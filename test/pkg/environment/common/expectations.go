@@ -23,6 +23,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -45,6 +47,7 @@ import (
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
+	coreresources "sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -671,7 +674,7 @@ func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1bet
 		for _, nc := range nodeClaims {
 			temp := &corev1beta1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), temp)).Should(Succeed())
-			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Root().IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -681,7 +684,7 @@ func (env *Environment) EventuallyExpectExpired(nodeClaims ...*corev1beta1.NodeC
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeExpired).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -691,7 +694,7 @@ func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeC
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -703,7 +706,7 @@ func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Dur
 	Consistently(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted)).To(BeNil())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted)).To(BeNil())
 		}
 	}, duration).Should(Succeed())
 }
@@ -713,7 +716,7 @@ func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*corev1beta1.NodeCla
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Empty).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeEmpty).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -901,4 +904,36 @@ func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 		}
 		return true
 	})
+}
+
+func (env *Environment) GetDaemonSetOverhead(np *corev1beta1.NodePool) v1.ResourceList {
+	GinkgoHelper()
+
+	// Performs the same logic as the scheduler to get the number of daemonset
+	// pods that we estimate we will need to schedule as overhead to each node
+	daemonSetList := &appsv1.DaemonSetList{}
+	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
+
+	return coreresources.RequestsForPods(lo.FilterMap(daemonSetList.Items, func(ds appsv1.DaemonSet, _ int) (*v1.Pod, bool) {
+		p := &v1.Pod{Spec: ds.Spec.Template.Spec}
+		nodeClaimTemplate := pscheduling.NewNodeClaimTemplate(np)
+		if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).Tolerates(p); err != nil {
+			return nil, false
+		}
+		if err := nodeClaimTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
+			return nil, false
+		}
+		return p, true
+	})...)
+}
+
+func (env *Environment) EventuallyExpectNodeClassStatusCondition(nodeClass *v1beta1.EC2NodeClass, condition string, status bool, message string) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		nc := &v1beta1.EC2NodeClass{}
+		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)).To(Succeed())
+		statusCondition := nc.StatusConditions().Get(condition)
+		g.Expect(statusCondition.IsTrue()).To(Equal(status))
+		g.Expect(statusCondition.Message).To(Equal(message))
+	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

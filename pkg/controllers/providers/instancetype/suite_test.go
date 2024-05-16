@@ -89,7 +89,24 @@ var _ = Describe("InstanceType", func() {
 		})
 
 		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
-		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{
+			Status: v1beta1.EC2NodeClassStatus{
+				Subnets: []v1beta1.Subnet{
+					{
+						ID:   "subnet-test1",
+						Zone: "test-zone-1a",
+					},
+					{
+						ID:   "subnet-test2",
+						Zone: "test-zone-1b",
+					},
+					{
+						ID:   "subnet-test3",
+						Zone: "test-zone-1c",
+					},
+				},
+			},
+		})
 		Expect(err).To(BeNil())
 		for i := range instanceTypes {
 			Expect(instanceTypes[i].Name).To(Equal(lo.FromPtr(ec2InstanceTypes[i].InstanceType)))
@@ -106,7 +123,24 @@ var _ = Describe("InstanceType", func() {
 		})
 
 		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
-		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{
+			Status: v1beta1.EC2NodeClassStatus{
+				Subnets: []v1beta1.Subnet{
+					{
+						ID:   "subnet-test1",
+						Zone: "test-zone-1a",
+					},
+					{
+						ID:   "subnet-test2",
+						Zone: "test-zone-1b",
+					},
+					{
+						ID:   "subnet-test3",
+						Zone: "test-zone-1c",
+					},
+				},
+			},
+		})
 		Expect(err).To(BeNil())
 
 		Expect(len(instanceTypes)).To(BeNumerically("==", len(ec2InstanceTypes)))

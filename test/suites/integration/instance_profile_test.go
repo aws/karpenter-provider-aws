@@ -17,6 +17,8 @@ package integration_test
 import (
 	"fmt"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/samber/lo"
@@ -81,5 +83,11 @@ var _ = Describe("InstanceProfile Generation", func() {
 		instance := env.GetInstance(node.Name)
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
 		Expect(lo.FromPtr(instance.IamInstanceProfile.Arn)).To(ContainSubstring(nodeClass.Status.InstanceProfile))
+		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, true, "")
+	})
+	It("should have the EC2NodeClass status as not ready since Instance Profile was not resolved", func() {
+		nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", "invalidRole")
+		env.ExpectCreated(nodeClass)
+		env.EventuallyExpectNodeClassStatusCondition(nodeClass, v1beta1.ConditionTypeNodeClassReady, false, "unable to resolve instance profile")
 	})
 })

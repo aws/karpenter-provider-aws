@@ -15,8 +15,6 @@ limitations under the License.
 package status_test
 
 import (
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/samber/lo"
 	_ "knative.dev/pkg/system/testing"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -27,7 +25,7 @@ import (
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
 )
 
-var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() {
+var _ = Describe("NodeClass Status Condition Controller", func() {
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: v1beta1.EC2NodeClassSpec{
@@ -48,41 +46,25 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 				},
 			},
 		})
-		// Cluster CIDR will only be resolved once per lifetime of the launch template provider, reset to nil between tests
-		awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
 	})
-	It("shouldn't resolve cluster CIDR for non-AL2023 NodeClasses", func() {
-		for _, family := range []string{
-			v1beta1.AMIFamilyAL2,
-			v1beta1.AMIFamilyBottlerocket,
-			v1beta1.AMIFamilyUbuntu,
-			v1beta1.AMIFamilyWindows2019,
-			v1beta1.AMIFamilyWindows2022,
-			v1beta1.AMIFamilyCustom,
-		} {
-			nodeClass.Spec.AMIFamily = lo.ToPtr(family)
-			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
-			Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load()).To(BeNil())
-		}
-	})
-	It("should resolve cluster CIDR for IPv4 clusters", func() {
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
+	It("should update status condition on nodeClass as Ready", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
-		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("10.100.0.0/16"))
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.Status.Conditions).To(HaveLen(1))
+		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsTrue()).To(BeTrue())
 	})
-	It("should resolve cluster CIDR for IPv6 clusters", func() {
-		awsEnv.EKSAPI.DescribeClusterBehavior.Output.Set(&eks.DescribeClusterOutput{
-			Cluster: &eks.Cluster{
-				KubernetesNetworkConfig: &eks.KubernetesNetworkConfigResponse{
-					ServiceIpv6Cidr: lo.ToPtr("2001:db8::/64"),
-				},
+	It("should update status condition as Not Ready", func() {
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+			{
+				Tags: map[string]string{"foo": "invalid"},
 			},
-		})
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
+		}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
-		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).Message).To(Equal("unable to resolve security groups"))
 	})
 })
