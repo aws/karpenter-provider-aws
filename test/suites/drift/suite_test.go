@@ -594,6 +594,7 @@ var _ = Describe("Drift", Label("AWS"), func() {
 			// We give another 6 minutes here to handle the deletion at the 15m registration timeout
 			Eventually(func(g Gomega) {
 				nodeClaims := &corev1beta1.NodeClaimList{}
+				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
 				g.Expect(nodeClaims.Items).To(HaveLen(int(numPods)))
 			}).WithTimeout(6 * time.Minute).Should(Succeed())
 
