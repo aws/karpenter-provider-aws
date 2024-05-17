@@ -117,7 +117,6 @@ affinity:
       - matchExpressions:
         - key: karpenter.sh/nodepool
           operator: DoesNotExist
-      - matchExpressions:
         - key: eks.amazonaws.com/nodegroup
           operator: In
           values:
