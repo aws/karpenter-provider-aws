@@ -28,9 +28,9 @@ If you get the error `invalid ownership metadata; label validation error:` while
 In general, you can reapply the CRDs in the `crds` directory of the Karpenter Helm chart:
 
 ```shell
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.35.4/pkg/apis/crds/karpenter.sh_nodepools.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.35.4/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.35.4/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.35.5/pkg/apis/crds/karpenter.sh_nodepools.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.35.5/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
+kubectl apply -f https://raw.githubusercontent.com/aws/karpenter/v0.35.5/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 ```
 
 <!--
@@ -88,7 +88,7 @@ Karpenter `0.32.0` introduces v1beta1 APIs, including _significant_ changes to t
 
 This version includes **dual support** for both alpha and beta APIs to ensure that you can slowly migrate your existing Provisioner, AWSNodeTemplate, and Machine alpha APIs to the newer NodePool, EC2NodeClass, and NodeClaim beta APIs.
 
-Note that if you are rolling back after upgrading to `0.32.0`, note that `0.31.4` is the only version that supports handling rollback after you have deployed the v1beta1 APIs to your cluster.
+Note that if you are rolling back after upgrading to `0.32.0`, note that __only__ versions `0.31.4` support handling rollback after you have deployed the v1beta1 APIs to your cluster.
 {{% /alert %}}
 
 * Karpenter now uses `settings.InterruptionQueue` instead of `settings.aws.InterruptionQueueName` in its helm chart. The CLI argument also changed to `--interruption-queue`.
