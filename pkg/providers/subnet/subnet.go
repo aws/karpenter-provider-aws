@@ -37,7 +37,6 @@ import (
 type Provider interface {
 	LivenessProbe(*http.Request) error
 	List(context.Context, *v1beta1.EC2NodeClass) ([]*ec2.Subnet, error)
-	AssociatePublicIPAddressValue(*v1beta1.EC2NodeClass) *bool
 	ZonalSubnetsForLaunch(context.Context, *v1beta1.EC2NodeClass, []*cloudprovider.InstanceType, string) (map[string]*Subnet, error)
 	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []*Subnet, string)
 }
@@ -114,19 +113,6 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 			Debugf("discovered subnets")
 	}
 	return lo.Values(subnets), nil
-}
-
-// associatePublicIPAddressValue validates whether we know the association value for all subnets AND
-// that all subnets don't have associatePublicIP set. If both of these are true, we set the value explicitly to false
-// For more detail see: https://github.com/aws/karpenter-provider-aws/pull/3814
-func (p *DefaultProvider) AssociatePublicIPAddressValue(nodeClass *v1beta1.EC2NodeClass) *bool {
-	for _, subnet := range nodeClass.Status.Subnets {
-		subnetAssociatePublicIP, ok := p.associatePublicIPAddressCache.Get(subnet.ID)
-		if !ok || subnetAssociatePublicIP.(bool) {
-			return nil
-		}
-	}
-	return lo.ToPtr(false)
 }
 
 // ZonalSubnetsForLaunch returns a mapping of zone to the subnet with the most available IP addresses and deducts the passed ips from the available count
