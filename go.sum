@@ -759,8 +759,8 @@ sigs.k8s.io/controller-runtime v0.17.2 h1:FwHwD1CTUemg0pW2otk7/U5/i5m2ymzvOXdbeG
 sigs.k8s.io/controller-runtime v0.17.2/go.mod h1:+MngTvIQQQhfXtwfdGw/UOQ/aIaqsYywfCINOtwMO/s=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd h1:EDPBXCAspyGV4jQlpZSudPeMmr1bNJefnuqLsRAsHZo=
 sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd/go.mod h1:B8JuhiUyNFVKdsE8h686QcCxMaH6HrOAZj4vswFpcB0=
-sigs.k8s.io/karpenter v0.36.1 h1:NP36T+uTTeO9fAiWttEBhXrtCiDPJkiyLNZWjFSIkb0=
-sigs.k8s.io/karpenter v0.36.1/go.mod h1:fieFojxOec/l0tDmFT7R+g/Y+SGQbL9VlcYO8xb3sLo=
+sigs.k8s.io/karpenter v0.36.2 h1:u+CypG1k+pq9U5IdSXJ6gSRvJSO28lQNpi5qQogiLlo=
+sigs.k8s.io/karpenter v0.36.2/go.mod h1:fieFojxOec/l0tDmFT7R+g/Y+SGQbL9VlcYO8xb3sLo=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1 h1:150L+0vs/8DA78h1u02ooW1/fFq/Lwr+sGiqlzvrtq4=
 sigs.k8s.io/structured-merge-diff/v4 v4.4.1/go.mod h1:N8hJocpFajUSSeSJ9bOZ77VzejKZaXsTtZo4/u7Io08=
 sigs.k8s.io/yaml v1.4.0 h1:Mk1wCc2gy/F0THH0TAp1QYyJNzRm2KCLy3o5ASXVI5E=
