@@ -45,7 +45,9 @@ const (
 )
 
 var (
-	instanceTypeScheme = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
+	// according to instance naming conventions https://docs.aws.amazon.com/ec2/latest/instancetypes/instance-type-names.html
+	instanceTypeScheme       = regexp.MustCompile(`(^[a-z]+)(\-[0-9]+tb)?([0-9]+).*\.`)
+	instanceCapabilityScheme = regexp.MustCompile(`^(?:[a-z]+)(?:\-[0-9]+tb)?(?:[0-9]+[aig]?)([bdenqz]+).*\.`)
 )
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string,
@@ -106,6 +108,13 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
 		scheduling.NewRequirement(v1beta1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
+		scheduling.NewRequirement(v1beta1.LabelInstanceCapabilityBlockStorageOptimized, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1beta1.LabelInstanceCapabilityExtraStorage, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1beta1.LabelInstanceCapabilityFlex, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1beta1.LabelInstanceCapabilityHighPerformance, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1beta1.LabelInstanceCapabilityInstanceStoreVolume, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1beta1.LabelInstanceCapabilityNetworkOptimized, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(v1beta1.LabelInstanceCapabilityQualcommInference, v1.NodeSelectorOpDoesNotExist),
 	)
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
@@ -124,7 +133,15 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 	instanceTypeParts := strings.Split(aws.StringValue(info.InstanceType), ".")
 	if len(instanceTypeParts) == 2 {
 		requirements.Get(v1beta1.LabelInstanceFamily).Insert(instanceTypeParts[0])
+		requirements.Get(v1beta1.LabelInstanceCapabilityFlex).Insert(fmt.Sprint(strings.Contains(instanceTypeParts[0], v1beta1.CapabilityFlex)))
 		requirements.Get(v1beta1.LabelInstanceSize).Insert(instanceTypeParts[1])
+	}
+	// Instance Capability Labels
+	instanceAdditionalCapabilities := instanceCapabilityScheme.FindStringSubmatch(aws.StringValue(info.InstanceType))
+	hasCapabilities := len(instanceAdditionalCapabilities) == 2
+	for requirement, capability := range v1beta1.InstanceCapabilities {
+		hasCapability := hasCapabilities && strings.Contains(instanceAdditionalCapabilities[1], capability)
+		requirements.Get(requirement).Insert(fmt.Sprint(hasCapability))
 	}
 	if info.InstanceStorageInfo != nil && aws.StringValue(info.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
 		requirements[v1beta1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(info.InstanceStorageInfo.TotalSizeInGB)))

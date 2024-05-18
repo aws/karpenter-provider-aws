@@ -46,6 +46,13 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
+		LabelInstanceCapabilityBlockStorageOptimized,
+		LabelInstanceCapabilityExtraStorage,
+		LabelInstanceCapabilityHighPerformance,
+		LabelInstanceCapabilityInstanceStoreVolume,
+		LabelInstanceCapabilityFlex,
+		LabelInstanceCapabilityNetworkOptimized,
+		LabelInstanceCapabilityQualcommInference,
 		LabelTopologyZoneID,
 		v1.LabelWindowsBuild,
 	)
@@ -73,52 +80,74 @@ var (
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(LabelNodeClass))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
 	}
-	AMIFamilyBottlerocket                      = "Bottlerocket"
-	AMIFamilyAL2                               = "AL2"
-	AMIFamilyAL2023                            = "AL2023"
-	AMIFamilyUbuntu                            = "Ubuntu"
-	AMIFamilyWindows2019                       = "Windows2019"
-	AMIFamilyWindows2022                       = "Windows2022"
-	AMIFamilyCustom                            = "Custom"
-	Windows2019                                = "2019"
-	Windows2022                                = "2022"
-	WindowsCore                                = "Core"
-	Windows2019Build                           = "10.0.17763"
-	Windows2022Build                           = "10.0.20348"
-	ResourceNVIDIAGPU          v1.ResourceName = "nvidia.com/gpu"
-	ResourceAMDGPU             v1.ResourceName = "amd.com/gpu"
-	ResourceAWSNeuron          v1.ResourceName = "aws.amazon.com/neuron"
-	ResourceHabanaGaudi        v1.ResourceName = "habana.ai/gaudi"
-	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
-	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
-	ResourceEFA                v1.ResourceName = "vpc.amazonaws.com/efa"
+	InstanceCapabilities = map[string]string{
+		LabelInstanceCapabilityBlockStorageOptimized: CapabilityBlockStorage,
+		LabelInstanceCapabilityExtraStorage:          CapabilityExtraStorage,
+		LabelInstanceCapabilityHighPerformance:       CapabilityHighPerformance,
+		LabelInstanceCapabilityInstanceStoreVolume:   CapabilityInstanceStore,
+		LabelInstanceCapabilityNetworkOptimized:      CapabilityNetworkOptimized,
+		LabelInstanceCapabilityQualcommInference:     CapabilityQualcommInference,
+	}
+	AMIFamilyBottlerocket                       = "Bottlerocket"
+	AMIFamilyAL2                                = "AL2"
+	AMIFamilyAL2023                             = "AL2023"
+	AMIFamilyUbuntu                             = "Ubuntu"
+	AMIFamilyWindows2019                        = "Windows2019"
+	AMIFamilyWindows2022                        = "Windows2022"
+	AMIFamilyCustom                             = "Custom"
+	CapabilityBlockStorage                      = "b"
+	CapabilityExtraStorage                      = "e"
+	CapabilityHighPerformance                   = "z"
+	CapabilityInstanceStore                     = "d"
+	CapabilityFlex                              = "flex"
+	CapabilityNetworkOptimized                  = "n"
+	CapabilityQualcommInference                 = "q"
+	Windows2019                                 = "2019"
+	Windows2022                                 = "2022"
+	WindowsCore                                 = "Core"
+	Windows2019Build                            = "10.0.17763"
+	Windows2022Build                            = "10.0.20348"
+	ResourceNVIDIAGPU           v1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU              v1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron           v1.ResourceName = "aws.amazon.com/neuron"
+	ResourceHabanaGaudi         v1.ResourceName = "habana.ai/gaudi"
+	ResourceAWSPodENI           v1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	ResourcePrivateIPv4Address  v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
+	ResourceEFA                 v1.ResourceName = "vpc.amazonaws.com/efa"
 
 	LabelNodeClass = Group + "/ec2nodeclass"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 
-	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
-	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"
-	LabelInstanceCategory                     = Group + "/instance-category"
-	LabelInstanceFamily                       = Group + "/instance-family"
-	LabelInstanceGeneration                   = Group + "/instance-generation"
-	LabelInstanceLocalNVME                    = Group + "/instance-local-nvme"
-	LabelInstanceSize                         = Group + "/instance-size"
-	LabelInstanceCPU                          = Group + "/instance-cpu"
-	LabelInstanceCPUManufacturer              = Group + "/instance-cpu-manufacturer"
-	LabelInstanceMemory                       = Group + "/instance-memory"
-	LabelInstanceEBSBandwidth                 = Group + "/instance-ebs-bandwidth"
-	LabelInstanceNetworkBandwidth             = Group + "/instance-network-bandwidth"
-	LabelInstanceGPUName                      = Group + "/instance-gpu-name"
-	LabelInstanceGPUManufacturer              = Group + "/instance-gpu-manufacturer"
-	LabelInstanceGPUCount                     = Group + "/instance-gpu-count"
-	LabelInstanceGPUMemory                    = Group + "/instance-gpu-memory"
-	LabelInstanceAcceleratorName              = Group + "/instance-accelerator-name"
-	LabelInstanceAcceleratorManufacturer      = Group + "/instance-accelerator-manufacturer"
-	LabelInstanceAcceleratorCount             = Group + "/instance-accelerator-count"
-	AnnotationEC2NodeClassHash                = Group + "/ec2nodeclass-hash"
-	AnnotationEC2NodeClassHashVersion         = Group + "/ec2nodeclass-hash-version"
-	AnnotationInstanceTagged                  = Group + "/tagged"
+	LabelInstanceHypervisor                      = Group + "/instance-hypervisor"
+	LabelInstanceEncryptionInTransitSupported    = Group + "/instance-encryption-in-transit-supported"
+	LabelInstanceCategory                        = Group + "/instance-category"
+	LabelInstanceFamily                          = Group + "/instance-family"
+	LabelInstanceGeneration                      = Group + "/instance-generation"
+	LabelInstanceLocalNVME                       = Group + "/instance-local-nvme"
+	LabelInstanceSize                            = Group + "/instance-size"
+	LabelInstanceCPU                             = Group + "/instance-cpu"
+	LabelInstanceCPUManufacturer                 = Group + "/instance-cpu-manufacturer"
+	LabelInstanceMemory                          = Group + "/instance-memory"
+	LabelInstanceEBSBandwidth                    = Group + "/instance-ebs-bandwidth"
+	LabelInstanceNetworkBandwidth                = Group + "/instance-network-bandwidth"
+	LabelInstanceGPUName                         = Group + "/instance-gpu-name"
+	LabelInstanceGPUManufacturer                 = Group + "/instance-gpu-manufacturer"
+	LabelInstanceGPUCount                        = Group + "/instance-gpu-count"
+	LabelInstanceGPUMemory                       = Group + "/instance-gpu-memory"
+	LabelInstanceAcceleratorName                 = Group + "/instance-accelerator-name"
+	LabelInstanceAcceleratorManufacturer         = Group + "/instance-accelerator-manufacturer"
+	LabelInstanceAcceleratorCount                = Group + "/instance-accelerator-count"
+	LabelInstanceCapabilityBlockStorageOptimized = Group + "/instance-capability-block-storage-optimized"
+	LabelInstanceCapabilityExtraStorage          = Group + "/instance-capability-extra-storage"
+	LabelInstanceCapabilityFlex                  = Group + "/instance-capability-flex"
+	LabelInstanceCapabilityHighPerformance       = Group + "/instance-capability-high-performance"
+	LabelInstanceCapabilityInstanceStoreVolume   = Group + "/instance-capability-instance-store-volume"
+	LabelInstanceCapabilityNetworkOptimized      = Group + "/instance-capability-network-optimized"
+	LabelInstanceCapabilityQualcommInference     = Group + "/instance-capability-qualcomm-inference"
+	AnnotationEC2NodeClassHash                   = Group + "/ec2nodeclass-hash"
+	AnnotationEC2NodeClassHashVersion            = Group + "/ec2nodeclass-hash-version"
+	AnnotationInstanceTagged                     = Group + "/tagged"
 
 	TagNodeClaim             = v1beta1.Group + "/nodeclaim"
 	TagManagedLaunchTemplate = Group + "/cluster"
