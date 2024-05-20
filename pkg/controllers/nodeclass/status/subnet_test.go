@@ -17,7 +17,7 @@ package status_test
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	_ "knative.dev/pkg/system/testing"
+	"github.com/awslabs/operatorpkg/status"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -232,8 +232,8 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(BeNil())
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).Message).To(Equal("unable to resolve subnets"))
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("Failed to resolve subnets"))
 	})
 	It("Should not resolve a invalid selectors for an updated subnet selector", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -267,7 +267,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(BeNil())
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).Message).To(Equal("unable to resolve subnets"))
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("Failed to resolve subnets"))
 	})
 })

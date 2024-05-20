@@ -32,6 +32,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	opstatus "github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
@@ -113,8 +114,42 @@ var _ = Describe("CloudProvider", func() {
 	var nodePool *corev1beta1.NodePool
 	var nodeClaim *corev1beta1.NodeClaim
 	var _ = BeforeEach(func() {
-		nodeClass = test.EC2NodeClass()
-		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
+		nodeClass = test.EC2NodeClass(
+			v1beta1.EC2NodeClass{
+				Status: v1beta1.EC2NodeClassStatus{
+					InstanceProfile: "test-profile",
+					SecurityGroups: []v1beta1.SecurityGroup{
+						{
+							ID:   "sg-test1",
+							Name: "securityGroup-test1",
+						},
+						{
+							ID:   "sg-test2",
+							Name: "securityGroup-test2",
+						},
+						{
+							ID:   "sg-test3",
+							Name: "securityGroup-test3",
+						},
+					},
+					Subnets: []v1beta1.Subnet{
+						{
+							ID:   "subnet-test1",
+							Zone: "test-zone-1a",
+						},
+						{
+							ID:   "subnet-test2",
+							Zone: "test-zone-1b",
+						},
+						{
+							ID:   "subnet-test3",
+							Zone: "test-zone-1c",
+						},
+					},
+				},
+			},
+		)
+		nodeClass.StatusConditions().SetTrue(opstatus.ConditionReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -145,7 +180,7 @@ var _ = Describe("CloudProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
 	It("should not proceed with instance creation of nodeClass in not ready", func() {
-		nodeClass.StatusConditions().SetFalse(v1beta1.ConditionTypeNodeClassReady, "NodeClassNotReady", "NodeClass not ready")
+		nodeClass.StatusConditions().SetFalse(opstatus.ConditionReady, "NodeClassNotReady", "NodeClass not ready")
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		_, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(HaveOccurred())

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -87,7 +88,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 		// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
 	}
-	nodeClassReady := nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady)
+	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
 	if !nodeClassReady.IsTrue() {
 		return nil, fmt.Errorf("resolving ec2nodeclass, %s", nodeClassReady.Message)
 	}

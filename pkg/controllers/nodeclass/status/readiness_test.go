@@ -17,6 +17,8 @@ package status_test
 import (
 	_ "knative.dev/pkg/system/testing"
 
+	"github.com/awslabs/operatorpkg/status"
+
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -52,7 +54,7 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Conditions).To(HaveLen(1))
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 	})
 	It("should update status condition as Not Ready", func() {
 		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
@@ -64,7 +66,7 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeNodeClassReady).Message).To(Equal("unable to resolve security groups"))
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("Failed to resolve security groups"))
 	})
 })

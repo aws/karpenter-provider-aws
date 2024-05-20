@@ -60,8 +60,8 @@ github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db
 github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881/go.mod h1:+Mk5k0b6HpKobxNq+B56DOhZ+I/NiPhd5MIBhQMSTSs=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647 h1:8yRBVsjGmI7qQsPWtIrbWP+XfwHO9Wq7gdLVzjqiZFs=
 github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647/go.mod h1:9NafTAUHL0FlMeL6Cu5PXnMZ1q/LnC9X2emLXHsVbM8=
-github.com/awslabs/operatorpkg v0.0.0-20240514175841-edb8fe5824b4 h1:Du6S9Xa+/VuCpoSwOW7QpPM30IEIvB91WJEIltWQwRk=
-github.com/awslabs/operatorpkg v0.0.0-20240514175841-edb8fe5824b4/go.mod h1:YcidmUg8Pjk349+jd+sRCdo6h3jzxqAY1VDNgVJKbSA=
+github.com/awslabs/operatorpkg v0.0.0-20240518001059-1e35978ba21b h1:bmlbw6EjSDoZEWbGE2rnXDsCgbTsxMyufM4NRRHaLVk=
+github.com/awslabs/operatorpkg v0.0.0-20240518001059-1e35978ba21b/go.mod h1:YcidmUg8Pjk349+jd+sRCdo6h3jzxqAY1VDNgVJKbSA=
 github.com/beorn7/perks v0.0.0-20180321164747-3a771d992973/go.mod h1:Dwedo/Wpr24TaqPxmxbtue+5NUziq4I4S80YR8gNf3Q=
 github.com/beorn7/perks v1.0.0/go.mod h1:KWe93zE9D1o94FZ5RNwFwVgaQK1VOXiVxmqh+CedLV8=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
