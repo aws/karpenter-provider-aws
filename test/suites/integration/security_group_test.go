@@ -29,6 +29,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
+	. "github.com/awslabs/operatorpkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -77,7 +78,7 @@ var _ = Describe("SecurityGroups", func() {
 	It("should update the EC2NodeClass status security groups", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSecurityGroups(env, nodeClass)
-		env.EventuallyExpectStatusCondition(nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 	})
 
 	It("should have the NodeClass status as not ready since security groups were not resolved", func() {
@@ -87,7 +88,7 @@ var _ = Describe("SecurityGroups", func() {
 			},
 		}
 		env.ExpectCreated(nodeClass)
-		env.EventuallyExpectStatusCondition(nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve security groups"})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve security groups"})
 	})
 })
 

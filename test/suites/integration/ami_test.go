@@ -24,6 +24,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/operatorpkg/status"
+	. "github.com/awslabs/operatorpkg/test/expectations"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -222,7 +223,7 @@ var _ = Describe("AMI", func() {
 			nc := EventuallyExpectAMIsToExist(nodeClass)
 			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
 			Expect(nc.Status.AMIs[0].ID).To(Equal(customAMI))
-			env.EventuallyExpectStatusCondition(nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 		})
 		It("should have ec2nodeClass status as not ready since AMI was not resolved", func() {
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
@@ -231,7 +232,7 @@ var _ = Describe("AMI", func() {
 				},
 			}
 			env.ExpectCreated(nodeClass)
-			env.EventuallyExpectStatusCondition(nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve AMIs"})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve AMIs"})
 		})
 	})
 

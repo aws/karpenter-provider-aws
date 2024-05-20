@@ -23,10 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-
-	"github.com/awslabs/operatorpkg/status"
-	op "github.com/awslabs/operatorpkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -927,11 +923,4 @@ func (env *Environment) GetDaemonSetOverhead(np *corev1beta1.NodePool) v1.Resour
 		}
 		return p, true
 	})...)
-}
-
-func (env *Environment) EventuallyExpectStatusCondition(nodeClass *v1beta1.EC2NodeClass, conditions ...status.Condition) {
-	GinkgoHelper()
-	Eventually(func(g Gomega) {
-		op.ExpectStatusConditions(nodeClass, conditions...)
-	}).WithTimeout(10 * time.Second).Should(Succeed())
 }
