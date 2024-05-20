@@ -118,8 +118,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		}
 	}
 	amis.Sort()
-	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), amis) {
-		logging.FromContext(ctx).With("ids", amis, "count", len(amis)).Debugf("discovered amis")
+	uniqueAMIs := lo.Uniq(lo.Map(amis, func(a AMI, _ int) string { return a.AmiID }))
+	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), uniqueAMIs) {
+		logging.FromContext(ctx).With(
+			"ids", uniqueAMIs).Debugf("discovered amis")
 	}
 	return amis, nil
 }
