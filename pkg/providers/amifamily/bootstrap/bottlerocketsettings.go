@@ -69,6 +69,7 @@ type BottlerocketKubernetes struct {
 	CPUManagerPolicy                   *string                                   `toml:"cpu-manager-policy,omitempty"`
 	CPUManagerReconcilePeriod          *string                                   `toml:"cpu-manager-reconcile-period,omitempty"`
 	TopologyManagerScope               *string                                   `toml:"topology-manager-scope,omitempty"`
+	TopologyManagerPolicy              *string                                   `toml:"topology-manager-policy,omitempty"`
 	ImageGCHighThresholdPercent        *string                                   `toml:"image-gc-high-threshold-percent,omitempty"`
 	ImageGCLowThresholdPercent         *string                                   `toml:"image-gc-low-threshold-percent,omitempty"`
 	CPUCFSQuota                        *bool                                     `toml:"cpu-cfs-quota-enforced,omitempty"`
