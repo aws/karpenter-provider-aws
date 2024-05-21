@@ -24,6 +24,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
@@ -35,7 +36,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
@@ -147,7 +147,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 		}
 	}
 	if p.cm.HasChanged("zones", allZones) {
-		logging.FromContext(ctx).With("zones", allZones.UnsortedList()).Debugf("discovered zones")
+		log.FromContext(ctx).WithValues("zones", allZones.UnsortedList()).V(1).Info("discovered zones")
 	}
 	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 	result := lo.Map(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
@@ -209,8 +209,8 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 		// Only update instanceTypesSeqNun with the instance types have been changed
 		// This is to not create new keys with duplicate instance types option
 		atomic.AddUint64(&p.instanceTypesSeqNum, 1)
-		logging.FromContext(ctx).With(
-			"count", len(instanceTypes)).Debugf("discovered instance types")
+		log.FromContext(ctx).WithValues(
+			"count", len(instanceTypes)).V(1).Info("discovered instance types")
 	}
 	p.instanceTypesInfo = instanceTypes
 	return nil
@@ -243,7 +243,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 		// Only update instanceTypesSeqNun with the instance type offerings  have been changed
 		// This is to not create new keys with duplicate instance type offerings option
 		atomic.AddUint64(&p.instanceTypeOfferingsSeqNum, 1)
-		logging.FromContext(ctx).With("instance-type-count", len(instanceTypeOfferings)).Debugf("discovered offerings for instance types")
+		log.FromContext(ctx).WithValues("instance-type-count", len(instanceTypeOfferings)).V(1).Info("discovered offerings for instance types")
 	}
 	p.instanceTypeOfferings = instanceTypeOfferings
 	return nil
@@ -267,7 +267,7 @@ func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2
 				// ignore since karpenter doesn't support it yet, but do not log an unknown capacity type error
 				continue
 			default:
-				logging.FromContext(ctx).Errorf("Received unknown capacity type %s for instance type %s", capacityType, *instanceType.InstanceType)
+				log.FromContext(ctx).WithValues("capacity-type", capacityType, "instance-type", *instanceType.InstanceType).Error(fmt.Errorf("received unknown capacity type"), "failed parsing offering")
 				continue
 			}
 			available := !isUnavailable && ok && instanceTypeZones.Has(zone) && subnetZones.Has(zone)

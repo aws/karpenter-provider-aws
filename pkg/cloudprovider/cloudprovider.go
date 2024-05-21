@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -39,7 +40,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	cloudproviderevents "github.com/aws/karpenter-provider-aws/pkg/cloudprovider/events"
@@ -135,7 +135,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*corev1beta
 	if err != nil {
 		return nil, fmt.Errorf("getting instance ID, %w", err)
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
 	instance, err := c.instanceProvider.Get(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)
@@ -172,13 +172,11 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name))
-
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		return fmt.Errorf("getting instance ID, %w", err)
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
 	return c.instanceProvider.Delete(ctx, id)
 }
 

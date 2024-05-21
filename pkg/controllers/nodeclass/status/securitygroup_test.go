@@ -15,8 +15,6 @@ limitations under the License.
 package status_test
 
 import (
-	_ "knative.dev/pkg/system/testing"
-
 	"github.com/awslabs/operatorpkg/status"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"

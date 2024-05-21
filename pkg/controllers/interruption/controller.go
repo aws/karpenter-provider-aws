@@ -26,8 +26,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/utils/clock"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/metrics"
@@ -81,9 +81,9 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 }
 
 func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("queue", c.sqsProvider.Name()))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("queue", c.sqsProvider.Name()))
 	if c.cm.HasChanged(c.sqsProvider.Name(), nil) {
-		logging.FromContext(ctx).Debugf("watching interruption queue")
+		log.FromContext(ctx).V(1).Info("watching interruption queue")
 	}
 	sqsMessages, err := c.sqsProvider.GetSQSMessages(ctx)
 	if err != nil {
@@ -105,7 +105,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		msg, e := c.parseMessage(sqsMessages[i])
 		if e != nil {
 			// If we fail to parse, then we should delete the message but still log the error
-			logging.FromContext(ctx).Errorf("parsing message, %v", e)
+			log.FromContext(ctx).Error(err, "failed parsing interruption message")
 			errs[i] = c.deleteMessage(ctx, sqsMessages[i])
 			return
 		}
@@ -144,7 +144,7 @@ func (c *Controller) parseMessage(raw *sqsapi.Message) (messages.Message, error)
 func (c *Controller) handleMessage(ctx context.Context, nodeClaimInstanceIDMap map[string]*v1beta1.NodeClaim,
 	nodeInstanceIDMap map[string]*v1.Node, msg messages.Message) (err error) {
 
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("messageKind", msg.Kind()))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("messageKind", msg.Kind()))
 	receivedMessages.WithLabelValues(string(msg.Kind())).Inc()
 
 	if msg.Kind() == messages.NoOpKind {
@@ -179,9 +179,9 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqsapi.Message) err
 // handleNodeClaim retrieves the action for the message and then performs the appropriate action against the node
 func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *v1beta1.NodeClaim, node *v1.Node) error {
 	action := actionForMessage(msg)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name, "action", string(action)))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("nodeclaim", nodeClaim.Name, "action", string(action)))
 	if node != nil {
-		ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("node", node.Name))
+		ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("node", node.Name))
 	}
 
 	// Record metric and event for this action
@@ -215,7 +215,7 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, nodeClaim *v1beta1.Nod
 	if err := c.kubeClient.Delete(ctx, nodeClaim); err != nil {
 		return client.IgnoreNotFound(fmt.Errorf("deleting the node on interruption message, %w", err))
 	}
-	logging.FromContext(ctx).Infof("initiating delete from interruption message")
+	log.FromContext(ctx).Info("initiating delete from interruption message")
 	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, nodeClaim)...)
 	metrics.NodeClaimsTerminatedCounter.With(prometheus.Labels{
 		metrics.ReasonLabel:       terminationReasonLabel,

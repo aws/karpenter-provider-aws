@@ -30,7 +30,8 @@ import (
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/log"
+
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
@@ -212,7 +213,7 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1beta1
 		return nil, fmt.Errorf("getting launch template configs, %w", err)
 	}
 	if err := p.checkODFallback(nodeClaim, instanceTypes, launchTemplateConfigs); err != nil {
-		logging.FromContext(ctx).Warn(err.Error())
+		log.FromContext(ctx).Error(err, "failed while checking on-demand fallback")
 	}
 	// Create fleet
 	createFleetInput := &ec2.CreateFleetInput{

@@ -20,10 +20,10 @@ import (
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
@@ -45,7 +45,7 @@ func NewController(kubeClient client.Client) *Controller {
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("nodeclass.hash").With("ec2nodeclass", nodeClass.Name))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithName("nodeclass.hash").WithValues("ec2nodeclass", nodeClass.Name))
 	ctx = injection.WithControllerName(ctx, "nodeclass.hash")
 
 	stored := nodeClass.DeepCopy()
