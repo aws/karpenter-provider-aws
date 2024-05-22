@@ -338,14 +338,14 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 	}
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for _, offering := range unwrappedOfferings {
-		if capacityType != offering.Constraints[corev1beta1.CapacityTypeLabelKey] {
+		if capacityType != offering.CapacityType() {
 			continue
 		}
-		if !reqs.Get(v1.LabelTopologyZone).Has(offering.Constraints[v1.LabelTopologyZone]) ||
-			!reqs.Get(v1beta1.LabelInstanceAvailabilityZoneID).Has(offering.Constraints[v1beta1.LabelInstanceAvailabilityZoneID]) {
+		if !reqs.Get(v1.LabelTopologyZone).Has(offering.Zone()) ||
+			!reqs.Get(v1beta1.LabelInstanceAvailabilityZoneID).Has(offering.CapacityType()) {
 			continue
 		}
-		subnet, ok := zonalSubnets[offering.Constraints[v1.LabelTopologyZone]]
+		subnet, ok := zonalSubnets[offering.Zone()]
 		if !ok {
 			continue
 		}
@@ -378,7 +378,7 @@ func (p *DefaultProvider) getCapacityType(nodeClaim *corev1beta1.NodeClaim, inst
 	if requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
 			for _, offering := range instanceType.Offerings.Available() {
-				if requirements.Get(v1.LabelTopologyZone).Has(offering.Constraints[v1.LabelTopologyZone]) && offering.Constraints[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeSpot {
+				if requirements.Get(v1.LabelTopologyZone).Has(offering.Zone()) && offering.CapacityType() == corev1beta1.CapacityTypeSpot {
 					return corev1beta1.CapacityTypeSpot
 				}
 			}
@@ -413,8 +413,8 @@ func (p *DefaultProvider) isMixedCapacityLaunch(nodeClaim *corev1beta1.NodeClaim
 	if requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
 			for _, offering := range instanceType.Offerings.Available() {
-				if requirements.Get(v1.LabelTopologyZone).Has(offering.Constraints[v1.LabelTopologyZone]) {
-					if offering.Constraints[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeSpot {
+				if requirements.Get(v1.LabelTopologyZone).Has(offering.Zone()) {
+					if offering.CapacityType() == corev1beta1.CapacityTypeSpot {
 						hasSpotOfferings = true
 					} else {
 						hasODOffering = true
@@ -433,7 +433,7 @@ func filterUnwantedSpot(instanceTypes []*cloudprovider.InstanceType) []*cloudpro
 	// first, find the price of our cheapest available on-demand instance type that could support this node
 	for _, it := range instanceTypes {
 		for _, o := range it.Offerings.Available() {
-			if o.Constraints[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
+			if o.CapacityType() == corev1beta1.CapacityTypeOnDemand && o.Price < cheapestOnDemand {
 				cheapestOnDemand = o.Price
 			}
 		}

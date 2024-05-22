@@ -18,7 +18,6 @@ import (
 	"context"
 	"testing"
 
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -151,7 +150,7 @@ var _ = Describe("InstanceType", func() {
 			})
 			Expect(found).To(BeTrue())
 			for y := range instanceTypes[x].Offerings {
-				Expect(instanceTypes[x].Offerings[y].Constraints[v1.LabelTopologyZone]).To(Equal(lo.FromPtr(offering.Location)))
+				Expect(instanceTypes[x].Offerings[y].Zone()).To(Equal(lo.FromPtr(offering.Location)))
 			}
 		}
 	})

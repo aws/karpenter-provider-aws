@@ -55,44 +55,51 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
 			},
 			{
-				ID:   "subnet-test3",
-				Zone: "test-zone-1c",
+				ID:     "subnet-test3",
+				Zone:   "test-zone-1c",
+				ZoneID: "tstz1-1c",
 			},
 			{
-				ID:   "subnet-test4",
-				Zone: "test-zone-1a-local",
+				ID:     "subnet-test4",
+				Zone:   "test-zone-1a-local",
+				ZoneID: "tstz1-1alocal",
 			},
 		}))
 	})
 	It("Should have the correct ordering for the Subnets", func() {
 		awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
-			{SubnetId: aws.String("subnet-test1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(20)},
-			{SubnetId: aws.String("subnet-test2"), AvailabilityZone: aws.String("test-zone-1b"), AvailableIpAddressCount: aws.Int64(100)},
-			{SubnetId: aws.String("subnet-test3"), AvailabilityZone: aws.String("test-zone-1c"), AvailableIpAddressCount: aws.Int64(50)},
+			{SubnetId: aws.String("subnet-test1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(20)},
+			{SubnetId: aws.String("subnet-test2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1b"), AvailableIpAddressCount: aws.Int64(100)},
+			{SubnetId: aws.String("subnet-test3"), AvailabilityZone: aws.String("test-zone-1c"), AvailabilityZoneId: aws.String("tstz1-1c"), AvailableIpAddressCount: aws.Int64(50)},
 		}})
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
 			},
 			{
-				ID:   "subnet-test3",
-				Zone: "test-zone-1c",
+				ID:     "subnet-test3",
+				Zone:   "test-zone-1c",
+				ZoneID: "tstz1-1c",
 			},
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 		}))
 	})
@@ -110,12 +117,14 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
 			},
 		}))
 	})
@@ -130,8 +139,9 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 		}))
 	})
@@ -141,20 +151,24 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
 			},
 			{
-				ID:   "subnet-test3",
-				Zone: "test-zone-1c",
+				ID:     "subnet-test3",
+				Zone:   "test-zone-1c",
+				ZoneID: "tstz1-1c",
 			},
 			{
-				ID:   "subnet-test4",
-				Zone: "test-zone-1a-local",
+				ID:     "subnet-test4",
+				Zone:   "test-zone-1a-local",
+				ZoneID: "tstz1-1alocal",
 			},
 		}))
 
@@ -175,12 +189,14 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
 			},
 		}))
 	})
@@ -190,20 +206,24 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
 			},
 			{
-				ID:   "subnet-test3",
-				Zone: "test-zone-1c",
+				ID:     "subnet-test3",
+				Zone:   "test-zone-1c",
+				ZoneID: "tstz1-1c",
 			},
 			{
-				ID:   "subnet-test4",
-				Zone: "test-zone-1a-local",
+				ID:     "subnet-test4",
+				Zone:   "test-zone-1a-local",
+				ZoneID: "tstz1-1alocal",
 			},
 		}))
 
@@ -217,8 +237,9 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 		}))
 	})
@@ -241,20 +262,24 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.Subnets).To(Equal([]v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
 			},
 			{
-				ID:   "subnet-test3",
-				Zone: "test-zone-1c",
+				ID:     "subnet-test3",
+				Zone:   "test-zone-1c",
+				ZoneID: "tstz1-1c",
 			},
 			{
-				ID:   "subnet-test4",
-				Zone: "test-zone-1a-local",
+				ID:     "subnet-test4",
+				Zone:   "test-zone-1a-local",
+				ZoneID: "tstz1-1alocal",
 			},
 		}))
 

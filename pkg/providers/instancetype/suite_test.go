@@ -881,8 +881,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				for _, of := range it.Offerings {
 					metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_available", map[string]string{
 						"instance_type": it.Name,
-						"capacity_type": of.Constraints[corev1beta1.CapacityTypeLabelKey],
-						"zone":          of.Constraints[v1.LabelTopologyZone],
+						"capacity_type": of.CapacityType(),
+						"zone":          of.Zone(),
 					})
 					Expect(ok).To(BeTrue())
 					Expect(metric).To(Not(BeNil()))
@@ -899,8 +899,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				for _, of := range it.Offerings {
 					metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_price_estimate", map[string]string{
 						"instance_type": it.Name,
-						"capacity_type": of.Constraints[corev1beta1.CapacityTypeLabelKey],
-						"zone":          of.Constraints[v1.LabelTopologyZone],
+						"capacity_type": of.CapacityType(),
+						"zone":          of.Zone(),
 					})
 					Expect(ok).To(BeTrue())
 					Expect(metric).To(Not(BeNil()))
@@ -2389,16 +2389,16 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *corev1beta1.
 		instanceType := it
 		onDemandPrice := 1.00
 		for _, o := range it.Offerings {
-			if o.Constraints[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeOnDemand {
+			if o.CapacityType() == corev1beta1.CapacityTypeOnDemand {
 				onDemandPrice = o.Price
 			}
 		}
 		for _, o := range instanceType.Offerings {
 			o := o
-			if o.Constraints[corev1beta1.CapacityTypeLabelKey] != corev1beta1.CapacityTypeSpot {
+			if o.CapacityType() != corev1beta1.CapacityTypeSpot {
 				continue
 			}
-			zone := o.Constraints[v1.LabelTopologyZone]
+			zone := o.Zone()
 			spotPrice := fmt.Sprintf("%0.3f", onDemandPrice*0.5)
 			rsp.SpotPriceHistory = append(rsp.SpotPriceHistory, &ec2.SpotPrice{
 				AvailabilityZone: &zone,

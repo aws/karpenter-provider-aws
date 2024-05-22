@@ -27,6 +27,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -274,13 +275,12 @@ func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2
 			}
 			available := !isUnavailable && ok && instanceTypeZones.Has(zone) && subnetZones.Has(zone)
 
-			// supported on 1.30 and not less
 			offerings = append(offerings, cloudprovider.Offering{
-				Constraints: map[string]string{
-					corev1beta1.CapacityTypeLabelKey:        capacityType,
-					v1.LabelTopologyZone:                    zone,
-					v1beta1.LabelInstanceAvailabilityZoneID: zoneInfo[zone],
-				},
+				Requirements: scheduling.NewRequirements(
+					scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
+					scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, zone),
+					scheduling.NewRequirement(v1beta1.LabelInstanceAvailabilityZoneID, v1.NodeSelectorOpIn, zoneInfo[zone]),
+				),
 				Price:     price,
 				Available: available,
 			})
@@ -304,11 +304,3 @@ func (p *DefaultProvider) Reset() {
 	p.instanceTypeOfferings = map[string]sets.Set[string]{}
 	p.instanceTypesCache.Flush()
 }
-
-// func requirements(ct, zone, zoneID string) scheduling.Requirements {
-// 	return scheduling.NewLabelRequirements(map[string]string{
-// 		corev1beta1.CapacityTypeLabelKey:        ct,
-// 		v1.LabelTopologyZone:                    zone,
-// 		v1beta1.LabelInstanceAvailabilityZoneID: zoneID,
-// 	})
-// }

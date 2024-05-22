@@ -33,6 +33,7 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
@@ -176,12 +177,12 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 	}
 
 	for _, subnet := range zonalSubnets {
-		constraints := map[string]string{
-			corev1beta1.CapacityTypeLabelKey:        capacityType,
-			v1.LabelTopologyZone:                    subnet.Zone,
-			v1beta1.LabelInstanceAvailabilityZoneID: subnet.ZoneID,
-		}
-		predictedIPsUsed := p.minPods(instanceTypes, constraints)
+		reqs := scheduling.NewRequirements(
+			scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
+			scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, subnet.Zone),
+			scheduling.NewRequirement(v1beta1.LabelInstanceAvailabilityZoneID, v1.NodeSelectorOpIn, subnet.ZoneID),
+		)
+		predictedIPsUsed := p.minPods(instanceTypes, reqs)
 		prevIPs := subnet.AvailableIPAddressCount
 		if trackedIPs, ok := p.inflightIPs[subnet.ID]; ok {
 			prevIPs = trackedIPs
@@ -243,12 +244,12 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 		if originalSubnet.AvailableIPAddressCount == cachedIPAddressCount {
 			// other IPs deducted were opportunistic and need to be readded since Fleet didn't pick those subnets to launch into
 			if ips, ok := p.inflightIPs[originalSubnet.ID]; ok {
-				constraints := map[string]string{
-					corev1beta1.CapacityTypeLabelKey:        capacityType,
-					v1.LabelTopologyZone:                    originalSubnet.Zone,
-					v1beta1.LabelInstanceAvailabilityZoneID: originalSubnet.ZoneID,
-				}
-				minPods := p.minPods(instanceTypes, constraints)
+				reqs := scheduling.NewRequirements(
+					scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
+					scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, originalSubnet.Zone),
+					scheduling.NewRequirement(v1beta1.LabelInstanceAvailabilityZoneID, v1.NodeSelectorOpIn, originalSubnet.ZoneID),
+				)
+				minPods := p.minPods(instanceTypes, reqs)
 				p.inflightIPs[originalSubnet.ID] = ips + minPods
 			}
 		}
@@ -266,10 +267,10 @@ func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {
 	return nil
 }
 
-func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, constraints map[string]string) int64 {
+func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, reqs scheduling.Requirements) int64 {
 	// filter for instance types available in the zone and capacity type being requested
 	filteredInstanceTypes := lo.Filter(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
-		offering, ok := it.Offerings.Get(constraints)
+		offering, ok := it.Offerings.Get(reqs)
 		if !ok {
 			return false
 		}
