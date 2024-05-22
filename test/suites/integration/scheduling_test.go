@@ -16,6 +16,7 @@ package integration_test
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/samber/lo"
@@ -595,6 +596,89 @@ var _ = FDescribe("Scheduling", Ordered, ContinueOnFailure, func() {
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectHealthy(pod)
+		})
+
+		It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
+			type mapping struct {
+				zone   string
+				zoneID string
+			}
+			subnetZones := lo.Keys(env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName}))
+			zones := lo.Filter(lo.MapToSlice(env.GetZoneIDMapping(), func(zone, zoneID string) mapping {
+				return mapping{zone, zoneID}
+			}), func(m mapping, _ int) bool {
+				return lo.Contains(subnetZones, m.zone)
+			})
+			Expect(len(zones)).To(BeNumerically(">=", 3))
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelTopologyZone,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   lo.Map(zones[0:2], func(m mapping, _ int) string { return m.zone }),
+					},
+					{
+						Key:      v1beta1.LabelInstanceAvailabilityZoneID,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   lo.Map(zones[1:3], func(m mapping, _ int) string { return m.zoneID }),
+					},
+				},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+			node := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(zones[1].zone))
+			Expect(node.Labels[v1beta1.LabelInstanceAvailabilityZoneID]).To(Equal(zones[1].zoneID))
+		})
+
+		It("should provision nodes for pods with zone-id requirements in the correct zone", func() {
+			const domainLabel = "domain-label"
+			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      domainLabel,
+					Operator: v1.NodeSelectorOpExists,
+				},
+			})
+
+			type mapping struct {
+				zone   string
+				zoneID string
+			}
+			subnetZones := lo.Keys(env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName}))
+			zones := lo.Filter(lo.MapToSlice(env.GetZoneIDMapping(), func(zone, zoneID string) mapping {
+				return mapping{zone, zoneID}
+			}), func(m mapping, _ int) bool {
+				return lo.Contains(subnetZones, m.zone)
+			})
+
+			pods := lo.Times(len(zones), func(index int) *v1.Pod {
+				return test.Pod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      domainLabel,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{fmt.Sprintf("%d", index)},
+						},
+						{
+							Key:      v1beta1.LabelInstanceAvailabilityZoneID,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{zones[index].zoneID},
+						},
+					},
+				})
+			})
+			env.ExpectCreated(nodePool, nodeClass)
+			for _, pod := range pods {
+				env.ExpectCreated(pod)
+			}
+			nodes := env.EventuallyExpectCreatedNodeCount("==", len(zones))
+			for _, node := range nodes {
+				domainValue, ok := node.Labels[domainLabel]
+				Expect(ok).To(BeTrue())
+				expectedIndex, err := strconv.Atoi(domainValue)
+				Expect(err).To(BeNil())
+				Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(zones[expectedIndex].zone))
+				Expect(node.Labels[v1beta1.LabelInstanceAvailabilityZoneID]).To(Equal(zones[expectedIndex].zoneID))
+			}
 		})
 	})
 })

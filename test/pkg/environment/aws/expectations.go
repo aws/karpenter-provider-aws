@@ -218,6 +218,14 @@ func (env *Environment) GetZones() map[string]string {
 	})
 }
 
+// GetZoneIDMapping returns map from zone to zone id
+func (env *Environment) GetZoneIDMapping() map[string]string {
+	output := lo.Must(env.EC2API.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{}))
+	return lo.Associate(output.AvailabilityZones, func(zone *ec2.AvailabilityZone) (string, string) {
+		return lo.FromPtr(zone.ZoneName), lo.FromPtr(zone.ZoneId)
+	})
+}
+
 // GetSubnets returns all subnets matching the label selector
 // mapped from AZ -> {subnet-ids...}
 func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
