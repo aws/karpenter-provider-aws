@@ -24,6 +24,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -98,7 +99,7 @@ func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.Node
 		if err := c.kubeClient.Delete(ctx, &node); err != nil {
 			return client.IgnoreNotFound(err)
 		}
-		log.FromContext(ctx).WithValues("node", node.Name).V(1).Info("garbage collected node")
+		log.FromContext(ctx).WithValues("Node", klog.KRef("", node.Name)).V(1).Info("garbage collected node")
 	}
 	return nil
 }

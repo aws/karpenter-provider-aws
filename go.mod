@@ -26,12 +26,15 @@ require (
 	k8s.io/apiextensions-apiserver v0.30.1
 	k8s.io/apimachinery v0.30.1
 	k8s.io/client-go v0.30.1
+	k8s.io/klog/v2 v2.120.1
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.18.2
 	sigs.k8s.io/karpenter v0.36.1-0.20240521002315-9b145a6d85b4
 	sigs.k8s.io/yaml v1.4.0
 )
+
+replace sigs.k8s.io/karpenter => github.com/jonathan-innis/karpenter v0.0.4-0.20240522180727-8b7fee1c69bb
 
 require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect
@@ -111,7 +114,6 @@ require (
 	k8s.io/cloud-provider v0.30.1 // indirect
 	k8s.io/component-base v0.30.1 // indirect
 	k8s.io/csi-translation-lib v0.30.1 // indirect
-	k8s.io/klog/v2 v2.120.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect

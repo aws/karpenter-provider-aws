@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
@@ -66,7 +65,6 @@ func NewController(kubeClient client.Client, recorder events.Recorder,
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithName("nodeclass.termination").WithValues("ec2nodeclass", nodeClass.Name))
 	ctx = injection.WithControllerName(ctx, "nodeclass.termination")
 
 	if !nodeClass.GetDeletionTimestamp().IsZero() {
