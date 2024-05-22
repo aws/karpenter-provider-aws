@@ -517,10 +517,10 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 		return e.DescribeAvailabilityZonesOutput.Clone(), nil
 	}
 	return &ec2.DescribeAvailabilityZonesOutput{AvailabilityZones: []*ec2.AvailabilityZone{
-		{ZoneName: aws.String("test-zone-1a"), ZoneId: aws.String("testzone1a"), ZoneType: aws.String("availability-zone")},
-		{ZoneName: aws.String("test-zone-1b"), ZoneId: aws.String("testzone1b"), ZoneType: aws.String("availability-zone")},
-		{ZoneName: aws.String("test-zone-1c"), ZoneId: aws.String("testzone1c"), ZoneType: aws.String("availability-zone")},
-		{ZoneName: aws.String("test-zone-1a-local"), ZoneId: aws.String("testzone1alocal"), ZoneType: aws.String("local-zone")},
+		{ZoneName: aws.String("test-zone-1a"), ZoneId: aws.String("tstz1-1a"), ZoneType: aws.String("availability-zone")},
+		{ZoneName: aws.String("test-zone-1b"), ZoneId: aws.String("tstz1-1b"), ZoneType: aws.String("availability-zone")},
+		{ZoneName: aws.String("test-zone-1c"), ZoneId: aws.String("tstz1-1c"), ZoneType: aws.String("availability-zone")},
+		{ZoneName: aws.String("test-zone-1a-local"), ZoneId: aws.String("tstz1-1alocal"), ZoneType: aws.String("local-zone")},
 	}}, nil
 }
 

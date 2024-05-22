@@ -245,7 +245,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceAcceleratorName:              "inferentia",
 			v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1beta1.LabelInstanceAcceleratorCount:             "1",
-			v1beta1.LabelInstanceAvailabilityZoneID:           "",
+			v1beta1.LabelInstanceAvailabilityZoneID:           "tstz1-1a",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -297,7 +297,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceGPUCount:                     "1",
 			v1beta1.LabelInstanceGPUMemory:                    "16384",
 			v1beta1.LabelInstanceLocalNVME:                    "900",
-			v1beta1.LabelInstanceAvailabilityZoneID:           "",
+			v1beta1.LabelInstanceAvailabilityZoneID:           "tstz1-1a",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -348,7 +348,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceAcceleratorName:              "inferentia",
 			v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1beta1.LabelInstanceAcceleratorCount:             "1",
-			v1beta1.LabelInstanceAvailabilityZoneID:           "",
+			v1beta1.LabelInstanceAvailabilityZoneID:           "tstz1-1a",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",

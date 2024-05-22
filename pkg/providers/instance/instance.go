@@ -341,8 +341,7 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 		if capacityType != offering.CapacityType() {
 			continue
 		}
-		if !reqs.Get(v1.LabelTopologyZone).Has(offering.Zone()) ||
-			!reqs.Get(v1beta1.LabelInstanceAvailabilityZoneID).Has(offering.CapacityType()) {
+		if !reqs.Get(v1.LabelTopologyZone).Has(offering.Zone()) || !reqs.Get(v1beta1.LabelInstanceAvailabilityZoneID).Has(offering.Requirements.Get(v1beta1.LabelInstanceAvailabilityZoneID).Values()[0]) {
 			continue
 		}
 		subnet, ok := zonalSubnets[offering.Zone()]
@@ -413,12 +412,13 @@ func (p *DefaultProvider) isMixedCapacityLaunch(nodeClaim *corev1beta1.NodeClaim
 	if requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
 		for _, instanceType := range instanceTypes {
 			for _, offering := range instanceType.Offerings.Available() {
-				if requirements.Get(v1.LabelTopologyZone).Has(offering.Zone()) {
-					if offering.CapacityType() == corev1beta1.CapacityTypeSpot {
-						hasSpotOfferings = true
-					} else {
-						hasODOffering = true
-					}
+				if !requirements.Get(v1.LabelTopologyZone).Has(offering.Zone()) || !requirements.Get(v1beta1.LabelInstanceAvailabilityZoneID).Has(offering.Requirements.Get(v1beta1.LabelInstanceAvailabilityZoneID).Values()[0]) {
+					continue
+				}
+				if offering.CapacityType() == corev1beta1.CapacityTypeSpot {
+					hasSpotOfferings = true
+				} else {
+					hasODOffering = true
 				}
 			}
 		}
