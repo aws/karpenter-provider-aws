@@ -1,1 +1,9 @@
 defaultBaseImage: public.ecr.aws/eks-distro-build-tooling/eks-distro-minimal-base
+defaultPlatforms:
+  - linux/arm64
+  - linux/amd64
+builds: 
+- ldflags:
+  - -race
+  id: main
+  main: ./cmd/controller
