@@ -180,7 +180,7 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 		reqs := scheduling.NewRequirements(
 			scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
 			scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, subnet.Zone),
-			scheduling.NewRequirement(v1beta1.LabelInstanceAvailabilityZoneID, v1.NodeSelectorOpIn, subnet.ZoneID),
+			scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, subnet.ZoneID),
 		)
 		predictedIPsUsed := p.minPods(instanceTypes, reqs)
 		prevIPs := subnet.AvailableIPAddressCount
@@ -247,7 +247,7 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 				reqs := scheduling.NewRequirements(
 					scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
 					scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, originalSubnet.Zone),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAvailabilityZoneID, v1.NodeSelectorOpIn, originalSubnet.ZoneID),
+					scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, originalSubnet.ZoneID),
 				)
 				minPods := p.minPods(instanceTypes, reqs)
 				p.inflightIPs[originalSubnet.ID] = ips + minPods

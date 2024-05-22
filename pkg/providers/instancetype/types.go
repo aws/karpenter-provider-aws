@@ -79,13 +79,13 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, getArchitecture(info)),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, getOS(info, amiFamily)...),
 		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
-			return o.Zone()
+			return o.Requirements.Get(v1.LabelTopologyZone).Any()
 		})...),
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, region),
 		scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpDoesNotExist),
 		// Well Known to Karpenter
 		scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
-			return o.CapacityType()
+			return o.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any()
 		})...),
 		// Well Known to AWS
 		scheduling.NewRequirement(v1beta1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.VCpuInfo.DefaultVCpus))),
@@ -107,8 +107,8 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
 		scheduling.NewRequirement(v1beta1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
-		scheduling.NewRequirement(v1beta1.LabelInstanceAvailabilityZoneID, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
-			return o.Requirements.Get(v1beta1.LabelInstanceAvailabilityZoneID).Values()[0]
+		scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
+			return o.Requirements.Get(v1beta1.LabelTopologyZoneID).Any()
 		})...),
 	)
 	// Instance Type Labels

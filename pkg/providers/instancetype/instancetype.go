@@ -279,7 +279,7 @@ func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2
 				Requirements: scheduling.NewRequirements(
 					scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
 					scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, zone),
-					scheduling.NewRequirement(v1beta1.LabelInstanceAvailabilityZoneID, v1.NodeSelectorOpIn, zoneInfo[zone]),
+					scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, zoneInfo[zone]),
 				),
 				Price:     price,
 				Available: available,

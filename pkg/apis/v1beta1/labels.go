@@ -46,7 +46,7 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
-		LabelInstanceAvailabilityZoneID,
+		LabelTopologyZoneID,
 		v1.LabelWindowsBuild,
 	)
 }
@@ -95,7 +95,7 @@ var (
 
 	LabelNodeClass = Group + "/ec2nodeclass"
 
-	LabelInstanceAvailabilityZoneID = "topology.k8s.aws/zone-id"
+	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 
 	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"

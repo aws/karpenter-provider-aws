@@ -316,7 +316,7 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), resourceFilter)
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
-	labels[v1beta1.LabelInstanceAvailabilityZoneID] = c.subnetProvider.ZoneInfo()[i.Zone]
+	labels[v1beta1.LabelTopologyZoneID] = c.subnetProvider.ZoneInfo()[i.Zone]
 	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType
 	if v, ok := i.Tags[corev1beta1.NodePoolLabelKey]; ok {
 		labels[corev1beta1.NodePoolLabelKey] = v

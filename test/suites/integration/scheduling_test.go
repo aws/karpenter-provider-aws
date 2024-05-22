@@ -109,11 +109,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for zone id selection", func() {
-			selectors.Insert(v1beta1.LabelInstanceAvailabilityZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
+			selectors.Insert(v1beta1.LabelTopologyZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
 				NodeRequirements: []v1.NodeSelectorRequirement{
 					{
-						Key:      v1beta1.LabelInstanceAvailabilityZoneID,
+						Key:      v1beta1.LabelTopologyZoneID,
 						Operator: v1.NodeSelectorOpIn,
 						Values: func() []string {
 							zoneIDMapping := env.GetZoneIDMapping()
@@ -625,7 +625,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 						Values:   lo.Map(zones[0:2], func(m mapping, _ int) string { return m.zone }),
 					},
 					{
-						Key:      v1beta1.LabelInstanceAvailabilityZoneID,
+						Key:      v1beta1.LabelTopologyZoneID,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   lo.Map(zones[1:3], func(m mapping, _ int) string { return m.zoneID }),
 					},
@@ -634,7 +634,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			node := env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(zones[1].zone))
-			Expect(node.Labels[v1beta1.LabelInstanceAvailabilityZoneID]).To(Equal(zones[1].zoneID))
+			Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(zones[1].zoneID))
 		})
 		It("should provision nodes for pods with zone-id requirements in the correct zone", func() {
 			const expectedZoneLabel = "domain-label"
@@ -656,7 +656,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 							Values:   []string{zone},
 						},
 						{
-							Key:      v1beta1.LabelInstanceAvailabilityZoneID,
+							Key:      v1beta1.LabelTopologyZoneID,
 							Operator: v1.NodeSelectorOpIn,
 							Values:   []string{zoneID},
 						},
@@ -673,7 +673,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				expectedZone, ok := node.Labels[expectedZoneLabel]
 				Expect(ok).To(BeTrue())
 				Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(expectedZone))
-				Expect(node.Labels[v1beta1.LabelInstanceAvailabilityZoneID]).To(Equal(zoneIDMapping[expectedZone]))
+				Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(zoneIDMapping[expectedZone]))
 			}
 		})
 	})
