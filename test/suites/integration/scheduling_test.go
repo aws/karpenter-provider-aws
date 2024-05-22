@@ -16,7 +16,6 @@ package integration_test
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/samber/lo"
@@ -38,7 +37,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = FDescribe("Scheduling", Ordered, ContinueOnFailure, func() {
+var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	var selectors sets.Set[string]
 
 	BeforeEach(func() {
@@ -116,7 +115,12 @@ var _ = FDescribe("Scheduling", Ordered, ContinueOnFailure, func() {
 					{
 						Key:      v1beta1.LabelInstanceAvailabilityZoneID,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"usw2-az3"},
+						Values: func() []string {
+							zoneIDMapping := env.GetZoneIDMapping()
+							subnetZones := lo.Keys(env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName}))
+							targetZoneID := zoneIDMapping[subnetZones[0]]
+							return []string{targetZoneID}
+						}(),
 					},
 				},
 			}})
@@ -610,6 +614,9 @@ var _ = FDescribe("Scheduling", Ordered, ContinueOnFailure, func() {
 				return lo.Contains(subnetZones, m.zone)
 			})
 			Expect(len(zones)).To(BeNumerically(">=", 3))
+
+			// Create a pod with 'overlapping' zone and zone-id requirements. With two options for each label, but only one pair of zone-zoneID that maps to the
+			// same AZ, we will always expect the pod to be scheduled to that AZ. In this case, this is the mapping at zone[1].
 			pod := test.Pod(test.PodOptions{
 				NodeRequirements: []v1.NodeSelectorRequirement{
 					{
@@ -629,55 +636,44 @@ var _ = FDescribe("Scheduling", Ordered, ContinueOnFailure, func() {
 			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(zones[1].zone))
 			Expect(node.Labels[v1beta1.LabelInstanceAvailabilityZoneID]).To(Equal(zones[1].zoneID))
 		})
-
 		It("should provision nodes for pods with zone-id requirements in the correct zone", func() {
-			const domainLabel = "domain-label"
+			const expectedZoneLabel = "domain-label"
 			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      domainLabel,
+					Key:      expectedZoneLabel,
 					Operator: v1.NodeSelectorOpExists,
 				},
 			})
 
-			type mapping struct {
-				zone   string
-				zoneID string
-			}
-			subnetZones := lo.Keys(env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName}))
-			zones := lo.Filter(lo.MapToSlice(env.GetZoneIDMapping(), func(zone, zoneID string) mapping {
-				return mapping{zone, zoneID}
-			}), func(m mapping, _ int) bool {
-				return lo.Contains(subnetZones, m.zone)
-			})
-
-			pods := lo.Times(len(zones), func(index int) *v1.Pod {
+			// zoneIDMapping is a mapping from zone to zone-id for all zoneIDMapping available in the provided subnets
+			zoneIDMapping := lo.PickByKeys(env.GetZoneIDMapping(), lo.Keys(env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})))
+			pods := lo.MapToSlice(zoneIDMapping, func(zone, zoneID string) *v1.Pod {
 				return test.Pod(test.PodOptions{
 					NodeRequirements: []v1.NodeSelectorRequirement{
 						{
-							Key:      domainLabel,
+							Key:      expectedZoneLabel,
 							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{fmt.Sprintf("%d", index)},
+							Values:   []string{zone},
 						},
 						{
 							Key:      v1beta1.LabelInstanceAvailabilityZoneID,
 							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{zones[index].zoneID},
+							Values:   []string{zoneID},
 						},
 					},
 				})
 			})
+
 			env.ExpectCreated(nodePool, nodeClass)
 			for _, pod := range pods {
 				env.ExpectCreated(pod)
 			}
-			nodes := env.EventuallyExpectCreatedNodeCount("==", len(zones))
+			nodes := env.EventuallyExpectCreatedNodeCount("==", len(zoneIDMapping))
 			for _, node := range nodes {
-				domainValue, ok := node.Labels[domainLabel]
+				expectedZone, ok := node.Labels[expectedZoneLabel]
 				Expect(ok).To(BeTrue())
-				expectedIndex, err := strconv.Atoi(domainValue)
-				Expect(err).To(BeNil())
-				Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(zones[expectedIndex].zone))
-				Expect(node.Labels[v1beta1.LabelInstanceAvailabilityZoneID]).To(Equal(zones[expectedIndex].zoneID))
+				Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(expectedZone))
+				Expect(node.Labels[v1beta1.LabelInstanceAvailabilityZoneID]).To(Equal(zoneIDMapping[expectedZone]))
 			}
 		})
 	})
