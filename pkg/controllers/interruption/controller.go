@@ -25,6 +25,7 @@ import (
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
+	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -179,9 +180,9 @@ func (c *Controller) deleteMessage(ctx context.Context, msg *sqsapi.Message) err
 // handleNodeClaim retrieves the action for the message and then performs the appropriate action against the node
 func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *v1beta1.NodeClaim, node *v1.Node) error {
 	action := actionForMessage(msg)
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("nodeclaim", nodeClaim.Name, "action", string(action)))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("NodeClaim", klog.KRef("", nodeClaim.Name), "action", string(action)))
 	if node != nil {
-		ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("node", node.Name))
+		ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("Node", klog.KRef("", node.Name)))
 	}
 
 	// Record metric and event for this action

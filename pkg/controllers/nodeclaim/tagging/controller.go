@@ -54,7 +54,6 @@ func NewController(kubeClient client.Client, instanceProvider instance.Provider)
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (reconcile.Result, error) {
-	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithName("nodeclaim.tagging").WithValues("nodeclaim", nodeClaim.Name))
 	ctx = injection.WithControllerName(ctx, "nodeclaim.tagging")
 
 	stored := nodeClaim.DeepCopy()
