@@ -30,7 +30,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
@@ -120,8 +120,8 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	amis.Sort()
 	uniqueAMIs := lo.Uniq(lo.Map(amis, func(a AMI, _ int) string { return a.AmiID }))
 	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), uniqueAMIs) {
-		logging.FromContext(ctx).With(
-			"ids", uniqueAMIs).Debugf("discovered amis")
+		log.FromContext(ctx).WithValues(
+			"ids", uniqueAMIs).V(1).Info("discovered amis")
 	}
 	return amis, nil
 }
@@ -140,7 +140,7 @@ func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1
 	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion)
 	for _, ami := range defaultAMIs {
 		if id, err := p.resolveSSMParameter(ctx, ami.Query); err != nil {
-			logging.FromContext(ctx).With("query", ami.Query).Errorf("discovering amis from ssm, %s", err)
+			log.FromContext(ctx).WithValues("query", ami.Query).Error(err, "failed discovering amis from ssm")
 		} else {
 			res = append(res, AMI{AmiID: id, Requirements: ami.Requirements})
 		}

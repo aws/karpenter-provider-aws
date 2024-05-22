@@ -25,7 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
-	_ "knative.dev/pkg/system/testing"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -42,8 +41,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "knative.dev/pkg/logging/testing"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
 
 var ctx context.Context

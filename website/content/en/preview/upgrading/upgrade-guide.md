@@ -39,6 +39,7 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 
 ### Upgrading to `0.37.0`+
 
+* Karpenter no longer updates the logger name when creating controller loggers. We now adhere to the controller-runtime standard, where the logger name will be set as `"logger": "controller"` always and the controller name will be stored in the structured value `"controller"`
 * Karpenter updated the NodeClass controller naming in the following way: `nodeclass` -> `nodeclass.status`, `nodeclass.hash`, `nodeclass.termination`
 * Karpenter's NodeClaim status conditions no longer include the `severity` field
 

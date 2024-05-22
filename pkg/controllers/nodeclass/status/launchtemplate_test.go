@@ -17,7 +17,6 @@ package status_test
 import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/samber/lo"
-	_ "knative.dev/pkg/system/testing"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"

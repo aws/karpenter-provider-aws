@@ -23,8 +23,8 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/samber/lo"
 
@@ -170,11 +170,11 @@ func (m *Monitor) RunningPodsCount(selector labels.Selector) int {
 func (m *Monitor) poll() state {
 	var nodes v1.NodeList
 	if err := m.kubeClient.List(m.ctx, &nodes); err != nil {
-		logging.FromContext(m.ctx).Errorf("listing nodes, %s", err)
+		log.FromContext(m.ctx).Error(err, "failed listing nodes")
 	}
 	var pods v1.PodList
 	if err := m.kubeClient.List(m.ctx, &pods); err != nil {
-		logging.FromContext(m.ctx).Errorf("listing pods, %s", err)
+		log.FromContext(m.ctx).Error(err, "failing listing pods")
 	}
 	st := state{
 		nodes:        map[string]*v1.Node{},

@@ -28,6 +28,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -37,7 +38,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
-	. "knative.dev/pkg/logging/testing"
 	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -49,7 +49,10 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
+
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -109,8 +112,39 @@ var _ = Describe("InstanceTypeProvider", func() {
 	var nodeClass, windowsNodeClass *v1beta1.EC2NodeClass
 	var nodePool, windowsNodePool *corev1beta1.NodePool
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass()
-		nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
+		nodeClass = test.EC2NodeClass(
+			v1beta1.EC2NodeClass{
+				Status: v1beta1.EC2NodeClassStatus{
+					InstanceProfile: "test-profile",
+					SecurityGroups: []v1beta1.SecurityGroup{
+						{
+							ID: "sg-test1",
+						},
+						{
+							ID: "sg-test2",
+						},
+						{
+							ID: "sg-test3",
+						},
+					},
+					Subnets: []v1beta1.Subnet{
+						{
+							ID:   "subnet-test1",
+							Zone: "test-zone-1a",
+						},
+						{
+							ID:   "subnet-test2",
+							Zone: "test-zone-1b",
+						},
+						{
+							ID:   "subnet-test3",
+							Zone: "test-zone-1c",
+						},
+					},
+				},
+			},
+		)
+		nodeClass.StatusConditions().SetTrue(status.ConditionReady)
 		nodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
@@ -152,7 +186,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				},
 			},
 		})
-		windowsNodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeNodeClassReady)
+		windowsNodeClass.StatusConditions().SetTrue(status.ConditionReady)
 		windowsNodePool = coretest.NodePool(corev1beta1.NodePool{
 			Spec: corev1beta1.NodePoolSpec{
 				Template: corev1beta1.NodeClaimTemplate{
