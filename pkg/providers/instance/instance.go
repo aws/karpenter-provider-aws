@@ -338,6 +338,9 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 	}
 	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
 	for _, offering := range unwrappedOfferings {
+		if capacityType != offering.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any() {
+			continue
+		}
 		if reqs.Compatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels) != nil {
 			continue
 		}
