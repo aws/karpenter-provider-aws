@@ -1,6 +1,6 @@
 # On demand capacity reservation
 
-This documents proposes supporting ODCR in Karpenter
+This document proposes supporting ODCR in Karpenter
 
 - [On demand capacity reservation](#on-demand-capacity-reservation)
   - [Background](#background)
@@ -54,7 +54,7 @@ _We are keeping the scope of this design very targeted so even if these could be
 - Supporting open Capacity Reservations. _The behaviour of indirectly linked nodes to an open ODCR can cause rotation, adding unnecessary node rotation into the cluster_
 - Supporting changes in scaling behavior when ODCR is associated to a NodeClass. _We won't bring up N nodes to match an N node capacity reservation_
 - Supporting Capacity Reservation Groups. _Adding this abstraction for now adds additional complexity_
-- Supporting updating Capacity Reservations availabile instance count after success of CreateFleet API. _We will currenlty relay on reconsolidation of capacity reservations itself, and rely on CreateFleet API throwing a `ReservationCapacityExceeded`_
+- Supporting updating Capacity Reservations availabile instance count after success of CreateFleet API. _We will currenlty rely on reconsolidation of capacity reservations itself, and rely on CreateFleet API throwing a `ReservationCapacityExceeded`_
 - Supporting conditions for capacity reservation instance creations. _By showing the available instance count within each capacity reservation for an EC2NodeClass we have similar information available_
 
 ## Proposed Solution
@@ -146,7 +146,7 @@ spec:
 
 #### All Launch Templates are associated with the specified Capacity Reservation
 
-EC2NodeClass currently supports automatically generating Launch Templates based on instance types and their AMI requirements. We are implementing a prioritization within Karpenter for Capacity Reservation (as their price will be set to 0 making it being selected over on-demand and spot). We add a check to ensure before calling CreateFleet API existing available Capacity Reservations are being used. In some raise condition scenarios CreateFleet when creating instances against a single targeted Capacity Reservation will fail if the Reservation is fully utilized, resulting in an `ReservationCapacityExceeded` error.
+EC2NodeClass currently supports automatically generating Launch Templates based on instance types and their AMI requirements. We are implementing a prioritization within Karpenter for Capacity Reservation (as their price will be set to 0 making it be selected over on-demand and spot). We add a check to ensure before calling CreateFleet API existing available Capacity Reservations are being used. In some raise condition scenarios CreateFleet when creating instances against a single targeted Capacity Reservation will fail if the Reservation is fully utilized, resulting in an `ReservationCapacityExceeded` error.
 By default it will not fallback to `on-demand` instances, if not specified specifically in the capacity-type in the NodePool as described above [capacity-reservation-fleet (falling back to on-demand if capacity-reservation not available)](#capacity-reservation-fleet-falling-back-to-on-demand-if-capacity-reservation-not-available).
 
 To clarify the NodeClass with Capacity Reservations will pin the NodeClass into all instance types and availability zones the Capacity Reservations reserved, if additionally on-demand is provided it can spin up other instance types, but can have unintended side effects during consolidation phase.
@@ -154,21 +154,21 @@ To clarify the NodeClass with Capacity Reservations will pin the NodeClass into 
 _Note that these aren't permanent restrictions but simply narrowing down what features exist in the first iteration of supporting Capacity Reservation_ 
 
 Pros: 
-- This puts the onus of checking on the user to verify capability of their NodeClasses and requirements. It makes no assumption about what a Capacity Reservation can do nor implies can't do
-- Users are still open to define fallbacks of on-demand or spot, and its up them of how they would like to configure it. Making it possible to either define everything with one EC2NodeClass and one NodePool, or using multiple with weights.
+- This makes the user responsible for verifying the capability of their NodeClasses and requirements. It makes no assumption about what a Capacity Reservation can or cannot do
+- Users are still open to define fallbacks of on-demand or spot, and its up them of how they would like to configure it. Making it possible to either define everything with one EC2NodeClass and one NodePool, or using multiple with weights
 
 Cons:
-- This implementation is overly restrictive causing it to be difficult to use when trying multiple Instance Types. Since ODCRs are such a specific use case, it can be argued that the flexible of multiple Instance Types can cause issues for cost savings.
+- This implementation is overly restrictive and will be difficult to use when attempting to utilize multiple Instance Types. Because ODCRs are such a specific use case, it can be argued that the flexibility of multiple Instance Types can cause issues with cost savings
 
 #### Pricing and consolidation
 
 ##### Provisioning
 
-Pricing is directly considered during provisioning and consolidation, as capacity-reservation is assumed with a price of 0 in each offering. Making it the option to select if capacity is available (as its anyway paid for).
+Pricing is directly considered during provisioning and consolidation as capacity-reservation is prepaid. It is assumed to have a price of 0 during provisioning.
 
 ##### Consolidating Capacity Reserved Instances
 
-During consolidation pricing does matter as it affects which candidate will be [prioritized](https://github.com/kubernetes-sigs/karpenter/blob/75826eb51589e546fffb594bfefa91f3850e6c82/pkg/controllers/disruption/consolidation.go#L156). Since all capacity instances are paid ahead of time, their cost is already incurred. Users would likely want to prioritize filling their capacition
+During consolidation pricing does matter as it affects which candidate will be [prioritized](https://github.com/kubernetes-sigs/karpenter/blob/75826eb51589e546fffb594bfefa91f3850e6c82/pkg/controllers/disruption/consolidation.go#L156). Since all capacity instances are paid ahead of time, their cost is already incurred. Users would likely want to prioritize filling their reserved capacity.
 reservation first then fall back into other instances. Because of this reserved instances should likely show up as 0 dollar pricing when we calculate the instance pricing. Since each candidate is tied to a NodePool and EC2NodeClass, we should be able to safely override the pricing per node under a capacity reservation.
 
 ##### Consolidating into Capacity Reserved Instances
@@ -197,7 +197,7 @@ We will propagate this information via [instance](https://github.com/aws/karpent
 
 The main failure scenario is when Capacity Reservation limit is hit and no new nodes can be launched from any Capacity Reservation the launch template targets.
 
-1. We filter inside Karpenter before calling CreateFleet API and throwing in InsufficientCapacityError causing a reevaluation,
+1. We filter inside Karpenter before calling CreateFleet API and throwing an InsufficientCapacityError causing a reevaluation,
 with then a different capacity-type could be selected if available in NodePool
 
 1. We call CreateFleet API in certain raise conditions, resulting in an InsufficientCapacityError causing a reevaluation,
