@@ -115,12 +115,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					{
 						Key:      v1beta1.LabelTopologyZoneID,
 						Operator: v1.NodeSelectorOpIn,
-						Values: func() []string {
-							zoneIDMapping := env.GetZoneIDMapping()
-							subnetZones := lo.Keys(env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName}))
-							targetZoneID := zoneIDMapping[subnetZones[0]]
-							return []string{targetZoneID}
-						}(),
+						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneInfo.ZoneID},
 					},
 				},
 			}})
@@ -603,17 +598,8 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		})
 
 		It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
-			type mapping struct {
-				zone   string
-				zoneID string
-			}
-			subnetZones := lo.Keys(env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName}))
-			zones := lo.Filter(lo.MapToSlice(env.GetZoneIDMapping(), func(zone, zoneID string) mapping {
-				return mapping{zone, zoneID}
-			}), func(m mapping, _ int) bool {
-				return lo.Contains(subnetZones, m.zone)
-			})
-			Expect(len(zones)).To(BeNumerically(">=", 3))
+			subnetInfo := env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+			Expect(len(subnetInfo)).To(BeNumerically(">=", 3))
 
 			// Create a pod with 'overlapping' zone and zone-id requirements. With two options for each label, but only one pair of zone-zoneID that maps to the
 			// same AZ, we will always expect the pod to be scheduled to that AZ. In this case, this is the mapping at zone[1].
@@ -622,19 +608,19 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					{
 						Key:      v1.LabelTopologyZone,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   lo.Map(zones[0:2], func(m mapping, _ int) string { return m.zone }),
+						Values:   lo.Map(subnetInfo[0:2], func(info aws.SubnetInfo, _ int) string { return info.Zone }),
 					},
 					{
 						Key:      v1beta1.LabelTopologyZoneID,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   lo.Map(zones[1:3], func(m mapping, _ int) string { return m.zoneID }),
+						Values:   lo.Map(subnetInfo[1:3], func(info aws.SubnetInfo, _ int) string { return info.Zone }),
 					},
 				},
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			node := env.EventuallyExpectNodeCount("==", 1)[0]
-			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(zones[1].zone))
-			Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(zones[1].zoneID))
+			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(subnetInfo[1].Zone))
+			Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(subnetInfo[1].ZoneID))
 		})
 		It("should provision nodes for pods with zone-id requirements in the correct zone", func() {
 			const expectedZoneLabel = "domain-label"
@@ -645,20 +631,19 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				},
 			})
 
-			// zoneIDMapping is a mapping from zone to zone-id for all zoneIDMapping available in the provided subnets
-			zoneIDMapping := lo.PickByKeys(env.GetZoneIDMapping(), lo.Keys(env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})))
-			pods := lo.MapToSlice(zoneIDMapping, func(zone, zoneID string) *v1.Pod {
+			subnetInfo := env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+			pods := lo.Map(subnetInfo, func(info aws.SubnetInfo, _ int) *v1.Pod {
 				return test.Pod(test.PodOptions{
 					NodeRequirements: []v1.NodeSelectorRequirement{
 						{
 							Key:      expectedZoneLabel,
 							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{zone},
+							Values:   []string{info.Zone},
 						},
 						{
 							Key:      v1beta1.LabelTopologyZoneID,
 							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{zoneID},
+							Values:   []string{info.ZoneID},
 						},
 					},
 				})
@@ -668,12 +653,16 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			for _, pod := range pods {
 				env.ExpectCreated(pod)
 			}
-			nodes := env.EventuallyExpectCreatedNodeCount("==", len(zoneIDMapping))
+			nodes := env.EventuallyExpectCreatedNodeCount("==", len(subnetInfo))
 			for _, node := range nodes {
 				expectedZone, ok := node.Labels[expectedZoneLabel]
 				Expect(ok).To(BeTrue())
 				Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(expectedZone))
-				Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(zoneIDMapping[expectedZone]))
+				zoneInfo, ok := lo.Find(subnetInfo, func(info aws.SubnetInfo) bool {
+					return info.Zone == expectedZone
+				})
+				Expect(ok).To(BeTrue())
+				Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(zoneInfo.ZoneID))
 			}
 		})
 	})
