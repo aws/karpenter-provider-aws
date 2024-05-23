@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -383,7 +382,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		It("should provision a node using a NodePool with higher priority", func() {
 			nodePoolLowPri := test.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
-					Weight: ptr.Int32(10),
+					Weight: lo.ToPtr(int32(10)),
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
@@ -411,7 +410,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			})
 			nodePoolHighPri := test.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
-					Weight: ptr.Int32(100),
+					Weight: lo.ToPtr(int32(100)),
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
@@ -441,7 +440,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(pod, nodeClass, nodePoolLowPri, nodePoolHighPri)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
-			Expect(ptr.StringValue(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
+			Expect(lo.FromPtr(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
 			Expect(env.GetNode(pod.Spec.NodeName).Labels[corev1beta1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 		})
 
