@@ -211,7 +211,7 @@ var _ = Describe("CloudProvider", func() {
 	It("should return availability zone ID as a label on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
-		Expect(err).To(BeNil())
+		Expect(err).ToNot(HaveOccurred())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
 		zone, ok := cloudProviderNodeClaim.GetLabels()[v1.LabelTopologyZone]
 		Expect(ok).To(BeTrue())
