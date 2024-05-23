@@ -25,6 +25,8 @@ import (
 	"sync"
 	"time"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
+
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -35,8 +37,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	"knative.dev/pkg/logging"
-
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
@@ -166,7 +166,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 	// as pricing api may not be available
 	if options.FromContext(ctx).IsolatedVPC {
 		if p.cm.HasChanged("on-demand-prices", nil) {
-			logging.FromContext(ctx).Debug("running in an isolated VPC, on-demand pricing information will not be updated")
+			log.FromContext(ctx).V(1).Info("running in an isolated VPC, on-demand pricing information will not be updated")
 		}
 		return nil
 	}
@@ -220,7 +220,7 @@ func (p *DefaultProvider) UpdateOnDemandPricing(ctx context.Context) error {
 
 	p.onDemandPrices = lo.Assign(onDemandPrices, onDemandMetalPrices)
 	if p.cm.HasChanged("on-demand-prices", p.onDemandPrices) {
-		logging.FromContext(ctx).With("instance-type-count", len(p.onDemandPrices)).Debugf("updated on-demand pricing")
+		log.FromContext(ctx).WithValues("instance-type-count", len(p.onDemandPrices)).V(1).Info("updated on-demand pricing")
 	}
 	return nil
 }
@@ -282,7 +282,7 @@ func (p *DefaultProvider) spotPage(ctx context.Context, prices map[string]map[st
 			spotPrice, err := strconv.ParseFloat(spotPriceStr, 64)
 			// these errors shouldn't occur, but if pricing API does have an error, we ignore the record
 			if err != nil {
-				logging.FromContext(ctx).Debugf("unable to parse price record %#v", sph)
+				log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to parse price record %#v", sph))
 				continue
 			}
 			if sph.Timestamp == nil {
@@ -329,12 +329,12 @@ func (p *DefaultProvider) onDemandPage(ctx context.Context, prices map[string]fl
 			var buf bytes.Buffer
 			enc := json.NewEncoder(&buf)
 			if err := enc.Encode(outer); err != nil {
-				logging.FromContext(ctx).Errorf("encoding %s", err)
+				log.FromContext(ctx).Error(err, "failed encoding pricing data")
 			}
 			dec := json.NewDecoder(&buf)
 			var pItem priceItem
 			if err := dec.Decode(&pItem); err != nil {
-				logging.FromContext(ctx).Errorf("decoding %s", err)
+				log.FromContext(ctx).Error(err, "failed decoding pricing data")
 			}
 			if pItem.Product.Attributes.InstanceType == "" {
 				continue
@@ -392,9 +392,9 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 
 	p.spotPricingUpdated = true
 	if p.cm.HasChanged("spot-prices", p.spotPrices) {
-		logging.FromContext(ctx).With(
+		log.FromContext(ctx).WithValues(
 			"instance-type-count", len(p.onDemandPrices),
-			"offering-count", totalOfferings).Debugf("updated spot pricing with instance types and offerings")
+			"offering-count", totalOfferings).V(1).Info("updated spot pricing with instance types and offerings")
 	}
 	return nil
 }

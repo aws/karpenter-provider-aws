@@ -22,7 +22,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	_ "knative.dev/pkg/system/testing"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"

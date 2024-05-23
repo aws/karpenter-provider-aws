@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"go.uber.org/multierr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -37,7 +38,6 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"knative.dev/pkg/logging"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -137,12 +137,12 @@ func (p *DefaultProvider) EnsureAll(ctx context.Context, nodeClass *v1beta1.EC2N
 
 // InvalidateCache deletes a launch template from cache if it exists
 func (p *DefaultProvider) InvalidateCache(ctx context.Context, ltName string, ltID string) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", ltName, "launch-template-id", ltID))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("launch-template-name", ltName, "launch-template-id", ltID))
 	p.Lock()
 	defer p.Unlock()
 	defer p.cache.OnEvicted(p.cachedEvictedFunc(ctx))
 	p.cache.OnEvicted(nil)
-	logging.FromContext(ctx).Debugf("invalidating launch template in the cache because it no longer exists")
+	log.FromContext(ctx).V(1).Info("invalidating launch template in the cache because it no longer exists")
 	p.cache.Delete(ltName)
 }
 
@@ -202,7 +202,7 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1bet
 func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *amifamily.LaunchTemplate) (*ec2.LaunchTemplate, error) {
 	var launchTemplate *ec2.LaunchTemplate
 	name := LaunchTemplateName(options)
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("launch-template-name", name))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("launch-template-name", name))
 	// Read from cache
 	if launchTemplate, ok := p.cache.Get(name); ok {
 		p.cache.SetDefault(name, launchTemplate)
@@ -224,7 +224,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 		return nil, fmt.Errorf("expected to find one launch template, but found %d", len(output.LaunchTemplates))
 	} else {
 		if p.cm.HasChanged("launchtemplate-"+name, name) {
-			logging.FromContext(ctx).Debugf("discovered launch template")
+			log.FromContext(ctx).V(1).Info("discovered launch template")
 		}
 		launchTemplate = output.LaunchTemplates[0]
 	}
@@ -278,7 +278,7 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	if err != nil {
 		return nil, err
 	}
-	logging.FromContext(ctx).With("id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).Debugf("created launch template")
+	log.FromContext(ctx).WithValues("id", aws.StringValue(output.LaunchTemplate.LaunchTemplateId)).V(1).Info("created launch template")
 	return output.LaunchTemplate, nil
 }
 
@@ -348,7 +348,7 @@ func (p *DefaultProvider) volumeSize(quantity *resource.Quantity) *int64 {
 // Any error during hydration will result in a panic
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	clusterName := options.FromContext(ctx).ClusterName
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("tag-key", v1beta1.TagManagedLaunchTemplate, "tag-value", clusterName))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("tag-key", v1beta1.TagManagedLaunchTemplate, "tag-value", clusterName))
 	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", v1beta1.TagManagedLaunchTemplate)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
@@ -357,9 +357,9 @@ func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 		}
 		return true
 	}); err != nil {
-		logging.FromContext(ctx).Errorf(fmt.Sprintf("Unable to hydrate the AWS launch template cache, %s", err))
+		log.FromContext(ctx).Error(err, "unable to hydrate the AWS launch template cache")
 	} else {
-		logging.FromContext(ctx).With("count", p.cache.ItemCount()).Debugf("hydrated launch template cache")
+		log.FromContext(ctx).WithValues("count", p.cache.ItemCount()).V(1).Info("hydrated launch template cache")
 	}
 }
 
@@ -372,13 +372,13 @@ func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, in
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
 		if _, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); awserrors.IgnoreNotFound(err) != nil {
-			logging.FromContext(ctx).With("launch-template", launchTemplate.LaunchTemplateName).Errorf("failed to delete launch template, %v", err)
+			log.FromContext(ctx).WithValues("launch-template", launchTemplate.LaunchTemplateName).Error(err, "failed to delete launch template")
 			return
 		}
-		logging.FromContext(ctx).With(
+		log.FromContext(ctx).WithValues(
 			"id", aws.StringValue(launchTemplate.LaunchTemplateId),
 			"name", aws.StringValue(launchTemplate.LaunchTemplateName),
-		).Debugf("deleted launch template")
+		).V(1).Info("deleted launch template")
 	}
 }
 
@@ -418,7 +418,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1beta1.EC2N
 		deleteErr = multierr.Append(deleteErr, err)
 	}
 	if len(ltNames) > 0 {
-		logging.FromContext(ctx).With("launchTemplates", utils.PrettySlice(aws.StringValueSlice(ltNames), 5)).Debugf("deleted launch templates")
+		log.FromContext(ctx).WithValues("launchTemplates", utils.PrettySlice(aws.StringValueSlice(ltNames), 5)).V(1).Info("deleted launch templates")
 	}
 	if deleteErr != nil {
 		return fmt.Errorf("deleting launch templates, %w", deleteErr)
@@ -438,12 +438,12 @@ func (p *DefaultProvider) ResolveClusterCIDR(ctx context.Context) error {
 	}
 	if ipv4CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv4Cidr; ipv4CIDR != nil {
 		p.ClusterCIDR.Store(ipv4CIDR)
-		logging.FromContext(ctx).With("cluster-cidr", *ipv4CIDR).Debugf("discovered cluster CIDR")
+		log.FromContext(ctx).WithValues("cluster-cidr", *ipv4CIDR).V(1).Info("discovered cluster CIDR")
 		return nil
 	}
 	if ipv6CIDR := out.Cluster.KubernetesNetworkConfig.ServiceIpv6Cidr; ipv6CIDR != nil {
 		p.ClusterCIDR.Store(ipv6CIDR)
-		logging.FromContext(ctx).With("cluster-cidr", *ipv6CIDR).Debugf("discovered cluster CIDR")
+		log.FromContext(ctx).WithValues("cluster-cidr", *ipv6CIDR).V(1).Info("discovered cluster CIDR")
 		return nil
 	}
 	return fmt.Errorf("no CIDR found in DescribeCluster response")

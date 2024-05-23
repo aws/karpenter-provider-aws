@@ -376,7 +376,7 @@ This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${Cl
 #### AllowScopedInstanceProfileCreationActions
 
 The AllowScopedInstanceProfileCreationActions Sid gives the Karpenter controller permission to create a new instance profile with [`iam:CreateInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateInstanceProfile.html),
-provided that the request is made to a cluster with `kubernetes.io/cluster/${ClusterName` set to owned and is made in the current region.
+provided that the request is made to a cluster with `kubernetes.io/cluster/${ClusterName}` set to owned and is made in the current region.
 Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures that Karpenter can generate instance profiles on your behalf based on roles specified in your `EC2NodeClasses` that you use to configure Karpenter.
 
 ```json
@@ -431,7 +431,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
 #### AllowScopedInstanceProfileActions
 
 The AllowScopedInstanceProfileActions Sid gives the Karpenter controller permission to perform [`iam:AddRoleToInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_AddRoleToInstanceProfile.html), [`iam:RemoveRoleFromInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_RemoveRoleFromInstanceProfile.html), and [`iam:DeleteInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_DeleteInstanceProfile.html) actions,
-provided that the request is made to a cluster with `kubernetes.io/cluster/${ClusterName` set to owned and is made in the current region.
+provided that the request is made to a cluster with `kubernetes.io/cluster/${ClusterName}` set to owned and is made in the current region.
 Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This permission is further enforced by the `iam:PassRole` permission. If Karpenter attempts to add a role to an instance profile that it doesn't have `iam:PassRole` permission on, that call will fail. Therefore, if you configure Karpenter to use a new role through the `EC2NodeClass`, ensure that you also specify that role within your `iam:PassRole` permission.
 
 ```json
