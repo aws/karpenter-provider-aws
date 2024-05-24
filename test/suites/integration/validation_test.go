@@ -20,7 +20,6 @@ import (
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -114,18 +113,18 @@ var _ = Describe("Validation", func() {
 		})
 		It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				ImageGCHighThresholdPercent: ptr.Int32(10),
-				ImageGCLowThresholdPercent:  ptr.Int32(60),
+				ImageGCHighThresholdPercent: lo.ToPtr(int32(10)),
+				ImageGCLowThresholdPercent:  lo.ToPtr(int32(60)),
 			}
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error if imageGCHighThresholdPercent or imageGCLowThresholdPercent is negative", func() {
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				ImageGCHighThresholdPercent: ptr.Int32(-10),
+				ImageGCHighThresholdPercent: lo.ToPtr(int32(-10)),
 			}
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				ImageGCLowThresholdPercent: ptr.Int32(-10),
+				ImageGCLowThresholdPercent: lo.ToPtr(int32(-10)),
 			}
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})

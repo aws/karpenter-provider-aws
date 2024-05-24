@@ -107,6 +107,7 @@ var _ = Describe("SubnetProvider", func() {
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 			}, subnets)
@@ -126,11 +127,13 @@ var _ = Describe("SubnetProvider", func() {
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 			}, subnets)
@@ -152,11 +155,13 @@ var _ = Describe("SubnetProvider", func() {
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 			}, subnets)
@@ -173,6 +178,7 @@ var _ = Describe("SubnetProvider", func() {
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 			}, subnets)
@@ -192,11 +198,13 @@ var _ = Describe("SubnetProvider", func() {
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 			}, subnets)
@@ -214,6 +222,7 @@ var _ = Describe("SubnetProvider", func() {
 				{
 					SubnetId:                lo.ToPtr("subnet-test2"),
 					AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+					AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 					AvailableIpAddressCount: lo.ToPtr[int64](100),
 				},
 			}, subnets)
@@ -333,6 +342,7 @@ var _ = Describe("SubnetProvider", func() {
 				Expect(subnets).To(BeEquivalentTo([]*ec2.Subnet{
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1a"),
+						AvailabilityZoneId:      lo.ToPtr("tstz1-1a"),
 						AvailableIpAddressCount: lo.ToPtr[int64](100),
 						SubnetId:                lo.ToPtr("subnet-test1"),
 						MapPublicIpOnLaunch:     lo.ToPtr(false),
@@ -349,6 +359,7 @@ var _ = Describe("SubnetProvider", func() {
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1b"),
+						AvailabilityZoneId:      lo.ToPtr("tstz1-1b"),
 						AvailableIpAddressCount: lo.ToPtr[int64](100),
 						MapPublicIpOnLaunch:     lo.ToPtr(true),
 						SubnetId:                lo.ToPtr("subnet-test2"),
@@ -366,6 +377,7 @@ var _ = Describe("SubnetProvider", func() {
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1c"),
+						AvailabilityZoneId:      lo.ToPtr("tstz1-1c"),
 						AvailableIpAddressCount: lo.ToPtr[int64](100),
 						SubnetId:                lo.ToPtr("subnet-test3"),
 						Tags: []*ec2.Tag{
@@ -384,6 +396,7 @@ var _ = Describe("SubnetProvider", func() {
 					},
 					{
 						AvailabilityZone:        lo.ToPtr("test-zone-1a-local"),
+						AvailabilityZoneId:      lo.ToPtr("tstz1-1alocal"),
 						AvailableIpAddressCount: lo.ToPtr[int64](100),
 						SubnetId:                lo.ToPtr("subnet-test4"),
 						MapPublicIpOnLaunch:     lo.ToPtr(true),
@@ -407,6 +420,7 @@ func ExpectConsistsOfSubnets(expected, actual []*ec2.Subnet) {
 	for _, elem := range expected {
 		_, ok := lo.Find(actual, func(s *ec2.Subnet) bool {
 			return lo.FromPtr(s.SubnetId) == lo.FromPtr(elem.SubnetId) &&
+				lo.FromPtr(s.AvailabilityZoneId) == lo.FromPtr(elem.AvailabilityZoneId) &&
 				lo.FromPtr(s.AvailabilityZone) == lo.FromPtr(elem.AvailabilityZone) &&
 				lo.FromPtr(s.AvailableIpAddressCount) == lo.FromPtr(elem.AvailableIpAddressCount)
 		})

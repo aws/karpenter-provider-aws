@@ -28,7 +28,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -247,8 +246,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			// Enable consolidation, emptiness, and expiration
 			nodePoolMap[consolidationValue].Spec.Disruption.ConsolidateAfter = nil
 			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
-			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidateAfter.Duration = ptr.Duration(0)
-			nodePoolMap[expirationValue].Spec.Disruption.ExpireAfter.Duration = ptr.Duration(0)
+			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidateAfter.Duration = lo.ToPtr(time.Duration(0))
+			nodePoolMap[expirationValue].Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Duration(0))
 			nodePoolMap[expirationValue].Spec.Limits = disableProvisioningLimits
 			// Update the drift NodeClass to start drift on Nodes assigned to this NodeClass
 			driftNodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
@@ -556,7 +555,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning emptiness by setting the ttlSecondsAfterEmpty value on the nodePool")
 				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
-				nodePool.Spec.Disruption.ConsolidateAfter.Duration = ptr.Duration(0)
+				nodePool.Spec.Disruption.ConsolidateAfter.Duration = lo.ToPtr(time.Duration(0))
 				env.ExpectCreatedOrUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
@@ -609,7 +608,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				// Change limits so that replacement nodes will use another nodePool.
 				nodePool.Spec.Limits = disableProvisioningLimits
 				// Enable Expiration
-				nodePool.Spec.Disruption.ExpireAfter.Duration = ptr.Duration(0)
+				nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Duration(0))
 
 				noExpireNodePool := test.NodePool(*nodePool.DeepCopy())
 
