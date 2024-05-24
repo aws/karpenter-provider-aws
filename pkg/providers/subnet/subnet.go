@@ -26,11 +26,14 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
@@ -55,6 +58,7 @@ type DefaultProvider struct {
 type Subnet struct {
 	ID                      string
 	Zone                    string
+	ZoneID                  string
 	AvailableIPAddressCount int64
 }
 
@@ -108,10 +112,13 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
 	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), subnets) {
 		log.FromContext(ctx).
-			WithValues("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) string {
-				return fmt.Sprintf("%s (%s)", aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone))
-			})).
-			V(1).Info("discovered subnets")
+			WithValues("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) v1beta1.Subnet {
+				return v1beta1.Subnet{
+					ID:     lo.FromPtr(s.SubnetId),
+					Zone:   lo.FromPtr(s.AvailabilityZone),
+					ZoneID: lo.FromPtr(s.AvailabilityZoneId),
+				}
+			})).V(1).Info("discovered subnets")
 	}
 	return lo.Values(subnets), nil
 }
@@ -161,11 +168,14 @@ func (p *DefaultProvider) ZonalSubnetsForLaunch(ctx context.Context, nodeClass *
 				continue
 			}
 		}
-		zonalSubnets[subnet.Zone] = &Subnet{ID: subnet.ID, Zone: subnet.Zone, AvailableIPAddressCount: availableIPAddressCount[subnet.ID]}
+		zonalSubnets[subnet.Zone] = &Subnet{ID: subnet.ID, Zone: subnet.Zone, ZoneID: subnet.ZoneID, AvailableIPAddressCount: availableIPAddressCount[subnet.ID]}
 	}
 
 	for _, subnet := range zonalSubnets {
-		predictedIPsUsed := p.minPods(instanceTypes, subnet.Zone, capacityType)
+		predictedIPsUsed := p.minPods(instanceTypes, scheduling.NewRequirements(
+			scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
+			scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, subnet.Zone),
+		))
 		prevIPs := subnet.AvailableIPAddressCount
 		if trackedIPs, ok := p.inflightIPs[subnet.ID]; ok {
 			prevIPs = trackedIPs
@@ -227,7 +237,10 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 		if originalSubnet.AvailableIPAddressCount == cachedIPAddressCount {
 			// other IPs deducted were opportunistic and need to be readded since Fleet didn't pick those subnets to launch into
 			if ips, ok := p.inflightIPs[originalSubnet.ID]; ok {
-				minPods := p.minPods(instanceTypes, originalSubnet.Zone, capacityType)
+				minPods := p.minPods(instanceTypes, scheduling.NewRequirements(
+					scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
+					scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, originalSubnet.Zone),
+				))
 				p.inflightIPs[originalSubnet.ID] = ips + minPods
 			}
 		}
@@ -241,10 +254,10 @@ func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {
 	return nil
 }
 
-func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, zone string, capacityType string) int64 {
+func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, reqs scheduling.Requirements) int64 {
 	// filter for instance types available in the zone and capacity type being requested
 	filteredInstanceTypes := lo.Filter(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
-		offering, ok := it.Offerings.Get(capacityType, zone)
+		offering, ok := it.Offerings.Get(reqs)
 		if !ok {
 			return false
 		}

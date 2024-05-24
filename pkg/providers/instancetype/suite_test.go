@@ -85,7 +85,7 @@ var _ = BeforeSuite(func() {
 	awsEnv = test.NewEnvironment(ctx, env)
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
@@ -244,6 +244,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceAcceleratorName:              "inferentia",
 			v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1beta1.LabelInstanceAcceleratorCount:             "1",
+			v1beta1.LabelTopologyZoneID:                       "tstz1-1a",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -295,6 +296,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceGPUCount:                     "1",
 			v1beta1.LabelInstanceGPUMemory:                    "16384",
 			v1beta1.LabelInstanceLocalNVME:                    "900",
+			v1beta1.LabelTopologyZoneID:                       "tstz1-1a",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -345,6 +347,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1beta1.LabelInstanceAcceleratorName:              "inferentia",
 			v1beta1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1beta1.LabelInstanceAcceleratorCount:             "1",
+			v1beta1.LabelTopologyZoneID:                       "tstz1-1a",
 			// Deprecated Labels
 			v1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			v1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -877,8 +880,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				for _, of := range it.Offerings {
 					metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_available", map[string]string{
 						"instance_type": it.Name,
-						"capacity_type": of.CapacityType,
-						"zone":          of.Zone,
+						"capacity_type": of.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any(),
+						"zone":          of.Requirements.Get(v1.LabelTopologyZone).Any(),
 					})
 					Expect(ok).To(BeTrue())
 					Expect(metric).To(Not(BeNil()))
@@ -895,8 +898,8 @@ var _ = Describe("InstanceTypeProvider", func() {
 				for _, of := range it.Offerings {
 					metric, ok := FindMetricWithLabelValues("karpenter_cloudprovider_instance_type_offering_price_estimate", map[string]string{
 						"instance_type": it.Name,
-						"capacity_type": of.CapacityType,
-						"zone":          of.Zone,
+						"capacity_type": of.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any(),
+						"zone":          of.Requirements.Get(v1.LabelTopologyZone).Any(),
 					})
 					Expect(ok).To(BeTrue())
 					Expect(metric).To(Not(BeNil()))
@@ -2385,18 +2388,19 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *corev1beta1.
 		instanceType := it
 		onDemandPrice := 1.00
 		for _, o := range it.Offerings {
-			if o.CapacityType == corev1beta1.CapacityTypeOnDemand {
+			if o.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any() == corev1beta1.CapacityTypeOnDemand {
 				onDemandPrice = o.Price
 			}
 		}
 		for _, o := range instanceType.Offerings {
 			o := o
-			if o.CapacityType != corev1beta1.CapacityTypeSpot {
+			if o.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any() != corev1beta1.CapacityTypeSpot {
 				continue
 			}
+			zone := o.Requirements.Get(v1.LabelTopologyZone).Any()
 			spotPrice := fmt.Sprintf("%0.3f", onDemandPrice*0.5)
 			rsp.SpotPriceHistory = append(rsp.SpotPriceHistory, &ec2.SpotPrice{
-				AvailabilityZone: &o.Zone,
+				AvailabilityZone: &zone,
 				InstanceType:     &instanceType.Name,
 				SpotPrice:        &spotPrice,
 				Timestamp:        &t,

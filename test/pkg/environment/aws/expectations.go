@@ -210,14 +210,6 @@ func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequ
 	return siro.SpotInstanceRequests[0]
 }
 
-// GetZones returns all available zones mapped from zone -> zone type
-func (env *Environment) GetZones() map[string]string {
-	output := lo.Must(env.EC2API.DescribeAvailabilityZones(&ec2.DescribeAvailabilityZonesInput{}))
-	return lo.Associate(output.AvailabilityZones, func(zone *ec2.AvailabilityZone) (string, string) {
-		return lo.FromPtr(zone.ZoneName), lo.FromPtr(zone.ZoneType)
-	})
-}
-
 // GetSubnets returns all subnets matching the label selector
 // mapped from AZ -> {subnet-ids...}
 func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
@@ -243,10 +235,11 @@ func (env *Environment) GetSubnets(tags map[string]string) map[string][]string {
 type SubnetInfo struct {
 	Name string
 	ID   string
+	ZoneInfo
 }
 
-// GetSubnetNameAndIds returns all subnets matching the label selector
-func (env *Environment) GetSubnetNameAndIds(tags map[string]string) []SubnetInfo {
+// GetSubnetInfo returns all subnets matching the label selector
+func (env *Environment) GetSubnetInfo(tags map[string]string) []SubnetInfo {
 	var filters []*ec2.Filter
 	for key, val := range tags {
 		filters = append(filters, &ec2.Filter{
@@ -260,6 +253,11 @@ func (env *Environment) GetSubnetNameAndIds(tags map[string]string) []SubnetInfo
 			elem := SubnetInfo{ID: aws.StringValue(s.SubnetId)}
 			if tag, ok := lo.Find(s.Tags, func(t *ec2.Tag) bool { return aws.StringValue(t.Key) == "Name" }); ok {
 				elem.Name = aws.StringValue(tag.Value)
+			}
+			if info, ok := lo.Find(env.ZoneInfo, func(info ZoneInfo) bool {
+				return aws.StringValue(s.AvailabilityZone) == info.Zone
+			}); ok {
+				elem.ZoneInfo = info
 			}
 			return elem
 		})

@@ -107,6 +107,21 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
 		})
+		It("should support well-known labels for zone id selection", func() {
+			selectors.Insert(v1beta1.LabelTopologyZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
+			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1beta1.LabelTopologyZoneID,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneInfo.ZoneID},
+					},
+				},
+			}})
+			env.ExpectCreated(nodeClass, nodePool, deployment)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			env.ExpectCreatedNodeCount("==", 1)
+		})
 		It("should support well-known labels for local NVME storage", func() {
 			selectors.Insert(v1beta1.LabelInstanceLocalNVME) // Add node selector keys to selectors used in testing to ensure we test all labels
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
@@ -579,6 +594,84 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectHealthy(pod)
+		})
+
+		It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s aws.SubnetInfo) string {
+				return s.Zone
+			})
+			Expect(len(subnetInfo)).To(BeNumerically(">=", 3))
+
+			// Create a pod with 'overlapping' zone and zone-id requirements. With two options for each label, but only one pair of zone-zoneID that maps to the
+			// same AZ, we will always expect the pod to be scheduled to that AZ. In this case, this is the mapping at zone[1].
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelTopologyZone,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   lo.Map(subnetInfo[0:2], func(info aws.SubnetInfo, _ int) string { return info.Zone }),
+					},
+					{
+						Key:      v1beta1.LabelTopologyZoneID,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   lo.Map(subnetInfo[1:3], func(info aws.SubnetInfo, _ int) string { return info.ZoneID }),
+					},
+				},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+			node := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(subnetInfo[1].Zone))
+			Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(subnetInfo[1].ZoneID))
+		})
+		It("should provision nodes for pods with zone-id requirements in the correct zone", func() {
+			// Each pod specifies a requirement on this expected zone, where the value is the matching zone for the
+			// required zone-id. This allows us to verify that Karpenter launched the node in the correct zone, even if
+			// it doesn't add the zone-id label and the label is added by CCM. If we didn't take this approach, we would
+			// succeed even if Karpenter doesn't add the label and /or incorrectly generated offerings on k8s 1.30 and
+			// above. This is an unlikely scenario, and adding this check is a defense in depth measure.
+			const expectedZoneLabel = "expected-zone-label"
+			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      expectedZoneLabel,
+					Operator: v1.NodeSelectorOpExists,
+				},
+			})
+
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s aws.SubnetInfo) string {
+				return s.Zone
+			})
+			pods := lo.Map(subnetInfo, func(info aws.SubnetInfo, _ int) *v1.Pod {
+				return test.Pod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      expectedZoneLabel,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{info.Zone},
+						},
+						{
+							Key:      v1beta1.LabelTopologyZoneID,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{info.ZoneID},
+						},
+					},
+				})
+			})
+
+			env.ExpectCreated(nodePool, nodeClass)
+			for _, pod := range pods {
+				env.ExpectCreated(pod)
+			}
+			nodes := env.EventuallyExpectCreatedNodeCount("==", len(subnetInfo))
+			for _, node := range nodes {
+				expectedZone, ok := node.Labels[expectedZoneLabel]
+				Expect(ok).To(BeTrue())
+				Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(expectedZone))
+				zoneInfo, ok := lo.Find(subnetInfo, func(info aws.SubnetInfo) bool {
+					return info.Zone == expectedZone
+				})
+				Expect(ok).To(BeTrue())
+				Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(zoneInfo.ZoneID))
+			}
 		})
 	})
 })
