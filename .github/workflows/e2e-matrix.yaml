@@ -7,7 +7,7 @@ on:
         default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.29"
+        default: "1.30"
       cleanup:
         type: boolean
         required: true
@@ -41,7 +41,8 @@ on:
           - "1.27"
           - "1.28"
           - "1.29"
-        default: "1.29"
+          - "1.30"
+        default: "1.30"
       cleanup:
         type: boolean
         required: true
