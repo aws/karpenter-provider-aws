@@ -167,7 +167,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *corev1beta1.KubeletConfi
 		return NewInstanceType(ctx, i, p.region,
 			nodeClass.Spec.BlockDeviceMappings, nodeClass.Spec.InstanceStorePolicy,
 			kc.MaxPods, kc.PodsPerCore, kc.KubeReserved, kc.SystemReserved, kc.EvictionHard, kc.EvictionSoft,
-			amiFamily, p.createOfferings(ctx, i, p.instanceTypeOfferings[aws.StringValue(i.InstanceType)], allZones, subnetZones, p.subnetProvider.ZoneInfo()),
+			amiFamily, p.createOfferings(ctx, i, allZones, p.instanceTypeOfferings[aws.StringValue(i.InstanceType)], nodeClass.Status.Subnets),
 		)
 	})
 	p.instanceTypesCache.SetDefault(key, result)
@@ -252,7 +252,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
-func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, instanceTypeZones, zones, subnetZones sets.Set[string], zoneInfo map[string]string) []cloudprovider.Offering {
+func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones, instanceTypeZones sets.Set[string], subnets []v1beta1.Subnet) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
@@ -273,17 +273,23 @@ func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2
 				log.FromContext(ctx).WithValues("capacity-type", capacityType, "instance-type", *instanceType.InstanceType).Error(fmt.Errorf("received unknown capacity type"), "failed parsing offering")
 				continue
 			}
-			available := !isUnavailable && ok && instanceTypeZones.Has(zone) && subnetZones.Has(zone)
 
-			offerings = append(offerings, cloudprovider.Offering{
+			subnet, hasSubnet := lo.Find(subnets, func(s v1beta1.Subnet) bool {
+				return s.Zone == zone
+			})
+			available := !isUnavailable && ok && instanceTypeZones.Has(zone) && hasSubnet
+			offering := cloudprovider.Offering{
 				Requirements: scheduling.NewRequirements(
 					scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
 					scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, zone),
-					scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, zoneInfo[zone]),
 				),
 				Price:     price,
 				Available: available,
-			})
+			}
+			if subnet.ZoneID != "" {
+				offering.Requirements.Add(scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, subnet.ZoneID))
+			}
+			offerings = append(offerings, offering)
 			instanceTypeOfferingAvailable.With(prometheus.Labels{
 				instanceTypeLabel: *instanceType.InstanceType,
 				capacityTypeLabel: capacityType,

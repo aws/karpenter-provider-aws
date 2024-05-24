@@ -107,10 +107,15 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
 		scheduling.NewRequirement(v1beta1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
-		scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
-			return o.Requirements.Get(v1beta1.LabelTopologyZoneID).Any()
-		})...),
 	)
+	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
+	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
+	if zoneIDs := lo.FilterMap(offerings.Available(), func(o cloudprovider.Offering, _ int) (string, bool) {
+		zoneID := o.Requirements.Get(v1beta1.LabelTopologyZoneID).Any()
+		return zoneID, zoneID == ""
+	}); len(zoneIDs) != 0 {
+		requirements.Add(scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, zoneIDs...))
+	}
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(aws.StringValue(info.InstanceType))
 	if len(instanceFamilyParts) == 4 {
