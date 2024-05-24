@@ -38,7 +38,6 @@ import (
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -1460,7 +1459,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				MaxPods: ptr.Int32(10),
+				MaxPods: lo.ToPtr(int32(10)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -1485,7 +1484,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				MaxPods: ptr.Int32(10),
+				MaxPods: lo.ToPtr(int32(10)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -1579,7 +1578,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				PodsPerCore: ptr.Int32(1),
+				PodsPerCore: lo.ToPtr(int32(1)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -1597,15 +1596,15 @@ var _ = Describe("InstanceTypeProvider", func() {
 					amiFamily,
 					nil,
 				)
-				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", ptr.Int64Value(info.VCpuInfo.DefaultVCpus)))
+				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.FromPtr(info.VCpuInfo.DefaultVCpus)))
 			}
 		})
 		It("should take the minimum of pods-per-core and max-pods", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				PodsPerCore: ptr.Int32(4),
-				MaxPods:     ptr.Int32(20),
+				PodsPerCore: lo.ToPtr(int32(4)),
+				MaxPods:     lo.ToPtr(int32(20)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -1623,7 +1622,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					amiFamily,
 					nil,
 				)
-				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, ptr.Int64Value(info.VCpuInfo.DefaultVCpus) * 4})))
+				Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", lo.Min([]int64{20, lo.FromPtr(info.VCpuInfo.DefaultVCpus) * 4})))
 			}
 		})
 		It("should ignore pods-per-core when using Bottlerocket AMI", func() {
@@ -1631,7 +1630,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(err).To(BeNil())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				PodsPerCore: ptr.Int32(1),
+				PodsPerCore: lo.ToPtr(int32(1)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -1657,7 +1656,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				PodsPerCore: ptr.Int32(0),
+				PodsPerCore: lo.ToPtr(int32(0)),
 			}
 			for _, info := range instanceInfo.InstanceTypes {
 				if *info.InstanceType == "t3.large" {
