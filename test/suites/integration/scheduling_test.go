@@ -613,7 +613,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					{
 						Key:      v1beta1.LabelTopologyZoneID,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   lo.Map(subnetInfo[1:3], func(info aws.SubnetInfo, _ int) string { return info.Zone }),
+						Values:   lo.Map(subnetInfo[1:3], func(info aws.SubnetInfo, _ int) string { return info.ZoneID }),
 					},
 				},
 			})

@@ -104,7 +104,6 @@ var _ = Describe("SubnetProvider", func() {
 			}
 			subnets, err := awsEnv.SubnetProvider.List(ctx, nodeClass)
 			Expect(err).To(BeNil())
-			fmt.Printf("subnets: %v\n", subnets)
 			ExpectConsistsOfSubnets([]*ec2.Subnet{
 				{
 					SubnetId:                lo.ToPtr("subnet-test1"),

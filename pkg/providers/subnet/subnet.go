@@ -121,7 +121,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), subnets) {
 		log.FromContext(ctx).
 			WithValues("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) string {
-				return fmt.Sprintf("%s (zone: %s, zone-id: %s)", aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone), aws.StringValue(s.AvailabilityZoneId))
+				return fmt.Sprintf(`"subnet": {"id": %q, "zone": %q, "zoneID": %q}`, aws.StringValue(s.SubnetId), aws.StringValue(s.AvailabilityZone), aws.StringValue(s.AvailabilityZoneId))
 			})).
 			V(1).Info("discovered subnets")
 	}
