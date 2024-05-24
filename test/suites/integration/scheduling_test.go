@@ -624,7 +624,12 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(subnetInfo[1].ZoneID))
 		})
 		It("should provision nodes for pods with zone-id requirements in the correct zone", func() {
-			const expectedZoneLabel = "domain-label"
+			// Each pod specifies a requirement on this expected zone, where the value is the matching zone for the
+			// required zone-id. This allows us to verify that Karpenter launched the node in the correct zone, even if
+			// it doesn't add the zone-id label and the label is added by CCM. If we didn't take this approach, we would
+			// succeed even if Karpenter doesn't add the label and /or incorrectly generated offerings on k8s 1.30 and
+			// above. This is an unlikely scenario, and adding this check is a defense in depth measure.
+			const expectedZoneLabel = "expected-zone-label"
 			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      expectedZoneLabel,

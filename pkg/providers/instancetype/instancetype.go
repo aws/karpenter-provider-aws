@@ -252,6 +252,15 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 	return nil
 }
 
+// createOfferings creates a set of mutually exclusive offerings for a given instance type. This provider maintains an
+// invariant that each offering is mutually exclusive. Specifically, there is an offering for each permutation of zone
+// and capacity type. ZoneID is also injected into the offering requirements, when available, but there is a 1-1
+// mapping between zone and zoneID so this does not change the number of offerings.
+//
+// Each requirement on the offering is guaranteed to have a single value. To get the value for a requirement on an
+// offering, you can do the following thanks to this invariant:
+//
+//	offering.Requirements.Get(v1.TopologyLabelZone).Any()
 func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones, instanceTypeZones sets.Set[string], subnets []v1beta1.Subnet) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
