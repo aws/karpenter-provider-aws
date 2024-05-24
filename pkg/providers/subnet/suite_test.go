@@ -16,7 +16,6 @@ package subnet_test
 
 import (
 	"context"
-	"fmt"
 	"sort"
 	"sync"
 	"testing"

@@ -608,7 +608,7 @@ spec:
                     zone:
                       description: The associated availability zone
                       type: string
-                    zoneId:
+                    zoneID:
                       description: The associated availability zone ID
                       type: string
                   required:

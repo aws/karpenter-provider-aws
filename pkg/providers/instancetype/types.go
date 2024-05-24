@@ -111,7 +111,7 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
 	if zoneIDs := lo.FilterMap(offerings.Available(), func(o cloudprovider.Offering, _ int) (string, bool) {
 		zoneID := o.Requirements.Get(v1beta1.LabelTopologyZoneID).Any()
-		return zoneID, zoneID == ""
+		return zoneID, zoneID != ""
 	}); len(zoneIDs) != 0 {
 		requirements.Add(scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, zoneIDs...))
 	}

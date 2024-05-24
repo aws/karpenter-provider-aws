@@ -84,7 +84,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = clock.NewFakeClock(time.Now())
 	recorder = events.NewRecorder(&record.FakeRecorder{})
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, recorder,
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
 	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
 	prov = provisioning.NewProvisioner(env.Client, recorder, cloudProvider, cluster)
 })
@@ -220,7 +220,11 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 		zoneID, ok := cloudProviderNodeClaim.GetLabels()[v1beta1.LabelTopologyZoneID]
 		Expect(ok).To(BeTrue())
-		Expect(zoneID).To(Equal(awsEnv.SubnetProvider.ZoneInfo()[zone]))
+		subnet, ok := lo.Find(nodeClass.Status.Subnets, func(s v1beta1.Subnet) bool {
+			return s.Zone == zone
+		})
+		Expect(ok).To(BeTrue())
+		Expect(zoneID).To(Equal(subnet.ZoneID))
 	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)

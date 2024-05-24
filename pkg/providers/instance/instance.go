@@ -370,7 +370,7 @@ func (p *DefaultProvider) updateUnavailableOfferingsCache(ctx context.Context, e
 // available offering. The AWS Cloud Provider defaults to [ on-demand ], so spot
 // must be explicitly included in capacity type requirements.
 func (p *DefaultProvider) getCapacityType(nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType) string {
-	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim. Spec.Requirements...)
+	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	if requirements.Get(corev1beta1.CapacityTypeLabelKey).Has(corev1beta1.CapacityTypeSpot) {
 		requirements[corev1beta1.CapacityTypeLabelKey] = scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, corev1beta1.CapacityTypeSpot)
 		for _, instanceType := range instanceTypes {

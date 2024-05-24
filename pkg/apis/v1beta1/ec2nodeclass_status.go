@@ -29,7 +29,7 @@ type Subnet struct {
 	Zone string `json:"zone"`
 	// The associated availability zone ID
 	// +optional
-	ZoneID string `json:"zoneId"`
+	ZoneID string `json:"zoneID"`
 }
 
 // SecurityGroup contains resolved SecurityGroup selector values utilized for node launch

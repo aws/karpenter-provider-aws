@@ -47,7 +47,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
@@ -62,18 +61,16 @@ type CloudProvider struct {
 	instanceProvider      instance.Provider
 	amiProvider           amifamily.Provider
 	securityGroupProvider securitygroup.Provider
-	subnetProvider        subnet.Provider
 }
 
 func New(instanceTypeProvider instancetype.Provider, instanceProvider instance.Provider, recorder events.Recorder,
-	kubeClient client.Client, amiProvider amifamily.Provider, securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider) *CloudProvider {
+	kubeClient client.Client, amiProvider amifamily.Provider, securityGroupProvider securitygroup.Provider) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider:  instanceTypeProvider,
 		instanceProvider:      instanceProvider,
 		kubeClient:            kubeClient,
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
-		subnetProvider:        subnetProvider,
 		recorder:              recorder,
 	}
 }

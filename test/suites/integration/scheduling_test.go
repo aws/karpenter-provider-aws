@@ -597,7 +597,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		})
 
 		It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
-			subnetInfo := env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s aws.SubnetInfo) string {
+				return s.Zone
+			})
 			Expect(len(subnetInfo)).To(BeNumerically(">=", 3))
 
 			// Create a pod with 'overlapping' zone and zone-id requirements. With two options for each label, but only one pair of zone-zoneID that maps to the
@@ -630,7 +632,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				},
 			})
 
-			subnetInfo := env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s aws.SubnetInfo) string {
+				return s.Zone
+			})
 			pods := lo.Map(subnetInfo, func(info aws.SubnetInfo, _ int) *v1.Pod {
 				return test.Pod(test.PodOptions{
 					NodeRequirements: []v1.NodeSelectorRequirement{
