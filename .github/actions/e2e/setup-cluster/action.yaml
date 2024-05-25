@@ -78,7 +78,6 @@ runs:
         --capabilities CAPABILITY_NAMED_IAM \
         --parameter-overrides "ClusterName=$CLUSTER_NAME" \
         --tags "testing/type=e2e" "testing/cluster=$CLUSTER_NAME" "github.com/run-url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" "karpenter.sh/discovery=$CLUSTER_NAME"
-      aws iam attach-role-policy --policy-arn arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy --role-name KarpenterNodeRole-$CLUSTER_NAME
   - name: create or upgrade cluster
     shell: bash
     env:
@@ -153,9 +152,11 @@ runs:
           minSize: 2
           maxSize: 2
           iam:
-            withAddonPolicies:
-              cloudWatch: true
             instanceRolePermissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
+          taints:
+          - key: CriticalAddonsOnly
+            value: "true"
+            effect: NoSchedule
       cloudWatch:
         clusterLogging:
           enableTypes: ["*"]
@@ -174,10 +175,6 @@ runs:
         $KARPENTER_IAM
         withOIDC: true
       addons:
-      - name: amazon-cloudwatch-observability
-        # Pin addon version due to undiagnosed e2e failures after 1.6.0 release
-        version: '1.5.5-eksbuild.1'
-        permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: vpc-cni
         permissionsBoundary: "arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary"
       - name: coredns
@@ -219,24 +216,6 @@ runs:
       # Remove the serviceaccount created by eksctl as of 1.77.0 for pod identity associations. This service account causes our helm chart installation to fail.
       # Reference: https://github.com/eksctl-io/eksctl/issues/7775
       kubectl delete sa -n kube-system karpenter || true
-
-      # Adding taints after all necessary pods have scheduled to the manged node group nodes
-      # amazon-cloudwatch-observability pods do no not tolerate CriticalAddonsOnly=true:NoSchedule and
-      # amazon-cloudwatch-observability addons does not allow to add tolerations to the addon pods as part of the advanced configuration
-      # Overwrite existing taints to ensure we don't fail here on upgrade
-      kubectl taint nodes CriticalAddonsOnly=true:NoSchedule --all --overwrite
-
-      # We delete DaemonSets that we don't care about because it causes inconsistencies in scheduling due to
-      # dcgm-exporter and neuron-monitor selecting on specific instance types
-      # See https://github.com/kubernetes-sigs/karpenter/issues/715 for more detail
-      kubectl delete daemonsets -n amazon-cloudwatch dcgm-exporter neuron-monitor --ignore-not-found
-
-      # We patch the priorityClass onto all DaemonSets to ensure that DaemonSets always schedule to nodes so we don't get scheduling inconsistencies
-      # See https://karpenter.sh/docs/faq/#when-deploying-an-additional-daemonset-to-my-cluster-why-does-karpenter-not-scale-up-my-nodes-to-support-the-extra-daemonset for more detail
-      # Additionally, we patch an everything toleration onto the daemonsets to prevent them from being included in drain operations.
-      for DAEMONSET in "cloudwatch-agent" "cloudwatch-agent-windows" "fluent-bit" "fluent-bit-windows"; do
-        kubectl patch daemonset -n amazon-cloudwatch $DAEMONSET -p '{"spec":{"template":{"spec":{"priorityClassName":"system-node-critical","tolerations": [{"operator": "Exists"}]}}}}' --type=merge
-      done
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash
