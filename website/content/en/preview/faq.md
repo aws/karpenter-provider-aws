@@ -138,6 +138,25 @@ For more documentation on enabling IPv6 with the Amazon VPC CNI, see the [docs](
 Windows nodes do not support IPv6.
 {{% /alert %}}
 
+### Why do I see extra nodes get launched to schedule pending pods that remain empty and are later removed?
+
+You might have a daemonset, userData configuration, or some other workload that applies a taint after a node is provisioned. After the taint is applied, Karpenter will detect that the pod cannot be scheduled to this new node due to the added taint. As a result, Karpenter will provision yet another node. Typically, the original node has the taint removed and the pod schedules to it, leaving the extra new node unused and reaped by emptiness/consolidation. If the taint is not removed quickly enough, Karpenter may remove the original node before the pod can be scheduled via emptiness consolidation. This could result in an infinite loop of nodes being provisioned and consolidated without the pending pod ever scheduling.
+
+The solution is to configure [startupTaints]({{<ref "./concepts/nodepools/#cilium-startup-taint" >}}) to make Karpenter aware of any temporary taints that are needed to ensure that pods do not schedule on nodes that are not yet ready to receive them.
+
+Here's an example for Cilium's startup taint.
+```
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+...
+spec:
+  template:
+    spec:
+      startupTaints:
+        - key: node.cilium.io/agent-not-ready
+          effect: NoSchedule
+```
+
 ## Scheduling
 
 ### When using preferred scheduling constraints, Karpenter launches the correct number of nodes at first.  Why do they then sometimes get consolidated immediately?
