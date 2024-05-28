@@ -89,6 +89,16 @@ The following cluster configuration will:
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
 
+{{% alert title="EKSCTL Breaking Change" color="warning" %}}
+Starting with `eksctl` v1.77.0, a service account is created for each podIdentityAssociation.
+This default service account is incompatible with the Karpenter Helm chart, and it will need to be removed to proceed with installation.
+If you're on an affected version of `eksctl` and you created a cluster with a `podIdentityAssociation`, run the following command before proceeding with the rest of the installation.
+This has been identified as a breaking change in `eksctl` which will be addressed in a future release ([GitHub Issue](https://github.com/eksctl-io/eksctl/issues/7775)).
+```bash
+kubectl delete sa -n ${KARPENTER_NAMESPACE} karpenter
+```
+{{% /alert %}}
+
 {{% alert title="Windows Support Notice" color="warning" %}}
 In order to run Windows workloads, Windows support should be enabled in your EKS Cluster.
 See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/windows-support.html#enable-windows-support) to learn more.
