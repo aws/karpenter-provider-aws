@@ -77,12 +77,12 @@ params:
         icon: fab fa-slack
         desc: "Chat with us on Slack in the #aws-provider channel"
   latest_release_version: 0.37.0
-  latest_k8s_version: 1.29
+  latest_k8s_version: 1.30
   versions:
-    - v0.32
-    - v0.35
-    - v0.36
     - v0.37
+    - v0.36
+    - v0.35
+    - v0.32
     - preview
 menu:
   main:
