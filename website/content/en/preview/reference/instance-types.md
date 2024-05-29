@@ -6537,6 +6537,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.4xlarge|
+ |topology.k8s.aws/zone-id|6419929671613507071|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6563,6 +6564,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.8xlarge|
+ |topology.k8s.aws/zone-id|3124717047704565898|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6589,6 +6591,7 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.16xlarge|
+ |topology.k8s.aws/zone-id|4594531912622968525|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -19491,6 +19494,110 @@ below are the resources available with some assumptions and after the instance o
  |ephemeral-storage|17Gi|
  |memory|8720933Mi|
  |pods|737|
+## u7i-12tb Family
+### `u7i-12tb.224xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|u|
+ |karpenter.k8s.aws/instance-cpu|896|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|60000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|u7i-12tb|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|12582912|
+ |karpenter.k8s.aws/instance-size|224xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|u7i-12tb.224xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|893690m|
+ |ephemeral-storage|17Gi|
+ |memory|11630731Mi|
+ |pods|737|
+ |vpc.amazonaws.com/efa|1|
+## u7in-16tb Family
+### `u7in-16tb.224xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|u|
+ |karpenter.k8s.aws/instance-cpu|896|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|u7in-16tb|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|16777216|
+ |karpenter.k8s.aws/instance-size|224xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|u7in-16tb.224xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|893690m|
+ |ephemeral-storage|17Gi|
+ |memory|15514235Mi|
+ |pods|394|
+ |vpc.amazonaws.com/efa|2|
+## u7in-24tb Family
+### `u7in-24tb.224xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|u|
+ |karpenter.k8s.aws/instance-cpu|896|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|u7in-24tb|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|25165824|
+ |karpenter.k8s.aws/instance-size|224xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|u7in-24tb.224xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|893690m|
+ |ephemeral-storage|17Gi|
+ |memory|23273698Mi|
+ |pods|394|
+ |vpc.amazonaws.com/efa|2|
+## u7in-32tb Family
+### `u7in-32tb.224xlarge`
+#### Labels
+ | Label | Value |
+ |--|--|
+ |karpenter.k8s.aws/instance-category|u|
+ |karpenter.k8s.aws/instance-cpu|896|
+ |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
+ |karpenter.k8s.aws/instance-ebs-bandwidth|100000|
+ |karpenter.k8s.aws/instance-encryption-in-transit-supported|true|
+ |karpenter.k8s.aws/instance-family|u7in-32tb|
+ |karpenter.k8s.aws/instance-generation|7|
+ |karpenter.k8s.aws/instance-hypervisor|nitro|
+ |karpenter.k8s.aws/instance-memory|33554432|
+ |karpenter.k8s.aws/instance-size|224xlarge|
+ |kubernetes.io/arch|amd64|
+ |kubernetes.io/os|linux|
+ |node.kubernetes.io/instance-type|u7in-32tb.224xlarge|
+#### Resources
+ | Resource | Quantity |
+ |--|--|
+ |cpu|893690m|
+ |ephemeral-storage|17Gi|
+ |memory|31033160Mi|
+ |pods|394|
+ |vpc.amazonaws.com/efa|2|
 ## vt1 Family
 ### `vt1.3xlarge`
 #### Labels
