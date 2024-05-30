@@ -34,9 +34,7 @@ import (
 
 const sweeperCleanedResourcesTableName = "sweeperCleanedResources"
 
-var excludedClusters = []string{
-	"soak-periodic-2785632730",
-}
+var excludedClusters = []string{}
 
 func main() {
 	expiration := flag.String("expiration", "12h", "define the expirationTTL of the resources")
