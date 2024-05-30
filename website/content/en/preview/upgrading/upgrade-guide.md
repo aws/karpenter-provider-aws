@@ -39,6 +39,11 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 
 ### Upgrading to `0.37.0`+
 
+{{% alert title="Warning" color="warning" %}}
+`0.33.0`+ _only_ supports Karpenter v1beta1 APIs and will not work with existing Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `0.37.0`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}). This version supports both the alpha and beta APIs, allowing you to migrate all of your existing APIs to beta APIs without experiencing downtime.
+{{% /alert %}}
+
+* Karpenter now adds a readiness status condition to the EC2NodeClass. Make sure to upgrade your Custom Resource Definitions before proceeding with the upgrade. Failure to do so will result in Karpenter being unable to provision new nodes.
 * Karpenter no longer updates the logger name when creating controller loggers. We now adhere to the controller-runtime standard, where the logger name will be set as `"logger": "controller"` always and the controller name will be stored in the structured value `"controller"`
 * Karpenter updated the NodeClass controller naming in the following way: `nodeclass` -> `nodeclass.status`, `nodeclass.hash`, `nodeclass.termination`
 * Karpenter's NodeClaim status conditions no longer include the `severity` field
