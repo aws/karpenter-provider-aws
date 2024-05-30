@@ -32,7 +32,7 @@ Install these tools before proceeding:
 
 1. [AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/install-cliv2-linux.html)
 2. `kubectl` - [the Kubernetes CLI](https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/)
-3. `eksctl` (>= v0.179.0) - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
+3. `eksctl` (>= v0.180.0) - [the CLI for AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/eksctl.html)
 4. `helm` - [the package manager for Kubernetes](https://helm.sh/docs/intro/install/)
 
 [Configure the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-quickstart.html)
@@ -88,16 +88,6 @@ The following cluster configuration will:
 {{< /tabpane >}}
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
-
-{{% alert title="EKSCTL Breaking Change" color="warning" %}}
-Starting with `eksctl` v1.77.0, a service account is created for each podIdentityAssociation.
-This default service account is incompatible with the Karpenter Helm chart, and it will need to be removed to proceed with installation.
-If you're on an affected version of `eksctl` and you created a cluster with a `podIdentityAssociation`, run the following command before proceeding with the rest of the installation.
-This has been identified as a breaking change in `eksctl` which will be addressed in a future release ([GitHub Issue](https://github.com/eksctl-io/eksctl/issues/7775)).
-```bash
-kubectl delete sa -n ${KARPENTER_NAMESPACE} karpenter
-```
-{{% /alert %}}
 
 {{% alert title="Windows Support Notice" color="warning" %}}
 In order to run Windows workloads, Windows support should be enabled in your EKS Cluster.
