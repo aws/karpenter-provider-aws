@@ -29,7 +29,7 @@ getting on-demand capacity. This is very helpful during seasonal holidays where 
 
 ### Capacity Reservations
 
-Each Capacity Reservation is defined with:
+Each [Capacity Reservation](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/ec2@v1.162.1/types#CapacityReservation) is defined with:
 
 - The Availability Zone in which to reserve the capacity
 - The number of instances for which to reserve capacity
@@ -37,6 +37,7 @@ Each Capacity Reservation is defined with:
 - Instance match criteria
   - Targeted -- only accept instances that matches all attributes + explicitly targeted the capacity reservation
   - Open -- if capacity reservation accepts all instances that matches all attributes
+- A start and end date (if applicable) for when the reservation of capacity is available
 
 AWS also supports grouping Capacity Reservation into Capacity Reservation groups. 
 Both these entities are supported in Launch Template's CapacityReservationTarget [definitions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-capacityreservationtarget.html).
@@ -50,9 +51,9 @@ Both these entities are supported in Launch Template's CapacityReservationTarget
 
 ## Non-Goals
 
-_We are keeping the scope of this design very targeted so even if these could be things we eventually support, we aren't scoping them into this design_
 - Supporting open Capacity Reservations. _The behaviour of indirectly linked nodes to an open ODCR can cause rotation, adding unnecessary node rotation into the cluster_
-- Supporting changes in scaling behavior when ODCR is associated to a NodeClass. _We won't bring up N nodes to match an N node capacity reservation_
+- Supporting capacity-blocks as a capacity-type.
+- Supporting changes in scaling behavior when ODCR is associated to a NodeClass. _We won't bring up N nodes to match an N node capacity reservation, this would directly interfear with the ability to share a Capacity Reservation between multiple clusters or accounts. The first Karpenter finding the Capacity Reservation would provision all instances for a reservation leaving nothing unused_
 - Supporting Capacity Reservation Groups. _Adding this abstraction for now adds additional complexity_
 - Supporting updating Capacity Reservations availabile instance count after success of CreateFleet API. _We will currenlty rely on reconsolidation of capacity reservations itself, and rely on CreateFleet API throwing a `ReservationCapacityExceeded`_
 - Supporting conditions for capacity reservation instance creations. _By showing the available instance count within each capacity reservation for an EC2NodeClass we have similar information available_
@@ -62,6 +63,7 @@ _We are keeping the scope of this design very targeted so even if these could be
 ### Supporting associating Capacity Reservations to EC2NodeClass
 
 - Add a new field under `spec` for `capacityReservationSelectorTerms` to `EC2NodeClass` for defining which Capacity Reservation to be used for a specific `EC2NodeClass`
+  - This will allow us to attach multiple Capacity Reservations across AZs and Instance Types to a single EC2NodeClass. This capability removes the need for Capacity Reservation Groups for this MVP.
 - Add a new field under `status` for the found Capacity Reservations by the `spec.capacityReservationSelectorTerms` for the `EC2NodeClass`
 
 ```yaml
@@ -77,11 +79,11 @@ spec:
       id: String | None
       # The type of operating system for which the Capacity Reservation reserves capacity
       instancePlatform: String | None
-      # The type of operating system for which the Capacity Reservation reserves capacity
+      # The instance type for which the Capacity Reservation reserves capacity
       instanceType: String | None
       # The ID of the Amazon Web Services account that owns the Capacity Reservation
       ownerId: String | None
-      # Tags is a map of key/value tags used to select subnets
+      # Tags is a map of key/value tags used to Capacity Reservations
       # Specifying '*' for a value selects all values for a given tag key.
       tags: Map | None
       # Indicates the tenancy of the Capacity Reservation.
@@ -91,14 +93,28 @@ spec:
       tenancy: String | None
 status:
   capacityReservations:
-    - # AvailabilityZone of the Capacity Reservation
+    - # Availability Zone of the Capacity Reservation
       availabilityZone: String
       # Available Instance Count of the Capacity Reservation
       availableInstanceCount: Integer
+      # End date of the Capacity Reservation
+      endDate: Date
       # ID of the Capacity Reservation
       id: String
-      # InstanceType of the Capacity Reservation
+      # Instance Type of the Capacity Reservation
       instanceType: String
+      # Instance Match Criteria of the Capacity Reservation (open | targeted)
+      instanceMatchCriteria: String
+      # Owner ID of the Capacity Reservation
+      ownerId: String
+	    # Placement Group Arn of the Capacity Reservation
+      placementGroupArn: String | None
+      # Reservation Type of the Capacity Reservation (default | capacity-block)
+      reservationType: String
+      # Start date of the Capacity Reservation
+      startDate: Date
+      # Tags attached to Capacity Reservation
+      tags: Map
       # Total Instance Count of the Capacity Reservation
       totalInstanceCount: Integer
 ```
