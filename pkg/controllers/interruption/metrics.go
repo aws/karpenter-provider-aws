@@ -62,7 +62,10 @@ var (
 			Name:      "actions_performed",
 			Help:      "Number of notification actions performed. Labeled by action",
 		},
-		[]string{actionTypeLabel},
+		[]string{
+			actionTypeLabel,
+			metrics.NodePoolLabel,
+		},
 	)
 )
 

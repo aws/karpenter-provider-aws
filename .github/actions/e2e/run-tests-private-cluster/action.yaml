@@ -33,7 +33,7 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.29"
+    default: "1.30"
   private_cluster:
     description: "Whether to create a private cluster which does not add access to the public internet. Valid values are 'true' or 'false'"
     default: 'false'
@@ -93,7 +93,7 @@ runs:
       CLUSTER_VPC_ID: ${{ env.CLUSTER_VPC_ID }}
       EKS_CLUSTER_SG: ${{ env.EKS_CLUSTER_SG }}
       CLEANUP: ${{ inputs.cleanup }}
-    uses: aws-actions/aws-codebuild-run-build@b0a7ca5730725c01b45af8866100667e32e0a9b1 #v1.0.15
+    uses: aws-actions/aws-codebuild-run-build@b31229dccde89c01530699df08ad07e8d7ac21a8 #v1.0.15
     with:
       project-name: E2EPrivateClusterCodeBuildProject-us-east-1
       buildspec-override: |

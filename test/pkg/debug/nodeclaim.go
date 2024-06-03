@@ -29,7 +29,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 )
 
 type NodeClaimController struct {
@@ -40,10 +39,6 @@ func NewNodeClaimController(kubeClient client.Client) *NodeClaimController {
 	return &NodeClaimController{
 		kubeClient: kubeClient,
 	}
-}
-
-func (c *NodeClaimController) Name() string {
-	return "nodeclaim"
 }
 
 func (c *NodeClaimController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
@@ -60,16 +55,16 @@ func (c *NodeClaimController) Reconcile(ctx context.Context, req reconcile.Reque
 
 func (c *NodeClaimController) GetInfo(nc *corev1beta1.NodeClaim) string {
 	return fmt.Sprintf("ready=%t launched=%t registered=%t initialized=%t",
-		nc.StatusConditions().IsHappy(),
-		nc.StatusConditions().GetCondition(corev1beta1.Launched).IsTrue(),
-		nc.StatusConditions().GetCondition(corev1beta1.Registered).IsTrue(),
-		nc.StatusConditions().GetCondition(corev1beta1.Initialized).IsTrue(),
+		nc.StatusConditions().Root().IsTrue(),
+		nc.StatusConditions().Get(corev1beta1.ConditionTypeLaunched).IsTrue(),
+		nc.StatusConditions().Get(corev1beta1.ConditionTypeRegistered).IsTrue(),
+		nc.StatusConditions().Get(corev1beta1.ConditionTypeInitialized).IsTrue(),
 	)
 }
 
-func (c *NodeClaimController) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(controllerruntime.
-		NewControllerManagedBy(m).
+func (c *NodeClaimController) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("nodeclaim").
 		For(&corev1beta1.NodeClaim{}).
 		WithEventFilter(predicate.Funcs{
 			UpdateFunc: func(e event.UpdateEvent) bool {
@@ -78,5 +73,6 @@ func (c *NodeClaimController) Builder(_ context.Context, m manager.Manager) core
 				return c.GetInfo(oldNodeClaim) != c.GetInfo(newNodeClaim)
 			},
 		}).
-		WithOptions(controller.Options{MaxConcurrentReconciles: 10}))
+		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).
+		Complete(c)
 }

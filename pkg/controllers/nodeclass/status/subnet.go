@@ -35,11 +35,11 @@ type Subnet struct {
 func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	subnets, err := s.subnetProvider.List(ctx, nodeClass)
 	if err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("getting subnets, %w", err)
 	}
 	if len(subnets) == 0 {
 		nodeClass.Status.Subnets = nil
-		return reconcile.Result{}, fmt.Errorf("no subnets exist given constraints %v", nodeClass.Spec.SubnetSelectorTerms)
+		return reconcile.Result{}, nil
 	}
 	sort.Slice(subnets, func(i, j int) bool {
 		if int(*subnets[i].AvailableIpAddressCount) != int(*subnets[j].AvailableIpAddressCount) {
@@ -49,10 +49,11 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass)
 	})
 	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1beta1.Subnet {
 		return v1beta1.Subnet{
-			ID:   *ec2subnet.SubnetId,
-			Zone: *ec2subnet.AvailabilityZone,
+			ID:     *ec2subnet.SubnetId,
+			Zone:   *ec2subnet.AvailabilityZone,
+			ZoneID: *ec2subnet.AvailabilityZoneId,
 		}
 	})
 
-	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
+	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }

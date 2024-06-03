@@ -18,7 +18,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
-	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -30,7 +30,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
@@ -41,10 +41,11 @@ import (
 )
 
 type Provider interface {
-	Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error)
+	List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (AMIs, error)
 }
 
 type DefaultProvider struct {
+	sync.Mutex
 	cache           *cache.Cache
 	ssm             ssmiface.SSMAPI
 	ec2api          ec2iface.EC2API
@@ -62,7 +63,7 @@ type AMI struct {
 type AMIs []AMI
 
 // Sort orders the AMIs by creation date in descending order.
-// If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by name in ascending order.
+// If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
 func (a AMIs) Sort() {
 	sort.Slice(a, func(i, j int) bool {
 		itime, _ := time.Parse(time.RFC3339, a[i].CreationDate)
@@ -70,34 +71,17 @@ func (a AMIs) Sort() {
 		if itime.Unix() != jtime.Unix() {
 			return itime.Unix() > jtime.Unix()
 		}
-		if a[i].Name != a[j].Name {
-			return a[i].Name < a[j].Name
-		}
-		iHash, _ := hashstructure.Hash(a[i].Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{})
-		jHash, _ := hashstructure.Hash(a[i].Requirements, hashstructure.FormatV2, &hashstructure.HashOptions{})
-		return iHash < jHash
+		return a[i].AmiID < a[j].AmiID
 	})
 }
 
-func (a AMIs) String() string {
-	var sb strings.Builder
-	ids := lo.Map(a, func(a AMI, _ int) string { return a.AmiID })
-	if len(a) > 25 {
-		sb.WriteString(strings.Join(ids[:25], ", "))
-		sb.WriteString(fmt.Sprintf(" and %d other(s)", len(a)-25))
-	} else {
-		sb.WriteString(strings.Join(ids, ", "))
-	}
-	return sb.String()
-}
-
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) map[string][]*cloudprovider.InstanceType {
+func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1beta1.AMI) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
-		for _, ami := range a {
-			if err := instanceType.Requirements.Compatible(ami.Requirements, scheduling.AllowUndefinedWellKnownLabels); err == nil {
-				amiIDs[ami.AmiID] = append(amiIDs[ami.AmiID], instanceType)
+		for _, ami := range amis {
+			if err := instanceType.Requirements.Compatible(scheduling.NewNodeSelectorRequirements(ami.Requirements...), scheduling.AllowUndefinedWellKnownLabels); err == nil {
+				amiIDs[ami.ID] = append(amiIDs[ami.ID], instanceType)
 				break
 			}
 		}
@@ -116,11 +100,14 @@ func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, e
 }
 
 // Get Returning a list of AMIs with its associated requirements
-func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (AMIs, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (AMIs, error) {
+	p.Lock()
+	defer p.Unlock()
+
 	var err error
 	var amis AMIs
 	if len(nodeClass.Spec.AMISelectorTerms) == 0 {
-		amis, err = p.getDefaultAMIs(ctx, nodeClass, options)
+		amis, err = p.getDefaultAMIs(ctx, nodeClass)
 		if err != nil {
 			return nil, err
 		}
@@ -131,17 +118,21 @@ func (p *DefaultProvider) Get(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 		}
 	}
 	amis.Sort()
-	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), amis) {
-		logging.FromContext(ctx).With("ids", amis, "count", len(amis)).Debugf("discovered amis")
+	uniqueAMIs := lo.Uniq(lo.Map(amis, func(a AMI, _ int) string { return a.AmiID }))
+	if p.cm.HasChanged(fmt.Sprintf("amis/%s", nodeClass.Name), uniqueAMIs) {
+		log.FromContext(ctx).WithValues(
+			"ids", uniqueAMIs).V(1).Info("discovered amis")
 	}
 	return amis, nil
 }
 
-func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, options *Options) (res AMIs, err error) {
+func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (res AMIs, err error) {
 	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
-		return images.(AMIs), nil
+		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
+		// to the data don't affect the original
+		return append(AMIs{}, images.(AMIs)...), nil
 	}
-	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
+	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, &Options{})
 	kubernetesVersion, err := p.versionProvider.Get(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("getting kubernetes version %w", err)
@@ -149,7 +140,7 @@ func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1
 	defaultAMIs := amiFamily.DefaultAMIs(kubernetesVersion)
 	for _, ami := range defaultAMIs {
 		if id, err := p.resolveSSMParameter(ctx, ami.Query); err != nil {
-			logging.FromContext(ctx).With("query", ami.Query).Errorf("discovering amis from ssm, %s", err)
+			log.FromContext(ctx).WithValues("query", ami.Query).Error(err, "failed discovering amis from ssm")
 		} else {
 			res = append(res, AMI{AmiID: id, Requirements: ami.Requirements})
 		}
@@ -191,7 +182,9 @@ func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelect
 		return nil, err
 	}
 	if images, ok := p.cache.Get(fmt.Sprintf("%d", hash)); ok {
-		return images.(AMIs), nil
+		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
+		// to the data don't affect the original
+		return append(AMIs{}, images.(AMIs)...), nil
 	}
 	images := map[uint64]AMI{}
 	for _, filtersAndOwners := range filterAndOwnerSets {
@@ -199,7 +192,7 @@ func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelect
 			// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
 			Filters:    lo.Ternary(len(filtersAndOwners.Filters) > 0, filtersAndOwners.Filters, nil),
 			Owners:     lo.Ternary(len(filtersAndOwners.Owners) > 0, aws.StringSlice(filtersAndOwners.Owners), nil),
-			MaxResults: aws.Int64(500),
+			MaxResults: aws.Int64(1000),
 		}, func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for i := range page.Images {
 				reqs := p.getRequirementsFromImage(page.Images[i])

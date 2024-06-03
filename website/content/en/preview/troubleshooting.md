@@ -663,7 +663,7 @@ This typically occurs when the node has not been considered fully initialized fo
 
 ### Log message of `inflight check failed for node, Expected resource "vpc.amazonaws.com/pod-eni" didn't register on the node` is reported
 
-This error indicates that the `vpc.amazonaws.com/pod-eni` resource was never reported on the node. If you've enabled Pod ENI for Karpenter nodes via the `aws.enablePodENI` setting, you will need to make the corresponding change to the VPC CNI to enable [security groups for pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) which will cause the resource to be registered.
+This error indicates that the `vpc.amazonaws.com/pod-eni` resource was never reported on the node. You will need to make the corresponding change to the VPC CNI to enable [security groups for pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html) which will cause the resource to be registered.
 
 ### AWS Node Termination Handler (NTH) interactions
 Karpenter [doesn't currently support draining and terminating on spot rebalance recommendations]({{< ref "concepts/disruption#interruption" >}}). Users who want support for both drain and terminate on spot interruption as well as drain and termination on spot rebalance recommendations may install Node Termination Handler (NTH) on their clusters to support this behavior.

@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/imdario/mergo"
+	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -37,6 +38,38 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 	}
 	if options.Spec.AMIFamily == nil {
 		options.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		options.Status.AMIs = []v1beta1.AMI{
+			{
+				ID: "ami-test1",
+				Requirements: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+					{Key: v1beta1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpDoesNotExist},
+					{Key: v1beta1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpDoesNotExist},
+				},
+			},
+			{
+				ID: "ami-test2",
+				Requirements: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+					{Key: v1beta1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpExists},
+				},
+			},
+			{
+				ID: "ami-test3",
+				Requirements: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+					{Key: v1beta1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpExists},
+				},
+			},
+			{
+				ID: "ami-test4",
+				Requirements: []v1.NodeSelectorRequirement{
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
+					{Key: v1beta1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpDoesNotExist},
+					{Key: v1beta1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpDoesNotExist},
+				},
+			},
+		}
 	}
 	if options.Spec.Role == "" {
 		options.Spec.Role = "test-role"
@@ -50,6 +83,17 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 				},
 			},
 		}
+		options.Status.SecurityGroups = []v1beta1.SecurityGroup{
+			{
+				ID: "sg-test1",
+			},
+			{
+				ID: "sg-test2",
+			},
+			{
+				ID: "sg-test3",
+			},
+		}
 	}
 	if len(options.Spec.SubnetSelectorTerms) == 0 {
 		options.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
@@ -57,6 +101,23 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 				Tags: map[string]string{
 					"*": "*",
 				},
+			},
+		}
+		options.Status.Subnets = []v1beta1.Subnet{
+			{
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
+			},
+			{
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
+			},
+			{
+				ID:     "subnet-test3",
+				Zone:   "test-zone-1c",
+				ZoneID: "tstz1-1c",
 			},
 		}
 	}

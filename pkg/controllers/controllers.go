@@ -18,11 +18,13 @@ import (
 	"context"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/operator/controller"
 
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
 	nodeclassstatus "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	nodeclasstermination "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/termination"
-	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/pricing"
+	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
+	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -32,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"sigs.k8s.io/karpenter/pkg/events"
-	"sigs.k8s.io/karpenter/pkg/operator/controller"
 
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
@@ -42,6 +43,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
@@ -51,7 +53,7 @@ import (
 func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
 	unavailableOfferings *cache.UnavailableOfferings, cloudProvider cloudprovider.CloudProvider, subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider, instanceProfileProvider instanceprofile.Provider, instanceProvider instance.Provider,
-	pricingProvider pricing.Provider, amiProvider amifamily.Provider, launchTemplateProvider launchtemplate.Provider) []controller.Controller {
+	pricingProvider pricing.Provider, amiProvider amifamily.Provider, launchTemplateProvider launchtemplate.Provider, instanceTypeProvider instancetype.Provider) []controller.Controller {
 
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
@@ -60,6 +62,7 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
 		controllerspricing.NewController(pricingProvider),
+		controllersinstancetype.NewController(instanceTypeProvider),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsapi := servicesqs.New(sess)

@@ -19,8 +19,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"knative.dev/pkg/ptr"
-
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
@@ -48,7 +46,7 @@ func (b Bottlerocket) Script() (string, error) {
 
 	// Backwards compatibility for AWSENILimitedPodDensity flag
 	if b.KubeletConfig != nil && b.KubeletConfig.MaxPods != nil {
-		s.Settings.Kubernetes.MaxPods = aws.Int(int(ptr.Int32Value(b.KubeletConfig.MaxPods)))
+		s.Settings.Kubernetes.MaxPods = aws.Int(int(lo.FromPtr(b.KubeletConfig.MaxPods)))
 	} else if !b.AWSENILimitedPodDensity {
 		s.Settings.Kubernetes.MaxPods = aws.Int(110)
 	}

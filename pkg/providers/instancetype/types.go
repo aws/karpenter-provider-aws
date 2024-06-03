@@ -27,7 +27,6 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
@@ -78,15 +77,20 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		scheduling.NewRequirement(v1.LabelInstanceTypeStable, v1.NodeSelectorOpIn, aws.StringValue(info.InstanceType)),
 		scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, getArchitecture(info)),
 		scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, getOS(info, amiFamily)...),
-		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.Zone })...),
+		scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
+			return o.Requirements.Get(v1.LabelTopologyZone).Any()
+		})...),
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, region),
 		scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpDoesNotExist),
 		// Well Known to Karpenter
-		scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string { return o.CapacityType })...),
+		scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
+			return o.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any()
+		})...),
 		// Well Known to AWS
 		scheduling.NewRequirement(v1beta1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.VCpuInfo.DefaultVCpus))),
 		scheduling.NewRequirement(v1beta1.LabelInstanceCPUManufacturer, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.MemoryInfo.SizeInMiB))),
+		scheduling.NewRequirement(v1beta1.LabelInstanceEBSBandwidth, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceNetworkBandwidth, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceCategory, v1.NodeSelectorOpDoesNotExist),
 		scheduling.NewRequirement(v1beta1.LabelInstanceFamily, v1.NodeSelectorOpDoesNotExist),
@@ -103,6 +107,14 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		scheduling.NewRequirement(v1beta1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
 		scheduling.NewRequirement(v1beta1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
 	)
+	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
+	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
+	if zoneIDs := lo.FilterMap(offerings.Available(), func(o cloudprovider.Offering, _ int) (string, bool) {
+		zoneID := o.Requirements.Get(v1beta1.LabelTopologyZoneID).Any()
+		return zoneID, zoneID != ""
+	}); len(zoneIDs) != 0 {
+		requirements.Add(scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, zoneIDs...))
+	}
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(aws.StringValue(info.InstanceType))
 	if len(instanceFamilyParts) == 4 {
@@ -151,6 +163,10 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 	// CPU Manufacturer, valid options: aws, intel, amd
 	if info.ProcessorInfo != nil {
 		requirements.Get(v1beta1.LabelInstanceCPUManufacturer).Insert(lowerKabobCase(aws.StringValue(info.ProcessorInfo.Manufacturer)))
+	}
+	// EBS Max Bandwidth
+	if info.EbsInfo != nil && aws.StringValue(info.EbsInfo.EbsOptimizedSupport) == ec2.EbsOptimizedSupportDefault {
+		requirements.Get(v1beta1.LabelInstanceEBSBandwidth).Insert(fmt.Sprint(aws.Int64Value(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps)))
 	}
 	return requirements
 }
@@ -321,12 +337,12 @@ func efas(info *ec2.InstanceTypeInfo) *resource.Quantity {
 func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
 	// The number of pods per node is calculated using the formula:
 	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-	// https://github.com/awslabs/amazon-eks-ami/blob/master/files/eni-max-pods.txt#L20
+	// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
 
 	// VPC CNI only uses the default network interface
 	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
 	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
-	usableNetworkInterfaces := lo.Max([]int64{(networkInterfaces - int64(options.FromContext(ctx).ReservedENIs)), 0})
+	usableNetworkInterfaces := lo.Max([]int64{networkInterfaces - int64(options.FromContext(ctx).ReservedENIs), 0})
 	if usableNetworkInterfaces == 0 {
 		return resource.NewQuantity(0, resource.DecimalSI)
 	}
@@ -414,15 +430,15 @@ func pods(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.A
 	var count int64
 	switch {
 	case maxPods != nil:
-		count = int64(ptr.Int32Value(maxPods))
+		count = int64(lo.FromPtr(maxPods))
 	case amiFamily.FeatureFlags().SupportsENILimitedPodDensity:
 		count = ENILimitedPods(ctx, info).Value()
 	default:
 		count = 110
 
 	}
-	if ptr.Int32Value(podsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
-		count = lo.Min([]int64{int64(ptr.Int32Value(podsPerCore)) * ptr.Int64Value(info.VCpuInfo.DefaultVCpus), count})
+	if lo.FromPtr(podsPerCore) > 0 && amiFamily.FeatureFlags().PodsPerCoreEnabled {
+		count = lo.Min([]int64{int64(lo.FromPtr(podsPerCore)) * lo.FromPtr(info.VCpuInfo.DefaultVCpus), count})
 	}
 	return resources.Quantity(fmt.Sprint(count))
 }

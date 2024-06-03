@@ -35,11 +35,11 @@ type SecurityGroup struct {
 func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	securityGroups, err := sg.securityGroupProvider.List(ctx, nodeClass)
 	if err != nil {
-		return reconcile.Result{}, err
+		return reconcile.Result{}, fmt.Errorf("getting security groups, %w", err)
 	}
 	if len(securityGroups) == 0 && len(nodeClass.Spec.SecurityGroupSelectorTerms) > 0 {
 		nodeClass.Status.SecurityGroups = nil
-		return reconcile.Result{}, fmt.Errorf("no security groups exist given constraints")
+		return reconcile.Result{}, nil
 	}
 	sort.Slice(securityGroups, func(i, j int) bool {
 		return *securityGroups[i].GroupId < *securityGroups[j].GroupId

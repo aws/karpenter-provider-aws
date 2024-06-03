@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -92,6 +91,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				v1beta1.LabelInstanceCPU:              "2",
 				v1beta1.LabelInstanceCPUManufacturer:  "intel",
 				v1beta1.LabelInstanceMemory:           "4096",
+				v1beta1.LabelInstanceEBSBandwidth:     "4750",
 				v1beta1.LabelInstanceNetworkBandwidth: "750",
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
@@ -102,6 +102,21 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodeSelector:     nodeSelector,
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
+			}})
+			env.ExpectCreated(nodeClass, nodePool, deployment)
+			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
+			env.ExpectCreatedNodeCount("==", 1)
+		})
+		It("should support well-known labels for zone id selection", func() {
+			selectors.Insert(v1beta1.LabelTopologyZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
+			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1beta1.LabelTopologyZoneID,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneInfo.ZoneID},
+					},
+				},
 			}})
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
@@ -382,7 +397,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		It("should provision a node using a NodePool with higher priority", func() {
 			nodePoolLowPri := test.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
-					Weight: ptr.Int32(10),
+					Weight: lo.ToPtr(int32(10)),
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
@@ -410,7 +425,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			})
 			nodePoolHighPri := test.NodePool(corev1beta1.NodePool{
 				Spec: corev1beta1.NodePoolSpec{
-					Weight: ptr.Int32(100),
+					Weight: lo.ToPtr(int32(100)),
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
@@ -440,21 +455,47 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(pod, nodeClass, nodePoolLowPri, nodePoolHighPri)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
-			Expect(ptr.StringValue(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
+			Expect(lo.FromPtr(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
 			Expect(env.GetNode(pod.Spec.NodeName).Labels[corev1beta1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 		})
 
 		DescribeTable(
 			"should provision a right-sized node when a pod has InitContainers (cpu)",
 			func(expectedNodeCPU string, containerRequirements v1.ResourceRequirements, initContainers ...v1.Container) {
-				if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
+				if env.K8sMinorVersion() < 29 {
 					Skip("native sidecar containers are only enabled on EKS 1.29+")
 				}
+
+				labels := map[string]string{"test": test.RandomName()}
+				// Create a buffer pod to even out the total resource requests regardless of the daemonsets on the cluster. Assumes
+				// CPU is the resource in contention and that total daemonset CPU requests <= 3.
+				dsBufferPod := test.Pod(test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: labels,
+					},
+					PodRequirements: []v1.PodAffinityTerm{{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: labels,
+						},
+						TopologyKey: v1.LabelHostname,
+					}},
+					ResourceRequirements: v1.ResourceRequirements{
+						Requests: v1.ResourceList{
+							v1.ResourceCPU: func() resource.Quantity {
+								dsOverhead := env.GetDaemonSetOverhead(nodePool)
+								base := lo.ToPtr(resource.MustParse("3"))
+								base.Sub(*dsOverhead.Cpu())
+								return *base
+							}(),
+						},
+					},
+				})
+
 				test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceCPU,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"1", "2"},
+						Values:   []string{"4", "8"},
 					},
 				}, corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
@@ -464,15 +505,24 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					},
 				})
 				pod := test.Pod(test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: labels,
+					},
+					PodRequirements: []v1.PodAffinityTerm{{
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: labels,
+						},
+						TopologyKey: v1.LabelHostname,
+					}},
 					InitContainers:       initContainers,
 					ResourceRequirements: containerRequirements,
 				})
-				env.ExpectCreated(nodePool, nodeClass, pod)
+				env.ExpectCreated(nodePool, nodeClass, dsBufferPod, pod)
 				env.EventuallyExpectHealthy(pod)
 				node := env.ExpectCreatedNodeCount("==", 1)[0]
 				Expect(node.ObjectMeta.GetLabels()[v1beta1.LabelInstanceCPU]).To(Equal(expectedNodeCPU))
 			},
-			Entry("sidecar requirements + later init requirements do exceed container requirements", "2", v1.ResourceRequirements{
+			Entry("sidecar requirements + later init requirements do exceed container requirements", "8", v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
@@ -484,7 +534,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1")},
 			})),
-			Entry("sidecar requirements + later init requirements do not exceed container requirements", "1", v1.ResourceRequirements{
+			Entry("sidecar requirements + later init requirements do not exceed container requirements", "4", v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
@@ -496,7 +546,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}, ephemeralInitContainer(v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("300m")},
 			})),
-			Entry("init container requirements exceed all later requests", "2", v1.ResourceRequirements{
+			Entry("init container requirements exceed all later requests", "8", v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
 			}, v1.Container{
 				RestartPolicy: lo.ToPtr(v1.ContainerRestartPolicyAlways),
@@ -513,7 +563,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			}),
 		)
 		It("should provision a right-sized node when a pod has InitContainers (mixed resources)", func() {
-			if version, err := env.GetK8sMinorVersion(0); err != nil || version < 29 {
+			if env.K8sMinorVersion() < 29 {
 				Skip("native sidecar containers are only enabled on EKS 1.29+")
 			}
 			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
@@ -544,6 +594,84 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			})
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectHealthy(pod)
+		})
+
+		It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s aws.SubnetInfo) string {
+				return s.Zone
+			})
+			Expect(len(subnetInfo)).To(BeNumerically(">=", 3))
+
+			// Create a pod with 'overlapping' zone and zone-id requirements. With two options for each label, but only one pair of zone-zoneID that maps to the
+			// same AZ, we will always expect the pod to be scheduled to that AZ. In this case, this is the mapping at zone[1].
+			pod := test.Pod(test.PodOptions{
+				NodeRequirements: []v1.NodeSelectorRequirement{
+					{
+						Key:      v1.LabelTopologyZone,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   lo.Map(subnetInfo[0:2], func(info aws.SubnetInfo, _ int) string { return info.Zone }),
+					},
+					{
+						Key:      v1beta1.LabelTopologyZoneID,
+						Operator: v1.NodeSelectorOpIn,
+						Values:   lo.Map(subnetInfo[1:3], func(info aws.SubnetInfo, _ int) string { return info.ZoneID }),
+					},
+				},
+			})
+			env.ExpectCreated(nodePool, nodeClass, pod)
+			node := env.EventuallyExpectNodeCount("==", 1)[0]
+			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(subnetInfo[1].Zone))
+			Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(subnetInfo[1].ZoneID))
+		})
+		It("should provision nodes for pods with zone-id requirements in the correct zone", func() {
+			// Each pod specifies a requirement on this expected zone, where the value is the matching zone for the
+			// required zone-id. This allows us to verify that Karpenter launched the node in the correct zone, even if
+			// it doesn't add the zone-id label and the label is added by CCM. If we didn't take this approach, we would
+			// succeed even if Karpenter doesn't add the label and /or incorrectly generated offerings on k8s 1.30 and
+			// above. This is an unlikely scenario, and adding this check is a defense in depth measure.
+			const expectedZoneLabel = "expected-zone-label"
+			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{
+					Key:      expectedZoneLabel,
+					Operator: v1.NodeSelectorOpExists,
+				},
+			})
+
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s aws.SubnetInfo) string {
+				return s.Zone
+			})
+			pods := lo.Map(subnetInfo, func(info aws.SubnetInfo, _ int) *v1.Pod {
+				return test.Pod(test.PodOptions{
+					NodeRequirements: []v1.NodeSelectorRequirement{
+						{
+							Key:      expectedZoneLabel,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{info.Zone},
+						},
+						{
+							Key:      v1beta1.LabelTopologyZoneID,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{info.ZoneID},
+						},
+					},
+				})
+			})
+
+			env.ExpectCreated(nodePool, nodeClass)
+			for _, pod := range pods {
+				env.ExpectCreated(pod)
+			}
+			nodes := env.EventuallyExpectCreatedNodeCount("==", len(subnetInfo))
+			for _, node := range nodes {
+				expectedZone, ok := node.Labels[expectedZoneLabel]
+				Expect(ok).To(BeTrue())
+				Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(expectedZone))
+				zoneInfo, ok := lo.Find(subnetInfo, func(info aws.SubnetInfo) bool {
+					return info.Zone == expectedZone
+				})
+				Expect(ok).To(BeTrue())
+				Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(zoneInfo.ZoneID))
+			}
 		})
 	})
 })

@@ -23,7 +23,8 @@ on:
           - "1.27"
           - "1.28"
           - "1.29"
-        default: "1.29"
+          - "1.30"
+        default: "1.30"
       cleanup:
         required: true
         default: true
@@ -40,7 +41,7 @@ on:
         default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.29"
+        default: "1.30"
       cleanup:
         required: true
         type: boolean
@@ -90,7 +91,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.169.0
+          eksctl_version: v0.179.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.from_git_ref }}
           ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
@@ -108,7 +109,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           k8s_version: ${{ inputs.k8s_version }}
-          eksctl_version: v0.169.0
+          eksctl_version: v0.179.0
           ip_family: IPv4 # Set the value to IPv6 if IPv6 suite, else IPv4
           git_ref: ${{ inputs.to_git_ref }}
           ecr_account_id: ${{ vars.SNAPSHOT_ACCOUNT_ID }}
@@ -152,7 +153,7 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
-          eksctl_version: v0.169.0
+          eksctl_version: v0.179.0
       - if: always() && github.event_name == 'workflow_run'
         uses: ./.github/actions/commit-status/end
         with:

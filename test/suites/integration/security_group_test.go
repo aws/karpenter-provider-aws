@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -27,6 +29,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
+	. "github.com/awslabs/operatorpkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -75,6 +78,17 @@ var _ = Describe("SecurityGroups", func() {
 	It("should update the EC2NodeClass status security groups", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSecurityGroups(env, nodeClass)
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+	})
+
+	It("should have the NodeClass status as not ready since security groups were not resolved", func() {
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+			{
+				Tags: map[string]string{"karpenter.sh/discovery": "invalidName"},
+			},
+		}
+		env.ExpectCreated(nodeClass)
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve security groups"})
 	})
 })
 

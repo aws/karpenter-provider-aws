@@ -16,38 +16,36 @@ package hash
 
 import (
 	"context"
-	"time"
 
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	"golang.org/x/time/rate"
 	"k8s.io/apimachinery/pkg/api/equality"
-	"k8s.io/client-go/util/workqueue"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
+	"github.com/awslabs/operatorpkg/reasonable"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
-
-var _ corecontroller.TypedController[*v1beta1.EC2NodeClass] = (*Controller)(nil)
 
 type Controller struct {
 	kubeClient client.Client
 }
 
-func NewController(kubeClient client.Client) corecontroller.Controller {
-	return corecontroller.Typed[*v1beta1.EC2NodeClass](kubeClient, &Controller{
+func NewController(kubeClient client.Client) *Controller {
+	return &Controller{
 		kubeClient: kubeClient,
-	})
+	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+	ctx = injection.WithControllerName(ctx, "nodeclass.hash")
+
 	stored := nodeClass.DeepCopy()
 
 	if nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion] != v1beta1.EC2NodeClassHashVersion {
@@ -69,22 +67,15 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) Name() string {
-	return "nodeclass.hash"
-}
-
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(controllerruntime.
-		NewControllerManagedBy(m).
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("nodeclass.hash").
 		For(&v1beta1.EC2NodeClass{}).
 		WithOptions(controller.Options{
-			RateLimiter: workqueue.NewMaxOfRateLimiter(
-				workqueue.NewItemExponentialFailureRateLimiter(100*time.Millisecond, 1*time.Minute),
-				// 10 qps, 100 bucket size
-				&workqueue.BucketRateLimiter{Limiter: rate.NewLimiter(rate.Limit(10), 100)},
-			),
+			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
-		}))
+		}).
+		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }
 
 // Updating `ec2nodeclass-hash-version` annotation inside the karpenter controller means a breaking change has been made to the hash calculation.
@@ -109,7 +100,7 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1beta1
 
 			// Any NodeClaim that is already drifted will remain drifted if the karpenter.k8s.aws/nodepool-hash-version doesn't match
 			// Since the hashing mechanism has changed we will not be able to determine if the drifted status of the NodeClaim has changed
-			if nc.StatusConditions().GetCondition(corev1beta1.Drifted) == nil {
+			if nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted) == nil {
 				nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 					v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
 				})

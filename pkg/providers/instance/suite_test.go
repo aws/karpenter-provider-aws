@@ -43,8 +43,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "knative.dev/pkg/logging/testing"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
 
 var ctx context.Context
@@ -64,7 +64,7 @@ var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
-		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider, awsEnv.SubnetProvider)
+		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
 })
 
 var _ = AfterSuite(func() {
@@ -106,9 +106,14 @@ var _ = Describe("InstanceProvider", func() {
 				},
 			},
 		})
+		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass) // Hydrate the subnet cache
+		Expect(err).To(BeNil())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
 	It("should return an ICE error when all attempted instance types return an ICE error", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{
 			{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
 			{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},

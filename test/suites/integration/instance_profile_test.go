@@ -16,6 +16,10 @@ package integration_test
 
 import (
 	"fmt"
+	"time"
+
+	"github.com/awslabs/operatorpkg/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
@@ -25,6 +29,7 @@ import (
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 
+	. "github.com/awslabs/operatorpkg/test/expectations"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
@@ -81,5 +86,11 @@ var _ = Describe("InstanceProfile Generation", func() {
 		instance := env.GetInstance(node.Name)
 		Expect(instance.IamInstanceProfile).ToNot(BeNil())
 		Expect(lo.FromPtr(instance.IamInstanceProfile.Arn)).To(ContainSubstring(nodeClass.Status.InstanceProfile))
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
+	})
+	It("should have the EC2NodeClass status as not ready since Instance Profile was not resolved", func() {
+		nodeClass.Spec.Role = fmt.Sprintf("KarpenterNodeRole-%s", "invalidRole")
+		env.ExpectCreated(nodeClass)
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve instance profile"})
 	})
 })

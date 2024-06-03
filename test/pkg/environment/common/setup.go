@@ -58,6 +58,7 @@ var (
 		&schedulingv1.PriorityClass{},
 		&v1.Node{},
 		&corev1beta1.NodeClaim{},
+		&v1beta1.EC2NodeClass{},
 	}
 )
 

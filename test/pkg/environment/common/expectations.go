@@ -36,15 +36,15 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/transport"
-	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
+	coreresources "sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
 func (env *Environment) ExpectCreated(objects ...client.Object) {
@@ -63,7 +63,7 @@ func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	GinkgoHelper()
 	for _, object := range objects {
 		Eventually(func(g Gomega) {
-			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}))).To(Succeed())
+			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: lo.ToPtr(int64(0))}))).To(Succeed())
 		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
@@ -81,7 +81,7 @@ func (env *Environment) ExpectUpdated(objects ...client.Object) {
 			current := o.DeepCopyObject().(client.Object)
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
 			if current.GetResourceVersion() != o.GetResourceVersion() {
-				logging.FromContext(env).Infof("detected an update to an object (%s) with an outdated resource version, did you get the latest version of the object before patching?", lo.Must(apiutil.GVKForObject(o, env.Client.Scheme())))
+				log.FromContext(env).Info(fmt.Sprintf("detected an update to an object (%s) with an outdated resource version, did you get the latest version of the object before patching?", lo.Must(apiutil.GVKForObject(o, env.Client.Scheme()))))
 			}
 			o.SetResourceVersion(current.GetResourceVersion())
 			g.Expect(env.Client.Update(env.Context, o)).To(Succeed())
@@ -671,7 +671,7 @@ func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1bet
 		for _, nc := range nodeClaims {
 			temp := &corev1beta1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), temp)).Should(Succeed())
-			g.Expect(temp.StatusConditions().IsHappy()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Root().IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -681,7 +681,7 @@ func (env *Environment) EventuallyExpectExpired(nodeClaims ...*corev1beta1.NodeC
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Expired).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeExpired).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -691,7 +691,7 @@ func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeC
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -703,7 +703,7 @@ func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Dur
 	Consistently(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Drifted)).To(BeNil())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted)).To(BeNil())
 		}
 	}, duration).Should(Succeed())
 }
@@ -713,7 +713,7 @@ func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*corev1beta1.NodeCla
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().GetCondition(corev1beta1.Empty).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeEmpty).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -757,13 +757,13 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 		}
 		stream, err := env.KubeClient.CoreV1().Pods("kube-system").GetLogs(pod.Name, temp).Stream(env.Context)
 		if err != nil {
-			logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
+			log.FromContext(env.Context).Error(err, "failed fetching controller logs")
 			return
 		}
-		log := &bytes.Buffer{}
-		_, err = io.Copy(log, stream)
+		raw := &bytes.Buffer{}
+		_, err = io.Copy(raw, stream)
 		Expect(err).ToNot(HaveOccurred())
-		logging.FromContext(env.Context).Info(log)
+		log.FromContext(env.Context).Info(raw.String())
 	}
 }
 
@@ -878,7 +878,7 @@ func (env *Environment) ExpectCABundle() string {
 	Expect(err).ToNot(HaveOccurred())
 	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
 	Expect(err).ToNot(HaveOccurred())
-	logging.FromContext(env.Context).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	log.FromContext(env.Context).WithValues("length", len(transportConfig.TLS.CAData)).V(1).Info("discovered caBundle")
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }
 
@@ -901,4 +901,25 @@ func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 		}
 		return true
 	})
+}
+
+func (env *Environment) GetDaemonSetOverhead(np *corev1beta1.NodePool) v1.ResourceList {
+	GinkgoHelper()
+
+	// Performs the same logic as the scheduler to get the number of daemonset
+	// pods that we estimate we will need to schedule as overhead to each node
+	daemonSetList := &appsv1.DaemonSetList{}
+	Expect(env.Client.List(env.Context, daemonSetList)).To(Succeed())
+
+	return coreresources.RequestsForPods(lo.FilterMap(daemonSetList.Items, func(ds appsv1.DaemonSet, _ int) (*v1.Pod, bool) {
+		p := &v1.Pod{Spec: ds.Spec.Template.Spec}
+		nodeClaimTemplate := pscheduling.NewNodeClaimTemplate(np)
+		if err := scheduling.Taints(nodeClaimTemplate.Spec.Taints).Tolerates(p); err != nil {
+			return nil, false
+		}
+		if err := nodeClaimTemplate.Requirements.Compatible(scheduling.NewPodRequirements(p), scheduling.AllowUndefinedWellKnownLabels); err != nil {
+			return nil, false
+		}
+		return p, true
+	})...)
 }

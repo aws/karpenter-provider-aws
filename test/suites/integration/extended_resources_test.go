@@ -149,7 +149,7 @@ var _ = Describe("Extended Resources", func() {
 		Skip("skipping test on AMD instance types")
 		ExpectAMDDevicePluginCreated()
 
-		customAMI := env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 0)
+		customAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 
 		// We create custom userData that installs the AMD Radeon driver and then performs the EKS bootstrap script
 		// We use a Custom AMI so that we can reboot after we start the kubelet service

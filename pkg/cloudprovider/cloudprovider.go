@@ -21,10 +21,12 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
@@ -38,7 +40,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
-	"knative.dev/pkg/logging"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	cloudproviderevents "github.com/aws/karpenter-provider-aws/pkg/cloudprovider/events"
@@ -46,7 +47,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
@@ -61,18 +61,16 @@ type CloudProvider struct {
 	instanceProvider      instance.Provider
 	amiProvider           amifamily.Provider
 	securityGroupProvider securitygroup.Provider
-	subnetProvider        subnet.Provider
 }
 
 func New(instanceTypeProvider instancetype.Provider, instanceProvider instance.Provider, recorder events.Recorder,
-	kubeClient client.Client, amiProvider amifamily.Provider, securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider) *CloudProvider {
+	kubeClient client.Client, amiProvider amifamily.Provider, securityGroupProvider securitygroup.Provider) *CloudProvider {
 	return &CloudProvider{
 		instanceTypeProvider:  instanceTypeProvider,
 		instanceProvider:      instanceProvider,
 		kubeClient:            kubeClient,
 		amiProvider:           amiProvider,
 		securityGroupProvider: securityGroupProvider,
-		subnetProvider:        subnetProvider,
 		recorder:              recorder,
 	}
 }
@@ -86,6 +84,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 		}
 		// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
+	}
+	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
+	if !nodeClassReady.IsTrue() {
+		return nil, fmt.Errorf("resolving ec2nodeclass, %s", nodeClassReady.Message)
 	}
 	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
 	if err != nil {
@@ -101,7 +103,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 	instanceType, _ := lo.Find(instanceTypes, func(i *cloudprovider.InstanceType) bool {
 		return i.Name == instance.Type
 	})
-	nc := c.instanceToNodeClaim(instance, instanceType)
+	nc := c.instanceToNodeClaim(instance, instanceType, nodeClass)
 	nc.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
 		v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 		v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
@@ -120,7 +122,11 @@ func (c *CloudProvider) List(ctx context.Context) ([]*corev1beta1.NodeClaim, err
 		if err != nil {
 			return nil, fmt.Errorf("resolving instance type, %w", err)
 		}
-		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(instance, instanceType))
+		nc, err := c.resolveNodeClassFromInstance(ctx, instance)
+		if client.IgnoreNotFound(err) != nil {
+			return nil, fmt.Errorf("resolving nodeclass, %w", err)
+		}
+		nodeClaims = append(nodeClaims, c.instanceToNodeClaim(instance, instanceType, nc))
 	}
 	return nodeClaims, nil
 }
@@ -130,7 +136,7 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*corev1beta
 	if err != nil {
 		return nil, fmt.Errorf("getting instance ID, %w", err)
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
 	instance, err := c.instanceProvider.Get(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance, %w", err)
@@ -139,7 +145,11 @@ func (c *CloudProvider) Get(ctx context.Context, providerID string) (*corev1beta
 	if err != nil {
 		return nil, fmt.Errorf("resolving instance type, %w", err)
 	}
-	return c.instanceToNodeClaim(instance, instanceType), nil
+	nc, err := c.resolveNodeClassFromInstance(ctx, instance)
+	if client.IgnoreNotFound(err) != nil {
+		return nil, fmt.Errorf("resolving nodeclass, %w", err)
+	}
+	return c.instanceToNodeClaim(instance, instanceType, nc), nil
 }
 
 func (c *CloudProvider) LivenessProbe(req *http.Request) error {
@@ -148,9 +158,6 @@ func (c *CloudProvider) LivenessProbe(req *http.Request) error {
 
 // GetInstanceTypes returns all available InstanceTypes
 func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1beta1.NodePool) ([]*cloudprovider.InstanceType, error) {
-	if nodePool == nil {
-		return c.instanceTypeProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
-	}
 	nodeClass, err := c.resolveNodeClassFromNodePool(ctx, nodePool)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -170,13 +177,11 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1be
 }
 
 func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) error {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("nodeclaim", nodeClaim.Name))
-
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		return fmt.Errorf("getting instance ID, %w", err)
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("id", id))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
 	return c.instanceProvider.Delete(ctx, id)
 }
 
@@ -279,6 +284,14 @@ func (c *CloudProvider) resolveInstanceTypeFromInstance(ctx context.Context, ins
 	return instanceType, nil
 }
 
+func (c *CloudProvider) resolveNodeClassFromInstance(ctx context.Context, instance *instance.Instance) (*v1beta1.EC2NodeClass, error) {
+	np, err := c.resolveNodePoolFromInstance(ctx, instance)
+	if err != nil {
+		return nil, fmt.Errorf("resolving nodepool, %w", err)
+	}
+	return c.resolveNodeClassFromNodePool(ctx, np)
+}
+
 func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instance *instance.Instance) (*corev1beta1.NodePool, error) {
 	if nodePoolName, ok := instance.Tags[corev1beta1.NodePoolLabelKey]; ok {
 		nodePool := &corev1beta1.NodePool{}
@@ -290,7 +303,8 @@ func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instanc
 	return nil, errors.NewNotFound(schema.GroupResource{Group: corev1beta1.Group, Resource: "nodepools"}, "")
 }
 
-func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *cloudprovider.InstanceType) *corev1beta1.NodeClaim {
+//nolint:gocyclo
+func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *cloudprovider.InstanceType, nodeClass *v1beta1.EC2NodeClass) *corev1beta1.NodeClaim {
 	nodeClaim := &corev1beta1.NodeClaim{}
 	labels := map[string]string{}
 	annotations := map[string]string{}
@@ -316,6 +330,17 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), resourceFilter)
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
+	// Attempt to resolve the zoneID from the instance's EC2NodeClass' status condition.
+	// If the EC2NodeClass is nil, we know we're in the List or Get paths, where we don't care about the zone-id value.
+	// If we're in the Create path, we've already validated the EC2NodeClass exists. In this case, we resolve the zone-id from the status condition
+	// both when creating offerings and when adding the label.
+	if nodeClass != nil {
+		if subnet, ok := lo.Find(nodeClass.Status.Subnets, func(s v1beta1.Subnet) bool {
+			return s.Zone == i.Zone
+		}); ok && subnet.ZoneID != "" {
+			labels[v1beta1.LabelTopologyZoneID] = subnet.ZoneID
+		}
+	}
 	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType
 	if v, ok := i.Tags[corev1beta1.NodePoolLabelKey]; ok {
 		labels[corev1beta1.NodePoolLabelKey] = v

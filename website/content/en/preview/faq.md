@@ -17,7 +17,7 @@ AWS is the first cloud provider supported by Karpenter, although it is designed 
 Yes, but there is no documentation yet for it. Start with Karpenter's GitHub [cloudprovider](https://github.com/aws/karpenter-core/tree{{< githubRelRef >}}pkg/cloudprovider) documentation to see how the AWS provider is built, but there are other sections of the code that will require changes too.
 
 ### What operating system nodes does Karpenter deploy?
-Karpenter uses the OS defined by the [AMI Family in your EC2NodeClass]({{< ref "./concepts/nodeclasses#specamifamily" >}}). 
+Karpenter uses the OS defined by the [AMI Family in your EC2NodeClass]({{< ref "./concepts/nodeclasses#specamifamily" >}}).
 
 ### Can I provide my own custom operating system images?
 Karpenter has multiple mechanisms for configuring the [operating system]({{< ref "./concepts/nodeclasses/#specamiselectorterms" >}}) for your nodes.
@@ -231,7 +231,7 @@ Karpenter's native interruption handling offers two main benefits over the stand
 1. You don't have to manage and maintain a separate component to exclusively handle interruption events.
 2. Karpenter's native interruption handling coordinates with other deprovisioning so that consolidation, expiration, etc. can be aware of interruption events and vice-versa.
 
-### Why am I receiving QueueNotFound errors when I set `--interruption-queue-name`?
+### Why am I receiving QueueNotFound errors when I set `--interruption-queue`?
 Karpenter requires a queue to exist that receives event messages from EC2 and health services in order to handle interruption messages properly for nodes.
 
 Details on the types of events that Karpenter handles can be found in the [Interruption Handling Docs]({{< ref "./concepts/disruption/#interruption" >}}).

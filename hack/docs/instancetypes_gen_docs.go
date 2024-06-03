@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -32,13 +33,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	awscloudprovider "github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -95,10 +96,36 @@ func main() {
 		Manager:             &FakeManager{},
 		KubernetesInterface: kubernetes.NewForConfigOrDie(&rest.Config{}),
 	})
-	cp := awscloudprovider.New(op.InstanceTypesProvider, op.InstanceProvider,
-		op.EventRecorder, op.GetClient(), op.AMIProvider, op.SecurityGroupProvider, op.SubnetProvider)
-
-	instanceTypes, err := cp.GetInstanceTypes(ctx, nil)
+	if err := op.InstanceTypesProvider.UpdateInstanceTypes(ctx); err != nil {
+		log.Fatalf("updating instance types, %s", err)
+	}
+	if err := op.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx); err != nil {
+		log.Fatalf("updating instance types offerings, %s", err)
+	}
+	// Fake a NodeClass so we can use it to get InstanceTypes
+	nodeClass := &v1beta1.EC2NodeClass{
+		Spec: v1beta1.EC2NodeClassSpec{
+			AMIFamily: &v1beta1.AMIFamilyAL2023,
+			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+				{
+					Tags: map[string]string{
+						"*": "*",
+					},
+				},
+			},
+		},
+	}
+	subnets, err := op.SubnetProvider.List(ctx, nodeClass)
+	if err != nil {
+		log.Fatalf("listing subnets, %s", err)
+	}
+	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1beta1.Subnet {
+		return v1beta1.Subnet{
+			ID:   *ec2subnet.SubnetId,
+			Zone: *ec2subnet.AvailabilityZone,
+		}
+	})
+	instanceTypes, err := op.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, nodeClass)
 	if err != nil {
 		log.Fatalf("listing instance types, %s", err)
 	}
@@ -123,8 +150,7 @@ description: >
 	fmt.Fprintln(f, `AWS instance types offer varying resources and can be selected by labels. The values provided
 below are the resources available with some assumptions and after the instance overhead has been subtracted:
 - `+"`blockDeviceMappings` are not configured"+`
-- `+"`aws-eni-limited-pod-density` is assumed to be `true`"+`
-- `+"`amiFamily` is set to the default of `AL2`")
+- `+"`amiFamily` is set to `AL2023`")
 
 	// generate a map of family -> instance types along with some other sorted lists.  The sorted lists ensure we
 	// generate consistent docs every run.
@@ -146,7 +172,7 @@ below are the resources available with some assumptions and after the instance o
 
 	// we don't want to show a few labels that will vary amongst regions
 	delete(labelNameMap, v1.LabelTopologyZone)
-	delete(labelNameMap, v1beta1.CapacityTypeLabelKey)
+	delete(labelNameMap, corev1beta1.CapacityTypeLabelKey)
 
 	labelNames := lo.Keys(labelNameMap)
 

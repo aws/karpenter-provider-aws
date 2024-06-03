@@ -20,14 +20,18 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/samber/lo"
+
+	"github.com/awslabs/operatorpkg/reasonable"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
@@ -35,7 +39,6 @@ import (
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 )
 
 type Controller struct {
@@ -43,27 +46,25 @@ type Controller struct {
 	instanceProvider instance.Provider
 }
 
-func NewController(kubeClient client.Client, instanceProvider instance.Provider) corecontroller.Controller {
-	return corecontroller.Typed[*corev1beta1.NodeClaim](kubeClient, &Controller{
+func NewController(kubeClient client.Client, instanceProvider instance.Provider) *Controller {
+	return &Controller{
 		kubeClient:       kubeClient,
 		instanceProvider: instanceProvider,
-	})
-}
-
-func (c *Controller) Name() string {
-	return "nodeclaim.tagging"
+	}
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (reconcile.Result, error) {
+	ctx = injection.WithControllerName(ctx, "nodeclaim.tagging")
+
 	stored := nodeClaim.DeepCopy()
 	if !isTaggable(nodeClaim) {
 		return reconcile.Result{}, nil
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", nodeClaim.Status.ProviderID))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("provider-id", nodeClaim.Status.ProviderID))
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		// We don't throw an error here since we don't want to retry until the ProviderID has been updated.
-		logging.FromContext(ctx).Errorf("failed to parse instance ID, %w", err)
+		log.FromContext(ctx).Error(err, "failed parsing instance id")
 		return reconcile.Result{}, nil
 	}
 	if err = c.tagInstance(ctx, nodeClaim, id); err != nil {
@@ -78,15 +79,18 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeC
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) Builder(_ context.Context, m manager.Manager) corecontroller.Builder {
-	return corecontroller.Adapt(
-		controllerruntime.
-			NewControllerManagedBy(m).
-			For(&corev1beta1.NodeClaim{}).
-			WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
-				return isTaggable(o.(*corev1beta1.NodeClaim))
-			})),
-	)
+func (c *Controller) Register(_ context.Context, m manager.Manager) error {
+	return controllerruntime.NewControllerManagedBy(m).
+		Named("nodeclaim.tagging").
+		For(&corev1beta1.NodeClaim{}).
+		WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
+			return isTaggable(o.(*corev1beta1.NodeClaim))
+		})).
+		// Ok with using the default MaxConcurrentReconciles of 1 to avoid throttling from CreateTag write API
+		WithOptions(controller.Options{
+			RateLimiter: reasonable.RateLimiter(),
+		}).
+		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }
 
 func (c *Controller) tagInstance(ctx context.Context, nc *corev1beta1.NodeClaim, id string) error {

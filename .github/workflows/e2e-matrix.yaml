@@ -7,7 +7,7 @@ on:
         default: "us-east-2"
       k8s_version:
         type: string
-        default: "1.29"
+        default: "1.30"
       cleanup:
         type: boolean
         required: true
@@ -41,7 +41,8 @@ on:
           - "1.27"
           - "1.28"
           - "1.29"
-        default: "1.29"
+          - "1.30"
+        default: "1.30"
       cleanup:
         type: boolean
         required: true
@@ -95,7 +96,7 @@ jobs:
       statuses: write # ./.github/actions/commit-status/start
     uses: ./.github/workflows/e2e-upgrade.yaml
     with:
-      from_git_ref: 283e7b2a51ec73903a6d3f9362fc3009b898ef33
+      from_git_ref: b3076dca62a81caae2d3c4af4fd378c83a901c48
       to_git_ref: ${{ inputs.git_ref }}
       region: ${{ inputs.region }}
       k8s_version: ${{ inputs.k8s_version }}

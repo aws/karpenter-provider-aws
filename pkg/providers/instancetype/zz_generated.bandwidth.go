@@ -20,14 +20,55 @@ package instancetype
 
 var (
 	InstanceTypeBandwidthMegabits = map[string]int64{
-		// c3.large is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// c4.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// i2.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// m2.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// m4.4xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// r3.large is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// t1.micro is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
-		// t2.2xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// c1.medium has vague bandwidth information, bandwidth is Moderate
+		// c1.xlarge has vague bandwidth information, bandwidth is High
+		// c3.2xlarge has vague bandwidth information, bandwidth is High
+		// c3.4xlarge has vague bandwidth information, bandwidth is High
+		// c3.large has vague bandwidth information, bandwidth is Moderate
+		// c3.xlarge has vague bandwidth information, bandwidth is Moderate
+		// c4.2xlarge has vague bandwidth information, bandwidth is High
+		// c4.4xlarge has vague bandwidth information, bandwidth is High
+		// c4.large has vague bandwidth information, bandwidth is Moderate
+		// c4.xlarge has vague bandwidth information, bandwidth is High
+		// d2.2xlarge has vague bandwidth information, bandwidth is High
+		// d2.4xlarge has vague bandwidth information, bandwidth is High
+		// d2.xlarge has vague bandwidth information, bandwidth is Moderate
+		// f1.2xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
+		// f1.4xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
+		// g3.4xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
+		// g3s.xlarge is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
+		// i2.2xlarge has vague bandwidth information, bandwidth is High
+		// i2.4xlarge has vague bandwidth information, bandwidth is High
+		// i2.xlarge has vague bandwidth information, bandwidth is Moderate
+		// m1.large has vague bandwidth information, bandwidth is Moderate
+		// m1.medium has vague bandwidth information, bandwidth is Moderate
+		// m1.small has vague bandwidth information, bandwidth is Low
+		// m1.xlarge has vague bandwidth information, bandwidth is High
+		// m2.2xlarge has vague bandwidth information, bandwidth is Moderate
+		// m2.4xlarge has vague bandwidth information, bandwidth is High
+		// m2.xlarge has vague bandwidth information, bandwidth is Moderate
+		// m3.2xlarge has vague bandwidth information, bandwidth is High
+		// m3.large has vague bandwidth information, bandwidth is Moderate
+		// m3.medium has vague bandwidth information, bandwidth is Moderate
+		// m3.xlarge has vague bandwidth information, bandwidth is High
+		// m4.2xlarge has vague bandwidth information, bandwidth is High
+		// m4.4xlarge has vague bandwidth information, bandwidth is High
+		// m4.large has vague bandwidth information, bandwidth is Moderate
+		// m4.xlarge has vague bandwidth information, bandwidth is High
+		// p2.xlarge has vague bandwidth information, bandwidth is High
+		// p3.2xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
+		// r3.2xlarge has vague bandwidth information, bandwidth is High
+		// r3.4xlarge has vague bandwidth information, bandwidth is High
+		// r3.large has vague bandwidth information, bandwidth is Moderate
+		// r3.xlarge has vague bandwidth information, bandwidth is Moderate
+		// t1.micro has vague bandwidth information, bandwidth is Very Low
+		// t2.2xlarge has vague bandwidth information, bandwidth is Moderate
+		// t2.large has vague bandwidth information, bandwidth is Low to Moderate
+		// t2.medium has vague bandwidth information, bandwidth is Low to Moderate
+		// t2.micro has vague bandwidth information, bandwidth is Low to Moderate
+		// t2.nano has vague bandwidth information, bandwidth is Low to Moderate
+		// t2.small has vague bandwidth information, bandwidth is Low to Moderate
+		// t2.xlarge has vague bandwidth information, bandwidth is Moderate
 		"t3.nano":           32,
 		"t3a.nano":          32,
 		"t4g.nano":          32,
@@ -41,6 +82,7 @@ var (
 		"t3a.medium":        256,
 		"t4g.medium":        256,
 		"c7a.medium":        390,
+		"c7i-flex.large":    390,
 		"m7a.medium":        390,
 		"m7i-flex.large":    390,
 		"r7a.medium":        390,
@@ -90,6 +132,7 @@ var (
 		"c6i.large":         781,
 		"c6id.large":        781,
 		"c7a.large":         781,
+		"c7i-flex.xlarge":   781,
 		"c7i.large":         781,
 		"i4g.large":         781,
 		"i4i.large":         781,
@@ -144,6 +187,7 @@ var (
 		"c6i.xlarge":        1562,
 		"c6id.xlarge":       1562,
 		"c7a.xlarge":        1562,
+		"c7i-flex.2xlarge":  1562,
 		"c7i.xlarge":        1562,
 		"is4gen.medium":     1562,
 		"m6a.xlarge":        1562,
@@ -185,9 +229,9 @@ var (
 		"c5d.2xlarge":       2500,
 		"c6g.2xlarge":       2500,
 		"c6gd.2xlarge":      2500,
-		"f1.2xlarge":        2500,
 		"g5.xlarge":         2500,
 		"g5g.2xlarge":       2500,
+		"g6.xlarge":         2500,
 		"h1.2xlarge":        2500,
 		"i3.2xlarge":        2500,
 		"m5.2xlarge":        2500,
@@ -218,6 +262,7 @@ var (
 		"c6in.large":        3125,
 		"c7a.2xlarge":       3125,
 		"c7gn.medium":       3125,
+		"c7i-flex.4xlarge":  3125,
 		"c7i.2xlarge":       3125,
 		"im4gn.large":       3125,
 		"is4gen.large":      3125,
@@ -261,11 +306,10 @@ var (
 		"c5n.xlarge":        5000,
 		"c6g.4xlarge":       5000,
 		"c6gd.4xlarge":      5000,
-		"f1.4xlarge":        5000,
-		"g3.4xlarge":        5000,
 		"g4dn.xlarge":       5000,
 		"g5.2xlarge":        5000,
 		"g5g.4xlarge":       5000,
+		"g6.2xlarge":        5000,
 		"h1.4xlarge":        5000,
 		"i3.4xlarge":        5000,
 		"inf1.2xlarge":      5000,
@@ -297,6 +341,7 @@ var (
 		"c6in.xlarge":       6250,
 		"c7a.4xlarge":       6250,
 		"c7gn.large":        6250,
+		"c7i-flex.8xlarge":  6250,
 		"c7i.4xlarge":       6250,
 		"im4gn.xlarge":      6250,
 		"is4gen.xlarge":     6250,
@@ -345,6 +390,8 @@ var (
 		"g3.8xlarge":        10000,
 		"g4dn.2xlarge":      10000,
 		"g5.4xlarge":        10000,
+		"g6.4xlarge":        10000,
+		"gr6.4xlarge":       10000,
 		"h1.8xlarge":        10000,
 		"i2.8xlarge":        10000,
 		"i3.8xlarge":        10000,
@@ -508,6 +555,9 @@ var (
 		"g5.8xlarge":        25000,
 		"g5g.16xlarge":      25000,
 		"g5g.metal":         25000,
+		"g6.16xlarge":       25000,
+		"g6.8xlarge":        25000,
+		"gr6.8xlarge":       25000,
 		"h1.16xlarge":       25000,
 		"i3.16xlarge":       25000,
 		"i3.metal":          25000,
@@ -602,6 +652,7 @@ var (
 		"r7i.metal-24xl":    37500,
 		"d3en.6xlarge":      40000,
 		"g5.12xlarge":       40000,
+		"g6.12xlarge":       40000,
 		"c5n.9xlarge":       50000,
 		"c6a.32xlarge":      50000,
 		"c6a.48xlarge":      50000,
@@ -623,6 +674,7 @@ var (
 		"g4dn.16xlarge":     50000,
 		"g4dn.8xlarge":      50000,
 		"g5.24xlarge":       50000,
+		"g6.24xlarge":       50000,
 		"i3en.12xlarge":     50000,
 		"im4gn.8xlarge":     50000,
 		"inf2.24xlarge":     50000,
@@ -691,6 +743,7 @@ var (
 		"dl2q.24xlarge":     100000,
 		"g4dn.metal":        100000,
 		"g5.48xlarge":       100000,
+		"g6.48xlarge":       100000,
 		"hpc6a.48xlarge":    100000,
 		"i3en.24xlarge":     100000,
 		"i3en.metal":        100000,
@@ -738,6 +791,7 @@ var (
 		"c6in.32xlarge":     200000,
 		"c6in.metal":        200000,
 		"c7gn.16xlarge":     200000,
+		"c7gn.metal":        200000,
 		"hpc6id.32xlarge":   200000,
 		"hpc7g.16xlarge":    200000,
 		"hpc7g.4xlarge":     200000,

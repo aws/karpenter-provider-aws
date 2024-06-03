@@ -25,7 +25,7 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
@@ -63,11 +63,11 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 		return nil, err
 	}
 	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroups) {
-		logging.FromContext(ctx).
-			With("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
+		log.FromContext(ctx).
+			WithValues("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
 				return aws.StringValue(s.GroupId)
 			})).
-			Debugf("discovered security groups")
+			V(1).Info("discovered security groups")
 	}
 	return securityGroups, nil
 }
@@ -78,7 +78,9 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 		return nil, err
 	}
 	if sg, ok := p.cache.Get(fmt.Sprint(hash)); ok {
-		return sg.([]*ec2.SecurityGroup), nil
+		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
+		// so that modifications to the ordering of the data don't affect the original
+		return append([]*ec2.SecurityGroup{}, sg.([]*ec2.SecurityGroup)...), nil
 	}
 	securityGroups := map[string]*ec2.SecurityGroup{}
 	for _, filters := range filterSets {

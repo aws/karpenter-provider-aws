@@ -16,6 +16,8 @@ package securitygroup_test
 
 import (
 	"context"
+	"sort"
+	"sync"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -33,8 +35,8 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	. "knative.dev/pkg/logging/testing"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
 
 var ctx context.Context
@@ -329,6 +331,72 @@ var _ = Describe("SecurityGroupProvider", func() {
 				lo.Contains(expectedSecurityGroups, cachedSecurityGroup[0])
 			}
 		})
+	})
+	It("should not cause data races when calling List() simultaneously", func() {
+		wg := sync.WaitGroup{}
+		for i := 0; i < 10000; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				defer GinkgoRecover()
+				securityGroups, err := awsEnv.SecurityGroupProvider.List(ctx, nodeClass)
+				Expect(err).ToNot(HaveOccurred())
+
+				Expect(securityGroups).To(HaveLen(3))
+				// Sort everything in parallel and ensure that we don't get data races
+				sort.Slice(securityGroups, func(i, j int) bool {
+					return *securityGroups[i].GroupId < *securityGroups[j].GroupId
+				})
+				Expect(securityGroups).To(BeEquivalentTo([]*ec2.SecurityGroup{
+					{
+						GroupId:   lo.ToPtr("sg-test1"),
+						GroupName: lo.ToPtr("securityGroup-test1"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   lo.ToPtr("Name"),
+								Value: lo.ToPtr("test-security-group-1"),
+							},
+							{
+								Key:   lo.ToPtr("foo"),
+								Value: lo.ToPtr("bar"),
+							},
+						},
+					},
+					{
+						GroupId:   lo.ToPtr("sg-test2"),
+						GroupName: lo.ToPtr("securityGroup-test2"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   lo.ToPtr("Name"),
+								Value: lo.ToPtr("test-security-group-2"),
+							},
+							{
+								Key:   lo.ToPtr("foo"),
+								Value: lo.ToPtr("bar"),
+							},
+						},
+					},
+					{
+						GroupId:   lo.ToPtr("sg-test3"),
+						GroupName: lo.ToPtr("securityGroup-test3"),
+						Tags: []*ec2.Tag{
+							{
+								Key:   lo.ToPtr("Name"),
+								Value: lo.ToPtr("test-security-group-3"),
+							},
+							{
+								Key: lo.ToPtr("TestTag"),
+							},
+							{
+								Key:   lo.ToPtr("foo"),
+								Value: lo.ToPtr("bar"),
+							},
+						},
+					},
+				}))
+			}()
+		}
+		wg.Wait()
 	})
 })
 

@@ -431,6 +431,10 @@ spec:
 
 AMI Selector Terms are used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). **When you specify `amiSelectorTerms`, you fully override the default AMIs that are selected on by your EC2NodeClass [`amiFamily`]({{< ref "#specamifamily" >}}).**
 
+{{% alert title="Note" color="primary" %}}
+[`amiFamily`]({{< ref "#specamifamily" >}}) determines the bootstrapping mode, while `amiSelectorTerms` specifies specific AMIs to be used. Therefore, you need to ensure consistency between [`amiFamily`]({{< ref "#specamifamily" >}}) and `amiSelectorTerms` to avoid conflicts during bootstrapping.
+{{% /alert %}}
+
 This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
 ```yaml
@@ -1242,3 +1246,36 @@ spec:
 status:
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
 ```
+
+## status.conditions
+
+[`status.conditions`]({{< ref "#statusconditions" >}}) indicates EC2NodeClass readiness. This will be `Ready` when Karpenter successfully discovers AMIs, Instance Profile, Subnets, Cluster CIDR and SecurityGroups for the EC2NodeClass.
+
+```yaml
+spec:
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+status:
+  conditions:
+    Last Transition Time:  2024-05-06T06:04:45Z
+    Message:               Ready
+    Reason:                Ready
+    Status:                True
+    Type:                  Ready
+```
+
+If any of the underlying conditions are not resolved then `Status` is `False` and `Message` indicates the dependency that was not resolved.
+
+```yaml
+spec:
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+status:
+  conditions:
+    Last Transition Time:  2024-05-06T06:19:46Z
+    Message:               unable to resolve instance profile for node class
+    Reason:                NodeClassNotReady
+    Status:                False
+    Type:                  Ready
+```
+{{% alert title="Note" color="primary" %}}
+An EC2NodeClass that uses AL2023 requires the cluster CIDR for launching nodes. Cluster CIDR will not be resolved for EC2NodeClass that doesn't use AL2023.
+{{% /alert %}}

@@ -17,14 +17,14 @@ inputs:
     description: "The git commit, tag, or branch to check out. Requires a corresponding Karpenter snapshot release"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.169.0
+    default: v0.179.0
   private_cluster:
     description: "Whether the cluster that has to be deleted is private or not. Valid values are 'true' or 'false'"
     default: 'false'
 runs:
   using: "composite"
   steps:
-    - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+    - uses: actions/checkout@a5ac7e51b41094c92402da3b24376905380afc29 # v4.1.6
       with:
         ref: ${{ inputs.git_ref }}
     - uses: ./.github/actions/e2e/install-eksctl
@@ -37,7 +37,7 @@ runs:
         CLUSTER_NAME: ${{ inputs.cluster_name }}
       run: |
         eksctl delete cluster --name "$CLUSTER_NAME" --timeout 60m --wait || true
-    - uses: actions/setup-go@0c52d547c9bc32b1aa3301fd7a9cb496313a4491 # v5.0.0
+    - uses: actions/setup-go@cdcb36043654635271a94b9a6d1392de5bb323a7 # v5.0.1
       with:
         go-version-file: test/hack/resource/go.mod
         cache-dependency-path: test/hack/resource/go.sum

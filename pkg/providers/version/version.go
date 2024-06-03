@@ -22,7 +22,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
-	"knative.dev/pkg/logging"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
@@ -33,7 +33,7 @@ const (
 	// If a user runs a karpenter image on a k8s version outside the min and max,
 	// One error message will be fired to notify
 	MinK8sVersion = "1.23"
-	MaxK8sVersion = "1.29"
+	MaxK8sVersion = "1.30"
 )
 
 type Provider interface {
@@ -67,9 +67,9 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	version := fmt.Sprintf("%s.%s", serverVersion.Major, strings.TrimSuffix(serverVersion.Minor, "+"))
 	p.cache.SetDefault(kubernetesVersionCacheKey, version)
 	if p.cm.HasChanged("kubernetes-version", version) {
-		logging.FromContext(ctx).With("version", version).Debugf("discovered kubernetes version")
+		log.FromContext(ctx).WithValues("version", version).V(1).Info("discovered kubernetes version")
 		if err := validateK8sVersion(version); err != nil {
-			logging.FromContext(ctx).Error(err)
+			log.FromContext(ctx).Error(err, "failed validating kubernetes version")
 		}
 	}
 	return version, nil

@@ -3,7 +3,7 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   annotations:
-    controller-gen.kubebuilder.io/version: v0.14.0
+    controller-gen.kubebuilder.io/version: v0.15.0
   name: nodepools.karpenter.sh
 spec:
   group: karpenter.sh
@@ -190,7 +190,7 @@ spec:
                             - message: label "kubernetes.io/hostname" is restricted
                               rule: self.all(x, x != "kubernetes.io/hostname")
                             - message: label domain "karpenter.k8s.aws" is restricted
-                              rule: self.all(x, x in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
+                              rule: self.all(x, x in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
                       type: object
                     spec:
                       description: NodeClaimSpec describes the desired state of the NodeClaim
@@ -348,7 +348,7 @@ spec:
                                   - message: label "kubernetes.io/hostname" is restricted
                                     rule: self != "kubernetes.io/hostname"
                                   - message: label domain "karpenter.k8s.aws" is restricted
-                                    rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
+                                    rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                               minValues:
                                 description: |-
                                   This field is ALPHA and can be dropped or replaced at any time
@@ -378,6 +378,7 @@ spec:
                                 items:
                                   type: string
                                 type: array
+                                x-kubernetes-list-type: atomic
                                 maxLength: 63
                                 pattern: ^(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])?$
                             required:

@@ -15,12 +15,9 @@ limitations under the License.
 package status_test
 
 import (
-	"github.com/samber/lo"
-	_ "knative.dev/pkg/system/testing"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -38,7 +35,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 	It("should create the instance profile when it doesn't exist", func() {
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -57,7 +54,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -81,7 +78,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -105,7 +102,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass.Spec.Role = "test-role"
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.InstanceProfiles).To(HaveLen(1))
 		Expect(awsEnv.IAMAPI.InstanceProfiles[profileName].Roles).To(HaveLen(1))
@@ -118,7 +115,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(lo.FromPtr(nodeClass.Spec.InstanceProfile)))
@@ -127,7 +124,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = lo.ToPtr("test-instance-profile")
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectReconcileSucceeded(ctx, statusController, client.ObjectKeyFromObject(nodeClass))
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 
 		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())

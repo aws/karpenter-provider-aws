@@ -17,8 +17,6 @@ package drift_test
 import (
 	"fmt"
 	"sort"
-	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -37,8 +35,6 @@ import (
 	awssdk "github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/ssm"
-
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -80,7 +76,7 @@ var _ = Describe("Drift", func() {
 	var selector labels.Selector
 	var numPods int
 	BeforeEach(func() {
-		amdAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", 1)
+		amdAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 		numPods = 1
 		// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
 		dep = coretest.Deployment(coretest.DeploymentOptions{
@@ -263,56 +259,34 @@ var _ = Describe("Drift", func() {
 		})
 		It("should respect budgets for non-empty replace drift", func() {
 			appLabels := map[string]string{"app": "large-app"}
-
-			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceSize,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{"xlarge"},
-					},
-				},
-				// Add an Exists operator so that we can select on a fake partition later
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      "test-partition",
-						Operator: v1.NodeSelectorOpExists,
-					},
-				},
-			)
 			nodePool.Labels = appLabels
 			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.
 			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
 				Nodes: "3",
 			}}
 
-			// Make 5 pods all with different deployments and different test partitions, so that each pod can be put
-			// on a separate node.
-			selector = labels.SelectorFromSet(appLabels)
+			// Create a 5 pod deployment with hostname inter-pod anti-affinity to ensure each pod is placed on a unique node
 			numPods = 5
-			deployments := make([]*appsv1.Deployment, numPods)
-			for i := range lo.Range(numPods) {
-				deployments[i] = coretest.Deployment(coretest.DeploymentOptions{
-					Replicas: 1,
-					PodOptions: coretest.PodOptions{
-						ObjectMeta: metav1.ObjectMeta{
-							Labels: appLabels,
-						},
-						NodeSelector: map[string]string{"test-partition": fmt.Sprintf("%d", i)},
-						// Each xlarge has 4 cpu, so each node should fit no more than 1 pod.
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{
-								v1.ResourceCPU: resource.MustParse("3"),
-							},
-						},
+			selector = labels.SelectorFromSet(appLabels)
+			deployment := coretest.Deployment(coretest.DeploymentOptions{
+				Replicas: int32(numPods),
+				PodOptions: coretest.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: appLabels,
 					},
-				})
-			}
+					PodAntiRequirements: []v1.PodAffinityTerm{{
+						TopologyKey: v1.LabelHostname,
+						LabelSelector: &metav1.LabelSelector{
+							MatchLabels: appLabels,
+						},
+					}},
+				},
+			})
 
-			env.ExpectCreated(nodeClass, nodePool, deployments[0], deployments[1], deployments[2], deployments[3], deployments[4])
+			env.ExpectCreated(nodeClass, nodePool, deployment)
 
-			originalNodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 5)
-			originalNodes := env.EventuallyExpectCreatedNodeCount("==", 5)
+			originalNodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", numPods)
+			originalNodes := env.EventuallyExpectCreatedNodeCount("==", numPods)
 
 			// Check that all deployment pods are online
 			env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -397,14 +371,11 @@ var _ = Describe("Drift", func() {
 		})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
-		// Choose and old, static image. The 1.23 image is incompatible with EKS 1.29 so fallback to a newer image.
-		parameterName := lo.Ternary(lo.Must(strconv.Atoi(strings.Split(env.GetK8sVersion(0), ".")[1])) >= 29,
-			"/aws/service/eks/optimized-ami/1.27/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.27-v20240307/image_id",
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/arm64/standard/amazon-eks-node-al2023-arm64-standard-1.23-v20240307/image_id",
-		)
-		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: awssdk.String(parameterName)})
-		Expect(err).To(BeNil())
-		oldCustomAMI := *parameter.Parameter.Value
+		// Choose an old static image (AL2023 AMIs don't exist for 1.22)
+		oldCustomAMI := env.GetAMIBySSMPath(lo.Ternary(env.K8sMinorVersion() == 23,
+			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240307/image_id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)),
+		))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
 
@@ -425,12 +396,7 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
-		version := env.GetK8sVersion(1)
-		armParameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version)),
-		})
-		Expect(err).To(BeNil())
-		armAMI := *armParameter.Parameter.Value
+		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersion()))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: armAMI}}
 
@@ -451,18 +417,13 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
-		version := env.GetK8sVersion(1)
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
+
 		// Choose an old static image (AL2023 AMIs don't exist for 1.22)
-		parameterName := lo.Ternary(lo.Must(strconv.Atoi(strings.Split(env.GetK8sVersion(0), ".")[1])) == 23,
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/arm64/standard/amazon-eks-node-al2023-arm64-standard-1.23-v20240307/image_id",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version),
-		)
-		parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-			Name: awssdk.String(parameterName),
-		})
-		Expect(err).To(BeNil())
-		oldCustomAMI := *parameter.Parameter.Value
+		oldCustomAMI := env.GetAMIBySSMPath(lo.Ternary(env.K8sMinorVersion() == 23,
+			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240307/image_id",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)),
+		))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
 
@@ -554,7 +515,7 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should disrupt nodes that have drifted due to subnets", func() {
-		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+		subnets := env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(subnets)).To(BeNumerically(">", 1))
 
 		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{ID: subnets[0].ID}}
@@ -744,8 +705,8 @@ var _ = Describe("Drift", func() {
 		By("validating the drifted status condition has propagated")
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
-			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted)).ToNot(BeNil())
-			g.Expect(nodeClaim.StatusConditions().GetCondition(corev1beta1.Drifted).IsTrue()).To(BeTrue())
+			g.Expect(nodeClaim.StatusConditions().Get(corev1beta1.ConditionTypeDrifted)).ToNot(BeNil())
+			g.Expect(nodeClaim.StatusConditions().Get(corev1beta1.ConditionTypeDrifted).IsTrue()).To(BeTrue())
 		}).Should(Succeed())
 
 		delete(pod.Annotations, corev1beta1.DoNotDisruptAnnotationKey)
@@ -851,7 +812,7 @@ var _ = Describe("Drift", func() {
 		env.ConsistentlyExpectNodeClaimsNotDrifted(time.Minute, nodeClaim)
 	})
 	Context("Failure", func() {
-		It("should not continue to drift if a node never registers", func() {
+		It("should not disrupt a drifted node if the replacement node never registers", func() {
 			// launch a new nodeClaim
 			var numPods int32 = 2
 			dep := coretest.Deployment(coretest.DeploymentOptions{
@@ -872,40 +833,30 @@ var _ = Describe("Drift", func() {
 			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
 
 			// Drift the nodeClaim with bad configuration that will not register a NodeClaim
-			parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{
-				Name: awssdk.String("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs"),
-			})
-			Expect(err).ToNot(HaveOccurred())
-			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: *parameter.Parameter.Value}}
+			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: env.GetAMIBySSMPath("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs")}}
 			env.ExpectCreatedOrUpdated(nodeClass)
 
 			env.EventuallyExpectDrifted(startingNodeClaimState...)
 
-			// Expect nodes To get tainted
+			// Expect only a single node to be tainted due to default disruption budgets
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
 			// Drift should fail and the original node should be untainted
 			// TODO: reduce timeouts when disruption waits are factored out
 			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, taintedNodes...)
 
-			// We give another 6 minutes here to handle the deletion at the 15m registration timeout
-			Eventually(func(g Gomega) {
-				nodeClaims := &corev1beta1.NodeClaimList{}
-				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-				g.Expect(nodeClaims.Items).To(HaveLen(int(numPods)))
-			}).WithTimeout(6 * time.Minute).Should(Succeed())
-
-			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed
+			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed.
+			// Assert this over several minutes to ensure a subsequent disruption controller pass doesn't
+			// successfully schedule the evicted pods to the in-flight nodeclaim and disrupt the original node
 			Consistently(func(g Gomega) {
 				nodeClaims := &corev1beta1.NodeClaimList{}
 				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-
-				startingNodeClaimUIDs := lo.Map(startingNodeClaimState, func(nc *corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })
-				nodeClaimUIDs := lo.Map(nodeClaims.Items, func(nc corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })
-				g.Expect(sets.New(nodeClaimUIDs...).IsSuperset(sets.New(startingNodeClaimUIDs...))).To(BeTrue())
+				startingNodeClaimUIDs := sets.New(lo.Map(startingNodeClaimState, func(nc *corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })...)
+				nodeClaimUIDs := sets.New(lo.Map(nodeClaims.Items, func(nc corev1beta1.NodeClaim, _ int) types.UID { return nc.UID })...)
+				g.Expect(nodeClaimUIDs.IsSuperset(startingNodeClaimUIDs)).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
-		It("should not continue to drift if a node registers but never becomes initialized", func() {
+		It("should not disrupt a drifted node if the replacement node registers but never initialized", func() {
 			// launch a new nodeClaim
 			var numPods int32 = 2
 			dep := coretest.Deployment(coretest.DeploymentOptions{
@@ -931,7 +882,7 @@ var _ = Describe("Drift", func() {
 
 			env.EventuallyExpectDrifted(startingNodeClaimState...)
 
-			// Expect nodes to be tainted
+			// Expect only a single node to get tainted due to default disruption budgets
 			taintedNodes := env.EventuallyExpectTaintedNodeCount("==", 1)
 
 			// Drift should fail and original node should be untainted
@@ -948,13 +899,14 @@ var _ = Describe("Drift", func() {
 			Expect(nodeClaimList.Items).To(HaveLen(int(numPods) + 1))
 
 			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed
+			// Assert this over several minutes to ensure a subsequent disruption controller pass doesn't
+			// successfully schedule the evicted pods to the in-flight nodeclaim and disrupt the original node
 			Consistently(func(g Gomega) {
 				nodeClaims := &corev1beta1.NodeClaimList{}
 				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-
-				startingNodeClaimUIDs := lo.Map(startingNodeClaimState, func(m *corev1beta1.NodeClaim, _ int) types.UID { return m.UID })
-				nodeClaimUIDs := lo.Map(nodeClaims.Items, func(m corev1beta1.NodeClaim, _ int) types.UID { return m.UID })
-				g.Expect(sets.New(nodeClaimUIDs...).IsSuperset(sets.New(startingNodeClaimUIDs...))).To(BeTrue())
+				startingNodeClaimUIDs := sets.New(lo.Map(startingNodeClaimState, func(m *corev1beta1.NodeClaim, _ int) types.UID { return m.UID })...)
+				nodeClaimUIDs := sets.New(lo.Map(nodeClaims.Items, func(m corev1beta1.NodeClaim, _ int) types.UID { return m.UID })...)
+				g.Expect(nodeClaimUIDs.IsSuperset(startingNodeClaimUIDs)).To(BeTrue())
 			}, "2m").Should(Succeed())
 		})
 		It("should not drift any nodes if their PodDisruptionBudgets are unhealthy", func() {

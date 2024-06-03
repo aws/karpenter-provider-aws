@@ -15,7 +15,8 @@ limitations under the License.
 package v1beta1
 
 import (
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"github.com/awslabs/operatorpkg/status"
+	v1 "k8s.io/api/core/v1"
 )
 
 // Subnet contains resolved Subnet selector values utilized for node launch
@@ -26,6 +27,9 @@ type Subnet struct {
 	// The associated availability zone
 	// +required
 	Zone string `json:"zone"`
+	// The associated availability zone ID
+	// +optional
+	ZoneID string `json:"zoneID,omitempty"`
 }
 
 // SecurityGroup contains resolved SecurityGroup selector values utilized for node launch
@@ -48,7 +52,7 @@ type AMI struct {
 	Name string `json:"name,omitempty"`
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
-	Requirements []corev1beta1.NodeSelectorRequirementWithMinValues `json:"requirements"`
+	Requirements []v1.NodeSelectorRequirement `json:"requirements"`
 }
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass
@@ -68,4 +72,19 @@ type EC2NodeClassStatus struct {
 	// InstanceProfile contains the resolved instance profile for the role
 	// +optional
 	InstanceProfile string `json:"instanceProfile,omitempty"`
+	// Conditions contains signals for health and readiness
+	// +optional
+	Conditions []status.Condition `json:"conditions,omitempty"`
+}
+
+func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
+	return status.NewReadyConditions().For(in)
+}
+
+func (in *EC2NodeClass) GetConditions() []status.Condition {
+	return in.Status.Conditions
+}
+
+func (in *EC2NodeClass) SetConditions(conditions []status.Condition) {
+	in.Status.Conditions = conditions
 }

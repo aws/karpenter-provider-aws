@@ -22,11 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -36,7 +34,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
 	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 var _ = Describe("KubeletConfiguration Overrides", func() {
@@ -44,8 +41,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		BeforeEach(func() {
 			// MaxPods needs to account for the daemonsets that will run on the nodes
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-				MaxPods:     ptr.Int32(110),
-				PodsPerCore: ptr.Int32(10),
+				MaxPods:     lo.ToPtr(int32(110)),
+				PodsPerCore: lo.ToPtr(int32(10)),
 				SystemReserved: map[string]string{
 					string(v1.ResourceCPU):              "200m",
 					string(v1.ResourceMemory):           "200Mi",
@@ -80,24 +77,22 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 					"imagefs.inodesFree": {Duration: time.Minute * 2},
 					"pid.available":      {Duration: time.Minute * 2},
 				},
-				EvictionMaxPodGracePeriod:   ptr.Int32(120),
-				ImageGCHighThresholdPercent: ptr.Int32(50),
-				ImageGCLowThresholdPercent:  ptr.Int32(10),
-				CPUCFSQuota:                 ptr.Bool(false),
+				EvictionMaxPodGracePeriod:   lo.ToPtr(int32(120)),
+				ImageGCHighThresholdPercent: lo.ToPtr(int32(50)),
+				ImageGCLowThresholdPercent:  lo.ToPtr(int32(10)),
+				CPUCFSQuota:                 lo.ToPtr(false),
 			}
 		})
 		DescribeTable("Linux AMIFamilies",
 			func(amiFamily *string) {
 				nodeClass.Spec.AMIFamily = amiFamily
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
-				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.GetK8sVersion(0) == "1.29" {
+				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.K8sMinorVersion() >= 29 {
 					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
 						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
 						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
-					}, func(arg string, _ int) v1beta1.AMISelectorTerm {
-						parameter, err := env.SSMAPI.GetParameter(&ssm.GetParameterInput{Name: lo.ToPtr(arg)})
-						Expect(err).To(BeNil())
-						return v1beta1.AMISelectorTerm{ID: *parameter.Parameter.Value}
+					}, func(ssmPath string, _ int) v1beta1.AMISelectorTerm {
+						return v1beta1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
 					})
 				}
 				pod := test.Pod(test.PodOptions{
@@ -162,7 +157,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
 		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-			MaxPods: ptr.Int32(1 + int32(dsCount)),
+			MaxPods: lo.ToPtr(int32(1 + int32(dsCount))),
 		}
 
 		numPods := 3
@@ -220,7 +215,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		//      4 DS pods and 2 test pods.
 		dsCount := env.GetDaemonSetCount(nodePool)
 		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-			PodsPerCore: ptr.Int32(int32(math.Ceil(float64(2+dsCount) / 2))),
+			PodsPerCore: lo.ToPtr(int32(math.Ceil(float64(2+dsCount) / 2))),
 		}
 
 		env.ExpectCreated(nodeClass, nodePool, dep)
@@ -242,7 +237,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			},
 		)
 
-		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{PodsPerCore: ptr.Int32(1)}
+		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{PodsPerCore: lo.ToPtr(int32(1))}
 		numPods := 6
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),

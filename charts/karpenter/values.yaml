@@ -101,9 +101,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 0.36.0
+    tag: 0.37.0
     # -- SHA256 digest of the controller image.
-    digest: sha256:90adaba9e8e9f66244324ca64408a5abbfe063f8c41fbbfebf226bdda4fadd58
+    digest: sha256:157f478f5db1fe999f5e2d27badcc742bf51cc470508b3cebe78224d0947674f
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -191,7 +191,8 @@ settings:
   isolatedVPC: false
   # -- The VM memory overhead as a percent that will be subtracted from the total memory for all instance types
   vmMemoryOverheadPercent: 0.075
-  # -- interruptionQueue is disabled if not specified. Enabling interruption handling may
+  # -- Interruption queue is the name of the SQS queue used for processing interruption events from EC2
+  # Interruption handling is disabled if not specified. Enabling interruption handling may
   # require additional permissions on the controller service account. Additional permissions are outlined in the docs.
   interruptionQueue: ""
   # -- Reserved ENIs are not included in the calculations for max-pods or kube-reserved

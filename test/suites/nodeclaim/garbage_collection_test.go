@@ -45,11 +45,11 @@ var _ = Describe("GarbageCollection", func() {
 
 	BeforeEach(func() {
 		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
-		subnets := env.GetSubnetNameAndIds(map[string]string{"karpenter.sh/discovery": env.ClusterName})
+		subnets := env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(securityGroups).ToNot(HaveLen(0))
 		Expect(subnets).ToNot(HaveLen(0))
 
-		customAMI = env.GetCustomAMI("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", 1)
+		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 		instanceProfileName = fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName)
 		roleName = fmt.Sprintf("KarpenterNodeRole-%s", env.ClusterName)
 		instanceInput = &ec2.RunInstancesInput{
@@ -98,10 +98,10 @@ var _ = Describe("GarbageCollection", func() {
 	})
 	It("should succeed to garbage collect an Instance that was launched by a NodeClaim but has no Instance mapping", func() {
 		// Update the userData for the instance input with the correct NodePool
-		rawContent, err := os.ReadFile("testdata/al2_userdata_input.sh")
+		rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
 		Expect(err).ToNot(HaveOccurred())
 		instanceInput.UserData = lo.ToPtr(base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf(string(rawContent), env.ClusterName,
-			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))))
+			env.ClusterEndpoint, env.ExpectCABundle()))))
 
 		env.ExpectInstanceProfileCreated(instanceProfileName, roleName)
 		DeferCleanup(func() {

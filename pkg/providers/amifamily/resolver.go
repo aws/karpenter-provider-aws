@@ -15,7 +15,6 @@ limitations under the License.
 package amifamily
 
 import (
-	"context"
 	"fmt"
 	"net"
 
@@ -120,18 +119,14 @@ func NewResolver(amiProvider Provider) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
+func (r Resolver) Resolve(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
-	amis, err := r.amiProvider.Get(ctx, nodeClass, options)
-	if err != nil {
-		return nil, err
-	}
-	if len(amis) == 0 {
+	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
-	mappedAMIs := amis.MapToInstanceTypes(instanceTypes)
+	mappedAMIs := MapToInstanceTypes(instanceTypes, nodeClass.Status.AMIs)
 	if len(mappedAMIs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", amis)
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", lo.Uniq(lo.Map(nodeClass.Status.AMIs, func(a v1beta1.AMI, _ int) string { return a.ID })))
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {

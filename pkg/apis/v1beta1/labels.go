@@ -37,6 +37,7 @@ func init() {
 		LabelInstanceCPU,
 		LabelInstanceCPUManufacturer,
 		LabelInstanceMemory,
+		LabelInstanceEBSBandwidth,
 		LabelInstanceNetworkBandwidth,
 		LabelInstanceGPUName,
 		LabelInstanceGPUManufacturer,
@@ -45,15 +46,13 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
+		LabelTopologyZoneID,
 		v1.LabelWindowsBuild,
 	)
 }
 
-const (
-	TerminationFinalizer = Group + "/termination"
-)
-
 var (
+	TerminationFinalizer   = Group + "/termination"
 	AWSToKubeArchitectures = map[string]string{
 		"x86_64":                  v1beta1.ArchitectureAmd64,
 		v1beta1.ArchitectureArm64: v1beta1.ArchitectureArm64,
@@ -96,6 +95,8 @@ var (
 
 	LabelNodeClass = Group + "/ec2nodeclass"
 
+	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
+
 	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"
 	LabelInstanceCategory                     = Group + "/instance-category"
@@ -106,6 +107,7 @@ var (
 	LabelInstanceCPU                          = Group + "/instance-cpu"
 	LabelInstanceCPUManufacturer              = Group + "/instance-cpu-manufacturer"
 	LabelInstanceMemory                       = Group + "/instance-memory"
+	LabelInstanceEBSBandwidth                 = Group + "/instance-ebs-bandwidth"
 	LabelInstanceNetworkBandwidth             = Group + "/instance-network-bandwidth"
 	LabelInstanceGPUName                      = Group + "/instance-gpu-name"
 	LabelInstanceGPUManufacturer              = Group + "/instance-gpu-manufacturer"
@@ -118,6 +120,7 @@ var (
 	AnnotationEC2NodeClassHashVersion         = Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = Group + "/tagged"
 
-	TagNodeClaim = v1beta1.Group + "/nodeclaim"
-	TagName      = "Name"
+	TagNodeClaim             = v1beta1.Group + "/nodeclaim"
+	TagManagedLaunchTemplate = Group + "/cluster"
+	TagName                  = "Name"
 )
