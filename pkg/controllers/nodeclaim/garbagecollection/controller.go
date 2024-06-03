@@ -19,20 +19,22 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-	"sigs.k8s.io/karpenter/pkg/operator/controller"
 )
 
 type Controller struct {
@@ -49,7 +51,9 @@ func NewController(kubeClient client.Client, cloudProvider cloudprovider.CloudPr
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
+	ctx = injection.WithControllerName(ctx, "nodeclaim.garbagecollection")
+
 	// We LIST machines on the CloudProvider BEFORE we grab Machines/Nodes on the cluster so that we make sure that, if
 	// LISTing instances takes a long time, our information is more updated by the time we get to Machine and Node LIST
 	// This works since our CloudProvider instances are deleted based on whether the Machine exists or not, not vise-versa
@@ -105,7 +109,8 @@ func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.Node
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
-	return controller.NewSingletonManagedBy(m).
+	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodeclaim.garbagecollection").
-		Complete(c)
+		WatchesRawSource(singleton.Source()).
+		Complete(singleton.AsReconciler(c))
 }
