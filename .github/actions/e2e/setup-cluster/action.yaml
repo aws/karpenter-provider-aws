@@ -30,7 +30,7 @@ inputs:
     default: "1.30"
   eksctl_version:
     description: "Version of eksctl to install"
-    default: v0.179.0
+    default: v0.180.0
   ip_family:
     description: "IP Family of the cluster. Valid values are IPv4 or IPv6"
     default: "IPv4"
@@ -211,11 +211,6 @@ runs:
       else
         eksctl ${cmd} cluster -f clusterconfig.yaml
       fi
-
-      # TODO (jmdeal): Remove this once eksctl resolves this issue
-      # Remove the serviceaccount created by eksctl as of 1.77.0 for pod identity associations. This service account causes our helm chart installation to fail.
-      # Reference: https://github.com/eksctl-io/eksctl/issues/7775
-      kubectl delete sa -n kube-system karpenter || true
   - name: tag oidc provider of the cluster
     if: always()
     shell: bash
