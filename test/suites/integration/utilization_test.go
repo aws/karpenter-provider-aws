@@ -38,9 +38,9 @@ var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), fun
 		test.ReplaceRequirements(nodePool,
 			corev1beta1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceTypeStable,
+					Key:      v1beta1.LabelInstanceCPU,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{"t3.small"},
+					Values:   []string{"2"},
 				},
 			},
 			corev1beta1.NodeSelectorRequirementWithMinValues{
