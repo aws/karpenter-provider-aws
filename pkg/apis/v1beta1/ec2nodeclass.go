@@ -21,7 +21,6 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 )
 
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
@@ -356,7 +355,7 @@ func (in *EC2NodeClass) InstanceProfileRole() string {
 func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]string {
 	return lo.Assign(in.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
-		corev1beta1.ManagedByAnnotationKey:                   clusterName,
+		EksClusterNameAnnotationKey:                          clusterName,
 		LabelNodeClass:                                       in.Name,
 	})
 }

@@ -86,7 +86,7 @@ var _ = Describe("Tags", func() {
 	})
 
 	Context("Tagging Controller", func() {
-		It("should tag with karpenter.sh/nodeclaim and Name tag", func() {
+		It("should tag with karpenter.sh/nodeclaim, eks:cluster-name, and Name tag", func() {
 			pod := coretest.Pod()
 
 			env.ExpectCreated(nodePool, nodeClass, pod)
@@ -102,6 +102,7 @@ var _ = Describe("Tags", func() {
 
 			nodeInstance := instance.NewInstance(lo.ToPtr(env.GetInstance(node.Name)))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", node.Name))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue(v1beta1.EksClusterNameAnnotationKey, node.Name))
 			Expect(nodeInstance.Tags).To(HaveKey("karpenter.sh/nodeclaim"))
 		})
 
