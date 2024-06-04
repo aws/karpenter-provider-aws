@@ -207,6 +207,8 @@ For information on upgrading Karpenter, see the [Upgrade Guide]({{< ref "./upgra
 
 ### How do I upgrade an EKS Cluster with Karpenter?
 
+Karpenter recommends that you always validate AMIs in your lower environments before using them in production environments. Read [Managing AMIs]({{<ref "./tasks/managing-amis" >}}) to understand best practices about upgrading your AMIs.
+
 When upgrading an Amazon EKS cluster, [Karpenter's Drift feature]({{<ref "./concepts/disruption#drift" >}}) can automatically upgrade the Karpenter-provisioned nodes to stay in-sync with the EKS control plane. Karpenter Drift currently needs to be enabled using a [feature gate]({{<ref "./reference/settings#feature-gates" >}}).
 
 {{% alert title="Note" color="primary" %}}
