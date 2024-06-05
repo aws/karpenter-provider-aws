@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1
 
 import (
 	"fmt"
@@ -318,7 +318,6 @@ const (
 
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 // +kubebuilder:resource:path=ec2nodeclasses,scope=Cluster,categories=karpenter,shortName={ec2nc,ec2ncs}
 // +kubebuilder:subresource:status
 type EC2NodeClass struct {
