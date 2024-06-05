@@ -42,7 +42,7 @@ func (s *Stack) Global() bool {
 }
 
 func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (names []string, err error) {
-	stacks, err := s.getAllStacks(ctx, &cloudformation.DescribeStacksInput{})
+	stacks, err := s.getAllStacks(ctx)
 	if err != nil {
 		return names, err
 	}
@@ -68,7 +68,7 @@ func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time, exclud
 }
 
 func (s *Stack) CountAll(ctx context.Context) (count int, err error) {
-	stacks, err := s.getAllStacks(ctx, &cloudformation.DescribeStacksInput{})
+	stacks, err := s.getAllStacks(ctx)
 	if err != nil {
 		return count, err
 	}
@@ -77,7 +77,7 @@ func (s *Stack) CountAll(ctx context.Context) (count int, err error) {
 }
 
 func (s *Stack) Get(ctx context.Context, clusterName string) (names []string, err error) {
-	stacks, err := s.getAllStacks(ctx, &cloudformation.DescribeStacksInput{})
+	stacks, err := s.getAllStacks(ctx)
 	if err != nil {
 		return names, err
 	}
@@ -110,8 +110,8 @@ func (s *Stack) Cleanup(ctx context.Context, names []string) ([]string, error) {
 	return deleted, errs
 }
 
-func (s *Stack) getAllStacks(ctx context.Context, params *cloudformation.DescribeStacksInput) (stacks []cloudformationtypes.Stack, err error) {
-	paginator := cloudformation.NewDescribeStacksPaginator(s.cloudFormationClient, params)
+func (s *Stack) getAllStacks(ctx context.Context) (stacks []cloudformationtypes.Stack, err error) {
+	paginator := cloudformation.NewDescribeStacksPaginator(s.cloudFormationClient, &cloudformation.DescribeStacksInput{})
 
 	for paginator.HasMorePages() {
 		out, err := paginator.NextPage(ctx)
