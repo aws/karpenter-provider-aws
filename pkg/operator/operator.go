@@ -54,6 +54,7 @@ import (
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/carbon"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
@@ -137,12 +138,22 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
-	pricingProvider := pricing.NewDefaultProvider(
-		ctx,
-		pricing.NewAPI(sess, *sess.Config.Region),
-		ec2api,
-		*sess.Config.Region,
-	)
+	var pricingProvider pricing.Provider
+	if options.FromContext(ctx).CarbonEfficient {
+		pricingProvider = carbon.NewProvider(
+			ctx,
+			pricing.NewAPI(sess, *sess.Config.Region),
+			ec2api,
+			*sess.Config.Region,
+		)
+	} else {
+		pricingProvider = pricing.NewDefaultProvider(
+			ctx,
+			pricing.NewAPI(sess, *sess.Config.Region),
+			ec2api,
+			*sess.Config.Region,
+		)
+	}
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.NewResolver(amiProvider)
