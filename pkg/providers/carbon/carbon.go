@@ -17,6 +17,7 @@ package carbon
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -28,7 +29,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-core/pkg/utils/pretty"
+	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 )
 
 // CarbonProvider provides actual pricing data to the AWS cloud provider to allow it to make more informed decisions
@@ -61,7 +62,6 @@ type zonal struct {
 
 type Err struct {
 	error
-	lastUpdateTime time.Time
 }
 
 func newZonalPricing(defaultPrice float64) zonal {
@@ -143,6 +143,14 @@ func (p *CarbonProvider) UpdateOnDemandPricing(ctx context.Context) error {
 }
 
 func (p *CarbonProvider) UpdateSpotPricing(ctx context.Context) error {
+	return nil
+}
+
+func (p *CarbonProvider) LivenessProbe(_ *http.Request) error {
+	// ensure we don't deadlock and nolint for the empty critical section
+	p.mu.Lock()
+	//nolint: staticcheck
+	p.mu.Unlock()
 	return nil
 }
 
