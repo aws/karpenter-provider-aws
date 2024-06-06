@@ -46,7 +46,7 @@ import (
 var _ = Describe("AMI", func() {
 	var customAMI string
 	BeforeEach(func() {
-		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		customAMI = env.GetAMIBySSMPath(env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersion(), "amd64", 0))
 	})
 
 	It("should use the AMI defined by the AMI Selector Terms", func() {
@@ -64,7 +64,8 @@ var _ = Describe("AMI", func() {
 	})
 	It("should use the most recent AMI when discovering multiple", func() {
 		// choose an old static image that will definitely have an older creation date
-		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240514/image_id", env.K8sVersion()))
+		oldCustomAMI := env.GetAMIBySSMPath(env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersion(), "amd64", 1))
+
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 			{
 				ID: customAMI,
@@ -185,7 +186,7 @@ var _ = Describe("AMI", func() {
 		})
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
-			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+			al2023AMI := env.GetAMIBySSMPath(env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersion(), "amd64", 0))
 			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
 				{
 					ID: al2023AMI,
