@@ -44,14 +44,15 @@ Both these entities are supported in Launch Template's CapacityReservationTarget
 
 ## Goals
 
-- Support associating targeted ODCRs to EC2NodeClass
+- Support associating ODCRs to EC2NodeClass
+  - open
+  - targeted
 - Define Karpenter's behavior when using new Capacity Type "capacity-reservation" in NodePool
 - Define Karpenter's behavior when encountering errors when attempting to launch nodes into Capacity Reservation
 - Define Karpenter's behavior when consolidating nodes to Capacity Reservation when available
 
 ## Non-Goals
 
-- Supporting open Capacity Reservations. _The behaviour of indirectly linked nodes to an open ODCR can cause rotation, adding unnecessary node rotation into the cluster_
 - Supporting capacity-blocks as a capacity-type.
 - Supporting changes in scaling behavior when ODCR is associated to a NodeClass. _We won't bring up N nodes to match an N node capacity reservation, this would directly interfear with the ability to share a Capacity Reservation between multiple clusters or accounts. The first Karpenter finding the Capacity Reservation would provision all instances for a reservation leaving nothing unused_
 - Supporting Capacity Reservation Groups. _Adding this abstraction for now adds additional complexity_
@@ -77,6 +78,8 @@ spec:
       availabilityZone: String | None
       # The platform of operating system for which the Capacity Reservation reserves capacity
       id: String | None
+      # The instance Match Criteria of the Capacity Reservation (targeted | open)
+      instanceMatchCriteria: String | None
       # The type of operating system for which the Capacity Reservation reserves capacity
       instancePlatform: String | None
       # The instance type for which the Capacity Reservation reserves capacity
