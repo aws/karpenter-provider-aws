@@ -192,6 +192,16 @@ Then the pod can declare that custom label.
 
 See [nodeSelector](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#nodeselector) in the Kubernetes documentation for details.
 
+## Preferences
+
+Karpenter is aware of preferences (node affinity, pod affinity, pod anti-affinity, and pod topology) and treats them as requirements in most circumstances. Karpenter uses these preferences when determining if a pod can schedule on a node (absent topology requirements), or when determining if a pod can be shifted to a new node.
+
+Karpenter starts by treating preferred affinities as required affinities when constructing requirements for a pod. When these requirements can not be met, the pod's preferences are relaxed one-at-a-time by ascending weight (lowest weight is relaxed first) where possible and the remaining requirements are tried again.
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter does not interpret preferred affinities as required when constructing topology requirements for scheduling to a node. If these preferences are necessary, required affinities should be used [as documented in Node Affinity](#node-affinity).
+{{% /alert %}}
+
 ### Node affinity
 
 Examples below illustrate how to use Node affinity to include (`In`) and exclude (`NotIn`) objects.
@@ -200,6 +210,10 @@ When setting rules, the following Node affinity types define how hard or soft ea
 
 * **requiredDuringSchedulingIgnoredDuringExecution**: This is a hard rule that must be met.
 * **preferredDuringSchedulingIgnoredDuringExecution**: This is a preference, but the pod can run on a node where it is not guaranteed.
+
+{{% alert title="Note" color="primary" %}}
+Preferred affinities on pods can result in more nodes being created than expected because Karpenter will prefer to create new nodes to satisfy preferences, [see the preferences documentation](#preferences) for details.
+{{% /alert %}}
 
 The `IgnoredDuringExecution` part of each tells the pod to keep running, even if conditions change on the node so the rules no longer matched.
 You can think of these concepts as `required` and `preferred`, since Kubernetes never implemented other variants of these rules.
@@ -261,7 +275,7 @@ If they all fail, Karpenter will fail to provision the pod.
 Karpenter will backoff and retry over time.
 So if capacity becomes available, it will schedule the pod without user intervention.
 
-## Taints and tolerations
+### Taints and tolerations
 
 Taints are the opposite of affinity.
 Setting a taint on a node tells the scheduler to not run a pod on it unless the pod has explicitly said it can tolerate that taint. This example shows a NodePool that was set up with a taint for only running pods that require a GPU, such as the following:
@@ -308,9 +322,14 @@ spec:
 ```
 See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) in the Kubernetes documentation for details.
 
-## Topology Spread
+### Topology Spread
 
 By using the Kubernetes `topologySpreadConstraints` you can ask the NodePool to have pods push away from each other to limit the blast radius of an outage. Think of it as the Kubernetes evolution for pod affinity: it lets you relate pods with respect to nodes while still allowing spread.
+
+{{% alert title="Note" color="primary" %}}
+Preferred topology spread (`ScheduleAnyway`) can result in more nodes being created than expected because Karpenter will prefer to create new nodes to satisfy spread constraints, [see the preferences documentation](#preferences) for details.
+{{% /alert %}}
+
 For example:
 
 ```yaml
@@ -355,9 +374,15 @@ See [Pod Topology Spread Constraints](https://kubernetes.io/docs/concepts/worklo
 NodePools do not attempt to balance or rebalance the availability zones for their nodes. Availability zone balancing may be achieved by defining zonal Topology Spread Constraints for Pods that require multi-zone durability, and NodePools will respect these constraints while optimizing for compute costs.
 {{% /alert %}}
 
-## Pod affinity/anti-affinity
+### Pod affinity/anti-affinity
 
-By using the `podAffinity` and `podAntiAffinity` configuration on a pod spec, you can inform the Karpenter scheduler of your desire for pods to schedule together or apart with respect to different topology domains. For example:
+By using the `podAffinity` and `podAntiAffinity` configuration on a pod spec, you can inform the Karpenter scheduler of your desire for pods to schedule together or apart with respect to different topology domains.
+
+{{% alert title="Note" color="primary" %}}
+Preferred affinities on pods can result in more nodes being created than expected because Karpenter will prefer to create new nodes to satisfy preferences, [see the preferences documentation](#preferences) for details.
+{{% /alert %}}
+
+For example:
 
 ```yaml
 spec:
@@ -385,7 +410,7 @@ The anti-affinity rule would cause it to avoid running on any node with a pod la
 
 See [Inter-pod affinity and anti-affinity](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#inter-pod-affinity-and-anti-affinity) in the Kubernetes documentation for details.
 
-## Persistent Volume Topology
+### Persistent Volume Topology
 
 Karpenter automatically detects storage scheduling requirements and includes them in node launch decisions.
 
