@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -43,8 +44,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
-	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator"
@@ -106,29 +106,31 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)))
 
 	if *sess.Config.Region == "" {
-		logging.FromContext(ctx).Debug("retrieving region from IMDS")
+		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
 		region, err := ec2metadata.New(sess).Region()
 		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
 	}
 	ec2api := ec2.New(sess)
 	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
-		logging.FromContext(ctx).Fatalf("Checking EC2 API connectivity, %s", err)
+		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
+		os.Exit(1)
 	}
-	logging.FromContext(ctx).With("region", *sess.Config.Region).Debugf("discovered region")
+	log.FromContext(ctx).WithValues("region", *sess.Config.Region).V(1).Info("discovered region")
 	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.New(sess))
 	if err != nil {
-		logging.FromContext(ctx).Fatalf("unable to detect the cluster endpoint, %s", err)
+		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
+		os.Exit(1)
 	} else {
-		logging.FromContext(ctx).With("cluster-endpoint", clusterEndpoint).Debugf("discovered cluster endpoint")
+		log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
 	}
 	// We perform best-effort on resolving the kube-dns IP
 	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
 	if err != nil {
 		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
 		// https://github.com/aws/karpenter-provider-aws/issues/2787
-		logging.FromContext(ctx).Debugf("unable to detect the IP of the kube-dns service, %s", err)
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to detect the IP of the kube-dns service, %s", err))
 	} else {
-		logging.FromContext(ctx).With("kube-dns-ip", kubeDNSIP).Debugf("discovered kube dns")
+		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
 	}
 
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
@@ -241,7 +243,7 @@ func GetCABundle(ctx context.Context, restConfig *rest.Config) (*string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("discovering caBundle, loading TLS config, %w", err)
 	}
-	return ptr.String(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
+	return lo.ToPtr(base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)), nil
 }
 
 func KubeDNSIP(ctx context.Context, kubernetesInterface kubernetes.Interface) (net.IP, error) {

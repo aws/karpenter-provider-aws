@@ -105,16 +105,19 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 		}
 		options.Status.Subnets = []v1beta1.Subnet{
 			{
-				ID:   "subnet-test1",
-				Zone: "test-zone-1a",
+				ID:     "subnet-test1",
+				Zone:   "test-zone-1a",
+				ZoneID: "tstz1-1a",
 			},
 			{
-				ID:   "subnet-test2",
-				Zone: "test-zone-1b",
+				ID:     "subnet-test2",
+				Zone:   "test-zone-1b",
+				ZoneID: "tstz1-1b",
 			},
 			{
-				ID:   "subnet-test3",
-				Zone: "test-zone-1c",
+				ID:     "subnet-test3",
+				Zone:   "test-zone-1c",
+				ZoneID: "tstz1-1c",
 			},
 		}
 	}

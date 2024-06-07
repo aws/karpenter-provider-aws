@@ -15,7 +15,7 @@ limitations under the License.
 package v1beta1
 
 import (
-	op "github.com/awslabs/operatorpkg/status"
+	"github.com/awslabs/operatorpkg/status"
 	v1 "k8s.io/api/core/v1"
 )
 
@@ -27,6 +27,9 @@ type Subnet struct {
 	// The associated availability zone
 	// +required
 	Zone string `json:"zone"`
+	// The associated availability zone ID
+	// +optional
+	ZoneID string `json:"zoneID,omitempty"`
 }
 
 // SecurityGroup contains resolved SecurityGroup selector values utilized for node launch
@@ -71,22 +74,17 @@ type EC2NodeClassStatus struct {
 	InstanceProfile string `json:"instanceProfile,omitempty"`
 	// Conditions contains signals for health and readiness
 	// +optional
-	Conditions []op.Condition `json:"conditions,omitempty"`
+	Conditions []status.Condition `json:"conditions,omitempty"`
 }
 
-const (
-	// 	ConditionTypeNodeClassReady = "Ready" condition indicates that subnets, security groups, AMIs and instance profile for nodeClass were resolved
-	ConditionTypeNodeClassReady = "Ready"
-)
-
-func (in *EC2NodeClass) StatusConditions() op.ConditionSet {
-	return op.NewReadyConditions(ConditionTypeNodeClassReady).For(in)
+func (in *EC2NodeClass) StatusConditions() status.ConditionSet {
+	return status.NewReadyConditions().For(in)
 }
 
-func (in *EC2NodeClass) GetConditions() []op.Condition {
+func (in *EC2NodeClass) GetConditions() []status.Condition {
 	return in.Status.Conditions
 }
 
-func (in *EC2NodeClass) SetConditions(conditions []op.Condition) {
+func (in *EC2NodeClass) SetConditions(conditions []status.Condition) {
 	in.Status.Conditions = conditions
 }

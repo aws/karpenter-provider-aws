@@ -22,7 +22,6 @@ import (
 	"github.com/samber/lo"
 	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
@@ -51,10 +50,10 @@ func (o Options) kubeletExtraArgs() (args []string) {
 		return lo.Compact(args)
 	}
 	if o.KubeletConfig.MaxPods != nil {
-		args = append(args, fmt.Sprintf("--max-pods=%d", ptr.Int32Value(o.KubeletConfig.MaxPods)))
+		args = append(args, fmt.Sprintf("--max-pods=%d", lo.FromPtr(o.KubeletConfig.MaxPods)))
 	}
 	if o.KubeletConfig.PodsPerCore != nil {
-		args = append(args, fmt.Sprintf("--pods-per-core=%d", ptr.Int32Value(o.KubeletConfig.PodsPerCore)))
+		args = append(args, fmt.Sprintf("--pods-per-core=%d", lo.FromPtr(o.KubeletConfig.PodsPerCore)))
 	}
 	// We have to convert some of these maps so that their values return the correct string
 	args = append(args, joinParameterArgs("--system-reserved", o.KubeletConfig.SystemReserved, "="))
@@ -64,13 +63,13 @@ func (o Options) kubeletExtraArgs() (args []string) {
 	args = append(args, joinParameterArgs("--eviction-soft-grace-period", lo.MapValues(o.KubeletConfig.EvictionSoftGracePeriod, func(v metav1.Duration, _ string) string { return v.Duration.String() }), "="))
 
 	if o.KubeletConfig.EvictionMaxPodGracePeriod != nil {
-		args = append(args, fmt.Sprintf("--eviction-max-pod-grace-period=%d", ptr.Int32Value(o.KubeletConfig.EvictionMaxPodGracePeriod)))
+		args = append(args, fmt.Sprintf("--eviction-max-pod-grace-period=%d", lo.FromPtr(o.KubeletConfig.EvictionMaxPodGracePeriod)))
 	}
 	if o.KubeletConfig.ImageGCHighThresholdPercent != nil {
-		args = append(args, fmt.Sprintf("--image-gc-high-threshold=%d", ptr.Int32Value(o.KubeletConfig.ImageGCHighThresholdPercent)))
+		args = append(args, fmt.Sprintf("--image-gc-high-threshold=%d", lo.FromPtr(o.KubeletConfig.ImageGCHighThresholdPercent)))
 	}
 	if o.KubeletConfig.ImageGCLowThresholdPercent != nil {
-		args = append(args, fmt.Sprintf("--image-gc-low-threshold=%d", ptr.Int32Value(o.KubeletConfig.ImageGCLowThresholdPercent)))
+		args = append(args, fmt.Sprintf("--image-gc-low-threshold=%d", lo.FromPtr(o.KubeletConfig.ImageGCLowThresholdPercent)))
 	}
 	if o.KubeletConfig.CPUCFSQuota != nil {
 		args = append(args, fmt.Sprintf("--cpu-cfs-quota=%t", lo.FromPtr(o.KubeletConfig.CPUCFSQuota)))

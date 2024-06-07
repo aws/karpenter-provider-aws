@@ -45,7 +45,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE=karpenter
-export KARPENTER_VERSION=v0.32.9
+export KARPENTER_VERSION=v0.32.10
 export K8S_VERSION=1.28
 ```
 
@@ -78,6 +78,9 @@ The following cluster configuration will:
 * Run helm to install karpenter
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster.sh" language="bash"%}}
+
+Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to
+avoid the [`ServiceLinkedRoleCreationNotPermitted` error]({{<ref "../../troubleshooting/#missing-service-linked-role" >}}).
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
 

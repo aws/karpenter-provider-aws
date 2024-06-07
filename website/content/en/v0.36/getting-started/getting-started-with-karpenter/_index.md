@@ -45,7 +45,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="0.36.1"
+export KARPENTER_VERSION="0.36.2"
 export K8S_VERSION="1.29"
 ```
 
@@ -87,6 +87,9 @@ The following cluster configuration will:
   {{% /tab %}}
 {{< /tabpane >}}
 
+Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to
+avoid the [`ServiceLinkedRoleCreationNotPermitted` error]({{<ref "../../troubleshooting/#missing-service-linked-role" >}}).
+
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
 
 {{% alert title="Windows Support Notice" color="warning" %}}
@@ -109,13 +112,13 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```bash
-cosign verify public.ecr.aws/karpenter/karpenter:0.36.1 \
+cosign verify public.ecr.aws/karpenter/karpenter:0.36.2 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v0.36.1 \
-  --annotations version=0.36.1
+  --certificate-github-workflow-ref=refs/tags/v0.36.2 \
+  --annotations version=0.36.2
 ```
 
 {{% alert title="DNS Policy Notice" color="warning" %}}

@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-04-25T18:18:32Z for us-east-1
+// generated at 2024-06-03T13:07:54Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -364,6 +364,14 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"u-6tb1.112xlarge": 54.600000, "u-6tb1.56xlarge": 46.403910,
 		// u-9tb1 family
 		"u-9tb1.112xlarge": 81.900000,
+		// u7i-12tb family
+		"u7i-12tb.224xlarge": 152.880000,
+		// u7in-16tb family
+		"u7in-16tb.224xlarge": 203.840000,
+		// u7in-24tb family
+		"u7in-24tb.224xlarge": 305.760000,
+		// u7in-32tb family
+		"u7in-32tb.224xlarge": 407.680000,
 		// vt1 family
 		"vt1.24xlarge": 5.200000, "vt1.3xlarge": 0.650000, "vt1.6xlarge": 1.300000,
 		// x1 family
