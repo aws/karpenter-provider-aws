@@ -108,9 +108,7 @@ func (v *VPCEndpoint) Cleanup(ctx context.Context, ids []string) ([]string, erro
 }
 
 func (v *VPCEndpoint) getAllVpcEndpoints(ctx context.Context, params *ec2.DescribeVpcEndpointsInput) (endpoints []ec2types.VpcEndpoint, err error) {
-	paginator := ec2.NewDescribeVpcEndpointsPaginator(v.ec2Client, params, func(o *ec2.DescribeVpcEndpointsPaginatorOptions) {
-		o.Limit = 100
-	})
+	paginator := ec2.NewDescribeVpcEndpointsPaginator(v.ec2Client, params)
 
 	for paginator.HasMorePages() {
 		out, err := paginator.NextPage(ctx)

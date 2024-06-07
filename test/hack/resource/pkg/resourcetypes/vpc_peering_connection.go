@@ -113,9 +113,7 @@ func (v *VPCPeeringConnection) Cleanup(ctx context.Context, ids []string) ([]str
 }
 
 func (v *VPCPeeringConnection) getAllVpcPeeringConnections(ctx context.Context, params *ec2.DescribeVpcPeeringConnectionsInput) (connections []ec2types.VpcPeeringConnection, err error) {
-	paginator := ec2.NewDescribeVpcPeeringConnectionsPaginator(v.ec2Client, params, func(o *ec2.DescribeVpcPeeringConnectionsPaginatorOptions) {
-		o.Limit = 100
-	})
+	paginator := ec2.NewDescribeVpcPeeringConnectionsPaginator(v.ec2Client, params)
 
 	for paginator.HasMorePages() {
 		out, err := paginator.NextPage(ctx)

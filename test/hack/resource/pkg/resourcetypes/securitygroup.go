@@ -129,9 +129,7 @@ func (sg *SecurityGroup) Cleanup(ctx context.Context, ids []string) ([]string, e
 }
 
 func (sg *SecurityGroup) getAllSecurityGroups(ctx context.Context, params *ec2.DescribeSecurityGroupsInput) (sgs []ec2types.SecurityGroup, err error) {
-	paginator := ec2.NewDescribeSecurityGroupsPaginator(sg.ec2Client, params, func(o *ec2.DescribeSecurityGroupsPaginatorOptions) {
-		o.Limit = 100
-	})
+	paginator := ec2.NewDescribeSecurityGroupsPaginator(sg.ec2Client, params)
 
 	for paginator.HasMorePages() {
 		out, err := paginator.NextPage(ctx)

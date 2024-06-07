@@ -127,11 +127,8 @@ func (e *ENI) Cleanup(ctx context.Context, ids []string) ([]string, error) {
 	return deleted, errs
 }
 
-// getAllENIs returns all ENIs that match the provided input. We are using a page size of 100 to match our default page size.
 func (e *ENI) getAllENIs(ctx context.Context, params *ec2.DescribeNetworkInterfacesInput) (enis []ec2types.NetworkInterface, err error) {
-	paginator := ec2.NewDescribeNetworkInterfacesPaginator(e.ec2Client, params, func(o *ec2.DescribeNetworkInterfacesPaginatorOptions) {
-		o.Limit = 100
-	})
+	paginator := ec2.NewDescribeNetworkInterfacesPaginator(e.ec2Client, params)
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)

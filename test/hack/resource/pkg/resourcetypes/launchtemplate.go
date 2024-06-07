@@ -117,9 +117,7 @@ func (lt *LaunchTemplate) Cleanup(ctx context.Context, names []string) ([]string
 }
 
 func (lt *LaunchTemplate) getAllLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput) (lts []ec2types.LaunchTemplate, err error) {
-	paginator := ec2.NewDescribeLaunchTemplatesPaginator(lt.ec2Client, params, func(o *ec2.DescribeLaunchTemplatesPaginatorOptions) {
-		o.Limit = 100
-	})
+	paginator := ec2.NewDescribeLaunchTemplatesPaginator(lt.ec2Client, params)
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)

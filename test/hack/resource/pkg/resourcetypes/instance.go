@@ -129,9 +129,7 @@ func (i *Instance) Cleanup(ctx context.Context, ids []string) ([]string, error) 
 }
 
 func (i *Instance) getAllInstances(ctx context.Context, params *ec2.DescribeInstancesInput) (instances []ec2types.Instance, err error) {
-	paginator := ec2.NewDescribeInstancesPaginator(i.ec2Client, params, func(o *ec2.DescribeInstancesPaginatorOptions) {
-		o.Limit = 100
-	})
+	paginator := ec2.NewDescribeInstancesPaginator(i.ec2Client, params)
 
 	for paginator.HasMorePages() {
 		page, err := paginator.NextPage(ctx)
