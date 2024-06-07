@@ -10,6 +10,7 @@ jobs:
     if: vars.CI_ACCOUNT_ID != '' || github.event_name == 'workflow_dispatch'
     strategy:
       fail-fast: false
+      max-parallel: 1
       matrix:
         region: [us-east-2, us-west-2, eu-west-1, eu-north-1]
     runs-on: ubuntu-latest

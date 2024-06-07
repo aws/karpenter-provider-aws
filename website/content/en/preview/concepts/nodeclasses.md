@@ -1246,3 +1246,36 @@ spec:
 status:
   instanceProfile: "${CLUSTER_NAME}-0123456778901234567789"
 ```
+
+## status.conditions
+
+[`status.conditions`]({{< ref "#statusconditions" >}}) indicates EC2NodeClass readiness. This will be `Ready` when Karpenter successfully discovers AMIs, Instance Profile, Subnets, Cluster CIDR and SecurityGroups for the EC2NodeClass.
+
+```yaml
+spec:
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+status:
+  conditions:
+    Last Transition Time:  2024-05-06T06:04:45Z
+    Message:               Ready
+    Reason:                Ready
+    Status:                True
+    Type:                  Ready
+```
+
+If any of the underlying conditions are not resolved then `Status` is `False` and `Message` indicates the dependency that was not resolved.
+
+```yaml
+spec:
+  role: "KarpenterNodeRole-${CLUSTER_NAME}"
+status:
+  conditions:
+    Last Transition Time:  2024-05-06T06:19:46Z
+    Message:               unable to resolve instance profile for node class
+    Reason:                NodeClassNotReady
+    Status:                False
+    Type:                  Ready
+```
+{{% alert title="Note" color="primary" %}}
+An EC2NodeClass that uses AL2023 requires the cluster CIDR for launching nodes. Cluster CIDR will not be resolved for EC2NodeClass that doesn't use AL2023.
+{{% /alert %}}

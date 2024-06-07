@@ -10,8 +10,7 @@ description: >
 AWS instance types offer varying resources and can be selected by labels. The values provided
 below are the resources available with some assumptions and after the instance overhead has been subtracted:
 - `blockDeviceMappings` are not configured
-- `aws-eni-limited-pod-density` is assumed to be `true`
-- `amiFamily` is set to the default of `AL2`
+- `amiFamily` is set to `AL2023`
 ## a1 Family
 ### `a1.medium`
 #### Labels
@@ -3174,8 +3173,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|238333Mi|
- |pods|345|
+ |memory|237794Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `c6in.metal`
@@ -3200,8 +3199,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|238333Mi|
- |pods|345|
+ |memory|237794Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## c7a Family
@@ -11192,8 +11191,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|480816Mi|
- |pods|345|
+ |memory|480277Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `m6idn.metal`
@@ -11219,8 +11218,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|480816Mi|
- |pods|345|
+ |memory|480277Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## m6in Family
@@ -11446,8 +11445,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|480816Mi|
- |pods|345|
+ |memory|480277Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `m6in.metal`
@@ -11472,8 +11471,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|480816Mi|
- |pods|345|
+ |memory|480277Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## m7a Family
@@ -16231,8 +16230,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|965782Mi|
- |pods|345|
+ |memory|965243Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `r6idn.metal`
@@ -16258,8 +16257,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|965782Mi|
- |pods|345|
+ |memory|965243Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## r6in Family
@@ -16485,8 +16484,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|965782Mi|
- |pods|345|
+ |memory|965243Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ### `r6in.metal`
@@ -16511,8 +16510,8 @@ below are the resources available with some assumptions and after the instance o
  |--|--|
  |cpu|127610m|
  |ephemeral-storage|17Gi|
- |memory|965782Mi|
- |pods|345|
+ |memory|965243Mi|
+ |pods|394|
  |vpc.amazonaws.com/efa|2|
  |vpc.amazonaws.com/pod-eni|108|
 ## r7a Family

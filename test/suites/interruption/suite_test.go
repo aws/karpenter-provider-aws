@@ -24,7 +24,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"knative.dev/pkg/ptr"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -83,7 +82,7 @@ var _ = Describe("Interruption", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "my-app"},
 				},
-				TerminationGracePeriodSeconds: ptr.Int64(0),
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
@@ -117,7 +116,7 @@ var _ = Describe("Interruption", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "my-app"},
 				},
-				TerminationGracePeriodSeconds: ptr.Int64(0),
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
@@ -143,7 +142,7 @@ var _ = Describe("Interruption", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "my-app"},
 				},
-				TerminationGracePeriodSeconds: ptr.Int64(0),
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
@@ -169,7 +168,7 @@ var _ = Describe("Interruption", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "my-app"},
 				},
-				TerminationGracePeriodSeconds: ptr.Int64(0),
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)

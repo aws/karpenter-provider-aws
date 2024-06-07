@@ -70,8 +70,11 @@ var _ = BeforeEach(func() {
 		NodeSelectorRequirement: v1.NodeSelectorRequirement{
 			Key:      v1.LabelTopologyZone,
 			Operator: v1.NodeSelectorOpIn,
-			Values:   lo.Keys(lo.PickByValues(env.GetZones(), []string{"local-zone"})),
-		}})
+			Values: lo.FilterMap(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(info aws.SubnetInfo, _ int) (string, bool) {
+				return info.Zone, info.ZoneType == "local-zone"
+			}),
+		},
+	})
 })
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })

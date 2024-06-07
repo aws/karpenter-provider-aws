@@ -105,6 +105,7 @@ func main() {
 	// Fake a NodeClass so we can use it to get InstanceTypes
 	nodeClass := &v1beta1.EC2NodeClass{
 		Spec: v1beta1.EC2NodeClassSpec{
+			AMIFamily: &v1beta1.AMIFamilyAL2023,
 			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{
@@ -149,8 +150,7 @@ description: >
 	fmt.Fprintln(f, `AWS instance types offer varying resources and can be selected by labels. The values provided
 below are the resources available with some assumptions and after the instance overhead has been subtracted:
 - `+"`blockDeviceMappings` are not configured"+`
-- `+"`aws-eni-limited-pod-density` is assumed to be `true`"+`
-- `+"`amiFamily` is set to the default of `AL2`")
+- `+"`amiFamily` is set to `AL2023`")
 
 	// generate a map of family -> instance types along with some other sorted lists.  The sorted lists ensure we
 	// generate consistent docs every run.

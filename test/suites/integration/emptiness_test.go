@@ -22,7 +22,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"knative.dev/pkg/ptr"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -110,7 +109,7 @@ var _ = Describe("Emptiness", func() {
 
 		By("making the nodeclaim empty")
 		persisted := deployment.DeepCopy()
-		deployment.Spec.Replicas = ptr.Int32(0)
+		deployment.Spec.Replicas = lo.ToPtr(int32(0))
 		Expect(env.Client.Patch(env, deployment, client.StrategicMergeFrom(persisted))).To(Succeed())
 
 		env.EventuallyExpectEmpty(nodeClaim)

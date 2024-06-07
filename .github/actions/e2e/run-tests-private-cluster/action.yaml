@@ -33,7 +33,7 @@ inputs:
     required: true
   k8s_version:
     description: 'Version of Kubernetes to use for the launched cluster'
-    default: "1.29"
+    default: "1.30"
   private_cluster:
     description: "Whether to create a private cluster which does not add access to the public internet. Valid values are 'true' or 'false'"
     default: 'false'
@@ -53,7 +53,7 @@ runs:
   using: "composite"
   steps:
   - name: login to ecr via docker
-    uses: docker/login-action@e92390c5fb421da1463c202d546fed0ec5c39f20 # v3.1.0
+    uses: docker/login-action@0d4c9c5ea7693da7b068278f7b52bda2a190a446 # v3.2.0
     with:
       registry: ${{ inputs.account_id }}.dkr.ecr.${{ inputs.region }}.amazonaws.com
       logout: true
@@ -125,10 +125,6 @@ runs:
               - kubectl delete ec2nodeclass --all
               - kubectl delete deployment --all
               - PRIVATE_CLUSTER=$CLUSTER_NAME TEST_SUITE=$SUITE ENABLE_METRICS=$ENABLE_METRICS METRICS_REGION=$METRICS_REGION GIT_REF="$(git rev-parse HEAD)" CLUSTER_NAME=$CLUSTER_NAME CLUSTER_ENDPOINT="$(aws eks describe-cluster --name $CLUSTER_NAME --query "cluster.endpoint" --output text)" INTERRUPTION_QUEUE=$CLUSTER_NAME make e2etests
-              - aws logs put-retention-policy --log-group-name /aws/containerinsights/$CLUSTER_NAME/application --retention-in-days 30
-              - aws logs put-retention-policy --log-group-name /aws/containerinsights/$CLUSTER_NAME/dataplane --retention-in-days 30
-              - aws logs put-retention-policy --log-group-name /aws/containerinsights/$CLUSTER_NAME/host --retention-in-days 30
-              - aws logs put-retention-policy --log-group-name /aws/containerinsights/$CLUSTER_NAME/performance --retention-in-days 30
           post_build:
             commands:
               # Describe karpenter pods
