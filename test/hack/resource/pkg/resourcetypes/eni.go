@@ -43,95 +43,67 @@ func (e *ENI) Global() bool {
 }
 
 func (e *ENI) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag-key"),
-					Values: []string{k8sClusterTag},
-				},
+	enis, err := e.getAllENIs(ctx, &ec2.DescribeNetworkInterfacesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag-key"),
+				Values: []string{k8sClusterTag},
 			},
-			NextToken: nextToken,
+		},
+	})
+	if err != nil {
+		return ids, err
+	}
+
+	for _, ni := range enis {
+		clusterName, found := lo.Find(ni.TagSet, func(tag ec2types.Tag) bool {
+			return *tag.Key == k8sClusterTag
 		})
+		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+			continue
+		}
+		creationDate, found := lo.Find(ni.TagSet, func(tag ec2types.Tag) bool {
+			return *tag.Key == "node.k8s.amazonaws.com/createdAt"
+		})
+		if !found {
+			continue
+		}
+		creationTime, err := time.Parse(time.RFC3339, *creationDate.Value)
 		if err != nil {
-			return ids, err
+			continue
 		}
-
-		for _, ni := range out.NetworkInterfaces {
-			clusterName, found := lo.Find(ni.TagSet, func(tag ec2types.Tag) bool {
-				return *tag.Key == k8sClusterTag
-			})
-			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
-				continue
-			}
-			creationDate, found := lo.Find(ni.TagSet, func(tag ec2types.Tag) bool {
-				return *tag.Key == "node.k8s.amazonaws.com/createdAt"
-			})
-			if !found {
-				continue
-			}
-			creationTime, err := time.Parse(time.RFC3339, *creationDate.Value)
-			if err != nil {
-				continue
-			}
-			if ni.Status == ec2types.NetworkInterfaceStatusAvailable && creationTime.Before(expirationTime) {
-				ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
-			}
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
+		if ni.Status == ec2types.NetworkInterfaceStatusAvailable && creationTime.Before(expirationTime) {
+			ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
 		}
 	}
+
 	return ids, err
 }
 
 func (e *ENI) CountAll(ctx context.Context) (count int, err error) {
-	var nextToken *string
-	for {
-		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return count, err
-		}
-
-		count += len(out.NetworkInterfaces)
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+	enis, err := e.getAllENIs(ctx, &ec2.DescribeNetworkInterfacesInput{})
+	if err != nil {
+		return 0, err
 	}
-	return count, err
+
+	return len(enis), err
 }
 
 func (e *ENI) Get(ctx context.Context, clusterName string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := e.ec2Client.DescribeNetworkInterfaces(ctx, &ec2.DescribeNetworkInterfacesInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag:" + k8sClusterTag),
-					Values: []string{clusterName},
-				},
+	enis, err := e.getAllENIs(ctx, &ec2.DescribeNetworkInterfacesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag:" + k8sClusterTag),
+				Values: []string{clusterName},
 			},
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return ids, err
-		}
+		},
+	})
+	if err != nil {
+		return ids, err
+	}
 
-		for _, ni := range out.NetworkInterfaces {
-			ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+	for _, ni := range enis {
+		ids = append(ids, lo.FromPtr(ni.NetworkInterfaceId))
 	}
 	return ids, err
 }
@@ -153,4 +125,18 @@ func (e *ENI) Cleanup(ctx context.Context, ids []string) ([]string, error) {
 	}
 
 	return deleted, errs
+}
+
+func (e *ENI) getAllENIs(ctx context.Context, params *ec2.DescribeNetworkInterfacesInput) (enis []ec2types.NetworkInterface, err error) {
+	paginator := ec2.NewDescribeNetworkInterfacesPaginator(e.ec2Client, params)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return enis, err
+		}
+		enis = append(enis, page.NetworkInterfaces...)
+	}
+
+	return enis, nil
 }

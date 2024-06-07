@@ -42,80 +42,51 @@ func (s *Stack) Global() bool {
 }
 
 func (s *Stack) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (names []string, err error) {
-	var nextToken *string
-	for {
-		out, err := s.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return names, err
-		}
+	stacks, err := s.getAllStacks(ctx)
+	if err != nil {
+		return names, err
+	}
 
-		stacks := lo.Reject(out.Stacks, func(s cloudformationtypes.Stack, _ int) bool {
-			return s.StackStatus == cloudformationtypes.StackStatusDeleteComplete ||
-				s.StackStatus == cloudformationtypes.StackStatusDeleteInProgress
+	activeStacks := lo.Reject(stacks, func(s cloudformationtypes.Stack, _ int) bool {
+		return s.StackStatus == cloudformationtypes.StackStatusDeleteComplete ||
+			s.StackStatus == cloudformationtypes.StackStatusDeleteInProgress
+	})
+	for _, stack := range activeStacks {
+		clusterName, found := lo.Find(stack.Tags, func(tag cloudformationtypes.Tag) bool {
+			return *tag.Key == karpenterTestingTag
 		})
-		for _, stack := range stacks {
-			clusterName, found := lo.Find(stack.Tags, func(tag cloudformationtypes.Tag) bool {
-				return *tag.Key == karpenterTestingTag
-			})
-			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
-				continue
-			}
-			if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
-				return lo.FromPtr(t.Key) == karpenterTestingTag || lo.FromPtr(t.Key) == githubRunURLTag
-			}); found && lo.FromPtr(stack.CreationTime).Before(expirationTime) {
-				names = append(names, lo.FromPtr(stack.StackName))
-			}
+		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+			continue
 		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
+		if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
+			return lo.FromPtr(t.Key) == karpenterTestingTag || lo.FromPtr(t.Key) == githubRunURLTag
+		}); found && lo.FromPtr(stack.CreationTime).Before(expirationTime) {
+			names = append(names, lo.FromPtr(stack.StackName))
 		}
 	}
 	return names, err
 }
 
 func (s *Stack) CountAll(ctx context.Context) (count int, err error) {
-	var nextToken *string
-	for {
-		out, err := s.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return count, err
-		}
-
-		count += len(out.Stacks)
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+	stacks, err := s.getAllStacks(ctx)
+	if err != nil {
+		return count, err
 	}
-	return count, nil
+
+	return len(stacks), nil
 }
 
 func (s *Stack) Get(ctx context.Context, clusterName string) (names []string, err error) {
-	var nextToken *string
-	for {
-		out, err := s.cloudFormationClient.DescribeStacks(ctx, &cloudformation.DescribeStacksInput{
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return names, err
-		}
-		for _, stack := range out.Stacks {
-			if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
-				return lo.FromPtr(t.Key) == karpenterTestingTag && lo.FromPtr(t.Value) == clusterName
-			}); found {
-				names = append(names, lo.FromPtr(stack.StackName))
-			}
-		}
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
+	stacks, err := s.getAllStacks(ctx)
+	if err != nil {
+		return names, err
+	}
+
+	for _, stack := range stacks {
+		if _, found := lo.Find(stack.Tags, func(t cloudformationtypes.Tag) bool {
+			return lo.FromPtr(t.Key) == karpenterTestingTag && lo.FromPtr(t.Value) == clusterName
+		}); found {
+			names = append(names, lo.FromPtr(stack.StackName))
 		}
 	}
 	return names, nil
@@ -137,4 +108,18 @@ func (s *Stack) Cleanup(ctx context.Context, names []string) ([]string, error) {
 		deleted = append(deleted, names[i])
 	}
 	return deleted, errs
+}
+
+func (s *Stack) getAllStacks(ctx context.Context) (stacks []cloudformationtypes.Stack, err error) {
+	paginator := cloudformation.NewDescribeStacksPaginator(s.cloudFormationClient, &cloudformation.DescribeStacksInput{})
+
+	for paginator.HasMorePages() {
+		out, err := paginator.NextPage(ctx)
+		if err != nil {
+			return stacks, err
+		}
+		stacks = append(stacks, out.Stacks...)
+	}
+
+	return stacks, nil
 }
