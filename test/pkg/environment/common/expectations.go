@@ -23,8 +23,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
@@ -38,10 +36,9 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/transport"
-	"knative.dev/pkg/logging"
-	"knative.dev/pkg/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
@@ -66,7 +63,7 @@ func (env *Environment) ExpectDeleted(objects ...client.Object) {
 	GinkgoHelper()
 	for _, object := range objects {
 		Eventually(func(g Gomega) {
-			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: ptr.Int64(0)}))).To(Succeed())
+			g.Expect(client.IgnoreNotFound(env.Client.Delete(env, object, client.PropagationPolicy(metav1.DeletePropagationForeground), &client.DeleteOptions{GracePeriodSeconds: lo.ToPtr(int64(0))}))).To(Succeed())
 		}).WithTimeout(time.Second * 10).Should(Succeed())
 	}
 }
@@ -84,7 +81,7 @@ func (env *Environment) ExpectUpdated(objects ...client.Object) {
 			current := o.DeepCopyObject().(client.Object)
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(current), current)).To(Succeed())
 			if current.GetResourceVersion() != o.GetResourceVersion() {
-				logging.FromContext(env).Infof("detected an update to an object (%s) with an outdated resource version, did you get the latest version of the object before patching?", lo.Must(apiutil.GVKForObject(o, env.Client.Scheme())))
+				log.FromContext(env).Info(fmt.Sprintf("detected an update to an object (%s) with an outdated resource version, did you get the latest version of the object before patching?", lo.Must(apiutil.GVKForObject(o, env.Client.Scheme()))))
 			}
 			o.SetResourceVersion(current.GetResourceVersion())
 			g.Expect(env.Client.Update(env.Context, o)).To(Succeed())
@@ -760,13 +757,13 @@ func (env *Environment) printControllerLogs(options *v1.PodLogOptions) {
 		}
 		stream, err := env.KubeClient.CoreV1().Pods("kube-system").GetLogs(pod.Name, temp).Stream(env.Context)
 		if err != nil {
-			logging.FromContext(env.Context).Errorf("fetching controller logs: %s", err)
+			log.FromContext(env.Context).Error(err, "failed fetching controller logs")
 			return
 		}
-		log := &bytes.Buffer{}
-		_, err = io.Copy(log, stream)
+		raw := &bytes.Buffer{}
+		_, err = io.Copy(raw, stream)
 		Expect(err).ToNot(HaveOccurred())
-		logging.FromContext(env.Context).Info(log)
+		log.FromContext(env.Context).Info(raw.String())
 	}
 }
 
@@ -881,7 +878,7 @@ func (env *Environment) ExpectCABundle() string {
 	Expect(err).ToNot(HaveOccurred())
 	_, err = transport.TLSConfigFor(transportConfig) // fills in CAData!
 	Expect(err).ToNot(HaveOccurred())
-	logging.FromContext(env.Context).Debugf("Discovered caBundle, length %d", len(transportConfig.TLS.CAData))
+	log.FromContext(env.Context).WithValues("length", len(transportConfig.TLS.CAData)).V(1).Info("discovered caBundle")
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }
 
@@ -925,15 +922,4 @@ func (env *Environment) GetDaemonSetOverhead(np *corev1beta1.NodePool) v1.Resour
 		}
 		return p, true
 	})...)
-}
-
-func (env *Environment) EventuallyExpectNodeClassStatusCondition(nodeClass *v1beta1.EC2NodeClass, condition string, status bool, message string) {
-	GinkgoHelper()
-	Eventually(func(g Gomega) {
-		nc := &v1beta1.EC2NodeClass{}
-		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), nc)).To(Succeed())
-		statusCondition := nc.StatusConditions().Get(condition)
-		g.Expect(statusCondition.IsTrue()).To(Equal(status))
-		g.Expect(statusCondition.Message).To(Equal(message))
-	}).WithTimeout(10 * time.Second).Should(Succeed())
 }

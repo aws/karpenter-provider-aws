@@ -20,10 +20,10 @@ import (
 	"time"
 
 	"k8s.io/apimachinery/pkg/api/equality"
-	"knative.dev/pkg/logging"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
@@ -54,18 +54,17 @@ func NewController(kubeClient client.Client, instanceProvider instance.Provider)
 }
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (reconcile.Result, error) {
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).Named("nodeclaim.tagging").With("nodeclaim", nodeClaim.Name))
 	ctx = injection.WithControllerName(ctx, "nodeclaim.tagging")
 
 	stored := nodeClaim.DeepCopy()
 	if !isTaggable(nodeClaim) {
 		return reconcile.Result{}, nil
 	}
-	ctx = logging.WithLogger(ctx, logging.FromContext(ctx).With("provider-id", nodeClaim.Status.ProviderID))
+	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("provider-id", nodeClaim.Status.ProviderID))
 	id, err := utils.ParseInstanceID(nodeClaim.Status.ProviderID)
 	if err != nil {
 		// We don't throw an error here since we don't want to retry until the ProviderID has been updated.
-		logging.FromContext(ctx).Errorf("failed to parse instance ID, %w", err)
+		log.FromContext(ctx).Error(err, "failed parsing instance id")
 		return reconcile.Result{}, nil
 	}
 	if err = c.tagInstance(ctx, nodeClaim, id); err != nil {

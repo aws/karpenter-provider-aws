@@ -24,11 +24,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
+
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	. "knative.dev/pkg/logging/testing"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"

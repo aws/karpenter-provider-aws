@@ -31,6 +31,7 @@ import (
 
 func main() {
 	ctx, op := operator.NewOperator(coreoperator.NewOperator())
+
 	awsCloudProvider := cloudprovider.New(
 		op.InstanceTypesProvider,
 		op.InstanceProvider,
@@ -38,7 +39,6 @@ func main() {
 		op.GetClient(),
 		op.AMIProvider,
 		op.SecurityGroupProvider,
-		op.SubnetProvider,
 	)
 	lo.Must0(op.AddHealthzCheck("cloud-provider", awsCloudProvider.LivenessProbe))
 	cloudProvider := metrics.Decorate(awsCloudProvider)

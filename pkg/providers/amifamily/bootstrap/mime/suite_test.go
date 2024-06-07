@@ -23,8 +23,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
+
 	"github.com/samber/lo"
-	. "knative.dev/pkg/logging/testing"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap/mime"
 )

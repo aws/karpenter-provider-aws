@@ -35,7 +35,8 @@ import (
 const sweeperCleanedResourcesTableName = "sweeperCleanedResources"
 
 var excludedClusters = []string{
-	"soak-periodic-2785632730",
+	"soak-periodic-465714144",
+	"soak-periodic-55897225",
 }
 
 func main() {
