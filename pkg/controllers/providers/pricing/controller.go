@@ -19,12 +19,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/awslabs/operatorpkg/singleton"
 	lop "github.com/samber/lo/parallel"
 	"go.uber.org/multierr"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-
-	"sigs.k8s.io/karpenter/pkg/operator/controller"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 )
@@ -39,7 +40,9 @@ func NewController(pricingProvider pricing.Provider) *Controller {
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
+	ctx = injection.WithControllerName(ctx, "providers.pricing")
+
 	work := []func(ctx context.Context) error{
 		c.pricingProvider.UpdateSpotPricing,
 		c.pricingProvider.UpdateOnDemandPricing,
@@ -57,7 +60,8 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
-	return controller.NewSingletonManagedBy(m).
+	return controllerruntime.NewControllerManagedBy(m).
 		Named("providers.pricing").
-		Complete(c)
+		WatchesRawSource(singleton.Source()).
+		Complete(singleton.AsReconciler(c))
 }
