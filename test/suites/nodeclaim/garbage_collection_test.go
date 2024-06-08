@@ -130,7 +130,7 @@ var _ = Describe("GarbageCollection", func() {
 			Resources: []*string{out.Instances[0].InstanceId},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+					Key:   aws.String(v1beta1.EksClusterNameAnnotationKey),
 					Value: aws.String(env.ClusterName),
 				},
 			},
