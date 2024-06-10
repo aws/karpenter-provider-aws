@@ -257,11 +257,7 @@ func (p *DefaultProvider) LivenessProbe(_ *http.Request) error {
 func (p *DefaultProvider) minPods(instanceTypes []*cloudprovider.InstanceType, reqs scheduling.Requirements) int64 {
 	// filter for instance types available in the zone and capacity type being requested
 	filteredInstanceTypes := lo.Filter(instanceTypes, func(it *cloudprovider.InstanceType, _ int) bool {
-		offering, ok := it.Offerings.Get(reqs)
-		if !ok {
-			return false
-		}
-		return offering.Available
+		return it.Offerings.Available().HasCompatible(reqs)
 	})
 	if len(filteredInstanceTypes) == 0 {
 		return 0
