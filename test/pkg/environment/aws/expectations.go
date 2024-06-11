@@ -17,6 +17,7 @@ package aws
 import (
 	"fmt"
 	"net"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -31,13 +32,16 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -360,6 +364,41 @@ func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
 	})
 	Expect(err).To(BeNil())
 	return *parameter.Parameter.Value
+}
+
+// GetSSMPath gets the SSM path for an AMI release specified by the family, k8s version, architecture, and release offset.
+// A release offset of 0 will get you the latest release, 1 the previous release, and so on.
+// Note: this is tighly coupled with the naming conventions for AL2 and AL2023. This is **NOT** compatible with Bottlerocket, Ubuntu, or Windows AMIs.
+func (env *Environment) GetSSMPath(amiFamily string, k8sVersion string, arch string, releaseOffset int) string {
+	GinkgoHelper()
+	Expect(amiFamily).To(BeElementOf([]string{
+		v1beta1.AMIFamilyAL2,
+		v1beta1.AMIFamilyAL2023,
+	}))
+	pathDetails, ok := lo.Find(amifamily.GetAMIFamily(&amiFamily, nil).DefaultAMIs(k8sVersion), func(out amifamily.DefaultAMIOutput) bool {
+		return out.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, arch))) == nil
+	})
+	Expect(ok).To(BeTrue())
+	basePath := func() string {
+		splitPath := strings.Split(pathDetails.Query, "/")
+		Expect(len(splitPath)).To(BeNumerically(">", 2))
+		return strings.Join(splitPath[0:len(splitPath)-2], "/")
+	}()
+
+	parameters := []string{}
+	Expect(env.SSMAPI.GetParametersByPathPages(&ssm.GetParametersByPathInput{
+		Path:      lo.ToPtr(basePath),
+	}, func(out *ssm.GetParametersByPathOutput, lastPage bool) bool {
+		parameters = append(parameters, lo.Map(out.Parameters, func(p *ssm.Parameter, _ int) string {
+			return lo.FromPtr(p.Name)
+		})...)
+		return lastPage
+	})).To(Succeed())
+
+	// Ensure there are enough published AMIs to satisfy the offset. Note that there are two SSM paths for the latest release.
+	Expect(len(parameters)).To(BeNumerically(">", 2 + releaseOffset))
+	slices.Sort(parameters)
+	return fmt.Sprintf("%s/image_id", parameters[len(parameters)-(2+releaseOffset)])
 }
 
 func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {

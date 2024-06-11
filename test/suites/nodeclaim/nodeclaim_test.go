@@ -268,7 +268,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should create a NodeClaim with custom labels passed through the userData", func() {
-		customAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		customAMI := env.GetAMIBySSMPath(env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersion(), "amd64", 0))
 		// Update the userData for the instance input with the correct NodePool
 		rawContent, err := os.ReadFile("testdata/al2023_userdata_custom_labels_input.yaml")
 		Expect(err).ToNot(HaveOccurred())
@@ -318,7 +318,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNodeClaimsReady(nodeClaim)
 	})
 	It("should delete a NodeClaim after the registration timeout when the node doesn't register", func() {
-		customAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		customAMI := env.GetAMIBySSMPath(env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersion(), "amd64", 0))
 		// Update the userData for the instance input with the correct NodePool
 		rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
 		Expect(err).ToNot(HaveOccurred())

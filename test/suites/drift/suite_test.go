@@ -373,8 +373,8 @@ var _ = Describe("Drift", func() {
 	It("should disrupt nodes that have drifted due to AMIs", func() {
 		// Choose an old static image (AL2023 AMIs don't exist for 1.22)
 		oldCustomAMI := env.GetAMIBySSMPath(lo.Ternary(env.K8sMinorVersion() == 23,
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240307/image_id",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)),
+			env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersion(), "amd64", 1),
+			env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersionWithOffset(1), "amd64", 0),
 		))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
@@ -396,7 +396,7 @@ var _ = Describe("Drift", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
-		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersion()))
+		armAMI := env.GetAMIBySSMPath(env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersion(), "arm64", 0))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: armAMI}}
 
@@ -421,8 +421,8 @@ var _ = Describe("Drift", func() {
 
 		// Choose an old static image (AL2023 AMIs don't exist for 1.22)
 		oldCustomAMI := env.GetAMIBySSMPath(lo.Ternary(env.K8sMinorVersion() == 23,
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240307/image_id",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)),
+			env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersion(), "amd64", 1),
+			env.GetSSMPath(v1beta1.AMIFamilyAL2023, env.K8sVersionWithOffset(1), "amd64", 0),
 		))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: oldCustomAMI}}
