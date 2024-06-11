@@ -635,7 +635,7 @@ To correct the problem if it occurs, you can use the approach that AWS EBS uses,
             "AWS": "arn:aws:iam::${AWS_ACCOUNT_ID}:root"
         },
         "Action": [
-            "kms:Describe",
+            "kms:Describe*",
             "kms:Get*",
             "kms:List*",
             "kms:RevokeGrant"
