@@ -16,6 +16,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -42,6 +49,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -68,6 +82,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -94,6 +115,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -120,6 +148,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -146,6 +181,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|a|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -173,6 +215,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -196,6 +245,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -220,6 +276,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -243,6 +306,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -266,6 +336,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -289,6 +366,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -312,6 +396,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -337,6 +428,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -361,6 +459,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -385,6 +490,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -409,6 +521,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -433,6 +552,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -459,6 +585,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -485,6 +618,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -511,6 +651,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -537,6 +684,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -563,6 +717,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -589,6 +750,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -615,6 +783,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -641,6 +816,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -667,6 +849,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -694,6 +883,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -720,6 +916,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -746,6 +949,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -772,6 +982,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -798,6 +1015,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -824,6 +1048,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -850,6 +1081,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -876,6 +1114,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -903,6 +1148,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -930,6 +1182,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -957,6 +1216,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -984,6 +1250,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1011,6 +1284,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1038,6 +1318,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1065,6 +1352,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1092,6 +1386,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1120,6 +1421,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1147,6 +1455,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1174,6 +1489,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1201,6 +1523,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1228,6 +1557,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1255,6 +1591,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1282,6 +1625,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1309,6 +1659,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1336,6 +1693,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1364,6 +1728,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1390,6 +1761,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1416,6 +1794,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1442,6 +1827,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1468,6 +1860,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1495,6 +1894,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1522,6 +1928,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -1550,6 +1963,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1576,6 +1996,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1602,6 +2029,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1628,6 +2062,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1654,6 +2095,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1680,6 +2128,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1706,6 +2161,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1732,6 +2194,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1758,6 +2227,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1784,6 +2260,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1811,6 +2294,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -1839,6 +2329,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1865,6 +2362,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1891,6 +2395,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1917,6 +2428,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1943,6 +2461,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1969,6 +2494,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -1995,6 +2527,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2021,6 +2560,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2047,6 +2593,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2074,6 +2627,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2101,6 +2661,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2128,6 +2695,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2155,6 +2729,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2182,6 +2763,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2209,6 +2797,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2236,6 +2831,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2263,6 +2865,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2290,6 +2899,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2318,6 +2934,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2344,6 +2967,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2370,6 +3000,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2396,6 +3033,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2422,6 +3066,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2448,6 +3099,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2474,6 +3132,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2500,6 +3165,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -2528,6 +3200,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2554,6 +3233,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2580,6 +3266,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2606,6 +3299,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2632,6 +3332,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2658,6 +3365,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2684,6 +3398,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2710,6 +3431,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2736,6 +3464,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2763,6 +3498,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2791,6 +3533,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2818,6 +3567,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2845,6 +3601,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2872,6 +3635,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2899,6 +3669,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2926,6 +3703,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2953,6 +3737,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -2980,6 +3771,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3007,6 +3805,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3035,6 +3840,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3064,6 +3876,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3090,6 +3909,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3116,6 +3942,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3142,6 +3975,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3168,6 +4008,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3194,6 +4041,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3220,6 +4074,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3246,6 +4107,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3272,6 +4140,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3299,6 +4174,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -3327,6 +4209,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3353,6 +4242,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3379,6 +4275,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3405,6 +4308,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3431,6 +4341,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3457,6 +4374,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3483,6 +4407,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3509,6 +4440,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3535,6 +4473,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3561,6 +4506,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3587,6 +4539,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3614,6 +4573,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -3642,6 +4608,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3668,6 +4641,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3694,6 +4674,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3720,6 +4707,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3746,6 +4740,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3772,6 +4773,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3798,6 +4806,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3824,6 +4839,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3851,6 +4873,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3879,6 +4908,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3906,6 +4942,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3933,6 +4976,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3960,6 +5010,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -3987,6 +5044,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4014,6 +5078,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4041,6 +5112,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4068,6 +5146,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4096,6 +5181,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4125,6 +5217,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4151,6 +5250,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4177,6 +5283,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4203,6 +5316,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4229,6 +5349,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4255,6 +5382,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4281,6 +5415,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4307,6 +5448,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4334,6 +5482,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -4362,6 +5517,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4388,6 +5550,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4414,6 +5583,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4440,6 +5616,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4466,6 +5649,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4492,6 +5682,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4518,6 +5715,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4544,6 +5748,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4570,6 +5781,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4596,6 +5814,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4623,6 +5848,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|c|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4651,6 +5883,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4675,6 +5914,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4699,6 +5945,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4723,6 +5976,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|36|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4749,6 +6009,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4776,6 +6043,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4803,6 +6077,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4830,6 +6111,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4858,6 +6146,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4885,6 +6180,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4912,6 +6214,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4939,6 +6248,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4966,6 +6282,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -4993,6 +6316,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|d|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5021,6 +6351,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|dl|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5055,6 +6392,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5080,6 +6424,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5105,6 +6456,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|f|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5132,6 +6490,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5162,6 +6527,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5193,6 +6565,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5224,6 +6603,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5255,6 +6641,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5287,6 +6680,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5319,6 +6719,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5351,6 +6758,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5383,6 +6797,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5416,6 +6837,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5448,6 +6876,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5480,6 +6915,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5512,6 +6954,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5545,6 +6994,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5578,6 +7034,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5611,6 +7074,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -5645,6 +7115,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5677,6 +7154,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5709,6 +7193,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5741,6 +7232,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5774,6 +7272,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5807,6 +7312,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5840,6 +7352,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5873,6 +7392,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -5907,6 +7433,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5938,6 +7471,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -5969,6 +7509,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6000,6 +7547,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6031,6 +7585,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6062,6 +7623,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6094,6 +7662,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6126,6 +7701,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6158,6 +7740,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6190,6 +7779,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6223,6 +7819,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6256,6 +7859,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6289,6 +7899,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6322,6 +7939,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|g|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6356,6 +7980,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|gr|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6388,6 +8019,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|gr|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -6422,6 +8060,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6447,6 +8092,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6472,6 +8124,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6497,6 +8156,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|h|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6523,6 +8189,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6550,6 +8223,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6577,6 +8257,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|hpc|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -6605,6 +8292,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6628,6 +8322,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6651,6 +8352,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6674,6 +8382,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6699,6 +8414,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6725,6 +8447,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6751,6 +8480,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6777,6 +8513,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6803,6 +8546,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6829,6 +8579,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6855,6 +8612,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|72|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6883,6 +8647,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6910,6 +8681,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6937,6 +8715,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6964,6 +8749,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -6991,6 +8783,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7018,6 +8817,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7046,6 +8852,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7074,6 +8887,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7103,6 +8923,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7130,6 +8957,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7157,6 +8991,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7184,6 +9025,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7211,6 +9059,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7238,6 +9093,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7267,6 +9129,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7293,6 +9162,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7320,6 +9196,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7347,6 +9230,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7374,6 +9264,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7401,6 +9298,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7428,6 +9332,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7455,6 +9366,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7482,6 +9400,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7510,6 +9435,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|i|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7539,6 +9471,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7566,6 +9505,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7593,6 +9539,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7620,6 +9573,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7647,6 +9607,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7674,6 +9641,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|im|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7706,6 +9680,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7736,6 +9717,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7766,6 +9754,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|4|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7796,6 +9791,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -7828,6 +9830,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7858,6 +9867,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7888,6 +9904,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|6|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7918,6 +9941,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|12|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|inf|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -7946,6 +9976,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -7973,6 +10010,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8000,6 +10044,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8027,6 +10078,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8054,6 +10112,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8081,6 +10146,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|is|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -8109,6 +10181,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8132,6 +10211,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8155,6 +10241,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8178,6 +10271,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8202,6 +10302,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8225,6 +10332,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8248,6 +10362,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8272,6 +10393,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8295,6 +10423,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8318,6 +10453,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8341,6 +10483,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8365,6 +10514,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8389,6 +10545,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8413,6 +10576,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8437,6 +10607,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8461,6 +10638,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|40|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8486,6 +10670,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8512,6 +10703,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8538,6 +10736,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8564,6 +10769,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8590,6 +10802,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8616,6 +10835,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8642,6 +10868,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8668,6 +10901,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8694,6 +10934,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8720,6 +10967,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -8747,6 +11001,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8773,6 +11034,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8799,6 +11067,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8825,6 +11100,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8851,6 +11133,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8877,6 +11166,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8903,6 +11199,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8929,6 +11232,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8956,6 +11266,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -8983,6 +11300,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9010,6 +11334,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9037,6 +11368,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9064,6 +11402,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9091,6 +11436,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9118,6 +11470,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9145,6 +11504,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -9173,6 +11539,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9200,6 +11573,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9227,6 +11607,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9254,6 +11641,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9281,6 +11675,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9308,6 +11709,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9335,6 +11743,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9362,6 +11777,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9389,6 +11811,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9417,6 +11846,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9444,6 +11880,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9471,6 +11914,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9498,6 +11948,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9525,6 +11982,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9552,6 +12016,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9579,6 +12050,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9606,6 +12084,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9634,6 +12119,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9663,6 +12155,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9689,6 +12188,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9715,6 +12221,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9741,6 +12254,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9767,6 +12287,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9793,6 +12320,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9819,6 +12353,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9845,6 +12386,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9872,6 +12420,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9900,6 +12455,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9926,6 +12488,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9952,6 +12521,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -9978,6 +12554,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10004,6 +12587,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10030,6 +12620,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10057,6 +12654,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10085,6 +12689,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10111,6 +12722,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10137,6 +12755,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10163,6 +12788,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10189,6 +12821,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10215,6 +12854,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10241,6 +12887,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10267,6 +12920,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10293,6 +12953,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10319,6 +12986,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10346,6 +13020,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -10374,6 +13055,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10400,6 +13088,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10426,6 +13121,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10452,6 +13154,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10478,6 +13187,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10504,6 +13220,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10530,6 +13253,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10556,6 +13286,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10582,6 +13319,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10609,6 +13353,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10636,6 +13387,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10663,6 +13421,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10690,6 +13455,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10717,6 +13489,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10744,6 +13523,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10771,6 +13557,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10798,6 +13591,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10825,6 +13625,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -10853,6 +13660,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10879,6 +13693,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10905,6 +13726,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10931,6 +13759,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10957,6 +13792,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -10983,6 +13825,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11009,6 +13858,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11035,6 +13891,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11061,6 +13924,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11088,6 +13958,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11116,6 +13993,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11143,6 +14027,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11170,6 +14061,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11197,6 +14095,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11224,6 +14129,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11251,6 +14163,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11278,6 +14197,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11305,6 +14231,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11332,6 +14265,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11360,6 +14300,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11389,6 +14336,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11416,6 +14370,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11443,6 +14404,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11470,6 +14438,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11497,6 +14472,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11524,6 +14506,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11551,6 +14540,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11578,6 +14574,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11605,6 +14608,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11633,6 +14643,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11662,6 +14679,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11688,6 +14712,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11714,6 +14745,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11740,6 +14778,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11766,6 +14811,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11792,6 +14844,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11818,6 +14877,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11844,6 +14910,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11870,6 +14943,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11897,6 +14977,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -11925,6 +15012,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -11951,6 +15045,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -11977,6 +15078,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12003,6 +15111,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12029,6 +15144,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12055,6 +15177,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12081,6 +15210,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12107,6 +15243,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12133,6 +15276,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12159,6 +15309,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12185,6 +15342,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12212,6 +15376,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -12240,6 +15411,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12266,6 +15444,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12292,6 +15477,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12318,6 +15510,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12344,6 +15543,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12370,6 +15576,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12396,6 +15609,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12422,6 +15642,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12449,6 +15676,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12477,6 +15711,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12504,6 +15745,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12531,6 +15779,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12558,6 +15813,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12585,6 +15847,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12612,6 +15881,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12639,6 +15915,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12666,6 +15949,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12694,6 +15984,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -12723,6 +16020,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12749,6 +16053,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12775,6 +16086,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12801,6 +16119,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12827,6 +16152,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12853,6 +16185,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12879,6 +16218,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12905,6 +16251,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12931,6 +16284,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12957,6 +16317,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -12984,6 +16351,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13012,6 +16386,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13038,6 +16419,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13064,6 +16452,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13090,6 +16485,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13116,6 +16518,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|true|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|m|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13143,6 +16552,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13172,6 +16588,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13202,6 +16625,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13233,6 +16663,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13262,6 +16699,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13292,6 +16736,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13323,6 +16774,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13357,6 +16815,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13391,6 +16856,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|p|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -13425,6 +16897,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13448,6 +16927,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13471,6 +16957,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13494,6 +16987,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13517,6 +17017,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13542,6 +17049,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13567,6 +17081,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13592,6 +17113,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13617,6 +17145,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13642,6 +17177,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13667,6 +17209,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13693,6 +17242,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13719,6 +17275,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13745,6 +17308,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13771,6 +17341,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13797,6 +17374,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13823,6 +17407,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13849,6 +17440,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13875,6 +17473,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13901,6 +17506,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -13928,6 +17540,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -13954,6 +17573,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -13980,6 +17606,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14006,6 +17639,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14032,6 +17672,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14058,6 +17705,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14084,6 +17738,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14110,6 +17771,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14137,6 +17805,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14164,6 +17839,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14191,6 +17873,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14218,6 +17907,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14245,6 +17941,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14272,6 +17975,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14299,6 +18009,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14326,6 +18043,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -14354,6 +18078,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14380,6 +18111,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14406,6 +18144,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14432,6 +18177,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14458,6 +18210,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14484,6 +18243,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14510,6 +18276,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14536,6 +18309,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14562,6 +18342,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|true|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14589,6 +18376,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14616,6 +18410,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14643,6 +18444,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14670,6 +18478,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14697,6 +18512,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14724,6 +18546,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14751,6 +18580,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14778,6 +18614,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14805,6 +18648,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14833,6 +18683,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14860,6 +18717,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14887,6 +18751,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14914,6 +18785,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14941,6 +18819,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14968,6 +18853,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -14995,6 +18887,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15022,6 +18921,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15050,6 +18956,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15079,6 +18992,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15105,6 +19025,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15131,6 +19058,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15157,6 +19091,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15183,6 +19124,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15209,6 +19157,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15235,6 +19190,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15261,6 +19223,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15288,6 +19257,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -15316,6 +19292,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15342,6 +19325,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15368,6 +19358,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15394,6 +19391,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15420,6 +19424,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15446,6 +19457,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15472,6 +19490,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15498,6 +19523,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15524,6 +19556,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15550,6 +19589,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15577,6 +19623,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -15605,6 +19658,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15631,6 +19691,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15657,6 +19724,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15683,6 +19757,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15709,6 +19790,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15735,6 +19823,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15761,6 +19856,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15787,6 +19889,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15813,6 +19922,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15840,6 +19956,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15867,6 +19990,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15894,6 +20024,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15921,6 +20058,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15948,6 +20092,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -15975,6 +20126,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -16002,6 +20160,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -16029,6 +20194,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -16056,6 +20228,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -16084,6 +20263,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16110,6 +20296,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16136,6 +20329,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16162,6 +20362,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16188,6 +20395,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16214,6 +20428,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16240,6 +20461,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16266,6 +20494,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16292,6 +20527,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16319,6 +20561,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16347,6 +20596,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16374,6 +20630,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16401,6 +20664,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16428,6 +20698,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16455,6 +20732,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16482,6 +20766,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16509,6 +20800,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16536,6 +20834,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16563,6 +20868,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16591,6 +20903,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16620,6 +20939,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16647,6 +20973,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16674,6 +21007,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16701,6 +21041,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16728,6 +21075,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16755,6 +21109,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16782,6 +21143,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16809,6 +21177,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16836,6 +21211,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16864,6 +21246,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16893,6 +21282,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16919,6 +21315,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16945,6 +21348,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16971,6 +21381,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -16997,6 +21414,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17023,6 +21447,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17049,6 +21480,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17075,6 +21513,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17101,6 +21546,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17128,6 +21580,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17156,6 +21615,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17182,6 +21648,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17208,6 +21681,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17234,6 +21714,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17260,6 +21747,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17286,6 +21780,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17312,6 +21813,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17338,6 +21846,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17364,6 +21879,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17390,6 +21912,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17416,6 +21945,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17443,6 +21979,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -17471,6 +22014,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17497,6 +22047,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17523,6 +22080,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17549,6 +22113,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17575,6 +22146,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17601,6 +22179,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17627,6 +22212,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17653,6 +22245,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17680,6 +22279,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17708,6 +22314,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17735,6 +22348,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17762,6 +22382,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17789,6 +22416,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17816,6 +22450,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17843,6 +22484,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17870,6 +22518,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17897,6 +22552,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17925,6 +22587,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -17954,6 +22623,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -17980,6 +22656,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18006,6 +22689,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18032,6 +22722,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18058,6 +22755,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18084,6 +22788,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18110,6 +22821,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18136,6 +22854,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18162,6 +22887,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18188,6 +22920,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18215,6 +22954,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|192|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18243,6 +22989,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18269,6 +23022,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18295,6 +23055,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18321,6 +23088,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18347,6 +23121,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18373,6 +23154,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18399,6 +23187,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18425,6 +23220,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18451,6 +23253,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18478,6 +23287,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|r|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18506,6 +23322,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18530,6 +23353,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18553,6 +23383,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18576,6 +23413,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18599,6 +23443,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18622,6 +23473,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18645,6 +23503,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18668,6 +23533,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18692,6 +23564,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18717,6 +23596,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18742,6 +23628,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18767,6 +23660,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18792,6 +23692,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18817,6 +23724,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18842,6 +23756,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -18868,6 +23789,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18893,6 +23821,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18918,6 +23853,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18943,6 +23885,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18968,6 +23917,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -18993,6 +23949,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19018,6 +23981,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|amd|
@@ -19044,6 +24014,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19069,6 +24046,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19094,6 +24078,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19119,6 +24110,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19144,6 +24142,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19169,6 +24174,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19194,6 +24206,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|t|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19223,6 +24242,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|1|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19254,6 +24280,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19287,6 +24320,13 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-accelerator-count|16|
  |karpenter.k8s.aws/instance-accelerator-manufacturer|aws|
  |karpenter.k8s.aws/instance-accelerator-name|inferentia|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|trn|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19317,6 +24357,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19343,6 +24390,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19369,6 +24423,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19395,6 +24456,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|224|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19422,6 +24490,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|224|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19447,6 +24522,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19473,6 +24555,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|u|
  |karpenter.k8s.aws/instance-cpu|448|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19603,6 +24692,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19629,6 +24725,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19655,6 +24758,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|vt|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19683,6 +24793,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19708,6 +24825,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19734,6 +24858,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19759,6 +24890,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19784,6 +24922,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19809,6 +24954,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19834,6 +24986,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19859,6 +25018,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -19885,6 +25051,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|1|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19912,6 +25085,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19939,6 +25119,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19966,6 +25153,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -19993,6 +25187,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20020,6 +25221,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20047,6 +25255,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20074,6 +25289,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20101,6 +25323,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|aws|
@@ -20129,6 +25358,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20156,6 +25392,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20183,6 +25426,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20211,6 +25461,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20240,6 +25497,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20267,6 +25531,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20294,6 +25565,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20321,6 +25599,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20348,6 +25633,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|64|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20375,6 +25667,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|96|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20402,6 +25701,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20430,6 +25736,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|128|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20459,6 +25772,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20485,6 +25805,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|16|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20511,6 +25838,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20537,6 +25871,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|32|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20563,6 +25904,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20590,6 +25938,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|true|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|true|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|false|
+ |karpenter.k8s.aws/instance-capability-network-optimized|true|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|x|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20618,6 +25973,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|2|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20645,6 +26007,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|4|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20672,6 +26041,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|8|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20699,6 +26075,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|12|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20726,6 +26109,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|24|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20753,6 +26143,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
@@ -20780,6 +26177,13 @@ below are the resources available with some assumptions and after the instance o
 #### Labels
  | Label | Value |
  |--|--|
+ |karpenter.k8s.aws/instance-capability-block-storage-optimized|false|
+ |karpenter.k8s.aws/instance-capability-extra-storage|false|
+ |karpenter.k8s.aws/instance-capability-flex|false|
+ |karpenter.k8s.aws/instance-capability-high-performance|false|
+ |karpenter.k8s.aws/instance-capability-instance-store-volume|true|
+ |karpenter.k8s.aws/instance-capability-network-optimized|false|
+ |karpenter.k8s.aws/instance-capability-qualcomm-inference|false|
  |karpenter.k8s.aws/instance-category|z|
  |karpenter.k8s.aws/instance-cpu|48|
  |karpenter.k8s.aws/instance-cpu-manufacturer|intel|
