@@ -157,7 +157,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
 		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
-			MaxPods: lo.ToPtr(int32(1 + int32(dsCount))),
+			MaxPods: lo.ToPtr(1 + int32(dsCount)),
 		}
 
 		numPods := 3

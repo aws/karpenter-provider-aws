@@ -40,83 +40,60 @@ func (v *VPCEndpoint) Global() bool {
 	return false
 }
 
-func (v *VPCEndpoint) Get(ctx context.Context, clusterName string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := v.ec2Client.DescribeVpcEndpoints(ctx, &ec2.DescribeVpcEndpointsInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag:" + karpenterTestingTag),
-					Values: []string{clusterName},
-				},
+func (v *VPCEndpoint) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
+	endpoints, err := v.getAllVpcEndpoints(ctx, &ec2.DescribeVpcEndpointsInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag-key"),
+				Values: []string{karpenterTestingTag},
 			},
-			NextToken: nextToken,
+		},
+	})
+	if err != nil {
+		return ids, err
+	}
+
+	for _, endpoint := range endpoints {
+		clusterName, found := lo.Find(endpoint.Tags, func(tag ec2types.Tag) bool {
+			return *tag.Key == k8sClusterTag
 		})
-		if err != nil {
-			return ids, err
+		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+			continue
 		}
-		for _, endpoint := range out.VpcEndpoints {
+		if endpoint.CreationTimestamp.Before(expirationTime) {
 			ids = append(ids, lo.FromPtr(endpoint.VpcEndpointId))
 		}
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
 	}
+
 	return ids, err
 }
 
 func (v *VPCEndpoint) CountAll(ctx context.Context) (count int, err error) {
-	var nextToken *string
-	for {
-		out, err := v.ec2Client.DescribeVpcEndpoints(ctx, &ec2.DescribeVpcEndpointsInput{
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return count, err
-		}
-
-		count += len(out.VpcEndpoints)
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+	endpoints, err := v.getAllVpcEndpoints(ctx, &ec2.DescribeVpcEndpointsInput{})
+	if err != nil {
+		return count, err
 	}
-	return count, err
+
+	return len(endpoints), err
 }
 
-func (v *VPCEndpoint) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := v.ec2Client.DescribeVpcEndpoints(ctx, &ec2.DescribeVpcEndpointsInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag-key"),
-					Values: []string{karpenterTestingTag},
-				},
+func (v *VPCEndpoint) Get(ctx context.Context, clusterName string) (ids []string, err error) {
+	endpoints, err := v.getAllVpcEndpoints(ctx, &ec2.DescribeVpcEndpointsInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag:" + karpenterTestingTag),
+				Values: []string{clusterName},
 			},
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return ids, err
-		}
-		for _, endpoint := range out.VpcEndpoints {
-			clusterName, found := lo.Find(endpoint.Tags, func(tag ec2types.Tag) bool {
-				return *tag.Key == k8sClusterTag
-			})
-			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
-				continue
-			}
-			if endpoint.CreationTimestamp.Before(expirationTime) {
-				ids = append(ids, lo.FromPtr(endpoint.VpcEndpointId))
-			}
-		}
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+		},
+	})
+	if err != nil {
+		return ids, err
 	}
+
+	for _, endpoint := range endpoints {
+		ids = append(ids, lo.FromPtr(endpoint.VpcEndpointId))
+	}
+
 	return ids, err
 }
 
@@ -128,4 +105,18 @@ func (v *VPCEndpoint) Cleanup(ctx context.Context, ids []string) ([]string, erro
 		return nil, err
 	}
 	return ids, nil
+}
+
+func (v *VPCEndpoint) getAllVpcEndpoints(ctx context.Context, params *ec2.DescribeVpcEndpointsInput) (endpoints []ec2types.VpcEndpoint, err error) {
+	paginator := ec2.NewDescribeVpcEndpointsPaginator(v.ec2Client, params)
+
+	for paginator.HasMorePages() {
+		out, err := paginator.NextPage(ctx)
+		if err != nil {
+			return endpoints, err
+		}
+		endpoints = append(endpoints, out.VpcEndpoints...)
+	}
+
+	return endpoints, nil
 }

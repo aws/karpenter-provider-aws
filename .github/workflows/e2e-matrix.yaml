@@ -63,6 +63,12 @@ jobs:
         suite:
           - name: Integration
             region: ${{ inputs.region }}
+          - name: AMI
+            region: ${{ inputs.region }}
+          - name: Scheduling
+            region: ${{ inputs.region }}
+          - name: Storage
+            region: ${{ inputs.region }}
           - name: NodeClaim
             region: ${{ inputs.region }}
           - name: Consolidation

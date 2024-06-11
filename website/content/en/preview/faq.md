@@ -138,6 +138,25 @@ For more documentation on enabling IPv6 with the Amazon VPC CNI, see the [docs](
 Windows nodes do not support IPv6.
 {{% /alert %}}
 
+### Why do I see extra nodes get launched to schedule pending pods that remain empty and are later removed?
+
+You might have a daemonset, userData configuration, or some other workload that applies a taint after a node is provisioned. After the taint is applied, Karpenter will detect that the pod cannot be scheduled to this new node due to the added taint. As a result, Karpenter will provision yet another node. Typically, the original node has the taint removed and the pod schedules to it, leaving the extra new node unused and reaped by emptiness/consolidation. If the taint is not removed quickly enough, Karpenter may remove the original node before the pod can be scheduled via emptiness consolidation. This could result in an infinite loop of nodes being provisioned and consolidated without the pending pod ever scheduling.
+
+The solution is to configure [startupTaints]({{<ref "./concepts/nodepools/#cilium-startup-taint" >}}) to make Karpenter aware of any temporary taints that are needed to ensure that pods do not schedule on nodes that are not yet ready to receive them.
+
+Here's an example for Cilium's startup taint.
+```
+apiVersion: karpenter.sh/v1beta1
+kind: NodePool
+...
+spec:
+  template:
+    spec:
+      startupTaints:
+        - key: node.cilium.io/agent-not-ready
+          effect: NoSchedule
+```
+
 ## Scheduling
 
 ### When using preferred scheduling constraints, Karpenter launches the correct number of nodes at first.  Why do they then sometimes get consolidated immediately?
@@ -211,15 +230,15 @@ For information on upgrading Karpenter, see the [Upgrade Guide]({{< ref "./upgra
 
 ### How do I upgrade an EKS Cluster with Karpenter?
 
-When upgrading an Amazon EKS cluster, [Karpenter's Drift feature]({{<ref "./concepts/disruption#drift" >}}) can automatically upgrade the Karpenter-provisioned nodes to stay in-sync with the EKS control plane. Karpenter Drift is enabled by default starting `0.33.0`.
-
 {{% alert title="Note" color="primary" %}}
-Karpenter's default [EC2NodeClass `amiFamily` configuration]({{<ref "./concepts/nodeclasses#specamifamily" >}}) uses the latest EKS Optimized AL2 AMI for the same major and minor version as the EKS cluster's control plane, meaning that an upgrade of the control plane will cause Karpenter to auto-discover the new AMIs for that version.
+Karpenter recommends that you always validate AMIs in your lower environments before using them in production environments. Read [Managing AMIs]({{<ref "./tasks/managing-amis" >}}) to understand best practices about upgrading your AMIs.
 
-If using a custom AMI, you will need to trigger the rollout of this new worker node image through the publication of a new AMI with tags matching the [`amiSelector`]({{<ref "./concepts/nodeclasses#specamiselectorterms" >}}), or a change to the [`amiSelector`]({{<ref "./concepts/nodeclasses#specamiselectorterms" >}}) field.
+If using a custom AMI, you will need to trigger the rollout of new worker node images through the publication of a new AMI with tags matching the [`amiSelector`]({{<ref "./concepts/nodeclasses#specamiselectorterms" >}}), or a change to the [`amiSelector`]({{<ref "./concepts/nodeclasses#specamiselectorterms" >}}) field.
 {{% /alert %}}
 
-Start by [upgrading the EKS Cluster control plane](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html). After the EKS Cluster upgrade completes, Karpenter's Drift feature will detect that the Karpenter-provisioned nodes are using EKS Optimized AMIs for the previous cluster version, and [automatically cordon, drain, and replace those nodes]({{<ref "./concepts/disruption#control-flow" >}}). To support pods moving to new nodes, follow Kubernetes best practices by setting appropriate pod [Resource Quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/), and using [Pod Disruption Budgets](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) (PDB). Karpenter's Drift feature will spin up replacement nodes based on the pod resource requests, and will respect the PDBs when deprovisioning nodes.
+Karpenter's default behavior will upgrade your nodes when you've upgraded your Amazon EKS Cluster. Karpenter will [drift]({{<ref "./concepts/disruption#drift" >}}) nodes to stay in-sync with the EKS control plane version. Drift is enabled by default starting in `v0.33`. This means that as soon as your cluster is upgraded, Karpenter will auto-discover the new AMIs for that version.
+
+Start by [upgrading the EKS Cluster control plane](https://docs.aws.amazon.com/eks/latest/userguide/update-cluster.html). After the EKS Cluster upgrade completes, Karpenter will Drift and disrupt the Karpenter-provisioned nodes using EKS Optimized AMIs for the previous cluster version by first spinning up replacement nodes. Karpenter respects [Pod Disruption Budgets](https://kubernetes.io/docs/concepts/workloads/pods/disruptions/) (PDB), and automatically [replaces, cordons, and drains those nodes]({{<ref "./concepts/disruption#control-flow" >}}). To best support pods moving to new nodes, follow Kubernetes best practices by setting appropriate pod [Resource Quotas](https://kubernetes.io/docs/concepts/policy/resource-quotas/) and using PDBs.
 
 ## Interruption Handling
 

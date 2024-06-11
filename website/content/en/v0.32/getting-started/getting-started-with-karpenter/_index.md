@@ -79,6 +79,9 @@ The following cluster configuration will:
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step02-create-cluster.sh" language="bash"%}}
 
+Unless your AWS account has already onboarded to EC2 Spot, you will need to create the service linked role to
+avoid the [`ServiceLinkedRoleCreationNotPermitted` error]({{<ref "../../troubleshooting/#missing-service-linked-role" >}}).
+
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step06-add-spot-role.sh" language="bash"%}}
 
 {{% alert title="Windows Support Notice" color="warning" %}}

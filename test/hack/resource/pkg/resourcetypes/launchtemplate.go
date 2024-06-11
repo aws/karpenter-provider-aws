@@ -42,86 +42,59 @@ func (lt *LaunchTemplate) Global() bool {
 }
 
 func (lt *LaunchTemplate) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (names []string, err error) {
-	var nextToken *string
-	for {
-		out, err := lt.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag-key"),
-					Values: []string{karpenterLaunchTemplateTag},
-				},
+	lts, err := lt.getAllLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag-key"),
+				Values: []string{karpenterLaunchTemplateTag},
 			},
-			NextToken: nextToken,
+		},
+	})
+	if err != nil {
+		return names, err
+	}
+
+	for _, launchtemplate := range lts {
+		clusterName, found := lo.Find(launchtemplate.Tags, func(tag ec2types.Tag) bool {
+			return *tag.Key == k8sClusterTag
 		})
-		if err != nil {
-			return names, err
+		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+			continue
 		}
-
-		for _, launchTemplate := range out.LaunchTemplates {
-			clusterName, found := lo.Find(launchTemplate.Tags, func(tag ec2types.Tag) bool {
-				return *tag.Key == k8sClusterTag
-			})
-			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
-				continue
-			}
-			if lo.FromPtr(launchTemplate.CreateTime).Before(expirationTime) {
-				names = append(names, lo.FromPtr(launchTemplate.LaunchTemplateName))
-			}
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
+		if lo.FromPtr(launchtemplate.CreateTime).Before(expirationTime) {
+			names = append(names, lo.FromPtr(launchtemplate.LaunchTemplateName))
 		}
 	}
+
 	return names, err
 }
 
 func (lt *LaunchTemplate) CountAll(ctx context.Context) (count int, err error) {
-	var nextToken *string
-	for {
-		out, err := lt.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return count, err
-		}
-
-		count += len(out.LaunchTemplates)
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+	lts, err := lt.getAllLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{})
+	if err != nil {
+		return count, err
 	}
-	return count, err
+
+	return len(lts), err
 }
 
 func (lt *LaunchTemplate) Get(ctx context.Context, clusterName string) (names []string, err error) {
-	var nextToken *string
-	for {
-		out, err := lt.ec2Client.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag:" + karpenterLaunchTemplateTag),
-					Values: []string{clusterName},
-				},
+	lts, err := lt.getAllLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag:" + karpenterLaunchTemplateTag),
+				Values: []string{clusterName},
 			},
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return names, err
-		}
-
-		for _, launchTemplate := range out.LaunchTemplates {
-			names = append(names, lo.FromPtr(launchTemplate.LaunchTemplateName))
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+		},
+	})
+	if err != nil {
+		return names, err
 	}
+
+	for _, launchtemplate := range lts {
+		names = append(names, lo.FromPtr(launchtemplate.LaunchTemplateName))
+	}
+
 	return names, err
 }
 
@@ -141,4 +114,18 @@ func (lt *LaunchTemplate) Cleanup(ctx context.Context, names []string) ([]string
 		deleted = append(deleted, names[i])
 	}
 	return deleted, errs
+}
+
+func (lt *LaunchTemplate) getAllLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput) (lts []ec2types.LaunchTemplate, err error) {
+	paginator := ec2.NewDescribeLaunchTemplatesPaginator(lt.ec2Client, params)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return lts, err
+		}
+		lts = append(lts, page.LaunchTemplates...)
+	}
+
+	return lts, nil
 }
