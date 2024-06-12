@@ -29,7 +29,6 @@ This document will review the desired flow for disrupting of stateful workloads,
   - [A. Further Reading](#a-further-reading)
   - [B. Terminology](#b-terminology)
   - [C. Issue Timeline](#c-issue-timeline)
-  - [D. Footnotes](#d-footnotes)
   - [E. Reproduction Manifests](#e-reproduction-manifests)
   - [F: Sequence Diagrams](#f-sequence-diagrams)
 
@@ -85,7 +84,7 @@ Today, with customers with default Karpenter `v0.37.0` and EBS CSI Driver `v1.31
 
 **Problem A. If step 2 doesn't happen, there will be a 6+ minute delay.**
 
-If volumes are not unmounted *by CSI Node Service*, Kubernetes cannot confirm volumes are not in use and will wait 6 minutes before treating the volume as unmounted. See [EBS CSI 6-minute delay FAQ](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#6-minute-delays-in-attaching-volumes) 
+If volumes are not *confirmed* as unmounted *by CSI Node Service*, Kubernetes cannot confirm volumes are not in use and will wait 6 minutes before treating the volume as unmounted. See [EBS CSI 6-minute delay FAQ](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#6-minute-delays-in-attaching-volumes) 
 
 Relevant PVC Event (Note the 6+ minute delay): 
 
@@ -95,7 +94,7 @@ Warning  FailedAttachVolume      6m51s              attachdetach-controller  Mul
 
 **Problem B. If step 3 doesn't happen before step 4, there will be a 1+ minute delay**
 
-If karpenter calls EC2 TerminateInstance **before** EC2 DetachVolume calls finish, then the volumes won't be detached **until the old instance terminates**. This delay depends on the instance type. 1 minute for `m5a.large`, up to 15 minutes for certain GPU/Windows instances.
+If karpenter calls EC2 TerminateInstance **before** EC2 DetachVolume calls from EBS CSI Driver Controller pod finish, then the volumes won't be detached **until the old instance terminates**. This delay depends on the instance type. 1 minute for `m5a.large`, up to 15 minutes for certain GPU/Windows instances.
  
 Relevant PVC Events (Note the 1-min delay between `Multi-Attach error` AND `AttachVolume.Attach failed`):
 
@@ -111,11 +110,11 @@ Customers can determine which delay they are suffering from based off of whether
 
 **A1: To solve A long-term, Kubernetes should ensure volumes are unmounted before CSI Driver Node pods are terminated.**
 
-**A2: To solve A today, Karpenter should confirm and communicate that volumes are not in use before deleting the node's finalizer.**
+**A2: To solve A today, Karpenter should confirm that volumes are not in use and confirm AttachDetach Controller knows this before deleting the node's finalizer.**
 
 **B1: To solve B today, Karpenter should wait for volumes to detach before terminating the node.**
 
-See [WIP Kubernetes 1.31 solution in PR #125070](https://github.com/kubernetes/kubernetes/pull/125070)
+See [WIP Kubernetes 1.31 A1 solution in PR #125070](https://github.com/kubernetes/kubernetes/pull/125070)
 
 See [a proof-of-concept implementation of A2 & B1 in PR #1294](https://github.com/kubernetes-sigs/karpenter/pull/1294)
 
@@ -127,7 +126,7 @@ Finally we should add the following EBS x Karpenter end-to-end test in karpenter
 
 ## Problem A. Preventing 6+ minute delays 
 
-If volumes are not unmounted *by CSI Node Service*, Kubernetes cannot confirm volumes are not in use and will wait 6 minutes[^4] before treating the volume as unmounted and moving forward with a volume detach. See [EBS CSI 6-minute delay FAQ](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#6-minute-delays-in-attaching-volumes) 
+If `ReadWriteOnce` volumes are not unmounted *by CSI Node Service*, Kubernetes cannot confirm volumes are not in use and safe to attach to new node. Kubernetes will wait 6 minutes[^4] and ensure Node is `unhealthy` before treating the volume as unmounted and moving forward with a volume detach. See [EBS CSI 6-minute delay FAQ](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#6-minute-delays-in-attaching-volumes) 
 
 Cluster operator will see a `FailedAttachVolume` event with `Multi-Attach error`
 
@@ -143,9 +142,9 @@ However, the the shutdown manager does not wait for all volumes to be unmounted,
 
 ![kubelet_shutdown_race](https://github.com/AndrewSirenko/karpenter-provider-aws/assets/68304519/9ccb6c94-ef02-40af-84bf-9471827f3303)
 
-Today, the EBS CSI Driver attempts to workaround this race by utilizing a [PreStop hook](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#what-steps-can-be-taken-to-mitigate-this-issue) that tries to keep the Node Service alive until all volumes are unmounted. We will explore the shortcomings of this solution later.  
+Today, the EBS CSI Driver attempts to work around this race by utilizing a [PreStop hook](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#what-steps-can-be-taken-to-mitigate-this-issue) that tries to keep the Node Service alive until all volumes are unmounted. We will explore the shortcomings of this solution later.  
 
-*Note: In addition to the Kubelet race, this delay can happen if stateful pods out-live the CSI Node Pod. E.g. Operator has a statefulset that tolerates all taints and a longer terminationGracePeriod than EBS CSI Driver.*
+*Note: In addition to the Kubelet race, this delay can happen if stateful pods out-live the CSI Node Pod. E.g. Operator has a statefulset that tolerates all taints and has a longer terminationGracePeriod than EBS CSI Driver.*
 
 ### Solutions:
 
@@ -155,9 +154,9 @@ We should:
 
 #### A1: Fix race at Kubelet level
 
-The Kubelet Shutdown Manager should not kill CSI Driver Pods before volumes are unmounted. 
+The Kubelet Shutdown Manager should not kill CSI Driver Pods before volumes are unmounted. This change must be made at `kubernetes/kubernetes` level.
 
-See: [PR #125070](https://github.com/kubernetes/kubernetes/pull/125070) for more information. 
+See: [Active PR #125070](https://github.com/kubernetes/kubernetes/pull/125070) for more information. 
 
 **Pros:** 
 
@@ -168,19 +167,19 @@ See: [PR #125070](https://github.com/kubernetes/kubernetes/pull/125070) for more
 
 **Cons:**
 
-- Unavailable until Kubernetes `v1.31`
+- Unavailable until merged in a version of Kubernetes (Likely Kubernetes `v1.31`) (Possibly able to be backported)
 
 #### A2: Taint node as `out-of-service` after termination
 
 While this race should be fixed at the Kubelet level long-term, we still need a solution for earlier versions of Kubernetes.
 
-One solution is to mark terminated nodes as `out-of-service`. 
+One solution is to mark terminated nodes via `out-of-service` taint. 
 
 In `v1.26`, Kubernetes enabled the [Non-graceful node shutdown handling feature](https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/#non-graceful-node-shutdown) by default. This introduces the `node.kubernetes.io/out-of-service` taint, which can be used to mark a node as terminated. 
 
 Once Karpenter confirms that an instance is terminated, adding this taint to the node object will allow the Attach/Detach Controller to treat the volume as not in use, preventing the 6+ minute delay. 
 
-With this taint and wait, the following sequence will occur:
+By modifying Karpenter to apply this taint and wait ~5 seconds until volumes are marked not in use, the following sequence will occur:
 
 ![taint_solution](https://github.com/AndrewSirenko/karpenter-provider-aws/assets/68304519/d1bc5704-7592-4aa1-a72e-83d33f824b8b)
 
@@ -189,27 +188,27 @@ See [this commit](https://github.com/kubernetes-sigs/karpenter/pull/1294/commits
 **Pros:**
 
 - Solves 6+ minute delays by default
-- No additional latency before starting instance termination. (In my tests, a 6 second wait was sufficient for AttachDetach Controller to recognize the out-of-service taint and allow for volume detach)
+- No additional latency before starting instance termination. 
+- Minor latency in deleting Node's finalizer IF karpenter does not treat `shutting down` instance as terminated. (In my tests, a 5 second wait was sufficient for AttachDetach Controller to recognize the out-of-service taint and allow for volume detach)
 - If Kubernetes makes this 6 minute ForceDetach timer infinite by default (As currently planned in Kubernetes v1.32), the out-of-service taint will be the only ensure workload starts on other node 
 
 **Cons:**
 
 - Unavailable until Kubernetes `v1.26`. Customers running Karpenter on Kubernetes ≤ `v1.25` will require solution B1 to be implemented. 
 - Requires Karpenter-Provider-AWS to not treat `Shutting Down` as terminated (Though Karpenter had already planned on this via [PR #5979](https://github.com/aws/karpenter-provider-aws/pull/5979))
-- Problem B's delay still occurs because we must wait until instance terminates. 
+- Problem B's delay still occurs because volumes will not be detached until consolidated instance terminates. 
 
 #### Alternatives Considered
 
 **Customer configuration**
 
-Customers can mitigate 6+ minute delays by configuring their nodes and pod taint tolerations. See [EBS CSI Driver FAQ: Mitigating 6+ minute delays](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#what-steps-can-be-taken-to-mitigate-this-issue)
+Customers can mitigate 6+ minute delays by configuring their nodes and pod taint tolerations. See [EBS CSI Driver FAQ: Mitigating 6+ minute delays](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#what-steps-can-be-taken-to-mitigate-this-issue) for an updating list of configuration requirements.
 
 A quick overview:
 - Configure Kubelet for Graceful Node Shutdown
 - Enable Karpenter Spot Instance interruption handling
 - Use EBS CSI Driver ≥ `v1.x` in order use the [PreStop Lifecycle Hook](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#what-is-the-prestop-lifecycle-hook)
 - Set `.node.tolerateAllTaints=false` when deploying the EBS CSI Driver
-[](https://github.com/kubernetes-sigs/aws-ebs-csi-driver/blob/master/docs/faq.md#what-steps-can-be-taken-to-mitigate-this-issue)
 - Confirm that your stateful workloads do not tolerate Karpenter's `disrupting` taint, and any that any system-critical stateful daemonsets have a lower terminationGracePeriod than the EBS CSI Driver.
 
 **Pros:**
@@ -218,22 +217,25 @@ A quick overview:
 
 **Cons:**
 
-- Requiring configuration is a poor customer experience. Troubleshooting this configuration is difficult. (Hence why issues are still being raised on Karpenter and EBS CSI Driver Projects)
+- Requiring configuration is a poor customer experience because many customers will not be aware of special requirements for EBS-backed workloads with Karpenter. Troubleshooting this configuration is difficult due to the two separate attachment delay issues. (Hence why issues are still being raised on Karpenter and EBS CSI Driver Projects)
+- Only fixes problem A, the 6+ minute delay. 
 - Stateful workloads that tolerate Karpenter's `disrupting` taint, or any system-critical stateful daemonsets with a higher terminationGracePeriod than the EBS CSI Driver will still see migration delays. 
 
 ## Problem B. Preventing Delayed Detachments
 
 Even if we solve the 6+ minute volume-in-use delay, AWS customers may suffer from a second type of delay due to behavior specific to EC2.  
 
-If Karpenter calls EC2 TerminateInstance **before** EC2 DetachVolume calls finish, then the volumes won't be detached **until the old instance terminates**. This delay depends on the instance type. 1 minute for `m5a.large`, up to 15 minutes for certain GPU/Windows instances (especially painful for ML/AI customers).
+If Karpenter calls EC2 TerminateInstance **before** EC2 DetachVolume calls finish, then the volumes won't be detached **until the old instance terminates**. This delay depends on the instance type. 1 minute for `m5a.large`, 10-15+ minutes for certain GPU/Metal/Windows instances like `m7i.metal-48xl` (making this especially painful for ML/AI or .Net customers).
 
 Operators will see `FailedAttachVolume` events with `Multi-Attach error` and then `AttachVolume.Attach failed` errors. 
 
-### Solution B1: Wait for unmounts in Karpenter cloudProvider.Delete
+### Solution B1: Wait for detach in Karpenter cloudProvider.Delete
 
-Wait for volumes to unmount before terminating the instance. 
+Wait for volumes to detach before terminating the instance.
 
-We can do this by waiting for all volumes of drain-able nodes to be marked as not be in use before terminating the node in c.cloudProvider.Delete (until a maximum of 20 seconds). 
+We can do this by waiting for all volumes of drain-able nodes to be marked as not be in use nor attached before terminating the node in c.cloudProvider.Delete (until a maximum of 20 seconds). 
+
+We can detect a volume is detached by ensuring that `volumeattachment` objects associated to relevant PVs are deleted
 
 This means that our sequence of events will match the ideal diagram from section [Ideal Graceful Shutdown for Stateful Workloads][#ideal-graceful-shutdown-for-stateful-workloads]
 
@@ -263,7 +265,7 @@ Instead of solving this inside the [`c.cloudProvider.Delete`](https://github.com
 **Cons:**
 
 - [Open Question] EBS may be the only storage provider where detaching volumes before terminating the instance matters. If this is the case, the delay before instance termination is not worth it for customers of other storage/cloud providers.
-- Should not hardcode cloud-provider specific CSI Drivers in upstream project. 
+- Should not hardcode cloud-provider specific CSI Drivers in upstream project. Therefore this delay must be agreed upon by multiple drivers and cloud providers.
 
 **Karpenter Polls EC2 for volume detachments before calling EC2 TerminateInstance**
 
@@ -304,8 +306,6 @@ Karpenter-provider-aws can poll EC2 DescribeVolumes before making an EC2 Termina
 - StatefulSet: Manages the deployment and scaling of a set of Pods, and provides gauruntees about the ordering and uniqueness of these Pods. These uniqueness gauruntees are valuable when your workload needs persistent storage. 
 
 ### C. Issue Timeline
-
-### D. Footnotes
 
 [^1]: From my testing via the EBS CSI Driver, EBS volumes typically take 10 seconds to detach and 5 seconds to attach. But there is no Attach/Detach SLA. 
 
