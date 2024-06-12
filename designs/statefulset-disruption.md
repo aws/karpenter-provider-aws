@@ -160,11 +160,14 @@ The Kubelet Shutdown Manager should not kill CSI Driver Pods before volumes are 
 See: [PR #125070](https://github.com/kubernetes/kubernetes/pull/125070) for more information. 
 
 **Pros:** 
+
 - Other cluster autoscalers will not face this race condition.  
 - Ideal long-term solution
 - Reduces pod migration times
 - Reduces risk of data corruption
+
 **Cons:**
+
 - Unavailable until Kubernetes `v1.31`
 
 #### A2: Taint node as `out-of-service` after termination
@@ -184,11 +187,13 @@ With this taint and wait, the following sequence will occur:
 See [this commit](https://github.com/kubernetes-sigs/karpenter/pull/1294/commits/88134e00ad02863d5a7268bba0b639e21f3f5398) for a proof-of-concept implementation. 
 
 **Pros:**
+
 - Solves 6+ minute delays by default
 - No additional latency before starting instance termination. (In my tests, a 6 second wait was sufficient for AttachDetach Controller to recognize the out-of-service taint and allow for volume detach)
 - If Kubernetes makes this 6 minute ForceDetach timer infinite by default (As currently planned in Kubernetes v1.32), the out-of-service taint will be the only ensure workload starts on other node 
 
 **Cons:**
+
 - Unavailable until Kubernetes `v1.26`. Customers running Karpenter on Kubernetes ≤ `v1.25` will require solution B1 to be implemented. 
 - Requires Karpenter-Provider-AWS to not treat `Shutting Down` as terminated (Though Karpenter had already planned on this via [PR #5979](https://github.com/aws/karpenter-provider-aws/pull/5979))
 - Problem B's delay still occurs because we must wait until instance terminates. 
@@ -208,8 +213,11 @@ A quick overview:
 - Confirm that your stateful workloads do not tolerate Karpenter's `disrupting` taint, and any that any system-critical stateful daemonsets have a lower terminationGracePeriod than the EBS CSI Driver.
 
 **Pros:**
+
 - No code change required in Karpenter. 
+
 **Cons:**
+
 - Requiring configuration is a poor customer experience. Troubleshooting this configuration is difficult. (Hence why issues are still being raised on Karpenter and EBS CSI Driver Projects)
 - Stateful workloads that tolerate Karpenter's `disrupting` taint, or any system-critical stateful daemonsets with a higher terminationGracePeriod than the EBS CSI Driver will still see migration delays. 
 
@@ -227,15 +235,18 @@ Wait for volumes to unmount before terminating the instance.
 
 We can do this by waiting for all volumes of drain-able nodes to be marked as not be in use before terminating the node in c.cloudProvider.Delete (until a maximum of 20 seconds). 
 
-This means that our sequence of events will match the ideal diagram from section [### Ideal Graceful Shutdown for Stateful Workloads]
+This means that our sequence of events will match the ideal diagram from section [Ideal Graceful Shutdown for Stateful Workloads][#ideal-graceful-shutdown-for-stateful-workloads]
 
 We can use similar logic to [today's proof-of-concept implementation](https://github.com/kubernetes-sigs/karpenter/pull/1294), but move it to karpenter-provider-aws and check for `node.Status.VolumesInUse` instead of listing volumeattachment objects. A 20 second max wait was sufficient to prevent delays with m5a instance type, but further testing is needed to ensure it is enough for Windows/GPU instance types.
 
 **Pros:**
+
 - Leaves decision to each cloud/storage provider 
 - Can opt-in to this behavior for specific CSI Drivers (Perhaps via Helm parameter)
 - Only delays termination of nodes with stateful workloads.
+
 **Cons:**
+
 - Delays node termination and finalizer deletion by a worst-case of 20 seconds. (We can skip waiting on the volumes of non-drainable pods to make the average case lower)
 - Other CSI Drivers must opt-in
 
@@ -246,8 +257,11 @@ We can use similar logic to [today's proof-of-concept implementation](https://gi
 Instead of solving this inside the [`c.cloudProvider.Delete`](https://github.com/aws/karpenter-provider-aws/blob/9cef47b6df77ec9e0a39dc6f4a4ecd1aab504ae3/pkg/cloudprovider/cloudprovider.go#L179), solve this inside [termination controller's reconciler loop](https://github.com/kubernetes-sigs/karpenter/blob/94d5b41d4711b1c21fc0264f1b29db6a64b95caf/pkg/controllers/node/termination/controller.go#L77) (as is done in [today's proof-of-concept implementation](https://github.com/kubernetes-sigs/karpenter/pull/1294))
 
 **Pros:**
+
 - Karpenter-provider-aws does not need to know about Kubernetes volume lifecycle
+
 **Cons:**
+
 - [Open Question] EBS may be the only storage provider where detaching volumes before terminating the instance matters. If this is the case, the delay before instance termination is not worth it for customers of other storage/cloud providers.
 - Should not hardcode cloud-provider specific CSI Drivers in upstream project. 
 
@@ -256,8 +270,11 @@ Instead of solving this inside the [`c.cloudProvider.Delete`](https://github.com
 Karpenter-provider-aws can poll EC2 DescribeVolumes before making an EC2 TerminateInstance call. 
 
 **Pros:**
+
 - Solves issue
+
 **Cons:**
+
 - If volumes are not unmounted due to problem A, volumes cannot be detached anyway. Termination is the fastest way forward.
 - Karpenter has to worry about EBS volume lifecycle. 
 
@@ -280,10 +297,11 @@ Karpenter-provider-aws can poll EC2 DescribeVolumes before making an EC2 Termina
 
 
 ### B. Terminology
-Daemonset: Pod scheduled on every Node. 
-EBS: Elastic Block Store. An Amazon Web Service that 
-Kubelet: 
-StatefulSet: Manages the deployment and scaling of a set of Pods, and provides guarantees about the ordering and uniqueness of these Pods. These uniqueness gauruntees are valuable when your workload needs persistent storage. 
+
+- Daemonset: Pod scheduled on every Node. 
+- EBS: Elastic Block Store. 
+- Kubelet: Primary 'node agent' that runs on each node. Volume Manager service in Kubelet makes gRPC to EBS CSI Node pod.
+- StatefulSet: Manages the deployment and scaling of a set of Pods, and provides gauruntees about the ordering and uniqueness of these Pods. These uniqueness gauruntees are valuable when your workload needs persistent storage. 
 
 ### C. Issue Timeline
 
