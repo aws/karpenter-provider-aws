@@ -75,7 +75,7 @@ Stable releases are the only recommended versions for production environments. S
 
 ### Release Candidates
 
-We consider having release candidates for major and important minor versions. Our release candidates are tagged like `x.y.z-rc.0`, `x.y.z-rc.1`. The release candidate will then graduate to `x.y.z` as a normal stable release.
+We consider having release candidates for major and important minor versions. Our release candidates are tagged like `x.y.z-rc.0`, `x.y.z-rc.1`. The release candidate will then graduate to `x.y.z` as a stable release.
 By adopting this practice we allow our users who are early adopters to test out new releases before they are available to the wider community, thereby providing us with early feedback resulting in more stable releases.
 Note that, like the stable releases, release candidates prior to `0.35.0` are prefixed with a `v`.
 
