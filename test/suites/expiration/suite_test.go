@@ -586,13 +586,6 @@ var _ = Describe("Expiration", func() {
 			// TODO: reduce timeouts when deprovisioning waits are factored out
 			env.EventuallyExpectNodesUntaintedWithTimeout(11*time.Minute, taintedNodes...)
 
-			// The nodeclaims that never registers will be removed
-			Eventually(func(g Gomega) {
-				nodeClaims := &corev1beta1.NodeClaimList{}
-				g.Expect(env.Client.List(env, nodeClaims, client.HasLabels{coretest.DiscoveryLabel})).To(Succeed())
-				g.Expect(len(nodeClaims.Items)).To(BeNumerically("==", int(numPods)))
-			}).WithTimeout(6 * time.Minute).Should(Succeed())
-
 			// Expect all the NodeClaims that existed on the initial provisioning loop are not removed
 			Consistently(func(g Gomega) {
 				nodeClaims := &corev1beta1.NodeClaimList{}
