@@ -148,6 +148,10 @@ spec:
   # Optional, configures if the instance should be launched with an associated public IP address.
   # If not specified, the default value depends on the subnet's public IP auto-assign setting.
   associatePublicIPAddress: true
+
+  # Optional, configures tenancy for the instance
+  # Currently only support default and dedicated
+  tenancy: default
 status:
   # Resolved subnets
   subnets:
@@ -1419,6 +1423,19 @@ This value is a boolean field that controls whether instances created by Karpent
 If a `NodeClaim` requests `vpc.amazonaws.com/efa` resources, `spec.associatePublicIPAddress` is respected. However, if this `NodeClaim` requests **multiple** EFA resources and the value for `spec.associatePublicIPAddress` is true, the instance will fail to launch. This is due to an EC2 restriction which
 requires that the field is only set to true when configuring an instance with a single ENI at launch. When using this field, it is advised that users segregate their EFA workload to use a separate `NodePool` / `EC2NodeClass` pair.
 {{% /alert %}}
+
+## spec.tenancy
+
+A string field that sets the [Dedicated instances](https://docs.aws.amazon.com/ko_kr/AWSEC2/latest/UserGuide/dedicated-instance.html). Currently allowed values are default and dedicated.
+
+```yaml
+spec:
+  tenancy: dedicated
+```
+
+By default, EC2 instances run on shared tenancy hardware. This means that multiple AWS accounts can share the same physical hardware.
+
+Dedicated instances are EC2 instances that run on hardware dedicated to a single AWS account. This means that Dedicated Instances are physically isolated at the host hardware level from instances belonging to other AWS accounts, even if that account is associated with a single payer account. However, Dedicated Instances can share hardware with other instances in the same AWS account that are not Dedicated Instances.
 
 ## status.subnets
 [`status.subnets`]({{< ref "#statussubnets" >}}) contains the resolved `id` and `zone` of the subnets that were selected by the [`spec.subnetSelectorTerms`]({{< ref "#specsubnetselectorterms" >}}) for the node class. The subnets will be sorted by the available IP address count in decreasing order.
