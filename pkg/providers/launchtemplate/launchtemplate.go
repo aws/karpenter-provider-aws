@@ -259,6 +259,9 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, lo.Map(options.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) *string { return aws.String(s.ID) })),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
+			Placement: &ec2.LaunchTemplatePlacementRequest{
+				Tenancy: aws.String(options.Tenancy),
+			},
 			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
 				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,

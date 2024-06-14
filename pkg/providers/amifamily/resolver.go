@@ -71,6 +71,7 @@ type LaunchTemplate struct {
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
+	Tenancy             string
 	EFACount            int
 	CapacityType        string
 }
@@ -231,6 +232,7 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 		MetadataOptions:     nodeClass.Spec.MetadataOptions,
 		DetailedMonitoring:  aws.BoolValue(nodeClass.Spec.DetailedMonitoring),
 		AMIID:               amiID,
+		Tenancy:             aws.StringValue(nodeClass.Spec.Tenancy),
 		InstanceTypes:       instanceTypes,
 		EFACount:            efaCount,
 		CapacityType:        capacityType,
