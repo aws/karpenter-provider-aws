@@ -978,6 +978,20 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
+	Context("Tenancy", func() {
+		It("should succeed with default for Tenancy", func() {
+			nc.Spec.Tenancy = aws.String("default")
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should succeed with dedicated for Tenancy", func() {
+			nc.Spec.Tenancy = aws.String("dedicated")
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail with invalid for Tenancy", func() {
+			nc.Spec.Tenancy = aws.String("test")
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+	})
 	Context("BlockDeviceMappings", func() {
 		It("should succeed if more than one root volume is specified", func() {
 			nodeClass := &v1.EC2NodeClass{

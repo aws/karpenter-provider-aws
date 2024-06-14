@@ -138,6 +138,17 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
+	// Tenancy of the instance. An instance with a tenancy of dedicated runs on single-tenant hardware.
+	//
+	// If not set, Tenancy will be set to default.
+	// Currently, Karpenter only support default and dedicated option.
+	// For more information,
+	// See the AWS::EC2::LaunchTemplate Placement Document.
+	// https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-placement.html
+	// +kubebuilder:default=default
+	// +kubebuilder:validation:Enum:={default,dedicated}
+	// +optional
+	Tenancy *string `json:"tenancy,omitempty"`
 	// Context is a Reserved field in EC2 APIs
 	// https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html
 	// +optional
