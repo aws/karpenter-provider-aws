@@ -2156,6 +2156,31 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 	})
+	Context("Tenancy dedicated", func() {
+		It("should default tenancy was not set", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.StringValue(ltInput.LaunchTemplateData.Placement.Tenancy)).To(BeNil())
+			})
+		})
+		It("should pass tenancy setting to the dedicated", func() {
+			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			nodeClass.Spec.Tenancy = aws.String("dedicated")
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			pod := coretest.UnschedulablePod()
+			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+			ExpectScheduled(ctx, env.Client, pod)
+			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
+			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
+				Expect(aws.StringValue(ltInput.LaunchTemplateData.Placement.Tenancy)).To(Equal("dedicated"))
+			})
+		})
+	})
 })
 
 // ExpectTags verifies that the expected tags are a subset of the tags found
