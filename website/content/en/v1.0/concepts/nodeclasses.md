@@ -1426,7 +1426,7 @@ requires that the field is only set to true when configuring an instance with a 
 
 ## spec.tenancy
 
-A string field that sets the [Dedicated instances](https://docs.aws.amazon.com/ko_kr/AWSEC2/latest/UserGuide/dedicated-instance.html). Currently allowed values are default and dedicated.
+A string field that sets the [Dedicated instances](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/dedicated-instance.html). Currently allowed values are default and dedicated.
 
 ```yaml
 spec:
