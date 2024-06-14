@@ -603,6 +603,20 @@ spec:
                       rule: self.all(k, k !='karpenter.sh/nodeclaim')
                     - message: tag contains a restricted tag matching karpenter.k8s.aws/ec2nodeclass
                       rule: self.all(k, k !='karpenter.k8s.aws/ec2nodeclass')
+                tenancy:
+                  description: |-
+                    Tenancy of the instance. An instance with a tenancy of dedicated runs on single-tenant hardware.
+
+
+                    If not set, Tenancy will be set to default.
+                    Currently, Karpenter only support default and dedicated option.
+                    For more information,
+                    See the AWS::EC2::LaunchTemplate Placement Document.
+                    https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-placement.html
+                  enum:
+                  - default
+                  - dedicated
+                  type: string
                 userData:
                   description: |-
                     UserData to be applied to the provisioned nodes.
