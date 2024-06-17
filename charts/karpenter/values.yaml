@@ -81,7 +81,7 @@ affinity:
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: ScheduleAnyway
+    whenUnsatisfiable: DoNotSchedule
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations:
   - key: CriticalAddonsOnly
