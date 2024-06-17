@@ -166,7 +166,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		}, map[string]string{
 			aws.TestCategoryDimension:           testGroup,
-			aws.TestNameDimension:               "node-dense",
+			aws.TestNameDimension:               "node-dense-min-val",
 			aws.ProvisionedNodeCountDimension:   strconv.Itoa(expectedNodeCount),
 			aws.DeprovisionedNodeCountDimension: strconv.Itoa(0),
 			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
@@ -253,7 +253,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		}, map[string]string{
 			aws.TestCategoryDimension:           testGroup,
-			aws.TestNameDimension:               "pod-dense",
+			aws.TestNameDimension:               "pod-dense-min-val",
 			aws.ProvisionedNodeCountDimension:   strconv.Itoa(expectedNodeCount),
 			aws.DeprovisionedNodeCountDimension: strconv.Itoa(0),
 			aws.PodDensityDimension:             strconv.Itoa(replicasPerNode),
