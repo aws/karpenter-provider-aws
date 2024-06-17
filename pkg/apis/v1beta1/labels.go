@@ -74,7 +74,7 @@ var (
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
 	}
 
-	EksClusterNameAnnotationKey = "eks:eks-cluster-name"
+	EKSClusterNameAnnotationKey = "eks:eks-cluster-name"
 
 	AMIFamilyBottlerocket                      = "Bottlerocket"
 	AMIFamilyAL2                               = "AL2"
