@@ -102,7 +102,7 @@ var _ = Describe("Tags", func() {
 
 			nodeInstance := instance.NewInstance(lo.ToPtr(env.GetInstance(node.Name)))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", node.Name))
-			Expect(nodeInstance.Tags).To(HaveKeyWithValue(v1beta1.EksClusterNameAnnotationKey, node.Name))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue(v1beta1.EKSClusterNameAnnotationKey, node.Name))
 			Expect(nodeInstance.Tags).To(HaveKey("karpenter.sh/nodeclaim"))
 		})
 

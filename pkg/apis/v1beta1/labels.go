@@ -69,7 +69,7 @@ var (
 		// https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateCluster.html
 		regexp.MustCompile(`^kubernetes\.io/cluster/[0-9A-Za-z][A-Za-z0-9\-_]*$`),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.NodePoolLabelKey))),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(EksClusterNameAnnotationKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(EKSClusterNameAnnotationKey))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(LabelNodeClass))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
 	}

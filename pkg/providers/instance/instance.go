@@ -262,7 +262,7 @@ func getTags(ctx context.Context, nodeClass *v1beta1.EC2NodeClass, nodeClaim *co
 	staticTags := map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", options.FromContext(ctx).ClusterName): "owned",
 		corev1beta1.NodePoolLabelKey:        nodeClaim.Labels[corev1beta1.NodePoolLabelKey],
-		v1beta1.EksClusterNameAnnotationKey: options.FromContext(ctx).ClusterName,
+		v1beta1.EKSClusterNameAnnotationKey: options.FromContext(ctx).ClusterName,
 		v1beta1.LabelNodeClass:              nodeClass.Name,
 	}
 	return lo.Assign(nodeClass.Spec.Tags, staticTags)
