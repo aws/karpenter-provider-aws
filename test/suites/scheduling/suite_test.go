@@ -12,10 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package integration_test
+package scheduling_test
 
 import (
 	"fmt"
+	"testing"
 	"time"
 
 	"github.com/samber/lo"
@@ -30,12 +31,34 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
-	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 )
 
+var env *environmentaws.Environment
+var nodeClass *v1beta1.EC2NodeClass
+var nodePool *corev1beta1.NodePool
+
+func TestScheduling(t *testing.T) {
+	RegisterFailHandler(Fail)
+	BeforeSuite(func() {
+		env = environmentaws.NewEnvironment(t)
+	})
+	AfterSuite(func() {
+		env.Stop()
+	})
+	RunSpecs(t, "Scheduling")
+}
+
+var _ = BeforeEach(func() {
+	env.BeforeEach()
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
+})
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	var selectors sets.Set[string]
 
@@ -271,7 +294,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodeSelector:     nodeSelector,
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
-				Image:            aws.WindowsDefaultImage,
+				Image:            environmentaws.WindowsDefaultImage,
 			}})
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
 			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
@@ -280,7 +303,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   aws.ExcludedInstanceFamilies,
+						Values:   environmentaws.ExcludedInstanceFamilies,
 					},
 				},
 				corev1beta1.NodeSelectorRequirementWithMinValues{
@@ -597,7 +620,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		})
 
 		It("should provision a node for a pod with overlapping zone and zone-id requirements", func() {
-			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s aws.SubnetInfo) string {
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s environmentaws.SubnetInfo) string {
 				return s.Zone
 			})
 			Expect(len(subnetInfo)).To(BeNumerically(">=", 3))
@@ -609,12 +632,12 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					{
 						Key:      v1.LabelTopologyZone,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   lo.Map(subnetInfo[0:2], func(info aws.SubnetInfo, _ int) string { return info.Zone }),
+						Values:   lo.Map(subnetInfo[0:2], func(info environmentaws.SubnetInfo, _ int) string { return info.Zone }),
 					},
 					{
 						Key:      v1beta1.LabelTopologyZoneID,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   lo.Map(subnetInfo[1:3], func(info aws.SubnetInfo, _ int) string { return info.ZoneID }),
+						Values:   lo.Map(subnetInfo[1:3], func(info environmentaws.SubnetInfo, _ int) string { return info.ZoneID }),
 					},
 				},
 			})
@@ -637,10 +660,10 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				},
 			})
 
-			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s aws.SubnetInfo) string {
+			subnetInfo := lo.UniqBy(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(s environmentaws.SubnetInfo) string {
 				return s.Zone
 			})
-			pods := lo.Map(subnetInfo, func(info aws.SubnetInfo, _ int) *v1.Pod {
+			pods := lo.Map(subnetInfo, func(info environmentaws.SubnetInfo, _ int) *v1.Pod {
 				return test.Pod(test.PodOptions{
 					NodeRequirements: []v1.NodeSelectorRequirement{
 						{
@@ -666,7 +689,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				expectedZone, ok := node.Labels[expectedZoneLabel]
 				Expect(ok).To(BeTrue())
 				Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(expectedZone))
-				zoneInfo, ok := lo.Find(subnetInfo, func(info aws.SubnetInfo) bool {
+				zoneInfo, ok := lo.Find(subnetInfo, func(info environmentaws.SubnetInfo) bool {
 					return info.Zone == expectedZone
 				})
 				Expect(ok).To(BeTrue())
@@ -678,7 +701,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 
 func ephemeralInitContainer(requirements v1.ResourceRequirements) v1.Container {
 	return v1.Container{
-		Image:     aws.EphemeralInitContainerImage,
+		Image:     environmentaws.EphemeralInitContainerImage,
 		Command:   []string{"/bin/sh"},
 		Args:      []string{"-c", "sleep 5"},
 		Resources: requirements,

@@ -72,7 +72,7 @@ spec:
           operator: In
           values: ["c", "m", "r"]
           # minValues here enforces the scheduler to consider at least that number of unique instance-category to schedule the pods.
-          # This field is ALPHA and can be dropped or replaced at any time 
+          # This field is ALPHA and can be dropped or replaced at any time
           minValues: 2
         - key: "karpenter.k8s.aws/instance-family"
           operator: In
@@ -555,6 +555,8 @@ In order for a pod to run on a node defined in this NodePool, it must tolerate `
 ### Cilium Startup Taint
 
 Per the Cilium [docs](https://docs.cilium.io/en/stable/installation/taints/#taint-effects), it's recommended to place a taint of `node.cilium.io/agent-not-ready=true:NoExecute` on nodes to allow Cilium to configure networking prior to other pods starting.  This can be accomplished via the use of Karpenter `startupTaints`.  These taints are placed on the node, but pods aren't required to tolerate these taints to be considered for provisioning.
+
+Failure to provide accurate `startupTaints` can result in Karpenter continually provisioning new nodes. When the new node joins and the startup taint that Karpenter is unaware of is added, Karpenter now considers the pending pod to be unschedulable to this node. Karpenter will attempt to provision yet another new node to schedule the pending pod.
 
 ```yaml
 apiVersion: karpenter.sh/v1beta1

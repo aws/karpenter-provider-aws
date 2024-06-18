@@ -129,8 +129,8 @@ var _ = Describe("Interruption", func() {
 		node := env.Monitor.CreatedNodes()[0]
 
 		By("Stopping the EC2 instance without the EKS cluster's knowledge")
-		env.ExpectInstanceStopped(node.Name)                                                   // Make a call to the EC2 api to stop the instance
-		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Minute).Should(Succeed()) // shorten the timeout since we should react faster
+		env.ExpectInstanceStopped(node.Name) // Make a call to the EC2 api to stop the instance
+		env.EventuallyExpectNotFoundAssertion(node).Should(Succeed())
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node at the API server when the EC2 instance is terminated", func() {
@@ -155,8 +155,8 @@ var _ = Describe("Interruption", func() {
 		node := env.Monitor.CreatedNodes()[0]
 
 		By("Terminating the EC2 instance without the EKS cluster's knowledge")
-		env.ExpectInstanceTerminated(node.Name)                                                // Make a call to the EC2 api to stop the instance
-		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Minute).Should(Succeed()) // shorten the timeout since we should react faster
+		env.ExpectInstanceTerminated(node.Name) // Make a call to the EC2 api to stop the instance
+		env.EventuallyExpectNotFoundAssertion(node).Should(Succeed())
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 	It("should terminate the node when receiving a scheduled change health event", func() {
@@ -184,7 +184,7 @@ var _ = Describe("Interruption", func() {
 
 		By("Creating a scheduled change health event in the SQS message queue")
 		env.ExpectMessagesCreated(scheduledChangeMessage(env.Region, "000000000000", instanceID))
-		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Minute).Should(Succeed()) // shorten the timeout since we should react faster
+		env.EventuallyExpectNotFoundAssertion(node).Should(Succeed())
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 })

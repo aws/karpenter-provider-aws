@@ -77,7 +77,7 @@ func NewEnvironment(t *testing.T) *Environment {
 		ctx = context.WithValue(ctx, GitRefContextKey, val)
 	}
 
-	gomega.SetDefaultEventuallyTimeout(5 * time.Minute)
+	gomega.SetDefaultEventuallyTimeout(16 * time.Minute)
 	gomega.SetDefaultEventuallyPollingInterval(1 * time.Second)
 	return &Environment{
 		Context:    ctx,

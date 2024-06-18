@@ -27,7 +27,6 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -119,7 +118,7 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
@@ -128,7 +127,7 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectMessagesCreated(scheduledChangeMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
@@ -153,7 +152,7 @@ var _ = Describe("InterruptionHandling", func() {
 				messages = append(messages, stateChangeMessage(instanceID, state))
 			}
 			ExpectMessagesCreated(messages...)
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) client.Object { return nc })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
@@ -183,7 +182,7 @@ var _ = Describe("InterruptionHandling", func() {
 				messages = append(messages, spotInterruptionMessage(id))
 			}
 			ExpectMessagesCreated(messages...)
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) client.Object { return nc })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
@@ -199,7 +198,7 @@ var _ = Describe("InterruptionHandling", func() {
 
 			ExpectMessagesCreated(badMessage)
 
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
@@ -207,7 +206,7 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectMessagesCreated(stateChangeMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID)), "creating"))
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectExists(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
@@ -221,7 +220,7 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
 
-			ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
 			ExpectNotFound(ctx, env.Client, nodeClaim)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
@@ -235,15 +234,15 @@ var _ = Describe("InterruptionHandling", func() {
 var _ = Describe("Error Handling", func() {
 	It("should send an error on polling when QueueNotExists", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode(servicesqs.ErrCodeQueueDoesNotExist), fake.MaxCalls(0))
-		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+		_ = ExpectSingletonReconcileFailed(ctx, controller)
 	})
 	It("should send an error on polling when AccessDenied", func() {
 		sqsapi.ReceiveMessageBehavior.Error.Set(awsErrWithCode("AccessDenied"), fake.MaxCalls(0))
-		ExpectReconcileFailed(ctx, controller, types.NamespacedName{})
+		_ = ExpectSingletonReconcileFailed(ctx, controller)
 	})
 	It("should not return an error when deleting a nodeClaim that is already deleted", func() {
 		ExpectMessagesCreated(spotInterruptionMessage(fake.InstanceID()))
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		ExpectSingletonReconciled(ctx, controller)
 	})
 })
 

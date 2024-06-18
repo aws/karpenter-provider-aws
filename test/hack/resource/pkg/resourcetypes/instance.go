@@ -41,114 +41,80 @@ func (i *Instance) Global() bool {
 }
 
 func (i *Instance) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("instance-state-name"),
-					Values: []string{string(ec2types.InstanceStateNameRunning)},
-				},
-				{
-					Name:   lo.ToPtr("tag-key"),
-					Values: []string{karpenterNodePoolTag},
-				},
+	instances, err := i.getAllInstances(ctx, &ec2.DescribeInstancesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("instance-state-name"),
+				Values: []string{string(ec2types.InstanceStateNameRunning)},
 			},
-			NextToken: nextToken,
+			{
+				Name:   lo.ToPtr("tag-key"),
+				Values: []string{karpenterNodePoolTag},
+			},
+		},
+	})
+	if err != nil {
+		return ids, err
+	}
+
+	for _, instance := range instances {
+		clusterName, found := lo.Find(instance.Tags, func(tag ec2types.Tag) bool {
+			return *tag.Key == karpenterTestingTag
 		})
-		if err != nil {
-			return ids, err
+		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+			continue
 		}
-
-		for _, res := range out.Reservations {
-			for _, instance := range res.Instances {
-				clusterName, found := lo.Find(instance.Tags, func(tag ec2types.Tag) bool {
-					return *tag.Key == karpenterTestingTag
-				})
-				if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
-					continue
-				}
-				if lo.FromPtr(instance.LaunchTime).Before(expirationTime) {
-					ids = append(ids, lo.FromPtr(instance.InstanceId))
-				}
-			}
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
+		if lo.FromPtr(instance.LaunchTime).Before(expirationTime) {
+			ids = append(ids, lo.FromPtr(instance.InstanceId))
 		}
 	}
+
 	return ids, err
 }
 
 func (i *Instance) CountAll(ctx context.Context) (count int, err error) {
-	var nextToken *string
-
-	for {
-		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-			Filters: []ec2types.Filter{
-				{
-					Name: lo.ToPtr("instance-state-name"),
-					Values: []string{
-						string(ec2types.InstanceStateNameRunning),
-						string(ec2types.InstanceStateNamePending),
-						string(ec2types.InstanceStateNameShuttingDown),
-						string(ec2types.InstanceStateNameStopped),
-						string(ec2types.InstanceStateNameStopping),
-					},
+	instances, err := i.getAllInstances(ctx, &ec2.DescribeInstancesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name: lo.ToPtr("instance-state-name"),
+				Values: []string{
+					string(ec2types.InstanceStateNameRunning),
+					string(ec2types.InstanceStateNamePending),
+					string(ec2types.InstanceStateNameShuttingDown),
+					string(ec2types.InstanceStateNameStopped),
+					string(ec2types.InstanceStateNameStopping),
 				},
 			},
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return count, err
-		}
-
-		for _, res := range out.Reservations {
-			count += len(res.Instances)
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+		},
+	})
+	if err != nil {
+		return count, err
 	}
-	return count, err
+
+	return len(instances), err
 }
 
 func (i *Instance) Get(ctx context.Context, clusterName string) (ids []string, err error) {
-	var nextToken *string
-
-	for {
-		out, err := i.ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("instance-state-name"),
-					Values: []string{string(ec2types.InstanceStateNameRunning)},
-				},
-				{
-					Name:   lo.ToPtr("tag:" + karpenterClusterNameTag),
-					Values: []string{clusterName},
-				},
+	instances, err := i.getAllInstances(ctx, &ec2.DescribeInstancesInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("instance-state-name"),
+				Values: []string{string(ec2types.InstanceStateNameRunning)},
 			},
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return ids, err
-		}
-
-		for _, res := range out.Reservations {
-			for _, instance := range res.Instances {
-				ids = append(ids, lo.FromPtr(instance.InstanceId))
-			}
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+			{
+				Name:   lo.ToPtr("tag:" + karpenterClusterNameTag),
+				Values: []string{clusterName},
+			},
+		},
+	})
+	if err != nil {
+		return ids, err
 	}
+
+	for _, instance := range instances {
+		ids = append(ids, lo.FromPtr(instance.InstanceId))
+	}
+
 	return ids, err
 }
 
@@ -160,4 +126,21 @@ func (i *Instance) Cleanup(ctx context.Context, ids []string) ([]string, error) 
 		return nil, err
 	}
 	return ids, nil
+}
+
+func (i *Instance) getAllInstances(ctx context.Context, params *ec2.DescribeInstancesInput) (instances []ec2types.Instance, err error) {
+	paginator := ec2.NewDescribeInstancesPaginator(i.ec2Client, params)
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			return instances, err
+		}
+
+		for _, res := range page.Reservations {
+			instances = append(instances, res.Instances...)
+		}
+	}
+
+	return instances, nil
 }
