@@ -43,6 +43,7 @@ func main() {
 
 	ctx := context.Background()
 	cfg := lo.Must(config.LoadDefaultConfig(ctx))
+	cfg.RetryMaxAttempts = 10
 
 	logger := lo.Must(zap.NewProduction()).Sugar()
 
