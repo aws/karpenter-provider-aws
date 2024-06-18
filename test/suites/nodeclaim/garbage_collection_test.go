@@ -125,7 +125,7 @@ var _ = Describe("GarbageCollection", func() {
 		// Wait for the node to register with the cluster
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 
-		// Update the tags to add the eks:esk-cluster-name tag
+		// Update the tags to add the eks:eks-cluster-name tag
 		_, err = env.EC2API.CreateTagsWithContext(env.Context, &ec2.CreateTagsInput{
 			Resources: []*string{out.Instances[0].InstanceId},
 			Tags: []*ec2.Tag{
