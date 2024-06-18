@@ -286,7 +286,7 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete an instance if it was not launched by a NodeClaim", func() {
-		// Remove the "karpenter.sh/managed-by" tag (this isn't launched by a machine)
+		// Remove the "eks:eks-cluster-name" tag (this isn't launched by a machine)
 		instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
 			return aws.StringValue(t.Key) == v1beta1.EKSClusterNameAnnotationKey
 		})
