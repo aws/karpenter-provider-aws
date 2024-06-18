@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	karpenterClusterNameTag    = "karpenter.sh/managed-by"
+	karpenterClusterNameTag    = "eks:esk-cluster-name"
 	karpenterNodePoolTag       = "karpenter.sh/nodepool"
 	karpenterLaunchTemplateTag = "karpenter.k8s.aws/cluster"
 	karpenterSecurityGroupTag  = "karpenter.sh/discovery"

@@ -115,7 +115,7 @@ var _ = Describe("GarbageCollection", func() {
 					Value: aws.String(nodeClass.Name),
 				},
 				{
-					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+					Key:   aws.String(v1beta1.EKSClusterNameAnnotationKey),
 					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},
@@ -183,7 +183,7 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+							Key:   aws.String(v1beta1.EKSClusterNameAnnotationKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
@@ -288,7 +288,7 @@ var _ = Describe("GarbageCollection", func() {
 	It("should not delete an instance if it was not launched by a NodeClaim", func() {
 		// Remove the "karpenter.sh/managed-by" tag (this isn't launched by a machine)
 		instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
-			return aws.StringValue(t.Key) == corev1beta1.ManagedByAnnotationKey
+			return aws.StringValue(t.Key) == v1beta1.EKSClusterNameAnnotationKey
 		})
 
 		// Launch time was 1m ago
@@ -346,7 +346,7 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+							Key:   aws.String(v1beta1.EKSClusterNameAnnotationKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},

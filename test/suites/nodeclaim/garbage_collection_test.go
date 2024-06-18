@@ -125,12 +125,12 @@ var _ = Describe("GarbageCollection", func() {
 		// Wait for the node to register with the cluster
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 
-		// Update the tags to add the karpenter.sh/managed-by tag
+		// Update the tags to add the eks:esk-cluster-name tag
 		_, err = env.EC2API.CreateTagsWithContext(env.Context, &ec2.CreateTagsInput{
 			Resources: []*string{out.Instances[0].InstanceId},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+					Key:   aws.String(v1beta1.EKSClusterNameAnnotationKey),
 					Value: aws.String(env.ClusterName),
 				},
 			},

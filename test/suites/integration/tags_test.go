@@ -86,7 +86,7 @@ var _ = Describe("Tags", func() {
 	})
 
 	Context("Tagging Controller", func() {
-		It("should tag with karpenter.sh/nodeclaim and Name tag", func() {
+		It("should tag with karpenter.sh/nodeclaim, eks:eks-cluster-name, and Name tag", func() {
 			pod := coretest.Pod()
 
 			env.ExpectCreated(nodePool, nodeClass, pod)

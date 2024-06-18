@@ -261,7 +261,11 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 		TagSpecifications: []*ec2.TagSpecification{
 			{
 				ResourceType: aws.String(ec2.ResourceTypeLaunchTemplate),
-				Tags:         utils.MergeTags(options.Tags, map[string]string{v1beta1.TagManagedLaunchTemplate: options.ClusterName, v1beta1.LabelNodeClass: options.NodeClassName}),
+				Tags: utils.MergeTags(options.Tags, map[string]string{
+					v1beta1.EKSClusterNameAnnotationKey: options.ClusterName,
+					v1beta1.TagManagedLaunchTemplate:    options.ClusterName,
+					v1beta1.LabelNodeClass:              options.NodeClassName,
+				}),
 			},
 		},
 	})
