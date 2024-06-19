@@ -80,6 +80,7 @@ func (e EKS) eksBootstrapScript() string {
 	if lo.FromPtr(e.InstanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
 		userData.WriteString(" \\\n--local-disks raid0")
 	}
+	fmt.Println(userData.String())
 	return userData.String()
 }
 

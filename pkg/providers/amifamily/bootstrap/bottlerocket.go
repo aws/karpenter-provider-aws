@@ -21,6 +21,7 @@ import (
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
 )
@@ -76,6 +77,7 @@ func (b Bottlerocket) Script() (string, error) {
 	}
 
 	s.Settings.Kubernetes.NodeTaints = map[string][]string{}
+	b.Taints = append(b.Taints, v1.Taint{Key: "karpenter.sh/unregistered", Value: "true", Effect: v1.TaintEffectNoExecute})
 	for _, taint := range b.Taints {
 		s.Settings.Kubernetes.NodeTaints[taint.Key] = append(s.Settings.Kubernetes.NodeTaints[taint.Key], fmt.Sprintf("%s:%s", taint.Value, taint.Effect))
 	}
