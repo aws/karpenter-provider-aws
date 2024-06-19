@@ -270,7 +270,7 @@ Karpenter will automatically query for the appropriate [EKS optimized AMI](https
 
 ### Custom
 
-The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families.
+The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. It is required that custom user data adds `--register-with-taints=karpenter.sh/unregistered=true:NoExecute`. Karpenter will fail to register nodes that do not have this taint.
 
 ## spec.subnetSelectorTerms
 
