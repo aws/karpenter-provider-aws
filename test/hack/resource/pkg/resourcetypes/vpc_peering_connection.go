@@ -40,83 +40,63 @@ func (v *VPCPeeringConnection) Global() bool {
 	return false
 }
 
-func (v *VPCPeeringConnection) Get(ctx context.Context, clusterName string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := v.ec2Client.DescribeVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag:" + karpenterTestingTag),
-					Values: []string{clusterName},
-				},
+func (v *VPCPeeringConnection) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
+	connections, err := v.getAllVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag-key"),
+				Values: []string{karpenterTestingTag},
 			},
-			NextToken: nextToken,
+		},
+	})
+	if err != nil {
+		return ids, err
+	}
+
+	for _, connection := range connections {
+		clusterName, found := lo.Find(connection.Tags, func(tag ec2types.Tag) bool {
+			return *tag.Key == k8sClusterTag
 		})
-		if err != nil {
-			return ids, err
+		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+			continue
 		}
-		for _, connection := range out.VpcPeeringConnections {
+		if connection.ExpirationTime == nil { // Connection is non-pending
+			continue
+		}
+		if connection.ExpirationTime.Before(expirationTime) {
 			ids = append(ids, lo.FromPtr(connection.VpcPeeringConnectionId))
 		}
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
 	}
+
 	return ids, err
 }
 
 func (v *VPCPeeringConnection) CountAll(ctx context.Context) (count int, err error) {
-	var nextToken *string
-	for {
-		out, err := v.ec2Client.DescribeVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return count, err
-		}
-
-		count += len(out.VpcPeeringConnections)
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+	connections, err := v.getAllVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{})
+	if err != nil {
+		return count, err
 	}
-	return count, err
+
+	return len(connections), err
 }
 
-func (v *VPCPeeringConnection) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := v.ec2Client.DescribeVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag-key"),
-					Values: []string{karpenterTestingTag},
-				},
+func (v *VPCPeeringConnection) Get(ctx context.Context, clusterName string) (ids []string, err error) {
+	connections, err := v.getAllVpcPeeringConnections(ctx, &ec2.DescribeVpcPeeringConnectionsInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag:" + karpenterTestingTag),
+				Values: []string{clusterName},
 			},
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return ids, err
-		}
-		for _, connection := range out.VpcPeeringConnections {
-			clusterName, found := lo.Find(connection.Tags, func(tag ec2types.Tag) bool {
-				return *tag.Key == k8sClusterTag
-			})
-			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
-				continue
-			}
-			if connection.ExpirationTime.Before(expirationTime) {
-				ids = append(ids, lo.FromPtr(connection.VpcPeeringConnectionId))
-			}
-		}
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+		},
+	})
+	if err != nil {
+		return ids, err
 	}
+
+	for _, connection := range connections {
+		ids = append(ids, lo.FromPtr(connection.VpcPeeringConnectionId))
+	}
+
 	return ids, err
 }
 
@@ -130,4 +110,18 @@ func (v *VPCPeeringConnection) Cleanup(ctx context.Context, ids []string) ([]str
 		}
 	}
 	return ids, nil
+}
+
+func (v *VPCPeeringConnection) getAllVpcPeeringConnections(ctx context.Context, params *ec2.DescribeVpcPeeringConnectionsInput) (connections []ec2types.VpcPeeringConnection, err error) {
+	paginator := ec2.NewDescribeVpcPeeringConnectionsPaginator(v.ec2Client, params)
+
+	for paginator.HasMorePages() {
+		out, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		connections = append(connections, out.VpcPeeringConnections...)
+	}
+
+	return connections, nil
 }
