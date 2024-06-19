@@ -51,6 +51,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -174,6 +175,15 @@ var _ = Describe("CloudProvider", func() {
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
 					Name: nodeClass.Name,
+				},
+				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+					{
+						NodeSelectorRequirement: v1.NodeSelectorRequirement{
+							Key:      corev1beta1.CapacityTypeLabelKey,
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{corev1beta1.CapacityTypeOnDemand},
+						},
+					},
 				},
 			},
 		})
@@ -683,11 +693,17 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
-			selectedInstanceType = instanceTypes[0]
+			var ok bool
+			selectedInstanceType, ok = lo.Find(instanceTypes, func(i *corecloudproivder.InstanceType) bool {
+				return i.Requirements.Compatible(scheduling.NewLabelRequirements(map[string]string{
+					v1.LabelArchStable: corev1beta1.ArchitectureAmd64,
+				})) == nil
+			})
+			Expect(ok).To(BeTrue())
 
 			// Create the instance we want returned from the EC2 API
 			instance = &ec2.Instance{
-				ImageId:               aws.String(armAMIID),
+				ImageId:               aws.String(amdAMIID),
 				InstanceType:          aws.String(selectedInstanceType.Name),
 				SubnetId:              aws.String(validSubnet1),
 				SpotInstanceRequestId: aws.String(coretest.RandomName()),
@@ -836,6 +852,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			}
+			instance.ImageId = aws.String(armAMIID)
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).ToNot(HaveOccurred())
