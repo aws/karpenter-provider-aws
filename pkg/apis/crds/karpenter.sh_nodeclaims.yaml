@@ -415,7 +415,7 @@ spec:
                           The value should be a CamelCase string.
                           This field may not be empty.
                         maxLength: 1024
-                        pattern: (^([A-Za-z][A-Za-z0-9_,:]*[A-Za-z0-9_])?$)
+                        pattern: ^([A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?|)$
                         type: string
                       status:
                         description: status of the condition, one of True, False, Unknown.

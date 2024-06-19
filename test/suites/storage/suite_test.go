@@ -12,11 +12,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package integration_test
+package storage_test
 
 import (
 	"fmt"
 	"strings"
+	"testing"
+
+	awssdk "github.com/aws/aws-sdk-go/aws"
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -24,18 +34,36 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/errors"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/karpenter/pkg/test"
 )
 
+var env *environmentaws.Environment
+var nodeClass *v1beta1.EC2NodeClass
+var nodePool *corev1beta1.NodePool
+
+func TestStorage(t *testing.T) {
+	RegisterFailHandler(Fail)
+	BeforeSuite(func() {
+		env = environmentaws.NewEnvironment(t)
+	})
+	AfterSuite(func() {
+		env.Stop()
+	})
+	RunSpecs(t, "Storage")
+}
+
+var _ = BeforeEach(func() {
+	env.BeforeEach()
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
+})
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("Persistent Volumes", func() {
 	Context("Static", func() {
 		It("should run a pod with a pre-bound persistent volume (empty storage class)", func() {
@@ -127,7 +155,7 @@ var _ = Describe("Persistent Volumes", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Name: "test-storage-class",
 				},
-				Provisioner:       aws.String("ebs.csi.aws.com"),
+				Provisioner:       awssdk.String("ebs.csi.aws.com"),
 				VolumeBindingMode: lo.ToPtr(storagev1.VolumeBindingWaitForFirstConsumer),
 			})
 		})

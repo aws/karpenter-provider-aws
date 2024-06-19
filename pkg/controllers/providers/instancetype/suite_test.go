@@ -19,7 +19,6 @@ import (
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/types"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/operator/scheme"
@@ -89,7 +88,7 @@ var _ = Describe("InstanceType", func() {
 			InstanceTypeOfferings: ec2Offerings,
 		})
 
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		ExpectSingletonReconciled(ctx, controller)
 		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{
 			Status: v1beta1.EC2NodeClassStatus{
 				Subnets: []v1beta1.Subnet{
@@ -123,7 +122,7 @@ var _ = Describe("InstanceType", func() {
 			InstanceTypeOfferings: ec2Offerings,
 		})
 
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		ExpectSingletonReconciled(ctx, controller)
 		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{
 			Status: v1beta1.EC2NodeClassStatus{
 				Subnets: []v1beta1.Subnet{
@@ -158,14 +157,14 @@ var _ = Describe("InstanceType", func() {
 	It("should not update instance type date with response from the DescribeInstanceTypes API is empty", func() {
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{})
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		ExpectSingletonReconciled(ctx, controller)
 		_, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
 		Expect(err).ToNot(BeNil())
 	})
 	It("should not update instance type offering date with response from the DescribeInstanceTypesOfferings API", func() {
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{})
-		ExpectReconcileSucceeded(ctx, controller, types.NamespacedName{})
+		ExpectSingletonReconciled(ctx, controller)
 		_, err := awsEnv.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, &v1beta1.EC2NodeClass{})
 		Expect(err).ToNot(BeNil())
 	})

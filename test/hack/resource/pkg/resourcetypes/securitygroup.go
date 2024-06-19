@@ -43,96 +43,69 @@ func (sg *SecurityGroup) Global() bool {
 }
 
 func (sg *SecurityGroup) GetExpired(ctx context.Context, expirationTime time.Time, excludedClusters []string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := sg.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("group-name"),
-					Values: []string{"security-group-drift"},
-				},
+	sgs, err := sg.getAllSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("group-name"),
+				Values: []string{"security-group-drift"},
 			},
-			NextToken: nextToken,
+		},
+	})
+	if err != nil {
+		return ids, err
+	}
+
+	for _, sgroup := range sgs {
+		clusterName, found := lo.Find(sgroup.Tags, func(tag ec2types.Tag) bool {
+			return *tag.Key == karpenterTestingTag
 		})
+		if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
+			continue
+		}
+		creationDate, found := lo.Find(sgroup.Tags, func(tag ec2types.Tag) bool {
+			return *tag.Key == "creation-date"
+		})
+		if !found {
+			continue
+		}
+		time, err := time.Parse(time.RFC3339, *creationDate.Value)
 		if err != nil {
-			return ids, err
+			continue
 		}
-
-		for _, sgroup := range out.SecurityGroups {
-			clusterName, found := lo.Find(sgroup.Tags, func(tag ec2types.Tag) bool {
-				return *tag.Key == karpenterTestingTag
-			})
-			if found && slices.Contains(excludedClusters, lo.FromPtr(clusterName.Value)) {
-				continue
-			}
-			creationDate, found := lo.Find(sgroup.Tags, func(tag ec2types.Tag) bool {
-				return *tag.Key == "creation-date"
-			})
-			if !found {
-				continue
-			}
-			time, err := time.Parse(time.RFC3339, *creationDate.Value)
-			if err != nil {
-				continue
-			}
-			if time.Before(expirationTime) {
-				ids = append(ids, lo.FromPtr(sgroup.GroupId))
-			}
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
+		if time.Before(expirationTime) {
+			ids = append(ids, lo.FromPtr(sgroup.GroupId))
 		}
 	}
+
 	return ids, err
 }
 
 func (sg *SecurityGroup) CountAll(ctx context.Context) (count int, err error) {
-	var nextToken *string
-	for {
-		out, err := sg.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return count, err
-		}
-
-		count += len(out.SecurityGroups)
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+	sgs, err := sg.getAllSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{})
+	if err != nil {
+		return count, err
 	}
-	return count, err
+
+	return len(sgs), err
 }
 
 func (sg *SecurityGroup) Get(ctx context.Context, clusterName string) (ids []string, err error) {
-	var nextToken *string
-	for {
-		out, err := sg.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
-			Filters: []ec2types.Filter{
-				{
-					Name:   lo.ToPtr("tag:" + karpenterSecurityGroupTag),
-					Values: []string{clusterName},
-				},
+	sgs, err := sg.getAllSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{
+		Filters: []ec2types.Filter{
+			{
+				Name:   lo.ToPtr("tag:" + karpenterSecurityGroupTag),
+				Values: []string{clusterName},
 			},
-			NextToken: nextToken,
-		})
-		if err != nil {
-			return ids, err
-		}
-
-		for _, sgroup := range out.SecurityGroups {
-			ids = append(ids, lo.FromPtr(sgroup.GroupId))
-		}
-
-		nextToken = out.NextToken
-		if nextToken == nil {
-			break
-		}
+		},
+	})
+	if err != nil {
+		return ids, err
 	}
+
+	for _, sgroup := range sgs {
+		ids = append(ids, lo.FromPtr(sgroup.GroupId))
+	}
+
 	return ids, err
 }
 
@@ -153,4 +126,18 @@ func (sg *SecurityGroup) Cleanup(ctx context.Context, ids []string) ([]string, e
 	}
 
 	return deleted, errs
+}
+
+func (sg *SecurityGroup) getAllSecurityGroups(ctx context.Context, params *ec2.DescribeSecurityGroupsInput) (sgs []ec2types.SecurityGroup, err error) {
+	paginator := ec2.NewDescribeSecurityGroupsPaginator(sg.ec2Client, params)
+
+	for paginator.HasMorePages() {
+		out, err := paginator.NextPage(ctx)
+		if err != nil {
+			return nil, err
+		}
+		sgs = append(sgs, out.SecurityGroups...)
+	}
+
+	return sgs, nil
 }

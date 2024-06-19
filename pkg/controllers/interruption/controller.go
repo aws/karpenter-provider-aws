@@ -20,6 +20,7 @@ import (
 	"time"
 
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -27,11 +28,13 @@ import (
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
 	"k8s.io/utils/clock"
+	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/karpenter/pkg/metrics"
+	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -44,7 +47,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"sigs.k8s.io/karpenter/pkg/events"
-	corecontroller "sigs.k8s.io/karpenter/pkg/operator/controller"
 )
 
 type Action string
@@ -81,7 +83,8 @@ func NewController(kubeClient client.Client, clk clock.Clock, recorder events.Re
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
+	ctx = injection.WithControllerName(ctx, "interruption")
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("queue", c.sqsProvider.Name()))
 	if c.cm.HasChanged(c.sqsProvider.Name(), nil) {
 		log.FromContext(ctx).V(1).Info("watching interruption queue")
@@ -91,7 +94,7 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 		return reconcile.Result{}, fmt.Errorf("getting messages from queue, %w", err)
 	}
 	if len(sqsMessages) == 0 {
-		return reconcile.Result{}, nil
+		return reconcile.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 	}
 	nodeClaimInstanceIDMap, err := c.makeNodeClaimInstanceIDMap(ctx)
 	if err != nil {
@@ -119,13 +122,14 @@ func (c *Controller) Reconcile(ctx context.Context, _ reconcile.Request) (reconc
 	if err = multierr.Combine(errs...); err != nil {
 		return reconcile.Result{}, err
 	}
-	return reconcile.Result{}, nil
+	return reconcile.Result{RequeueAfter: singleton.RequeueImmediately}, nil
 }
 
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
-	return corecontroller.NewSingletonManagedBy(m).
+	return controllerruntime.NewControllerManagedBy(m).
 		Named("interruption").
-		Complete(c)
+		WatchesRawSource(singleton.Source()).
+		Complete(singleton.AsReconciler(c))
 }
 
 // parseMessage parses the passed SQS message into an internal Message interface

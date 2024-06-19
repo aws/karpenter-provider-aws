@@ -778,7 +778,7 @@ func (env *Environment) EventuallyExpectAvgUtilization(resource v1.ResourceName,
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		g.Expect(env.Monitor.AvgUtilization(resource)).To(BeNumerically(comparator, value))
-	}, 10*time.Minute).Should(Succeed())
+	}, 12*time.Minute).Should(Succeed())
 }
 
 func (env *Environment) ExpectDaemonSetEnvironmentVariableUpdated(obj client.ObjectKey, name, value string, containers ...string) {
