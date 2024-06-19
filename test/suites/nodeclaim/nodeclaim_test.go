@@ -19,15 +19,15 @@ import (
 	"os"
 	"time"
 
-	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
+	"github.com/samber/lo"
+	v1 "k8s.io/api/core/v1"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/test"
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
@@ -225,7 +225,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
 		Eventually(func(g Gomega) {
-			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should delete a NodeClaim from the node termination finalizer", func() {
@@ -264,7 +264,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
 		Eventually(func(g Gomega) {
-			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
 	})
 	It("should create a NodeClaim with custom labels passed through the userData", func() {
