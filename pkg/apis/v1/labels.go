@@ -46,6 +46,7 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
+		LabelTopologyZoneID,
 		v1.LabelWindowsBuild,
 	)
 }
@@ -93,6 +94,8 @@ var (
 	ResourceEFA                v1.ResourceName = "vpc.amazonaws.com/efa"
 
 	LabelNodeClass = Group + "/ec2nodeclass"
+
+	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
 
 	LabelInstanceHypervisor                   = Group + "/instance-hypervisor"
 	LabelInstanceEncryptionInTransitSupported = Group + "/instance-encryption-in-transit-supported"

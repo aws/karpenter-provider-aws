@@ -245,7 +245,7 @@ spec:
                 default:
                   httpEndpoint: enabled
                   httpProtocolIPv6: disabled
-                  httpPutResponseHopLimit: 2
+                  httpPutResponseHopLimit: 1
                   httpTokens: required
                 description: |-
                   MetadataOptions for the generated launch template of provisioned nodes.
@@ -262,7 +262,7 @@ spec:
                   (https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node)
                   for limiting exposure of Instance Metadata and User Data to pods.
                   If omitted, defaults to httpEndpoint enabled, with httpProtocolIPv6
-                  disabled, with httpPutResponseLimit of 2, and with httpTokens
+                  disabled, with httpPutResponseLimit of 1, and with httpTokens
                   required.
                 properties:
                   httpEndpoint:
@@ -290,13 +290,13 @@ spec:
                     - disabled
                     type: string
                   httpPutResponseHopLimit:
-                    default: 2
+                    default: 1
                     description: |-
                       HTTPPutResponseHopLimit is the desired HTTP PUT response hop limit for
                       instance metadata requests. The larger the number, the further instance
                       metadata requests can travel. Possible values are integers from 1 to 64.
                       If metadata options is non-nil, but this parameter is not specified, the
-                      default value is 2.
+                      default value is 1.
                     format: int64
                     maximum: 64
                     minimum: 1
@@ -848,7 +848,7 @@ spec:
                 default:
                   httpEndpoint: enabled
                   httpProtocolIPv6: disabled
-                  httpPutResponseHopLimit: 2
+                  httpPutResponseHopLimit: 1
                   httpTokens: required
                 description: |-
                   MetadataOptions for the generated launch template of provisioned nodes.
@@ -865,7 +865,7 @@ spec:
                   (https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node)
                   for limiting exposure of Instance Metadata and User Data to pods.
                   If omitted, defaults to httpEndpoint enabled, with httpProtocolIPv6
-                  disabled, with httpPutResponseLimit of 2, and with httpTokens
+                  disabled, with httpPutResponseLimit of 1, and with httpTokens
                   required.
                 properties:
                   httpEndpoint:
