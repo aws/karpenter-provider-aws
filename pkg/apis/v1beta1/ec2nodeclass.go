@@ -107,9 +107,9 @@ type EC2NodeClassSpec struct {
 	// (https://aws.github.io/aws-eks-best-practices/security/docs/iam/#restrict-access-to-the-instance-profile-assigned-to-the-worker-node)
 	// for limiting exposure of Instance Metadata and User Data to pods.
 	// If omitted, defaults to httpEndpoint enabled, with httpProtocolIPv6
-	// disabled, with httpPutResponseLimit of 2, and with httpTokens
+	// disabled, with httpPutResponseLimit of 1, and with httpTokens
 	// required.
-	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":2,"httpTokens":"required"}
+	// +kubebuilder:default={"httpEndpoint":"enabled","httpProtocolIPv6":"disabled","httpPutResponseHopLimit":1,"httpTokens":"required"}
 	// +optional
 	MetadataOptions *MetadataOptions `json:"metadataOptions,omitempty"`
 	// Context is a Reserved field in EC2 APIs

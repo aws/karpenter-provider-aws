@@ -22,11 +22,9 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/client-go/tools/record"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -136,7 +134,7 @@ var _ = Describe("GarbageCollection", func() {
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		ExpectSingletonReconciled(ctx, garbageCollectionController)
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
@@ -151,7 +149,7 @@ var _ = Describe("GarbageCollection", func() {
 		})
 		ExpectApplied(ctx, env.Client, node)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		ExpectSingletonReconciled(ctx, garbageCollectionController)
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
@@ -199,7 +197,7 @@ var _ = Describe("GarbageCollection", func() {
 			)
 			ids = append(ids, instanceID)
 		}
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		ExpectSingletonReconciled(ctx, garbageCollectionController)
 
 		wg := sync.WaitGroup{}
 		for _, id := range ids {
@@ -257,7 +255,7 @@ var _ = Describe("GarbageCollection", func() {
 			nodeClaims = append(nodeClaims, nodeClaim)
 			ids = append(ids, instanceID)
 		}
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		ExpectSingletonReconciled(ctx, garbageCollectionController)
 
 		wg := sync.WaitGroup{}
 		for _, id := range ids {
@@ -281,7 +279,7 @@ var _ = Describe("GarbageCollection", func() {
 		instance.LaunchTime = aws.Time(time.Now())
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		ExpectSingletonReconciled(ctx, garbageCollectionController)
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -295,7 +293,7 @@ var _ = Describe("GarbageCollection", func() {
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		ExpectSingletonReconciled(ctx, garbageCollectionController)
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).NotTo(HaveOccurred())
 	})
@@ -319,7 +317,7 @@ var _ = Describe("GarbageCollection", func() {
 		})
 		ExpectApplied(ctx, env.Client, nodeClaim, node)
 
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		ExpectSingletonReconciled(ctx, garbageCollectionController)
 		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).ToNot(HaveOccurred())
 		ExpectExists(ctx, env.Client, node)
@@ -377,7 +375,7 @@ var _ = Describe("GarbageCollection", func() {
 			ids = append(ids, instanceID)
 			nodes = append(nodes, node)
 		}
-		ExpectReconcileSucceeded(ctx, garbageCollectionController, client.ObjectKey{})
+		ExpectSingletonReconciled(ctx, garbageCollectionController)
 
 		wg := sync.WaitGroup{}
 		for i := range ids {

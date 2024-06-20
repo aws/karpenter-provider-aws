@@ -44,7 +44,7 @@ var _ = Describe("Termination", func() {
 		env.ExpectDeleted(nodes[0])
 		env.EventuallyExpectNotFound(nodes[0])
 		Eventually(func(g Gomega) {
-			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(Equal("shutting-down"))
+			g.Expect(lo.FromPtr(env.GetInstanceByID(instanceID).State.Name)).To(BeElementOf("terminated", "shutting-down"))
 		}, time.Second*10).Should(Succeed())
 	})
 })

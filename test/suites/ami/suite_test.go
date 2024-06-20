@@ -12,16 +12,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package integration_test
+package ami_test
 
 import (
+	"testing"
+
+	awssdk "github.com/aws/aws-sdk-go/aws"
+
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
 	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
+
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/operatorpkg/status"
 	. "github.com/awslabs/operatorpkg/test/expectations"
@@ -32,16 +42,33 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
+
 	coretest "sigs.k8s.io/karpenter/pkg/test"
-
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-	awsenv "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
+
+var env *environmentaws.Environment
+var nodeClass *v1beta1.EC2NodeClass
+var nodePool *corev1beta1.NodePool
+
+func TestAMI(t *testing.T) {
+	RegisterFailHandler(Fail)
+	BeforeSuite(func() {
+		env = environmentaws.NewEnvironment(t)
+	})
+	AfterSuite(func() {
+		env.Stop()
+	})
+	RunSpecs(t, "Ami")
+}
+
+var _ = BeforeEach(func() {
+	env.BeforeEach()
+	nodeClass = env.DefaultEC2NodeClass()
+	nodePool = env.DefaultNodePool(nodeClass)
+})
+var _ = AfterEach(func() { env.Cleanup() })
+var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("AMI", func() {
 	var customAMI string
@@ -83,7 +110,7 @@ var _ = Describe("AMI", func() {
 	})
 	It("should support AMI Selector Terms for Name but fail with incorrect owners", func() {
 		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
-			ImageIds: []*string{aws.String(customAMI)},
+			ImageIds: []*string{awssdk.String(customAMI)},
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
@@ -101,7 +128,7 @@ var _ = Describe("AMI", func() {
 	})
 	It("should support ami selector Name with default owners", func() {
 		output, err := env.EC2API.DescribeImages(&ec2.DescribeImagesInput{
-			ImageIds: []*string{aws.String(customAMI)},
+			ImageIds: []*string{awssdk.String(customAMI)},
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
@@ -174,7 +201,7 @@ var _ = Describe("AMI", func() {
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   awsenv.ExcludedInstanceFamilies,
+						Values:   environmentaws.ExcludedInstanceFamilies,
 					},
 				},
 			)
@@ -241,7 +268,7 @@ var _ = Describe("AMI", func() {
 			content, err := os.ReadFile("testdata/al2_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
-			nodeClass.Spec.UserData = aws.String(string(content))
+			nodeClass.Spec.UserData = awssdk.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 			pod := coretest.Pod(coretest.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
@@ -262,7 +289,7 @@ var _ = Describe("AMI", func() {
 			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
-			nodeClass.Spec.UserData = aws.String(string(content))
+			nodeClass.Spec.UserData = awssdk.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 			pod := coretest.Pod(coretest.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
@@ -283,7 +310,7 @@ var _ = Describe("AMI", func() {
 			content, err := os.ReadFile("testdata/br_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
-			nodeClass.Spec.UserData = aws.String(string(content))
+			nodeClass.Spec.UserData = awssdk.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 			pod := coretest.Pod(coretest.PodOptions{Tolerations: []v1.Toleration{{Key: "example.com", Operator: v1.TolerationOpExists}}})
@@ -307,7 +334,7 @@ var _ = Describe("AMI", func() {
 			content, err := os.ReadFile("testdata/windows_userdata_input.ps1")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
-			nodeClass.Spec.UserData = aws.String(string(content))
+			nodeClass.Spec.UserData = awssdk.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 
@@ -317,7 +344,7 @@ var _ = Describe("AMI", func() {
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1beta1.LabelInstanceFamily,
 						Operator: v1.NodeSelectorOpNotIn,
-						Values:   awsenv.ExcludedInstanceFamilies,
+						Values:   environmentaws.ExcludedInstanceFamilies,
 					},
 				},
 				corev1beta1.NodeSelectorRequirementWithMinValues{
@@ -329,7 +356,7 @@ var _ = Describe("AMI", func() {
 				},
 			)
 			pod := coretest.Pod(coretest.PodOptions{
-				Image: awsenv.WindowsDefaultImage,
+				Image: environmentaws.WindowsDefaultImage,
 				NodeSelector: map[string]string{
 					v1.LabelOSStable:     string(v1.Windows),
 					v1.LabelWindowsBuild: "10.0.20348",
@@ -358,8 +385,8 @@ func getInstanceAttribute(nodeName string, attribute string) *ec2.DescribeInstan
 	providerIDSplit := strings.Split(node.Spec.ProviderID, "/")
 	instanceID := providerIDSplit[len(providerIDSplit)-1]
 	instanceAttribute, err := env.EC2API.DescribeInstanceAttribute(&ec2.DescribeInstanceAttributeInput{
-		InstanceId: aws.String(instanceID),
-		Attribute:  aws.String(attribute),
+		InstanceId: awssdk.String(instanceID),
+		Attribute:  awssdk.String(attribute),
 	})
 	Expect(err).ToNot(HaveOccurred())
 	return instanceAttribute
