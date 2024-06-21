@@ -330,6 +330,11 @@ By default, the number of pods on a node is limited by both the number of networ
 
 If the max-pods (configured through your Provisioner [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
 
+If you've enabled [Security Groups per Pod](https://aws.github.io/aws-eks-best-practices/networking/sgpp/), one of the instance's ENIs is reserved as the trunk interface and uses branch interfaces off of that trunk interface to assign different security groups.
+If you do not have any `SecurityGroupPolicies` configured for your pods, they will be unable to utilize branch interfaces attached to the trunk interface, and IPs will only be available from the non-trunk ENIs.
+This effectively reduces the max-pods value by the number of IPs that would have been available from the trunk ENI.
+Note that Karpenter is not aware if [Security Groups per Pod](https://aws.github.io/aws-eks-best-practices/networking/sgpp/) is enabled, and will continue to compute max-pods assuming all ENIs on the instance can be utilized.
+
 ##### Solutions
 
 To avoid this discrepancy between `maxPods` and the supported pod density of the EC2 instance based on ENIs and allocatable IPs, you can perform one of the following actions on your cluster:
