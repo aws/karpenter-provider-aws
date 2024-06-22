@@ -301,6 +301,14 @@ Resources:
                 - sqs.amazonaws.com
             Action: sqs:SendMessage
             Resource: !GetAtt KarpenterInterruptionQueue.Arn
+           - Sid: DenyHTTP
+             Effect: Deny
+             Action: sqs:*
+             Resource: !GetAtt KarpenterInterruptionQueue.Arn
+             Condition:
+               Bool:
+                 aws:SecureTransport: false
+             Principal: "*"
   ScheduledChangeRule:
     Type: 'AWS::Events::Rule'
     Properties:
