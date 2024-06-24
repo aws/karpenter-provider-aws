@@ -55,6 +55,7 @@ var (
 		// m4.4xlarge has vague bandwidth information, bandwidth is High
 		// m4.large has vague bandwidth information, bandwidth is Moderate
 		// m4.xlarge has vague bandwidth information, bandwidth is High
+		// mac2-m1ultra.metal is not available in https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-instance-network-bandwidth.html
 		// p2.xlarge has vague bandwidth information, bandwidth is High
 		// p3.2xlarge has vague bandwidth information, bandwidth is Up to 10 Gigabit
 		// r3.2xlarge has vague bandwidth information, bandwidth is High
