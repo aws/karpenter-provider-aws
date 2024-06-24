@@ -12,11 +12,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1
+package v1beta1
 
 import (
 	"context"
+
+	"knative.dev/pkg/apis"
 )
 
-// SetDefaults for the EC2NodeClass
-func (in *EC2NodeClass) SetDefaults(_ context.Context) {}
+func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) error { return nil }
+
+func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) error { return nil }
