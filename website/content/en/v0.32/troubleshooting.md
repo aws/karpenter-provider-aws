@@ -61,7 +61,7 @@ Node role names for Karpenter are created in the form `KarpenterNodeRole-${Clust
 If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
 
 Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
-Instead using of the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
+Instead of using the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
 
 ### Unknown field in Provisioner spec
 
