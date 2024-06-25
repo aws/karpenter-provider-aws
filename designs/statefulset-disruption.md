@@ -332,29 +332,29 @@ These are manual tests measured by polling `EC2 DescribeInstances` performed in 
 
 Times are in Minutes:Seconds
 
-m5.large
-stopped ~40
-terminated ~55 
+- m5.large
+  - stopped ~40s
+  - terminated ~55s 
 
-c5.12xlarge -- Windows 2022 AMI
-Stopped ~30
-Terminated ~1:15
+- c5.12xlarge -- Windows 2022 AMI
+  - Stopped ~30s
+  - Terminated ~1:15
 
-c5.metal
-stopped ~10:55
-terminated ~10:54
+- c5.metal
+  - stopped ~10:55
+  - terminated ~10:54
 
-g4ad.xlarge
-stopped ~53 
-terminated ~57
+- g4ad.xlarge (Linux GPU AMI)
+  - stopped ~53s 
+  - terminated ~57s
 
-g4ad.4xlarge
-stopped ~53 
-terminated ~1:37
+- g4ad.4xlarge (Linux GPU AMI)
+  - stopped ~53s
+  - terminated ~1:37
 
-g4ad.16xlarge
-stopped ~2:00
-terminated ~2:10
+- g4ad.16xlarge (Linux GPU AMI)
+  - stopped ~2:00
+  - terminated ~2:10
 
 Windows instances with elastic GPUs are reported to have slow termination times, but this has yet to be tested. 
 
