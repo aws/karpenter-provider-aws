@@ -34,6 +34,10 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
+type AMIResolver interface {
+	Resolve(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error)
+}
+
 var DefaultEBS = v1beta1.BlockDevice{
 	Encrypted:  aws.Bool(true),
 	VolumeType: aws.String(ec2.VolumeTypeGp3),
