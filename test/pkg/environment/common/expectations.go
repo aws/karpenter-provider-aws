@@ -225,13 +225,8 @@ func (env *Environment) ExpectConfigMapDataOverridden(key types.NamespacedName, 
 	err := env.Client.Get(env, key, cm)
 	Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
 
-	stored := cm.DeepCopy()
 	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
 
-	// If the data hasn't changed, we can just return and not update anything
-	if equality.Semantic.DeepEqual(stored, cm) {
-		return false
-	}
 	// Update the configMap to update the settings
 	env.ExpectCreatedOrUpdated(cm)
 	return true

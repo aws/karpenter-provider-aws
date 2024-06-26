@@ -62,7 +62,7 @@ var EphemeralInitContainerImage = "alpine"
 // ExcludedInstanceFamilies denotes instance families that have issues during resource registration due to compatibility
 // issues with versions of the VPR Resource Controller.
 // TODO: jmdeal@ remove a1 from exclusion list once Karpenter implicitly filters a1 instances for AL2023 AMI family (incompatible)
-var ExcludedInstanceFamilies = []string{"m7a", "r7a", "c7a", "r7i", "a1"}
+var ExcludedInstanceFamilies = []string{"m7a", "r7a", "c7a", "r7i", "a1", "c7i-flex"}
 
 type Environment struct {
 	*common.Environment
