@@ -279,7 +279,7 @@ spec:
           - p3
       taints:
       - key: nvidia.com/gpu
-        value: true
+        value: "true"
         effect: "NoSchedule"
 ```
 
