@@ -275,6 +275,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
 		})
+		// Windows tests are can flake due to the instance types that are used in testing.
+		// The VPC Resource controller will need to support the instance types that are used.
+		// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
+		// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
+		// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
 		It("should support well-known labels for windows-build version", func() {
 			env.ExpectWindowsIPAMEnabled()
 			DeferCleanup(func() {

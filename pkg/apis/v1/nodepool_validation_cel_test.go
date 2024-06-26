@@ -27,7 +27,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 )
 
-// TODO @engedaam: Updated NodePool and a NodeClaim to use the v1 API 
+// TODO @engedaam: Updated NodePool and a NodeClaim to use the v1 API
 var _ = Describe("CEL/Validation", func() {
 	var nodePool *v1beta1.NodePool
 

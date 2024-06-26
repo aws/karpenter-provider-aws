@@ -521,7 +521,7 @@ var _ = Describe("CEL/Validation", func() {
 					AMIFamily:                  nc.Spec.AMIFamily,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
-					Role: nc.Spec.Role,
+					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -551,7 +551,7 @@ var _ = Describe("CEL/Validation", func() {
 					AMIFamily:                  nc.Spec.AMIFamily,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
-					Role: nc.Spec.Role,
+					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -572,7 +572,7 @@ var _ = Describe("CEL/Validation", func() {
 					AMIFamily:                  nc.Spec.AMIFamily,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
-					Role: nc.Spec.Role,
+					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -593,7 +593,7 @@ var _ = Describe("CEL/Validation", func() {
 					AMIFamily:                  nc.Spec.AMIFamily,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
-					Role: nc.Spec.Role,
+					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -621,7 +621,7 @@ var _ = Describe("CEL/Validation", func() {
 					AMIFamily:                  nc.Spec.AMIFamily,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
-					Role: nc.Spec.Role,
+					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -642,7 +642,7 @@ var _ = Describe("CEL/Validation", func() {
 					AMIFamily:                  nc.Spec.AMIFamily,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
-					Role: nc.Spec.Role,
+					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -663,7 +663,7 @@ var _ = Describe("CEL/Validation", func() {
 					AMIFamily:                  nc.Spec.AMIFamily,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
-					Role: nc.Spec.Role,
+					Role:                       nc.Spec.Role,
 					BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
