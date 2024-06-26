@@ -70,7 +70,7 @@ type DefaultProvider struct {
 	sync.Mutex
 	ec2api                ec2iface.EC2API
 	eksapi                eksiface.EKSAPI
-	amiFamily             *amifamily.Resolver
+	amiFamily             amifamily.AMIResolver
 	securityGroupProvider securitygroup.Provider
 	subnetProvider        subnet.Provider
 	cache                 *cache.Cache
