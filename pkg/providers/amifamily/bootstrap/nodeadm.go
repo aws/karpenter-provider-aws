@@ -22,7 +22,6 @@ import (
 	admapi "github.com/awslabs/amazon-eks-ami/nodeadm/api"
 	admv1alpha1 "github.com/awslabs/amazon-eks-ami/nodeadm/api/v1alpha1"
 	"github.com/samber/lo"
-	core "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/json"
@@ -116,7 +115,6 @@ func (n Nodeadm) generateInlineKubeletConfiguration() (map[string]runtime.RawExt
 	if err != nil {
 		return nil, err
 	}
-	n.Taints = append(n.Taints, core.Taint{Key: "karpenter.sh/unregistered", Value: "true", Effect: core.TaintEffectNoExecute})
 	kubeConfigMap["registerWithTaints"] = runtime.RawExtension{
 		Raw: lo.Must(json.Marshal(n.Taints)),
 	}

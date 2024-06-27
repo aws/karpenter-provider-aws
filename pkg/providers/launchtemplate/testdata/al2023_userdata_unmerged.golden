@@ -26,7 +26,6 @@ spec:
       registerWithTaints:
       - effect: NoExecute
         key: karpenter.sh/unregistered
-        value: "true"
     flags:
     - --node-labels="karpenter.sh/capacity-type=on-demand,%s=%s,testing/cluster=unspecified"
 

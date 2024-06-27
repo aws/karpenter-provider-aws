@@ -216,11 +216,15 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 	if kubeletConfig.MaxPods == nil {
 		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
 	}
+
+	taints := append(nodeClaim.Spec.Taints, nodeClaim.Spec.StartupTaints...)
+	taints = append(taints, core.Taint{Key: "karpenter.sh/unregistered", Effect: core.TaintEffectNoExecute})
+
 	resolved := &LaunchTemplate{
 		Options: options,
 		UserData: amiFamily.UserData(
 			r.defaultClusterDNS(options, kubeletConfig),
-			append(nodeClaim.Spec.Taints, nodeClaim.Spec.StartupTaints...),
+			taints,
 			options.Labels,
 			options.CABundle,
 			instanceTypes,

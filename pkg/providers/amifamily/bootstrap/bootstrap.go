@@ -79,9 +79,8 @@ func (o Options) kubeletExtraArgs() (args []string) {
 
 func (o Options) nodeTaintArg() string {
 	var taintStrings []string
-	o.Taints = append(o.Taints, core.Taint{Key: "karpenter.sh/unregistered", Value: "true", Effect: core.TaintEffectNoExecute})
 	for _, taint := range o.Taints {
-		taintStrings = append(taintStrings, fmt.Sprintf("%s=%s:%s", taint.Key, taint.Value, taint.Effect))
+		taintStrings = append(taintStrings, fmt.Sprintf("%s%s:%s", taint.Key, lo.Ternary(taint.Value == "", "", "="+taint.Value), taint.Effect))
 	}
 	return fmt.Sprintf("--register-with-taints=%q", strings.Join(taintStrings, ","))
 }
