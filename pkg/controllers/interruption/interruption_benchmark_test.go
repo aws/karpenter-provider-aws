@@ -45,8 +45,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
-
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
@@ -87,7 +85,7 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 		IsolatedVPC:       lo.ToPtr(true),
 		InterruptionQueue: lo.ToPtr("test-cluster"),
 	}))
-	env = coretest.NewEnvironment(scheme.Scheme)
+	env = coretest.NewEnvironment()
 	// Stop the coretest environment after the coretest completes
 	defer func() {
 		if err := retry.Do(func() error {

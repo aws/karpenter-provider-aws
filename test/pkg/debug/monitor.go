@@ -26,7 +26,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 )
 
 type Monitor struct {
@@ -39,7 +38,6 @@ type Monitor struct {
 func New(ctx context.Context, config *rest.Config, kubeClient client.Client) *Monitor {
 	log.SetLogger(log.FromContext(ctx))
 	mgr := lo.Must(controllerruntime.NewManager(config, controllerruntime.Options{
-		Scheme: scheme.Scheme,
 		Metrics: server.Options{
 			BindAddress: "0",
 		},

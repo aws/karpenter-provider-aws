@@ -53,7 +53,7 @@ run: ## Run Karpenter controller binary against your local cluster
 		go run ./cmd/controller/main.go
 
 test: ## Run tests
-	go test -v ./pkg/... \
+	go test ./pkg/... \
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
