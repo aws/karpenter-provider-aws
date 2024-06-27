@@ -15,9 +15,11 @@ limitations under the License.
 package v1beta1
 
 import (
+	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
 var (
@@ -32,3 +34,7 @@ var (
 		return nil
 	})
 )
+
+func init() {
+	lo.Must0(SchemeBuilder.AddToScheme(scheme.Scheme))
+}

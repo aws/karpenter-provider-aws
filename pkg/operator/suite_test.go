@@ -22,7 +22,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/samber/lo"
 
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	"k8s.io/client-go/kubernetes/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"

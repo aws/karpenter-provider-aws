@@ -18,8 +18,8 @@ import (
 	"context"
 	"testing"
 
+	"k8s.io/client-go/kubernetes/scheme"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"

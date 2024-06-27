@@ -18,26 +18,11 @@ package apis
 import (
 	_ "embed"
 
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-
 	"github.com/samber/lo"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
 	"sigs.k8s.io/karpenter/pkg/apis"
 	"sigs.k8s.io/karpenter/pkg/utils/functional"
-)
-
-var (
-	// Builder includes all types within the apis package
-	Builder = runtime.NewSchemeBuilder(
-		v1beta1.SchemeBuilder.AddToScheme,
-		v1.SchemeBuilder.AddToScheme,
-	)
-	// AddToScheme may be used to add all resources defined in the project to a Scheme
-	AddToScheme = Builder.AddToScheme
 )
 
 //go:generate controller-gen crd object:headerFile="../../hack/boilerplate.go.txt" paths="./..." output:crd:artifacts:config=crds

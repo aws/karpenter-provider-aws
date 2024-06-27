@@ -45,7 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
+	"k8s.io/client-go/kubernetes/scheme"
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption"
