@@ -78,7 +78,7 @@ var _ = Describe("Webhook/Validation", func() {
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
 			nc.Spec.Tags = map[string]string{
-				"karpenterzsh/managed-by": "test",
+				"ekszsh:eks-cluster-name": "test",
 			}
 			Expect(nc.Validate(ctx)).To(Succeed())
 		})
@@ -92,7 +92,7 @@ var _ = Describe("Webhook/Validation", func() {
 			}
 			Expect(nc.Validate(ctx)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
-				"karpenter.sh/managed-by": "test",
+				"eks:eks-cluster-name": "test",
 			}
 			Expect(nc.Validate(ctx)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
