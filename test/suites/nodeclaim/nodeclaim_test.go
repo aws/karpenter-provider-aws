@@ -24,6 +24,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -179,7 +180,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		))
 		Expect(node.OwnerReferences).To(ContainElement(
 			metav1.OwnerReference{
-				APIVersion:         corev1beta1.SchemeGroupVersion.String(),
+				APIVersion:         object.GVK(nodeClaim).GroupVersion().String(),
 				Kind:               "NodeClaim",
 				Name:               nodeClaim.Name,
 				UID:                nodeClaim.UID,
