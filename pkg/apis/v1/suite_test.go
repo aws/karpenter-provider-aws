@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1_test
+package v1_test
 
 import (
 	"context"
@@ -20,9 +20,9 @@ import (
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
+	. "knative.dev/pkg/logging/testing"
 
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
-	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 

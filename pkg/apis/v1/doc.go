@@ -12,23 +12,24 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+// +k8s:openapi-gen=true
+// +k8s:deepcopy-gen=package,register
+// +k8s:defaulter-gen=TypeMeta
+// +groupName=karpenter.k8s.aws
+package v1 // doc.go is discovered by codegen
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes/scheme"
 )
 
-var (
-	Group              = "karpenter.k8s.aws"
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1beta1"}
-	SchemeBuilder      = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
-		scheme.AddKnownTypes(SchemeGroupVersion,
-			&EC2NodeClass{},
-			&EC2NodeClassList{},
-		)
-		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
-		return nil
-	})
-)
+func init() {
+	gv := schema.GroupVersion{Group: apis.Group, Version: "v1"}
+	v1.AddToGroupVersion(scheme.Scheme, gv)
+	scheme.Scheme.AddKnownTypes(gv,
+		&EC2NodeClass{},
+		&EC2NodeClassList{},
+	)
+}

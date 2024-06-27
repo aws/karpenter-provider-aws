@@ -12,7 +12,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1
 
 import (
 	"fmt"
@@ -199,8 +199,8 @@ type MetadataOptions struct {
 	// instance metadata requests. The larger the number, the further instance
 	// metadata requests can travel. Possible values are integers from 1 to 64.
 	// If metadata options is non-nil, but this parameter is not specified, the
-	// default value is 2.
-	// +kubebuilder:default=2
+	// default value is 1.
+	// +kubebuilder:default=1
 	// +kubebuilder:validation:Minimum:=1
 	// +kubebuilder:validation:Maximum:=64
 	// +optional
@@ -318,7 +318,6 @@ const (
 
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 // +kubebuilder:resource:path=ec2nodeclasses,scope=Cluster,categories=karpenter,shortName={ec2nc,ec2ncs}
 // +kubebuilder:subresource:status
 type EC2NodeClass struct {

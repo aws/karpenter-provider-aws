@@ -26,6 +26,7 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/awslabs/operatorpkg/object"
 )
 
 func NewWebhooks() []knativeinjection.ControllerConstructor {
@@ -56,5 +57,5 @@ func NewCRDValidationWebhook(ctx context.Context, _ configmap.Watcher) *controll
 }
 
 var Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-	v1beta1.SchemeGroupVersion.WithKind("EC2NodeClass"): &v1beta1.EC2NodeClass{},
+	object.GVK(&v1beta1.EC2NodeClass{}): &v1beta1.EC2NodeClass{},
 }
