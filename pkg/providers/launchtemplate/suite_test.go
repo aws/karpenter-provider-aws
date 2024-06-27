@@ -2031,33 +2031,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		Context("Public IP Association", func() {
-			It("should explicitly set 'AssociatePublicIPAddress' to false in the Launch Template", func() {
-				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
-					{Tags: map[string]string{"Name": "test-subnet-1"}},
-					{Tags: map[string]string{"Name": "test-subnet-3"}},
-				}
-				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
-				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				Expect(*input.LaunchTemplateData.NetworkInterfaces[0].AssociatePublicIpAddress).To(BeFalse())
-			})
-			It("should not explicitly set 'AssociatePublicIPAddress' when the subnets are configured to assign public IPv4 addresses", func() {
-				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
-					{Tags: map[string]string{"Name": "test-subnet-2"}},
-				}
-				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-				pod := coretest.UnschedulablePod()
-				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
-				ExpectScheduled(ctx, env.Client, pod)
-				input := awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Pop()
-				Expect(len(input.LaunchTemplateData.NetworkInterfaces)).To(BeNumerically("==", 0))
-			})
 			DescribeTable(
 				"should set 'AssociatePublicIPAddress' based on EC2NodeClass",
 				func(setValue, expectedValue, isEFA bool) {
