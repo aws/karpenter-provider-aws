@@ -19,7 +19,18 @@ spec:
     singular: ec2nodeclass
   scope: Cluster
   versions:
-    - name: v1
+    - additionalPrinterColumns:
+        - jsonPath: .status.conditions[?(@.type=="Ready")].status
+          name: Ready
+          type: string
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+        - jsonPath: .spec.role
+          name: Role
+          priority: 1
+          type: string
+      name: v1
       schema:
         openAPIV3Schema:
           description: EC2NodeClass is the Schema for the EC2NodeClass API
