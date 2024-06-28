@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -207,7 +208,9 @@ var _ = Describe("NodeClass Termination", func() {
 			nc := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
 					NodeClassRef: &corev1beta1.NodeClassReference{
-						Name: nodeClass.Name,
+						APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+						Kind:       object.GVK(nodeClass).Kind,
+						Name:       nodeClass.Name,
 					},
 				},
 			})

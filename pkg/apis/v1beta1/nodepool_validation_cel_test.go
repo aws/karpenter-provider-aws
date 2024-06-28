@@ -40,8 +40,9 @@ var _ = Describe("CEL/Validation", func() {
 				Template: v1beta1.NodeClaimTemplate{
 					Spec: v1beta1.NodeClaimSpec{
 						NodeClassRef: &v1beta1.NodeClassReference{
-							Kind: "NodeClaim",
-							Name: "default",
+							APIVersion: "karpenter.k8s.aws/v1beta1",
+							Kind:       "EC2NodeClass",
+							Name:       "default",
 						},
 						Requirements: []v1beta1.NodeSelectorRequirementWithMinValues{
 							{

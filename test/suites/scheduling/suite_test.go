@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -429,7 +430,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
-								Name: nodeClass.Name,
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
 							},
 							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{

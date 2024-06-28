@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/operatorpkg/object"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -158,7 +159,9 @@ var _ = Describe("CloudProvider", func() {
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
 						NodeClassRef: &corev1beta1.NodeClassReference{
-							Name: nodeClass.Name,
+							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+							Kind:       object.GVK(nodeClass).Kind,
+							Name:       nodeClass.Name,
 						},
 						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 							{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeOnDemand}}},
@@ -173,7 +176,9 @@ var _ = Describe("CloudProvider", func() {
 			},
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
@@ -314,7 +319,9 @@ var _ = Describe("CloudProvider", func() {
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
-								Name: nodeClass.Name,
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
 							},
 							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
@@ -410,7 +417,9 @@ var _ = Describe("CloudProvider", func() {
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
-								Name: nodeClass.Name,
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
 							},
 							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
@@ -513,7 +522,9 @@ var _ = Describe("CloudProvider", func() {
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
-								Name: nodeClass.Name,
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
 							},
 							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{
@@ -1188,7 +1199,9 @@ var _ = Describe("CloudProvider", func() {
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
-								Name: nodeClass2.Name,
+								APIVersion: object.GVK(nodeClass2).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass2).Kind,
+								Name:       nodeClass2.Name,
 							},
 						},
 					},
@@ -1230,7 +1243,9 @@ var _ = Describe("CloudProvider", func() {
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
-								Name: misconfiguredNodeClass.Name,
+								APIVersion: object.GVK(misconfiguredNodeClass).GroupVersion().String(),
+								Kind:       object.GVK(misconfiguredNodeClass).Kind,
+								Name:       misconfiguredNodeClass.Name,
 							},
 						},
 					},

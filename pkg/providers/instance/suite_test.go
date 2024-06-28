@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -87,7 +88,9 @@ var _ = Describe("InstanceProvider", func() {
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
 						NodeClassRef: &corev1beta1.NodeClassReference{
-							Name: nodeClass.Name,
+							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+							Kind:       object.GVK(nodeClass).Kind,
+							Name:       nodeClass.Name,
 						},
 					},
 				},
@@ -101,7 +104,9 @@ var _ = Describe("InstanceProvider", func() {
 			},
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})

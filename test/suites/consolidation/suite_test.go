@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -433,7 +434,11 @@ var _ = Describe("Consolidation", func() {
 									},
 								},
 							},
-							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+							NodeClassRef: &corev1beta1.NodeClassReference{
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
+							},
 						},
 					},
 				},
@@ -519,7 +524,11 @@ var _ = Describe("Consolidation", func() {
 									},
 								},
 							},
-							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+							NodeClassRef: &corev1beta1.NodeClassReference{
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
+							},
 						},
 					},
 				},
@@ -662,7 +671,11 @@ var _ = Describe("Consolidation", func() {
 								},
 							},
 						},
-						NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+						NodeClassRef: &corev1beta1.NodeClassReference{
+							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+							Kind:       object.GVK(nodeClass).Kind,
+							Name:       nodeClass.Name,
+						},
 					},
 				},
 			},
