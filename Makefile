@@ -102,6 +102,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
+	hack/validation/kubelet.sh
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
 	hack/github/dependabot.sh
