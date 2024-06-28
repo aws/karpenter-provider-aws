@@ -32,6 +32,7 @@ const (
 	amiFamilyPath                  = "amiFamily"
 	tagsPath                       = "tags"
 	metadataOptionsPath            = "metadataOptions"
+	tenancyPath                    = "tenancy"
 	blockDeviceMappingsPath        = "blockDeviceMappings"
 	rolePath                       = "role"
 	instanceProfilePath            = "instanceProfile"
@@ -79,6 +80,7 @@ func (in *EC2NodeClassSpec) validate(_ context.Context) (errs *apis.FieldError) 
 		in.validateAMISelectorTerms().ViaField(amiSelectorTermsPath),
 		in.validateMetadataOptions().ViaField(metadataOptionsPath),
 		in.validateAMIFamily().ViaField(amiFamilyPath),
+		in.validateTenancy().ViaField(tenancyPath),
 		in.validateBlockDeviceMappings().ViaField(blockDeviceMappingsPath),
 		in.validateTags().ViaField(tagsPath),
 	)
@@ -302,6 +304,13 @@ func (in *EC2NodeClassSpec) validateRoleImmutability(originalSpec *EC2NodeClassS
 			Message: "Immutable field changed",
 			Paths:   []string{"role"},
 		}
+	}
+	return nil
+}
+
+func (in *EC2NodeClassSpec) validateTenancy() (errs *apis.FieldError) {
+	if in.Tenancy != nil {
+		return in.validateStringEnum(*in.Tenancy, "tenancy", ec2.Tenancy_Values())
 	}
 	return nil
 }
