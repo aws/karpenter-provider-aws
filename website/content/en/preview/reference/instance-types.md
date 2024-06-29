@@ -6537,7 +6537,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.4xlarge|
- |topology.k8s.aws/zone-id|6419929671613507071|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6564,7 +6563,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.8xlarge|
- |topology.k8s.aws/zone-id|3124717047704565898|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -6591,7 +6589,6 @@ below are the resources available with some assumptions and after the instance o
  |kubernetes.io/arch|arm64|
  |kubernetes.io/os|linux|
  |node.kubernetes.io/instance-type|hpc7g.16xlarge|
- |topology.k8s.aws/zone-id|4594531912622968525|
 #### Resources
  | Resource | Quantity |
  |--|--|
@@ -19508,6 +19505,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|12582912|
+ |karpenter.k8s.aws/instance-network-bandwidth|100000|
  |karpenter.k8s.aws/instance-size|224xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -19534,6 +19532,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|16777216|
+ |karpenter.k8s.aws/instance-network-bandwidth|200000|
  |karpenter.k8s.aws/instance-size|224xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -19560,6 +19559,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|25165824|
+ |karpenter.k8s.aws/instance-network-bandwidth|200000|
  |karpenter.k8s.aws/instance-size|224xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
@@ -19586,6 +19586,7 @@ below are the resources available with some assumptions and after the instance o
  |karpenter.k8s.aws/instance-generation|7|
  |karpenter.k8s.aws/instance-hypervisor|nitro|
  |karpenter.k8s.aws/instance-memory|33554432|
+ |karpenter.k8s.aws/instance-network-bandwidth|200000|
  |karpenter.k8s.aws/instance-size|224xlarge|
  |kubernetes.io/arch|amd64|
  |kubernetes.io/os|linux|
