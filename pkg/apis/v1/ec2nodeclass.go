@@ -395,6 +395,9 @@ const (
 
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
+// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",description=""
+// +kubebuilder:printcolumn:name="Role",type="string",JSONPath=".spec.role",priority=1,description=""
 // +kubebuilder:resource:path=ec2nodeclasses,scope=Cluster,categories=karpenter,shortName={ec2nc,ec2ncs}
 // +kubebuilder:subresource:status
 type EC2NodeClass struct {
