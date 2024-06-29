@@ -134,10 +134,9 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 
 func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1beta1.NodePool {
 	nodePool := coretest.NodePool()
-	gvk := object.GVK(nodeClass)
 	nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
-		APIVersion: gvk.GroupVersion().String(),
-		Kind:       gvk.Kind,
+		APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+		Kind:       object.GVK(nodeClass).Kind,
 		Name:       nodeClass.Name,
 	}
 	nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{

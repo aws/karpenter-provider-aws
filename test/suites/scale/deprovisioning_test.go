@@ -197,10 +197,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			// the other nodePools
 			driftNodeClass := awstest.EC2NodeClass()
 			driftNodeClass.Spec = *nodeClass.Spec.DeepCopy()
-			gvk := object.GVK(nodeClass)
 			nodePoolMap[driftValue].Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
-				APIVersion: gvk.GroupVersion().String(),
-				Kind:       gvk.Kind,
+				APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+				Kind:       object.GVK(nodeClass).Kind,
 				Name:       driftNodeClass.Name,
 			}
 			env.MeasureProvisioningDurationFor(func() {
