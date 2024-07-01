@@ -9,7 +9,7 @@ require (
 	github.com/aws/aws-sdk-go v1.54.11
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
-	github.com/awslabs/operatorpkg v0.0.0-20240628210115-2457d6af0d2f
+	github.com/awslabs/operatorpkg v0.0.0-20240701195752-116cbcffbcb4
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
 	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.0
