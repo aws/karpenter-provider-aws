@@ -1,11 +1,3 @@
-# Redirects from what the browser requests to what we serve
-/v0.28.0/*                      /v0.28/:splat
-/v0.27.5/*                      /v0.27/:splat
-/v0.26.1/*                      /v0.26/:splat
-/v0.26/getting-started/getting-started-with-karpenter/*  /v0.26/getting-started/getting-started-with-eksctl/:splat
-/v0.27/getting-started/getting-started-with-eksctl/* /v0.27/getting-started/getting-started-with-karpenter/:splat
-/v0.28/getting-started/getting-started-with-eksctl/* /v0.28/getting-started/getting-started-with-karpenter/:splat
-
 # Redirect all preview documentation to the new routes
 /preview/concepts/provisioners /preview/concepts/nodepools
 /preview/concepts/node-templates /preview/concepts/nodeclasses
@@ -25,26 +17,6 @@
 /docs/concepts/metrics /docs/reference/metrics
 /docs/concepts/settings /docs/reference/settings
 /docs/concepts/threat-model /docs/reference/threat-model
-
-# Redirect all v0.30 documentation from the new routes to the old routes
-/v0.30/concepts/nodepools /v0.30/concepts/provisioners
-/v0.30/concepts/nodeclasses /v0.30/concepts/node-templates
-/v0.30/concepts/disruption /v0.30/concepts/deprovisioning
-/v0.30/upgrading/upgrade-guide /v0.30/upgrade-guide
-/v0.30/reference/instance-types /v0.30/concepts/instance-types
-/v0.30/reference/metrics /v0.30/concepts/metrics
-/v0.30/reference/settings /v0.30/concepts/settings
-/v0.30/reference/threat-model /v0.30/concepts/threat-model
-
-# Redirect all v0.31 documentation from the new routes to the old routes
-/v0.31/concepts/nodepools /v0.31/concepts/provisioners
-/v0.31/concepts/nodeclasses /v0.31/concepts/node-templates
-/v0.31/concepts/disruption /v0.31/concepts/deprovisioning
-/v0.31/upgrading/upgrade-guide /v0.31/upgrade-guide
-/v0.31/reference/instance-types /v0.31/concepts/instance-types
-/v0.31/reference/metrics /v0.31/concepts/metrics
-/v0.31/reference/settings /v0.31/concepts/settings
-/v0.31/reference/threat-model /v0.31/concepts/threat-model
 
 # Redirect all v0.32 documentation to the new routes
 /v0.32/concepts/provisioners /v0.32/concepts/nodepools

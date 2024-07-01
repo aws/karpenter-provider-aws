@@ -21,18 +21,21 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/awslabs/operatorpkg/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
@@ -218,13 +221,7 @@ func (c *CloudProvider) Name() string {
 }
 
 func (c *CloudProvider) GetSupportedNodeClasses() []schema.GroupVersionKind {
-	return []schema.GroupVersionKind{
-		{
-			Group:   v1beta1.SchemeGroupVersion.Group,
-			Version: v1beta1.SchemeGroupVersion.Version,
-			Kind:    "EC2NodeClass",
-		},
-	}
+	return []schema.GroupVersionKind{object.GVK(&v1beta1.EC2NodeClass{})}
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*v1beta1.EC2NodeClass, error) {
@@ -300,7 +297,7 @@ func (c *CloudProvider) resolveNodePoolFromInstance(ctx context.Context, instanc
 		}
 		return nodePool, nil
 	}
-	return nil, errors.NewNotFound(schema.GroupResource{Group: corev1beta1.Group, Resource: "nodepools"}, "")
+	return nil, errors.NewNotFound(schema.GroupResource{Group: coreapis.Group, Resource: "nodepools"}, "")
 }
 
 //nolint:gocyclo
@@ -362,7 +359,7 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 
 // newTerminatingNodeClassError returns a NotFound error for handling by
 func newTerminatingNodeClassError(name string) *errors.StatusError {
-	qualifiedResource := schema.GroupResource{Group: corev1beta1.Group, Resource: "ec2nodeclasses"}
+	qualifiedResource := schema.GroupResource{Group: apis.Group, Resource: "ec2nodeclasses"}
 	err := errors.NewNotFound(qualifiedResource, name)
 	err.ErrStatus.Message = fmt.Sprintf("%s %q is terminating, treating as not found", qualifiedResource.String(), name)
 	return err

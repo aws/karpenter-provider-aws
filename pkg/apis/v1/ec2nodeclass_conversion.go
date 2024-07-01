@@ -78,6 +78,8 @@ func (in *EC2NodeClassSpec) convertTo(v1beta1enc *v1beta1.EC2NodeClassSpec) {
 			EBS:        (*v1beta1.BlockDevice)(bdm.EBS),
 		}
 	})
+
+	// Need to implement Kubelet Conversion
 }
 
 func (in *EC2NodeClassStatus) convertTo(v1beta1enc *v1beta1.EC2NodeClassStatus) {
@@ -161,6 +163,8 @@ func (in *EC2NodeClassSpec) convertFrom(v1beta1enc *v1beta1.EC2NodeClassSpec) {
 			EBS:        (*BlockDevice)(bdm.EBS),
 		}
 	})
+
+	// Need to implement Kubelet Conversion
 }
 
 func (in *EC2NodeClassStatus) convertFrom(v1beta1enc *v1beta1.EC2NodeClassStatus) {
