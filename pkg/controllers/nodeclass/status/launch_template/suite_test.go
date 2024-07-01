@@ -12,19 +12,65 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package status_test
+package launch_template
 
 import (
 	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/samber/lo"
-
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
+	"github.com/awslabs/operatorpkg/status"
+	"github.com/samber/lo"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
+	"context"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+	"testing"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
+
+var ctx context.Context
+var env *coretest.Environment
+var awsEnv *test.Environment
+var nodeClass *v1beta1.EC2NodeClass
+var ltController *Controller
+
+func TestAPIs(t *testing.T) {
+	ctx = TestContextWithLogger(t)
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "EC2NodeClass")
+}
+
+var _ = BeforeSuite(func() {
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithFieldIndexers(test.EC2NodeClassFieldIndexer(ctx)))
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = options.ToContext(ctx, test.Options())
+	awsEnv = test.NewEnvironment(ctx, env)
+
+	ltController = NewController(
+		env.Client,
+		awsEnv.LaunchTemplateProvider,
+	)
+})
+
+var _ = AfterSuite(func() {
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	nodeClass = test.EC2NodeClass()
+	awsEnv.Reset()
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
+})
 
 var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() {
 	BeforeEach(func() {
@@ -61,14 +107,15 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		} {
 			nodeClass.Spec.AMIFamily = lo.ToPtr(family)
 			ExpectApplied(ctx, env.Client, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, ltController, nodeClass)
 			Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load()).To(BeNil())
+			Expect(nodeClass.StatusConditions().IsTrue(status.ConditionReady)).To(BeFalse())
 		}
 	})
 	It("should resolve cluster CIDR for IPv4 clusters", func() {
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, ltController, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("10.100.0.0/16"))
 	})
 	It("should resolve cluster CIDR for IPv6 clusters", func() {
@@ -81,7 +128,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		})
 		nodeClass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyAL2023)
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, ltController, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))
 	})
 })

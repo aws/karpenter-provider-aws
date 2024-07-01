@@ -21,7 +21,11 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	nodeclasshash "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/hash"
-	nodeclassstatus "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
+	nodeclassstatusami "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/ami"
+	nodeclassstatusip "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/instance_profile"
+	nodeclassstatuslaunchtemplate "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/launch_template"
+	nodeclassstatussg "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/security_group"
+	nodeclassstatussubnet "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/subnet"
 	nodeclasstermination "github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/termination"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
@@ -57,7 +61,11 @@ func NewControllers(ctx context.Context, sess *session.Session, clk clock.Clock,
 
 	controllers := []controller.Controller{
 		nodeclasshash.NewController(kubeClient),
-		nodeclassstatus.NewController(kubeClient, subnetProvider, securityGroupProvider, amiProvider, instanceProfileProvider, launchTemplateProvider),
+		nodeclassstatusami.NewController(kubeClient, amiProvider),
+		nodeclassstatusip.NewController(kubeClient, instanceProfileProvider),
+		nodeclassstatussg.NewController(kubeClient, securityGroupProvider),
+		nodeclassstatussubnet.NewController(kubeClient, subnetProvider),
+		nodeclassstatuslaunchtemplate.NewController(kubeClient, launchTemplateProvider),
 		nodeclasstermination.NewController(kubeClient, recorder, instanceProfileProvider, launchTemplateProvider),
 		nodeclaimgarbagecollection.NewController(kubeClient, cloudProvider),
 		nodeclaimtagging.NewController(kubeClient, instanceProvider),
