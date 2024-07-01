@@ -28,14 +28,15 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/awslabs/operatorpkg/object"
 )
 
 var (
 	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-		v1beta1.SchemeGroupVersion.WithKind("EC2NodeClass"): &v1beta1.EC2NodeClass{},
+		object.GVK(&v1beta1.EC2NodeClass{}): &v1beta1.EC2NodeClass{},
 	}
 	ConversionResource = map[schema.GroupKind]conversion.GroupKindConversion{
-		{Group: v1.SchemeGroupVersion.Group, Kind: "EC2NodeClass"}: {
+		object.GVK(&v1.EC2NodeClass{}).GroupKind(): {
 			DefinitionName: "ec2nodeclasses.karpenter.k8s.aws",
 			HubVersion:     "v1",
 			Zygotes: map[string]conversion.ConvertibleObject{

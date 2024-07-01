@@ -64,9 +64,6 @@ runs:
     run: |
       # Resolve the cloudformation path with fallback
       CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml
-      if [ ! -f $CLOUDFORMATION_PATH ]; then
-        CLOUDFORMATION_PATH=website/content/en/preview/getting-started/getting-started-with-eksctl/cloudformation.yaml
-      fi
 
       # Update the Cloudformation policy to add the permissionBoundary to the NodeRole
       yq -i ".Resources.KarpenterNodeRole.Properties.PermissionsBoundary = \"arn:aws:iam::$ACCOUNT_ID:policy/GithubActionsPermissionsBoundary\"" $CLOUDFORMATION_PATH

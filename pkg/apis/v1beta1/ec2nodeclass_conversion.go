@@ -20,6 +20,8 @@ import (
 	"knative.dev/pkg/apis"
 )
 
+// Since v1 is the hub conversion version, We will only need to implement conversion webhooks for v1
+
 func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) error { return nil }
 
 func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) error { return nil }

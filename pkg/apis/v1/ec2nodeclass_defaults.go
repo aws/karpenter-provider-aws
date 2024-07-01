@@ -12,23 +12,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1beta1
+package v1
 
 import (
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	"context"
 )
 
-var (
-	Group              = "karpenter.k8s.aws"
-	SchemeGroupVersion = schema.GroupVersion{Group: Group, Version: "v1beta1"}
-	SchemeBuilder      = runtime.NewSchemeBuilder(func(scheme *runtime.Scheme) error {
-		scheme.AddKnownTypes(SchemeGroupVersion,
-			&EC2NodeClass{},
-			&EC2NodeClassList{},
-		)
-		metav1.AddToGroupVersion(scheme, SchemeGroupVersion)
-		return nil
-	})
-)
+// SetDefaults for the EC2NodeClass
+func (in *EC2NodeClass) SetDefaults(_ context.Context) {}

@@ -23,19 +23,11 @@ import (
 )
 
 func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) error {
-	v1beta1ENC := to.(*v1beta1.EC2NodeClass)
-	v1beta1ENC.Name = in.Name
-	v1beta1ENC.UID = in.UID
-	v1beta1ENC.Annotations = in.Annotations
-	v1beta1ENC.Labels = in.Labels
+	v1beta1enc := to.(*v1beta1.EC2NodeClass)
+	v1beta1enc.ObjectMeta = in.ObjectMeta
 
-	v1beta1ENC.Annotations = lo.Assign(v1beta1ENC.Annotations, map[string]string{
-		AnnotationEC2NodeClassHash:        v1beta1ENC.Hash(),
-		AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
-	})
-
-	in.Spec.convertTo(&v1beta1ENC.Spec)
-	in.Status.convertTo((&v1beta1ENC.Status))
+	in.Spec.convertTo(&v1beta1enc.Spec)
+	in.Status.convertTo((&v1beta1enc.Status))
 	return nil
 }
 
@@ -106,19 +98,11 @@ func (in *EC2NodeClassStatus) convertTo(v1beta1enc *v1beta1.EC2NodeClassStatus) 
 }
 
 func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) error {
-	v1beta1ENC := from.(*v1beta1.EC2NodeClass)
-	in.Name = v1beta1ENC.Name
-	in.UID = v1beta1ENC.UID
-	in.Annotations = v1beta1ENC.Annotations
-	in.Labels = v1beta1ENC.Labels
+	v1beta1enc := from.(*v1beta1.EC2NodeClass)
+	in.ObjectMeta = v1beta1enc.ObjectMeta
 
-	in.Annotations = lo.Assign(in.Annotations, map[string]string{
-		AnnotationEC2NodeClassHash:        in.Hash(),
-		AnnotationEC2NodeClassHashVersion: EC2NodeClassHashVersion,
-	})
-
-	in.Spec.convertFrom(&v1beta1ENC.Spec)
-	in.Status.convertFrom((&v1beta1ENC.Status))
+	in.Spec.convertFrom(&v1beta1enc.Spec)
+	in.Status.convertFrom((&v1beta1enc.Status))
 	return nil
 }
 

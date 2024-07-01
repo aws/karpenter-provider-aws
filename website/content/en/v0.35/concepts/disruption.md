@@ -287,7 +287,7 @@ metadata:
 
 #### Example: Disable Disruption on a NodePool
 
-NodePool `.spec.annotations` allow you to set annotations that will be applied to all nodes launched by this NodePool. By setting the annotation `karpenter.sh/do-not-disrupt: "true"` on the NodePool, you will selectively prevent all nodes launched by this NodePool from being considered in disruption actions.
+To disable disruption for all nodes launched by a NodePool, you can configure its `.spec.disruption.budgets`. Setting a budget of zero nodes will prevent any of those nodes from being considered for voluntary disruption.
 
 ```yaml
 apiVersion: karpenter.sh/v1beta1
@@ -295,8 +295,7 @@ kind: NodePool
 metadata:
   name: default
 spec:
-  template:
-    metadata:
-      annotations: # will be applied to all nodes
-        karpenter.sh/do-not-disrupt: "true"
+  disruption:
+    budgets:
+      - nodes: "0"
 ```
