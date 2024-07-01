@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -134,7 +135,9 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1beta1.NodePool {
 	nodePool := coretest.NodePool()
 	nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
-		Name: nodeClass.Name,
+		APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+		Kind:       object.GVK(nodeClass).Kind,
+		Name:       nodeClass.Name,
 	}
 	nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 		{
