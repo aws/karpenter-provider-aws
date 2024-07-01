@@ -72,7 +72,7 @@ type Environment struct {
 	SecurityGroupProvider   *securitygroup.DefaultProvider
 	InstanceProfileProvider *instanceprofile.DefaultProvider
 	PricingProvider         *pricing.DefaultProvider
-	AMIProvider             *amifamily.DefaultProvider
+	AMIProvider             amifamily.Provider
 	AMIResolver             *amifamily.Resolver
 	VersionProvider         *version.DefaultProvider
 	LaunchTemplateProvider  *launchtemplate.DefaultProvider
