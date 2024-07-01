@@ -9,9 +9,7 @@ This document proposes supporting ODCR in Karpenter
   - [Non-Goals](#non-goals)
   - [Proposed Solution](#proposed-solution)
     - [Supporting associating Capacity Reservations to EC2NodeClass](#supporting-associating-capacity-reservations-to-ec2nodeclass)
-    - [Supporting new capacity-type "capacity-reservation" for NodePool](#supporting-new-capacity-type-capacity-reservation-for-nodepool)
-      - [only allow capacity-reservations](#only-allow-capacity-reservations)
-      - [capacity-reservation-fleet (falling back to on-demand if capacity-reservation not available)](#capacity-reservation-fleet-falling-back-to-on-demand-if-capacity-reservation-not-available)
+    - [Adding new label `karpenter.k8s.aws/capacity-reservation-id` nodeClaim/node](#adding-new-label-karpenterk8sawscapacity-reservation-id-nodeclaimnode)
     - [Launching Nodes into Capacity Reservation](#launching-nodes-into-capacity-reservation)
       - [All Launch Templates are associated with the specified Capacity Reservation](#all-launch-templates-are-associated-with-the-specified-capacity-reservation)
       - [Pricing and consolidation](#pricing-and-consolidation)
@@ -47,7 +45,7 @@ Both these entities are supported in Launch Template's CapacityReservationTarget
 - Support associating ODCRs to EC2NodeClass
   - open
   - targeted
-- Define Karpenter's behavior when using new Capacity Type "capacity-reservation" in NodePool
+- Define Karpenter's behavior when configuring Capacity Reservations for an EC2NodeClass
 - Define Karpenter's behavior when encountering errors when attempting to launch nodes into Capacity Reservation
 - Define Karpenter's behavior when consolidating nodes to Capacity Reservation when available
 
@@ -78,46 +76,69 @@ spec:
       availabilityZone: String | None
       # The platform of operating system for which the Capacity Reservation reserves capacity
       id: String | None
-      # The instance Match Criteria of the Capacity Reservation (targeted | open)
-      instanceMatchCriteria: String | None
       # The type of operating system for which the Capacity Reservation reserves capacity
-      instancePlatform: String | None
-      # The instance type for which the Capacity Reservation reserves capacity
       instanceType: String | None
       # The ID of the Amazon Web Services account that owns the Capacity Reservation
       ownerId: String | None
-      # Tags is a map of key/value tags used to Capacity Reservations
+      # Tags is a map of key/value tags used to select subnets
       # Specifying '*' for a value selects all values for a given tag key.
       tags: Map | None
-      # Indicates the tenancy of the Capacity Reservation.
-      # A Capacity Reservation can have one of the following tenancy 'default' or 'dedicated':
-      #   default - The Capacity Reservation is created on hardware that is shared with other Amazon Web Services accounts.
-      #   dedicated - The Capacity Reservation is created on single-tenant hardware that is dedicated to a single Amazon Web Services account.
-      tenancy: String | None
+      # Indicates the type of instance launches that the Capacity Reservation accepts. The options include:
+      #    - open:
+      #       The Capacity Reservation accepts all instances that have
+      #       matching attributes (instance type, platform, and Availability
+      #       Zone). Instances that have matching attributes launch into the
+      #       Capacity Reservation automatically without specifying any
+      #       additional parameters.
+      #    - targeted:
+      #       The Capacity Reservation only accepts instances that
+      #       have matching attributes (instance type, platform, and
+      #       Availability Zone), and explicitly target the Capacity
+      #       Reservation. This ensures that only permitted instances can use
+      #             the reserved capacity.
+      type: String | None
 status:
   capacityReservations:
-    - # Availability Zone of the Capacity Reservation
+    - # AvailabilityZone of the Capacity Reservation
       availabilityZone: String
       # Available Instance Count of the Capacity Reservation
       availableInstanceCount: Integer
-      # End date of the Capacity Reservation
-      endDate: Date
+      # The date and time at which the Capacity Reservation expires. When a Capacity
+      # Reservation expires, the reserved capacity is released and you can no longer
+      # launch instances into it. The Capacity Reservation's state changes to expired
+      # when it reaches its end date and time.
+      endDate: String | None
+      # Indicates the way in which the Capacity Reservation ends. A Capacity Reservation
+      # can have one of the following end types:
+      #   * unlimited - The Capacity Reservation remains active until you explicitly
+      #   cancel it.
+      #   * limited - The Capacity Reservation expires automatically at a specified
+      #   date and time.
+      endDateType: String
       # ID of the Capacity Reservation
       id: String
+      # Indicates the type of instance launches that the Capacity Reservation accepts. The options include:
+      #   - open:
+      #       The Capacity Reservation accepts all instances that have
+      #       matching attributes (instance type, platform, and Availability
+      #       Zone). Instances that have matching attributes launch into the
+      #       Capacity Reservation automatically without specifying any
+      #       additional parameters.
+      #   - targeted:
+      #       The Capacity Reservation only accepts instances that
+      #       have matching attributes (instance type, platform, and
+      #       Availability Zone), and explicitly target the Capacity
+      #       Reservation. This ensures that only permitted instances can use
+      #       the reserved capacity.
+      instanceMatchCriteria: String
+      # Instance Platform of the Capacity Reservation
+      instancePlatform: String
       # Instance Type of the Capacity Reservation
       instanceType: String
-      # Instance Match Criteria of the Capacity Reservation (open | targeted)
-      instanceMatchCriteria: String
-      # Owner ID of the Capacity Reservation
+      # Owner Id of the Capacity Reservation
       ownerId: String
-	    # Placement Group Arn of the Capacity Reservation
-      placementGroupArn: String | None
-      # Reservation Type of the Capacity Reservation (default | capacity-block)
-      reservationType: String
-      # Start date of the Capacity Reservation
-      startDate: Date
-      # Tags attached to Capacity Reservation
-      tags: Map
+      # The date and time at which the Capacity Reservation was started.
+      startDate: String
       # Total Instance Count of the Capacity Reservation
       totalInstanceCount: Integer
 ```
@@ -126,58 +147,27 @@ This follows closely (does not implement all fields) how EC2 [DescribeCapacityRe
 
 Karpenter will perform validation against the spec to ensure there isn't any violation prior to creating the LaunchTemplates.
 
-### Supporting new capacity-type "capacity-reservation" for NodePool
+### Adding new label `karpenter.k8s.aws/capacity-reservation-id` nodeClaim/node
 
-Adding a new `karpenter.sh/capacity-type: capacity-reservation` allows us to have a EC2NodeClass that does not automatically fallback to `on-demand` if `capacity-reservation` is not available.
-
-#### only allow capacity-reservations
-
-```yaml
-apiVersion: karpenter.sh/v1beta1
-kind: NodePool
-spec:
-  template:
-    spec:
-      requirements:
-      - key: karpenter.sh/capacity-type
-        operator: In
-        values:
-        - capacity-reservation
-```
-
-#### capacity-reservation-fleet (falling back to on-demand if capacity-reservation not available)
-
-```yaml
-apiVersion: karpenter.sh/v1beta1
-kind: NodePool
-spec:
-  template:
-    spec:
-      requirements:
-      - key: karpenter.sh/capacity-type
-        operator: In
-        values:
-        - capacity-reservation
-        - on-demand
-```
+In order for Karpenter (and admins) to understand if a NodeClaim/Node is part of an ODCR, Karpenter is adding the annotation `karpenter.k8s.aws/capacity-reservation-id` containing the Capacity Reservation Id (for example `cr-12345678`)
 
 ### Launching Nodes into Capacity Reservation
 
 #### All Launch Templates are associated with the specified Capacity Reservation
 
 EC2NodeClass currently supports automatically generating Launch Templates based on instance types and their AMI requirements. We are implementing a prioritization within Karpenter for Capacity Reservation (as their price will be set to 0 making it be selected over on-demand and spot). We add a check to ensure before calling CreateFleet API existing available Capacity Reservations are being used. In some raise condition scenarios CreateFleet when creating instances against a single targeted Capacity Reservation will fail if the Reservation is fully utilized, resulting in an `ReservationCapacityExceeded` error.
-By default it will not fallback to `on-demand` instances, if not specified specifically in the capacity-type in the NodePool as described above [capacity-reservation-fleet (falling back to on-demand if capacity-reservation not available)](#capacity-reservation-fleet-falling-back-to-on-demand-if-capacity-reservation-not-available).
+By default it will fallback to `on-demand` instances.
 
 To clarify the NodeClass with Capacity Reservations will pin the NodeClass into all instance types and availability zones the Capacity Reservations reserved, if additionally on-demand is provided it can spin up other instance types, but can have unintended side effects during consolidation phase.
 
 _Note that these aren't permanent restrictions but simply narrowing down what features exist in the first iteration of supporting Capacity Reservation_ 
 
 Pros: 
-- This makes the user responsible for verifying the capability of their NodeClasses and requirements. It makes no assumption about what a Capacity Reservation can or cannot do
-- Users are still open to define fallbacks of on-demand or spot, and its up them of how they would like to configure it. Making it possible to either define everything with one EC2NodeClass and one NodePool, or using multiple with weights
+- Management of ODCRs usage is in hands of administrators (who are creating/updating EC2NodeClass configurations)
+  - Application developers are unaware and can use the existing `on-demand` and `spot` capacity types
 
 Cons:
-- This implementation is overly restrictive and will be difficult to use when attempting to utilize multiple Instance Types. Because ODCRs are such a specific use case, it can be argued that the flexibility of multiple Instance Types can cause issues with cost savings
+- ***TBD***
 
 #### Pricing and consolidation
 
@@ -205,7 +195,7 @@ checking how close to limit of the reservation.
 ```yaml
 Name:               example-node
 Labels:             karpenter.k8s.aws/capacity-reservation-id=cr-12345
-                    karpenter.sh/capacity-type=capacity-reservation
+                    karpenter.sh/capacity-type=on-demand
 ```
 
 `karpenter.k8s.aws/capacity-reservation-id` will be the capacity reservation the node launched from. 
@@ -217,7 +207,7 @@ We will propagate this information via [instance](https://github.com/aws/karpent
 The main failure scenario is when Capacity Reservation limit is hit and no new nodes can be launched from any Capacity Reservation the launch template targets.
 
 1. We filter inside Karpenter before calling CreateFleet API and throwing an InsufficientCapacityError causing a reevaluation,
-with then a different capacity-type could be selected if available in NodePool
+with then a retry recalculation of instances maybe falling back to regular on-demand
 
 1. We call CreateFleet API in certain raise conditions, resulting in an InsufficientCapacityError causing a reevaluation,
-with then a different capacity-type could be selected if available in NodePool
+with then a fallback to on-demand could be selected if Capacity Reservations not available
