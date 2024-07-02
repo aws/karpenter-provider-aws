@@ -19,6 +19,11 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/ami"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/instance_profile"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/launch_template"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/security_group"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/subnet"
 	"net"
 	"os"
 	"strconv"
@@ -59,7 +64,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -1967,8 +1971,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				}})
 				nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
-				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, subnet.NewController(env.Client, awsEnv.SubnetProvider), nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, ami.NewController(env.Client, awsEnv.AMIProvider), nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, instance_profile.NewController(env.Client, awsEnv.InstanceProfileProvider), nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, security_group.NewController(env.Client, awsEnv.SecurityGroupProvider), nodeClass)
+				ExpectObjectReconciled(ctx, env.Client, launch_template.NewController(env.Client, awsEnv.LaunchTemplateProvider), nodeClass)
 				nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 					{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{

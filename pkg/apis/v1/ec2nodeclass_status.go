@@ -19,6 +19,13 @@ import (
 	v1 "k8s.io/api/core/v1"
 )
 
+const (
+	ConditionTypeSubnetsReady         = "SubnetsReady"
+	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
+	ConditionTypeAMIsReady            = "AMIsReady"
+	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
+)
+
 // Subnet contains resolved Subnet selector values utilized for node launch
 type Subnet struct {
 	// ID of the subnet
@@ -77,13 +84,13 @@ type EC2NodeClassStatus struct {
 	Conditions []op.Condition `json:"conditions,omitempty"`
 }
 
-const (
-	// 	ConditionTypeNodeClassReady = "Ready" condition indicates that subnets, security groups, AMIs and instance profile for nodeClass were resolved
-	ConditionTypeNodeClassReady = "Ready"
-)
-
 func (in *EC2NodeClass) StatusConditions() op.ConditionSet {
-	return op.NewReadyConditions(ConditionTypeNodeClassReady).For(in)
+	return op.NewReadyConditions(
+		ConditionTypeAMIsReady,
+		ConditionTypeSubnetsReady,
+		ConditionTypeSecurityGroupsReady,
+		ConditionTypeInstanceProfileReady,
+	).For(in)
 }
 
 func (in *EC2NodeClass) GetConditions() []op.Condition {
