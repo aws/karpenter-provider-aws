@@ -16,10 +16,11 @@ package fake
 
 import (
 	"context"
+	"github.com/awslabs/operatorpkg/status"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	"k8s.io/apimachinery/pkg/runtime/schema"
+	providerv1beta1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -79,6 +80,6 @@ func (c *CloudProvider) Name() string {
 	return "fake"
 }
 
-func (c *CloudProvider) GetSupportedNodeClasses() []schema.GroupVersionKind {
-	return []schema.GroupVersionKind{}
+func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
+	return []status.Object{&providerv1beta1.EC2NodeClass{}}
 }
