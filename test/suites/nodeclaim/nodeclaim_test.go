@@ -57,7 +57,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					},
 				},
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -77,7 +79,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					},
 				},
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -158,7 +162,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					ImageGCLowThresholdPercent:  lo.ToPtr[int32](10),
 				},
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -210,7 +216,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					},
 				},
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -249,7 +257,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					},
 				},
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -306,7 +316,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					},
 				},
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -357,7 +369,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 					},
 				},
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})

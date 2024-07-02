@@ -172,6 +172,7 @@ below are the resources available with some assumptions and after the instance o
 
 	// we don't want to show a few labels that will vary amongst regions
 	delete(labelNameMap, v1.LabelTopologyZone)
+	delete(labelNameMap, v1beta1.LabelTopologyZoneID)
 	delete(labelNameMap, corev1beta1.CapacityTypeLabelKey)
 
 	labelNames := lo.Keys(labelNameMap)
