@@ -146,6 +146,65 @@ var defaultDescribeInstanceTypesOutput = &ec2.DescribeInstanceTypesOutput{
 			},
 		},
 		{
+			InstanceType:                  aws.String("g4ad.16xlarge"),
+			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
+			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
+			BurstablePerformanceSupported: aws.Bool(false),
+			BareMetal:                     aws.Bool(false),
+			Hypervisor:                    aws.String("nitro"),
+			ProcessorInfo: &ec2.ProcessorInfo{
+				Manufacturer:           aws.String("AMD"),
+				SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+			},
+			VCpuInfo: &ec2.VCpuInfo{
+				DefaultCores: aws.Int64(32),
+				DefaultVCpus: aws.Int64(64),
+			},
+			MemoryInfo: &ec2.MemoryInfo{
+				SizeInMiB: aws.Int64(262144),
+			},
+			EbsInfo: &ec2.EbsInfo{
+				EbsOptimizedInfo: &ec2.EbsOptimizedInfo{
+					BaselineBandwidthInMbps:  aws.Int64(6300),
+					BaselineIops:             aws.Int64(26667),
+					BaselineThroughputInMBps: aws.Float64(787.50),
+					MaximumBandwidthInMbps:   aws.Int64(6300),
+					MaximumIops:              aws.Int64(26667),
+					MaximumThroughputInMBps:  aws.Float64(787.50),
+				},
+				EbsOptimizedSupport: aws.String("default"),
+				EncryptionSupport:   aws.String("supported"),
+				NvmeSupport:         aws.String("required"),
+			},
+			GpuInfo: &ec2.GpuInfo{
+				Gpus: []*ec2.GpuDeviceInfo{
+					{
+						Name:         aws.String("Radeon Pro V520"),
+						Manufacturer: aws.String("AMD"),
+						Count:        aws.Int64(4),
+						MemoryInfo: &ec2.GpuDeviceMemoryInfo{
+							SizeInMiB: aws.Int64(8192),
+						},
+					},
+				},
+			},
+			InstanceStorageInfo: &ec2.InstanceStorageInfo{NvmeSupport: aws.String("required"),
+				TotalSizeInGB: aws.Int64(2400),
+			},
+			NetworkInfo: &ec2.NetworkInfo{
+				MaximumNetworkInterfaces:     aws.Int64(8),
+				Ipv4AddressesPerInterface:    aws.Int64(30),
+				EncryptionInTransitSupported: aws.Bool(true),
+				DefaultNetworkCardIndex:      aws.Int64(0),
+				NetworkCards: []*ec2.NetworkCardInfo{
+					{
+						NetworkCardIndex:         aws.Int64(0),
+						MaximumNetworkInterfaces: aws.Int64(8),
+					},
+				},
+			},
+		},
+		{
 			InstanceType:                  aws.String("g4dn.8xlarge"),
 			SupportedUsageClasses:         aws.StringSlice([]string{"on-demand", "spot"}),
 			SupportedVirtualizationTypes:  aws.StringSlice([]string{"hvm"}),
