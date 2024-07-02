@@ -216,8 +216,11 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeCla
 	if kubeletConfig.MaxPods == nil {
 		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
 	}
-	taints := append(lo.Flatten([][]core.Taint{nodeClaim.Spec.Taints, nodeClaim.Spec.StartupTaints}),
-		core.Taint{Key: "karpenter.sh/unregistered", Effect: core.TaintEffectNoExecute})
+	taints := o.Flatten([][]core.Taint{
+	    nodeClaim.Spec.Taints, 
+	    nodeClaim.Spec.StartupTaints, 
+	    []core.Taint{{Key: "karpenter.sh/unregistered", Effect: core.TaintEffectNoExecute}}
+	})
 
 	resolved := &LaunchTemplate{
 		Options: options,
