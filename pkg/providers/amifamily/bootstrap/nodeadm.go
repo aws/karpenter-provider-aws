@@ -118,7 +118,6 @@ func (n Nodeadm) generateInlineKubeletConfiguration() (map[string]runtime.RawExt
 	kubeConfigMap["registerWithTaints"] = runtime.RawExtension{
 		Raw: lo.Must(json.Marshal(n.Taints)),
 	}
-	fmt.Println(kubeConfigMap)
 	return kubeConfigMap, nil
 }
 
