@@ -77,6 +77,7 @@ type BottlerocketKubernetes struct {
 	ShutdownGracePeriodForCriticalPods *string                                   `toml:"shutdown-grace-period-for-critical-pods,omitempty"`
 	ClusterDomain                      *string                                   `toml:"cluster-domain,omitempty"`
 	SeccompDefault                     *bool                                     `toml:"seccomp-default,omitempty"`
+	PodPidsLimit                       *int                                      `toml:"pod-pids-limit,omitempty"`
 }
 
 type BottlerocketStaticPod struct {
