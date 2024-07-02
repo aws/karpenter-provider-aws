@@ -671,16 +671,6 @@ func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1bet
 	}).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectExpired(nodeClaims ...*corev1beta1.NodeClaim) {
-	GinkgoHelper()
-	Eventually(func(g Gomega) {
-		for _, nc := range nodeClaims {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeExpired).IsTrue()).To(BeTrue())
-		}
-	}).Should(Succeed())
-}
-
 func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeClaim) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
