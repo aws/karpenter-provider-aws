@@ -14,3 +14,4 @@ max-pods = 110
 [settings.kubernetes.node-taints]
 baz = ['bin:NoExecute']
 foo = ['bar:NoExecute']
+'karpenter.sh/unregistered' = ['NoExecute']
