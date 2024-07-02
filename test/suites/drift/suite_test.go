@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -541,7 +542,11 @@ var _ = Describe("Drift", func() {
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+							NodeClassRef: &corev1beta1.NodeClassReference{
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
+							},
 						},
 					},
 				},

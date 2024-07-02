@@ -25,8 +25,9 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/awslabs/operatorpkg/object"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 func NewWebhooks() []knativeinjection.ControllerConstructor {

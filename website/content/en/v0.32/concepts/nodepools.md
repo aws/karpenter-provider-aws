@@ -243,6 +243,10 @@ spec:
 
 {{% /alert %}}
 
+{{% alert title="Note" color="primary" %}}
+There is currently a limit of 30 on the total number of requirements on both the NodePool and the NodeClaim. It's important to note that `spec.template.metadata.labels` are also propagated as requirements on the NodeClaim when it's created, meaning that you can't have more than 30 requirements and labels combined set on your NodePool.
+{{% /alert %}}
+
 ## spec.template.spec.nodeClassRef
 
 This field points to the Cloud Provider NodeClass resource. Learn more about [EC2NodeClasses]({{<ref "nodeclasses" >}}).

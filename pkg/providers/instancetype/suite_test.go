@@ -85,7 +85,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
-	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
+	cluster = state.NewCluster(fakeClock, env.Client)
 	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
 
@@ -598,7 +598,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 		ExpectScheduled(ctx, env.Client, pod)
 	})
-	It("should launch AWS Pod ENI on a compatible instance type", func() {
+	It("should launch vpc.amazonaws.com/pod-eni on a compatible instance type", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod(coretest.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{
@@ -615,7 +615,80 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		Expect(supportsPodENI()).To(Equal(true))
 	})
-	It("should launch instances for Nvidia GPU resource requests", func() {
+	It("should launch vpc.amazonaws.com/PrivateIPv4Address on a compatible instance type", func() {
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1beta1.ResourcePrivateIPv4Address: resource.MustParse("1")},
+				Limits:   v1.ResourceList{v1beta1.ResourcePrivateIPv4Address: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		node := ExpectScheduled(ctx, env.Client, pod)
+		Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+		limits, ok := instancetype.Limits[node.Labels[v1.LabelInstanceTypeStable]]
+		Expect(ok).To(BeTrue())
+		Expect(limits.IPv4PerInterface).ToNot(BeZero())
+	})
+	It("should not launch instance type for vpc.amazonaws.com/PrivateIPv4Address if VPC resource controller doesn't advertise it", func() {
+		// Create a "test" instance type that has PrivateIPv4Addresses but isn't advertised in the VPC limits config
+		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{
+			InstanceTypes: []*ec2.InstanceTypeInfo{
+				{
+					InstanceType: aws.String("test"),
+					ProcessorInfo: &ec2.ProcessorInfo{
+						SupportedArchitectures: aws.StringSlice([]string{"x86_64"}),
+					},
+					VCpuInfo: &ec2.VCpuInfo{
+						DefaultCores: aws.Int64(1),
+						DefaultVCpus: aws.Int64(2),
+					},
+					MemoryInfo: &ec2.MemoryInfo{
+						SizeInMiB: aws.Int64(8192),
+					},
+					NetworkInfo: &ec2.NetworkInfo{
+						Ipv4AddressesPerInterface: aws.Int64(10),
+						DefaultNetworkCardIndex:   aws.Int64(0),
+						NetworkCards: []*ec2.NetworkCardInfo{{
+							NetworkCardIndex:         lo.ToPtr(int64(0)),
+							MaximumNetworkInterfaces: aws.Int64(3),
+						}},
+					},
+					SupportedUsageClasses: fake.DefaultSupportedUsageClasses,
+				},
+			},
+		})
+		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{
+			InstanceTypeOfferings: []*ec2.InstanceTypeOffering{
+				{
+					InstanceType: aws.String("test"),
+					Location:     aws.String("test-zone-1a"),
+				},
+			},
+		})
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
+		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
+
+		nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceTypeStable,
+				Operator: v1.NodeSelectorOpIn,
+				Values:   []string{"test"},
+			},
+		})
+		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			ResourceRequirements: v1.ResourceRequirements{
+				Requests: v1.ResourceList{v1beta1.ResourcePrivateIPv4Address: resource.MustParse("1")},
+				Limits:   v1.ResourceList{v1beta1.ResourcePrivateIPv4Address: resource.MustParse("1")},
+			},
+		})
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
+		ExpectNotScheduled(ctx, env.Client, pod)
+	})
+	It("should launch instances for nvidia.com/gpu resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*v1.Pod{
@@ -648,7 +721,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
-	It("should launch instances for Habana GPU resource requests", func() {
+	It("should launch instances for habana.ai/gaudi resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*v1.Pod{
@@ -679,7 +752,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
-	It("should launch instances for AWS Neuron resource requests", func() {
+	It("should launch instances for aws.amazon.com/neuron resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*v1.Pod{
@@ -712,7 +785,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
 	})
-	It("should launch trn1 instances for AWS Neuron resource requests", func() {
+	It("should launch trn1 instances for aws.amazon.com/neuron resource requests", func() {
 		nodeNames := sets.NewString()
 		nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 			{
@@ -773,6 +846,39 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodes.Insert(node.Name)
 		}
 		Expect(nodes.Len()).To(Equal(1))
+	})
+	It("should launch instances for amd.com/gpu resource requests", func() {
+		nodeNames := sets.NewString()
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pods := []*v1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1beta1.ResourceAMDGPU: resource.MustParse("1")},
+					Limits:   v1.ResourceList{v1beta1.ResourceAMDGPU: resource.MustParse("1")},
+				},
+			}),
+			// Should pack onto same instance
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1beta1.ResourceAMDGPU: resource.MustParse("2")},
+					Limits:   v1.ResourceList{v1beta1.ResourceAMDGPU: resource.MustParse("2")},
+				},
+			}),
+			// Should pack onto a separate instance
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: v1.ResourceRequirements{
+					Requests: v1.ResourceList{v1beta1.ResourceAMDGPU: resource.MustParse("4")},
+					Limits:   v1.ResourceList{v1beta1.ResourceAMDGPU: resource.MustParse("4")},
+				},
+			}),
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		for _, pod := range pods {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceTypeStable, "g4ad.16xlarge"))
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(2))
 	})
 	It("should not launch instances w/ instance storage for ephemeral storage resource requests when exceeding blockDeviceMapping", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)

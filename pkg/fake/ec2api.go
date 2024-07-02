@@ -615,6 +615,14 @@ func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *
 				Location:     aws.String("test-zone-1b"),
 			},
 			{
+				InstanceType: aws.String("g4ad.16xlarge"),
+				Location:     aws.String("test-zone-1a"),
+			},
+			{
+				InstanceType: aws.String("g4ad.16xlarge"),
+				Location:     aws.String("test-zone-1b"),
+			},
+			{
 				InstanceType: aws.String("t3.large"),
 				Location:     aws.String("test-zone-1a"),
 			},

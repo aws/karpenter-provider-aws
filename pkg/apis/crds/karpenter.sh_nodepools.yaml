@@ -195,124 +195,10 @@ spec:
                     spec:
                       description: NodeClaimSpec describes the desired state of the NodeClaim
                       properties:
-                        kubelet:
-                          description: |-
-                            Kubelet defines args to be used when configuring kubelet on provisioned nodes.
-                            They are a subset of the upstream types, recognizing not all options may be supported.
-                            Wherever possible, the types and names should reflect the upstream kubelet types.
-                          properties:
-                            clusterDNS:
-                              description: |-
-                                clusterDNS is a list of IP addresses for the cluster DNS server.
-                                Note that not all providers may use all addresses.
-                              items:
-                                type: string
-                              type: array
-                            cpuCFSQuota:
-                              description: CPUCFSQuota enables CPU CFS quota enforcement for containers that specify CPU limits.
-                              type: boolean
-                            evictionHard:
-                              additionalProperties:
-                                type: string
-                                pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
-                              description: EvictionHard is the map of signal names to quantities that define hard eviction thresholds
-                              type: object
-                              x-kubernetes-validations:
-                                - message: valid keys for evictionHard are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                                  rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                            evictionMaxPodGracePeriod:
-                              description: |-
-                                EvictionMaxPodGracePeriod is the maximum allowed grace period (in seconds) to use when terminating pods in
-                                response to soft eviction thresholds being met.
-                              format: int32
-                              type: integer
-                            evictionSoft:
-                              additionalProperties:
-                                type: string
-                                pattern: ^((\d{1,2}(\.\d{1,2})?|100(\.0{1,2})?)%||(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?)$
-                              description: EvictionSoft is the map of signal names to quantities that define soft eviction thresholds
-                              type: object
-                              x-kubernetes-validations:
-                                - message: valid keys for evictionSoft are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                                  rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                            evictionSoftGracePeriod:
-                              additionalProperties:
-                                type: string
-                              description: EvictionSoftGracePeriod is the map of signal names to quantities that define grace periods for each eviction signal
-                              type: object
-                              x-kubernetes-validations:
-                                - message: valid keys for evictionSoftGracePeriod are ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available']
-                                  rule: self.all(x, x in ['memory.available','nodefs.available','nodefs.inodesFree','imagefs.available','imagefs.inodesFree','pid.available'])
-                            imageGCHighThresholdPercent:
-                              description: |-
-                                ImageGCHighThresholdPercent is the percent of disk usage after which image
-                                garbage collection is always run. The percent is calculated by dividing this
-                                field value by 100, so this field must be between 0 and 100, inclusive.
-                                When specified, the value must be greater than ImageGCLowThresholdPercent.
-                              format: int32
-                              maximum: 100
-                              minimum: 0
-                              type: integer
-                            imageGCLowThresholdPercent:
-                              description: |-
-                                ImageGCLowThresholdPercent is the percent of disk usage before which image
-                                garbage collection is never run. Lowest disk usage to garbage collect to.
-                                The percent is calculated by dividing this field value by 100,
-                                so the field value must be between 0 and 100, inclusive.
-                                When specified, the value must be less than imageGCHighThresholdPercent
-                              format: int32
-                              maximum: 100
-                              minimum: 0
-                              type: integer
-                            kubeReserved:
-                              additionalProperties:
-                                type: string
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              description: KubeReserved contains resources reserved for Kubernetes system components.
-                              type: object
-                              x-kubernetes-validations:
-                                - message: valid keys for kubeReserved are ['cpu','memory','ephemeral-storage','pid']
-                                  rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
-                                - message: kubeReserved value cannot be a negative resource quantity
-                                  rule: self.all(x, !self[x].startsWith('-'))
-                            maxPods:
-                              description: |-
-                                MaxPods is an override for the maximum number of pods that can run on
-                                a worker node instance.
-                              format: int32
-                              minimum: 0
-                              type: integer
-                            podsPerCore:
-                              description: |-
-                                PodsPerCore is an override for the number of pods that can run on a worker node
-                                instance based on the number of cpu cores. This value cannot exceed MaxPods, so, if
-                                MaxPods is a lower value, that value will be used.
-                              format: int32
-                              minimum: 0
-                              type: integer
-                            systemReserved:
-                              additionalProperties:
-                                type: string
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                              description: SystemReserved contains resources reserved for OS system daemons and kernel memory.
-                              type: object
-                              x-kubernetes-validations:
-                                - message: valid keys for systemReserved are ['cpu','memory','ephemeral-storage','pid']
-                                  rule: self.all(x, x=='cpu' || x=='memory' || x=='ephemeral-storage' || x=='pid')
-                                - message: systemReserved value cannot be a negative resource quantity
-                                  rule: self.all(x, !self[x].startsWith('-'))
-                          type: object
-                          x-kubernetes-validations:
-                            - message: imageGCHighThresholdPercent must be greater than imageGCLowThresholdPercent
-                              rule: 'has(self.imageGCHighThresholdPercent) && has(self.imageGCLowThresholdPercent) ?  self.imageGCHighThresholdPercent > self.imageGCLowThresholdPercent  : true'
-                            - message: evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod
-                              rule: has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true
-                            - message: evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft
-                              rule: has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true
                         nodeClassRef:
                           description: NodeClassRef is a reference to an object that defines provider specific configuration
                           properties:
-                            apiVersion:
+                            group:
                               description: API version of the referent
                               type: string
                             kind:
@@ -322,6 +208,8 @@ spec:
                               description: 'Name of the referent; More info: http://kubernetes.io/docs/user-guide/identifiers#names'
                               type: string
                           required:
+                            - group
+                            - kind
                             - name
                           type: object
                         requirements:
@@ -394,20 +282,6 @@ spec:
                               rule: 'self.all(x, (x.operator == ''Gt'' || x.operator == ''Lt'') ? (x.values.size() == 1 && int(x.values[0]) >= 0) : true)'
                             - message: requirements with 'minValues' must have at least that many values specified in the 'values' field
                               rule: 'self.all(x, (x.operator == ''In'' && has(x.minValues)) ? x.values.size() >= x.minValues : true)'
-                        resources:
-                          description: Resources models the resource requirements for the NodeClaim to launch
-                          properties:
-                            requests:
-                              additionalProperties:
-                                anyOf:
-                                  - type: integer
-                                  - type: string
-                                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
-                                x-kubernetes-int-or-string: true
-                              description: Requests describes the minimum required resources for the NodeClaim to launch
-                              type: object
-                          type: object
-                          maxProperties: 0
                         startupTaints:
                           description: |-
                             StartupTaints are taints that are applied to nodes upon startup which are expected to be removed automatically
@@ -608,12 +482,11 @@ spec:
                             description: |-
                               Reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
                               Otherwise, this will apply to each reason defined.
-                              allowed reasons are underutilized, expired, empty, and drifted.
+                              allowed reasons are underutilized, empty, and drifted.
                             items:
                               description: DisruptionReason defines valid reasons for disruption budgets.
                               enum:
                                 - underutilized
-                                - expired
                                 - empty
                                 - drifted
                               type: string

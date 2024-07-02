@@ -19,10 +19,11 @@ limitations under the License.
 package v1 // doc.go is discovered by codegen
 
 import (
-	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
 )
 
 func init() {

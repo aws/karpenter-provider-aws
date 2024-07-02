@@ -18,11 +18,12 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
 )
 
 func init() {

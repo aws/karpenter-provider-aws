@@ -15,17 +15,16 @@ limitations under the License.
 package ami_test
 
 import (
-	"testing"
-
-	awssdk "github.com/aws/aws-sdk-go/aws"
-
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-
 	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
+	"testing"
 	"time"
+
+	awssdk "github.com/aws/aws-sdk-go/aws"
+
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
@@ -194,17 +193,6 @@ var _ = Describe("AMI", func() {
 					return v1beta1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
 				})
 			}
-			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
-			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter-provider-aws/issues/4472)
-			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   environmentaws.ExcludedInstanceFamilies,
-					},
-				},
-			)
 			pod := coretest.Pod()
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
@@ -343,15 +331,7 @@ var _ = Describe("AMI", func() {
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 
-			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   environmentaws.ExcludedInstanceFamilies,
-					},
-				},
 				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1.LabelOSStable,
