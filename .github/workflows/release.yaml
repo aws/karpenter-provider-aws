@@ -20,10 +20,15 @@ jobs:
         with:
           fetch-depth: 0
       - name: Create GitHub Release
-        uses: marvinpinto/action-automatic-releases@919008cf3f741b179569b7a6fb4d8860689ab7f0 # v1.2.1
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          repo_token: '${{ secrets.GITHUB_TOKEN }}'
-          prerelease: false
+          tag_name: ${{github.ref}}
+          release_name: Release ${{ github.ref }}
+          body:  |
+            Release notes for ${{ github.ref }}.
+          prerelease: ${{github.ref}} contains "-rc."  || ${{ github.ref }} contains "-alpha."  || ${{ github.ref }} contains "-beta."
       - uses: ./.github/actions/install-deps
       - uses: ./.github/actions/e2e/install-helm
         with:
@@ -68,3 +73,5 @@ jobs:
               issue_number: result.data.number,
               labels: ['stable-release','website','helm-charts']
             });
+
+  
