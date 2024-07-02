@@ -80,7 +80,7 @@ func (o Options) kubeletExtraArgs() (args []string) {
 func (o Options) nodeTaintArg() string {
 	var taintStrings []string
 	for _, taint := range o.Taints {
-		taintStrings = append(taintStrings, fmt.Sprintf("%s%s:%s", taint.Key, lo.Ternary(taint.Value == "", "", "="+taint.Value), taint.Effect))
+		taintStrings = append(taintStrings, taint.ToString())
 	}
 	return fmt.Sprintf("--register-with-taints=%q", strings.Join(taintStrings, ","))
 }
