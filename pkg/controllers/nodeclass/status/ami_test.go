@@ -123,7 +123,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					Name:         aws.String("test-ami-3"),
 					ImageId:      aws.String("ami-id-789"),
 					CreationDate: aws.String(time.Now().Add(2 * time.Minute).Format(time.RFC3339)),
-					Architecture: aws.String("x86_64"),
+					Architecture: aws.String("arm64"),
 					Tags: []*ec2.Tag{
 						{Key: aws.String("Name"), Value: aws.String("test-ami-3")},
 						{Key: aws.String("foo"), Value: aws.String("bar")},
@@ -131,7 +131,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		})
-		nodeClass.Spec.AMISelectorTerms = nil
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
@@ -214,8 +214,9 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version): "ami-id-123",
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):  "ami-id-456",
 		}
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
-		nodeClass.Spec.AMISelectorTerms = nil
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+			Alias: "bottlerocket@latest",
+		}}
 		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 			Images: []*ec2.Image{
 				{

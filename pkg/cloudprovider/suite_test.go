@@ -890,7 +890,9 @@ var _ = Describe("CloudProvider", func() {
 						},
 						Context:                  lo.ToPtr("fake-context"),
 						DetailedMonitoring:       lo.ToPtr(false),
-						AMIFamily:                lo.ToPtr(v1.AMIFamilyAL2023),
+						AMISelectorTerms: []v1.AMISelectorTerm{{
+							Alias: "al2023@latest",
+						}},
 						AssociatePublicIPAddress: lo.ToPtr(false),
 						MetadataOptions: &v1.MetadataOptions{
 							HTTPEndpoint:            lo.ToPtr("disabled"),
@@ -966,7 +968,6 @@ var _ = Describe("CloudProvider", func() {
 				Entry("Tags", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
 				Entry("Context", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: lo.ToPtr("context-2")}}),
 				Entry("DetailedMonitoring", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-				Entry("AMIFamily", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMIFamily: lo.ToPtr(v1.AMIFamilyBottlerocket)}}),
 				Entry("InstanceStorePolicy", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}}),
 				Entry("AssociatePublicIPAddress", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
 				Entry("MetadataOptions HTTPEndpoint", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),

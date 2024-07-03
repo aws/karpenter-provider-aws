@@ -302,7 +302,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodeRequirements: requirements,
 				Image:            environmentaws.WindowsDefaultImage,
 			}})
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyWindows2022
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 			test.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: corev1.NodeSelectorRequirement{

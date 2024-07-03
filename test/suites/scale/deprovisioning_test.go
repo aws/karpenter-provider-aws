@@ -256,7 +256,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			nodePoolMap[expirationValue].Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Duration(0))
 			nodePoolMap[expirationValue].Spec.Limits = disableProvisioningLimits
 			// Update the drift NodeClass to start drift on Nodes assigned to this NodeClass
-			driftNodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+			driftNodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 
 			// Create test assertions to ensure during the multiple deprovisioner scale-downs
 			type testAssertions struct {
@@ -678,7 +678,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning drift by changing the nodeClass AMIFamily")
-				nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 				env.ExpectCreatedOrUpdated(nodeClass)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)

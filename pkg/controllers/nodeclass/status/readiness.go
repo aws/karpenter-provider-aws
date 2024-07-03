@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/awslabs/operatorpkg/status"
-	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
@@ -36,7 +35,7 @@ func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (r
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
 	// will not be done at startup but instead in a reconcile loop.
-	if lo.FromPtr(nodeClass.Spec.AMIFamily) == v1.AMIFamilyAL2023 {
+	if nodeClass.AMIFamily() == v1.AMIFamilyAL2023 {
 		if err := n.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
 			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)

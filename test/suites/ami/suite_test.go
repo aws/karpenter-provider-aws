@@ -163,49 +163,28 @@ var _ = Describe("AMI", func() {
 	Context("AMIFamily", func() {
 		It("should provision a node using the AL2 family", func() {
 			pod := coretest.Pod()
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should provision a node using the AL2023 family", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 			pod := coretest.Pod()
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should provision a node using the Bottlerocket family", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
-			pod := coretest.Pod()
-			env.ExpectCreated(nodeClass, nodePool, pod)
-			env.EventuallyExpectHealthy(pod)
-			env.ExpectCreatedNodeCount("==", 1)
-		})
-		It("should provision a node using the Ubuntu family", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyUbuntu
-			// TODO (jmdeal@): remove once 22.04 AMIs are supported
-			if env.K8sMinorVersion() >= 29 {
-				nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
-					"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
-					"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
-				}, func(ssmPath string, _ int) v1.AMISelectorTerm {
-					return v1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
-				})
-			}
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			pod := coretest.Pod()
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support Custom AMIFamily with AMI Selectors", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					ID: al2023AMI,
-				},
-			}
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: al2023AMI}}
 			rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
 			Expect(err).ToNot(HaveOccurred())
 			nodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName,
@@ -257,7 +236,7 @@ var _ = Describe("AMI", func() {
 		It("should merge UserData contents for AL2 AMIFamily", func() {
 			content, err := os.ReadFile("testdata/al2_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.UserData = awssdk.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
@@ -278,7 +257,7 @@ var _ = Describe("AMI", func() {
 		It("should merge non-MIME UserData contents for AL2 AMIFamily", func() {
 			content, err := os.ReadFile("testdata/al2_no_mime_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.UserData = awssdk.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
@@ -299,7 +278,7 @@ var _ = Describe("AMI", func() {
 		It("should merge UserData contents for Bottlerocket AMIFamily", func() {
 			content, err := os.ReadFile("testdata/br_userdata_input.sh")
 			Expect(err).ToNot(HaveOccurred())
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.UserData = awssdk.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
@@ -328,7 +307,7 @@ var _ = Describe("AMI", func() {
 
 			content, err := os.ReadFile("testdata/windows_userdata_input.ps1")
 			Expect(err).ToNot(HaveOccurred())
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyWindows2022
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 			nodeClass.Spec.UserData = awssdk.String(string(content))
 			nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}

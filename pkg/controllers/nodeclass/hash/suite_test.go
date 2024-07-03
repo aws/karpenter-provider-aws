@@ -135,7 +135,6 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		Expect(expectedHash).ToNot(Equal(expectedHashTwo))
 
 	},
-		Entry("AMIFamily Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMIFamily: aws.String(v1.AMIFamilyBottlerocket)}}),
 		Entry("UserData Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: aws.String("userdata-test-2")}}),
 		Entry("Tags Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
 		Entry("BlockDeviceMappings Drift", &v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{DeviceName: aws.String("map-device-test-3")}}}}),

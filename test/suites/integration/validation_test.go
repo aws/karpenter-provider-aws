@@ -157,8 +157,8 @@ var _ = Describe("Validation", func() {
 		})
 	})
 	Context("EC2NodeClass", func() {
-		It("should error when amiSelectorTerms are not defined for amiFamily Custom", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
+		It("should error when amiSelectorTerms are not defined", func() {
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should fail for poorly formatted AMI ids", func() {

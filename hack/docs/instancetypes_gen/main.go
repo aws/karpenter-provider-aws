@@ -105,7 +105,9 @@ func main() {
 	// Fake a NodeClass so we can use it to get InstanceTypes
 	nodeClass := &v1.EC2NodeClass{
 		Spec: v1.EC2NodeClassSpec{
-			AMIFamily: &v1.AMIFamilyAL2023,
+			AMISelectorTerms: []v1.AMISelectorTerm{{
+				Alias: "al2023@latest",
+			}},
 			SubnetSelectorTerms: []v1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{

@@ -126,7 +126,7 @@ func NewResolver(amiProvider Provider) *Resolver {
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
-	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
+	amiFamily := GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}

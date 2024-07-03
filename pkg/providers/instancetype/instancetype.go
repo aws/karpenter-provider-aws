@@ -131,8 +131,8 @@ func (p *DefaultProvider) List(ctx context.Context, kc *v1.KubeletConfiguration,
 		subnetZonesHash,
 		kcHash,
 		blockDeviceMappingsHash,
-		aws.StringValue((*string)(nodeClass.Spec.InstanceStorePolicy)),
-		aws.StringValue(nodeClass.Spec.AMIFamily),
+		lo.FromPtr((*string)(nodeClass.Spec.InstanceStorePolicy)),
+		nodeClass.AMIFamily(),
 	)
 	if item, ok := p.instanceTypesCache.Get(key); ok {
 		// Ensure what's returned from this function is a shallow-copy of the slice (not a deep-copy of the data itself)
@@ -151,7 +151,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *v1.KubeletConfiguration,
 	if p.cm.HasChanged("zones", allZones) {
 		log.FromContext(ctx).WithValues("zones", allZones.UnsortedList()).V(1).Info("discovered zones")
 	}
-	amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+	amiFamily := amifamily.GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), &amifamily.Options{})
 	result := lo.Map(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: *i.InstanceType,

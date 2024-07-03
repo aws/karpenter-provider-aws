@@ -84,17 +84,9 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			}
 		})
 		DescribeTable("Linux AMIFamilies",
-			func(amiFamily *string) {
-				nodeClass.Spec.AMIFamily = amiFamily
+			func(term v1.AMISelectorTerm) {
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
-				if *amiFamily == v1.AMIFamilyUbuntu && env.K8sMinorVersion() >= 29 {
-					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
-						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
-						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
-					}, func(ssmPath string, _ int) v1.AMISelectorTerm {
-						return v1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
-					})
-				}
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
 						corev1.LabelOSStable:   string(corev1.Linux),
@@ -105,19 +97,18 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				env.EventuallyExpectHealthy(pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
-			Entry("when the AMIFamily is AL2", &v1.AMIFamilyAL2),
-			Entry("when the AMIFamily is AL2023", &v1.AMIFamilyAL2023),
-			Entry("when the AMIFamily is Ubuntu", &v1.AMIFamilyUbuntu),
-			Entry("when the AMIFamily is Bottlerocket", &v1.AMIFamilyBottlerocket),
+			Entry("when the AMIFamily is AL2", v1.AMISelectorTerm{Alias: "al2@latest"}),
+			Entry("when the AMIFamily is AL2023", v1.AMISelectorTerm{Alias: "al2023@latest"}),
+			Entry("when the AMIFamily is Bottlerocket", v1.AMISelectorTerm{Alias: "bottlerocket@latest"}),
 		)
 		DescribeTable("Windows AMIFamilies",
-			func(amiFamily *string) {
+			func(term v1.AMISelectorTerm) {
 				env.ExpectWindowsIPAMEnabled()
 				DeferCleanup(func() {
 					env.ExpectWindowsIPAMDisabled()
 				})
 
-				nodeClass.Spec.AMIFamily = amiFamily
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
 				// Need to enable nodepool-level OS-scoping for now since DS evaluation is done off of the nodepool
 				// requirements, not off of the instance type options so scheduling can fail if nodepool aren't
 				// properly scoped
@@ -146,8 +137,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
 			// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
 			// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
-			Entry("when the AMIFamily is Windows2019", &v1.AMIFamilyWindows2019),
-			Entry("when the AMIFamily is Windows2022", &v1.AMIFamilyWindows2022),
+			Entry("when the AMIFamily is Windows2019", v1.AMISelectorTerm{Alias: "windows2019@latest"}),
+			Entry("when the AMIFamily is Windows2022", v1.AMISelectorTerm{Alias: "windows2022@latest"}),
 		)
 	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
@@ -221,7 +212,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.EventuallyExpectUniqueNodeNames(selector, 2)
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
 		test.ReplaceRequirements(nodePool,
