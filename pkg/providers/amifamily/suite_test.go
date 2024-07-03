@@ -334,15 +334,17 @@ var _ = Describe("AMIProvider", func() {
 		// When you tag public or shared resources, the tags you assign are available only to your AWS account; no other AWS account will have access to those tags
 		// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
 		It("should have empty owners and use tags when prefixes aren't set", func() {
-			amiSelectorTerms := []v1.AMISelectorTerm{
-				{
-					Tags: map[string]string{
-						"Name": "my-ami",
-					},
+			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{{
+						Tags: map[string]string{
+							"Name": "my-ami",
+						},
+					}},
 				},
-			}
-			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwners{
+			})
+			Expect(err).To(BeNil())
+			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -352,16 +354,18 @@ var _ = Describe("AMIProvider", func() {
 					},
 					Owners: []string{},
 				},
-			}, filterAndOwnersSets)
+			}, queries)
 		})
 		It("should have default owners and use name when prefixed", func() {
-			amiSelectorTerms := []v1.AMISelectorTerm{
-				{
-					Name: "my-ami",
+			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{{
+						Name: "my-ami",
+					}},
 				},
-			}
-			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwners{
+			})
+			Expect(err).To(BeNil())
+			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -374,19 +378,23 @@ var _ = Describe("AMIProvider", func() {
 						"self",
 					},
 				},
-			}, filterAndOwnersSets)
+			}, queries)
 		})
 		It("should not set owners when legacy ids are passed", func() {
-			amiSelectorTerms := []v1.AMISelectorTerm{
-				{
-					ID: "ami-abcd1234",
+			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{
+						{
+							ID: "ami-abcd1234",
+						},
+						{
+							ID: "ami-cafeaced",
+						},
+					},
 				},
-				{
-					ID: "ami-cafeaced",
-				},
-			}
-			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwners{
+			})
+			Expect(err).To(BeNil())
+			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -395,40 +403,48 @@ var _ = Describe("AMIProvider", func() {
 						},
 					},
 				},
-			}, filterAndOwnersSets)
+			}, queries)
 		})
 		It("should allow only specifying owners", func() {
-			amiSelectorTerms := []v1.AMISelectorTerm{
-				{
-					Owner: "abcdef",
+			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{
+						{
+							Owner: "abcdef",
+						},
+						{
+							Owner: "123456789012",
+						},
+					},
 				},
-				{
-					Owner: "123456789012",
-				},
-			}
-			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwners{
+			})
+			Expect(err).To(BeNil())
+			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
 				{
 					Owners: []string{"abcdef"},
 				},
 				{
 					Owners: []string{"123456789012"},
 				},
-			}, filterAndOwnersSets)
+			}, queries)
 		})
 		It("should allow prefixed name and prefixed owners", func() {
-			amiSelectorTerms := []v1.AMISelectorTerm{
-				{
-					Name:  "my-name",
-					Owner: "0123456789",
+			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					AMISelectorTerms: []v1.AMISelectorTerm{
+						{
+							Name:  "my-name",
+							Owner: "0123456789",
+						},
+						{
+							Name:  "my-name",
+							Owner: "self",
+						},
+					},
 				},
-				{
-					Name:  "my-name",
-					Owner: "self",
-				},
-			}
-			filterAndOwnersSets := amifamily.GetFilterAndOwnerSets(amiSelectorTerms)
-			ExpectConsistsOfFiltersAndOwners([]amifamily.FiltersAndOwners{
+			})
+			Expect(err).To(BeNil())
+			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
 				{
 					Owners: []string{"0123456789"},
 					Filters: []*ec2.Filter{
@@ -447,7 +463,7 @@ var _ = Describe("AMIProvider", func() {
 						},
 					},
 				},
-			}, filterAndOwnersSets)
+			}, queries)
 		})
 		It("should sort amis by creationDate", func() {
 			amis := amifamily.AMIs{
@@ -567,11 +583,11 @@ var _ = Describe("AMIProvider", func() {
 	})
 })
 
-func ExpectConsistsOfFiltersAndOwners(expected, actual []amifamily.FiltersAndOwners) {
+func ExpectConsistsOfAMIQueries(expected, actual []amifamily.AMIQuery) {
 	GinkgoHelper()
 	Expect(actual).To(HaveLen(len(expected)))
 
-	for _, list := range [][]amifamily.FiltersAndOwners{expected, actual} {
+	for _, list := range [][]amifamily.AMIQuery{expected, actual} {
 		for _, elem := range list {
 			for _, f := range elem.Filters {
 				sort.Slice(f.Values, func(i, j int) bool {
@@ -584,5 +600,5 @@ func ExpectConsistsOfFiltersAndOwners(expected, actual []amifamily.FiltersAndOwn
 			})
 		}
 	}
-	Expect(actual).To(ConsistOf(lo.Map(expected, func(f amifamily.FiltersAndOwners, _ int) interface{} { return f })...))
+	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.AMIQuery, _ int) interface{} { return q })...))
 }
