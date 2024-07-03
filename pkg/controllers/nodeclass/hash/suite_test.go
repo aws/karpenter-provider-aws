@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/imdario/mergo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -178,7 +179,9 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			},
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -191,7 +194,9 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			},
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -224,7 +229,9 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			},
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})
@@ -257,7 +264,9 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			},
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})

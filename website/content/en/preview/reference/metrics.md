@@ -19,6 +19,35 @@ The nodepool usage is the amount of resources that have been provisioned by a pa
 ### `karpenter_nodepool_limit`
 The nodepool limits are the limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
 
+## Nodeclaims Metrics
+
+### `karpenter_nodeclaims_termination_duration_seconds`
+Duration of NodeClaim termination in seconds.
+
+### `karpenter_nodeclaims_terminated`
+Number of nodeclaims terminated in total by Karpenter. Labeled by reason the nodeclaim was terminated and the owning nodepool.
+
+### `karpenter_nodeclaims_registered`
+Number of nodeclaims registered in total by Karpenter. Labeled by the owning nodepool.
+
+### `karpenter_nodeclaims_launched`
+Number of nodeclaims launched in total by Karpenter. Labeled by the owning nodepool.
+
+### `karpenter_nodeclaims_instance_termination_duration_seconds`
+Duration of CloudProvider Instance termination in seconds.
+
+### `karpenter_nodeclaims_initialized`
+Number of nodeclaims initialized in total by Karpenter. Labeled by the owning nodepool.
+
+### `karpenter_nodeclaims_drifted`
+Number of nodeclaims drifted reasons in total by Karpenter. Labeled by drift type of the nodeclaim and the owning nodepool.
+
+### `karpenter_nodeclaims_disrupted`
+Number of nodeclaims disrupted in total by Karpenter. Labeled by disruption type of the nodeclaim and the owning nodepool.
+
+### `karpenter_nodeclaims_created`
+Number of nodeclaims created in total by Karpenter. Labeled by reason the nodeclaim was created and the owning nodepool.
+
 ## Nodes Metrics
 
 ### `karpenter_nodes_total_pod_requests`
@@ -72,29 +101,6 @@ The number of pods currently waiting to be scheduled.
 
 ### `karpenter_provisioner_scheduling_duration_seconds`
 Duration of scheduling process in seconds.
-
-## Nodeclaims Metrics
-
-### `karpenter_nodeclaims_terminated`
-Number of nodeclaims terminated in total by Karpenter. Labeled by reason the nodeclaim was terminated and the owning nodepool.
-
-### `karpenter_nodeclaims_registered`
-Number of nodeclaims registered in total by Karpenter. Labeled by the owning nodepool.
-
-### `karpenter_nodeclaims_launched`
-Number of nodeclaims launched in total by Karpenter. Labeled by the owning nodepool.
-
-### `karpenter_nodeclaims_initialized`
-Number of nodeclaims initialized in total by Karpenter. Labeled by the owning nodepool.
-
-### `karpenter_nodeclaims_drifted`
-Number of nodeclaims drifted reasons in total by Karpenter. Labeled by drift type of the nodeclaim and the owning nodepool.
-
-### `karpenter_nodeclaims_disrupted`
-Number of nodeclaims disrupted in total by Karpenter. Labeled by disruption type of the nodeclaim and the owning nodepool.
-
-### `karpenter_nodeclaims_created`
-Number of nodeclaims created in total by Karpenter. Labeled by reason the nodeclaim was created and the owning nodepool.
 
 ## Interruption Metrics
 
@@ -185,6 +191,9 @@ Size of the request batch per batcher
 
 ## Controller Runtime Metrics
 
+### `controller_runtime_terminal_reconcile_errors_total`
+Total number of terminal reconciliation errors per controller
+
 ### `controller_runtime_reconcile_total`
 Total number of reconciliations per controller
 
@@ -199,4 +208,60 @@ Maximum number of concurrent reconciles per controller
 
 ### `controller_runtime_active_workers`
 Number of currently used workers per controller
+
+## Workqueue Metrics
+
+### `workqueue_work_duration_seconds`
+How long in seconds processing an item from workqueue takes.
+
+### `workqueue_unfinished_work_seconds`
+How many seconds of work has been done that is in progress and hasn't been observed by work_duration. Large values indicate stuck threads. One can deduce the number of stuck threads by observing the rate at which this increases.
+
+### `workqueue_retries_total`
+Total number of retries handled by workqueue
+
+### `workqueue_queue_duration_seconds`
+How long in seconds an item stays in workqueue before being requested
+
+### `workqueue_longest_running_processor_seconds`
+How many seconds has the longest running processor for workqueue been running.
+
+### `workqueue_depth`
+Current depth of workqueue
+
+### `workqueue_adds_total`
+Total number of adds handled by workqueue
+
+## Client Go Metrics
+
+### `client_go_request_total`
+Number of HTTP requests, partitioned by status code and method.
+
+### `client_go_request_duration_seconds`
+Request latency in seconds. Broken down by verb, group, version, kind, and subresource.
+
+## AWS SDK Go Metrics
+
+### `aws_sdk_go_request_total`
+The total number of AWS SDK Go requests
+
+### `aws_sdk_go_request_retry_count`
+The total number of AWS SDK Go retry attempts per request
+
+### `aws_sdk_go_request_duration_seconds`
+Latency of AWS SDK Go requests
+
+### `aws_sdk_go_request_attempt_total`
+The total number of AWS SDK Go request attempts
+
+### `aws_sdk_go_request_attempt_duration_seconds`
+Latency of AWS SDK Go request attempts
+
+## Leader Election Metrics
+
+### `leader_election_slowpath_total`
+Total number of slow path exercised in renewing leader leases. 'name' is the string used to identify the lease. Please make sure to group by name.
+
+### `leader_election_master_status`
+Gauge of if the reporting system is master of the relevant lease, 0 indicates backup, 1 indicates master. 'name' is the string used to identify the lease. Please make sure to group by name.
 

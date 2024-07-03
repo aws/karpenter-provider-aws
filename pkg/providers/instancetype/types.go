@@ -65,7 +65,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region str
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)))) == nil {
-		it.Capacity[v1beta1.ResourcePrivateIPv4Address] = *privateIPv4Address(info)
+		it.Capacity[v1beta1.ResourcePrivateIPv4Address] = *privateIPv4Address(aws.StringValue(info.InstanceType))
 	}
 	return it
 }
@@ -263,9 +263,10 @@ func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 	return amifamily.DefaultEBS.VolumeSize
 }
 
-func awsPodENI(name string) *resource.Quantity {
+// awsPodENI relies on the VPC resource controller to populate the vpc.amazonaws.com/pod-eni resource
+func awsPodENI(instanceTypeName string) *resource.Quantity {
 	// https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html#supported-instance-types
-	limits, ok := Limits[name]
+	limits, ok := Limits[instanceTypeName]
 	if ok && limits.IsTrunkingCompatible {
 		return resources.Quantity(fmt.Sprint(limits.BranchInterface))
 	}
@@ -350,10 +351,13 @@ func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Q
 	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(addressesPerInterface-1) + 2))
 }
 
-func privateIPv4Address(info *ec2.InstanceTypeInfo) *resource.Quantity {
+func privateIPv4Address(instanceTypeName string) *resource.Quantity {
 	//https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/ecbd6965a0100d9a070110233762593b16023287/pkg/provider/ip/provider.go#L297
-	capacity := aws.Int64Value(info.NetworkInfo.Ipv4AddressesPerInterface) - 1
-	return resources.Quantity(fmt.Sprint(capacity))
+	limits, ok := Limits[instanceTypeName]
+	if !ok {
+		return resources.Quantity("0")
+	}
+	return resources.Quantity(fmt.Sprint(limits.IPv4PerInterface - 1))
 }
 
 func systemReservedResources(systemReserved map[string]string) v1.ResourceList {

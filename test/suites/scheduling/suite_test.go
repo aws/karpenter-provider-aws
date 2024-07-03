@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -302,15 +303,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Image:            environmentaws.WindowsDefaultImage,
 			}})
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
-			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			test.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   environmentaws.ExcludedInstanceFamilies,
-					},
-				},
 				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1.LabelOSStable,
@@ -429,7 +422,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
-								Name: nodeClass.Name,
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
 							},
 							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{

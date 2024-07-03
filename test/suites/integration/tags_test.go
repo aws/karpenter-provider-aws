@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/object"
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -117,7 +118,11 @@ var _ = Describe("Tags", func() {
 				Spec: corev1beta1.NodePoolSpec{
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{Name: nodeClass.Name},
+							NodeClassRef: &corev1beta1.NodeClassReference{
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
+							},
 						},
 					},
 				},

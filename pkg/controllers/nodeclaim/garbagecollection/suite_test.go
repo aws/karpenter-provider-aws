@@ -23,6 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
@@ -88,7 +89,9 @@ var _ = Describe("GarbageCollection", func() {
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
 						NodeClassRef: &corev1beta1.NodeClassReference{
-							Name: nodeClass.Name,
+							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+							Kind:       object.GVK(nodeClass).Kind,
+							Name:       nodeClass.Name,
 						},
 					},
 				},
@@ -243,7 +246,9 @@ var _ = Describe("GarbageCollection", func() {
 			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
 					NodeClassRef: &corev1beta1.NodeClassReference{
-						Name: nodeClass.Name,
+						APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+						Kind:       object.GVK(nodeClass).Kind,
+						Name:       nodeClass.Name,
 					},
 				},
 				Status: corev1beta1.NodeClaimStatus{
@@ -304,7 +309,9 @@ var _ = Describe("GarbageCollection", func() {
 		nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 			Status: corev1beta1.NodeClaimStatus{
@@ -360,7 +367,9 @@ var _ = Describe("GarbageCollection", func() {
 			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
 					NodeClassRef: &corev1beta1.NodeClassReference{
-						Name: nodeClass.Name,
+						APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+						Kind:       object.GVK(nodeClass).Kind,
+						Name:       nodeClass.Name,
 					},
 				},
 				Status: corev1beta1.NodeClaimStatus{
