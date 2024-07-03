@@ -26,9 +26,9 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -38,8 +38,8 @@ import (
 )
 
 var env *aws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *providerv1.EC2NodeClass
+var nodePool *corev1.NodePool
 
 func TestExpiration(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -76,7 +76,7 @@ var _ = Describe("Expiration", func() {
 						"app": "my-app",
 					},
 					Annotations: map[string]string{
-						corev1beta1.DoNotDisruptAnnotationKey: "true",
+						corev1.DoNotDisruptAnnotationKey: "true",
 					},
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
@@ -93,14 +93,14 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second*15)}
+		nodePool.Spec.Disruption.ExpireAfter = corev1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
 		env.ExpectUpdated(nodePool)
 
 		// Eventually the node will be tainted, which means its actively being disrupted
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
-				return corev1beta1.IsDisruptingTaint(t)
+				return corev1.IsDisruptingTaint(t)
 			})
 			g.Expect(ok).To(BeTrue())
 		}).Should(Succeed())
@@ -134,7 +134,7 @@ var _ = Describe("Expiration", func() {
 			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						corev1beta1.DoNotDisruptAnnotationKey: "true",
+						corev1.DoNotDisruptAnnotationKey: "true",
 					},
 					Labels: map[string]string{"app": "large-app"},
 				},
@@ -149,14 +149,14 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Second*15)
+		nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Second * 15)
 		env.ExpectUpdated(nodePool)
 
 		// Eventually the node will be tainted, which means its actively being disrupted
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
-				return corev1beta1.IsDisruptingTaint(t)
+				return corev1.IsDisruptingTaint(t)
 			})
 			g.Expect(ok).To(BeTrue())
 		}).Should(Succeed())

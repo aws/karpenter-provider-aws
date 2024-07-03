@@ -30,10 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
 	awstest "github.com/aws/karpenter-provider-aws/pkg/test"
@@ -67,14 +67,14 @@ const (
 
 // disableProvisioningLimits represents limits that can be applied to a nodePool if you want a nodePool
 // that can deprovision nodes but cannot provision nodes
-var disableProvisioningLimits = corev1beta1.Limits{
+var disableProvisioningLimits = corev1.Limits{
 	v1.ResourceCPU:    resource.MustParse("0"),
 	v1.ResourceMemory: resource.MustParse("0Gi"),
 }
 
 var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
-	var nodePool *corev1beta1.NodePool
-	var nodeClass *v1beta1.EC2NodeClass
+	var nodePool *corev1.NodePool
+	var nodeClass *providerv1.EC2NodeClass
 	var deployment *appsv1.Deployment
 	var deploymentOptions test.DeploymentOptions
 	var selector labels.Selector
@@ -85,9 +85,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
 		nodePool.Spec.Limits = nil
-		test.ReplaceRequirements(nodePool, []corev1beta1.NodeSelectorRequirementWithMinValues{
+		test.ReplaceRequirements(nodePool, []corev1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceHypervisor,
+				NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: providerv1.LabelInstanceHypervisor,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"nitro"},
 				},
@@ -95,7 +95,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			// Ensure that all pods can fit on to the provisioned nodes including all daemonsets
 			{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceSize,
+					Key:      providerv1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"large"},
 				},
@@ -158,7 +158,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				deploymentMap[v] = d
 			}
 
-			nodePoolMap := map[string]*corev1beta1.NodePool{}
+			nodePoolMap := map[string]*corev1.NodePool{}
 			// Generate all the nodePools for multi-deprovisioning
 			for _, v := range disruptionMethods {
 				np := test.NodePool()
@@ -173,7 +173,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				np.Spec.Template.Labels = map[string]string{
 					deprovisioningTypeKey: v,
 				}
-				np.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 				}
 				nodePoolMap[v] = test.NodePool(*np)
@@ -197,10 +197,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			// the other nodePools
 			driftNodeClass := awstest.EC2NodeClass()
 			driftNodeClass.Spec = *nodeClass.Spec.DeepCopy()
-			nodePoolMap[driftValue].Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
-				APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-				Kind:       object.GVK(nodeClass).Kind,
-				Name:       driftNodeClass.Name,
+			nodePoolMap[driftValue].Spec.Template.Spec.NodeClassRef = &corev1.NodeClassReference{
+				Group: object.GVK(nodeClass).Group,
+				Kind:  object.GVK(nodeClass).Kind,
+				Name:  driftNodeClass.Name,
 			}
 			env.MeasureProvisioningDurationFor(func() {
 				By("kicking off provisioning by applying the nodePool and nodeClass")
@@ -248,12 +248,12 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			// Enable consolidation, emptiness, and expiration
 			nodePoolMap[consolidationValue].Spec.Disruption.ConsolidateAfter = nil
-			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
+			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidationPolicy = corev1.ConsolidationPolicyWhenEmpty
 			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidateAfter.Duration = lo.ToPtr(time.Duration(0))
 			nodePoolMap[expirationValue].Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Duration(0))
 			nodePoolMap[expirationValue].Spec.Limits = disableProvisioningLimits
 			// Update the drift NodeClass to start drift on Nodes assigned to this NodeClass
-			driftNodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			driftNodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
 
 			// Create test assertions to ensure during the multiple deprovisioner scale-downs
 			type testAssertions struct {
@@ -278,7 +278,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 					deletedCount: nodeCountPerNodePool,
 					nodeCount:    nodeCountPerNodePool,
 					nodeCountSelector: labels.SelectorFromSet(map[string]string{
-						corev1beta1.NodePoolLabelKey: nodePoolMap[noExpirationValue].Name,
+						corev1.NodePoolLabelKey: nodePoolMap[noExpirationValue].Name,
 					}),
 					createdCount: nodeCountPerNodePool,
 				},
@@ -312,14 +312,14 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 						// Provide a default selector based on the original nodePool name if one isn't specified
 						selector = assertions.deletedNodeCountSelector
 						if selector == nil {
-							selector = labels.SelectorFromSet(map[string]string{corev1beta1.NodePoolLabelKey: nodePoolMap[d].Name})
+							selector = labels.SelectorFromSet(map[string]string{corev1.NodePoolLabelKey: nodePoolMap[d].Name})
 						}
 						env.EventuallyExpectDeletedNodeCountWithSelector("==", assertions.deletedCount, selector)
 
 						// Provide a default selector based on the original nodePool name if one isn't specified
 						selector = assertions.nodeCountSelector
 						if selector == nil {
-							selector = labels.SelectorFromSet(map[string]string{corev1beta1.NodePoolLabelKey: nodePoolMap[d].Name})
+							selector = labels.SelectorFromSet(map[string]string{corev1.NodePoolLabelKey: nodePoolMap[d].Name})
 						}
 						env.EventuallyExpectNodeCountWithSelector("==", assertions.nodeCount, selector)
 						env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deploymentMap[d].Spec.Selector.MatchLabels), int(lo.FromPtr(deploymentMap[d].Spec.Replicas)))
@@ -344,7 +344,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -376,7 +376,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
-				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidationPolicy = corev1.ConsolidationPolicyWhenUnderutilized
 				nodePool.Spec.Disruption.ConsolidateAfter = nil
 				env.ExpectUpdated(nodePool)
 
@@ -397,7 +397,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -430,7 +430,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
-				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidationPolicy = corev1.ConsolidationPolicyWhenUnderutilized
 				nodePool.Spec.Disruption.ConsolidateAfter = nil
 				env.ExpectUpdated(nodePool)
 
@@ -451,9 +451,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			// Add in a instance type size requirement that's larger than the smallest that fits the pods.
-			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+			test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceSize,
+					Key:      providerv1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"2xlarge"},
 				}})
@@ -497,10 +497,10 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
 				// The nodePool defaults to a larger instance type than we need so enabling consolidation and making
 				// the requirements wide-open should cause deletes and increase our utilization on the cluster
-				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+				nodePool.Spec.Disruption.ConsolidationPolicy = corev1.ConsolidationPolicyWhenUnderutilized
 				nodePool.Spec.Disruption.ConsolidateAfter = nil
-				nodePool.Spec.Template.Spec.Requirements = lo.Reject(nodePool.Spec.Template.Spec.Requirements, func(r corev1beta1.NodeSelectorRequirementWithMinValues, _ int) bool {
-					return r.Key == v1beta1.LabelInstanceSize
+				nodePool.Spec.Template.Spec.Requirements = lo.Reject(nodePool.Spec.Template.Spec.Requirements, func(r corev1.NodeSelectorRequirementWithMinValues, _ int) bool {
+					return r.Key == providerv1.LabelInstanceSize
 				})
 				env.ExpectUpdated(nodePool)
 
@@ -524,7 +524,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -557,7 +557,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning emptiness by setting the ttlSecondsAfterEmpty value on the nodePool")
-				nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
+				nodePool.Spec.Disruption.ConsolidationPolicy = corev1.ConsolidationPolicyWhenEmpty
 				nodePool.Spec.Disruption.ConsolidateAfter.Duration = lo.ToPtr(time.Duration(0))
 				env.ExpectCreatedOrUpdated(nodePool)
 
@@ -580,7 +580,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -616,11 +616,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				noExpireNodePool := test.NodePool(*nodePool.DeepCopy())
 
 				// Disable Expiration
-				noExpireNodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+				noExpireNodePool.Spec.Disruption.ConsolidateAfter = &corev1.NillableDuration{}
 				noExpireNodePool.Spec.Disruption.ExpireAfter.Duration = nil
 
 				noExpireNodePool.ObjectMeta = metav1.ObjectMeta{Name: test.RandomName()}
-				noExpireNodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 					MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 				}
 				noExpireNodePool.Spec.Limits = nil
@@ -647,7 +647,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 
@@ -675,7 +675,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning drift by changing the nodeClass AMIFamily")
-				nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+				nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
 				env.ExpectCreatedOrUpdated(nodeClass)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
@@ -698,7 +698,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			replicas := replicasPerNode * expectedNodeCount
 
 			deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
 

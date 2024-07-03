@@ -30,10 +30,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -56,7 +56,7 @@ func TestConsolidation(t *testing.T) {
 	RunSpecs(t, "Consolidation")
 }
 
-var nodeClass *v1beta1.EC2NodeClass
+var nodeClass *providerv1.EC2NodeClass
 
 var _ = BeforeEach(func() {
 	nodeClass = env.DefaultEC2NodeClass()
@@ -67,7 +67,7 @@ var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Consolidation", func() {
 	Context("Budgets", func() {
-		var nodePool *corev1beta1.NodePool
+		var nodePool *corev1.NodePool
 		var dep *appsv1.Deployment
 		var selector labels.Selector
 		var numPods int32
@@ -90,7 +90,7 @@ var _ = Describe("Consolidation", func() {
 			selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		})
 		It("should respect budgets for empty delete consolidation", func() {
-			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{
+			nodePool.Spec.Disruption.Budgets = []corev1.Budget{
 				{
 					Nodes: "40%",
 				},
@@ -152,18 +152,18 @@ var _ = Describe("Consolidation", func() {
 		})
 		It("should respect budgets for non-empty delete consolidation", func() {
 			// This test will hold consolidation until we are ready to execute it
-			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+			nodePool.Spec.Disruption.ConsolidateAfter = &corev1.NillableDuration{}
 
 			nodePool = test.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceSize,
+				corev1.NodeSelectorRequirementWithMinValues{
+					NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: providerv1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"2xlarge"},
 					},
 				},
 			)
 			// We're expecting to create 3 nodes, so we'll expect to see at most 2 nodes deleting at one time.
-			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+			nodePool.Spec.Disruption.Budgets = []corev1.Budget{{
 				Nodes: "50%",
 			}}
 			numPods = 9
@@ -221,18 +221,18 @@ var _ = Describe("Consolidation", func() {
 		It("should respect budgets for non-empty replace consolidation", func() {
 			appLabels := map[string]string{"app": "large-app"}
 			// This test will hold consolidation until we are ready to execute it
-			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+			nodePool.Spec.Disruption.ConsolidateAfter = &corev1.NillableDuration{}
 
 			nodePool = test.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
+				corev1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceSize,
+						Key:      providerv1.LabelInstanceSize,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"xlarge", "2xlarge"},
 					},
 				},
 				// Add an Exists operator so that we can select on a fake partition later
-				corev1beta1.NodeSelectorRequirementWithMinValues{
+				corev1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      "test-partition",
 						Operator: v1.NodeSelectorOpExists,
@@ -241,7 +241,7 @@ var _ = Describe("Consolidation", func() {
 			)
 			nodePool.Labels = appLabels
 			// We're expecting to create 5 nodes, so we'll expect to see at most 3 nodes deleting at one time.
-			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+			nodePool.Spec.Disruption.Budgets = []corev1.Budget{{
 				Nodes: "3",
 			}}
 
@@ -326,13 +326,13 @@ var _ = Describe("Consolidation", func() {
 			// Since this completes the disruption operation, this also ensures that we aren't leaking nodes into subsequent
 			// tests since nodeclaims that are actively replacing but haven't brought-up nodes yet can register nodes later
 			env.EventuallyExpectNotFound(lo.Map(originalNodes, func(n *v1.Node, _ int) client.Object { return n })...)
-			env.EventuallyExpectNotFound(lo.Map(originalNodeClaims, func(n *corev1beta1.NodeClaim, _ int) client.Object { return n })...)
+			env.EventuallyExpectNotFound(lo.Map(originalNodeClaims, func(n *corev1.NodeClaim, _ int) client.Object { return n })...)
 			env.ExpectNodeClaimCount("==", 5)
 			env.ExpectNodeCount("==", 5)
 		})
 		It("should not allow consolidation if the budget is fully blocking", func() {
 			// We're going to define a budget that doesn't allow any consolidation to happen
-			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+			nodePool.Spec.Disruption.Budgets = []corev1.Budget{{
 				Nodes: "0",
 			}}
 
@@ -366,7 +366,7 @@ var _ = Describe("Consolidation", func() {
 			// the current time and extends 15 minutes past the current time
 			// Times need to be in UTC since the karpenter containers were built in UTC time
 			windowStart := time.Now().Add(-time.Minute * 15).UTC()
-			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+			nodePool.Spec.Disruption.Budgets = []corev1.Budget{{
 				Nodes:    "0",
 				Schedule: lo.ToPtr(fmt.Sprintf("%d %d * * *", windowStart.Minute(), windowStart.Hour())),
 				Duration: &metav1.Duration{Duration: time.Minute * 30},
@@ -399,33 +399,33 @@ var _ = Describe("Consolidation", func() {
 	})
 	DescribeTable("should consolidate nodes (delete)", Label(debug.NoWatch), Label(debug.NoEvents),
 		func(spotToSpot bool) {
-			nodePool := test.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Disruption: corev1beta1.Disruption{
-						ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+			nodePool := test.NodePool(corev1.NodePool{
+				Spec: corev1.NodePoolSpec{
+					Disruption: corev1.Disruption{
+						ConsolidationPolicy: corev1.ConsolidationPolicyWhenUnderutilized,
 						// Disable Consolidation until we're ready
-						ConsolidateAfter: &corev1beta1.NillableDuration{},
+						ConsolidateAfter: &corev1.NillableDuration{},
 					},
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+					Template: corev1.NodeClaimTemplate{
+						Spec: corev1.NodeClaimSpec{
+							Requirements: []corev1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      corev1beta1.CapacityTypeLabelKey,
+										Key:      corev1.CapacityTypeLabelKey,
 										Operator: v1.NodeSelectorOpIn,
-										Values:   lo.Ternary(spotToSpot, []string{corev1beta1.CapacityTypeSpot}, []string{corev1beta1.CapacityTypeOnDemand}),
+										Values:   lo.Ternary(spotToSpot, []string{corev1.CapacityTypeSpot}, []string{corev1.CapacityTypeOnDemand}),
 									},
 								},
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1beta1.LabelInstanceSize,
+										Key:      providerv1.LabelInstanceSize,
 										Operator: v1.NodeSelectorOpIn,
 										Values:   []string{"medium", "large", "xlarge"},
 									},
 								},
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1beta1.LabelInstanceFamily,
+										Key:      providerv1.LabelInstanceFamily,
 										Operator: v1.NodeSelectorOpNotIn,
 										// remove some cheap burstable and the odd c1 instance types so we have
 										// more control over what gets provisioned
@@ -434,10 +434,10 @@ var _ = Describe("Consolidation", func() {
 									},
 								},
 							},
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-								Kind:       object.GVK(nodeClass).Kind,
-								Name:       nodeClass.Name,
+							NodeClassRef: &corev1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
 							},
 						},
 					},
@@ -482,33 +482,33 @@ var _ = Describe("Consolidation", func() {
 	)
 	DescribeTable("should consolidate nodes (replace)",
 		func(spotToSpot bool) {
-			nodePool := test.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Disruption: corev1beta1.Disruption{
-						ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+			nodePool := test.NodePool(corev1.NodePool{
+				Spec: corev1.NodePoolSpec{
+					Disruption: corev1.Disruption{
+						ConsolidationPolicy: corev1.ConsolidationPolicyWhenUnderutilized,
 						// Disable Consolidation until we're ready
-						ConsolidateAfter: &corev1beta1.NillableDuration{},
+						ConsolidateAfter: &corev1.NillableDuration{},
 					},
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+					Template: corev1.NodeClaimTemplate{
+						Spec: corev1.NodeClaimSpec{
+							Requirements: []corev1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      corev1beta1.CapacityTypeLabelKey,
+										Key:      corev1.CapacityTypeLabelKey,
 										Operator: v1.NodeSelectorOpIn,
-										Values:   lo.Ternary(spotToSpot, []string{corev1beta1.CapacityTypeSpot}, []string{corev1beta1.CapacityTypeOnDemand}),
+										Values:   lo.Ternary(spotToSpot, []string{corev1.CapacityTypeSpot}, []string{corev1.CapacityTypeOnDemand}),
 									},
 								},
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1beta1.LabelInstanceSize,
+										Key:      providerv1.LabelInstanceSize,
 										Operator: v1.NodeSelectorOpIn,
 										Values:   []string{"large", "2xlarge"},
 									},
 								},
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1beta1.LabelInstanceFamily,
+										Key:      providerv1.LabelInstanceFamily,
 										Operator: v1.NodeSelectorOpNotIn,
 										// remove some cheap burstable and the odd c1 / a1 instance types so we have
 										// more control over what gets provisioned
@@ -524,10 +524,10 @@ var _ = Describe("Consolidation", func() {
 									},
 								},
 							},
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-								Kind:       object.GVK(nodeClass).Kind,
-								Name:       nodeClass.Name,
+							NodeClassRef: &corev1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
 							},
 						},
 					},
@@ -616,7 +616,7 @@ var _ = Describe("Consolidation", func() {
 			numOtherNodes := 0
 			for _, n := range nodes.Items {
 				// only count the nodes created by the provisoiner
-				if n.Labels[corev1beta1.NodePoolLabelKey] != nodePool.Name {
+				if n.Labels[corev1.NodePoolLabelKey] != nodePool.Name {
 					continue
 				}
 				if strings.HasSuffix(n.Labels[v1.LabelInstanceTypeStable], ".large") {
@@ -637,33 +637,33 @@ var _ = Describe("Consolidation", func() {
 		Entry("if the nodes are spot nodes", true),
 	)
 	It("should consolidate on-demand nodes to spot (replace)", func() {
-		nodePool := test.NodePool(corev1beta1.NodePool{
-			Spec: corev1beta1.NodePoolSpec{
-				Disruption: corev1beta1.Disruption{
-					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
+		nodePool := test.NodePool(corev1.NodePool{
+			Spec: corev1.NodePoolSpec{
+				Disruption: corev1.Disruption{
+					ConsolidationPolicy: corev1.ConsolidationPolicyWhenUnderutilized,
 					// Disable Consolidation until we're ready
-					ConsolidateAfter: &corev1beta1.NillableDuration{},
+					ConsolidateAfter: &corev1.NillableDuration{},
 				},
-				Template: corev1beta1.NodeClaimTemplate{
-					Spec: corev1beta1.NodeClaimSpec{
-						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+				Template: corev1.NodeClaimTemplate{
+					Spec: corev1.NodeClaimSpec{
+						Requirements: []corev1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
-									Key:      corev1beta1.CapacityTypeLabelKey,
+									Key:      corev1.CapacityTypeLabelKey,
 									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{corev1beta1.CapacityTypeOnDemand},
+									Values:   []string{corev1.CapacityTypeOnDemand},
 								},
 							},
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
-									Key:      v1beta1.LabelInstanceSize,
+									Key:      providerv1.LabelInstanceSize,
 									Operator: v1.NodeSelectorOpIn,
 									Values:   []string{"large"},
 								},
 							},
 							{
 								NodeSelectorRequirement: v1.NodeSelectorRequirement{
-									Key:      v1beta1.LabelInstanceFamily,
+									Key:      providerv1.LabelInstanceFamily,
 									Operator: v1.NodeSelectorOpNotIn,
 									// remove some cheap burstable and the odd c1 / a1 instance types so we have
 									// more control over what gets provisioned
@@ -671,10 +671,10 @@ var _ = Describe("Consolidation", func() {
 								},
 							},
 						},
-						NodeClassRef: &corev1beta1.NodeClassReference{
-							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-							Kind:       object.GVK(nodeClass).Kind,
-							Name:       nodeClass.Name,
+						NodeClassRef: &corev1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
 						},
 					},
 				},
@@ -724,15 +724,15 @@ var _ = Describe("Consolidation", func() {
 		// instance than on-demand
 		nodePool.Spec.Disruption.ConsolidateAfter = nil
 		test.ReplaceRequirements(nodePool,
-			corev1beta1.NodeSelectorRequirementWithMinValues{
+			corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      corev1beta1.CapacityTypeLabelKey,
+					Key:      corev1.CapacityTypeLabelKey,
 					Operator: v1.NodeSelectorOpExists,
 				},
 			},
-			corev1beta1.NodeSelectorRequirementWithMinValues{
+			corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceSize,
+					Key:      providerv1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"large"},
 				},
@@ -749,10 +749,10 @@ var _ = Describe("Consolidation", func() {
 			var otherNodes []*v1.Node
 			for i, n := range nodes.Items {
 				// only count the nodes created by the nodePool
-				if n.Labels[corev1beta1.NodePoolLabelKey] != nodePool.Name {
+				if n.Labels[corev1.NodePoolLabelKey] != nodePool.Name {
 					continue
 				}
-				if n.Labels[corev1beta1.CapacityTypeLabelKey] == corev1beta1.CapacityTypeSpot {
+				if n.Labels[corev1.CapacityTypeLabelKey] == corev1.CapacityTypeSpot {
 					spotNodes = append(spotNodes, &nodes.Items[i])
 				} else {
 					otherNodes = append(otherNodes, &nodes.Items[i])

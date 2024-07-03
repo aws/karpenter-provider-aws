@@ -25,7 +25,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -82,7 +82,7 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("owned"),
 						},
 						{
-							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Key:   aws.String(corev1.NodePoolLabelKey),
 							Value: aws.String(nodePool.Name),
 						},
 						{
@@ -130,7 +130,7 @@ var _ = Describe("GarbageCollection", func() {
 			Resources: []*string{out.Instances[0].InstanceId},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+					Key:   aws.String(corev1.ManagedByAnnotationKey),
 					Value: aws.String(env.ClusterName),
 				},
 			},

@@ -17,11 +17,11 @@ package events
 import (
 	v1 "k8s.io/api/core/v1"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 )
 
-func SpotInterrupted(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
+func SpotInterrupted(node *v1.Node, nodeClaim *corev1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeWarning,
@@ -41,7 +41,7 @@ func SpotInterrupted(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events
 	return evts
 }
 
-func RebalanceRecommendation(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
+func RebalanceRecommendation(node *v1.Node, nodeClaim *corev1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeNormal,
@@ -61,7 +61,7 @@ func RebalanceRecommendation(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts 
 	return evts
 }
 
-func Stopping(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
+func Stopping(node *v1.Node, nodeClaim *corev1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeWarning,
@@ -81,7 +81,7 @@ func Stopping(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event)
 	return evts
 }
 
-func Terminating(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
+func Terminating(node *v1.Node, nodeClaim *corev1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeWarning,
@@ -101,7 +101,7 @@ func Terminating(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Eve
 	return evts
 }
 
-func Unhealthy(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
+func Unhealthy(node *v1.Node, nodeClaim *corev1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeWarning,
@@ -121,7 +121,7 @@ func Unhealthy(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event
 	return evts
 }
 
-func TerminatingOnInterruption(node *v1.Node, nodeClaim *v1beta1.NodeClaim) (evts []events.Event) {
+func TerminatingOnInterruption(node *v1.Node, nodeClaim *corev1.NodeClaim) (evts []events.Event) {
 	evts = append(evts, events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeWarning,

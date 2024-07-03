@@ -15,11 +15,10 @@ limitations under the License.
 package v1_test
 
 import (
+	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
-	"sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/aws-sdk-go/aws"
 
@@ -33,27 +32,7 @@ var _ = Describe("Webhook/Validation", func() {
 	var nc *v1.EC2NodeClass
 
 	BeforeEach(func() {
-		nc = &v1.EC2NodeClass{
-			ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
-			Spec: v1.EC2NodeClassSpec{
-				AMIFamily: lo.ToPtr(v1.AMIFamilyAL2023),
-				Role:      "role-1",
-				SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
-					{
-						Tags: map[string]string{
-							"*": "*",
-						},
-					},
-				},
-				SubnetSelectorTerms: []v1.SubnetSelectorTerm{
-					{
-						Tags: map[string]string{
-							"*": "*",
-						},
-					},
-				},
-			},
-		}
+		nc = test.EC2NodeClass()
 	})
 	It("should succeed if just specifying role", func() {
 		Expect(nc.Validate(ctx)).To(Succeed())

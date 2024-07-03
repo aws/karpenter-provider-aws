@@ -26,7 +26,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/awslabs/operatorpkg/test/expectations"
@@ -38,8 +38,8 @@ var _ = Describe("SecurityGroups", func() {
 	It("should use the security-group-id selector", func() {
 		securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 		Expect(len(securityGroups)).To(BeNumerically(">", 1))
-		nodeClass.Spec.SecurityGroupSelectorTerms = lo.Map(securityGroups, func(sg aws.SecurityGroup, _ int) v1beta1.SecurityGroupSelectorTerm {
-			return v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = lo.Map(securityGroups, func(sg aws.SecurityGroup, _ int) v1.SecurityGroupSelectorTerm {
+			return v1.SecurityGroupSelectorTerm{
 				ID: lo.FromPtr(sg.GroupId),
 			}
 		})
@@ -58,7 +58,7 @@ var _ = Describe("SecurityGroups", func() {
 		first := securityGroups[0]
 		last := securityGroups[len(securityGroups)-1]
 
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{"Name": lo.FromPtr(lo.FindOrElse(first.Tags, &ec2.Tag{}, func(tag *ec2.Tag) bool { return lo.FromPtr(tag.Key) == "Name" }).Value)},
 			},
@@ -82,7 +82,7 @@ var _ = Describe("SecurityGroups", func() {
 	})
 
 	It("should have the NodeClass status as not ready since security groups were not resolved", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{"karpenter.sh/discovery": "invalidName"},
 			},
@@ -92,7 +92,7 @@ var _ = Describe("SecurityGroups", func() {
 	})
 })
 
-func EventuallyExpectSecurityGroups(env *aws.Environment, nodeClass *v1beta1.EC2NodeClass) {
+func EventuallyExpectSecurityGroups(env *aws.Environment, nodeClass *v1.EC2NodeClass) {
 	securityGroups := env.GetSecurityGroups(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 	Expect(securityGroups).ToNot(HaveLen(0))
 
@@ -100,9 +100,9 @@ func EventuallyExpectSecurityGroups(env *aws.Environment, nodeClass *v1beta1.EC2
 		return lo.FromPtr(s.GroupId)
 	})...)
 	Eventually(func(g Gomega) {
-		temp := &v1beta1.EC2NodeClass{}
+		temp := &v1.EC2NodeClass{}
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), temp)).To(Succeed())
-		g.Expect(sets.New(lo.Map(temp.Status.SecurityGroups, func(s v1beta1.SecurityGroup, _ int) string {
+		g.Expect(sets.New(lo.Map(temp.Status.SecurityGroups, func(s v1.SecurityGroup, _ int) string {
 			return s.ID
 		})...).Equal(ids))
 	}).WithTimeout(10 * time.Second).Should(Succeed())

@@ -25,10 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/uuid"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/scheduledchange"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -41,8 +41,8 @@ import (
 )
 
 var env *aws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *providerv1.EC2NodeClass
+var nodePool *corev1.NodePool
 
 func TestInterruption(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -69,11 +69,11 @@ var _ = AfterEach(func() { env.AfterEach() })
 var _ = Describe("Interruption", func() {
 	It("should terminate the spot instance and spin-up a new node on spot interruption warning", func() {
 		By("Creating a single healthy node with a healthy deployment")
-		nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+		nodePool = coretest.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      corev1beta1.CapacityTypeLabelKey,
+				Key:      corev1.CapacityTypeLabelKey,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1beta1.CapacityTypeSpot},
+				Values:   []string{corev1.CapacityTypeSpot},
 			}})
 		numPods := 1
 		dep := coretest.Deployment(coretest.DeploymentOptions{

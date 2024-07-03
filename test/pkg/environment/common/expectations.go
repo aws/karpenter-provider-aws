@@ -40,7 +40,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	pscheduling "sigs.k8s.io/karpenter/pkg/controllers/provisioning/scheduling"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/test"
@@ -476,13 +476,13 @@ func (env *Environment) ExpectNodeCount(comparator string, count int) {
 func (env *Environment) ExpectNodeClaimCount(comparator string, count int) {
 	GinkgoHelper()
 
-	nodeClaimList := &corev1beta1.NodeClaimList{}
+	nodeClaimList := &corev1.NodeClaimList{}
 	Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 	Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
 }
 
-func NodeClaimNames(nodeClaims []*corev1beta1.NodeClaim) []string {
-	return lo.Map(nodeClaims, func(n *corev1beta1.NodeClaim, index int) string {
+func NodeClaimNames(nodeClaims []*corev1.NodeClaim) []string {
+	return lo.Map(nodeClaims, func(n *corev1.NodeClaim, index int) string {
 		return n.Name
 	})
 }
@@ -516,7 +516,7 @@ func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(disruptingNod
 	nodes := []v1.Node{}
 	Consistently(func(g Gomega) {
 		// Ensure we don't change our NodeClaims
-		nodeClaimList := &corev1beta1.NodeClaimList{}
+		nodeClaimList := &corev1.NodeClaimList{}
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 		g.Expect(nodeClaimList.Items).To(HaveLen(totalNodes))
 
@@ -526,7 +526,7 @@ func (env *Environment) ConsistentlyExpectDisruptionsWithNodeCount(disruptingNod
 
 		nodes = lo.Filter(nodeList.Items, func(n v1.Node, _ int) bool {
 			_, ok := lo.Find(n.Spec.Taints, func(t v1.Taint) bool {
-				return corev1beta1.IsDisruptingTaint(t)
+				return corev1.IsDisruptingTaint(t)
 			})
 			return ok
 		})
@@ -558,10 +558,10 @@ func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.D
 	}).WithTimeout(timeout).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectNodeClaimCount(comparator string, count int) []*corev1beta1.NodeClaim {
+func (env *Environment) EventuallyExpectNodeClaimCount(comparator string, count int) []*corev1.NodeClaim {
 	GinkgoHelper()
 	By(fmt.Sprintf("waiting for nodes to be %s to %d", comparator, count))
-	nodeClaimList := &corev1beta1.NodeClaimList{}
+	nodeClaimList := &corev1.NodeClaimList{}
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 		g.Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count),
@@ -640,65 +640,65 @@ func (env *Environment) EventuallyExpectInitializedNodeCount(comparator string, 
 	Eventually(func(g Gomega) {
 		nodes = env.Monitor.CreatedNodes()
 		nodes = lo.Filter(nodes, func(n *v1.Node, _ int) bool {
-			return n.Labels[corev1beta1.NodeInitializedLabelKey] == "true"
+			return n.Labels[corev1.NodeInitializedLabelKey] == "true"
 		})
 		g.Expect(len(nodes)).To(BeNumerically(comparator, count))
 	}).Should(Succeed())
 	return nodes
 }
 
-func (env *Environment) EventuallyExpectCreatedNodeClaimCount(comparator string, count int) []*corev1beta1.NodeClaim {
+func (env *Environment) EventuallyExpectCreatedNodeClaimCount(comparator string, count int) []*corev1.NodeClaim {
 	GinkgoHelper()
 	By(fmt.Sprintf("waiting for created nodeclaims to be %s to %d", comparator, count))
-	nodeClaimList := &corev1beta1.NodeClaimList{}
+	nodeClaimList := &corev1.NodeClaimList{}
 	Eventually(func(g Gomega) {
 		g.Expect(env.Client.List(env.Context, nodeClaimList)).To(Succeed())
 		g.Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
 	}).Should(Succeed())
-	return lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) *corev1beta1.NodeClaim {
+	return lo.Map(nodeClaimList.Items, func(nc corev1.NodeClaim, _ int) *corev1.NodeClaim {
 		return &nc
 	})
 }
 
-func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1beta1.NodeClaim) {
+func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1.NodeClaim) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
-			temp := &corev1beta1.NodeClaim{}
+			temp := &corev1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), temp)).Should(Succeed())
 			g.Expect(temp.StatusConditions().Root().IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1beta1.NodeClaim) {
+func (env *Environment) EventuallyExpectDrifted(nodeClaims ...*corev1.NodeClaim) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1.ConditionTypeDrifted).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
 
-func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Duration, nodeClaims ...*corev1beta1.NodeClaim) {
+func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Duration, nodeClaims ...*corev1.NodeClaim) {
 	GinkgoHelper()
-	nodeClaimNames := lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) string { return nc.Name })
+	nodeClaimNames := lo.Map(nodeClaims, func(nc *corev1.NodeClaim, _ int) string { return nc.Name })
 	By(fmt.Sprintf("consistently expect nodeclaims %s not to be drifted for %s", nodeClaimNames, duration))
 	Consistently(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted)).To(BeNil())
+			g.Expect(nc.StatusConditions().Get(corev1.ConditionTypeDrifted)).To(BeNil())
 		}
 	}, duration).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*corev1beta1.NodeClaim) {
+func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*corev1.NodeClaim) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeEmpty).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(corev1.ConditionTypeEmpty).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
@@ -867,7 +867,7 @@ func (env *Environment) ExpectCABundle() string {
 	return base64.StdEncoding.EncodeToString(transportConfig.TLS.CAData)
 }
 
-func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
+func (env *Environment) GetDaemonSetCount(np *corev1.NodePool) int {
 	GinkgoHelper()
 
 	// Performs the same logic as the scheduler to get the number of daemonset
@@ -888,7 +888,7 @@ func (env *Environment) GetDaemonSetCount(np *corev1beta1.NodePool) int {
 	})
 }
 
-func (env *Environment) GetDaemonSetOverhead(np *corev1beta1.NodePool) v1.ResourceList {
+func (env *Environment) GetDaemonSetOverhead(np *corev1.NodePool) v1.ResourceList {
 	GinkgoHelper()
 
 	// Performs the same logic as the scheduler to get the number of daemonset

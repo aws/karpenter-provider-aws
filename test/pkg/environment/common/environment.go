@@ -39,11 +39,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/operator"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type ContextKey string
@@ -116,7 +116,7 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 	lo.Must0(cache.IndexField(ctx, &v1.Node{}, "spec.taints[*].karpenter.sh/disruption", func(o client.Object) []string {
 		node := o.(*v1.Node)
 		t, _ := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
-			return t.Key == corev1beta1.DisruptionTaintKey
+			return t.Key == corev1.DisruptionTaintKey
 		})
 		return []string{t.Value}
 	}))
@@ -132,14 +132,14 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 	return c
 }
 
-func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1beta1.NodePool {
+func (env *Environment) DefaultNodePool(nodeClass *providerv1.EC2NodeClass) *corev1.NodePool {
 	nodePool := coretest.NodePool()
-	nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
-		APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-		Kind:       object.GVK(nodeClass).Kind,
-		Name:       nodeClass.Name,
+	nodePool.Spec.Template.Spec.NodeClassRef = &corev1.NodeClassReference{
+		Group: object.GVK(nodeClass).Group,
+		Kind:  object.GVK(nodeClass).Kind,
+		Name:  nodeClass.Name,
 	}
-	nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
+	nodePool.Spec.Template.Spec.Requirements = []corev1.NodeSelectorRequirementWithMinValues{
 		{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1.LabelOSStable,
@@ -149,21 +149,21 @@ func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1
 		},
 		{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      corev1beta1.CapacityTypeLabelKey,
+				Key:      corev1.CapacityTypeLabelKey,
 				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1beta1.CapacityTypeOnDemand},
+				Values:   []string{corev1.CapacityTypeOnDemand},
 			},
 		},
 		{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceCategory,
+				Key:      providerv1.LabelInstanceCategory,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"c", "m", "r"},
 			},
 		},
 		{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceGeneration,
+				Key:      providerv1.LabelInstanceGeneration,
 				Operator: v1.NodeSelectorOpGt,
 				Values:   []string{"2"},
 			},
@@ -171,15 +171,15 @@ func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1
 		// Filter out a1 instance types, which are incompatible with AL2023 AMIs
 		{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceFamily,
+				Key:      providerv1.LabelInstanceFamily,
 				Operator: v1.NodeSelectorOpNotIn,
 				Values:   []string{"a1"},
 			},
 		},
 	}
-	nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+	nodePool.Spec.Disruption.ConsolidateAfter = &corev1.NillableDuration{}
 	nodePool.Spec.Disruption.ExpireAfter.Duration = nil
-	nodePool.Spec.Limits = corev1beta1.Limits(v1.ResourceList{
+	nodePool.Spec.Limits = corev1.Limits(v1.ResourceList{
 		v1.ResourceCPU:    resource.MustParse("1000"),
 		v1.ResourceMemory: resource.MustParse("1000Gi"),
 	})

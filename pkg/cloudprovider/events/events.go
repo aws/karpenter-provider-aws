@@ -17,11 +17,11 @@ package events
 import (
 	v1 "k8s.io/api/core/v1"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 )
 
-func NodePoolFailedToResolveNodeClass(nodePool *v1beta1.NodePool) events.Event {
+func NodePoolFailedToResolveNodeClass(nodePool *corev1.NodePool) events.Event {
 	return events.Event{
 		InvolvedObject: nodePool,
 		Type:           v1.EventTypeWarning,
@@ -30,7 +30,7 @@ func NodePoolFailedToResolveNodeClass(nodePool *v1beta1.NodePool) events.Event {
 	}
 }
 
-func NodeClaimFailedToResolveNodeClass(nodeClaim *v1beta1.NodeClaim) events.Event {
+func NodeClaimFailedToResolveNodeClass(nodeClaim *corev1.NodeClaim) events.Event {
 	return events.Event{
 		InvolvedObject: nodeClaim,
 		Type:           v1.EventTypeWarning,

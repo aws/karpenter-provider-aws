@@ -27,10 +27,10 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
@@ -39,8 +39,8 @@ import (
 )
 
 var env *environmentaws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *providerv1.EC2NodeClass
+var nodePool *corev1.NodePool
 
 func TestScheduling(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -66,15 +66,15 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	BeforeEach(func() {
 		// Make the NodePool requirements fully flexible, so we can match well-known label keys
 		nodePool = test.ReplaceRequirements(nodePool,
-			corev1beta1.NodeSelectorRequirementWithMinValues{
+			corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCategory,
+					Key:      providerv1.LabelInstanceCategory,
 					Operator: v1.NodeSelectorOpExists,
 				},
 			},
-			corev1beta1.NodeSelectorRequirementWithMinValues{
+			corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceGeneration,
+					Key:      providerv1.LabelInstanceGeneration,
 					Operator: v1.NodeSelectorOpExists,
 				},
 			},
@@ -85,38 +85,38 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 	})
 	AfterAll(func() {
 		// Ensure that we're exercising all well known labels
-		Expect(lo.Keys(selectors)).To(ContainElements(append(corev1beta1.WellKnownLabels.UnsortedList(), lo.Keys(corev1beta1.NormalizedLabels)...)))
+		Expect(lo.Keys(selectors)).To(ContainElements(append(corev1.WellKnownLabels.UnsortedList(), lo.Keys(corev1.NormalizedLabels)...)))
 	})
 
 	It("should apply annotations to the node", func() {
 		nodePool.Spec.Template.Annotations = map[string]string{
-			"foo":                                 "bar",
-			corev1beta1.DoNotDisruptAnnotationKey: "true",
+			"foo":                            "bar",
+			corev1.DoNotDisruptAnnotationKey: "true",
 		}
 		pod := test.Pod()
 		env.ExpectCreated(nodeClass, nodePool, pod)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
-		Expect(env.GetNode(pod.Spec.NodeName).Annotations).To(And(HaveKeyWithValue("foo", "bar"), HaveKeyWithValue(corev1beta1.DoNotDisruptAnnotationKey, "true")))
+		Expect(env.GetNode(pod.Spec.NodeName).Annotations).To(And(HaveKeyWithValue("foo", "bar"), HaveKeyWithValue(corev1.DoNotDisruptAnnotationKey, "true")))
 	})
 
 	Context("Labels", func() {
 		It("should support well-known labels for instance type selection", func() {
 			nodeSelector := map[string]string{
 				// Well Known
-				corev1beta1.NodePoolLabelKey: nodePool.Name,
-				v1.LabelInstanceTypeStable:   "c5.large",
+				corev1.NodePoolLabelKey:    nodePool.Name,
+				v1.LabelInstanceTypeStable: "c5.large",
 				// Well Known to AWS
-				v1beta1.LabelInstanceHypervisor:       "nitro",
-				v1beta1.LabelInstanceCategory:         "c",
-				v1beta1.LabelInstanceGeneration:       "5",
-				v1beta1.LabelInstanceFamily:           "c5",
-				v1beta1.LabelInstanceSize:             "large",
-				v1beta1.LabelInstanceCPU:              "2",
-				v1beta1.LabelInstanceCPUManufacturer:  "intel",
-				v1beta1.LabelInstanceMemory:           "4096",
-				v1beta1.LabelInstanceEBSBandwidth:     "4750",
-				v1beta1.LabelInstanceNetworkBandwidth: "750",
+				providerv1.LabelInstanceHypervisor:       "nitro",
+				providerv1.LabelInstanceCategory:         "c",
+				providerv1.LabelInstanceGeneration:       "5",
+				providerv1.LabelInstanceFamily:           "c5",
+				providerv1.LabelInstanceSize:             "large",
+				providerv1.LabelInstanceCPU:              "2",
+				providerv1.LabelInstanceCPUManufacturer:  "intel",
+				providerv1.LabelInstanceMemory:           "4096",
+				providerv1.LabelInstanceEBSBandwidth:     "4750",
+				providerv1.LabelInstanceNetworkBandwidth: "750",
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
@@ -132,11 +132,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for zone id selection", func() {
-			selectors.Insert(v1beta1.LabelTopologyZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
+			selectors.Insert(providerv1.LabelTopologyZoneID) // Add node selector keys to selectors used in testing to ensure we test all labels
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
 				NodeRequirements: []v1.NodeSelectorRequirement{
 					{
-						Key:      v1beta1.LabelTopologyZoneID,
+						Key:      providerv1.LabelTopologyZoneID,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName})[0].ZoneInfo.ZoneID},
 					},
@@ -147,18 +147,18 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for local NVME storage", func() {
-			selectors.Insert(v1beta1.LabelInstanceLocalNVME) // Add node selector keys to selectors used in testing to ensure we test all labels
+			selectors.Insert(providerv1.LabelInstanceLocalNVME) // Add node selector keys to selectors used in testing to ensure we test all labels
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
 				NodePreferences: []v1.NodeSelectorRequirement{
 					{
-						Key:      v1beta1.LabelInstanceLocalNVME,
+						Key:      providerv1.LabelInstanceLocalNVME,
 						Operator: v1.NodeSelectorOpGt,
 						Values:   []string{"0"},
 					},
 				},
 				NodeRequirements: []v1.NodeSelectorRequirement{
 					{
-						Key:      v1beta1.LabelInstanceLocalNVME,
+						Key:      providerv1.LabelInstanceLocalNVME,
 						Operator: v1.NodeSelectorOpGt,
 						Values:   []string{"0"},
 					},
@@ -169,18 +169,18 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreatedNodeCount("==", 1)
 		})
 		It("should support well-known labels for encryption in transit", func() {
-			selectors.Insert(v1beta1.LabelInstanceEncryptionInTransitSupported) // Add node selector keys to selectors used in testing to ensure we test all labels
+			selectors.Insert(providerv1.LabelInstanceEncryptionInTransitSupported) // Add node selector keys to selectors used in testing to ensure we test all labels
 			deployment := test.Deployment(test.DeploymentOptions{Replicas: 1, PodOptions: test.PodOptions{
 				NodePreferences: []v1.NodeSelectorRequirement{
 					{
-						Key:      v1beta1.LabelInstanceEncryptionInTransitSupported,
+						Key:      providerv1.LabelInstanceEncryptionInTransitSupported,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"true"},
 					},
 				},
 				NodeRequirements: []v1.NodeSelectorRequirement{
 					{
-						Key:      v1beta1.LabelInstanceEncryptionInTransitSupported,
+						Key:      providerv1.LabelInstanceEncryptionInTransitSupported,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"true"},
 					},
@@ -217,12 +217,12 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		It("should support well-known labels for topology and architecture", func() {
 			nodeSelector := map[string]string{
 				// Well Known
-				corev1beta1.NodePoolLabelKey:     nodePool.Name,
-				v1.LabelTopologyRegion:           env.Region,
-				v1.LabelTopologyZone:             fmt.Sprintf("%sa", env.Region),
-				v1.LabelOSStable:                 "linux",
-				v1.LabelArchStable:               "amd64",
-				corev1beta1.CapacityTypeLabelKey: corev1beta1.CapacityTypeOnDemand,
+				corev1.NodePoolLabelKey:     nodePool.Name,
+				v1.LabelTopologyRegion:      env.Region,
+				v1.LabelTopologyZone:        fmt.Sprintf("%sa", env.Region),
+				v1.LabelOSStable:            "linux",
+				v1.LabelArchStable:          "amd64",
+				corev1.CapacityTypeLabelKey: corev1.CapacityTypeOnDemand,
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
@@ -239,10 +239,10 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		})
 		It("should support well-known labels for a gpu (nvidia)", func() {
 			nodeSelector := map[string]string{
-				v1beta1.LabelInstanceGPUName:         "t4",
-				v1beta1.LabelInstanceGPUMemory:       "16384",
-				v1beta1.LabelInstanceGPUManufacturer: "nvidia",
-				v1beta1.LabelInstanceGPUCount:        "1",
+				providerv1.LabelInstanceGPUName:         "t4",
+				providerv1.LabelInstanceGPUMemory:       "16384",
+				providerv1.LabelInstanceGPUManufacturer: "nvidia",
+				providerv1.LabelInstanceGPUCount:        "1",
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
@@ -259,9 +259,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		})
 		It("should support well-known labels for an accelerator (inferentia)", func() {
 			nodeSelector := map[string]string{
-				v1beta1.LabelInstanceAcceleratorName:         "inferentia",
-				v1beta1.LabelInstanceAcceleratorManufacturer: "aws",
-				v1beta1.LabelInstanceAcceleratorCount:        "1",
+				providerv1.LabelInstanceAcceleratorName:         "inferentia",
+				providerv1.LabelInstanceAcceleratorManufacturer: "aws",
+				providerv1.LabelInstanceAcceleratorCount:        "1",
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
 			requirements := lo.MapToSlice(nodeSelector, func(key string, value string) v1.NodeSelectorRequirement {
@@ -289,7 +289,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 
 			nodeSelector := map[string]string{
 				// Well Known
-				v1.LabelWindowsBuild: v1beta1.Windows2022Build,
+				v1.LabelWindowsBuild: providerv1.Windows2022Build,
 				v1.LabelOSStable:     string(v1.Windows), // Specify the OS to enable vpc-resource-controller to inject the PrivateIPv4Address resource
 			}
 			selectors.Insert(lo.Keys(nodeSelector)...) // Add node selector keys to selectors used in testing to ensure we test all labels
@@ -302,9 +302,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodeRequirements: requirements,
 				Image:            environmentaws.WindowsDefaultImage,
 			}})
-			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyWindows2022
 			test.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
+				corev1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1.LabelOSStable,
 						Operator: v1.NodeSelectorOpIn,
@@ -319,9 +319,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 		DescribeTable("should support restricted label domain exceptions", func(domain string) {
 			// Assign labels to the nodepool so that it has known values
 			test.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: domain + "/team", Operator: v1.NodeSelectorOpExists}},
-				corev1beta1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: domain + "/custom-label", Operator: v1.NodeSelectorOpExists}},
-				corev1beta1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: "subdomain." + domain + "/custom-label", Operator: v1.NodeSelectorOpExists}},
+				corev1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: domain + "/team", Operator: v1.NodeSelectorOpExists}},
+				corev1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: domain + "/custom-label", Operator: v1.NodeSelectorOpExists}},
+				corev1.NodeSelectorRequirementWithMinValues{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: "subdomain." + domain + "/custom-label", Operator: v1.NodeSelectorOpExists}},
 			)
 			nodeSelector := map[string]string{
 				domain + "/team":                        "team-1",
@@ -416,17 +416,17 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectNodeCount("==", 3)
 		})
 		It("should provision a node using a NodePool with higher priority", func() {
-			nodePoolLowPri := test.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
+			nodePoolLowPri := test.NodePool(corev1.NodePool{
+				Spec: corev1.NodePoolSpec{
 					Weight: lo.ToPtr(int32(10)),
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-								Kind:       object.GVK(nodeClass).Kind,
-								Name:       nodeClass.Name,
+					Template: corev1.NodeClaimTemplate{
+						Spec: corev1.NodeClaimSpec{
+							NodeClassRef: &corev1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
 							},
-							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+							Requirements: []corev1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
 										Key:      v1.LabelOSStable,
@@ -446,15 +446,15 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					},
 				},
 			})
-			nodePoolHighPri := test.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
+			nodePoolHighPri := test.NodePool(corev1.NodePool{
+				Spec: corev1.NodePoolSpec{
 					Weight: lo.ToPtr(int32(100)),
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{
+					Template: corev1.NodeClaimTemplate{
+						Spec: corev1.NodeClaimSpec{
+							NodeClassRef: &corev1.NodeClassReference{
 								Name: nodeClass.Name,
 							},
-							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+							Requirements: []corev1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: v1.NodeSelectorRequirement{
 										Key:      v1.LabelOSStable,
@@ -479,7 +479,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectHealthy(pod)
 			env.ExpectCreatedNodeCount("==", 1)
 			Expect(lo.FromPtr(env.GetInstance(pod.Spec.NodeName).InstanceType)).To(Equal("c5.large"))
-			Expect(env.GetNode(pod.Spec.NodeName).Labels[corev1beta1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
+			Expect(env.GetNode(pod.Spec.NodeName).Labels[corev1.NodePoolLabelKey]).To(Equal(nodePoolHighPri.Name))
 		})
 
 		DescribeTable(
@@ -514,15 +514,15 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					},
 				})
 
-				test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+				test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceCPU,
+						Key:      providerv1.LabelInstanceCPU,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   []string{"4", "8"},
 					},
-				}, corev1beta1.NodeSelectorRequirementWithMinValues{
+				}, corev1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceCategory,
+						Key:      providerv1.LabelInstanceCategory,
 						Operator: v1.NodeSelectorOpNotIn,
 						Values:   []string{"t"},
 					},
@@ -543,7 +543,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				env.ExpectCreated(nodePool, nodeClass, dsBufferPod, pod)
 				env.EventuallyExpectHealthy(pod)
 				node := env.ExpectCreatedNodeCount("==", 1)[0]
-				Expect(node.ObjectMeta.GetLabels()[v1beta1.LabelInstanceCPU]).To(Equal(expectedNodeCPU))
+				Expect(node.ObjectMeta.GetLabels()[providerv1.LabelInstanceCPU]).To(Equal(expectedNodeCPU))
 			},
 			Entry("sidecar requirements + later init requirements do exceed container requirements", "8", v1.ResourceRequirements{
 				Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("400m")},
@@ -589,9 +589,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			if env.K8sMinorVersion() < 29 {
 				Skip("native sidecar containers are only enabled on EKS 1.29+")
 			}
-			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+			test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCategory,
+					Key:      providerv1.LabelInstanceCategory,
 					Operator: v1.NodeSelectorOpNotIn,
 					Values:   []string{"t"},
 				},
@@ -635,7 +635,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 						Values:   lo.Map(subnetInfo[0:2], func(info environmentaws.SubnetInfo, _ int) string { return info.Zone }),
 					},
 					{
-						Key:      v1beta1.LabelTopologyZoneID,
+						Key:      providerv1.LabelTopologyZoneID,
 						Operator: v1.NodeSelectorOpIn,
 						Values:   lo.Map(subnetInfo[1:3], func(info environmentaws.SubnetInfo, _ int) string { return info.ZoneID }),
 					},
@@ -644,7 +644,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			node := env.EventuallyExpectNodeCount("==", 1)[0]
 			Expect(node.Labels[v1.LabelTopologyZone]).To(Equal(subnetInfo[1].Zone))
-			Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(subnetInfo[1].ZoneID))
+			Expect(node.Labels[providerv1.LabelTopologyZoneID]).To(Equal(subnetInfo[1].ZoneID))
 		})
 		It("should provision nodes for pods with zone-id requirements in the correct zone", func() {
 			// Each pod specifies a requirement on this expected zone, where the value is the matching zone for the
@@ -653,7 +653,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			// succeed even if Karpenter doesn't add the label and /or incorrectly generated offerings on k8s 1.30 and
 			// above. This is an unlikely scenario, and adding this check is a defense in depth measure.
 			const expectedZoneLabel = "expected-zone-label"
-			test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+			test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      expectedZoneLabel,
 					Operator: v1.NodeSelectorOpExists,
@@ -672,7 +672,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 							Values:   []string{info.Zone},
 						},
 						{
-							Key:      v1beta1.LabelTopologyZoneID,
+							Key:      providerv1.LabelTopologyZoneID,
 							Operator: v1.NodeSelectorOpIn,
 							Values:   []string{info.ZoneID},
 						},
@@ -693,7 +693,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					return info.Zone == expectedZone
 				})
 				Expect(ok).To(BeTrue())
-				Expect(node.Labels[v1beta1.LabelTopologyZoneID]).To(Equal(zoneInfo.ZoneID))
+				Expect(node.Labels[providerv1.LabelTopologyZoneID]).To(Equal(zoneInfo.ZoneID))
 			}
 		})
 	})

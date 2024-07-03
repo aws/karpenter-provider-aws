@@ -33,11 +33,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
@@ -46,8 +46,8 @@ import (
 )
 
 var env *aws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *providerv1.EC2NodeClass
+var nodePool *corev1.NodePool
 
 func TestChaos(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -74,14 +74,14 @@ var _ = Describe("Chaos", func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
-			nodePool = coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+			nodePool = coretest.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      corev1beta1.CapacityTypeLabelKey,
+					Key:      corev1.CapacityTypeLabelKey,
 					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{corev1beta1.CapacityTypeSpot},
+					Values:   []string{corev1.CapacityTypeSpot},
 				},
 			})
-			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
+			nodePool.Spec.Disruption.ConsolidationPolicy = corev1.ConsolidationPolicyWhenUnderutilized
 			nodePool.Spec.Disruption.ConsolidateAfter = nil
 
 			numPods := 1
@@ -112,8 +112,8 @@ var _ = Describe("Chaos", func() {
 			ctx, cancel := context.WithCancel(env.Context)
 			defer cancel()
 
-			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
-			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
+			nodePool.Spec.Disruption.ConsolidationPolicy = corev1.ConsolidationPolicyWhenEmpty
+			nodePool.Spec.Disruption.ConsolidateAfter = &corev1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
 			numPods := 1
 			dep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: int32(numPods),
@@ -197,7 +197,7 @@ func startNodeCountMonitor(ctx context.Context, kubeClient client.Client) {
 	deletedNodes := atomic.Int64{}
 
 	factory := informers.NewSharedInformerFactoryWithOptions(env.KubeClient, time.Second*30,
-		informers.WithTweakListOptions(func(l *metav1.ListOptions) { l.LabelSelector = corev1beta1.NodePoolLabelKey }))
+		informers.WithTweakListOptions(func(l *metav1.ListOptions) { l.LabelSelector = corev1.NodePoolLabelKey }))
 	nodeInformer := factory.Core().V1().Nodes().Informer()
 	_ = lo.Must(nodeInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(_ interface{}) {

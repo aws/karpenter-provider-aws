@@ -28,9 +28,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 
@@ -49,7 +49,7 @@ var (
 )
 
 func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region string,
-	blockDeviceMappings []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
+	blockDeviceMappings []*providerv1.BlockDeviceMapping, instanceStorePolicy *providerv1.InstanceStorePolicy, maxPods *int32, podsPerCore *int32,
 	kubeReserved map[string]string, systemReserved map[string]string, evictionHard map[string]string, evictionSoft map[string]string,
 	amiFamily amifamily.AMIFamily, offerings cloudprovider.Offerings) *cloudprovider.InstanceType {
 
@@ -65,7 +65,7 @@ func NewInstanceType(ctx context.Context, info *ec2.InstanceTypeInfo, region str
 		},
 	}
 	if it.Requirements.Compatible(scheduling.NewRequirements(scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)))) == nil {
-		it.Capacity[v1beta1.ResourcePrivateIPv4Address] = *privateIPv4Address(aws.StringValue(info.InstanceType))
+		it.Capacity[providerv1.ResourcePrivateIPv4Address] = *privateIPv4Address(aws.StringValue(info.InstanceType))
 	}
 	return it
 }
@@ -83,70 +83,70 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		scheduling.NewRequirement(v1.LabelTopologyRegion, v1.NodeSelectorOpIn, region),
 		scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpDoesNotExist),
 		// Well Known to Karpenter
-		scheduling.NewRequirement(corev1beta1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
-			return o.Requirements.Get(corev1beta1.CapacityTypeLabelKey).Any()
+		scheduling.NewRequirement(corev1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, lo.Map(offerings.Available(), func(o cloudprovider.Offering, _ int) string {
+			return o.Requirements.Get(corev1.CapacityTypeLabelKey).Any()
 		})...),
 		// Well Known to AWS
-		scheduling.NewRequirement(v1beta1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.VCpuInfo.DefaultVCpus))),
-		scheduling.NewRequirement(v1beta1.LabelInstanceCPUManufacturer, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.MemoryInfo.SizeInMiB))),
-		scheduling.NewRequirement(v1beta1.LabelInstanceEBSBandwidth, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceNetworkBandwidth, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceCategory, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceFamily, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceGeneration, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceLocalNVME, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceGPUName, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceGPUMemory, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorName, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-		scheduling.NewRequirement(v1beta1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
-		scheduling.NewRequirement(v1beta1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
+		scheduling.NewRequirement(providerv1.LabelInstanceCPU, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.VCpuInfo.DefaultVCpus))),
+		scheduling.NewRequirement(providerv1.LabelInstanceCPUManufacturer, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceMemory, v1.NodeSelectorOpIn, fmt.Sprint(aws.Int64Value(info.MemoryInfo.SizeInMiB))),
+		scheduling.NewRequirement(providerv1.LabelInstanceEBSBandwidth, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceNetworkBandwidth, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceCategory, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceFamily, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceGeneration, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceLocalNVME, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceSize, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceGPUName, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceGPUManufacturer, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceGPUMemory, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceAcceleratorName, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceAcceleratorManufacturer, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
+		scheduling.NewRequirement(providerv1.LabelInstanceHypervisor, v1.NodeSelectorOpIn, aws.StringValue(info.Hypervisor)),
+		scheduling.NewRequirement(providerv1.LabelInstanceEncryptionInTransitSupported, v1.NodeSelectorOpIn, fmt.Sprint(aws.BoolValue(info.NetworkInfo.EncryptionInTransitSupported))),
 	)
 	// Only add zone-id label when available in offerings. It may not be available if a user has upgraded from a
 	// previous version of Karpenter w/o zone-id support and the nodeclass subnet status has not yet updated.
 	if zoneIDs := lo.FilterMap(offerings.Available(), func(o cloudprovider.Offering, _ int) (string, bool) {
-		zoneID := o.Requirements.Get(v1beta1.LabelTopologyZoneID).Any()
+		zoneID := o.Requirements.Get(providerv1.LabelTopologyZoneID).Any()
 		return zoneID, zoneID != ""
 	}); len(zoneIDs) != 0 {
-		requirements.Add(scheduling.NewRequirement(v1beta1.LabelTopologyZoneID, v1.NodeSelectorOpIn, zoneIDs...))
+		requirements.Add(scheduling.NewRequirement(providerv1.LabelTopologyZoneID, v1.NodeSelectorOpIn, zoneIDs...))
 	}
 	// Instance Type Labels
 	instanceFamilyParts := instanceTypeScheme.FindStringSubmatch(aws.StringValue(info.InstanceType))
 	if len(instanceFamilyParts) == 4 {
-		requirements[v1beta1.LabelInstanceCategory].Insert(instanceFamilyParts[1])
-		requirements[v1beta1.LabelInstanceGeneration].Insert(instanceFamilyParts[3])
+		requirements[providerv1.LabelInstanceCategory].Insert(instanceFamilyParts[1])
+		requirements[providerv1.LabelInstanceGeneration].Insert(instanceFamilyParts[3])
 	}
 	instanceTypeParts := strings.Split(aws.StringValue(info.InstanceType), ".")
 	if len(instanceTypeParts) == 2 {
-		requirements.Get(v1beta1.LabelInstanceFamily).Insert(instanceTypeParts[0])
-		requirements.Get(v1beta1.LabelInstanceSize).Insert(instanceTypeParts[1])
+		requirements.Get(providerv1.LabelInstanceFamily).Insert(instanceTypeParts[0])
+		requirements.Get(providerv1.LabelInstanceSize).Insert(instanceTypeParts[1])
 	}
 	if info.InstanceStorageInfo != nil && aws.StringValue(info.InstanceStorageInfo.NvmeSupport) != ec2.EphemeralNvmeSupportUnsupported {
-		requirements[v1beta1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(info.InstanceStorageInfo.TotalSizeInGB)))
+		requirements[providerv1.LabelInstanceLocalNVME].Insert(fmt.Sprint(aws.Int64Value(info.InstanceStorageInfo.TotalSizeInGB)))
 	}
 	// Network bandwidth
 	if bandwidth, ok := InstanceTypeBandwidthMegabits[aws.StringValue(info.InstanceType)]; ok {
-		requirements[v1beta1.LabelInstanceNetworkBandwidth].Insert(fmt.Sprint(bandwidth))
+		requirements[providerv1.LabelInstanceNetworkBandwidth].Insert(fmt.Sprint(bandwidth))
 	}
 	// GPU Labels
 	if info.GpuInfo != nil && len(info.GpuInfo.Gpus) == 1 {
 		gpu := info.GpuInfo.Gpus[0]
-		requirements.Get(v1beta1.LabelInstanceGPUName).Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
-		requirements.Get(v1beta1.LabelInstanceGPUManufacturer).Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
-		requirements.Get(v1beta1.LabelInstanceGPUCount).Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
-		requirements.Get(v1beta1.LabelInstanceGPUMemory).Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
+		requirements.Get(providerv1.LabelInstanceGPUName).Insert(lowerKabobCase(aws.StringValue(gpu.Name)))
+		requirements.Get(providerv1.LabelInstanceGPUManufacturer).Insert(lowerKabobCase(aws.StringValue(gpu.Manufacturer)))
+		requirements.Get(providerv1.LabelInstanceGPUCount).Insert(fmt.Sprint(aws.Int64Value(gpu.Count)))
+		requirements.Get(providerv1.LabelInstanceGPUMemory).Insert(fmt.Sprint(aws.Int64Value(gpu.MemoryInfo.SizeInMiB)))
 	}
 	// Accelerators
 	if info.InferenceAcceleratorInfo != nil && len(info.InferenceAcceleratorInfo.Accelerators) == 1 {
 		accelerator := info.InferenceAcceleratorInfo.Accelerators[0]
-		requirements.Get(v1beta1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(accelerator.Name)))
-		requirements.Get(v1beta1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
-		requirements.Get(v1beta1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
+		requirements.Get(providerv1.LabelInstanceAcceleratorName).Insert(lowerKabobCase(aws.StringValue(accelerator.Name)))
+		requirements.Get(providerv1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase(aws.StringValue(accelerator.Manufacturer)))
+		requirements.Get(providerv1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(aws.Int64Value(accelerator.Count)))
 	}
 	// Windows Build Version Labels
 	if family, ok := amiFamily.(*amifamily.Windows); ok {
@@ -156,24 +156,24 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 	// TODO: remove function once DescribeInstanceTypes contains the accelerator data
 	// Values found from: https://aws.amazon.com/ec2/instance-types/trn1/
 	if strings.HasPrefix(*info.InstanceType, "trn1") {
-		requirements.Get(v1beta1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
-		requirements.Get(v1beta1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
-		requirements.Get(v1beta1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(awsNeurons(info)))
+		requirements.Get(providerv1.LabelInstanceAcceleratorName).Insert(lowerKabobCase("Inferentia"))
+		requirements.Get(providerv1.LabelInstanceAcceleratorManufacturer).Insert(lowerKabobCase("AWS"))
+		requirements.Get(providerv1.LabelInstanceAcceleratorCount).Insert(fmt.Sprint(awsNeurons(info)))
 	}
 	// CPU Manufacturer, valid options: aws, intel, amd
 	if info.ProcessorInfo != nil {
-		requirements.Get(v1beta1.LabelInstanceCPUManufacturer).Insert(lowerKabobCase(aws.StringValue(info.ProcessorInfo.Manufacturer)))
+		requirements.Get(providerv1.LabelInstanceCPUManufacturer).Insert(lowerKabobCase(aws.StringValue(info.ProcessorInfo.Manufacturer)))
 	}
 	// EBS Max Bandwidth
 	if info.EbsInfo != nil && aws.StringValue(info.EbsInfo.EbsOptimizedSupport) == ec2.EbsOptimizedSupportDefault {
-		requirements.Get(v1beta1.LabelInstanceEBSBandwidth).Insert(fmt.Sprint(aws.Int64Value(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps)))
+		requirements.Get(providerv1.LabelInstanceEBSBandwidth).Insert(fmt.Sprint(aws.Int64Value(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps)))
 	}
 	return requirements
 }
 
 func getOS(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []string {
 	if _, ok := amiFamily.(*amifamily.Windows); ok {
-		if getArchitecture(info) == corev1beta1.ArchitectureAmd64 {
+		if getArchitecture(info) == corev1.ArchitectureAmd64 {
 			return []string{string(v1.Windows)}
 		}
 		return []string{}
@@ -183,7 +183,7 @@ func getOS(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily) []string {
 
 func getArchitecture(info *ec2.InstanceTypeInfo) string {
 	for _, architecture := range info.ProcessorInfo.SupportedArchitectures {
-		if value, ok := v1beta1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {
+		if value, ok := providerv1.AWSToKubeArchitectures[aws.StringValue(architecture)]; ok {
 			return value
 		}
 	}
@@ -191,7 +191,7 @@ func getArchitecture(info *ec2.InstanceTypeInfo) string {
 }
 
 func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
-	blockDeviceMapping []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy,
+	blockDeviceMapping []*providerv1.BlockDeviceMapping, instanceStorePolicy *providerv1.InstanceStorePolicy,
 	maxPods *int32, podsPerCore *int32) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
@@ -199,12 +199,12 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		v1.ResourceMemory:           *memory(ctx, info),
 		v1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
 		v1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore),
-		v1beta1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
-		v1beta1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
-		v1beta1.ResourceAMDGPU:      *amdGPUs(info),
-		v1beta1.ResourceAWSNeuron:   *awsNeurons(info),
-		v1beta1.ResourceHabanaGaudi: *habanaGaudis(info),
-		v1beta1.ResourceEFA:         *efas(info),
+		providerv1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
+		providerv1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
+		providerv1.ResourceAMDGPU:      *amdGPUs(info),
+		providerv1.ResourceAWSNeuron:   *awsNeurons(info),
+		providerv1.ResourceHabanaGaudi: *habanaGaudis(info),
+		providerv1.ResourceEFA:         *efas(info),
 	}
 	return resourceList
 }
@@ -226,16 +226,16 @@ func memory(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity 
 }
 
 // Setting ephemeral-storage to be either the default value, what is defined in blockDeviceMappings, or the combined size of local store volumes.
-func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, blockDeviceMappings []*v1beta1.BlockDeviceMapping, instanceStorePolicy *v1beta1.InstanceStorePolicy) *resource.Quantity {
+func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily, blockDeviceMappings []*providerv1.BlockDeviceMapping, instanceStorePolicy *providerv1.InstanceStorePolicy) *resource.Quantity {
 	// If local store disks have been configured for node ephemeral-storage, use the total size of the disks.
-	if lo.FromPtr(instanceStorePolicy) == v1beta1.InstanceStorePolicyRAID0 {
+	if lo.FromPtr(instanceStorePolicy) == providerv1.InstanceStorePolicyRAID0 {
 		if info.InstanceStorageInfo != nil && info.InstanceStorageInfo.TotalSizeInGB != nil {
 			return resources.Quantity(fmt.Sprintf("%dG", *info.InstanceStorageInfo.TotalSizeInGB))
 		}
 	}
 	if len(blockDeviceMappings) != 0 {
 		// First check if there's a root volume configured in blockDeviceMappings.
-		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+		if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *providerv1.BlockDeviceMapping) bool {
 			return bdm.RootVolume
 		}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 			return blockDeviceMapping.EBS.VolumeSize
@@ -247,7 +247,7 @@ func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 			return lo.Ternary(volumeSize != nil, volumeSize, amifamily.DefaultEBS.VolumeSize)
 		default:
 			// If a block device mapping exists in the provider for the root volume, use the volume size specified in the provider. If not, use the default
-			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping) bool {
+			if blockDeviceMapping, ok := lo.Find(blockDeviceMappings, func(bdm *providerv1.BlockDeviceMapping) bool {
 				return *bdm.DeviceName == *amiFamily.EphemeralBlockDevice()
 			}); ok && blockDeviceMapping.EBS.VolumeSize != nil {
 				return blockDeviceMapping.EBS.VolumeSize
@@ -255,7 +255,7 @@ func ephemeralStorage(info *ec2.InstanceTypeInfo, amiFamily amifamily.AMIFamily,
 		}
 	}
 	//Return the ephemeralBlockDevice size if defined in ami
-	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *v1beta1.BlockDeviceMapping) bool {
+	if ephemeralBlockDevice, ok := lo.Find(amiFamily.DefaultBlockDeviceMappings(), func(item *providerv1.BlockDeviceMapping) bool {
 		return *amiFamily.EphemeralBlockDevice() == *item.DeviceName
 	}); ok {
 		return ephemeralBlockDevice.EBS.VolumeSize
@@ -470,7 +470,7 @@ func mustParsePercentage(v string) float64 {
 		panic(fmt.Sprintf("expected percentage value to be a float but got %s, %v", v, err))
 	}
 	// Setting percentage value to 100% is considered disabling the threshold according to
-	// https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/
+	// https://kubernetes.io/docs/reference/config-api/kubelet-config.providerv1/
 	if p == 100 {
 		p = 0
 	}

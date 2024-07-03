@@ -27,14 +27,14 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -78,35 +78,35 @@ var _ = BeforeEach(func() {
 })
 
 var _ = Describe("InstanceProvider", func() {
-	var nodeClass *v1beta1.EC2NodeClass
-	var nodePool *corev1beta1.NodePool
-	var nodeClaim *corev1beta1.NodeClaim
+	var nodeClass *providerv1.EC2NodeClass
+	var nodePool *corev1.NodePool
+	var nodeClaim *corev1.NodeClaim
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass()
-		nodePool = coretest.NodePool(corev1beta1.NodePool{
-			Spec: corev1beta1.NodePoolSpec{
-				Template: corev1beta1.NodeClaimTemplate{
-					Spec: corev1beta1.NodeClaimSpec{
-						NodeClassRef: &corev1beta1.NodeClassReference{
-							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-							Kind:       object.GVK(nodeClass).Kind,
-							Name:       nodeClass.Name,
+		nodePool = coretest.NodePool(corev1.NodePool{
+			Spec: corev1.NodePoolSpec{
+				Template: corev1.NodeClaimTemplate{
+					Spec: corev1.NodeClaimSpec{
+						NodeClassRef: &corev1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
 						},
 					},
 				},
 			},
 		})
-		nodeClaim = coretest.NodeClaim(corev1beta1.NodeClaim{
+		nodeClaim = coretest.NodeClaim(corev1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					corev1beta1.NodePoolLabelKey: nodePool.Name,
+					corev1.NodePoolLabelKey: nodePool.Name,
 				},
 			},
-			Spec: corev1beta1.NodeClaimSpec{
-				NodeClassRef: &corev1beta1.NodeClassReference{
-					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-					Kind:       object.GVK(nodeClass).Kind,
-					Name:       nodeClass.Name,
+			Spec: corev1.NodeClaimSpec{
+				NodeClassRef: &corev1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
 				},
 			},
 		})
@@ -119,10 +119,10 @@ var _ = Describe("InstanceProvider", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{
-			{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
-			{CapacityType: corev1beta1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
-			{CapacityType: corev1beta1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
-			{CapacityType: corev1beta1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
+			{CapacityType: corev1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+			{CapacityType: corev1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
+			{CapacityType: corev1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+			{CapacityType: corev1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
 		})
 		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 		Expect(err).ToNot(HaveOccurred())
@@ -152,15 +152,15 @@ var _ = Describe("InstanceProvider", func() {
 							Value: aws.String("owned"),
 						},
 						{
-							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Key:   aws.String(corev1.NodePoolLabelKey),
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(v1beta1.LabelNodeClass),
+							Key:   aws.String(providerv1.LabelNodeClass),
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+							Key:   aws.String(corev1.ManagedByAnnotationKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},

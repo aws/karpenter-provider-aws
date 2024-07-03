@@ -24,7 +24,7 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
 )
 
@@ -32,7 +32,7 @@ type SecurityGroup struct {
 	securityGroupProvider securitygroup.Provider
 }
 
-func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (reconcile.Result, error) {
 	securityGroups, err := sg.securityGroupProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting security groups, %w", err)
@@ -44,8 +44,8 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2No
 	sort.Slice(securityGroups, func(i, j int) bool {
 		return *securityGroups[i].GroupId < *securityGroups[j].GroupId
 	})
-	nodeClass.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup *ec2.SecurityGroup, _ int) v1beta1.SecurityGroup {
-		return v1beta1.SecurityGroup{
+	nodeClass.Status.SecurityGroups = lo.Map(securityGroups, func(securityGroup *ec2.SecurityGroup, _ int) providerv1.SecurityGroup {
+		return providerv1.SecurityGroup{
 			ID:   *securityGroup.GroupId,
 			Name: *securityGroup.GroupName,
 		}

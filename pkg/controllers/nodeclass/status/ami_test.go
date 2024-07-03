@@ -22,9 +22,9 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -34,19 +34,19 @@ import (
 
 var _ = Describe("NodeClass AMI Status Controller", func() {
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-			Spec: v1beta1.EC2NodeClassSpec{
-				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+		nodeClass = test.EC2NodeClass(providerv1.EC2NodeClass{
+			Spec: providerv1.EC2NodeClassSpec{
+				SubnetSelectorTerms: []providerv1.SubnetSelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
 				},
-				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+				SecurityGroupSelectorTerms: []providerv1.SecurityGroupSelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
 				},
-				AMISelectorTerms: []v1beta1.AMISelectorTerm{
+				AMISelectorTerms: []providerv1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
@@ -94,7 +94,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):                                                      "ami-id-123",
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):                                                  "ami-id-456",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", corev1beta1.ArchitectureArm64)): "ami-id-789",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", corev1.ArchitectureArm64)): "ami-id-789",
 		}
 
 		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
@@ -135,7 +135,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.AMIs).To(Equal([]v1beta1.AMI{
+		Expect(nodeClass.Status.AMIs).To(Equal([]providerv1.AMI{
 			{
 				Name: "test-ami-3",
 				ID:   "ami-id-789",
@@ -143,14 +143,14 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					{
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1beta1.ArchitectureArm64},
+						Values:   []string{corev1.ArchitectureArm64},
 					},
 					{
-						Key:      v1beta1.LabelInstanceGPUCount,
+						Key:      providerv1.LabelInstanceGPUCount,
 						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 					{
-						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Key:      providerv1.LabelInstanceAcceleratorCount,
 						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 				},
@@ -162,10 +162,10 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					{
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1beta1.ArchitectureAmd64},
+						Values:   []string{corev1.ArchitectureAmd64},
 					},
 					{
-						Key:      v1beta1.LabelInstanceGPUCount,
+						Key:      providerv1.LabelInstanceGPUCount,
 						Operator: v1.NodeSelectorOpExists,
 					},
 				},
@@ -177,10 +177,10 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					{
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1beta1.ArchitectureAmd64},
+						Values:   []string{corev1.ArchitectureAmd64},
 					},
 					{
-						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Key:      providerv1.LabelInstanceAcceleratorCount,
 						Operator: v1.NodeSelectorOpExists,
 					},
 				},
@@ -192,14 +192,14 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					{
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1beta1.ArchitectureAmd64},
+						Values:   []string{corev1.ArchitectureAmd64},
 					},
 					{
-						Key:      v1beta1.LabelInstanceGPUCount,
+						Key:      providerv1.LabelInstanceGPUCount,
 						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 					{
-						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Key:      providerv1.LabelInstanceAcceleratorCount,
 						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 				},
@@ -213,7 +213,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version): "ami-id-123",
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/latest/image_id", version):  "ami-id-456",
 		}
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
 		nodeClass.Spec.AMISelectorTerms = nil
 		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 			Images: []*ec2.Image{
@@ -243,7 +243,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		Expect(nodeClass.Status.AMIs).To(Equal([]v1beta1.AMI{
+		Expect(nodeClass.Status.AMIs).To(Equal([]providerv1.AMI{
 			{
 				Name: "test-ami-2",
 				ID:   "ami-id-456",
@@ -251,14 +251,14 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					{
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1beta1.ArchitectureArm64},
+						Values:   []string{corev1.ArchitectureArm64},
 					},
 					{
-						Key:      v1beta1.LabelInstanceGPUCount,
+						Key:      providerv1.LabelInstanceGPUCount,
 						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 					{
-						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Key:      providerv1.LabelInstanceAcceleratorCount,
 						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 				},
@@ -270,14 +270,14 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 					{
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1beta1.ArchitectureAmd64},
+						Values:   []string{corev1.ArchitectureAmd64},
 					},
 					{
-						Key:      v1beta1.LabelInstanceGPUCount,
+						Key:      providerv1.LabelInstanceGPUCount,
 						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 					{
-						Key:      v1beta1.LabelInstanceAcceleratorCount,
+						Key:      providerv1.LabelInstanceAcceleratorCount,
 						Operator: v1.NodeSelectorOpDoesNotExist,
 					},
 				},
@@ -289,14 +289,14 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.AMIs).To(Equal(
-			[]v1beta1.AMI{
+			[]providerv1.AMI{
 				{
 					Name: "test-ami-3",
 					ID:   "ami-test3",
 					Requirements: []v1.NodeSelectorRequirement{{
 						Key:      v1.LabelArchStable,
 						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1beta1.ArchitectureAmd64},
+						Values:   []string{corev1.ArchitectureAmd64},
 					},
 					},
 				},

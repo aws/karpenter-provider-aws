@@ -20,7 +20,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/test"
 )
@@ -37,19 +37,19 @@ type CloudProvider struct {
 	ValidAMIs     []string
 }
 
-func (c *CloudProvider) Create(_ context.Context, _ *v1beta1.NodeClaim) (*v1beta1.NodeClaim, error) {
+func (c *CloudProvider) Create(_ context.Context, _ *corev1.NodeClaim) (*corev1.NodeClaim, error) {
 	name := test.RandomName()
-	return &v1beta1.NodeClaim{
+	return &corev1.NodeClaim{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: name,
 		},
-		Status: v1beta1.NodeClaimStatus{
+		Status: corev1.NodeClaimStatus{
 			ProviderID: RandomProviderID(),
 		},
 	}, nil
 }
 
-func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1beta1.NodePool) ([]*corecloudprovider.InstanceType, error) {
+func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *corev1.NodePool) ([]*corecloudprovider.InstanceType, error) {
 	if c.InstanceTypes != nil {
 		return c.InstanceTypes, nil
 	}
@@ -58,19 +58,19 @@ func (c *CloudProvider) GetInstanceTypes(_ context.Context, _ *v1beta1.NodePool)
 	}, nil
 }
 
-func (c *CloudProvider) IsDrifted(_ context.Context, nodeClaim *v1beta1.NodeClaim) (corecloudprovider.DriftReason, error) {
+func (c *CloudProvider) IsDrifted(_ context.Context, nodeClaim *corev1.NodeClaim) (corecloudprovider.DriftReason, error) {
 	return "drifted", nil
 }
 
-func (c *CloudProvider) Get(context.Context, string) (*v1beta1.NodeClaim, error) {
+func (c *CloudProvider) Get(context.Context, string) (*corev1.NodeClaim, error) {
 	return nil, nil
 }
 
-func (c *CloudProvider) List(context.Context) ([]*v1beta1.NodeClaim, error) {
+func (c *CloudProvider) List(context.Context) ([]*corev1.NodeClaim, error) {
 	return nil, nil
 }
 
-func (c *CloudProvider) Delete(context.Context, *v1beta1.NodeClaim) error {
+func (c *CloudProvider) Delete(context.Context, *corev1.NodeClaim) error {
 	return nil
 }
 

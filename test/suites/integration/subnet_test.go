@@ -28,9 +28,9 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/awslabs/operatorpkg/test/expectations"
@@ -45,7 +45,7 @@ var _ = Describe("Subnets", func() {
 		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 		firstSubnet := subnets[shuffledAZs[0]][0]
 
-		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+		nodeClass.Spec.SubnetSelectorTerms = []providerv1.SubnetSelectorTerm{
 			{
 				ID: firstSubnet,
 			},
@@ -83,7 +83,7 @@ var _ = Describe("Subnets", func() {
 		firstSubnet := subnets[0]
 		lastSubnet := subnets[len(subnets)-1]
 
-		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+		nodeClass.Spec.SubnetSelectorTerms = []providerv1.SubnetSelectorTerm{
 			{
 				Tags: map[string]string{"Name": firstSubnet.Name},
 			},
@@ -105,7 +105,7 @@ var _ = Describe("Subnets", func() {
 		Expect(len(subnets)).ToNot(Equal(0))
 		shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+		test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1.LabelZoneFailureDomainStable,
 				Operator: "In",
@@ -128,7 +128,7 @@ var _ = Describe("Subnets", func() {
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 	})
 	It("should have the NodeClass status as not ready since subnets were not resolved", func() {
-		nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+		nodeClass.Spec.SubnetSelectorTerms = []providerv1.SubnetSelectorTerm{
 			{
 				Tags: map[string]string{"karpenter.sh/discovery": "invalidName"},
 			},
@@ -184,15 +184,15 @@ type SubnetInfo struct {
 	ID   string
 }
 
-func EventuallyExpectSubnets(env *aws.Environment, nodeClass *v1beta1.EC2NodeClass) {
+func EventuallyExpectSubnets(env *aws.Environment, nodeClass *providerv1.EC2NodeClass) {
 	subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 	Expect(subnets).ToNot(HaveLen(0))
 	ids := sets.New(lo.Flatten(lo.Values(subnets))...)
 
 	Eventually(func(g Gomega) {
-		temp := &v1beta1.EC2NodeClass{}
+		temp := &providerv1.EC2NodeClass{}
 		g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nodeClass), temp)).To(Succeed())
-		g.Expect(sets.New(lo.Map(temp.Status.Subnets, func(s v1beta1.Subnet, _ int) string {
+		g.Expect(sets.New(lo.Map(temp.Status.Subnets, func(s providerv1.Subnet, _ int) string {
 			return s.ID
 		})...).Equal(ids))
 	}).WithTimeout(10 * time.Second).Should(Succeed())

@@ -23,50 +23,50 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
-func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
-	options := v1beta1.EC2NodeClass{}
+func EC2NodeClass(overrides ...providerv1.EC2NodeClass) *providerv1.EC2NodeClass {
+	options := providerv1.EC2NodeClass{}
 	for _, override := range overrides {
 		if err := mergo.Merge(&options, override, mergo.WithOverride); err != nil {
 			panic(fmt.Sprintf("Failed to merge settings: %s", err))
 		}
 	}
 	if options.Spec.AMIFamily == nil {
-		options.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
-		options.Status.AMIs = []v1beta1.AMI{
+		options.Spec.AMIFamily = &providerv1.AMIFamilyAL2
+		options.Status.AMIs = []providerv1.AMI{
 			{
 				ID: "ami-test1",
 				Requirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
-					{Key: v1beta1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpDoesNotExist},
-					{Key: v1beta1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpDoesNotExist},
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
+					{Key: providerv1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpDoesNotExist},
+					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpDoesNotExist},
 				},
 			},
 			{
 				ID: "ami-test2",
 				Requirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
-					{Key: v1beta1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpExists},
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
+					{Key: providerv1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpExists},
 				},
 			},
 			{
 				ID: "ami-test3",
 				Requirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
-					{Key: v1beta1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpExists},
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
+					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpExists},
 				},
 			},
 			{
 				ID: "ami-test4",
 				Requirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
-					{Key: v1beta1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpDoesNotExist},
-					{Key: v1beta1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpDoesNotExist},
+					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureArm64}},
+					{Key: providerv1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpDoesNotExist},
+					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpDoesNotExist},
 				},
 			},
 		}
@@ -76,14 +76,14 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 		options.Status.InstanceProfile = "test-profile"
 	}
 	if len(options.Spec.SecurityGroupSelectorTerms) == 0 {
-		options.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		options.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{
 					"*": "*",
 				},
 			},
 		}
-		options.Status.SecurityGroups = []v1beta1.SecurityGroup{
+		options.Status.SecurityGroups = []providerv1.SecurityGroup{
 			{
 				ID: "sg-test1",
 			},
@@ -96,14 +96,14 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 		}
 	}
 	if len(options.Spec.SubnetSelectorTerms) == 0 {
-		options.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+		options.Spec.SubnetSelectorTerms = []providerv1.SubnetSelectorTerm{
 			{
 				Tags: map[string]string{
 					"*": "*",
 				},
 			},
 		}
-		options.Status.Subnets = []v1beta1.Subnet{
+		options.Status.Subnets = []providerv1.Subnet{
 			{
 				ID:     "subnet-test1",
 				Zone:   "test-zone-1a",
@@ -121,7 +121,7 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 			},
 		}
 	}
-	return &v1beta1.EC2NodeClass{
+	return &providerv1.EC2NodeClass{
 		ObjectMeta: test.ObjectMeta(options.ObjectMeta),
 		Spec:       options.Spec,
 		Status:     options.Status,
@@ -130,8 +130,8 @@ func EC2NodeClass(overrides ...v1beta1.EC2NodeClass) *v1beta1.EC2NodeClass {
 
 func EC2NodeClassFieldIndexer(ctx context.Context) func(cache.Cache) error {
 	return func(c cache.Cache) error {
-		return c.IndexField(ctx, &corev1beta1.NodeClaim{}, "spec.nodeClassRef.name", func(obj client.Object) []string {
-			nc := obj.(*corev1beta1.NodeClaim)
+		return c.IndexField(ctx, &corev1.NodeClaim{}, "spec.nodeClassRef.name", func(obj client.Object) []string {
+			nc := obj.(*corev1.NodeClaim)
 			if nc.Spec.NodeClassRef == nil {
 				return []string{""}
 			}

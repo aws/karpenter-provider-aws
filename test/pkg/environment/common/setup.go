@@ -31,11 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -53,12 +53,12 @@ var (
 		&v1.PersistentVolumeClaim{},
 		&v1.PersistentVolume{},
 		&storagev1.StorageClass{},
-		&corev1beta1.NodePool{},
+		&corev1.NodePool{},
 		&v1.LimitRange{},
 		&schedulingv1.PriorityClass{},
 		&v1.Node{},
-		&corev1beta1.NodeClaim{},
-		&v1beta1.EC2NodeClass{},
+		&corev1.NodeClaim{},
+		&providerv1.EC2NodeClass{},
 	}
 )
 
@@ -89,7 +89,7 @@ func (env *Environment) ExpectCleanCluster() {
 		Expect(pods.Items[i].Namespace).ToNot(Equal("default"),
 			fmt.Sprintf("expected no pods in the `default` namespace, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
 	}
-	for _, obj := range []client.Object{&corev1beta1.NodePool{}, &v1beta1.EC2NodeClass{}} {
+	for _, obj := range []client.Object{&corev1.NodePool{}, &providerv1.EC2NodeClass{}} {
 		metaList := &metav1.PartialObjectMetadataList{}
 		gvk := lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme()))
 		metaList.SetGroupVersionKind(gvk)

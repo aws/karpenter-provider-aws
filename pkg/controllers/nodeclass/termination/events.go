@@ -21,11 +21,11 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/events"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
-func WaitingOnNodeClaimTerminationEvent(nodeClass *v1beta1.EC2NodeClass, names []string) events.Event {
+func WaitingOnNodeClaimTerminationEvent(nodeClass *providerv1.EC2NodeClass, names []string) events.Event {
 	return events.Event{
 		InvolvedObject: nodeClass,
 		Type:           v1.EventTypeNormal,

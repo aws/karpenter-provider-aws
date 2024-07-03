@@ -23,10 +23,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -34,8 +34,8 @@ import (
 )
 
 var env *aws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *providerv1.EC2NodeClass
+var nodePool *corev1.NodePool
 
 func TestLocalZone(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -53,9 +53,9 @@ var _ = BeforeEach(func() {
 	nodeClass = env.DefaultEC2NodeClass()
 	// The majority of local zones do not support GP3. Feature support in local zones can be tracked here:
 	// https://aws.amazon.com/about-aws/global-infrastructure/localzones/features/
-	nodeClass.Spec.BlockDeviceMappings = append(nodeClass.Spec.BlockDeviceMappings, &v1beta1.BlockDeviceMapping{
+	nodeClass.Spec.BlockDeviceMappings = append(nodeClass.Spec.BlockDeviceMappings, &providerv1.BlockDeviceMapping{
 		DeviceName: lo.ToPtr("/dev/xvda"),
-		EBS: &v1beta1.BlockDevice{
+		EBS: &providerv1.BlockDevice{
 			VolumeSize: func() *resource.Quantity {
 				quantity, err := resource.ParseQuantity("80Gi")
 				Expect(err).To(BeNil())
@@ -66,7 +66,7 @@ var _ = BeforeEach(func() {
 		},
 	})
 	nodePool = env.DefaultNodePool(nodeClass)
-	nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithMinValues{
+	nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1.NodeSelectorRequirementWithMinValues{
 		NodeSelectorRequirement: v1.NodeSelectorRequirement{
 			Key:      v1.LabelTopologyZone,
 			Operator: v1.NodeSelectorOpIn,

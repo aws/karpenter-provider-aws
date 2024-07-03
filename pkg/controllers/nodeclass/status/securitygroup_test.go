@@ -17,7 +17,7 @@ package status_test
 import (
 	"github.com/awslabs/operatorpkg/status"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -27,19 +27,19 @@ import (
 
 var _ = Describe("NodeClass Security Group Status Controller", func() {
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-			Spec: v1beta1.EC2NodeClassSpec{
-				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+		nodeClass = test.EC2NodeClass(providerv1.EC2NodeClass{
+			Spec: providerv1.EC2NodeClassSpec{
+				SubnetSelectorTerms: []providerv1.SubnetSelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
 				},
-				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+				SecurityGroupSelectorTerms: []providerv1.SecurityGroupSelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
 				},
-				AMISelectorTerms: []v1beta1.AMISelectorTerm{
+				AMISelectorTerms: []providerv1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
@@ -51,7 +51,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1beta1.SecurityGroup{
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]providerv1.SecurityGroup{
 			{
 				ID:   "sg-test1",
 				Name: "securityGroup-test1",
@@ -67,7 +67,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		}))
 	})
 	It("Should resolve a valid selectors for Security Groups by tags", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{"Name": "test-security-group-1"},
 			},
@@ -78,7 +78,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1beta1.SecurityGroup{
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]providerv1.SecurityGroup{
 			{
 				ID:   "sg-test1",
 				Name: "securityGroup-test1",
@@ -90,7 +90,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		}))
 	})
 	It("Should resolve a valid selectors for Security Groups by ids", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
 			{
 				ID: "sg-test1",
 			},
@@ -98,7 +98,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1beta1.SecurityGroup{
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]providerv1.SecurityGroup{
 			{
 				ID:   "sg-test1",
 				Name: "securityGroup-test1",
@@ -109,7 +109,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1beta1.SecurityGroup{
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]providerv1.SecurityGroup{
 			{
 				ID:   "sg-test1",
 				Name: "securityGroup-test1",
@@ -124,7 +124,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}))
 
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{"Name": "test-security-group-1"},
 			},
@@ -135,7 +135,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1beta1.SecurityGroup{
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]providerv1.SecurityGroup{
 			{
 				ID:   "sg-test1",
 				Name: "securityGroup-test1",
@@ -150,7 +150,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1beta1.SecurityGroup{
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]providerv1.SecurityGroup{
 			{
 				ID:   "sg-test1",
 				Name: "securityGroup-test1",
@@ -165,7 +165,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}))
 
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
 			{
 				ID: "sg-test1",
 			},
@@ -173,7 +173,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1beta1.SecurityGroup{
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]providerv1.SecurityGroup{
 			{
 				ID:   "sg-test1",
 				Name: "securityGroup-test1",
@@ -181,7 +181,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		}))
 	})
 	It("Should not resolve a invalid selectors for Security Groups", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{`foo`: `invalid`},
 			},
@@ -197,7 +197,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.SecurityGroups).To(Equal([]v1beta1.SecurityGroup{
+		Expect(nodeClass.Status.SecurityGroups).To(Equal([]providerv1.SecurityGroup{
 			{
 				ID:   "sg-test1",
 				Name: "securityGroup-test1",
@@ -212,7 +212,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 			},
 		}))
 
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{`foo`: `invalid`},
 			},

@@ -24,9 +24,9 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 )
 
@@ -34,7 +34,7 @@ type AMI struct {
 	amiProvider amifamily.Provider
 }
 
-func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (a *AMI) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (reconcile.Result, error) {
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
@@ -43,8 +43,8 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (r
 		nodeClass.Status.AMIs = nil
 		return reconcile.Result{}, nil
 	}
-	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1beta1.AMI {
-		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item corev1beta1.NodeSelectorRequirementWithMinValues, _ int) v1.NodeSelectorRequirement {
+	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) providerv1.AMI {
+		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item corev1.NodeSelectorRequirementWithMinValues, _ int) v1.NodeSelectorRequirement {
 			return item.NodeSelectorRequirement
 		})
 
@@ -54,7 +54,7 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (r
 			}
 			return reqs[i].Key < reqs[j].Key
 		})
-		return v1beta1.AMI{
+		return providerv1.AMI{
 			Name:         ami.Name,
 			ID:           ami.AmiID,
 			Requirements: reqs,

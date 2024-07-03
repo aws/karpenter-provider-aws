@@ -32,13 +32,13 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -47,7 +47,7 @@ import (
 var ctx context.Context
 var env *coretest.Environment
 var awsEnv *test.Environment
-var nodeClass *v1beta1.EC2NodeClass
+var nodeClass *providerv1.EC2NodeClass
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -132,7 +132,7 @@ var _ = Describe("AMIProvider", func() {
 		nodeClass = test.EC2NodeClass()
 	})
 	It("should succeed to resolve AMIs (AL2)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       amd64AMI,
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):   amd64NvidiaAMI,
@@ -143,7 +143,7 @@ var _ = Describe("AMIProvider", func() {
 		Expect(amis).To(HaveLen(4))
 	})
 	It("should succeed to resolve AMIs (AL2023)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2023
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): amd64AMI,
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version):  arm64AMI,
@@ -153,7 +153,7 @@ var _ = Describe("AMIProvider", func() {
 		Expect(amis).To(HaveLen(2))
 	})
 	It("should succeed to resolve AMIs (Bottlerocket)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version):        amd64AMI,
 			fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version): amd64NvidiaAMI,
@@ -165,7 +165,7 @@ var _ = Describe("AMIProvider", func() {
 		Expect(amis).To(HaveLen(6))
 	})
 	It("should succeed to resolve AMIs (Ubuntu)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyUbuntu
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/amd64/hvm/ebs-gp2/ami-id", version): amd64AMI,
 			fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
@@ -175,7 +175,7 @@ var _ = Describe("AMIProvider", func() {
 		Expect(amis).To(HaveLen(2))
 	})
 	It("should succeed to resolve AMIs (Windows2019)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2019
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyWindows2019
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", version): amd64AMI,
 		}
@@ -184,7 +184,7 @@ var _ = Describe("AMIProvider", func() {
 		Expect(amis).To(HaveLen(1))
 	})
 	It("should succeed to resolve AMIs (Windows2022)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyWindows2022
 		awsEnv.SSMAPI.Parameters = map[string]string{
 			fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", version): amd64AMI,
 		}
@@ -193,13 +193,13 @@ var _ = Describe("AMIProvider", func() {
 		Expect(amis).To(HaveLen(1))
 	})
 	It("should succeed to resolve AMIs (Custom)", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyCustom
 		amis, err := awsEnv.AMIProvider.List(ctx, nodeClass)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(amis).To(HaveLen(0))
 	})
 	It("should not cause data races when calling Get() simultaneously", func() {
-		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+		nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{
 			{
 				ID: "amd64-ami-id",
 			},
@@ -225,7 +225,7 @@ var _ = Describe("AMIProvider", func() {
 						AmiID:        "arm64-ami-id",
 						CreationDate: time.Time{}.Add(time.Minute).Format(time.RFC3339),
 						Requirements: scheduling.NewLabelRequirements(map[string]string{
-							v1.LabelArchStable: corev1beta1.ArchitectureArm64,
+							v1.LabelArchStable: corev1.ArchitectureArm64,
 						}),
 					},
 					{
@@ -233,7 +233,7 @@ var _ = Describe("AMIProvider", func() {
 						AmiID:        "amd64-ami-id",
 						CreationDate: time.Time{}.Format(time.RFC3339),
 						Requirements: scheduling.NewLabelRequirements(map[string]string{
-							v1.LabelArchStable: corev1beta1.ArchitectureAmd64,
+							v1.LabelArchStable: corev1.ArchitectureAmd64,
 						}),
 					},
 				}))
@@ -243,7 +243,7 @@ var _ = Describe("AMIProvider", func() {
 	})
 	Context("SSM Alias Missing", func() {
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Al2)", func() {
-			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
 			// No GPU AMI exists here
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):       amd64AMI,
@@ -255,7 +255,7 @@ var _ = Describe("AMIProvider", func() {
 			Expect(amis).To(HaveLen(2))
 		})
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (AL2023)", func() {
-			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2023
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version): amd64AMI,
 			}
@@ -264,7 +264,7 @@ var _ = Describe("AMIProvider", func() {
 			Expect(amis).To(HaveLen(1))
 		})
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Bottlerocket)", func() {
-			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
 			// No GPU AMI exists for AM64 here
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version):        amd64AMI,
@@ -277,7 +277,7 @@ var _ = Describe("AMIProvider", func() {
 			Expect(amis).To(HaveLen(4))
 		})
 		It("should succeed to partially resolve AMIs if all SSM aliases don't exist (Ubuntu)", func() {
-			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyUbuntu
 			// No AMD64 AMI exists here
 			awsEnv.SSMAPI.Parameters = map[string]string{
 				fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/arm64/hvm/ebs-gp2/ami-id", version): arm64AMI,
@@ -310,7 +310,7 @@ var _ = Describe("AMIProvider", func() {
 			})
 		})
 		It("should succeed to not resolve tags as requirements for NodeClasses", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+			nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{
 				{
 					Tags: map[string]string{"*": "*"},
 				},
@@ -323,7 +323,7 @@ var _ = Describe("AMIProvider", func() {
 				AmiID:        aws.StringValue(img.ImageId),
 				CreationDate: aws.StringValue(img.CreationDate),
 				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+					scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1.ArchitectureAmd64),
 				),
 			}))
 		})
@@ -332,7 +332,7 @@ var _ = Describe("AMIProvider", func() {
 		// When you tag public or shared resources, the tags you assign are available only to your AWS account; no other AWS account will have access to those tags
 		// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
 		It("should have empty owners and use tags when prefixes aren't set", func() {
-			amiSelectorTerms := []v1beta1.AMISelectorTerm{
+			amiSelectorTerms := []providerv1.AMISelectorTerm{
 				{
 					Tags: map[string]string{
 						"Name": "my-ami",
@@ -353,7 +353,7 @@ var _ = Describe("AMIProvider", func() {
 			}, filterAndOwnersSets)
 		})
 		It("should have default owners and use name when prefixed", func() {
-			amiSelectorTerms := []v1beta1.AMISelectorTerm{
+			amiSelectorTerms := []providerv1.AMISelectorTerm{
 				{
 					Name: "my-ami",
 				},
@@ -375,7 +375,7 @@ var _ = Describe("AMIProvider", func() {
 			}, filterAndOwnersSets)
 		})
 		It("should not set owners when legacy ids are passed", func() {
-			amiSelectorTerms := []v1beta1.AMISelectorTerm{
+			amiSelectorTerms := []providerv1.AMISelectorTerm{
 				{
 					ID: "ami-abcd1234",
 				},
@@ -396,7 +396,7 @@ var _ = Describe("AMIProvider", func() {
 			}, filterAndOwnersSets)
 		})
 		It("should allow only specifying owners", func() {
-			amiSelectorTerms := []v1beta1.AMISelectorTerm{
+			amiSelectorTerms := []providerv1.AMISelectorTerm{
 				{
 					Owner: "abcdef",
 				},
@@ -415,7 +415,7 @@ var _ = Describe("AMIProvider", func() {
 			}, filterAndOwnersSets)
 		})
 		It("should allow prefixed name and prefixed owners", func() {
-			amiSelectorTerms := []v1beta1.AMISelectorTerm{
+			amiSelectorTerms := []providerv1.AMISelectorTerm{
 				{
 					Name:  "my-name",
 					Owner: "0123456789",

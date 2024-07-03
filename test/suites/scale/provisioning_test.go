@@ -25,10 +25,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
@@ -38,8 +38,8 @@ import (
 const testGroup = "provisioning"
 
 var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), func() {
-	var nodePool *corev1beta1.NodePool
-	var nodeClass *v1beta1.EC2NodeClass
+	var nodePool *corev1.NodePool
+	var nodeClass *providerv1.EC2NodeClass
 	var deployment *appsv1.Deployment
 	var selector labels.Selector
 	var dsCount int
@@ -48,9 +48,9 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
 		nodePool.Spec.Limits = nil
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+		test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceHypervisor,
+				Key:      providerv1.LabelInstanceHypervisor,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"nitro"},
 			}})
@@ -143,7 +143,7 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			},
 		}
 
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+		test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 			// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1.LabelInstanceTypeStable,
@@ -178,13 +178,13 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		expectedNodeCount := 60
 		replicas := replicasPerNode * expectedNodeCount
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+		nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 		}
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+		test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 			// With Prefix Delegation enabled, .large instances can have 434 pods.
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceSize,
+				Key:      providerv1.LabelInstanceSize,
 				Operator: v1.NodeSelectorOpIn,
 				Values:   []string{"large"},
 			},
@@ -217,19 +217,19 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		expectedNodeCount := 60
 		replicas := replicasPerNode * expectedNodeCount
 		deployment.Spec.Replicas = lo.ToPtr[int32](int32(replicas))
-		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+		nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 			MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 		}
 		test.ReplaceRequirements(nodePool,
-			corev1beta1.NodeSelectorRequirementWithMinValues{
+			corev1.NodeSelectorRequirementWithMinValues{
 				// With Prefix Delegation enabled, .large instances can have 434 pods.
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceSize,
+					Key:      providerv1.LabelInstanceSize,
 					Operator: v1.NodeSelectorOpIn,
 					Values:   []string{"large"},
 				},
 			},
-			corev1beta1.NodeSelectorRequirementWithMinValues{
+			corev1.NodeSelectorRequirementWithMinValues{
 				// minValues is restricted to 30 to have enough instance types to be sent to launch API and not make this test flaky.
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
 					Key:      v1.LabelInstanceTypeStable,

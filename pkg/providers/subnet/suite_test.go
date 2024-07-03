@@ -25,7 +25,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -42,7 +42,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var nodeClass *v1beta1.EC2NodeClass
+var nodeClass *v1.EC2NodeClass
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -66,17 +66,17 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-		Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily: aws.String(v1beta1.AMIFamilyAL2),
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+	nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
+		Spec: v1.EC2NodeClassSpec{
+			AMIFamily: aws.String(v1.AMIFamilyAL2),
+			SubnetSelectorTerms: []v1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{
 						"*": "*",
 					},
 				},
 			},
-			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+			SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
 				{
 					Tags: map[string]string{
 						"*": "*",
@@ -95,7 +95,7 @@ var _ = AfterEach(func() {
 var _ = Describe("SubnetProvider", func() {
 	Context("List", func() {
 		It("should discover subnet by ID", func() {
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
 					ID: "subnet-test1",
 				},
@@ -112,7 +112,7 @@ var _ = Describe("SubnetProvider", func() {
 			}, subnets)
 		})
 		It("should discover subnets by IDs", func() {
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
 					ID: "subnet-test1",
 				},
@@ -138,7 +138,7 @@ var _ = Describe("SubnetProvider", func() {
 			}, subnets)
 		})
 		It("should discover subnets by IDs and tags", func() {
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
 					ID:   "subnet-test1",
 					Tags: map[string]string{"foo": "bar"},
@@ -166,7 +166,7 @@ var _ = Describe("SubnetProvider", func() {
 			}, subnets)
 		})
 		It("should discover subnets by a single tag", func() {
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{"Name": "test-subnet-1"},
 				},
@@ -183,7 +183,7 @@ var _ = Describe("SubnetProvider", func() {
 			}, subnets)
 		})
 		It("should discover subnets by multiple tag values", func() {
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{"Name": "test-subnet-1"},
 				},
@@ -209,7 +209,7 @@ var _ = Describe("SubnetProvider", func() {
 			}, subnets)
 		})
 		It("should discover subnets by IDs intersected with tags", func() {
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 				{
 					ID:   "subnet-test2",
 					Tags: map[string]string{"foo": "bar"},
@@ -231,7 +231,7 @@ var _ = Describe("SubnetProvider", func() {
 		It("should resolve subnets from cache that are filtered by id", func() {
 			expectedSubnets := awsEnv.EC2API.DescribeSubnetsOutput.Clone().Subnets
 			for _, subnet := range expectedSubnets {
-				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+				nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 					{
 						ID: *subnet.SubnetId,
 					},
@@ -256,7 +256,7 @@ var _ = Describe("SubnetProvider", func() {
 				return map[string]string{"Name": lo.FromPtr(tag.Value)}
 			})
 			for _, tag := range tagSet {
-				nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{
+				nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 					{
 						Tags: tag,
 					},

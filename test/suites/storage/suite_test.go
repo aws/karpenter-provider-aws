@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	awssdk "github.com/aws/aws-sdk-go/aws"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -43,8 +43,8 @@ import (
 )
 
 var env *environmentaws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *providerv1.EC2NodeClass
+var nodePool *corev1.NodePool
 
 func TestStorage(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -238,7 +238,7 @@ var _ = Describe("Persistent Volumes", func() {
 
 var _ = Describe("Ephemeral Storage", func() {
 	It("should run a pod with instance-store ephemeral storage that exceeds EBS root block device mappings", func() {
-		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)
+		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(providerv1.InstanceStorePolicyRAID0)
 
 		pod := test.Pod(test.PodOptions{
 			ResourceRequirements: v1.ResourceRequirements{

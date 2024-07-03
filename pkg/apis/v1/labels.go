@@ -21,14 +21,14 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 )
 
 func init() {
-	v1beta1.RestrictedLabelDomains = v1beta1.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
-	v1beta1.WellKnownLabels = v1beta1.WellKnownLabels.Insert(
+	corev1.RestrictedLabelDomains = corev1.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
+	corev1.WellKnownLabels = corev1.WellKnownLabels.Insert(
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
@@ -56,12 +56,12 @@ func init() {
 var (
 	TerminationFinalizer   = apis.Group + "/termination"
 	AWSToKubeArchitectures = map[string]string{
-		"x86_64":                  v1beta1.ArchitectureAmd64,
-		v1beta1.ArchitectureArm64: v1beta1.ArchitectureArm64,
+		"x86_64":                  corev1.ArchitectureAmd64,
+		corev1.ArchitectureArm64: corev1.ArchitectureArm64,
 	}
 	WellKnownArchitectures = sets.NewString(
-		v1beta1.ArchitectureAmd64,
-		v1beta1.ArchitectureArm64,
+		corev1.ArchitectureAmd64,
+		corev1.ArchitectureArm64,
 	)
 	RestrictedLabelDomains = []string{
 		apis.Group,
@@ -70,8 +70,8 @@ var (
 		// Adheres to cluster name pattern matching as specified in the API spec
 		// https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateCluster.html
 		regexp.MustCompile(`^kubernetes\.io/cluster/[0-9A-Za-z][A-Za-z0-9\-_]*$`),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.NodePoolLabelKey))),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.ManagedByAnnotationKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(corev1.NodePoolLabelKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(corev1.ManagedByAnnotationKey))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(LabelNodeClass))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
 	}

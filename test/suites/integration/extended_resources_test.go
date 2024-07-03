@@ -28,12 +28,12 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 var _ = Describe("Extended Resources", func() {
@@ -45,7 +45,7 @@ var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
 		ExpectNvidiaDevicePluginCreated()
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -64,9 +64,9 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+		test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceCategory,
+				Key:      providerv1.LabelInstanceCategory,
 				Operator: v1.NodeSelectorOpExists,
 			},
 		})
@@ -77,7 +77,7 @@ var _ = Describe("Extended Resources", func() {
 	})
 	It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
 		// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -96,9 +96,9 @@ var _ = Describe("Extended Resources", func() {
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
+		test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1beta1.LabelInstanceCategory,
+				Key:      providerv1.LabelInstanceCategory,
 				Operator: v1.NodeSelectorOpExists,
 			}})
 		env.ExpectCreated(nodeClass, nodePool, dep)
@@ -144,8 +144,8 @@ var _ = Describe("Extended Resources", func() {
 		// We use a Custom AMI so that we can reboot after we start the kubelet service
 		rawContent, err := os.ReadFile("testdata/amd_driver_input.sh")
 		Expect(err).ToNot(HaveOccurred())
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyCustom
-		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyCustom
+		nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{
 			{
 				ID: customAMI,
 			},
@@ -184,7 +184,7 @@ var _ = Describe("Extended Resources", func() {
 		Skip("skipping test on an exotic instance type")
 		ExpectHabanaDevicePluginCreated()
 
-		nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{
+		nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{
 			{
 				ID: "ami-0fae925f94979981f",
 			},
@@ -228,7 +228,7 @@ var _ = Describe("Extended Resources", func() {
 		// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
 		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2
+		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
 
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{

@@ -17,12 +17,12 @@ package garbagecollection
 import (
 	"context"
 	"fmt"
+	"k8s.io/api/core/v1"
 	"time"
 
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -31,10 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	providerv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 type Controller struct {
@@ -61,10 +62,10 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
-	managedRetrieved := lo.Filter(retrieved, func(nc *v1beta1.NodeClaim, _ int) bool {
-		return nc.Annotations[v1beta1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
+	managedRetrieved := lo.Filter(retrieved, func(nc *corev1.NodeClaim, _ int) bool {
+		return nc.Annotations[providerv1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
 	})
-	nodeClaimList := &v1beta1.NodeClaimList{}
+	nodeClaimList := &providerv1.NodeClaimList{}
 	if err = c.kubeClient.List(ctx, nodeClaimList); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -72,7 +73,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	if err = c.kubeClient.List(ctx, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
-	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n v1beta1.NodeClaim, _ int) (string, bool) {
+	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n providerv1.NodeClaim, _ int) (string, bool) {
 		return n.Status.ProviderID, n.Status.ProviderID != ""
 	})...)
 	errs := make([]error, len(retrieved))
@@ -89,7 +90,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	return reconcile.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, nil
 }
 
-func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.NodeClaim, nodeList *v1.NodeList) error {
+func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *corev1.NodeClaim, nodeList *v1.NodeList) error {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("provider-id", nodeClaim.Status.ProviderID))
 	if err := c.cloudProvider.Delete(ctx, nodeClaim); err != nil {
 		return cloudprovider.IgnoreNodeClaimNotFoundError(err)

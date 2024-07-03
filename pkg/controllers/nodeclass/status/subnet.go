@@ -24,7 +24,7 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
@@ -32,7 +32,7 @@ type Subnet struct {
 	subnetProvider subnet.Provider
 }
 
-func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (s *Subnet) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (reconcile.Result, error) {
 	subnets, err := s.subnetProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting subnets, %w", err)
@@ -47,8 +47,8 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass)
 		}
 		return *subnets[i].SubnetId < *subnets[j].SubnetId
 	})
-	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1beta1.Subnet {
-		return v1beta1.Subnet{
+	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) providerv1.Subnet {
+		return providerv1.Subnet{
 			ID:     *ec2subnet.SubnetId,
 			Zone:   *ec2subnet.AvailabilityZone,
 			ZoneID: *ec2subnet.AvailabilityZoneId,

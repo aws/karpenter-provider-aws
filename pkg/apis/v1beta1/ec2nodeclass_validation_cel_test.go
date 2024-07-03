@@ -18,10 +18,11 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-provider-aws/pkg/test"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -34,7 +35,27 @@ var _ = Describe("CEL/Validation", func() {
 		if env.Version.Minor() < 25 {
 			Skip("CEL Validation is for 1.25>")
 		}
-		nc = test.EC2NodeClass()
+		nc = &v1beta1.EC2NodeClass{
+			ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
+			Spec: v1beta1.EC2NodeClassSpec{
+				AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+				Role:      "role-1",
+				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+					{
+						Tags: map[string]string{
+							"*": "*",
+						},
+					},
+				},
+				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+					{
+						Tags: map[string]string{
+							"*": "*",
+						},
+					},
+				},
+			},
+		}
 	})
 	It("should succeed if just specifying role", func() {
 		Expect(env.Client.Create(ctx, nc)).To(Succeed())
@@ -494,8 +515,25 @@ var _ = Describe("CEL/Validation", func() {
 	})
 	Context("BlockDeviceMappings", func() {
 		It("should succeed if more than one root volume is specified", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := &v1beta1.EC2NodeClass{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1beta1.EC2NodeClassSpec{
+					AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+					Role:      "role-1",
+					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
+					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -515,12 +553,29 @@ var _ = Describe("CEL/Validation", func() {
 						},
 					},
 				},
-			})
+			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 		It("should succeed for valid VolumeSize in G", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := &v1beta1.EC2NodeClass{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1beta1.EC2NodeClassSpec{
+					AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+					Role:      "role-1",
+					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
+					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -531,12 +586,29 @@ var _ = Describe("CEL/Validation", func() {
 						},
 					},
 				},
-			})
+			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 		It("should succeed for valid VolumeSize in T", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := &v1beta1.EC2NodeClass{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1beta1.EC2NodeClassSpec{
+					AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+					Role:      "role-1",
+					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
+					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -547,12 +619,29 @@ var _ = Describe("CEL/Validation", func() {
 						},
 					},
 				},
-			})
+			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 		It("should fail if more than one root volume is specified", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := &v1beta1.EC2NodeClass{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1beta1.EC2NodeClassSpec{
+					AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+					Role:      "role-1",
+					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
+					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -570,12 +659,29 @@ var _ = Describe("CEL/Validation", func() {
 						},
 					},
 				},
-			})
+			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 		It("should fail VolumeSize is less then 1Gi/1G", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := &v1beta1.EC2NodeClass{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1beta1.EC2NodeClassSpec{
+					AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+					Role:      "role-1",
+					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
+					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -586,12 +692,29 @@ var _ = Describe("CEL/Validation", func() {
 						},
 					},
 				},
-			})
+			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 		It("should fail VolumeSize is greater then 64T", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := &v1beta1.EC2NodeClass{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1beta1.EC2NodeClassSpec{
+					AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+					Role:      "role-1",
+					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
+					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -602,12 +725,29 @@ var _ = Describe("CEL/Validation", func() {
 						},
 					},
 				},
-			})
+			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 		It("should fail for VolumeSize that do not parse into quantity values", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := &v1beta1.EC2NodeClass{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1beta1.EC2NodeClassSpec{
+					AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+					Role:      "role-1",
+					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
+					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -618,7 +758,7 @@ var _ = Describe("CEL/Validation", func() {
 						},
 					},
 				},
-			})
+			}
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 	})

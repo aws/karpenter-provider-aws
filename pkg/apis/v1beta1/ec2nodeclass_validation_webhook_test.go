@@ -17,12 +17,13 @@ package v1beta1_test
 import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/apis"
 
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
-	"github.com/aws/karpenter-provider-aws/pkg/test"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,7 +33,27 @@ var _ = Describe("Webhook/Validation", func() {
 	var nc *v1beta1.EC2NodeClass
 
 	BeforeEach(func() {
-		nc = test.EC2NodeClass()
+		nc = &v1beta1.EC2NodeClass{
+			ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
+			Spec: v1beta1.EC2NodeClassSpec{
+				AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+				Role:      "role-1",
+				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+					{
+						Tags: map[string]string{
+							"*": "*",
+						},
+					},
+				},
+				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+					{
+						Tags: map[string]string{
+							"*": "*",
+						},
+					},
+				},
+			},
+		}
 	})
 	It("should succeed if just specifying role", func() {
 		Expect(nc.Validate(ctx)).To(Succeed())
@@ -467,8 +488,25 @@ var _ = Describe("Webhook/Validation", func() {
 	})
 	Context("BlockDeviceMappings", func() {
 		It("should fail if more than one root volume is specified", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := &v1beta1.EC2NodeClass{
+				ObjectMeta: coretest.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1beta1.EC2NodeClassSpec{
+					AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
+					Role:      "role-1",
+					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
+					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+						{
+							Tags: map[string]string{
+								"*": "*",
+							},
+						},
+					},
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
 							DeviceName: aws.String("map-device-1"),
@@ -488,7 +526,7 @@ var _ = Describe("Webhook/Validation", func() {
 						},
 					},
 				},
-			})
+			}
 			Expect(nodeClass.Validate(ctx)).To(Not(Succeed()))
 		})
 	})
