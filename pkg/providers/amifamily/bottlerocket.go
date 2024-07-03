@@ -15,20 +15,24 @@ limitations under the License.
 package amifamily
 
 import (
+	"context"
 	"fmt"
+	"strings"
 
 	"github.com/samber/lo"
 
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go/aws"
 	corev1 "k8s.io/api/core/v1"
+	"github.com/aws/aws-sdk-go/service/ec2"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -37,54 +41,37 @@ type Bottlerocket struct {
 	*Options
 }
 
-// DefaultAMIs returns the AMI name, and Requirements, with an SSM query
-func (b Bottlerocket) DefaultAMIs(version string) []DefaultAMIOutput {
-	return []DefaultAMIOutput{
-		{
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/latest/image_id", version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
-				scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
-				scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
-				scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpExists),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/latest/image_id", version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
-				scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpExists),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/%s/latest/image_id", version, karpv1.ArchitectureArm64),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
-				scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpDoesNotExist),
-				scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpDoesNotExist),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/%s/latest/image_id", version, karpv1.ArchitectureArm64),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
-				scheduling.NewRequirement(v1.LabelInstanceGPUCount, corev1.NodeSelectorOpExists),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/%s/latest/image_id", version, karpv1.ArchitectureArm64),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
-				scheduling.NewRequirement(v1.LabelInstanceAcceleratorCount, corev1.NodeSelectorOpExists),
-			),
-		},
+func (b Bottlerocket) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (AMIQuery, error) {
+	query := AMIQuery{
+		Filters: []*ec2.Filter{&ec2.Filter{
+			Name: lo.ToPtr("image-id"),
+		}},
+		KnownRequirements: make(map[string][]scheduling.Requirements),
 	}
+	for rootPath, variants := range map[string][]Variant{
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s", k8sVersion):        []Variant{VariantStandard},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia", k8sVersion): []Variant{VariantNeuron, VariantNvidia},
+	} {
+		results, err := ssmProvider.List(ctx, rootPath)
+		if err != nil {
+			log.FromContext(ctx).WithValues("path", rootPath).Error(err, "discovering AMIs from ssm")
+			continue
+		}
+		for path, value := range results {
+			pathComponents := strings.Split(path, "/")
+			// Only select image_id paths which match the desired AMI version
+			if len(pathComponents) != 8 || pathComponents[7] != "image_id" || pathComponents[6] != amiVersion {
+				continue
+			}
+			query.Filters[0].Values = append(query.Filters[0].Values, lo.ToPtr(value))
+			query.KnownRequirements[value] = lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
+		}
+	}
+	// Failed to discover any AMIs, we should short circuit AMI discovery
+	if len(query.Filters[0].Values) == 0 {
+		return AMIQuery{}, fmt.Errorf("failed to discover any AMIs for alias")
+	}
+	return query, nil
 }
 
 // UserData returns the default userdata script for the AMI Family

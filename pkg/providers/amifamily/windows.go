@@ -15,9 +15,11 @@ limitations under the License.
 package amifamily
 
 import (
+	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -26,8 +28,10 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 
 	corev1 "k8s.io/api/core/v1"
 
@@ -41,17 +45,41 @@ type Windows struct {
 	Build   string
 }
 
-func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
-	return []DefaultAMIOutput{
-		{
-			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1.WindowsCore, version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
-				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)),
-				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpIn, w.Build),
-			),
-		},
+func (w Windows) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (AMIQuery, error) {
+	query := AMIQuery{
+		Filters: []*ec2.Filter{&ec2.Filter{
+			Name: lo.ToPtr("image-id"),
+		}},
+		KnownRequirements: make(map[string][]scheduling.Requirements),
 	}
+	// SSM aliases are only maintained for the latest Windows AMI releases
+	if amiVersion != AMIVersionLatest {
+		return AMIQuery{}, fmt.Errorf("discovering AMIs for alias, %q is an invalid version for Windows", amiVersion)
+	}
+	results, err := ssmProvider.List(ctx, "/aws/service/ami-windows-latest")
+	if err != nil {
+		return AMIQuery{}, fmt.Errorf("discovering AMIs from ssm")
+	}
+	for path, value := range results {
+		pathComponents := strings.Split(path, "/")
+		if len(pathComponents) != 6 {
+			continue
+		}
+		matches := regexp.MustCompile(`^Windows_Server-(\d+)-English-Core-EKS_Optimized-(\d\.\d+)$`).FindStringSubmatch(pathComponents[4])
+		if len(matches) != 3 || matches[1] != w.Version || matches[2] != k8sVersion {
+			continue
+		}
+		query.Filters[0].Values = append(query.Filters[0].Values, lo.ToPtr(value))
+		query.KnownRequirements[value] = []scheduling.Requirements{scheduling.NewRequirements(
+			scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)),
+			scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpIn, w.Build),
+		)}
+	}
+	// Failed to discover any AMIs, we should short circuit AMI discovery
+	if len(query.Filters[0].Values) == 0 {
+		return AMIQuery{}, fmt.Errorf("failed to discover any AMIs for alias")
+	}
+	return query, nil
 }
 
 // UserData returns the default userdata script for the AMI Family
