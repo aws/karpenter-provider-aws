@@ -12,10 +12,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package status_test
+package ami
 
 import (
 	"fmt"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -27,10 +30,53 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
+	"context"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
+	"testing"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis"
+	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
+
+var ctx context.Context
+var env *coretest.Environment
+var awsEnv *test.Environment
+var nodeClass *v1beta1.EC2NodeClass
+var amiController *Controller
+
+func TestAPIs(t *testing.T) {
+	ctx = TestContextWithLogger(t)
+	RegisterFailHandler(Fail)
+	RunSpecs(t, "EC2NodeClass")
+}
+
+var _ = BeforeSuite(func() {
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithFieldIndexers(test.EC2NodeClassFieldIndexer(ctx)))
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	ctx = options.ToContext(ctx, test.Options())
+	awsEnv = test.NewEnvironment(ctx, env)
+
+	amiController = NewController(
+		env.Client,
+		awsEnv.AMIProvider,
+	)
+})
+
+var _ = AfterSuite(func() {
+	Expect(env.Stop()).To(Succeed(), "Failed to stop environment")
+})
+
+var _ = BeforeEach(func() {
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
+	nodeClass = test.EC2NodeClass()
+	awsEnv.Reset()
+})
+
+var _ = AfterEach(func() {
+	ExpectCleanedUp(ctx, env.Client)
+})
 
 var _ = Describe("NodeClass AMI Status Controller", func() {
 	BeforeEach(func() {
@@ -133,7 +179,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		})
 		nodeClass.Spec.AMISelectorTerms = nil
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, amiController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.AMIs).To(Equal([]v1beta1.AMI{
 			{
@@ -205,6 +251,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		}))
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
 	It("should resolve amiSelector AMis and requirements into status when all SSM aliases don't resolve", func() {
 		version := lo.Must(awsEnv.VersionProvider.Get(ctx))
@@ -240,7 +287,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 			},
 		})
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, amiController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		Expect(nodeClass.Status.AMIs).To(Equal([]v1beta1.AMI{
@@ -283,10 +330,11 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		}))
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
-	It("Should resolve a valid AMI selector", func() {
+	It("should resolve a valid AMI selector", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, amiController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.AMIs).To(Equal(
 			[]v1beta1.AMI{
@@ -302,5 +350,23 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		))
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
+	})
+	It("should fail to resolve AMI and have status condition set to false", func() {
+		awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
+			Images: []*ec2.Image{},
+		})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, amiController, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.Status.AMIs).To(BeNil())
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeFalse())
+	})
+	It("should get error when resolving AMIs and have status condition set to false", func() {
+		awsEnv.EC2API.NextError.Set(fmt.Errorf("unable to resolve AMI"))
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconcileFailed(ctx, env.Client, amiController, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeFalse())
 	})
 })

@@ -17,6 +17,10 @@ package cloudprovider_test
 import (
 	"context"
 	"fmt"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/ami"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/instance_profile"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/security_group"
+	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status/subnet"
 	"net"
 	"strings"
 	"testing"
@@ -40,7 +44,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -1109,9 +1112,11 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(100),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, subnet.NewController(env.Client, awsEnv.SubnetProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, ami.NewController(env.Client, awsEnv.AMIProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, instance_profile.NewController(env.Client, awsEnv.InstanceProfileProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, security_group.NewController(env.Client, awsEnv.SecurityGroupProvider), nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
@@ -1126,10 +1131,12 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(11),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(1)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, subnet.NewController(env.Client, awsEnv.SubnetProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, ami.NewController(env.Client, awsEnv.AMIProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, instance_profile.NewController(env.Client, awsEnv.InstanceProfileProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, security_group.NewController(env.Client, awsEnv.SecurityGroupProvider), nodeClass)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -1164,14 +1171,15 @@ var _ = Describe("CloudProvider", func() {
 			}})
 			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, subnet.NewController(env.Client, awsEnv.SubnetProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, ami.NewController(env.Client, awsEnv.AMIProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, instance_profile.NewController(env.Client, awsEnv.InstanceProfileProvider), nodeClass)
+			ExpectObjectReconciled(ctx, env.Client, security_group.NewController(env.Client, awsEnv.SecurityGroupProvider), nodeClass)
 			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
-
 			nodeClass2 := test.EC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
@@ -1208,7 +1216,10 @@ var _ = Describe("CloudProvider", func() {
 				},
 			})
 			ExpectApplied(ctx, env.Client, nodePool2, nodeClass2)
-			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass2)
+			ExpectObjectReconciled(ctx, env.Client, subnet.NewController(env.Client, awsEnv.SubnetProvider), nodeClass2)
+			ExpectObjectReconciled(ctx, env.Client, ami.NewController(env.Client, awsEnv.AMIProvider), nodeClass2)
+			ExpectObjectReconciled(ctx, env.Client, instance_profile.NewController(env.Client, awsEnv.InstanceProfileProvider), nodeClass2)
+			ExpectObjectReconciled(ctx, env.Client, security_group.NewController(env.Client, awsEnv.SecurityGroupProvider), nodeClass2)
 			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1beta1.NodePoolLabelKey: nodePool2.Name}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)
