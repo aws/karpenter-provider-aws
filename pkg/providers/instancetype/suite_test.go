@@ -20,6 +20,7 @@ import (
 	"math"
 	"net"
 	"reflect"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"sort"
 	"strings"
 	"sync"

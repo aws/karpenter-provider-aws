@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"strconv"
 	"strings"
 	"testing"

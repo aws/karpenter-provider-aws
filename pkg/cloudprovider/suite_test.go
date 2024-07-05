@@ -24,6 +24,8 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
+
 	"github.com/awslabs/operatorpkg/object"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
@@ -55,7 +57,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
-	karptest "sigs.k8s.io/karpenter/pkg/test"
+	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -65,7 +67,7 @@ import (
 
 var ctx context.Context
 var stop context.CancelFunc
-var env *karptest.Environment
+var env *coretest.Environment
 var awsEnv *test.Environment
 var prov *provisioning.Provisioner
 var cloudProvider *cloudprovider.CloudProvider
@@ -80,8 +82,8 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = karptest.NewEnvironment(karptest.WithCRDs(apis.CRDs...), karptest.WithCRDs(v1alpha1.CRDs...))
-	ctx = coreoptions.ToContext(ctx, karptest.Options())
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
 	awsEnv = test.NewEnvironment(ctx, env)
@@ -99,7 +101,7 @@ var _ = AfterSuite(func() {
 })
 
 var _ = BeforeEach(func() {
-	ctx = coreoptions.ToContext(ctx, karptest.Options())
+	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 
 	cluster.Reset()
@@ -157,7 +159,7 @@ var _ = Describe("CloudProvider", func() {
 			},
 		)
 		nodeClass.StatusConditions().SetTrue(opstatus.ConditionReady)
-		nodePool = karptest.NodePool(karpv1.NodePool{
+		nodePool = coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Template: karpv1.NodeClaimTemplate{
 					Spec: karpv1.NodeClaimSpec{
@@ -173,7 +175,7 @@ var _ = Describe("CloudProvider", func() {
 				},
 			},
 		})
-		nodeClaim = karptest.NodeClaim(karpv1.NodeClaim{
+		nodeClaim = coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{karpv1.NodePoolLabelKey: nodePool.Name},
 			},
@@ -265,7 +267,7 @@ var _ = Describe("CloudProvider", func() {
 		It("should set context on the CreateFleet request if specified on the NodePool", func() {
 			nodeClass.Spec.Context = aws.String(contextID)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := karptest.UnschedulablePod()
+			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -274,7 +276,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should default to no EC2 Context", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := karptest.UnschedulablePod()
+			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -317,7 +319,7 @@ var _ = Describe("CloudProvider", func() {
 			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
 			// Define NodePool that has minValues on instance-type requirement.
-			nodePool = karptest.NodePool(karpv1.NodePool{
+			nodePool = coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimSpec{
@@ -351,14 +353,14 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
 			// 2 pods are created with resources such that both fit together only in one of the 2 InstanceTypes created above.
-			pod1 := karptest.UnschedulablePod(
-				karptest.PodOptions{
+			pod1 := coretest.UnschedulablePod(
+				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
-			pod2 := karptest.UnschedulablePod(
-				karptest.PodOptions{
+			pod2 := coretest.UnschedulablePod(
+				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
@@ -415,7 +417,7 @@ var _ = Describe("CloudProvider", func() {
 			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
 			// Define NodePool that has minValues on instance-type requirement.
-			nodePool = karptest.NodePool(karpv1.NodePool{
+			nodePool = coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimSpec{
@@ -449,14 +451,14 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 
 			// 2 pods are created with resources such that both fit together only in one of the 2 InstanceTypes created above.
-			pod1 := karptest.UnschedulablePod(
-				karptest.PodOptions{
+			pod1 := coretest.UnschedulablePod(
+				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
-			pod2 := karptest.UnschedulablePod(
-				karptest.PodOptions{
+			pod2 := coretest.UnschedulablePod(
+				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
@@ -520,7 +522,7 @@ var _ = Describe("CloudProvider", func() {
 			instanceNames := lo.Map(uniqInstanceTypes, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
 			// Define NodePool that has minValues in multiple requirements.
-			nodePool = karptest.NodePool(karpv1.NodePool{
+			nodePool = coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimSpec{
@@ -555,14 +557,14 @@ var _ = Describe("CloudProvider", func() {
 			})
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod1 := karptest.UnschedulablePod(
-				karptest.PodOptions{
+			pod1 := coretest.UnschedulablePod(
+				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
-			pod2 := karptest.UnschedulablePod(
-				karptest.PodOptions{
+			pod2 := coretest.UnschedulablePod(
+				coretest.PodOptions{
 					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
 						v1.ResourceCPU: resource.MustParse("0.9")},
 					},
@@ -608,7 +610,7 @@ var _ = Describe("CloudProvider", func() {
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
 					{
-						Name:         aws.String(karptest.RandomName()),
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String(armAMIID),
 						Architecture: aws.String("arm64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
@@ -620,7 +622,7 @@ var _ = Describe("CloudProvider", func() {
 						},
 					},
 					{
-						Name:         aws.String(karptest.RandomName()),
+						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String(amdAMIID),
 						Architecture: aws.String("x86_64"),
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
@@ -719,7 +721,7 @@ var _ = Describe("CloudProvider", func() {
 				ImageId:               aws.String(amdAMIID),
 				InstanceType:          aws.String(selectedInstanceType.Name),
 				SubnetId:              aws.String(validSubnet1),
-				SpotInstanceRequestId: aws.String(karptest.RandomName()),
+				SpotInstanceRequestId: aws.String(coretest.RandomName()),
 				State: &ec2.InstanceState{
 					Name: aws.String(ec2.InstanceStateNameRunning),
 				},
@@ -1081,8 +1083,8 @@ var _ = Describe("CloudProvider", func() {
 		// hard coded fixture data (ex. what the aws api will return) is maintained in fake/ec2api.go
 		It("should default to the cluster's subnets", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := karptest.UnschedulablePod(
-				karptest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: karpv1.ArchitectureAmd64}})
+			pod := coretest.UnschedulablePod(
+				coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: karpv1.ArchitectureAmd64}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -1115,7 +1117,7 @@ var _ = Describe("CloudProvider", func() {
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-			pod := karptest.UnschedulablePod(karptest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -1133,15 +1135,15 @@ var _ = Describe("CloudProvider", func() {
 			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{MaxPods: aws.Int32(1)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-			pod1 := karptest.UnschedulablePod(karptest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
-			pod2 := karptest.UnschedulablePod(karptest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
 			ExpectScheduled(ctx, env.Client, pod1)
 			ExpectScheduled(ctx, env.Client, pod2)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 			// Provision for another pod that should now use the other subnet since we've consumed some from the first launch.
-			pod3 := karptest.UnschedulablePod(karptest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod3 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod3)
 			ExpectScheduled(ctx, env.Client, pod3)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -1152,7 +1154,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
 			}})
-			pod1 := karptest.UnschedulablePod(karptest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod1)
 			awsEnv.EC2API.CreateFleetBehavior.Error.Set(fmt.Errorf("CreateFleet synthetic error"))
 			bindings := ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
@@ -1169,7 +1171,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-			podSubnet1 := karptest.UnschedulablePod()
+			podSubnet1 := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -1197,7 +1199,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			nodePool2 := karptest.NodePool(karpv1.NodePool{
+			nodePool2 := coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimSpec{
@@ -1212,7 +1214,7 @@ var _ = Describe("CloudProvider", func() {
 			})
 			ExpectApplied(ctx, env.Client, nodePool2, nodeClass2)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass2)
-			podSubnet2 := karptest.UnschedulablePod(karptest.PodOptions{NodeSelector: map[string]string{karpv1.NodePoolLabelKey: nodePool2.Name}})
+			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{karpv1.NodePoolLabelKey: nodePool2.Name}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -1241,7 +1243,7 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			nodePool2 := karptest.NodePool(karpv1.NodePool{
+			nodePool2 := coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimSpec{
@@ -1255,7 +1257,7 @@ var _ = Describe("CloudProvider", func() {
 				},
 			})
 			ExpectApplied(ctx, env.Client, nodePool, nodePool2, nodeClass, misconfiguredNodeClass)
-			pod := karptest.UnschedulablePod()
+			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 		})

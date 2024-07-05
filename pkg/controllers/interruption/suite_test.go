@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 	"time"
 

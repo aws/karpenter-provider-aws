@@ -17,6 +17,7 @@ package termination_test
 import (
 	"context"
 	"fmt"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 	"time"
 

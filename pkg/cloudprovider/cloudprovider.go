@@ -223,7 +223,7 @@ func (c *CloudProvider) Name() string {
 }
 
 func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
-	return []status.Object{status.Object(&v1.EC2NodeClass{})}
+	return []status.Object{&v1.EC2NodeClass{}}
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*v1.EC2NodeClass, error) {
