@@ -122,7 +122,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *providerv1.KubeletConfig
 
 	// Compute fully initialized instance types hash key
 	subnetZonesHash, _ := hashstructure.Hash(subnetZones, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
-	kcHash, _ := hashstructure.Hash(kc, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
+	kcHash, _ := hashstructure.Hash(nodeClass.Spec.Kubelet, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	blockDeviceMappingsHash, _ := hashstructure.Hash(nodeClass.Spec.BlockDeviceMappings, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	key := fmt.Sprintf("%d-%d-%d-%016x-%016x-%016x-%s-%s",
 		p.instanceTypesSeqNum,

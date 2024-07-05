@@ -27,7 +27,7 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -45,7 +45,7 @@ var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), fun
 			},
 			corev1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCategory,
+					Key:      providerv1.LabelInstanceCategory,
 					Operator: v1.NodeSelectorOpExists,
 				},
 			},

@@ -1118,7 +1118,7 @@ var _ = Describe("CloudProvider", func() {
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
-		FIt("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
+		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
 			awsEnv.SubnetCache.Flush()
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(10),

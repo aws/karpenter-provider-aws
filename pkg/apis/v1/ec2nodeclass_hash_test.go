@@ -15,6 +15,8 @@ limitations under the License.
 package v1_test
 
 import (
+	"time"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -152,6 +154,18 @@ var _ = Describe("Hash", func() {
 		Entry("BlockDeviceMapping SnapshotID", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
 		Entry("BlockDeviceMapping Throughput", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
 		Entry("BlockDeviceMapping VolumeType", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
+		Entry("Kubelet ClusterDNS", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{ClusterDNS: []string{"test-dns"}}}}),
+		Entry("Kubelet MaxPods", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{MaxPods: lo.ToPtr(int32(10))}}}),
+		Entry("Kubelet PodsPerCore", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{PodsPerCore: lo.ToPtr(int32(31))}}}),
+		Entry("Kubelet SystemReserved", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{SystemReserved: map[string]string{"test-key-1": "test-value-1"}}}}),
+		Entry("Kubelet KubeReserved", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{KubeReserved: map[string]string{"test-key-2": "test-value-2"}}}}),
+		Entry("Kubelet EvictionHard", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{EvictionHard: map[string]string{"test-key-3": "test-value-3"}}}}),
+		Entry("Kubelet EvictionSoft", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{EvictionSoft: map[string]string{"test-key-4": "test-value-4"}}}}),
+		Entry("Kubelet EvictionSoftGracePeriod", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{EvictionSoftGracePeriod: map[string]metav1.Duration{"test-key": metav1.Duration{Duration: time.Minute}}}}}),
+		Entry("Kubelet EvictionMaxPodGracePeriod", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{EvictionMaxPodGracePeriod: lo.ToPtr(int32(92))}}}),
+		Entry("Kubelet ImageGCHighThresholdPercent", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{ImageGCHighThresholdPercent: lo.ToPtr(int32(23))}}}),
+		Entry("Kubelet ImageGCLowThresholdPercent", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{ImageGCLowThresholdPercent: lo.ToPtr(int32(334))}}}),
+		Entry("Kubelet CPUCFSQuota", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Kubelet: &v1.KubeletConfiguration{CPUCFSQuota: lo.ToPtr(true)}}}),
 	)
 	// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
 	// doesn't work well with unexported fields, like the ones that are present in resource.Quantity

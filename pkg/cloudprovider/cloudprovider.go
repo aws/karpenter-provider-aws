@@ -172,7 +172,11 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *corev1.N
 		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+	v1kubelet, err := utils.GetKubelet(nodePool.Annotations[corev1.ProviderCompatabilityAnnotationKey], nodeClass)
+	if err != nil {
+		return nil, err
+	}
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, v1kubelet, nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +256,11 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 }
 
 func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *corev1.NodeClaim, nodeClass *providerv1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
+	v1kubelet, err := utils.GetKubelet(nodeClaim.Annotations[corev1.ProviderCompatabilityAnnotationKey], nodeClass)
+	if err != nil {
+		return nil, err
+	}
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, v1kubelet, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}

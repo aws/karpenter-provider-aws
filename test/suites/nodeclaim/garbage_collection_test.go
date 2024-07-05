@@ -25,10 +25,10 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -86,7 +86,7 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String(nodePool.Name),
 						},
 						{
-							Key:   aws.String(v1beta1.LabelNodeClass),
+							Key:   aws.String(providerv1.LabelNodeClass),
 							Value: aws.String(nodeClass.Name),
 						},
 					},

@@ -216,8 +216,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						},
 						NodeClassRef: &corev1.NodeClassReference{
 							Group: object.GVK(nodeClass2).Group,
-							Kind:       object.GVK(nodeClass2).Kind,
-							Name:       nodeClass2.Name,
+							Kind:  object.GVK(nodeClass2).Kind,
+							Name:  nodeClass2.Name,
 						},
 					},
 				},
@@ -1423,7 +1423,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should override system reserved values in user data", func() {
-				ExpectApplied(ctx, env.Client, nodeClass)
 				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(v1.ResourceCPU):              "2",
@@ -1431,7 +1430,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						string(v1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
-				ExpectApplied(ctx, env.Client, nodePool)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1448,7 +1447,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				ExpectApplied(ctx, env.Client, nodeClass)
 				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 					KubeReserved: map[string]string{
 						string(v1.ResourceCPU):              "2",
@@ -1456,7 +1454,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						string(v1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
-				ExpectApplied(ctx, env.Client, nodePool)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1473,7 +1471,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				ExpectApplied(ctx, env.Client, nodeClass)
 				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
 					EvictionHard: map[string]string{
 						"memory.available":  "10%",
@@ -1481,7 +1478,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						"nodefs.inodesFree": "5%",
 					},
 				}
-				ExpectApplied(ctx, env.Client, nodePool)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)

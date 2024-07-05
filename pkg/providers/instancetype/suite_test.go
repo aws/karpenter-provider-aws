@@ -35,6 +35,7 @@ import (
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -2321,14 +2322,22 @@ var _ = Describe("InstanceTypeProvider", func() {
 				SystemReserved: map[string]string{string(v1.ResourceCPU): "1"},
 				EvictionHard:   map[string]string{"memory.available": "5%"},
 				EvictionSoft:   map[string]string{"nodefs.available": "10%"},
-				MaxPods:        aws.Int32(10),
+				EvictionSoftGracePeriod: map[string]metav1.Duration{
+					"nodefs.available": metav1.Duration{Duration: time.Minute},
+				},
+				MaxPods: aws.Int32(10),
 			}
 			kubeletChanges := []*providerv1.KubeletConfiguration{
 				{}, // Testing the base case black EC2NodeClass
 				{KubeReserved: map[string]string{string(v1.ResourceCPU): "20"}},
 				{SystemReserved: map[string]string{string(v1.ResourceMemory): "10Gi"}},
 				{EvictionHard: map[string]string{"memory.available": "52%"}},
-				{EvictionSoft: map[string]string{"nodefs.available": "132%"}},
+				{
+					EvictionSoft: map[string]string{"nodefs.available": "132%"},
+					EvictionSoftGracePeriod: map[string]metav1.Duration{
+						"nodefs.available": metav1.Duration{Duration: time.Minute},
+					},
+				},
 				{MaxPods: aws.Int32(20)},
 			}
 			var instanceTypeResult [][]*corecloudprovider.InstanceType
@@ -2444,7 +2453,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			go func() {
 				defer wg.Done()
 				defer GinkgoRecover()
-				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &providerv1.KubeletConfiguration{}, nodeClass)
+				instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
 				Expect(err).ToNot(HaveOccurred())
 
 				// Sort everything in parallel and ensure that we don't get data races
