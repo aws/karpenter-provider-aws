@@ -1677,7 +1677,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						Expect(ok).To(BeTrue())
 						taints := []v1.Taint{}
 						Expect(yaml.Unmarshal(taintsRaw.Raw, &taints)).To(Succeed())
-						Expect(len(taints)).To(Equal(2))
+						Expect(len(taints)).To(Equal(3))
 						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t v1.Taint, _ int) interface{} {
 							return interface{}(t)
 						})))
