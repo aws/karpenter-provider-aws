@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -62,7 +61,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
 	managedRetrieved := lo.Filter(retrieved, func(nc *corev1beta1.NodeClaim, _ int) bool {
-		return nc.Annotations[v1beta1.LabelNodeClass] != "" && nc.DeletionTimestamp.IsZero()
+		return nc.Annotations[corev1beta1.NodePoolLabelKey] != "" && nc.DeletionTimestamp.IsZero()
 	})
 	nodeClaimList := &corev1beta1.NodeClaimList{}
 	if err = c.kubeClient.List(ctx, nodeClaimList); err != nil {

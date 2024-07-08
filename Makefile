@@ -57,8 +57,7 @@ test: ## Run tests
 		-cover -coverprofile=coverage.out -outputdir=. -coverpkg=./... \
 		--ginkgo.focus="${FOCUS}" \
 		--ginkgo.randomize-all \
-		--ginkgo.v \
-		--ginkgo.fail-fast \
+		--ginkgo.vv
 
 deflake: ## Run randomized, racing tests until the test fails to catch flakes
 	ginkgo \

@@ -137,8 +137,7 @@ var _ = Describe("GarbageCollection", func() {
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		ExpectSingletonReconciled(ctx, garbageCollectionController)
-		nc, err := cloudProvider.Get(ctx, providerID)
-		fmt.Println(nc)
+		_, err := cloudProvider.Get(ctx, providerID)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 	})
@@ -291,7 +290,7 @@ var _ = Describe("GarbageCollection", func() {
 	It("should not delete an instance if it was not launched by a NodeClaim", func() {
 		// Remove the nodepool tag (this isn't launched by a machine)
 		instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
-			return aws.StringValue(t.Key) == v1beta1.LabelNodeClass
+			return aws.StringValue(t.Key) == corev1beta1.NodePoolLabelKey
 		})
 
 		// Launch time was 1m ago
