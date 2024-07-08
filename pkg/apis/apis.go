@@ -18,12 +18,10 @@ package apis
 import (
 	_ "embed"
 
+	"github.com/awslabs/operatorpkg/object"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
-	"github.com/samber/lo"
-
 	"sigs.k8s.io/karpenter/pkg/apis"
-	"sigs.k8s.io/karpenter/pkg/utils/functional"
 )
 
 //go:generate controller-gen crd object:headerFile="../../hack/boilerplate.go.txt" paths="./..." output:crd:artifacts:config=crds
@@ -32,6 +30,6 @@ var (
 	//go:embed crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 	EC2NodeClassCRD []byte
 	CRDs            = append(apis.CRDs,
-		lo.Must(functional.Unmarshal[apiextensionsv1.CustomResourceDefinition](EC2NodeClassCRD)),
+		object.Unmarshal[apiextensionsv1.CustomResourceDefinition](EC2NodeClassCRD),
 	)
 )
