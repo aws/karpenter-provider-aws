@@ -56,12 +56,22 @@ func main() {
 		packages := getPackages(flag.Arg(i))
 		allMetrics = append(allMetrics, getMetricsFromPackages(packages...)...)
 	}
-	// Controller Runtime naming is different in that they don't specify a namespace or subsystem
+
+	// Drop some metrics
+	for _, subsystem := range []string{"rest_client", "certwatcher_read", "controller_runtime_webhook"} {
+		allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
+			return strings.HasPrefix(m.name, subsystem)
+		})
+	}
+
+	// Controller Runtime and AWS SDK Go for Prometheus naming is different in that they don't specify a namespace or subsystem
 	// Getting the metrics requires special parsing logic
-	for i := range allMetrics {
-		if allMetrics[i].subsystem == "" && strings.HasPrefix(allMetrics[i].name, "controller_runtime_") {
-			allMetrics[i].subsystem = "controller_runtime"
-			allMetrics[i].name = strings.TrimPrefix(allMetrics[i].name, "controller_runtime_")
+	for _, subsystem := range []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election"} {
+		for i := range allMetrics {
+			if allMetrics[i].subsystem == "" && strings.HasPrefix(allMetrics[i].name, fmt.Sprintf("%s_", subsystem)) {
+				allMetrics[i].subsystem = subsystem
+				allMetrics[i].name = strings.TrimPrefix(allMetrics[i].name, fmt.Sprintf("%s_", subsystem))
+			}
 		}
 	}
 	sort.Slice(allMetrics, bySubsystem(allMetrics))
@@ -91,7 +101,11 @@ description: >
 		if metric.subsystem != previousSubsystem {
 			if metric.subsystem != "" {
 				subsystemTitle := strings.Join(lo.Map(strings.Split(metric.subsystem, "_"), func(s string, _ int) string {
-					return fmt.Sprintf("%s%s", strings.ToTitle(s[0:1]), s[1:])
+					if s == "sdk" || s == "aws" {
+						return strings.ToUpper(s)
+					} else {
+						return fmt.Sprintf("%s%s", strings.ToUpper(s[0:1]), s[1:])
+					}
 				}), " ")
 				fmt.Fprintf(f, "## %s Metrics\n", subsystemTitle)
 				fmt.Fprintln(f)
@@ -162,11 +176,15 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	// Higher ordering comes first. If a value isn't designated here then the subsystem will be given a default of 0.
 	// Metrics without a subsystem come first since there is no designation for the bucket they fall under
 	subSystemSortOrder := map[string]int{
-		"":          100,
-		"nodepool":  10,
-		"nodeclaim": 9,
-		"nodes":     8,
-		"pods":      7,
+		"":                100,
+		"nodepool":        10,
+		"nodeclaims":      9,
+		"nodes":           8,
+		"pods":            7,
+		"workqueue":       -1,
+		"client_go":       -1,
+		"aws_sdk_go":      -1,
+		"leader_election": -2,
 	}
 
 	return func(i, j int) bool {
@@ -226,7 +244,8 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 					} else {
 						value = v
 					}
-
+				case *ast.BinaryExpr:
+					value = getBinaryExpr(val)
 				default:
 					log.Fatalf("unsupported value %T %v", kv.Value, kv.Value)
 				}
@@ -261,8 +280,32 @@ func getFuncPackage(fun ast.Expr) string {
 	if iexpr, ok := fun.(*ast.IndexExpr); ok {
 		return getFuncPackage(iexpr.X)
 	}
+	if _, ok := fun.(*ast.FuncLit); ok {
+		return ""
+	}
 	log.Fatalf("unsupported func expression %T, %v", fun, fun)
 	return ""
+}
+
+func getBinaryExpr(b *ast.BinaryExpr) string {
+	var x, y string
+	switch val := b.X.(type) {
+	case *ast.BasicLit:
+		x = strings.Trim(val.Value, `"`)
+	case *ast.BinaryExpr:
+		x = getBinaryExpr(val)
+	default:
+		log.Fatalf("unsupported value %T %v", val, val)
+	}
+	switch val := b.Y.(type) {
+	case *ast.BasicLit:
+		y = strings.Trim(val.Value, `"`)
+	case *ast.BinaryExpr:
+		y = getBinaryExpr(val)
+	default:
+		log.Fatalf("unsupported value %T %v", val, val)
+	}
+	return x + y
 }
 
 // we cannot get the value of an Identifier directly so we map it manually instead
@@ -271,10 +314,20 @@ func getIdentMapping(identName string) (string, error) {
 		"metrics.Namespace": metrics.Namespace,
 		"Namespace":         metrics.Namespace,
 
-		"NodeSubsystem":         "nodes",
-		"metrics.NodeSubsystem": "nodes",
-		"machineSubsystem":      "machines",
-		"nodeClaimSubsystem":    "nodeclaims",
+		"WorkQueueSubsystem":         "workqueue",
+		"DepthKey":                   "depth",
+		"AddsKey":                    "adds_total",
+		"QueueLatencyKey":            "queue_duration_seconds",
+		"WorkDurationKey":            "work_duration_seconds",
+		"UnfinishedWorkKey":          "unfinished_work_seconds",
+		"LongestRunningProcessorKey": "longest_running_processor_seconds",
+		"RetriesKey":                 "retries_total",
+
+		"NodeSubsystem":              "nodes",
+		"metrics.NodeSubsystem":      "nodes",
+		"machineSubsystem":           "machines",
+		"NodeClaimSubsystem":         "nodeclaims",
+		"metrics.NodeClaimSubsystem": "nodeclaims",
 		// TODO @joinnis: We should eventually change this subsystem to be
 		// plural so that it aligns with the other subsystems
 		"nodePoolSubsystem":       "nodepool",

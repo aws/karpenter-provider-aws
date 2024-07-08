@@ -61,7 +61,7 @@ Node role names for Karpenter are created in the form `KarpenterNodeRole-${Clust
 If a long cluster name causes the Karpenter node role name to exceed 64 characters, creating that object will fail.
 
 Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
-Instead using of the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
+Instead of using the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
 
 ### Unknown field in Provisioner spec
 
@@ -317,6 +317,11 @@ time=2023-06-12T19:18:15Z type=Warning reason=FailedCreatePodSandBox from=kubele
 By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
 
 If the max-pods (configured through your Provisioner [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
+
+If you've enabled [Security Groups per Pod](https://aws.github.io/aws-eks-best-practices/networking/sgpp/), one of the instance's ENIs is reserved as the trunk interface and uses branch interfaces off of that trunk interface to assign different security groups.
+If you do not have any `SecurityGroupPolicies` configured for your pods, they will be unable to utilize branch interfaces attached to the trunk interface, and IPs will only be available from the non-trunk ENIs.
+This effectively reduces the max-pods value by the number of IPs that would have been available from the trunk ENI.
+Note that Karpenter is not aware if [Security Groups per Pod](https://aws.github.io/aws-eks-best-practices/networking/sgpp/) is enabled, and will continue to compute max-pods assuming all ENIs on the instance can be utilized.
 
 ##### Solutions
 

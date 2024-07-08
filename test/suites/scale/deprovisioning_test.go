@@ -21,6 +21,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
@@ -197,7 +198,9 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			driftNodeClass := awstest.EC2NodeClass()
 			driftNodeClass.Spec = *nodeClass.Spec.DeepCopy()
 			nodePoolMap[driftValue].Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
-				Name: driftNodeClass.Name,
+				APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+				Kind:       object.GVK(nodeClass).Kind,
+				Name:       driftNodeClass.Name,
 			}
 			env.MeasureProvisioningDurationFor(func() {
 				By("kicking off provisioning by applying the nodePool and nodeClass")

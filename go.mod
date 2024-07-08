@@ -1,24 +1,25 @@
 module github.com/aws/karpenter-provider-aws
 
-go 1.22.4
+go 1.22.5
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.9.2
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/aws-sdk-go v1.54.2
+	github.com/aws/aws-sdk-go v1.54.11
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
-	github.com/awslabs/operatorpkg v0.0.0-20240605172541-88cf99023fa4
+	github.com/awslabs/operatorpkg v0.0.0-20240701195752-116cbcffbcb4
 	github.com/go-logr/zapr v1.3.0
 	github.com/imdario/mergo v0.3.16
+	github.com/jonathan-innis/aws-sdk-go-prometheus v0.1.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/onsi/ginkgo/v2 v2.19.0
 	github.com/onsi/gomega v1.33.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pelletier/go-toml/v2 v2.2.2
 	github.com/prometheus/client_golang v1.19.1
-	github.com/samber/lo v1.39.0
+	github.com/samber/lo v1.44.0
 	go.uber.org/multierr v1.11.0
 	go.uber.org/zap v1.27.0
 	golang.org/x/sync v0.7.0
@@ -26,11 +27,11 @@ require (
 	k8s.io/apiextensions-apiserver v0.30.2
 	k8s.io/apimachinery v0.30.2
 	k8s.io/client-go v0.30.2
-	k8s.io/klog/v2 v2.130.0
+	k8s.io/klog/v2 v2.130.1
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.18.4
-	sigs.k8s.io/karpenter v0.37.1-0.20240612182320-24c976186c48
+	sigs.k8s.io/karpenter v0.37.1-0.20240629051434-89a81c3ae853
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -109,9 +110,9 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/cloud-provider v0.30.1 // indirect
+	k8s.io/cloud-provider v0.30.2 // indirect
 	k8s.io/component-base v0.30.2 // indirect
-	k8s.io/csi-translation-lib v0.30.1 // indirect
+	k8s.io/csi-translation-lib v0.30.2 // indirect
 	k8s.io/kube-openapi v0.0.0-20240228011516-70dd3763d340 // indirect
 	sigs.k8s.io/json v0.0.0-20221116044647-bc3834ca7abd // indirect
 	sigs.k8s.io/structured-merge-diff/v4 v4.4.1 // indirect

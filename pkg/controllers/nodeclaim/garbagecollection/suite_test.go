@@ -23,13 +23,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -60,7 +60,7 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
-	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
@@ -89,7 +89,9 @@ var _ = Describe("GarbageCollection", func() {
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
 						NodeClassRef: &corev1beta1.NodeClassReference{
-							Name: nodeClass.Name,
+							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+							Kind:       object.GVK(nodeClass).Kind,
+							Name:       nodeClass.Name,
 						},
 					},
 				},
@@ -245,7 +247,9 @@ var _ = Describe("GarbageCollection", func() {
 			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
 					NodeClassRef: &corev1beta1.NodeClassReference{
-						Name: nodeClass.Name,
+						APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+						Kind:       object.GVK(nodeClass).Kind,
+						Name:       nodeClass.Name,
 					},
 				},
 				Status: corev1beta1.NodeClaimStatus{
@@ -306,7 +310,9 @@ var _ = Describe("GarbageCollection", func() {
 		nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 			Status: corev1beta1.NodeClaimStatus{
@@ -362,7 +368,9 @@ var _ = Describe("GarbageCollection", func() {
 			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
 				Spec: corev1beta1.NodeClaimSpec{
 					NodeClassRef: &corev1beta1.NodeClassReference{
-						Name: nodeClass.Name,
+						APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+						Kind:       object.GVK(nodeClass).Kind,
+						Name:       nodeClass.Name,
 					},
 				},
 				Status: corev1beta1.NodeClaimStatus{

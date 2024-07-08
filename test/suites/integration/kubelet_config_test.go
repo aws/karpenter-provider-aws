@@ -121,15 +121,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				// Need to enable nodepool-level OS-scoping for now since DS evaluation is done off of the nodepool
 				// requirements, not off of the instance type options so scheduling can fail if nodepool aren't
 				// properly scoped
-				// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.*, c7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 				test.ReplaceRequirements(nodePool,
-					corev1beta1.NodeSelectorRequirementWithMinValues{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1beta1.LabelInstanceFamily,
-							Operator: v1.NodeSelectorOpNotIn,
-							Values:   aws.ExcludedInstanceFamilies,
-						},
-					},
 					corev1beta1.NodeSelectorRequirementWithMinValues{
 						NodeSelectorRequirement: v1.NodeSelectorRequirement{
 							Key:      v1.LabelOSStable,
@@ -149,6 +141,11 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				env.EventuallyExpectHealthyWithTimeout(time.Minute*15, pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
+			// Windows tests are can flake due to the instance types that are used in testing.
+			// The VPC Resource controller will need to support the instance types that are used.
+			// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
+			// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
+			// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
 			Entry("when the AMIFamily is Windows2019", &v1beta1.AMIFamilyWindows2019),
 			Entry("when the AMIFamily is Windows2022", &v1beta1.AMIFamilyWindows2022),
 		)

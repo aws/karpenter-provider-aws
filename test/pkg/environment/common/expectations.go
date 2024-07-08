@@ -225,13 +225,8 @@ func (env *Environment) ExpectConfigMapDataOverridden(key types.NamespacedName, 
 	err := env.Client.Get(env, key, cm)
 	Expect(client.IgnoreNotFound(err)).ToNot(HaveOccurred())
 
-	stored := cm.DeepCopy()
 	cm.Data = lo.Assign(append([]map[string]string{cm.Data}, data...)...)
 
-	// If the data hasn't changed, we can just return and not update anything
-	if equality.Semantic.DeepEqual(stored, cm) {
-		return false
-	}
 	// Update the configMap to update the settings
 	env.ExpectCreatedOrUpdated(cm)
 	return true
@@ -672,16 +667,6 @@ func (env *Environment) EventuallyExpectNodeClaimsReady(nodeClaims ...*corev1bet
 			temp := &corev1beta1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nc), temp)).Should(Succeed())
 			g.Expect(temp.StatusConditions().Root().IsTrue()).To(BeTrue())
-		}
-	}).Should(Succeed())
-}
-
-func (env *Environment) EventuallyExpectExpired(nodeClaims ...*corev1beta1.NodeClaim) {
-	GinkgoHelper()
-	Eventually(func(g Gomega) {
-		for _, nc := range nodeClaims {
-			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().Get(corev1beta1.ConditionTypeExpired).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }

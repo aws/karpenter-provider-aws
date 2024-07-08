@@ -15,17 +15,16 @@ limitations under the License.
 package ami_test
 
 import (
-	"testing"
-
-	awssdk "github.com/aws/aws-sdk-go/aws"
-
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-
 	"encoding/base64"
 	"fmt"
 	"os"
 	"strings"
+	"testing"
 	"time"
+
+	awssdk "github.com/aws/aws-sdk-go/aws"
+
+	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
@@ -194,17 +193,6 @@ var _ = Describe("AMI", func() {
 					return v1beta1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
 				})
 			}
-			// TODO: remove requirements after Ubuntu fixes bootstrap script issue w/
-			// new instance types not included in the max-pods.txt file. (https://github.com/aws/karpenter-provider-aws/issues/4472)
-			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   environmentaws.ExcludedInstanceFamilies,
-					},
-				},
-			)
 			pod := coretest.Pod()
 			env.ExpectCreated(nodeClass, nodePool, pod)
 			env.EventuallyExpectHealthy(pod)
@@ -325,6 +313,11 @@ var _ = Describe("AMI", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(string(actualUserData)).To(ContainSubstring("kube-api-qps = 30"))
 		})
+		// Windows tests are can flake due to the instance types that are used in testing.
+		// The VPC Resource controller will need to support the instance types that are used.
+		// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
+		// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
+		// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
 		It("should merge UserData contents for Windows AMIFamily", func() {
 			env.ExpectWindowsIPAMEnabled()
 			DeferCleanup(func() {
@@ -338,15 +331,7 @@ var _ = Describe("AMI", func() {
 			nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoExecute"}}
 			nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "example.com", Value: "value", Effect: "NoSchedule"}}
 
-			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			nodePool = coretest.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   environmentaws.ExcludedInstanceFamilies,
-					},
-				},
 				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1.LabelOSStable,

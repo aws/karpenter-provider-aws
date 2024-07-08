@@ -35,7 +35,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -55,7 +54,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)

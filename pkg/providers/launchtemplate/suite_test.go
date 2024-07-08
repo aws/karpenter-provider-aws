@@ -30,6 +30,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	admv1alpha1 "github.com/awslabs/amazon-eks-ami/nodeadm/api/v1alpha1"
+	"github.com/awslabs/operatorpkg/object"
 	opstatus "github.com/awslabs/operatorpkg/status"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -50,7 +51,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "sigs.k8s.io/karpenter/pkg/test/expectations"
@@ -86,7 +86,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -95,7 +95,7 @@ var _ = BeforeSuite(func() {
 	fakeClock = &clock.FakeClock{}
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)
-	cluster = state.NewCluster(fakeClock, env.Client, cloudProvider)
+	cluster = state.NewCluster(fakeClock, env.Client)
 	prov = provisioning.NewProvisioner(env.Client, events.NewRecorder(&record.FakeRecorder{}), cloudProvider, cluster)
 })
 
@@ -175,7 +175,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						},
 						Kubelet: &corev1beta1.KubeletConfiguration{},
 						NodeClassRef: &corev1beta1.NodeClassReference{
-							Name: nodeClass.Name,
+							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+							Kind:       object.GVK(nodeClass).Kind,
+							Name:       nodeClass.Name,
 						},
 					},
 				},
@@ -211,7 +213,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 							},
 						},
 						NodeClassRef: &corev1beta1.NodeClassReference{
-							Name: nodeClass2.Name,
+							APIVersion: object.GVK(nodeClass2).GroupVersion().String(),
+							Kind:       object.GVK(nodeClass2).Kind,
+							Name:       nodeClass2.Name,
 						},
 					},
 				},
@@ -1397,7 +1401,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1beta1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should not bootstrap when provider ref points to a non-existent EC2NodeClass resource", func() {
-				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{Name: "doesnotexist"}
+				nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
+					APIVersion: "doesnotexist",
+					Kind:       "doesnotexist",
+					Name:       "doesnotexist",
+				}
 				ExpectApplied(ctx, env.Client, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)

@@ -22,10 +22,29 @@ import (
 	"knative.dev/pkg/controller"
 	knativeinjection "knative.dev/pkg/injection"
 	"knative.dev/pkg/webhook/resourcesemantics"
+	"knative.dev/pkg/webhook/resourcesemantics/conversion"
 	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/awslabs/operatorpkg/object"
+)
+
+var (
+	Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
+		object.GVK(&v1beta1.EC2NodeClass{}): &v1beta1.EC2NodeClass{},
+	}
+	ConversionResource = map[schema.GroupKind]conversion.GroupKindConversion{
+		object.GVK(&v1.EC2NodeClass{}).GroupKind(): {
+			DefinitionName: "ec2nodeclasses.karpenter.k8s.aws",
+			HubVersion:     "v1",
+			Zygotes: map[string]conversion.ConvertibleObject{
+				"v1":      &v1.EC2NodeClass{},
+				"v1beta1": &v1beta1.EC2NodeClass{},
+			},
+		},
+	}
 )
 
 func NewWebhooks() []knativeinjection.ControllerConstructor {
@@ -55,6 +74,10 @@ func NewCRDValidationWebhook(ctx context.Context, _ configmap.Watcher) *controll
 	)
 }
 
-var Resources = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-	v1beta1.SchemeGroupVersion.WithKind("EC2NodeClass"): &v1beta1.EC2NodeClass{},
+func NewCRDConversionWebhook(ctx context.Context, _ configmap.Watcher) *controller.Impl {
+	return conversion.NewConversionController(ctx,
+		"/conversion/karpenter.sh",
+		ConversionResource,
+		func(ctx context.Context) context.Context { return ctx },
+	)
 }

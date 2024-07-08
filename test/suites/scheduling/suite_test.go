@@ -19,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -275,6 +276,11 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
 		})
+		// Windows tests are can flake due to the instance types that are used in testing.
+		// The VPC Resource controller will need to support the instance types that are used.
+		// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
+		// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
+		// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
 		It("should support well-known labels for windows-build version", func() {
 			env.ExpectWindowsIPAMEnabled()
 			DeferCleanup(func() {
@@ -297,15 +303,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Image:            environmentaws.WindowsDefaultImage,
 			}})
 			nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyWindows2022
-			// TODO: remove this requirement once VPC RC rolls out m7a.*, r7a.* ENI data (https://github.com/aws/karpenter-provider-aws/issues/4472)
 			test.ReplaceRequirements(nodePool,
-				corev1beta1.NodeSelectorRequirementWithMinValues{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1beta1.LabelInstanceFamily,
-						Operator: v1.NodeSelectorOpNotIn,
-						Values:   environmentaws.ExcludedInstanceFamilies,
-					},
-				},
 				corev1beta1.NodeSelectorRequirementWithMinValues{
 					NodeSelectorRequirement: v1.NodeSelectorRequirement{
 						Key:      v1.LabelOSStable,
@@ -424,7 +422,9 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
 							NodeClassRef: &corev1beta1.NodeClassReference{
-								Name: nodeClass.Name,
+								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+								Kind:       object.GVK(nodeClass).Kind,
+								Name:       nodeClass.Name,
 							},
 							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
 								{

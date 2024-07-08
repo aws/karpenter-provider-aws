@@ -37,6 +37,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/eks/eksiface"
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	prometheusv1 "github.com/jonathan-innis/aws-sdk-go-prometheus/v1"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -45,12 +46,11 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/transport"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator"
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -65,7 +65,6 @@ import (
 )
 
 func init() {
-	lo.Must0(apis.AddToScheme(scheme.Scheme))
 	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 
@@ -98,12 +97,15 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 			func(provider *stscreds.AssumeRoleProvider) { SetDurationAndExpiry(ctx, provider) })
 	}
 
-	sess := WithUserAgent(session.Must(session.NewSession(
+	// prometheusv1.WithPrometheusMetrics is used until the upstream aws-sdk-go or aws-sdk-go-v2 supports
+	// Prometheus metrics for client-side metrics out-of-the-box
+	// See: https://github.com/aws/aws-sdk-go-v2/issues/1744
+	sess := prometheusv1.WithPrometheusMetrics(WithUserAgent(session.Must(session.NewSession(
 		request.WithRetryer(
 			config,
 			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
 		),
-	)))
+	))), crmetrics.Registry)
 
 	if *sess.Config.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")

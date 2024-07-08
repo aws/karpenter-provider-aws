@@ -22,6 +22,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -30,7 +31,6 @@ import (
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
-	"sigs.k8s.io/karpenter/pkg/operator/scheme"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -59,7 +59,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(scheme.Scheme, coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	awsEnv = test.NewEnvironment(ctx, env)
@@ -88,7 +88,9 @@ var _ = Describe("InstanceProvider", func() {
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
 						NodeClassRef: &corev1beta1.NodeClassReference{
-							Name: nodeClass.Name,
+							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+							Kind:       object.GVK(nodeClass).Kind,
+							Name:       nodeClass.Name,
 						},
 					},
 				},
@@ -102,7 +104,9 @@ var _ = Describe("InstanceProvider", func() {
 			},
 			Spec: corev1beta1.NodeClaimSpec{
 				NodeClassRef: &corev1beta1.NodeClassReference{
-					Name: nodeClass.Name,
+					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+					Kind:       object.GVK(nodeClass).Kind,
+					Name:       nodeClass.Name,
 				},
 			},
 		})

@@ -23,13 +23,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/awslabs/operatorpkg/object"
 	"github.com/onsi/gomega"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes"
-	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 
 	. "sigs.k8s.io/karpenter/pkg/utils/testing" //nolint:stylecheck
@@ -39,12 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
@@ -102,12 +100,7 @@ func NewConfig() *rest.Config {
 }
 
 func NewClient(ctx context.Context, config *rest.Config) client.Client {
-	scheme := runtime.NewScheme()
-	lo.Must0(clientgoscheme.AddToScheme(scheme))
-	lo.Must0(apis.AddToScheme(scheme))
-	lo.Must0(coreapis.AddToScheme(scheme))
-
-	cache := lo.Must(cache.New(config, cache.Options{Scheme: scheme}))
+	cache := lo.Must(cache.New(config, cache.Options{Scheme: scheme.Scheme}))
 	lo.Must0(cache.IndexField(ctx, &v1.Pod{}, "spec.nodeName", func(o client.Object) []string {
 		pod := o.(*v1.Pod)
 		return []string{pod.Spec.NodeName}
@@ -128,7 +121,7 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 		return []string{t.Value}
 	}))
 
-	c := lo.Must(client.New(config, client.Options{Scheme: scheme, Cache: &client.CacheOptions{Reader: cache}}))
+	c := lo.Must(client.New(config, client.Options{Scheme: scheme.Scheme, Cache: &client.CacheOptions{Reader: cache}}))
 
 	go func() {
 		lo.Must0(cache.Start(ctx))
@@ -142,7 +135,9 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1beta1.NodePool {
 	nodePool := coretest.NodePool()
 	nodePool.Spec.Template.Spec.NodeClassRef = &corev1beta1.NodeClassReference{
-		Name: nodeClass.Name,
+		APIVersion: object.GVK(nodeClass).GroupVersion().String(),
+		Kind:       object.GVK(nodeClass).Kind,
+		Name:       nodeClass.Name,
 	}
 	nodePool.Spec.Template.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
 		{

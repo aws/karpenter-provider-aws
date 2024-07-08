@@ -174,6 +174,10 @@ requirements:
     operator: Exists
 ```
 
+{{% alert title="Note" color="primary" %}}
+There is currently a limit of 30 on the total number of requirements on both the NodePool and the NodeClaim. It's important to note that `spec.template.metadata.labels` are also propagated as requirements on the NodeClaim when it's created, meaning that you can't have more than 30 requirements and labels combined set on your NodePool.
+{{% /alert %}}
+
 #### Node selectors
 
 Here is an example of a `nodeSelector` for selecting nodes:
@@ -280,7 +284,7 @@ spec:
           - p3
       taints:
       - key: nvidia.com/gpu
-        value: true
+        value: "true"
         effect: "NoSchedule"
 ```
 
