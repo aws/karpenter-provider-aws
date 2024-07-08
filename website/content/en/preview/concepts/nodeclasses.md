@@ -270,7 +270,7 @@ Karpenter will automatically query for the appropriate [EKS optimized AMI](https
 
 ### Custom
 
-The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered=true:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
+The `Custom` AMIFamily ships without any default userData to allow you to configure custom bootstrapping for control planes or images that don't support the default methods from the other families. For this AMIFamily, kubelet must add the taint `karpenter.sh/unregistered:NoExecute` via the `--register-with-taints` flag ([flags](https://kubernetes.io/docs/reference/command-line-tools-reference/kubelet/#options)) or the KubeletConfiguration spec ([options](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/#kubelet-config-k8s-io-v1beta1-KubeletConfiguration) and [docs](https://kubernetes.io/docs/tasks/administer-cluster/kubelet-config-file/)). Karpenter will fail to register nodes that do not have this taint.
 
 ## spec.subnetSelectorTerms
 
