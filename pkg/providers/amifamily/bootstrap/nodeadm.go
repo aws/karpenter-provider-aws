@@ -115,10 +115,8 @@ func (n Nodeadm) generateInlineKubeletConfiguration() (map[string]runtime.RawExt
 	if err != nil {
 		return nil, err
 	}
-	if len(n.Taints) != 0 {
-		kubeConfigMap["registerWithTaints"] = runtime.RawExtension{
-			Raw: lo.Must(json.Marshal(n.Taints)),
-		}
+	kubeConfigMap["registerWithTaints"] = runtime.RawExtension{
+		Raw: lo.Must(json.Marshal(n.Taints)),
 	}
 	return kubeConfigMap, nil
 }
