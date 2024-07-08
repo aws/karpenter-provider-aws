@@ -51,7 +51,7 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.Conditions).To(HaveLen(1))
+		Expect(nodeClass.Status.Conditions).To(HaveLen(5))
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 	})
 	It("should update status condition as Not Ready", func() {
@@ -65,6 +65,6 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
-		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("Failed to resolve security groups"))
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("SecurityGroupsReady=False"))
 	})
 })
