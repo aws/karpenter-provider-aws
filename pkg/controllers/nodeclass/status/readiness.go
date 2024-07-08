@@ -25,14 +25,14 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type Readiness struct {
 	launchTemplateProvider launchtemplate.Provider
 }
 
-func (n Readiness) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (reconcile.Result, error) {
+func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if len(nodeClass.Status.AMIs) == 0 {
 		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve AMIs")
 		return reconcile.Result{}, nil

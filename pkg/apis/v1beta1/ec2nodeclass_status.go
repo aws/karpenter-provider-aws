@@ -26,6 +26,13 @@ const (
 	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
 )
 
+const (
+	ConditionTypeSubnetsReady         = "SubnetsReady"
+	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
+	ConditionTypeAMIsReady            = "AMIsReady"
+	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
+)
+
 // Subnet contains resolved Subnet selector values utilized for node launch
 type Subnet struct {
 	// ID of the subnet
