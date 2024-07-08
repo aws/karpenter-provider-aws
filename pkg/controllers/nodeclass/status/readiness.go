@@ -58,6 +58,5 @@ func (n Readiness) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeC
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
 		}
 	}
-	nodeClass.StatusConditions().SetTrue(status.ConditionReady)
 	return reconcile.Result{}, nil
 }
