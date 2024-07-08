@@ -345,8 +345,8 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	if v, ok := i.Tags[corev1beta1.NodePoolLabelKey]; ok {
 		labels[corev1beta1.NodePoolLabelKey] = v
 	}
-	if v, ok := i.Tags[v1beta1.EKSClusterNameAnnotationKey]; ok {
-		annotations[v1beta1.EKSClusterNameAnnotationKey] = v
+	if v, ok := i.Tags[v1beta1.LabelNodeClass]; ok {
+		annotations[v1beta1.LabelNodeClass] = v
 	}
 	nodeClaim.Labels = labels
 	nodeClaim.Annotations = annotations

@@ -91,7 +91,7 @@ var _ = Describe("TaggingController", func() {
 					Value: aws.String("default"),
 				},
 				{
-					Key:   aws.String(v1beta1.EKSClusterNameAnnotationKey),
+					Key:   aws.String(v1beta1.EKSClusterNameTag),
 					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},

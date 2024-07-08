@@ -113,7 +113,7 @@ var _ = Describe("GarbageCollection", func() {
 					Value: aws.String(nodeClass.Name),
 				},
 				{
-					Key:   aws.String(v1beta1.EKSClusterNameAnnotationKey),
+					Key:   aws.String(v1beta1.EKSClusterNameTag),
 					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},
@@ -135,7 +135,8 @@ var _ = Describe("GarbageCollection", func() {
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
 		ExpectSingletonReconciled(ctx, garbageCollectionController)
-		_, err := cloudProvider.Get(ctx, providerID)
+		nc, err := cloudProvider.Get(ctx, providerID)
+		fmt.Println(nc)
 		Expect(err).To(HaveOccurred())
 		Expect(corecloudprovider.IsNodeClaimNotFoundError(err)).To(BeTrue())
 	})
@@ -181,7 +182,7 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(v1beta1.EKSClusterNameAnnotationKey),
+							Key:   aws.String(v1beta1.EKSClusterNameTag),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
@@ -284,9 +285,9 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete an instance if it was not launched by a NodeClaim", func() {
-		// Remove the "eks:eks-cluster-name" tag (this isn't launched by a machine)
+		// Remove the nodepool tag (this isn't launched by a machine)
 		instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
-			return aws.StringValue(t.Key) == v1beta1.EKSClusterNameAnnotationKey
+			return aws.StringValue(t.Key) == v1beta1.LabelNodeClass
 		})
 
 		// Launch time was 1m ago
@@ -344,7 +345,7 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(v1beta1.EKSClusterNameAnnotationKey),
+							Key:   aws.String(v1beta1.EKSClusterNameTag),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},

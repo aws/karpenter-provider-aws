@@ -355,8 +355,8 @@ func (in *EC2NodeClass) InstanceProfileRole() string {
 func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]string {
 	return lo.Assign(in.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
-		EKSClusterNameAnnotationKey:                          clusterName,
-		LabelNodeClass:                                       in.Name,
+		EKSClusterNameTag: clusterName,
+		LabelNodeClass:    in.Name,
 	})
 }
 
