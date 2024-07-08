@@ -93,9 +93,9 @@ runs:
         GIT_REF=$(git rev-parse HEAD)
       fi
 
-      # Disable Pod Identity for Karpenter on K8s 1.23. Pod Identity is not supported on K8s 1.23
+      # Disable Pod Identity for Private Clusters
       # https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html#pod-id-considerations
-      if [[ "$K8S_VERSION" == '1.23' ]] || [[ "$PRIVATE_CLUSTER" == 'true' ]]; then
+      if [[ "$PRIVATE_CLUSTER" == 'true' ]]; then
         KARPENTER_IAM="""
           - metadata:
               name: karpenter
