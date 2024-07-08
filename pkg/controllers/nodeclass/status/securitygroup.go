@@ -39,6 +39,7 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2No
 	}
 	if len(securityGroups) == 0 && len(nodeClass.Spec.SecurityGroupSelectorTerms) > 0 {
 		nodeClass.Status.SecurityGroups = nil
+		nodeClass.StatusConditions().SetFalse(v1beta1.ConditionTypeSecurityGroupsReady, "SecurityGroupsNotFound", "SecurityGroupSelector did not match any SecurityGroups")
 		return reconcile.Result{}, nil
 	}
 	sort.Slice(securityGroups, func(i, j int) bool {
@@ -50,5 +51,6 @@ func (sg *SecurityGroup) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2No
 			Name: *securityGroup.GroupName,
 		}
 	})
+	nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeSecurityGroupsReady)
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }
