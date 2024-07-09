@@ -16,6 +16,7 @@ package status
 
 import (
 	"context"
+	"github.com/awslabs/operatorpkg/status"
 
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -68,28 +69,31 @@ func NewController(kubeClient client.Client, subnetProvider subnet.Provider, sec
 
 func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "nodeclass.status")
-
-	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
-		stored := nodeClass.DeepCopy()
-		controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
-		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
-			return reconcile.Result{}, err
-		}
-	}
 	stored := nodeClass.DeepCopy()
-
 	var results []reconcile.Result
 	var errs error
-	for _, reconciler := range []nodeClassStatusReconciler{
-		c.ami,
-		c.subnet,
-		c.securitygroup,
-		c.instanceprofile,
-		c.readiness,
-	} {
-		res, err := reconciler.Reconcile(ctx, nodeClass)
-		errs = multierr.Append(errs, err)
-		results = append(results, res)
+
+	if !nodeClass.DeletionTimestamp.IsZero() {
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassTerminating", "NodeClass is Terminating")
+	} else {
+		if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
+			stored := nodeClass.DeepCopy()
+			controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
+			if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
+				return reconcile.Result{}, err
+			}
+		}
+		for _, reconciler := range []nodeClassStatusReconciler{
+			c.ami,
+			c.subnet,
+			c.securitygroup,
+			c.instanceprofile,
+			c.readiness,
+		} {
+			res, err := reconciler.Reconcile(ctx, nodeClass)
+			errs = multierr.Append(errs, err)
+			results = append(results, res)
+		}
 	}
 
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {

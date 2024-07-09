@@ -16,6 +16,8 @@ package status_test
 
 import (
 	"github.com/awslabs/operatorpkg/status"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"time"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -66,5 +68,14 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("SecurityGroupsReady=False"))
+	})
+	It("should update status condition as Not Ready if EC2nodeClass is terminating", func() {
+		nodeClass.DeletionTimestamp = &metav1.Time{Time: time.Now()}
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).Message).To(Equal("NodeClass is Terminating"))
 	})
 })
