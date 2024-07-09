@@ -16,6 +16,7 @@ package v1_test
 
 import (
 	"context"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -41,7 +42,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 })
 

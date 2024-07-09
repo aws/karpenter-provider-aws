@@ -17,6 +17,7 @@ package garbagecollection_test
 import (
 	"context"
 	"fmt"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"sync"
 	"testing"
 	"time"
@@ -60,7 +61,7 @@ func TestAPIs(t *testing.T) {
 
 var _ = BeforeSuite(func() {
 	ctx = options.ToContext(ctx, test.Options())
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	awsEnv = test.NewEnvironment(ctx, env)
 	cloudProvider = cloudprovider.New(awsEnv.InstanceTypesProvider, awsEnv.InstanceProvider, events.NewRecorder(&record.FakeRecorder{}),
 		env.Client, awsEnv.AMIProvider, awsEnv.SecurityGroupProvider)

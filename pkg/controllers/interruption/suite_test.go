@@ -18,6 +18,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 	"time"
 
@@ -75,7 +76,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	fakeClock = &clock.FakeClock{}
 	unavailableOfferingsCache = awscache.NewUnavailableOfferings()
 	sqsapi = &fake.SQSAPI{}

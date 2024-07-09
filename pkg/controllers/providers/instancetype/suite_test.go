@@ -16,6 +16,7 @@ package instancetype_test
 
 import (
 	"context"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 
 	v1 "k8s.io/api/core/v1"
@@ -51,7 +52,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)

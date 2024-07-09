@@ -17,6 +17,7 @@ package operator_test
 import (
 	"context"
 	"errors"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 
 	"github.com/aws/aws-sdk-go/service/eks"
@@ -48,7 +49,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx, stop = context.WithCancel(ctx)
 
 	fakeEKSAPI = &fake.EKSAPI{}

@@ -32,23 +32,7 @@ type Readiness struct {
 	launchTemplateProvider launchtemplate.Provider
 }
 
-func (n Readiness) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (reconcile.Result, error) {
-	if len(nodeClass.Status.AMIs) == 0 {
-		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve AMIs")
-		return reconcile.Result{}, nil
-	}
-	if len(nodeClass.Status.Subnets) == 0 {
-		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve subnets")
-		return reconcile.Result{}, nil
-	}
-	if len(nodeClass.Status.SecurityGroups) == 0 {
-		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve security groups")
-		return reconcile.Result{}, nil
-	}
-	if len(nodeClass.Status.InstanceProfile) == 0 {
-		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve instance profile")
-		return reconcile.Result{}, nil
-	}
+func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
 	// will not be done at startup but instead in a reconcile loop.
@@ -58,6 +42,5 @@ func (n Readiness) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeC
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
 		}
 	}
-	nodeClass.StatusConditions().SetTrue(status.ConditionReady)
 	return reconcile.Result{}, nil
 }

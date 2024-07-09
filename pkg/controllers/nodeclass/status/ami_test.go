@@ -205,6 +205,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		}))
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
 	It("should resolve amiSelector AMis and requirements into status when all SSM aliases don't resolve", func() {
 		version := lo.Must(awsEnv.VersionProvider.Get(ctx))
@@ -283,6 +284,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		}))
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
 	It("Should resolve a valid AMI selector", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -302,5 +304,13 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		))
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
+	})
+	It("should get error when resolving AMIs and have status condition set to false", func() {
+		awsEnv.EC2API.NextError.Set(fmt.Errorf("unable to resolve AMI"))
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconcileFailed(ctx, env.Client, statusController, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeFalse())
 	})
 })

@@ -8,7 +8,7 @@ require (
 	github.com/Pallinder/go-randomdata v1.2.0
 	github.com/PuerkitoBio/goquery v1.9.2
 	github.com/avast/retry-go v3.0.0+incompatible
-	github.com/aws/aws-sdk-go v1.54.11
+	github.com/aws/aws-sdk-go v1.54.15
 	github.com/aws/karpenter-provider-aws/tools/kompat v0.0.0-20240410220356-6b868db24881
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647
 	github.com/awslabs/operatorpkg v0.0.0-20240701195752-116cbcffbcb4
@@ -33,7 +33,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.18.4
-	sigs.k8s.io/karpenter v0.37.1-0.20240629051434-89a81c3ae853
+	sigs.k8s.io/karpenter v0.37.1-0.20240705194601-4a72da3afe8e
 	sigs.k8s.io/yaml v1.4.0
 )
 

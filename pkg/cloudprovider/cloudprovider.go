@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/awslabs/operatorpkg/object"
 	"github.com/awslabs/operatorpkg/status"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -32,7 +31,6 @@ import (
 	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
-	"sigs.k8s.io/karpenter/pkg/utils/functional"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -225,7 +223,7 @@ func (c *CloudProvider) Name() string {
 }
 
 func (c *CloudProvider) GetSupportedNodeClasses() []schema.GroupVersionKind {
-	return []schema.GroupVersionKind{object.GVK(&providerv1.EC2NodeClass{})}
+  return []status.Object{&providerv1.EC2NodeClass{}}
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1.NodeClaim) (*providerv1.EC2NodeClass, error) {
@@ -331,8 +329,8 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 			}
 			return true
 		}
-		nodeClaim.Status.Capacity = functional.FilterMap(instanceType.Capacity, resourceFilter)
-		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), resourceFilter)
+		nodeClaim.Status.Capacity = lo.PickBy(instanceType.Capacity, resourceFilter)
+		nodeClaim.Status.Allocatable = lo.PickBy(instanceType.Allocatable(), resourceFilter)
 	}
 	labels[v1.LabelTopologyZone] = i.Zone
 	// Attempt to resolve the zoneID from the instance's EC2NodeClass' status condition.

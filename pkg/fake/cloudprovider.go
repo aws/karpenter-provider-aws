@@ -16,6 +16,7 @@ package fake
 
 import (
 	"context"
+	"github.com/awslabs/operatorpkg/status"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -79,6 +80,6 @@ func (c *CloudProvider) Name() string {
 	return "fake"
 }
 
-func (c *CloudProvider) GetSupportedNodeClasses() []schema.GroupVersionKind {
-	return []schema.GroupVersionKind{}
+func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
+	return []status.Object{&providerv1beta1.EC2NodeClass{}}
 }

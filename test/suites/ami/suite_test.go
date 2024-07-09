@@ -238,6 +238,7 @@ var _ = Describe("AMI", func() {
 			nc := EventuallyExpectAMIsToExist(nodeClass)
 			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
 			Expect(nc.Status.AMIs[0].ID).To(Equal(customAMI))
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1beta1.ConditionTypeAMIsReady, Status: metav1.ConditionTrue})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 		})
 		It("should have ec2nodeClass status as not ready since AMI was not resolved", func() {
@@ -247,7 +248,8 @@ var _ = Describe("AMI", func() {
 				},
 			}
 			env.ExpectCreated(nodeClass)
-			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "Failed to resolve AMIs"})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1beta1.ConditionTypeAMIsReady, Status: metav1.ConditionFalse, Message: "AMISelector did not match any AMIs"})
+			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "AMIsReady=False"})
 		})
 	})
 
