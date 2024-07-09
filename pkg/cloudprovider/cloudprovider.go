@@ -113,6 +113,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 }
 
 func (c *CloudProvider) List(ctx context.Context) ([]*corev1beta1.NodeClaim, error) {
+	fmt.Println("test")
 	instances, err := c.instanceProvider.List(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("listing instances, %w", err)
