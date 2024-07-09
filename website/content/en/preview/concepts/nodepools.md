@@ -1,7 +1,7 @@
 ---
 title: "NodePools"
 linkTitle: "NodePools"
-weight: 1
+weight: 10
 description: >
   Configure Karpenter with NodePools
 ---

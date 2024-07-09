@@ -1,7 +1,7 @@
 ---
 title: "Scheduling"
 linkTitle: "Scheduling"
-weight: 3
+weight: 40
 description: >
   Learn about scheduling workloads with Karpenter
 ---

@@ -1,7 +1,7 @@
 ---
 title: "Disruption"
 linkTitle: "Disruption"
-weight: 4
+weight: 50
 description: >
   Understand different ways Karpenter disrupts nodes
 ---
