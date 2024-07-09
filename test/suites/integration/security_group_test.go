@@ -26,7 +26,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/awslabs/operatorpkg/test/expectations"
@@ -78,7 +78,7 @@ var _ = Describe("SecurityGroups", func() {
 	It("should update the EC2NodeClass status security groups", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSecurityGroups(env, nodeClass)
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1beta1.ConditionTypeSecurityGroupsReady, Status: metav1.ConditionTrue})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeSecurityGroupsReady, Status: metav1.ConditionTrue})
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 	})
 
@@ -89,7 +89,7 @@ var _ = Describe("SecurityGroups", func() {
 			},
 		}
 		env.ExpectCreated(nodeClass)
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1beta1.ConditionTypeSecurityGroupsReady, Status: metav1.ConditionFalse, Message: "SecurityGroupSelector did not match any SecurityGroups"})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeSecurityGroupsReady, Status: metav1.ConditionFalse, Message: "SecurityGroupSelector did not match any SecurityGroups"})
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "SecurityGroupsReady=False"})
 	})
 })

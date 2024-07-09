@@ -21,19 +21,19 @@ import (
 
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 var _ = Describe("Extended Resources", func() {
@@ -45,7 +45,7 @@ var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
 		ExpectNvidiaDevicePluginCreated()
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
-		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
+		nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -53,21 +53,21 @@ var _ = Describe("Extended Resources", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						"nvidia.com/gpu": resource.MustParse("1"),
 					},
-					Limits: v1.ResourceList{
+					Limits: corev1.ResourceList{
 						"nvidia.com/gpu": resource.MustParse("1"),
 					},
 				},
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      providerv1.LabelInstanceCategory,
-				Operator: v1.NodeSelectorOpExists,
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
 			},
 		})
 		env.ExpectCreated(nodeClass, nodePool, dep)
@@ -77,7 +77,7 @@ var _ = Describe("Extended Resources", func() {
 	})
 	It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
 		// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
-		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -85,21 +85,21 @@ var _ = Describe("Extended Resources", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						"nvidia.com/gpu": resource.MustParse("1"),
 					},
-					Limits: v1.ResourceList{
+					Limits: corev1.ResourceList{
 						"nvidia.com/gpu": resource.MustParse("1"),
 					},
 				},
 			},
 		})
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-		test.ReplaceRequirements(nodePool, corev1.NodeSelectorRequirementWithMinValues{
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      providerv1.LabelInstanceCategory,
-				Operator: v1.NodeSelectorOpExists,
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
 			}})
 		env.ExpectCreated(nodeClass, nodePool, dep)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -118,11 +118,11 @@ var _ = Describe("Extended Resources", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						"vpc.amazonaws.com/pod-eni": resource.MustParse("1"),
 					},
-					Limits: v1.ResourceList{
+					Limits: corev1.ResourceList{
 						"vpc.amazonaws.com/pod-eni": resource.MustParse("1"),
 					},
 				},
@@ -144,8 +144,8 @@ var _ = Describe("Extended Resources", func() {
 		// We use a Custom AMI so that we can reboot after we start the kubelet service
 		rawContent, err := os.ReadFile("testdata/amd_driver_input.sh")
 		Expect(err).ToNot(HaveOccurred())
-		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyCustom
-		nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{
+		nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				ID: customAMI,
 			},
@@ -160,11 +160,11 @@ var _ = Describe("Extended Resources", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						"amd.com/gpu": resource.MustParse("1"),
 					},
-					Limits: v1.ResourceList{
+					Limits: corev1.ResourceList{
 						"amd.com/gpu": resource.MustParse("1"),
 					},
 				},
@@ -184,7 +184,7 @@ var _ = Describe("Extended Resources", func() {
 		Skip("skipping test on an exotic instance type")
 		ExpectHabanaDevicePluginCreated()
 
-		nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				ID: "ami-0fae925f94979981f",
 			},
@@ -196,11 +196,11 @@ var _ = Describe("Extended Resources", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						"habana.ai/gaudi": resource.MustParse("1"),
 					},
-					Limits: v1.ResourceList{
+					Limits: corev1.ResourceList{
 						"habana.ai/gaudi": resource.MustParse("1"),
 					},
 				},
@@ -219,16 +219,16 @@ var _ = Describe("Extended Resources", func() {
 		nodePool.Spec.Template.Labels = map[string]string{
 			"aws.amazon.com/efa": "true",
 		}
-		nodePool.Spec.Template.Spec.Taints = []v1.Taint{
+		nodePool.Spec.Template.Spec.Taints = []corev1.Taint{
 			{
 				Key:    "aws.amazon.com/efa",
-				Effect: v1.TaintEffectNoSchedule,
+				Effect: corev1.TaintEffectNoSchedule,
 			},
 		}
 		// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
 		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
-		nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
+		nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
 
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
@@ -237,17 +237,17 @@ var _ = Describe("Extended Resources", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "efa-app"},
 				},
-				Tolerations: []v1.Toleration{
+				Tolerations: []corev1.Toleration{
 					{
 						Key:      "aws.amazon.com/efa",
-						Operator: v1.TolerationOpExists,
+						Operator: corev1.TolerationOpExists,
 					},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
 						"vpc.amazonaws.com/efa": resource.MustParse("2"),
 					},
-					Limits: v1.ResourceList{
+					Limits: corev1.ResourceList{
 						"vpc.amazonaws.com/efa": resource.MustParse("2"),
 					},
 				},
@@ -277,38 +277,38 @@ func ExpectNvidiaDevicePluginCreated() {
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Labels: map[string]string{
 						"name": "nvidia-device-plugin-ds",
 					},
 				}),
-				Spec: v1.PodSpec{
-					Tolerations: []v1.Toleration{
+				Spec: corev1.PodSpec{
+					Tolerations: []corev1.Toleration{
 						{
 							Key:      "nvidia.com/gpu",
-							Operator: v1.TolerationOpExists,
-							Effect:   v1.TaintEffectNoSchedule,
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
 						},
 					},
 					PriorityClassName: "system-node-critical",
-					Containers: []v1.Container{
+					Containers: []corev1.Container{
 						{
 							Name:  "nvidia-device-plugin-ctr",
 							Image: "nvcr.io/nvidia/k8s-device-plugin:v0.12.3",
-							Env: []v1.EnvVar{
+							Env: []corev1.EnvVar{
 								{
 									Name:  "FAIL_ON_INIT_ERROR",
 									Value: "false",
 								},
 							},
-							SecurityContext: &v1.SecurityContext{
+							SecurityContext: &corev1.SecurityContext{
 								AllowPrivilegeEscalation: lo.ToPtr(false),
-								Capabilities: &v1.Capabilities{
-									Drop: []v1.Capability{"ALL"},
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "device-plugin",
 									MountPath: "/var/lib/kubelet/device-plugins",
@@ -316,11 +316,11 @@ func ExpectNvidiaDevicePluginCreated() {
 							},
 						},
 					},
-					Volumes: []v1.Volume{
+					Volumes: []corev1.Volume{
 						{
 							Name: "device-plugin",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/var/lib/kubelet/device-plugins",
 								},
 							},
@@ -345,32 +345,32 @@ func ExpectAMDDevicePluginCreated() {
 					"name": "amdgpu-dp-ds",
 				},
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Labels: map[string]string{
 						"name": "amdgpu-dp-ds",
 					},
 				}),
-				Spec: v1.PodSpec{
+				Spec: corev1.PodSpec{
 					PriorityClassName: "system-node-critical",
-					Tolerations: []v1.Toleration{
+					Tolerations: []corev1.Toleration{
 						{
 							Key:      "amd.com/gpu",
-							Operator: v1.TolerationOpExists,
-							Effect:   v1.TaintEffectNoSchedule,
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
 						},
 					},
-					Containers: []v1.Container{
+					Containers: []corev1.Container{
 						{
 							Name:  "amdgpu-dp-cntr",
 							Image: "rocm/k8s-device-plugin",
-							SecurityContext: &v1.SecurityContext{
+							SecurityContext: &corev1.SecurityContext{
 								AllowPrivilegeEscalation: lo.ToPtr(false),
-								Capabilities: &v1.Capabilities{
-									Drop: []v1.Capability{"ALL"},
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
 								},
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "dp",
 									MountPath: "/var/lib/kubelet/device-plugins",
@@ -382,19 +382,19 @@ func ExpectAMDDevicePluginCreated() {
 							},
 						},
 					},
-					Volumes: []v1.Volume{
+					Volumes: []corev1.Volume{
 						{
 							Name: "dp",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/var/lib/kubelet/device-plugins",
 								},
 							},
 						},
 						{
 							Name: "sys",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/sys",
 								},
 							},
@@ -408,7 +408,7 @@ func ExpectAMDDevicePluginCreated() {
 
 func ExpectHabanaDevicePluginCreated() {
 	GinkgoHelper()
-	env.ExpectCreated(&v1.Namespace{
+	env.ExpectCreated(&corev1.Namespace{
 		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 			Name: "habana-system",
 		}),
@@ -427,7 +427,7 @@ func ExpectHabanaDevicePluginCreated() {
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"scheduler.alpha.kubernetes.io/critical-pod": "",
@@ -436,23 +436,23 @@ func ExpectHabanaDevicePluginCreated() {
 						"name": "habanalabs-device-plugin-ds",
 					},
 				}),
-				Spec: v1.PodSpec{
-					Tolerations: []v1.Toleration{
+				Spec: corev1.PodSpec{
+					Tolerations: []corev1.Toleration{
 						{
 							Key:      "habana.ai/gaudi",
-							Operator: v1.TolerationOpExists,
-							Effect:   v1.TaintEffectNoSchedule,
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
 						},
 					},
 					PriorityClassName: "system-node-critical",
-					Containers: []v1.Container{
+					Containers: []corev1.Container{
 						{
 							Name:  "habanalabs-device-plugin-ctr",
 							Image: "vault.habana.ai/docker-k8s-device-plugin/docker-k8s-device-plugin:latest",
-							SecurityContext: &v1.SecurityContext{
+							SecurityContext: &corev1.SecurityContext{
 								Privileged: lo.ToPtr(true),
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "device-plugin",
 									MountPath: "/var/lib/kubelet/device-plugins",
@@ -460,11 +460,11 @@ func ExpectHabanaDevicePluginCreated() {
 							},
 						},
 					},
-					Volumes: []v1.Volume{
+					Volumes: []corev1.Volume{
 						{
 							Name: "device-plugin",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/var/lib/kubelet/device-plugins",
 								},
 							},
@@ -492,7 +492,7 @@ func ExpectEFADevicePluginCreated() {
 			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
 				Type: appsv1.RollingUpdateDaemonSetStrategyType,
 			},
-			Template: v1.PodTemplateSpec{
+			Template: corev1.PodTemplateSpec{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
 					Annotations: map[string]string{
 						"scheduler.alpha.kubernetes.io/critical-pod": "",
@@ -501,35 +501,35 @@ func ExpectEFADevicePluginCreated() {
 						"name": "aws-efa-k8s-device-plugin",
 					},
 				}),
-				Spec: v1.PodSpec{
+				Spec: corev1.PodSpec{
 					NodeSelector: map[string]string{
 						"aws.amazon.com/efa": "true",
 					},
-					Tolerations: []v1.Toleration{
+					Tolerations: []corev1.Toleration{
 						{
 							Key:      "CriticalAddonsOnly",
-							Operator: v1.TolerationOpExists,
+							Operator: corev1.TolerationOpExists,
 						},
 						{
 							Key:      "aws.amazon.com/efa",
-							Operator: v1.TolerationOpExists,
-							Effect:   v1.TaintEffectNoSchedule,
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
 						},
 					},
 					PriorityClassName: "system-node-critical",
 					HostNetwork:       true,
-					Containers: []v1.Container{
+					Containers: []corev1.Container{
 						{
 							Name:  "aws-efea-k8s-device-plugin",
 							Image: "602401143452.dkr.ecr.us-west-2.amazonaws.com/eks/aws-efa-k8s-device-plugin:v0.3.3",
-							SecurityContext: &v1.SecurityContext{
+							SecurityContext: &corev1.SecurityContext{
 								AllowPrivilegeEscalation: lo.ToPtr(false),
-								Capabilities: &v1.Capabilities{
-									Drop: []v1.Capability{"ALL"},
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
 								},
 								RunAsNonRoot: lo.ToPtr(false),
 							},
-							VolumeMounts: []v1.VolumeMount{
+							VolumeMounts: []corev1.VolumeMount{
 								{
 									Name:      "device-plugin",
 									MountPath: "/var/lib/kubelet/device-plugins",
@@ -537,11 +537,11 @@ func ExpectEFADevicePluginCreated() {
 							},
 						},
 					},
-					Volumes: []v1.Volume{
+					Volumes: []corev1.Volume{
 						{
 							Name: "device-plugin",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/var/lib/kubelet/device-plugins",
 								},
 							},

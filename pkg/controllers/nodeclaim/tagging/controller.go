@@ -37,7 +37,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
 
@@ -53,7 +53,7 @@ func NewController(kubeClient client.Client, instanceProvider instance.Provider)
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1.NodeClaim) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, nodeClaim *karpv1.NodeClaim) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "nodeclaim.tagging")
 
 	stored := nodeClaim.DeepCopy()
@@ -82,9 +82,9 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1.NodeClaim)
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodeclaim.tagging").
-		For(&corev1.NodeClaim{}).
+		For(&karpv1.NodeClaim{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
-			return isTaggable(o.(*corev1.NodeClaim))
+			return isTaggable(o.(*karpv1.NodeClaim))
 		})).
 		// Ok with using the default MaxConcurrentReconciles of 1 to avoid throttling from CreateTag write API
 		WithOptions(controller.Options{
@@ -93,7 +93,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }
 
-func (c *Controller) tagInstance(ctx context.Context, nc *corev1.NodeClaim, id string) error {
+func (c *Controller) tagInstance(ctx context.Context, nc *karpv1.NodeClaim, id string) error {
 	tags := map[string]string{
 		providerv1.TagName:      nc.Status.NodeName,
 		providerv1.TagNodeClaim: nc.Name,
@@ -118,7 +118,7 @@ func (c *Controller) tagInstance(ctx context.Context, nc *corev1.NodeClaim, id s
 	return nil
 }
 
-func isTaggable(nc *corev1.NodeClaim) bool {
+func isTaggable(nc *karpv1.NodeClaim) bool {
 	// Instance has already been tagged
 	if val := nc.Annotations[providerv1.AnnotationInstanceTagged]; val == "true" {
 		return false

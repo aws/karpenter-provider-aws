@@ -25,7 +25,7 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
@@ -119,7 +119,7 @@ func NewResolver(amiProvider Provider) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(nodeClass *providerv1.EC2NodeClass, nodeClaim *corev1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
+func (r Resolver) Resolve(nodeClass *providerv1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
@@ -205,7 +205,7 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *providerv1.Kub
 	return newKubeletConfig
 }
 
-func (r Resolver) resolveLaunchTemplate(nodeClass *providerv1.EC2NodeClass, nodeClaim *corev1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
+func (r Resolver) resolveLaunchTemplate(nodeClass *providerv1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
 	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) (*LaunchTemplate, error) {
 	kubeletConfig := &providerv1.KubeletConfiguration{}
 	if nodeClass.Spec.Kubelet != nil {

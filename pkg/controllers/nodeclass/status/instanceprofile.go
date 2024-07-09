@@ -21,7 +21,7 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 )
 
@@ -29,7 +29,7 @@ type InstanceProfile struct {
 	instanceProfileProvider instanceprofile.Provider
 }
 
-func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (reconcile.Result, error) {
+func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	if nodeClass.Spec.Role != "" {
 		name, err := ip.instanceProfileProvider.Create(ctx, nodeClass)
 		if err != nil {
@@ -39,6 +39,6 @@ func (ip *InstanceProfile) Reconcile(ctx context.Context, nodeClass *providerv1.
 	} else {
 		nodeClass.Status.InstanceProfile = lo.FromPtr(nodeClass.Spec.InstanceProfile)
 	}
-	nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeInstanceProfileReady)
+	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeInstanceProfileReady)
 	return reconcile.Result{}, nil
 }

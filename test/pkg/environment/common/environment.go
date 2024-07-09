@@ -26,7 +26,7 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/onsi/gomega"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -39,7 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/operator"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -101,22 +101,22 @@ func NewConfig() *rest.Config {
 
 func NewClient(ctx context.Context, config *rest.Config) client.Client {
 	cache := lo.Must(cache.New(config, cache.Options{Scheme: scheme.Scheme}))
-	lo.Must0(cache.IndexField(ctx, &v1.Pod{}, "spec.nodeName", func(o client.Object) []string {
-		pod := o.(*v1.Pod)
+	lo.Must0(cache.IndexField(ctx, &corev1.Pod{}, "spec.nodeName", func(o client.Object) []string {
+		pod := o.(*corev1.Pod)
 		return []string{pod.Spec.NodeName}
 	}))
-	lo.Must0(cache.IndexField(ctx, &v1.Event{}, "involvedObject.kind", func(o client.Object) []string {
-		evt := o.(*v1.Event)
+	lo.Must0(cache.IndexField(ctx, &corev1.Event{}, "involvedObject.kind", func(o client.Object) []string {
+		evt := o.(*corev1.Event)
 		return []string{evt.InvolvedObject.Kind}
 	}))
-	lo.Must0(cache.IndexField(ctx, &v1.Node{}, "spec.unschedulable", func(o client.Object) []string {
-		node := o.(*v1.Node)
+	lo.Must0(cache.IndexField(ctx, &corev1.Node{}, "spec.unschedulable", func(o client.Object) []string {
+		node := o.(*corev1.Node)
 		return []string{strconv.FormatBool(node.Spec.Unschedulable)}
 	}))
-	lo.Must0(cache.IndexField(ctx, &v1.Node{}, "spec.taints[*].karpenter.sh/disruption", func(o client.Object) []string {
-		node := o.(*v1.Node)
-		t, _ := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
-			return t.Key == corev1.DisruptionTaintKey
+	lo.Must0(cache.IndexField(ctx, &corev1.Node{}, "spec.taints[*].karpenter.sh/disruption", func(o client.Object) []string {
+		node := o.(*corev1.Node)
+		t, _ := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
+			return t.Key == karpv1.DisruptionTaintKey
 		})
 		return []string{t.Value}
 	}))
@@ -132,56 +132,56 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 	return c
 }
 
-func (env *Environment) DefaultNodePool(nodeClass *providerv1.EC2NodeClass) *corev1.NodePool {
+func (env *Environment) DefaultNodePool(nodeClass *providerv1.EC2NodeClass) *karpv1.NodePool {
 	nodePool := coretest.NodePool()
-	nodePool.Spec.Template.Spec.NodeClassRef = &corev1.NodeClassReference{
+	nodePool.Spec.Template.Spec.NodeClassRef = &karpv1.NodeClassReference{
 		Group: object.GVK(nodeClass).Group,
 		Kind:  object.GVK(nodeClass).Kind,
 		Name:  nodeClass.Name,
 	}
-	nodePool.Spec.Template.Spec.Requirements = []corev1.NodeSelectorRequirementWithMinValues{
+	nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 		{
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      v1.LabelOSStable,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{string(v1.Linux)},
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      corev1.LabelOSStable,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{string(corev1.Linux)},
 			},
 		},
 		{
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
-				Key:      corev1.CapacityTypeLabelKey,
-				Operator: v1.NodeSelectorOpIn,
-				Values:   []string{corev1.CapacityTypeOnDemand},
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeOnDemand},
 			},
 		},
 		{
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      providerv1.LabelInstanceCategory,
-				Operator: v1.NodeSelectorOpIn,
+				Operator: corev1.NodeSelectorOpIn,
 				Values:   []string{"c", "m", "r"},
 			},
 		},
 		{
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      providerv1.LabelInstanceGeneration,
-				Operator: v1.NodeSelectorOpGt,
+				Operator: corev1.NodeSelectorOpGt,
 				Values:   []string{"2"},
 			},
 		},
 		// Filter out a1 instance types, which are incompatible with AL2023 AMIs
 		{
-			NodeSelectorRequirement: v1.NodeSelectorRequirement{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
 				Key:      providerv1.LabelInstanceFamily,
-				Operator: v1.NodeSelectorOpNotIn,
+				Operator: corev1.NodeSelectorOpNotIn,
 				Values:   []string{"a1"},
 			},
 		},
 	}
-	nodePool.Spec.Disruption.ConsolidateAfter = &corev1.NillableDuration{}
+	nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{}
 	nodePool.Spec.Disruption.ExpireAfter.Duration = nil
-	nodePool.Spec.Limits = corev1.Limits(v1.ResourceList{
-		v1.ResourceCPU:    resource.MustParse("1000"),
-		v1.ResourceMemory: resource.MustParse("1000Gi"),
+	nodePool.Spec.Limits = karpv1.Limits(corev1.ResourceList{
+		corev1.ResourceCPU:    resource.MustParse("1000"),
+		corev1.ResourceMemory: resource.MustParse("1000Gi"),
 	})
 	return nodePool
 }

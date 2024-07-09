@@ -17,7 +17,7 @@ package nodeclaim_test
 import (
 	"testing"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -28,7 +28,7 @@ import (
 
 var env *aws.Environment
 var nodeClass *providerv1.EC2NodeClass
-var nodePool *corev1.NodePool
+var nodePool *karpv1.NodePool
 
 func TestNodeClaim(t *testing.T) {
 	RegisterFailHandler(Fail)

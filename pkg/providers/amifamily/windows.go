@@ -17,10 +17,10 @@ package amifamily
 import (
 	"fmt"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -29,7 +29,7 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
@@ -44,18 +44,18 @@ type Windows struct {
 func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
-			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, providerv1.WindowsCore, version),
+			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1.WindowsCore, version),
 			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1.ArchitectureAmd64),
-				scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
-				scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpIn, w.Build),
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
+				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)),
+				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpIn, w.Build),
 			),
 		},
 	}
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (w Windows) UserData(kubeletConfig *providerv1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *providerv1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (w Windows) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:     w.Options.ClusterName,
@@ -70,10 +70,10 @@ func (w Windows) UserData(kubeletConfig *providerv1.KubeletConfiguration, taints
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (w Windows) DefaultBlockDeviceMappings() []*providerv1.BlockDeviceMapping {
+func (w Windows) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
 	sda1EBS := DefaultEBS
 	sda1EBS.VolumeSize = lo.ToPtr(resource.MustParse("50Gi"))
-	return []*providerv1.BlockDeviceMapping{{
+	return []*v1.BlockDeviceMapping{{
 		DeviceName: w.EphemeralBlockDevice(),
 		EBS:        &sda1EBS,
 	}}

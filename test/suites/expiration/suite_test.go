@@ -20,15 +20,15 @@ import (
 
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -38,8 +38,8 @@ import (
 )
 
 var env *aws.Environment
-var nodeClass *providerv1.EC2NodeClass
-var nodePool *corev1.NodePool
+var nodeClass *v1.EC2NodeClass
+var nodePool *karpv1.NodePool
 
 func TestExpiration(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -76,7 +76,7 @@ var _ = Describe("Expiration", func() {
 						"app": "my-app",
 					},
 					Annotations: map[string]string{
-						corev1.DoNotDisruptAnnotationKey: "true",
+						karpv1.DoNotDisruptAnnotationKey: "true",
 					},
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
@@ -93,14 +93,14 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter = corev1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
+		nodePool.Spec.Disruption.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
 		env.ExpectUpdated(nodePool)
 
 		// Eventually the node will be tainted, which means its actively being disrupted
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
-			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
-				return corev1.IsDisruptingTaint(t)
+			_, ok := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
+				return karpv1.IsDisruptingTaint(t)
 			})
 			g.Expect(ok).To(BeTrue())
 		}).Should(Succeed())
@@ -134,7 +134,7 @@ var _ = Describe("Expiration", func() {
 			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Annotations: map[string]string{
-						corev1.DoNotDisruptAnnotationKey: "true",
+						karpv1.DoNotDisruptAnnotationKey: "true",
 					},
 					Labels: map[string]string{"app": "large-app"},
 				},
@@ -155,8 +155,8 @@ var _ = Describe("Expiration", func() {
 		// Eventually the node will be tainted, which means its actively being disrupted
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
-			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
-				return corev1.IsDisruptingTaint(t)
+			_, ok := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
+				return karpv1.IsDisruptingTaint(t)
 			})
 			g.Expect(ok).To(BeTrue())
 		}).Should(Succeed())

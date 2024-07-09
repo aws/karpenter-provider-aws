@@ -20,7 +20,7 @@ import (
 	"math"
 	"sync"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -28,7 +28,7 @@ import (
 
 	"github.com/samber/lo"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 )
 
@@ -39,21 +39,21 @@ type Monitor struct {
 
 	mu sync.RWMutex
 
-	nodesAtReset map[string]*v1.Node
+	nodesAtReset map[string]*corev1.Node
 }
 
 type state struct {
-	pods         v1.PodList
-	nodes        map[string]*v1.Node        // node name -> node
-	nodePods     map[string][]*v1.Pod       // node name -> pods bound to the node
-	nodeRequests map[string]v1.ResourceList // node name -> sum of pod resource requests
+	pods         corev1.PodList
+	nodes        map[string]*corev1.Node        // node name -> node
+	nodePods     map[string][]*corev1.Pod       // node name -> pods bound to the node
+	nodeRequests map[string]corev1.ResourceList // node name -> sum of pod resource requests
 }
 
 func NewMonitor(ctx context.Context, kubeClient client.Client) *Monitor {
 	m := &Monitor{
 		ctx:          ctx,
 		kubeClient:   kubeClient,
-		nodesAtReset: map[string]*v1.Node{},
+		nodesAtReset: map[string]*corev1.Node{},
 	}
 	m.Reset()
 	return m
@@ -105,36 +105,36 @@ func (m *Monitor) CreatedNodeCount() int {
 }
 
 // NodesAtReset returns a slice of nodes that the monitor saw at the last reset
-func (m *Monitor) NodesAtReset() []*v1.Node {
+func (m *Monitor) NodesAtReset() []*corev1.Node {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	return deepCopySlice(lo.Values(m.nodesAtReset))
 }
 
 // Nodes returns all the nodes on the cluster
-func (m *Monitor) Nodes() []*v1.Node {
+func (m *Monitor) Nodes() []*corev1.Node {
 	st := m.poll()
 	return lo.Values(st.nodes)
 }
 
 // CreatedNodes returns the nodes that have been created since the last reset (essentially Nodes - NodesAtReset)
-func (m *Monitor) CreatedNodes() []*v1.Node {
-	resetNodeNames := sets.NewString(lo.Map(m.NodesAtReset(), func(n *v1.Node, _ int) string { return n.Name })...)
-	return lo.Filter(m.Nodes(), func(n *v1.Node, _ int) bool { return !resetNodeNames.Has(n.Name) })
+func (m *Monitor) CreatedNodes() []*corev1.Node {
+	resetNodeNames := sets.NewString(lo.Map(m.NodesAtReset(), func(n *corev1.Node, _ int) string { return n.Name })...)
+	return lo.Filter(m.Nodes(), func(n *corev1.Node, _ int) bool { return !resetNodeNames.Has(n.Name) })
 }
 
 // DeletedNodes returns the nodes that have been deleted since the last reset (essentially NodesAtReset - Nodes)
-func (m *Monitor) DeletedNodes() []*v1.Node {
-	currentNodeNames := sets.NewString(lo.Map(m.Nodes(), func(n *v1.Node, _ int) string { return n.Name })...)
-	return lo.Filter(m.NodesAtReset(), func(n *v1.Node, _ int) bool { return !currentNodeNames.Has(n.Name) })
+func (m *Monitor) DeletedNodes() []*corev1.Node {
+	currentNodeNames := sets.NewString(lo.Map(m.Nodes(), func(n *corev1.Node, _ int) string { return n.Name })...)
+	return lo.Filter(m.NodesAtReset(), func(n *corev1.Node, _ int) bool { return !currentNodeNames.Has(n.Name) })
 }
 
 // PendingPods returns the number of pending pods matching the given selector
-func (m *Monitor) PendingPods(selector labels.Selector) []*v1.Pod {
-	var pods []*v1.Pod
+func (m *Monitor) PendingPods(selector labels.Selector) []*corev1.Pod {
+	var pods []*corev1.Pod
 	for _, pod := range m.poll().pods.Items {
 		pod := pod
-		if pod.Status.Phase != v1.PodPending {
+		if pod.Status.Phase != corev1.PodPending {
 			continue
 		}
 		if selector.Matches(labels.Set(pod.Labels)) {
@@ -149,11 +149,11 @@ func (m *Monitor) PendingPodsCount(selector labels.Selector) int {
 }
 
 // RunningPods returns the number of running pods matching the given selector
-func (m *Monitor) RunningPods(selector labels.Selector) []*v1.Pod {
-	var pods []*v1.Pod
+func (m *Monitor) RunningPods(selector labels.Selector) []*corev1.Pod {
+	var pods []*corev1.Pod
 	for _, pod := range m.poll().pods.Items {
 		pod := pod
-		if pod.Status.Phase != v1.PodRunning {
+		if pod.Status.Phase != corev1.PodRunning {
 			continue
 		}
 		if selector.Matches(labels.Set(pod.Labels)) {
@@ -168,19 +168,19 @@ func (m *Monitor) RunningPodsCount(selector labels.Selector) int {
 }
 
 func (m *Monitor) poll() state {
-	var nodes v1.NodeList
+	var nodes corev1.NodeList
 	if err := m.kubeClient.List(m.ctx, &nodes); err != nil {
 		log.FromContext(m.ctx).Error(err, "failed listing nodes")
 	}
-	var pods v1.PodList
+	var pods corev1.PodList
 	if err := m.kubeClient.List(m.ctx, &pods); err != nil {
 		log.FromContext(m.ctx).Error(err, "failing listing pods")
 	}
 	st := state{
-		nodes:        map[string]*v1.Node{},
+		nodes:        map[string]*corev1.Node{},
 		pods:         pods,
-		nodePods:     map[string][]*v1.Pod{},
-		nodeRequests: map[string]v1.ResourceList{},
+		nodePods:     map[string][]*corev1.Pod{},
+		nodeRequests: map[string]corev1.ResourceList{},
 	}
 	for i := range nodes.Items {
 		st.nodes[nodes.Items[i].Name] = &nodes.Items[i]
@@ -200,7 +200,7 @@ func (m *Monitor) poll() state {
 	return st
 }
 
-func (m *Monitor) AvgUtilization(resource v1.ResourceName) float64 {
+func (m *Monitor) AvgUtilization(resource corev1.ResourceName) float64 {
 	utilization := m.nodeUtilization(resource)
 	sum := 0.0
 	for _, v := range utilization {
@@ -209,7 +209,7 @@ func (m *Monitor) AvgUtilization(resource v1.ResourceName) float64 {
 	return sum / float64(len(utilization))
 }
 
-func (m *Monitor) MinUtilization(resource v1.ResourceName) float64 {
+func (m *Monitor) MinUtilization(resource corev1.ResourceName) float64 {
 	min := math.MaxFloat64
 	for _, v := range m.nodeUtilization(resource) {
 		min = math.Min(v, min)
@@ -217,13 +217,13 @@ func (m *Monitor) MinUtilization(resource v1.ResourceName) float64 {
 	return min
 }
 
-func (m *Monitor) nodeUtilization(resource v1.ResourceName) []float64 {
+func (m *Monitor) nodeUtilization(resource corev1.ResourceName) []float64 {
 	st := m.poll()
 	var utilization []float64
 	for nodeName, requests := range st.nodeRequests {
 		allocatable := st.nodes[nodeName].Status.Allocatable[resource]
 		// skip any nodes we didn't launch
-		if st.nodes[nodeName].Labels[corev1.NodePoolLabelKey] == "" {
+		if st.nodes[nodeName].Labels[karpv1.NodePoolLabelKey] == "" {
 			continue
 		}
 		if allocatable.IsZero() {

@@ -39,7 +39,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/awslabs/operatorpkg/reasonable"
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -78,12 +78,12 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *providerv1.EC2Node
 	if !controllerutil.ContainsFinalizer(nodeClass, providerv1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
-	nodeClaimList := &corev1.NodeClaimList{}
+	nodeClaimList := &karpv1.NodeClaimList{}
 	if err := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"spec.nodeClassRef.name": nodeClass.Name}); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing nodeclaims that are using nodeclass, %w", err)
 	}
 	if len(nodeClaimList.Items) > 0 {
-		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc corev1.NodeClaim, _ int) string { return nc.Name })))
+		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {
@@ -114,9 +114,9 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		Named("nodeclass.termination").
 		For(&providerv1.EC2NodeClass{}).
 		Watches(
-			&corev1.NodeClaim{},
+			&karpv1.NodeClaim{},
 			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
-				nc := o.(*corev1.NodeClaim)
+				nc := o.(*karpv1.NodeClaim)
 				if nc.Spec.NodeClassRef == nil {
 					return nil
 				}

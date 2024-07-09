@@ -15,13 +15,13 @@ limitations under the License.
 package aws
 
 import (
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
-var persistedSettings []v1.EnvVar
+var persistedSettings []corev1.EnvVar
 
 var (
 	CleanableObjects = []client.Object{

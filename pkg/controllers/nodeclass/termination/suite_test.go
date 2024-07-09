@@ -17,9 +17,10 @@ package termination_test
 import (
 	"context"
 	"fmt"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 	"time"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -28,7 +29,7 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -204,11 +205,11 @@ var _ = Describe("NodeClass Termination", func() {
 		ExpectNotFound(ctx, env.Client, nodeClass)
 	})
 	It("should not delete the EC2NodeClass until all associated NodeClaims are terminated", func() {
-		var nodeClaims []*corev1.NodeClaim
+		var nodeClaims []*karpv1.NodeClaim
 		for i := 0; i < 2; i++ {
-			nc := coretest.NodeClaim(corev1.NodeClaim{
-				Spec: corev1.NodeClaimSpec{
-					NodeClassRef: &corev1.NodeClassReference{
+			nc := coretest.NodeClaim(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					NodeClassRef: &karpv1.NodeClassReference{
 						Group: object.GVK(nodeClass).Group,
 						Kind:  object.GVK(nodeClass).Kind,
 						Name:  nodeClass.Name,

@@ -20,16 +20,16 @@ import (
 	"testing"
 
 	awssdk "github.com/aws/aws-sdk-go/aws"
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -43,8 +43,8 @@ import (
 )
 
 var env *environmentaws.Environment
-var nodeClass *providerv1.EC2NodeClass
-var nodePool *corev1.NodePool
+var nodeClass *v1.EC2NodeClass
+var nodePool *karpv1.NodePool
 
 func TestStorage(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -176,8 +176,8 @@ var _ = Describe("Persistent Volumes", func() {
 			subnets := env.GetSubnets(map[string]string{"karpenter.sh/discovery": env.ClusterName})
 			shuffledAZs := lo.Shuffle(lo.Keys(subnets))
 
-			storageClass.AllowedTopologies = []v1.TopologySelectorTerm{{
-				MatchLabelExpressions: []v1.TopologySelectorLabelRequirement{{
+			storageClass.AllowedTopologies = []corev1.TopologySelectorTerm{{
+				MatchLabelExpressions: []corev1.TopologySelectorLabelRequirement{{
 					Key:    "topology.ebs.csi.aws.com/zone",
 					Values: []string{shuffledAZs[0]},
 				}},
@@ -201,12 +201,12 @@ var _ = Describe("Persistent Volumes", func() {
 			})
 
 			count := 2
-			pvcs := lo.Times(count, func(_ int) *v1.PersistentVolumeClaim {
+			pvcs := lo.Times(count, func(_ int) *corev1.PersistentVolumeClaim {
 				return test.PersistentVolumeClaim(test.PersistentVolumeClaimOptions{
 					StorageClassName: &storageClass.Name,
 				})
 			})
-			pods := lo.Map(pvcs, func(pvc *v1.PersistentVolumeClaim, _ int) *v1.Pod {
+			pods := lo.Map(pvcs, func(pvc *corev1.PersistentVolumeClaim, _ int) *corev1.Pod {
 				return test.Pod(test.PodOptions{
 					PersistentVolumeClaims: []string{pvc.Name},
 				})
@@ -238,12 +238,12 @@ var _ = Describe("Persistent Volumes", func() {
 
 var _ = Describe("Ephemeral Storage", func() {
 	It("should run a pod with instance-store ephemeral storage that exceeds EBS root block device mappings", func() {
-		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(providerv1.InstanceStorePolicyRAID0)
+		nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 
 		pod := test.Pod(test.PodOptions{
-			ResourceRequirements: v1.ResourceRequirements{
-				Requests: v1.ResourceList{
-					v1.ResourceEphemeralStorage: resource.MustParse("100Gi"),
+			ResourceRequirements: corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceEphemeralStorage: resource.MustParse("100Gi"),
 				},
 			},
 		})

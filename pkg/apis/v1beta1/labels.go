@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"regexp"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
@@ -49,7 +49,7 @@ func init() {
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
 		LabelTopologyZoneID,
-		v1.LabelWindowsBuild,
+		corev1.LabelWindowsBuild,
 	)
 }
 
@@ -75,25 +75,25 @@ var (
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(LabelNodeClass))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
 	}
-	AMIFamilyBottlerocket                      = "Bottlerocket"
-	AMIFamilyAL2                               = "AL2"
-	AMIFamilyAL2023                            = "AL2023"
-	AMIFamilyUbuntu                            = "Ubuntu"
-	AMIFamilyWindows2019                       = "Windows2019"
-	AMIFamilyWindows2022                       = "Windows2022"
-	AMIFamilyCustom                            = "Custom"
-	Windows2019                                = "2019"
-	Windows2022                                = "2022"
-	WindowsCore                                = "Core"
-	Windows2019Build                           = "10.0.17763"
-	Windows2022Build                           = "10.0.20348"
-	ResourceNVIDIAGPU          v1.ResourceName = "nvidia.com/gpu"
-	ResourceAMDGPU             v1.ResourceName = "amd.com/gpu"
-	ResourceAWSNeuron          v1.ResourceName = "aws.amazon.com/neuron"
-	ResourceHabanaGaudi        v1.ResourceName = "habana.ai/gaudi"
-	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
-	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
-	ResourceEFA                v1.ResourceName = "vpc.amazonaws.com/efa"
+	AMIFamilyBottlerocket                          = "Bottlerocket"
+	AMIFamilyAL2                                   = "AL2"
+	AMIFamilyAL2023                                = "AL2023"
+	AMIFamilyUbuntu                                = "Ubuntu"
+	AMIFamilyWindows2019                           = "Windows2019"
+	AMIFamilyWindows2022                           = "Windows2022"
+	AMIFamilyCustom                                = "Custom"
+	Windows2019                                    = "2019"
+	Windows2022                                    = "2022"
+	WindowsCore                                    = "Core"
+	Windows2019Build                               = "10.0.17763"
+	Windows2022Build                               = "10.0.20348"
+	ResourceNVIDIAGPU          corev1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU             corev1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron          corev1.ResourceName = "aws.amazon.com/neuron"
+	ResourceHabanaGaudi        corev1.ResourceName = "habana.ai/gaudi"
+	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
+	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
 
 	LabelNodeClass = apis.Group + "/ec2nodeclass"
 

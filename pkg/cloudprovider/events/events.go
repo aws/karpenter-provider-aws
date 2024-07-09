@@ -15,25 +15,25 @@ limitations under the License.
 package events
 
 import (
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 )
 
-func NodePoolFailedToResolveNodeClass(nodePool *corev1.NodePool) events.Event {
+func NodePoolFailedToResolveNodeClass(nodePool *karpv1.NodePool) events.Event {
 	return events.Event{
 		InvolvedObject: nodePool,
-		Type:           v1.EventTypeWarning,
+		Type:           corev1.EventTypeWarning,
 		Message:        "Failed resolving NodeClass",
 		DedupeValues:   []string{string(nodePool.UID)},
 	}
 }
 
-func NodeClaimFailedToResolveNodeClass(nodeClaim *corev1.NodeClaim) events.Event {
+func NodeClaimFailedToResolveNodeClass(nodeClaim *karpv1.NodeClaim) events.Event {
 	return events.Event{
 		InvolvedObject: nodeClaim,
-		Type:           v1.EventTypeWarning,
+		Type:           corev1.EventTypeWarning,
 		Message:        "Failed resolving NodeClass",
 		DedupeValues:   []string{string(nodeClaim.UID)},
 	}

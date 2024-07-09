@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -36,7 +37,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -46,7 +47,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/yaml"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
@@ -58,7 +59,7 @@ import (
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
@@ -121,17 +122,17 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("LaunchTemplate Provider", func() {
-	var nodePool *corev1.NodePool
-	var nodeClass *providerv1.EC2NodeClass
+	var nodePool *karpv1.NodePool
+	var nodeClass *v1.EC2NodeClass
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(
-			providerv1.EC2NodeClass{
-				Spec: providerv1.EC2NodeClassSpec{
-					Kubelet: &providerv1.KubeletConfiguration{},
+			v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					Kubelet: &v1.KubeletConfiguration{},
 				},
-				Status: providerv1.EC2NodeClassStatus{
+				Status: v1.EC2NodeClassStatus{
 					InstanceProfile: "test-profile",
-					SecurityGroups: []providerv1.SecurityGroup{
+					SecurityGroups: []v1.SecurityGroup{
 						{
 							ID: "sg-test1",
 						},
@@ -142,7 +143,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 							ID: "sg-test3",
 						},
 					},
-					Subnets: []providerv1.Subnet{
+					Subnets: []v1.Subnet{
 						{
 							ID:   "subnet-test1",
 							Zone: "test-zone-1a",
@@ -160,24 +161,24 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			},
 		)
 		nodeClass.StatusConditions().SetTrue(opstatus.ConditionReady)
-		nodePool = coretest.NodePool(corev1.NodePool{
-			Spec: corev1.NodePoolSpec{
-				Template: corev1.NodeClaimTemplate{
-					ObjectMeta: corev1.ObjectMeta{
+		nodePool = coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					ObjectMeta: karpv1.ObjectMeta{
 						// TODO @joinnis: Move this into the coretest.NodePool function
 						Labels: map[string]string{coretest.DiscoveryLabel: "unspecified"},
 					},
-					Spec: corev1.NodeClaimSpec{
-						Requirements: []corev1.NodeSelectorRequirementWithMinValues{
+					Spec: karpv1.NodeClaimSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: v1.NodeSelectorRequirement{
-									Key:      corev1.CapacityTypeLabelKey,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{corev1.CapacityTypeOnDemand},
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      karpv1.CapacityTypeLabelKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{karpv1.CapacityTypeOnDemand},
 								},
 							},
 						},
-						NodeClassRef: &corev1.NodeClassReference{
+						NodeClassRef: &karpv1.NodeClassReference{
 							Group: object.GVK(nodeClass).Group,
 							Kind:  object.GVK(nodeClass).Kind,
 							Name:  nodeClass.Name,
@@ -192,8 +193,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
 	It("should create unique launch templates for multiple identical nodeClasses", func() {
-		nodeClass2 := test.EC2NodeClass(providerv1.EC2NodeClass{
-			Status: providerv1.EC2NodeClassStatus{
+		nodeClass2 := test.EC2NodeClass(v1.EC2NodeClass{
+			Status: v1.EC2NodeClassStatus{
 				InstanceProfile: "test-profile",
 				Subnets:         nodeClass.Status.Subnets,
 				SecurityGroups:  nodeClass.Status.SecurityGroups,
@@ -202,20 +203,20 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		_, err := awsEnv.SubnetProvider.List(ctx, nodeClass2) // Hydrate the subnet cache
 		Expect(err).To(BeNil())
-		nodePool2 := coretest.NodePool(corev1.NodePool{
-			Spec: corev1.NodePoolSpec{
-				Template: corev1.NodeClaimTemplate{
-					Spec: corev1.NodeClaimSpec{
-						Requirements: []corev1.NodeSelectorRequirementWithMinValues{
+		nodePool2 := coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimSpec{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: v1.NodeSelectorRequirement{
-									Key:      corev1.CapacityTypeLabelKey,
-									Operator: v1.NodeSelectorOpIn,
-									Values:   []string{corev1.CapacityTypeSpot},
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      karpv1.CapacityTypeLabelKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{karpv1.CapacityTypeSpot},
 								},
 							},
 						},
-						NodeClassRef: &corev1.NodeClassReference{
+						NodeClassRef: &karpv1.NodeClassReference{
 							Group: object.GVK(nodeClass2).Group,
 							Kind:  object.GVK(nodeClass2).Kind,
 							Name:  nodeClass2.Name,
@@ -224,7 +225,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 			},
 		})
-		nodeClass2.Status.SecurityGroups = []providerv1.SecurityGroup{
+		nodeClass2.Status.SecurityGroups = []v1.SecurityGroup{
 			{
 				ID: "sg-test1",
 			},
@@ -235,7 +236,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ID: "sg-test3",
 			},
 		}
-		nodeClass2.Status.Subnets = []providerv1.Subnet{
+		nodeClass2.Status.Subnets = []v1.Subnet{
 			{
 				ID:   "subnet-test1",
 				Zone: "test-zone-1a",
@@ -251,20 +252,20 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		}
 		nodeClass2.StatusConditions().SetTrue(opstatus.ConditionReady)
 
-		pods := []*v1.Pod{
-			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+		pods := []*corev1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []corev1.NodeSelectorRequirement{
 				{
-					Key:      corev1.CapacityTypeLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{corev1.CapacityTypeSpot},
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeSpot},
 				},
 			},
 			}),
-			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []v1.NodeSelectorRequirement{
+			coretest.UnschedulablePod(coretest.PodOptions{NodeRequirements: []corev1.NodeSelectorRequirement{
 				{
-					Key:      corev1.CapacityTypeLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{corev1.CapacityTypeOnDemand},
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeOnDemand},
 				},
 			},
 			}),
@@ -276,7 +277,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		nodeClasses := [2]string{nodeClass.Name, nodeClass2.Name}
 		awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
 			for _, value := range ltInput.LaunchTemplateData.TagSpecifications[0].Tags {
-				if *value.Key == providerv1.LabelNodeClass {
+				if *value.Key == v1.LabelNodeClass {
 					Expect(*value.Value).To(BeElementOf(nodeClasses))
 				}
 			}
@@ -322,19 +323,19 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	})
 	Context("Cache", func() {
 		It("should use same launch template for equivalent constraints", func() {
-			t1 := v1.Toleration{
+			t1 := corev1.Toleration{
 				Key:      "Abacus",
 				Operator: "Equal",
 				Value:    "Zebra",
 				Effect:   "NoSchedule",
 			}
-			t2 := v1.Toleration{
+			t2 := corev1.Toleration{
 				Key:      "Zebra",
 				Operator: "Equal",
 				Value:    "Abacus",
 				Effect:   "NoSchedule",
 			}
-			t3 := v1.Toleration{
+			t3 := corev1.Toleration{
 				Key:      "Boar",
 				Operator: "Equal",
 				Value:    "Abacus",
@@ -342,17 +343,17 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 
 			// constrain the packer to a single launch template type
-			rr := v1.ResourceRequirements{
-				Requests: v1.ResourceList{
-					v1.ResourceCPU:               resource.MustParse("24"),
-					providerv1.ResourceNVIDIAGPU: resource.MustParse("1"),
+			rr := corev1.ResourceRequirements{
+				Requests: corev1.ResourceList{
+					corev1.ResourceCPU:   resource.MustParse("24"),
+					v1.ResourceNVIDIAGPU: resource.MustParse("1"),
 				},
-				Limits: v1.ResourceList{providerv1.ResourceNVIDIAGPU: resource.MustParse("1")},
+				Limits: corev1.ResourceList{v1.ResourceNVIDIAGPU: resource.MustParse("1")},
 			}
 
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod1 := coretest.UnschedulablePod(coretest.PodOptions{
-				Tolerations:          []v1.Toleration{t1, t2, t3},
+				Tolerations:          []corev1.Toleration{t1, t2, t3},
 				ResourceRequirements: rr,
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
@@ -365,7 +366,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}
 
 			pod2 := coretest.UnschedulablePod(coretest.PodOptions{
-				Tolerations:          []v1.Toleration{t2, t3, t1},
+				Tolerations:          []corev1.Toleration{t2, t3, t1},
 				ResourceRequirements: rr,
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod2)
@@ -380,7 +381,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(lts1.Equal(lts2)).To(BeTrue())
 		})
 		It("should recover from an out-of-sync launch template cache", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{MaxPods: aws.Int32(1)}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: aws.Int32(1)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -410,8 +411,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{ClusterEndpoint: "test-endpoint"},
 				{ClusterCIDR: lo.ToPtr("test-cidr")},
 				{InstanceProfile: "test-profile"},
-				{InstanceStorePolicy: lo.ToPtr(providerv1.InstanceStorePolicyRAID0)},
-				{SecurityGroups: []providerv1.SecurityGroup{{Name: "test-sg"}}},
+				{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)},
+				{SecurityGroups: []v1.SecurityGroup{{Name: "test-sg"}}},
 				{Tags: map[string]string{"test-key": "test-value"}},
 				{KubeDNSIP: net.ParseIP("192.0.0.2")},
 				{AssociatePublicIPAddress: lo.ToPtr(true)},
@@ -440,10 +441,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(lo.Uniq(launchtemplateResult)[0]).To(Equal(launchtemplate.LaunchTemplateName(&amifamily.LaunchTemplate{Options: &amifamily.Options{}})))
 		})
 		It("should generate different launch template names based on kubelet configuration", func() {
-			kubeletChanges := []*providerv1.KubeletConfiguration{
+			kubeletChanges := []*v1.KubeletConfiguration{
 				{},
-				{KubeReserved: map[string]string{string(v1.ResourceCPU): "20"}},
-				{SystemReserved: map[string]string{string(v1.ResourceMemory): "10Gi"}},
+				{KubeReserved: map[string]string{string(corev1.ResourceCPU): "20"}},
+				{SystemReserved: map[string]string{string(corev1.ResourceMemory): "10Gi"}},
 				{EvictionHard: map[string]string{"memory.available": "52%"}},
 				{EvictionSoft: map[string]string{"nodefs.available": "132%"}},
 				{MaxPods: aws.Int32(20)},
@@ -462,7 +463,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				{ClusterName: "test-name"},
 				{ClusterEndpoint: "test-endpoint"},
 				{ClusterCIDR: lo.ToPtr("test-cidr")},
-				{Taints: []v1.Taint{{Key: "test-key", Value: "test-value"}}},
+				{Taints: []corev1.Taint{{Key: "test-key", Value: "test-value"}}},
 				{Labels: map[string]string{"test-key": "test-value"}},
 				{CABundle: lo.ToPtr("test-bundle")},
 				{AWSENILimitedPodDensity: true},
@@ -480,7 +481,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		It("should generate different launch template names based on launchtemplate option configuration", func() {
 			launchtemplates := []*amifamily.LaunchTemplate{
 				{},
-				{BlockDeviceMappings: []*providerv1.BlockDeviceMapping{{DeviceName: lo.ToPtr("test-block")}}},
+				{BlockDeviceMappings: []*v1.BlockDeviceMapping{{DeviceName: lo.ToPtr("test-block")}}},
 				{AMIID: "test-ami"},
 				{DetailedMonitoring: true},
 				{EFACount: 12},
@@ -512,9 +513,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKey(v1.LabelOSStable))
-			Expect(node.Labels).To(HaveKey(v1.LabelArchStable))
-			Expect(node.Labels).To(HaveKey(v1.LabelInstanceTypeStable))
+			Expect(node.Labels).To(HaveKey(corev1.LabelOSStable))
+			Expect(node.Labels).To(HaveKey(corev1.LabelArchStable))
+			Expect(node.Labels).To(HaveKey(corev1.LabelInstanceTypeStable))
 		})
 	})
 	Context("Tags", func() {
@@ -546,12 +547,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				"tag1": "tag1value",
 				"tag2": "tag2value",
 			}
-			nodePool.Spec.Template.Spec.Requirements = []corev1.NodeSelectorRequirementWithMinValues{
+			nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      corev1.CapacityTypeLabelKey,
-						Operator: v1.NodeSelectorOpIn,
-						Values:   []string{corev1.CapacityTypeSpot},
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      karpv1.CapacityTypeLabelKey,
+						Operator: corev1.NodeSelectorOpIn,
+						Values:   []string{karpv1.CapacityTypeSpot},
 					},
 				},
 			}
@@ -596,7 +597,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	})
 	Context("Block Device Mappings", func() {
 		It("should default AL2 block device mappings", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -610,7 +611,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should default AL2023 block device mappings", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2023
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
 			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
 			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -626,11 +627,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should use custom block device mapping", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
-			nodeClass.Spec.BlockDeviceMappings = []*providerv1.BlockDeviceMapping{
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
@@ -641,7 +642,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
@@ -676,11 +677,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should round up for custom block device mappings when specified in gigabytes", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
-			nodeClass.Spec.BlockDeviceMappings = []*providerv1.BlockDeviceMapping{
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
@@ -691,7 +692,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
@@ -713,7 +714,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -732,8 +733,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyCustom
-			nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -744,12 +745,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should use custom block device mapping for custom AMIFamilies", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyCustom
-			nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-			nodeClass.Spec.BlockDeviceMappings = []*providerv1.BlockDeviceMapping{
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						DeleteOnTermination: aws.Bool(true),
 						Encrypted:           aws.Bool(true),
 						VolumeType:          aws.String("io2"),
@@ -779,10 +780,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		It("should pack pods when a daemonset has an ephemeral-storage request", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, coretest.DaemonSet(
 				coretest.DaemonSetOptions{PodOptions: coretest.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{
-						Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("1"),
-							v1.ResourceMemory:           resource.MustParse("1Gi"),
-							v1.ResourceEphemeralStorage: resource.MustParse("1Gi")}},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1"),
+							corev1.ResourceMemory:           resource.MustParse("1Gi"),
+							corev1.ResourceEphemeralStorage: resource.MustParse("1Gi")}},
 				}},
 			))
 			pod := coretest.UnschedulablePod()
@@ -791,57 +792,57 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should pack pods with any ephemeral-storage request", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceEphemeralStorage: resource.MustParse("1G"),
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceEphemeralStorage: resource.MustParse("1G"),
 				}}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods with large ephemeral-storage request", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 				}}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should not pack pods if the sum of pod ephemeral-storage and overhead exceeds node capacity", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceEphemeralStorage: resource.MustParse("19Gi"),
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceEphemeralStorage: resource.MustParse("19Gi"),
 				}}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods if the pod's ephemeral-storage exceeds node capacity and instance storage is mounted", func() {
-			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(providerv1.InstanceStorePolicyRAID0)
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
 					// Default node ephemeral-storage capacity is 20Gi
-					v1.ResourceEphemeralStorage: resource.MustParse("5000Gi"),
+					corev1.ResourceEphemeralStorage: resource.MustParse("5000Gi"),
 				}}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels[v1.LabelInstanceTypeStable]).To(Equal("m6idn.32xlarge"))
+			Expect(node.Labels[corev1.LabelInstanceTypeStable]).To(Equal("m6idn.32xlarge"))
 			Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("7600G")))
 		})
 		It("should launch multiple nodes if sum of pod ephemeral-storage requests exceeds a single nodes capacity", func() {
-			var nodes []*v1.Node
+			var nodes []*corev1.Node
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pods := []*v1.Pod{
-				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+			pods := []*corev1.Pod{
+				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 					},
 				},
 				}),
-				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 					},
 				},
 				}),
@@ -854,16 +855,16 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should only pack pods with ephemeral-storage requests that will fit on an available node", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pods := []*v1.Pod{
-				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
+			pods := []*corev1.Pod{
+				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceEphemeralStorage: resource.MustParse("10Gi"),
 					},
 				},
 				}),
-				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-					Requests: map[v1.ResourceName]resource.Quantity{
-						v1.ResourceEphemeralStorage: resource.MustParse("150Gi"),
+				coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+					Requests: map[corev1.ResourceName]resource.Quantity{
+						corev1.ResourceEphemeralStorage: resource.MustParse("150Gi"),
 					},
 				},
 				}),
@@ -874,9 +875,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should not pack pod if no available instance types have enough storage", func() {
 			ExpectApplied(ctx, env.Client, nodePool)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceEphemeralStorage: resource.MustParse("150Gi"),
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceEphemeralStorage: resource.MustParse("150Gi"),
 				},
 			},
 			})
@@ -884,24 +885,24 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectNotScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using the blockdevicemappings from the provider spec when defined", func() {
-			nodeClass.Spec.BlockDeviceMappings = []*providerv1.BlockDeviceMapping{
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(50, resource.Giga),
 					},
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
 					},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
-					v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
+					corev1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
 				},
 			},
 			})
@@ -911,27 +912,27 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyCustom
-			nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-			nodeClass.Spec.BlockDeviceMappings = []*providerv1.BlockDeviceMapping{
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
 					},
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(40, resource.Giga),
 					},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
 					// this pod can only be satisfied if `/dev/xvdb` will house all the pods.
-					v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
+					corev1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
 				},
 			},
 			})
@@ -941,34 +942,34 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using the configured root volume in blockdevicemappings", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyCustom
-			nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-			nodeClass.Spec.BlockDeviceMappings = []*providerv1.BlockDeviceMapping{
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
 					},
 				},
 				{
 					DeviceName: aws.String("/dev/xvdb"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(40, resource.Giga),
 					},
 					RootVolume: true,
 				},
 				{
 					DeviceName: aws.String("/dev/xvdc"),
-					EBS: &providerv1.BlockDevice{
+					EBS: &v1.BlockDevice{
 						VolumeSize: resource.NewScaledQuantity(20, resource.Giga),
 					},
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: v1.ResourceRequirements{
-				Requests: map[v1.ResourceName]resource.Quantity{
+			pod := coretest.UnschedulablePod(coretest.PodOptions{ResourceRequirements: corev1.ResourceRequirements{
+				Requests: map[corev1.ResourceName]resource.Quantity{
 					// this pod can only be satisfied if `/dev/xvdb` will house all the pods.
-					v1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
+					corev1.ResourceEphemeralStorage: resource.MustParse("25Gi"),
 				},
 			},
 			})
@@ -1010,7 +1011,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -1063,7 +1064,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -1088,8 +1089,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -1118,7 +1119,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false")
 		})
 		It("should specify --use-max-pods=false and --max-pods user value when user specifies maxPods in NodePool", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{MaxPods: aws.Int32(10)}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: aws.Int32(10)}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1126,11 +1127,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--use-max-pods false", "--max-pods=10")
 		})
 		It("should specify --system-reserved when overriding system reserved values", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				SystemReserved: map[string]string{
-					string(v1.ResourceCPU):              "500m",
-					string(v1.ResourceMemory):           "1Gi",
-					string(v1.ResourceEphemeralStorage): "2Gi",
+					string(corev1.ResourceCPU):              "500m",
+					string(corev1.ResourceMemory):           "1Gi",
+					string(corev1.ResourceEphemeralStorage): "2Gi",
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1153,11 +1154,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should specify --kube-reserved when overriding system reserved values", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				KubeReserved: map[string]string{
-					string(v1.ResourceCPU):              "500m",
-					string(v1.ResourceMemory):           "1Gi",
-					string(v1.ResourceEphemeralStorage): "2Gi",
+					string(corev1.ResourceCPU):              "500m",
+					string(corev1.ResourceMemory):           "1Gi",
+					string(corev1.ResourceEphemeralStorage): "2Gi",
 				},
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1180,7 +1181,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should pass eviction hard threshold values when specified", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				EvictionHard: map[string]string{
 					"memory.available":  "10%",
 					"nodefs.available":  "15%",
@@ -1207,7 +1208,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should pass eviction soft threshold values when specified", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				EvictionSoft: map[string]string{
 					"memory.available":  "10%",
 					"nodefs.available":  "15%",
@@ -1239,7 +1240,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should pass eviction soft grace period values when specified", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				EvictionSoftGracePeriod: map[string]metav1.Duration{
 					"memory.available":  {Duration: time.Minute},
 					"nodefs.available":  {Duration: time.Second * 180},
@@ -1271,7 +1272,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should pass eviction max pod grace period when specified", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				EvictionMaxPodGracePeriod: aws.Int32(300),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1281,7 +1282,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--eviction-max-pod-grace-period=%d", 300))
 		})
 		It("should specify --pods-per-core", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: aws.Int32(2),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1291,7 +1292,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining(fmt.Sprintf("--pods-per-core=%d", 2))
 		})
 		It("should specify --pods-per-core with --max-pods enabled", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: aws.Int32(2),
 				MaxPods:     aws.Int32(100),
 			}
@@ -1318,7 +1319,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--dns-cluster-ip '10.0.100.10'")
 		})
 		It("should pass ImageGCHighThresholdPercent when specified", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				ImageGCHighThresholdPercent: aws.Int32(50),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1328,7 +1329,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-high-threshold=50")
 		})
 		It("should pass ImageGCLowThresholdPercent when specified", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				ImageGCLowThresholdPercent: aws.Int32(50),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1338,7 +1339,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataContaining("--image-gc-low-threshold=50")
 		})
 		It("should pass --cpu-fs-quota when specified", func() {
-			nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				CPUCFSQuota: aws.Bool(false),
 			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1349,19 +1350,19 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		It("should not pass any labels prefixed with the node-restriction.kubernetes.io domain", func() {
 			nodePool.Spec.Template.Labels = lo.Assign(nodePool.Spec.Template.Labels, map[string]string{
-				v1.LabelNamespaceNodeRestriction + "/team":                        "team-1",
-				v1.LabelNamespaceNodeRestriction + "/custom-label":                "custom-value",
-				"subdomain." + v1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
+				corev1.LabelNamespaceNodeRestriction + "/team":                        "team-1",
+				corev1.LabelNamespaceNodeRestriction + "/custom-label":                "custom-value",
+				"subdomain." + corev1.LabelNamespaceNodeRestriction + "/custom-label": "custom-value",
 			})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
-			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(v1.LabelNamespaceNodeRestriction)
+			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(corev1.LabelNamespaceNodeRestriction)
 		})
 		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
-			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(providerv1.InstanceStorePolicyRAID0)
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1370,41 +1371,41 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
-				nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyBottlerocket
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
 			It("should merge in custom user data", func() {
 				content, err := os.ReadFile("testdata/br_userdata_input.golden")
 				Expect(err).To(BeNil())
-				nodeClass.Spec.UserData = aws.String(fmt.Sprintf(string(content), corev1.NodePoolLabelKey))
-				nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
-				nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
+				nodeClass.Spec.UserData = aws.String(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey))
+				nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "foo", Value: "bar", Effect: corev1.TaintEffectNoExecute}}
+				nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "baz", Value: "bin", Effect: corev1.TaintEffectNoExecute}}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
-					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
+					Tolerations: []corev1.Toleration{{Operator: corev1.TolerationOpExists}},
 				})
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/br_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
-				nodePool.Spec.Template.Spec.Taints = []v1.Taint{{Key: "foo", Value: "bar", Effect: v1.TaintEffectNoExecute}}
-				nodePool.Spec.Template.Spec.StartupTaints = []v1.Taint{{Key: "baz", Value: "bin", Effect: v1.TaintEffectNoExecute}}
+				nodePool.Spec.Template.Spec.Taints = []corev1.Taint{{Key: "foo", Value: "bar", Effect: corev1.TaintEffectNoExecute}}
+				nodePool.Spec.Template.Spec.StartupTaints = []corev1.Taint{{Key: "baz", Value: "bin", Effect: corev1.TaintEffectNoExecute}}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nodePool), nodePool)).To(Succeed())
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
-					Tolerations: []v1.Toleration{{Operator: v1.TolerationOpExists}},
+					Tolerations: []corev1.Toleration{{Operator: corev1.TolerationOpExists}},
 				})
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/br_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should not bootstrap when provider ref points to a non-existent EC2NodeClass resource", func() {
-				nodePool.Spec.Template.Spec.NodeClassRef = &corev1.NodeClassReference{
+				nodePool.Spec.Template.Spec.NodeClassRef = &karpv1.NodeClassReference{
 					Group: "doesnotexist",
 					Kind:  "doesnotexist",
 					Name:  "doesnotexist",
@@ -1424,11 +1425,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should override system reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
-						string(v1.ResourceCPU):              "2",
-						string(v1.ResourceMemory):           "3Gi",
-						string(v1.ResourceEphemeralStorage): "10Gi",
+						string(corev1.ResourceCPU):              "2",
+						string(corev1.ResourceMemory):           "3Gi",
+						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1442,17 +1443,17 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.SystemReserved)).To(Equal(3))
-					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceCPU.String()]).To(Equal("2"))
-					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceMemory.String()]).To(Equal("3Gi"))
-					Expect(config.Settings.Kubernetes.SystemReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
+					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
+					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
+					Expect(config.Settings.Kubernetes.SystemReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					KubeReserved: map[string]string{
-						string(v1.ResourceCPU):              "2",
-						string(v1.ResourceMemory):           "3Gi",
-						string(v1.ResourceEphemeralStorage): "10Gi",
+						string(corev1.ResourceCPU):              "2",
+						string(corev1.ResourceMemory):           "3Gi",
+						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1466,13 +1467,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					config := &bootstrap.BottlerocketConfig{}
 					Expect(config.UnmarshalTOML(userData)).To(Succeed())
 					Expect(len(config.Settings.Kubernetes.KubeReserved)).To(Equal(3))
-					Expect(config.Settings.Kubernetes.KubeReserved[v1.ResourceCPU.String()]).To(Equal("2"))
-					Expect(config.Settings.Kubernetes.KubeReserved[v1.ResourceMemory.String()]).To(Equal("3Gi"))
-					Expect(config.Settings.Kubernetes.KubeReserved[v1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
+					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceCPU.String()]).To(Equal("2"))
+					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceMemory.String()]).To(Equal("3Gi"))
+					Expect(config.Settings.Kubernetes.KubeReserved[corev1.ResourceEphemeralStorage.String()]).To(Equal("10Gi"))
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					EvictionHard: map[string]string{
 						"memory.available":  "10%",
 						"nodefs.available":  "15%",
@@ -1496,7 +1497,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 			})
 			It("should specify max pods value when passing maxPods in configuration", func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					MaxPods: aws.Int32(10),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1514,7 +1515,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 			})
 			It("should pass ImageGCHighThresholdPercent when specified", func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					ImageGCHighThresholdPercent: aws.Int32(50),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1534,7 +1535,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 			})
 			It("should pass ImageGCLowThresholdPercent when specified", func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					ImageGCLowThresholdPercent: aws.Int32(50),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1569,7 +1570,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 			})
 			It("should pass CPUCFSQuota when specified", func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					CPUCFSQuota: aws.Bool(false),
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -1589,7 +1590,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		Context("AL2 Custom UserData", func() {
 			BeforeEach(func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
 			It("should merge in custom user data", func() {
 				content, err := os.ReadFile("testdata/al2_userdata_input.golden")
@@ -1601,7 +1602,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name)
+				expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data when Content-Type is before MIME-Version", func() {
@@ -1614,7 +1615,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name)
+				expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should merge in custom user data not in multi-part mime format", func() {
@@ -1627,7 +1628,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/al2_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name)
+				expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 			It("should handle empty custom user data", func() {
@@ -1638,13 +1639,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/al2_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				expectedUserData := fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name)
+				expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
 				ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 			})
 		})
 		Context("AL2023", func() {
 			BeforeEach(func() {
-				nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2023
+				nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
 
 				// base64 encoded version of "ca-bundle" to ensure the nodeadm bootstrap provider can decode successfully
 				awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
@@ -1652,21 +1653,21 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 			Context("Kubelet", func() {
 				It("should specify taints in the KubeletConfiguration when specified in NodePool", func() {
-					desiredTaints := []v1.Taint{
+					desiredTaints := []corev1.Taint{
 						{
 							Key:    "test-taint-1",
-							Effect: v1.TaintEffectNoSchedule,
+							Effect: corev1.TaintEffectNoSchedule,
 						},
 						{
 							Key:    "test-taint-2",
-							Effect: v1.TaintEffectNoExecute,
+							Effect: corev1.TaintEffectNoExecute,
 						},
 					}
 					nodePool.Spec.Template.Spec.Taints = desiredTaints
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					pod := coretest.UnschedulablePod(coretest.UnscheduleablePodOptions(coretest.PodOptions{
-						Tolerations: []v1.Toleration{{
-							Operator: v1.TolerationOpExists,
+						Tolerations: []corev1.Toleration{{
+							Operator: corev1.TolerationOpExists,
 						}},
 					}))
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1676,10 +1677,10 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						Expect(len(configs)).To(Equal(1))
 						taintsRaw, ok := configs[0].Spec.Kubelet.Config["registerWithTaints"]
 						Expect(ok).To(BeTrue())
-						taints := []v1.Taint{}
+						taints := []corev1.Taint{}
 						Expect(yaml.Unmarshal(taintsRaw.Raw, &taints)).To(Succeed())
 						Expect(len(taints)).To(Equal(3))
-						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t v1.Taint, _ int) interface{} {
+						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t corev1.Taint, _ int) interface{} {
 							return interface{}(t)
 						})))
 					}
@@ -1709,7 +1710,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 				DescribeTable(
 					"should specify KubletConfiguration field when specified in NodePool",
-					func(field string, kc providerv1.KubeletConfiguration) {
+					func(field string, kc v1.KubeletConfiguration) {
 						nodeClass.Spec.Kubelet = &kc
 						ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 						pod := coretest.UnschedulablePod()
@@ -1734,28 +1735,28 @@ var _ = Describe("LaunchTemplate Provider", func() {
 							Expect(configs[0].Spec.Kubelet.Config[field]).To(Equal(inlineConfig[field]))
 						}
 					},
-					Entry("systemReserved", "systemReserved", providerv1.KubeletConfiguration{
+					Entry("systemReserved", "systemReserved", v1.KubeletConfiguration{
 						SystemReserved: map[string]string{
-							string(v1.ResourceCPU):              "500m",
-							string(v1.ResourceMemory):           "1Gi",
-							string(v1.ResourceEphemeralStorage): "2Gi",
+							string(corev1.ResourceCPU):              "500m",
+							string(corev1.ResourceMemory):           "1Gi",
+							string(corev1.ResourceEphemeralStorage): "2Gi",
 						},
 					}),
-					Entry("kubeReserved", "kubeReserved", providerv1.KubeletConfiguration{
+					Entry("kubeReserved", "kubeReserved", v1.KubeletConfiguration{
 						KubeReserved: map[string]string{
-							string(v1.ResourceCPU):              "500m",
-							string(v1.ResourceMemory):           "1Gi",
-							string(v1.ResourceEphemeralStorage): "2Gi",
+							string(corev1.ResourceCPU):              "500m",
+							string(corev1.ResourceMemory):           "1Gi",
+							string(corev1.ResourceEphemeralStorage): "2Gi",
 						},
 					}),
-					Entry("evictionHard", "evictionHard", providerv1.KubeletConfiguration{
+					Entry("evictionHard", "evictionHard", v1.KubeletConfiguration{
 						EvictionHard: map[string]string{
 							"memory.available":  "10%",
 							"nodefs.available":  "15%",
 							"nodefs.inodesFree": "5%",
 						},
 					}),
-					Entry("evictionSoft", "evictionSoft", providerv1.KubeletConfiguration{
+					Entry("evictionSoft", "evictionSoft", v1.KubeletConfiguration{
 						EvictionSoft: map[string]string{
 							"memory.available":  "10%",
 							"nodefs.available":  "15%",
@@ -1767,7 +1768,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 							"nodefs.inodesFree": {Duration: time.Minute * 5},
 						},
 					}),
-					Entry("evictionSoftGracePeriod", "evictionSoftGracePeriod", providerv1.KubeletConfiguration{
+					Entry("evictionSoftGracePeriod", "evictionSoftGracePeriod", v1.KubeletConfiguration{
 						EvictionSoft: map[string]string{
 							"memory.available":  "10%",
 							"nodefs.available":  "15%",
@@ -1779,28 +1780,28 @@ var _ = Describe("LaunchTemplate Provider", func() {
 							"nodefs.inodesFree": {Duration: time.Minute * 5},
 						},
 					}),
-					Entry("evictionMaxPodGracePeriod", "evictionMaxPodGracePeriod", providerv1.KubeletConfiguration{
+					Entry("evictionMaxPodGracePeriod", "evictionMaxPodGracePeriod", v1.KubeletConfiguration{
 						EvictionMaxPodGracePeriod: lo.ToPtr[int32](300),
 					}),
-					Entry("podsPerCore", "podsPerCore", providerv1.KubeletConfiguration{
+					Entry("podsPerCore", "podsPerCore", v1.KubeletConfiguration{
 						PodsPerCore: lo.ToPtr[int32](2),
 					}),
-					Entry("clusterDNS", "clusterDNS", providerv1.KubeletConfiguration{
+					Entry("clusterDNS", "clusterDNS", v1.KubeletConfiguration{
 						ClusterDNS: []string{"10.0.100.0"},
 					}),
-					Entry("imageGCHighThresholdPercent", "imageGCHighThresholdPercent", providerv1.KubeletConfiguration{
+					Entry("imageGCHighThresholdPercent", "imageGCHighThresholdPercent", v1.KubeletConfiguration{
 						ImageGCHighThresholdPercent: lo.ToPtr[int32](50),
 					}),
-					Entry("imageGCLowThresholdPercent", "imageGCLowThresholdPercent", providerv1.KubeletConfiguration{
+					Entry("imageGCLowThresholdPercent", "imageGCLowThresholdPercent", v1.KubeletConfiguration{
 						ImageGCLowThresholdPercent: lo.ToPtr[int32](50),
 					}),
-					Entry("cpuCFSQuota", "cpuCFSQuota", providerv1.KubeletConfiguration{
+					Entry("cpuCFSQuota", "cpuCFSQuota", v1.KubeletConfiguration{
 						CPUCFSQuota: lo.ToPtr(false),
 					}),
 				)
 			})
 			It("should set LocalDiskStrategy to Raid0 when specified by the InstanceStorePolicy", func() {
-				nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(providerv1.InstanceStorePolicyRAID0)
+				nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -1819,14 +1820,14 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						Expect(err).To(BeNil())
 						nodeClass.Spec.UserData = lo.ToPtr(string(content))
 					}
-					nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+					nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 					ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 					pod := coretest.UnschedulablePod()
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 					ExpectScheduled(ctx, env.Client, pod)
 					content, err := os.ReadFile("testdata/" + mergedFile)
 					Expect(err).To(BeNil())
-					expectedUserData := fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name)
+					expectedUserData := fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name)
 					ExpectLaunchTemplatesCreatedWithUserData(expectedUserData)
 				},
 				Entry("MIME", lo.ToPtr("al2023_mime_userdata_input.golden"), "al2023_mime_userdata_merged.golden"),
@@ -1845,12 +1846,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in EC2NodeClass", func() {
-				nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				nodeClass.Status.AMIs = []providerv1.AMI{
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Status.AMIs = []v1.AMI{
 					{
 						ID: "ami-123",
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
 						},
 					},
 				}
@@ -1865,13 +1866,13 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				nodeClass.Spec.UserData = aws.String("special user data")
-				nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyCustom
-				nodeClass.Status.AMIs = []providerv1.AMI{
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
+				nodeClass.Status.AMIs = []v1.AMI{
 					{
 						ID: "ami-123",
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
 						},
 					},
 				}
@@ -1882,20 +1883,20 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectLaunchTemplatesCreatedWithUserData("special user data")
 			})
 			It("should correctly use ami selector with specific IDs in EC2NodeClass", func() {
-				nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{ID: "ami-123"}, {ID: "ami-456"}}
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-123"}, {ID: "ami-456"}}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-123"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
+						Tags:         []*ec2.Tag{{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.large")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 					{
 						Name:         aws.String(coretest.RandomName()),
 						ImageId:      aws.String("ami-456"),
 						Architecture: aws.String("x86_64"),
-						Tags:         []*ec2.Tag{{Key: aws.String(v1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
+						Tags:         []*ec2.Tag{{Key: aws.String(corev1.LabelInstanceTypeStable), Value: aws.String("m5.xlarge")}},
 						CreationDate: aws.String("2022-08-15T12:00:00Z"),
 					},
 				}})
@@ -1916,18 +1917,18 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(actualFilter).To(Equal(expectedFilter))
 			})
 			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
-				nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				nodeClass.Status.AMIs = []providerv1.AMI{
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Status.AMIs = []v1.AMI{
 					{
 						ID: "ami-123",
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
 						},
 					},
 					{
 						ID: "ami-456",
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureArm64}},
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64}},
 						},
 					},
 				}
@@ -1965,16 +1966,16 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
 					},
 				}})
-				nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
 				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 				ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-				nodePool.Spec.Template.Spec.Requirements = []corev1.NodeSelectorRequirementWithMinValues{
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1.LabelArchStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1.ArchitectureAmd64},
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      corev1.LabelArchStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.ArchitectureAmd64},
 						},
 					},
 				}
@@ -1990,8 +1991,8 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			It("should fail if no amis match selector.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
-				nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				nodeClass.Status.AMIs = []providerv1.AMI{}
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Status.AMIs = []v1.AMI{}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2001,12 +2002,12 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			It("should fail if no instanceType matches ami requirements.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
-				nodeClass.Spec.AMISelectorTerms = []providerv1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				nodeClass.Status.AMIs = []providerv1.AMI{
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
+				nodeClass.Status.AMIs = []v1.AMI{
 					{
 						ID: "ami-123",
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{"newnew"}},
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{"newnew"}},
 						},
 					},
 				}
@@ -2021,11 +2022,11 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				awsEnv.SSMAPI.Parameters = map[string]string{
 					fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version): "test-ami-123",
 				}
-				nodeClass.Status.AMIs = []providerv1.AMI{
+				nodeClass.Status.AMIs = []v1.AMI{
 					{
 						ID: "test-ami-123",
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(corev1.ArchitectureAmd64)}},
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(karpv1.ArchitectureAmd64)}},
 						},
 					},
 				}
@@ -2045,9 +2046,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					nodeClass.Spec.AssociatePublicIPAddress = lo.ToPtr(setValue)
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					pod := coretest.UnschedulablePod(lo.Ternary(isEFA, coretest.PodOptions{
-						ResourceRequirements: v1.ResourceRequirements{
-							Requests: v1.ResourceList{providerv1.ResourceEFA: resource.MustParse("2")},
-							Limits:   v1.ResourceList{providerv1.ResourceEFA: resource.MustParse("2")},
+						ResourceRequirements: corev1.ResourceRequirements{
+							Requests: corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
+							Limits:   corev1.ResourceList{v1.ResourceEFA: resource.MustParse("2")},
 						},
 					}, coretest.PodOptions{}))
 					ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2063,7 +2064,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		Context("Kubelet Args", func() {
 			It("should specify the --dns-cluster-ip flag when clusterDNSIP is set", func() {
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{ClusterDNS: []string{"10.0.10.100"}}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2073,9 +2074,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		Context("Windows Custom UserData", func() {
 			BeforeEach(func() {
-				nodePool.Spec.Template.Spec.Requirements = []corev1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1.LabelOSStable, Operator: v1.NodeSelectorOpIn, Values: []string{string(v1.Windows)}}}}
-				nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyWindows2022
-				nodeClass.Spec.Kubelet = &providerv1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}}
+				nodeClass.Spec.AMIFamily = &v1.AMIFamilyWindows2022
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
 			It("should merge and bootstrap with custom user data", func() {
 				content, err := os.ReadFile("testdata/windows_userdata_input.golden")
@@ -2085,36 +2086,36 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nodePool), nodePool)).To(Succeed())
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{
-						v1.LabelOSStable:     string(v1.Windows),
-						v1.LabelWindowsBuild: "10.0.20348",
+						corev1.LabelOSStable:     string(corev1.Windows),
+						corev1.LabelWindowsBuild: "10.0.20348",
 					},
 				})
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err = os.ReadFile("testdata/windows_userdata_merged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name))
 			})
 			It("should bootstrap when custom user data is empty", func() {
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
 				Expect(env.Client.Get(ctx, client.ObjectKeyFromObject(nodePool), nodePool)).To(Succeed())
 				pod := coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{
-						v1.LabelOSStable:     string(v1.Windows),
-						v1.LabelWindowsBuild: "10.0.20348",
+						corev1.LabelOSStable:     string(corev1.Windows),
+						corev1.LabelWindowsBuild: "10.0.20348",
 					},
 				})
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
 				content, err := os.ReadFile("testdata/windows_userdata_unmerged.golden")
 				Expect(err).To(BeNil())
-				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), corev1.NodePoolLabelKey, nodePool.Name))
+				ExpectLaunchTemplatesCreatedWithUserData(fmt.Sprintf(string(content), karpv1.NodePoolLabelKey, nodePool.Name))
 			})
 		})
 	})
 	Context("Detailed Monitoring", func() {
 		It("should default detailed monitoring to off", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2125,7 +2126,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should pass detailed monitoring setting to the launch template at creation", func() {
-			nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2
+			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
 			nodeClass.Spec.DetailedMonitoring = aws.Bool(true)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()

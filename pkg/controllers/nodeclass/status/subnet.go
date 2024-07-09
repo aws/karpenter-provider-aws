@@ -24,7 +24,7 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
@@ -32,14 +32,14 @@ type Subnet struct {
 	subnetProvider subnet.Provider
 }
 
-func (s *Subnet) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (reconcile.Result, error) {
+func (s *Subnet) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	subnets, err := s.subnetProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting subnets, %w", err)
 	}
 	if len(subnets) == 0 {
 		nodeClass.Status.Subnets = nil
-		nodeClass.StatusConditions().SetFalse(v1beta1.ConditionTypeSubnetsReady, "SubnetsNotFound", "SubnetSelector did not match any Subnets")
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeSubnetsReady, "SubnetsNotFound", "SubnetSelector did not match any Subnets")
 		return reconcile.Result{}, nil
 	}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -48,13 +48,13 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeCla
 		}
 		return *subnets[i].SubnetId < *subnets[j].SubnetId
 	})
-	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) providerv1.Subnet {
-		return providerv1.Subnet{
+	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
+		return v1.Subnet{
 			ID:     *ec2subnet.SubnetId,
 			Zone:   *ec2subnet.AvailabilityZone,
 			ZoneID: *ec2subnet.AvailabilityZoneId,
 		}
 	})
-	nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeSubnetsReady)
+	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeSubnetsReady)
 	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }

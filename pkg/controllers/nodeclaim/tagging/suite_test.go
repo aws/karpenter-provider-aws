@@ -17,14 +17,15 @@ package tagging_test
 import (
 	"context"
 	"fmt"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
@@ -87,11 +88,11 @@ var _ = Describe("TaggingController", func() {
 					Value: aws.String("owned"),
 				},
 				{
-					Key:   aws.String(corev1.NodePoolLabelKey),
+					Key:   aws.String(karpv1.NodePoolLabelKey),
 					Value: aws.String("default"),
 				},
 				{
-					Key:   aws.String(corev1.ManagedByAnnotationKey),
+					Key:   aws.String(karpv1.ManagedByAnnotationKey),
 					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},
@@ -107,8 +108,8 @@ var _ = Describe("TaggingController", func() {
 	})
 
 	It("shouldn't tag instances without a Node", func() {
-		nodeClaim := coretest.NodeClaim(corev1.NodeClaim{
-			Status: corev1.NodeClaimStatus{
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+			Status: karpv1.NodeClaimStatus{
 				ProviderID: fake.ProviderID(*ec2Instance.InstanceId),
 			},
 		})
@@ -122,8 +123,8 @@ var _ = Describe("TaggingController", func() {
 	})
 
 	It("shouldn't tag nodeclaim with a malformed provderID", func() {
-		nodeClaim := coretest.NodeClaim(corev1.NodeClaim{
-			Status: corev1.NodeClaimStatus{
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+			Status: karpv1.NodeClaimStatus{
 				ProviderID: "Bad providerID",
 				NodeName:   "default",
 			},
@@ -138,8 +139,8 @@ var _ = Describe("TaggingController", func() {
 	})
 
 	It("should gracefully handle missing NodeClaim", func() {
-		nodeClaim := coretest.NodeClaim(corev1.NodeClaim{
-			Status: corev1.NodeClaimStatus{
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+			Status: karpv1.NodeClaimStatus{
 				ProviderID: fake.ProviderID(*ec2Instance.InstanceId),
 				NodeName:   "default",
 			},
@@ -151,8 +152,8 @@ var _ = Describe("TaggingController", func() {
 	})
 
 	It("should gracefully handle missing instance", func() {
-		nodeClaim := coretest.NodeClaim(corev1.NodeClaim{
-			Status: corev1.NodeClaimStatus{
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+			Status: karpv1.NodeClaimStatus{
 				ProviderID: fake.ProviderID(*ec2Instance.InstanceId),
 				NodeName:   "default",
 			},
@@ -165,8 +166,8 @@ var _ = Describe("TaggingController", func() {
 	})
 
 	It("shouldn't tag nodeclaim with deletion timestamp set", func() {
-		nodeClaim := coretest.NodeClaim(corev1.NodeClaim{
-			Status: corev1.NodeClaimStatus{
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+			Status: karpv1.NodeClaimStatus{
 				ProviderID: fake.ProviderID(*ec2Instance.InstanceId),
 				NodeName:   "default",
 			},
@@ -187,8 +188,8 @@ var _ = Describe("TaggingController", func() {
 	DescribeTable(
 		"should tag taggable instances",
 		func(customTags ...string) {
-			nodeClaim := coretest.NodeClaim(corev1.NodeClaim{
-				Status: corev1.NodeClaimStatus{
+			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+				Status: karpv1.NodeClaimStatus{
 					ProviderID: fake.ProviderID(*ec2Instance.InstanceId),
 					NodeName:   "default",
 				},

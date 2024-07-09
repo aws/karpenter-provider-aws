@@ -16,14 +16,15 @@ package hash_test
 
 import (
 	"context"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/imdario/mergo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -171,30 +172,30 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			providerv1.AnnotationEC2NodeClassHash:        "abceduefed",
 			providerv1.AnnotationEC2NodeClassHashVersion: "test",
 		}
-		nodeClaimOne := coretest.NodeClaim(corev1.NodeClaim{
+		nodeClaimOne := coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					providerv1.AnnotationEC2NodeClassHash:        "123456",
 					providerv1.AnnotationEC2NodeClassHashVersion: "test",
 				},
 			},
-			Spec: corev1.NodeClaimSpec{
-				NodeClassRef: &corev1.NodeClassReference{
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
 					Group: object.GVK(nodeClass).Group,
 					Kind:  object.GVK(nodeClass).Kind,
 					Name:  nodeClass.Name,
 				},
 			},
 		})
-		nodeClaimTwo := coretest.NodeClaim(corev1.NodeClaim{
+		nodeClaimTwo := coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					providerv1.AnnotationEC2NodeClassHash:        "123456",
 					providerv1.AnnotationEC2NodeClassHashVersion: "test",
 				},
 			},
-			Spec: corev1.NodeClaimSpec{
-				NodeClassRef: &corev1.NodeClassReference{
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
 					Group: object.GVK(nodeClass).Group,
 					Kind:  object.GVK(nodeClass).Kind,
 					Name:  nodeClass.Name,
@@ -221,15 +222,15 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			providerv1.AnnotationEC2NodeClassHash:        "abceduefed",
 			providerv1.AnnotationEC2NodeClassHashVersion: "test-version",
 		}
-		nodeClaim := coretest.NodeClaim(corev1.NodeClaim{
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					providerv1.AnnotationEC2NodeClassHash:        "1234564654",
 					providerv1.AnnotationEC2NodeClassHashVersion: providerv1.EC2NodeClassHashVersion,
 				},
 			},
-			Spec: corev1.NodeClaimSpec{
-				NodeClassRef: &corev1.NodeClassReference{
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
 					Group: object.GVK(nodeClass).Group,
 					Kind:  object.GVK(nodeClass).Kind,
 					Name:  nodeClass.Name,
@@ -256,22 +257,22 @@ var _ = Describe("NodeClass Hash Controller", func() {
 			providerv1.AnnotationEC2NodeClassHash:        "abceduefed",
 			providerv1.AnnotationEC2NodeClassHashVersion: "test",
 		}
-		nodeClaim := coretest.NodeClaim(corev1.NodeClaim{
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Annotations: map[string]string{
 					providerv1.AnnotationEC2NodeClassHash:        "123456",
 					providerv1.AnnotationEC2NodeClassHashVersion: "test",
 				},
 			},
-			Spec: corev1.NodeClaimSpec{
-				NodeClassRef: &corev1.NodeClassReference{
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
 					Group: object.GVK(nodeClass).Group,
 					Kind:  object.GVK(nodeClass).Kind,
 					Name:  nodeClass.Name,
 				},
 			},
 		})
-		nodeClaim.StatusConditions().SetTrue(corev1.ConditionTypeDrifted)
+		nodeClaim.StatusConditions().SetTrue(karpv1.ConditionTypeDrifted)
 		ExpectApplied(ctx, env.Client, nodeClass, nodeClaim)
 
 		ExpectObjectReconciled(ctx, env.Client, hashController, nodeClass)

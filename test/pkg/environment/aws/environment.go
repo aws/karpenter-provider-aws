@@ -37,19 +37,19 @@ import (
 	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
 	. "github.com/onsi/ginkgo/v2"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/utils/env"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
 )
 
 func init() {
-	corev1.NormalizedLabels = lo.Assign(corev1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": v1.LabelTopologyZone})
+	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 
 var WindowsDefaultImage = "mcr.microsoft.com/oss/kubernetes/pause:3.9"
@@ -141,18 +141,18 @@ func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamW
 	return &NoOpTimeStreamAPI{}
 }
 
-func (env *Environment) DefaultEC2NodeClass() *providerv1.EC2NodeClass {
+func (env *Environment) DefaultEC2NodeClass() *v1.EC2NodeClass {
 	nodeClass := test.EC2NodeClass()
-	nodeClass.Spec.AMIFamily = &providerv1.AMIFamilyAL2023
+	nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
 	nodeClass.Spec.Tags = map[string]string{
 		"testing/cluster": env.ClusterName,
 	}
-	nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
+	nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 		{
 			Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		},
 	}
-	nodeClass.Spec.SubnetSelectorTerms = []providerv1.SubnetSelectorTerm{
+	nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{
 		{
 			Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},
 		},

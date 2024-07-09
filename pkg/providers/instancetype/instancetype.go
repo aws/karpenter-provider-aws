@@ -26,17 +26,17 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
@@ -49,7 +49,7 @@ import (
 
 type Provider interface {
 	LivenessProbe(*http.Request) error
-	List(context.Context, *providerv1.KubeletConfiguration, *providerv1.EC2NodeClass) ([]*cloudprovider.InstanceType, error)
+	List(context.Context, *v1.KubeletConfiguration, *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error)
 	UpdateInstanceTypes(ctx context.Context) error
 	UpdateInstanceTypeOfferings(ctx context.Context) error
 }
@@ -97,14 +97,14 @@ func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2api e
 	}
 }
 
-func (p *DefaultProvider) List(ctx context.Context, kc *providerv1.KubeletConfiguration, nodeClass *providerv1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
+func (p *DefaultProvider) List(ctx context.Context, kc *v1.KubeletConfiguration, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
 	p.muInstanceTypeInfo.RLock()
 	p.muInstanceTypeOfferings.RLock()
 	defer p.muInstanceTypeInfo.RUnlock()
 	defer p.muInstanceTypeOfferings.RUnlock()
 
 	if kc == nil {
-		kc = &providerv1.KubeletConfiguration{}
+		kc = &v1.KubeletConfiguration{}
 	}
 	if len(p.instanceTypesInfo) == 0 {
 		return nil, fmt.Errorf("no instance types found")
@@ -116,7 +116,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *providerv1.KubeletConfig
 		return nil, fmt.Errorf("no subnets found")
 	}
 
-	subnetZones := sets.New(lo.Map(nodeClass.Status.Subnets, func(s providerv1.Subnet, _ int) string {
+	subnetZones := sets.New(lo.Map(nodeClass.Status.Subnets, func(s v1.Subnet, _ int) string {
 		return aws.StringValue(&s.Zone)
 	})...)
 
@@ -261,7 +261,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 // offering, you can do the following thanks to this invariant:
 //
 //	offering.Requirements.Get(v1.TopologyLabelZone).Any()
-func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones, instanceTypeZones sets.Set[string], subnets []providerv1.Subnet) []cloudprovider.Offering {
+func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2.InstanceTypeInfo, zones, instanceTypeZones sets.Set[string], subnets []v1.Subnet) []cloudprovider.Offering {
 	var offerings []cloudprovider.Offering
 	for zone := range zones {
 		// while usage classes should be a distinct set, there's no guarantee of that
@@ -283,20 +283,20 @@ func (p *DefaultProvider) createOfferings(ctx context.Context, instanceType *ec2
 				continue
 			}
 
-			subnet, hasSubnet := lo.Find(subnets, func(s providerv1.Subnet) bool {
+			subnet, hasSubnet := lo.Find(subnets, func(s v1.Subnet) bool {
 				return s.Zone == zone
 			})
 			available := !isUnavailable && ok && instanceTypeZones.Has(zone) && hasSubnet
 			offering := cloudprovider.Offering{
 				Requirements: scheduling.NewRequirements(
-					scheduling.NewRequirement(corev1.CapacityTypeLabelKey, v1.NodeSelectorOpIn, capacityType),
-					scheduling.NewRequirement(v1.LabelTopologyZone, v1.NodeSelectorOpIn, zone),
+					scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType),
+					scheduling.NewRequirement(corev1.LabelTopologyZone, corev1.NodeSelectorOpIn, zone),
 				),
 				Price:     price,
 				Available: available,
 			}
 			if subnet.ZoneID != "" {
-				offering.Requirements.Add(scheduling.NewRequirement(providerv1.LabelTopologyZoneID, v1.NodeSelectorOpIn, subnet.ZoneID))
+				offering.Requirements.Add(scheduling.NewRequirement(v1.LabelTopologyZoneID, corev1.NodeSelectorOpIn, subnet.ZoneID))
 			}
 			offerings = append(offerings, offering)
 			instanceTypeOfferingAvailable.With(prometheus.Labels{

@@ -28,14 +28,14 @@ import (
 	"github.com/samber/lo"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	. "sigs.k8s.io/karpenter/pkg/utils/testing"
 )
 
 var ctx context.Context
-var np *corev1.NodePool
+var np *karpv1.NodePool
 var nc *v1.EC2NodeClass
 
 func TestAWS(t *testing.T) {
@@ -76,15 +76,15 @@ var _ = Describe("GetKubelet", func() {
 		kubeletbyte, err := json.Marshal(npkubelet)
 		Expect(err).To(BeNil())
 		np.Annotations = map[string]string{
-			corev1.ProviderCompatabilityAnnotationKey: string(kubeletbyte),
+			karpv1.ProviderCompatabilityAnnotationKey: string(kubeletbyte),
 		}
-		actualKubelet, err := utils.GetKubelet(np.Annotations[corev1.ProviderCompatabilityAnnotationKey], nc)
+		actualKubelet, err := utils.GetKubelet(np.Annotations[karpv1.ProviderCompatabilityAnnotationKey], nc)
 		Expect(err).To(BeNil())
 		Expect(npkubelet).To(BeEquivalentTo(actualKubelet))
 	})
 	It("should use v1 EC2NodeClass kubeletconfiguration of compatibility annotation is not found", func() {
 		np.Annotations = map[string]string{
-			corev1.ProviderCompatabilityAnnotationKey: "",
+			karpv1.ProviderCompatabilityAnnotationKey: "",
 		}
 		nc.Spec.Kubelet = &v1.KubeletConfiguration{
 			MaxPods:     lo.ToPtr(int32(343)),
@@ -104,7 +104,7 @@ var _ = Describe("GetKubelet", func() {
 			ImageGCLowThresholdPercent:  lo.ToPtr(int32(23)),
 			CPUCFSQuota:                 lo.ToPtr(true),
 		}
-		kubelet, err := utils.GetKubelet(np.Annotations[corev1.ProviderCompatabilityAnnotationKey], nc)
+		kubelet, err := utils.GetKubelet(np.Annotations[karpv1.ProviderCompatabilityAnnotationKey], nc)
 		Expect(err).To(BeNil())
 		Expect(nc.Spec.Kubelet).To(BeEquivalentTo(kubelet))
 	})

@@ -19,11 +19,11 @@ import (
 	"fmt"
 
 	"github.com/imdario/mergo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -41,32 +41,32 @@ func EC2NodeClass(overrides ...providerv1.EC2NodeClass) *providerv1.EC2NodeClass
 		options.Status.AMIs = []providerv1.AMI{
 			{
 				ID: "ami-test1",
-				Requirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
-					{Key: providerv1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpDoesNotExist},
-					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpDoesNotExist},
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+					{Key: providerv1.LabelInstanceGPUCount, Operator: corev1.NodeSelectorOpDoesNotExist},
+					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: corev1.NodeSelectorOpDoesNotExist},
 				},
 			},
 			{
 				ID: "ami-test2",
-				Requirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
-					{Key: providerv1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpExists},
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+					{Key: providerv1.LabelInstanceGPUCount, Operator: corev1.NodeSelectorOpExists},
 				},
 			},
 			{
 				ID: "ami-test3",
-				Requirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureAmd64}},
-					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpExists},
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
+					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: corev1.NodeSelectorOpExists},
 				},
 			},
 			{
 				ID: "ami-test4",
-				Requirements: []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1.ArchitectureArm64}},
-					{Key: providerv1.LabelInstanceGPUCount, Operator: v1.NodeSelectorOpDoesNotExist},
-					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: v1.NodeSelectorOpDoesNotExist},
+				Requirements: []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64}},
+					{Key: providerv1.LabelInstanceGPUCount, Operator: corev1.NodeSelectorOpDoesNotExist},
+					{Key: providerv1.LabelInstanceAcceleratorCount, Operator: corev1.NodeSelectorOpDoesNotExist},
 				},
 			},
 		}
@@ -130,8 +130,8 @@ func EC2NodeClass(overrides ...providerv1.EC2NodeClass) *providerv1.EC2NodeClass
 
 func EC2NodeClassFieldIndexer(ctx context.Context) func(cache.Cache) error {
 	return func(c cache.Cache) error {
-		return c.IndexField(ctx, &corev1.NodeClaim{}, "spec.nodeClassRef.name", func(obj client.Object) []string {
-			nc := obj.(*corev1.NodeClaim)
+		return c.IndexField(ctx, &karpv1.NodeClaim{}, "spec.nodeClassRef.name", func(obj client.Object) []string {
+			nc := obj.(*karpv1.NodeClaim)
 			if nc.Spec.NodeClassRef == nil {
 				return []string{""}
 			}

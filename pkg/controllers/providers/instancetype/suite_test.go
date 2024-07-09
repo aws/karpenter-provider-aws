@@ -16,10 +16,11 @@ package instancetype_test
 
 import (
 	"context"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 
-	v1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
+
+	corev1 "k8s.io/api/core/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
@@ -27,7 +28,7 @@ import (
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	controllersinstancetype "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/instancetype"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -88,9 +89,9 @@ var _ = Describe("InstanceType", func() {
 		})
 
 		ExpectSingletonReconciled(ctx, controller)
-		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &providerv1.KubeletConfiguration{}, &providerv1.EC2NodeClass{
-			Status: providerv1.EC2NodeClassStatus{
-				Subnets: []providerv1.Subnet{
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, &v1.EC2NodeClass{
+			Status: v1.EC2NodeClassStatus{
+				Subnets: []v1.Subnet{
 					{
 						ID:   "subnet-test1",
 						Zone: "test-zone-1a",
@@ -122,9 +123,9 @@ var _ = Describe("InstanceType", func() {
 		})
 
 		ExpectSingletonReconciled(ctx, controller)
-		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &providerv1.KubeletConfiguration{}, &providerv1.EC2NodeClass{
-			Status: providerv1.EC2NodeClassStatus{
-				Subnets: []providerv1.Subnet{
+		instanceTypes, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, &v1.EC2NodeClass{
+			Status: v1.EC2NodeClassStatus{
+				Subnets: []v1.Subnet{
 					{
 						ID:   "subnet-test1",
 						Zone: "test-zone-1a",
@@ -149,7 +150,7 @@ var _ = Describe("InstanceType", func() {
 			})
 			Expect(found).To(BeTrue())
 			for y := range instanceTypes[x].Offerings {
-				Expect(instanceTypes[x].Offerings[y].Requirements.Get(v1.LabelTopologyZone).Any()).To(Equal(lo.FromPtr(offering.Location)))
+				Expect(instanceTypes[x].Offerings[y].Requirements.Get(corev1.LabelTopologyZone).Any()).To(Equal(lo.FromPtr(offering.Location)))
 			}
 		}
 	})
@@ -157,14 +158,14 @@ var _ = Describe("InstanceType", func() {
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{})
 		ExpectSingletonReconciled(ctx, controller)
-		_, err := awsEnv.InstanceTypesProvider.List(ctx, &providerv1.KubeletConfiguration{}, &providerv1.EC2NodeClass{})
+		_, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, &v1.EC2NodeClass{})
 		Expect(err).ToNot(BeNil())
 	})
 	It("should not update instance type offering date with response from the DescribeInstanceTypesOfferings API", func() {
 		awsEnv.EC2API.DescribeInstanceTypesOutput.Set(&ec2.DescribeInstanceTypesOutput{})
 		awsEnv.EC2API.DescribeInstanceTypeOfferingsOutput.Set(&ec2.DescribeInstanceTypeOfferingsOutput{})
 		ExpectSingletonReconciled(ctx, controller)
-		_, err := awsEnv.InstanceTypesProvider.List(ctx, &providerv1.KubeletConfiguration{}, &providerv1.EC2NodeClass{})
+		_, err := awsEnv.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, &v1.EC2NodeClass{})
 		Expect(err).ToNot(BeNil())
 	})
 })

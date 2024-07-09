@@ -17,9 +17,10 @@ package instance_test
 import (
 	"context"
 	"fmt"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
 	"time"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -28,7 +29,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -80,15 +81,15 @@ var _ = BeforeEach(func() {
 
 var _ = Describe("InstanceProvider", func() {
 	var nodeClass *providerv1.EC2NodeClass
-	var nodePool *corev1.NodePool
-	var nodeClaim *corev1.NodeClaim
+	var nodePool *karpv1.NodePool
+	var nodeClaim *karpv1.NodeClaim
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass()
-		nodePool = coretest.NodePool(corev1.NodePool{
-			Spec: corev1.NodePoolSpec{
-				Template: corev1.NodeClaimTemplate{
-					Spec: corev1.NodeClaimSpec{
-						NodeClassRef: &corev1.NodeClassReference{
+		nodePool = coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimSpec{
+						NodeClassRef: &karpv1.NodeClassReference{
 							Group: object.GVK(nodeClass).Group,
 							Kind:  object.GVK(nodeClass).Kind,
 							Name:  nodeClass.Name,
@@ -97,14 +98,14 @@ var _ = Describe("InstanceProvider", func() {
 				},
 			},
 		})
-		nodeClaim = coretest.NodeClaim(corev1.NodeClaim{
+		nodeClaim = coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					corev1.NodePoolLabelKey: nodePool.Name,
+					karpv1.NodePoolLabelKey: nodePool.Name,
 				},
 			},
-			Spec: corev1.NodeClaimSpec{
-				NodeClassRef: &corev1.NodeClassReference{
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
 					Group: object.GVK(nodeClass).Group,
 					Kind:  object.GVK(nodeClass).Kind,
 					Name:  nodeClass.Name,
@@ -120,10 +121,10 @@ var _ = Describe("InstanceProvider", func() {
 		ExpectApplied(ctx, env.Client, nodeClaim, nodePool, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{
-			{CapacityType: corev1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
-			{CapacityType: corev1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
-			{CapacityType: corev1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
-			{CapacityType: corev1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
+			{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+			{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
+			{CapacityType: karpv1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1a"},
+			{CapacityType: karpv1.CapacityTypeSpot, InstanceType: "m5.xlarge", Zone: "test-zone-1b"},
 		})
 		instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 		Expect(err).ToNot(HaveOccurred())
@@ -153,7 +154,7 @@ var _ = Describe("InstanceProvider", func() {
 							Value: aws.String("owned"),
 						},
 						{
-							Key:   aws.String(corev1.NodePoolLabelKey),
+							Key:   aws.String(karpv1.NodePoolLabelKey),
 							Value: aws.String("default"),
 						},
 						{
@@ -161,7 +162,7 @@ var _ = Describe("InstanceProvider", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(corev1.ManagedByAnnotationKey),
+							Key:   aws.String(karpv1.ManagedByAnnotationKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},

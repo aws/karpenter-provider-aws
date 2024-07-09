@@ -19,13 +19,12 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"knative.dev/pkg/ptr"
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
-
 
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -79,7 +78,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 		It("should fail if tags contain a restricted domain key", func() {
 			nc.Spec.Tags = map[string]string{
-				corev1.NodePoolLabelKey: "value",
+				karpv1.NodePoolLabelKey: "value",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
@@ -87,7 +86,7 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
-				corev1.ManagedByAnnotationKey: "test",
+				karpv1.ManagedByAnnotationKey: "test",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
@@ -468,7 +467,7 @@ var _ = Describe("CEL/Validation", func() {
 		It("should fail on kubeReserved with invalid keys", func() {
 			nc.Spec.Kubelet = &providerv1.KubeletConfiguration{
 				KubeReserved: map[string]string{
-					string(v1.ResourcePods): "2",
+					string(corev1.ResourcePods): "2",
 				},
 			}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
@@ -476,7 +475,7 @@ var _ = Describe("CEL/Validation", func() {
 		It("should fail on systemReserved with invalid keys", func() {
 			nc.Spec.Kubelet = &providerv1.KubeletConfiguration{
 				SystemReserved: map[string]string{
-					string(v1.ResourcePods): "2",
+					string(corev1.ResourcePods): "2",
 				},
 			}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())

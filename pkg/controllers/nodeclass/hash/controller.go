@@ -28,7 +28,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/awslabs/operatorpkg/reasonable"
-	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
@@ -83,7 +83,7 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 // EC2NodeClass. Since, we cannot rely on the `ec2nodeclass-hash` on the NodeClaims, due to the breaking change, we will need to re-calculate the hash and update the annotation.
 // For more information on the Drift Hash Versioning: https://github.com/kubernetes-sigs/karpenter/blob/main/designs/drift-hash-versioning.md
 func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *providerv1.EC2NodeClass) error {
-	ncList := &corev1.NodeClaimList{}
+	ncList := &karpv1.NodeClaimList{}
 	if err := c.kubeClient.List(ctx, ncList, client.MatchingFields{"spec.nodeClassRef.name": nodeClass.Name}); err != nil {
 		return err
 	}
@@ -100,7 +100,7 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *provide
 
 			// Any NodeClaim that is already drifted will remain drifted if the karpenter.k8s.aws/nodepool-hash-version doesn't match
 			// Since the hashing mechanism has changed we will not be able to determine if the drifted status of the NodeClaim has changed
-			if nc.StatusConditions().Get(corev1.ConditionTypeDrifted) == nil {
+			if nc.StatusConditions().Get(karpv1.ConditionTypeDrifted) == nil {
 				nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 					providerv1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
 				})
