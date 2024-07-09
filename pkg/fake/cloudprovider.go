@@ -16,14 +16,16 @@ package fake
 
 import (
 	"context"
+
 	"github.com/awslabs/operatorpkg/status"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	providerv1beta1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/test"
+
+	providerv1beta1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 const (

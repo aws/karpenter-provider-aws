@@ -17,8 +17,9 @@ package status_test
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/samber/lo"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"

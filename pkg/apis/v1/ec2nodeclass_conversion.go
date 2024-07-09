@@ -17,9 +17,10 @@ package v1
 import (
 	"context"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/samber/lo"
 	"knative.dev/pkg/apis"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) error {
