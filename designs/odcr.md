@@ -21,9 +21,7 @@ This document proposes supporting ODCR in Karpenter
 
 ## Background
 
-In AWS [ODCR](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) allows users to reserve compute capacity to mitigate the risk of 
-getting on-demand capacity. This is very helpful during seasonal holidays where higher traffic is expected or for reserving highly-desired instance types, like the
-`p5.48xlarge` or other large GPU instance types.
+In AWS [ODCR](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-capacity-reservations.html) allows users to reserve compute capacity to mitigate the risk of getting on-demand capacity. This is very helpful during seasonal holidays where higher traffic is expected or for reserving highly-desired instance types, like the `p5.48xlarge` or other large GPU instance types.
 
 ### Capacity Reservations
 
@@ -215,7 +213,7 @@ The EC2NodeClass API allows selection on capacity reservations, which give addit
    
 We are recommending Option 3. Notably, using capacity reservations is not an application owner concern -- app owners only care that they get the capacity they need to run their applications, they don't care how that capacity is acquired. This option does not require application owners to intervene to begin leveraging capacity reservations and allows cluster admins to describe the constraints necessary to ensure capacity availability for harder-to-get instance types.
 
-## Labels
+## Node Labels
 
 When a node is launched against a CapacityReservation we will expose Capacity Reservation
 information as labels `karpenter.k8s.aws/capacity-reservation-id`. This is helpful for users to identify those nodes that are being used
@@ -247,10 +245,45 @@ When there are multiple capacity reservation offerings for an instance type for 
 ```yaml
 name: c5.large
 offerings:
-  - price:
-    available:
+  - price: ....
+    available: ....
     requirements:
-      - key: 
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["on-demand"]
+      - key: karpenter.k8s.aws/capacity-reservation-id
+        operator: In
+        values: ["cr-111111111", "cr-222222222"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]
+      - key: topology.k8s.aws/zone-id
+        operator: In
+        values: ["usw2-az1"]
+  - price: ....
+    available: ....
+    requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["on-demand"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]
+      - key: topology.k8s.aws/zone-id
+        operator: In
+        values: ["usw2-az1"]
+  - price: ....
+    available: ....
+    requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["spot"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]
+      - key: topology.k8s.aws/zone-id
+        operator: In
+        values: ["usw2-az1"]
 ```
 
 ### Representing ODCR Available Instance Counts in Instance Type Offerings
@@ -268,10 +301,45 @@ An updated version of the instance type offerings for an ODCR, on-demand, and sp
 ```yaml
 name: c5.large
 offerings:
-  - price:
-    available:
+  - price: 0.00000001
+    available: 5
     requirements:
-      - key: 
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["on-demand"]
+      - key: karpenter.k8s.aws/capacity-reservation-id
+        operator: In
+        values: ["cr-111111111", "cr-222222222"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]
+      - key: topology.k8s.aws/zone-id
+        operator: In
+        values: ["usw2-az1"]
+  - price: 0.085
+    available: 4294967295
+    requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["on-demand"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]
+      - key: topology.k8s.aws/zone-id
+        operator: In
+        values: ["usw2-az1"]
+  - price: 0.0315
+    available: 4294967295
+    requirements:
+      - key: karpenter.sh/capacity-type
+        operator: In
+        values: ["spot"]
+      - key: topology.kubernetes.io/zone
+        operator: In
+        values: ["us-west-2a"]
+      - key: topology.k8s.aws/zone-id
+        operator: In
+        values: ["usw2-az1"]
 ```
 
 ## Capacity Reservation Expiration
@@ -336,10 +404,8 @@ In this case, there is no existing mechanism in Karpenter that would catch this.
 
 The main failure scenario is when Capacity Reservation limit is hit and no new nodes can be launched from any Capacity Reservation the launch template targets.
 
-1. We filter inside Karpenter before calling CreateFleet API and throwing an InsufficientCapacityError causing a reevaluation,
-with then a retry recalculation of instances maybe falling back to regular on-demand
-2. We call CreateFleet API in certain race conditions, resulting in an InsufficientCapacityError causing a reevaluation,
-with then a fallback to on-demand could be selected if Capacity Reservations not available
+1. We filter inside Karpenter before calling CreateFleet API and throwing an InsufficientCapacityError causing a reevaluation, with then a retry recalculation of instances maybe falling back to regular on-demand
+2. We call CreateFleet API in certain race conditions, resulting in an InsufficientCapacityError causing a reevaluation, with then a fallback to on-demand could be selected if Capacity Reservations not available
 
 ## Appendix
 
