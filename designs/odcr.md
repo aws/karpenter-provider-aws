@@ -30,32 +30,31 @@ getting on-demand capacity. This is very helpful during seasonal holidays where 
 Each [Capacity Reservation](https://pkg.go.dev/github.com/aws/aws-sdk-go-v2/service/ec2@v1.162.1/types#CapacityReservation) is defined with:
 
 - The Availability Zone in which to reserve the capacity
-- The number of instances for which to reserve capacity
+- The count of instances for which to reserve capacity
 - The instance attributes, including the instance type, tenancy, and platform/OS
 - Instance match criteria
   - Targeted -- only accept instances that matches all attributes + explicitly targeted the capacity reservation
   - Open -- if capacity reservation accepts all instances that matches all attributes
 - A start and end date (if applicable) for when the reservation of capacity is available
 
-AWS also supports grouping Capacity Reservation into Capacity Reservation groups. 
-Both these entities are supported in Launch Template's CapacityReservationTarget [definitions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-capacityreservationtarget.html).
+AWS also supports grouping Capacity Reservation into [Capacity Reservation groups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-cr-group.html). Both these entities are supported in Launch Template's CapacityReservationTarget [definitions](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-ec2-launchtemplate-capacityreservationtarget.html).
 
 ## Goals
 
-- Support associating ODCRs to EC2NodeClass
-  - open
-  - targeted
-- Define Karpenter's behavior when configuring Capacity Reservations for an EC2NodeClass
-- Define Karpenter's behavior when encountering errors when attempting to launch nodes into Capacity Reservation
-- Define Karpenter's behavior when consolidating nodes to Capacity Reservation when available
+1. Allow selection of targeted and open ODCRs with Karpenter 
+2. Ensure multiple ODCRs (with different instance types and zones) can be selected from a single NodePool 
+3. Ensure that we only launch capacity into an ODCR as-needed to ensure ODCR sharing between clusters and accounts 
+4. Ensure ODCRs are prioritized over regular OD and spot capacity 
+5. Ensure Karpenter consolidates regular OD and spot instances to ODCR capacity when it is available 
+6. Ensure Karpenter consolidates between ODCRs when a smaller/cheaper ODCR is available
+7. Allow users to constrain a NodePool to only launch into ODCR capacity without fallback 
+8. Allow users to fallback from ODCR to spot capacity and from ODCR to standard OD capacity 
+9. Ensure OD capacity is not unnecessarily churned when a capacity reservation is removed to reduce workload disruption
 
 ## Non-Goals
 
-- Supporting capacity-blocks as a capacity-type.
-- Supporting changes in scaling behavior when ODCR is associated to a NodeClass. _We won't bring up N nodes to match an N node capacity reservation, this would directly interfear with the ability to share a Capacity Reservation between multiple clusters or accounts. The first Karpenter finding the Capacity Reservation would provision all instances for a reservation leaving nothing unused_
-- Supporting Capacity Reservation Groups. _Adding this abstraction for now adds additional complexity_
-- Supporting updating Capacity Reservations availabile instance count after success of CreateFleet API. _We will currenlty rely on reconsolidation of capacity reservations itself, and rely on CreateFleet API throwing a `ReservationCapacityExceeded`_
-- Supporting conditions for capacity reservation instance creations. _By showing the available instance count within each capacity reservation for an EC2NodeClass we have similar information available_
+1. Support [Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-using.html) as a capacity-type -- though capacity blocks are not supported with this design, they are a natural extension of it. We could support selection on capacity blocks through the `capacityReservationSelectorTerms`.
+2. Support [Capacity Reservation Groups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-cr-group.html) -- though capacity reservation groups are not supported with this design, they are a natural extension of it. We could support an additional field `reservationGroup` in the `capacityReservationSelectorTerms`.
 
 ## Proposed Solution
 
