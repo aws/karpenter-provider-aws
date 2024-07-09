@@ -1,12 +1,5 @@
 aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
-# Parse minor version to determine whether to enable the webhooks
-K8S_VERSION_MINOR="${K8S_VERSION#*.}"
-WEBHOOK_ENABLED=false
-if (( K8S_VERSION_MINOR < 25 )); then
-  WEBHOOK_ENABLED=true
-fi
-
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
 ADDITIONAL_FLAGS=""
 if (( "$PRIVATE_CLUSTER" == 'true' )); then
@@ -14,14 +7,12 @@ if (( "$PRIVATE_CLUSTER" == 'true' )); then
   ADDITIONAL_FLAGS="--set .Values.controller.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/controller --set .Values.controller.image.digest=\"\""
 fi
 
-# Remove service account annotation when dropping support for 1.23
 helm upgrade --install karpenter "${CHART}" \
   -n kube-system \
   --version "0-$(git rev-parse HEAD)" \
   --set logLevel=debug \
-  --set webhook.enabled=${WEBHOOK_ENABLED} \
+  --set webhook.enabled=false\
   --set settings.isolatedVPC=${PRIVATE_CLUSTER} \
-  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$ACCOUNT_ID:role/karpenter-irsa-$CLUSTER_NAME" \
   $ADDITIONAL_FLAGS \
   --set settings.clusterName="$CLUSTER_NAME" \
   --set settings.interruptionQueue="$CLUSTER_NAME" \

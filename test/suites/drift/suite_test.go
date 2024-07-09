@@ -373,8 +373,8 @@ var _ = Describe("Drift", func() {
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
 		// Choose an old static image (AL2023 AMIs don't exist for 1.22)
-		oldCustomAMI := env.GetAMIBySSMPath(lo.Ternary(env.K8sMinorVersion() == 23,
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240307/image_id",
+		oldCustomAMI := env.GetAMIBySSMPath(lo.Ternary(env.K8sMinorVersion() == 25,
+			"/aws/service/eks/optimized-ami/1.25/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.25-v20240307/image_id",
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)),
 		))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
@@ -421,8 +421,8 @@ var _ = Describe("Drift", func() {
 		env.ExpectSettingsOverridden(v1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 
 		// Choose an old static image (AL2023 AMIs don't exist for 1.22)
-		oldCustomAMI := env.GetAMIBySSMPath(lo.Ternary(env.K8sMinorVersion() == 23,
-			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240307/image_id",
+		oldCustomAMI := env.GetAMIBySSMPath(lo.Ternary(env.K8sMinorVersion() == 25,
+			"/aws/service/eks/optimized-ami/1.25/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.25-v20240307/image_id",
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)),
 		))
 		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
