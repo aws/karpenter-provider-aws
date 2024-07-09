@@ -41,12 +41,15 @@ import (
 type Windows struct {
 	DefaultFamily
 	*Options
+	// Version is the major version of Windows Server (2019 or 2022).
+	// Only the core version of each version is supported by Karpenter, so this field only indicates the year.
 	Version string
+	// Build is a specific build code associated with the Version
 	Build   string
 }
 
-func (w Windows) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (AMIQuery, error) {
-	query := AMIQuery{
+func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
+	query := DescribeImageQuery{
 		Filters: []*ec2.Filter{&ec2.Filter{
 			Name: lo.ToPtr("image-id"),
 		}},
@@ -54,15 +57,17 @@ func (w Windows) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVers
 	}
 	// SSM aliases are only maintained for the latest Windows AMI releases
 	if amiVersion != AMIVersionLatest {
-		return AMIQuery{}, fmt.Errorf("discovering AMIs for alias, %q is an invalid version for Windows", amiVersion)
+
+		return DescribeImageQuery{}, fmt.Errorf(`discovering AMIs for alias "windows%s@%s", %q is not a supported version`, w.Version, amiVersion, amiVersion)
 	}
+	// Example Path: /aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-1.30/image_id
 	results, err := ssmProvider.List(ctx, "/aws/service/ami-windows-latest")
 	if err != nil {
-		return AMIQuery{}, fmt.Errorf("discovering AMIs from ssm")
+		return DescribeImageQuery{}, fmt.Errorf("discovering AMIs from ssm")
 	}
 	for path, value := range results {
 		pathComponents := strings.Split(path, "/")
-		if len(pathComponents) != 6 {
+		if len(pathComponents) != 6 && pathComponents[5] != "image_id" {
 			continue
 		}
 		matches := regexp.MustCompile(`^Windows_Server-(\d+)-English-Core-EKS_Optimized-(\d\.\d+)$`).FindStringSubmatch(pathComponents[4])
@@ -77,7 +82,7 @@ func (w Windows) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVers
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(query.Filters[0].Values) == 0 {
-		return AMIQuery{}, fmt.Errorf("failed to discover any AMIs for alias")
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s"`, w.Version, amiVersion)
 	}
 	return query, nil
 }

@@ -42,13 +42,16 @@ type AL2 struct {
 	*Options
 }
 
-func (a AL2) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (AMIQuery, error) {
-	query := AMIQuery{
+func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
+	query := DescribeImageQuery{
 		Filters: []*ec2.Filter{&ec2.Filter{
 			Name: lo.ToPtr("image-id"),
 		}},
 		KnownRequirements: make(map[string][]scheduling.Requirements),
 	}
+	// Example Paths:
+	// - Latest EKS 1.30 Standard Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2/recommended/image_id
+	// - Specific EKS 1.30 GPU Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2-gpu/amazon-eks-node-1.30-v20240625/image_id
 	for rootPath, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2", k8sVersion):       []Variant{VariantStandard},
 		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64", k8sVersion): []Variant{VariantStandard},
@@ -56,7 +59,7 @@ func (a AL2) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion 
 	} {
 		results, err := ssmProvider.List(ctx, rootPath)
 		if err != nil {
-			log.FromContext(ctx).WithValues("path", rootPath).Error(err, "discovering AMIs from ssm")
+			log.FromContext(ctx).WithValues("path", rootPath, "family", "AL2").Error(err, "discovering AMIs from ssm")
 			continue
 		}
 		for path, value := range results {
@@ -74,7 +77,7 @@ func (a AL2) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion 
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(query.Filters[0].Values) == 0 {
-		return AMIQuery{}, fmt.Errorf("failed to discover any AMIs for alias")
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2@%s"`, amiVersion)
 	}
 	return query, nil
 }

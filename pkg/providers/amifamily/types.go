@@ -28,6 +28,12 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
+const (
+	// AMIVersionLatest is the version used in EKS aliases to represent the latest version. This maps to different
+	// values in the SSM path, depending on the AMI type (e.g. "recommended" for AL2/AL2023)).
+	AMIVersionLatest = "latest"
+)
+
 type AMI struct {
 	Name         string
 	AmiID        string
@@ -82,17 +88,31 @@ func (v Variant) Requirements() scheduling.Requirements {
 	return nil
 }
 
-type AMIQuery struct {
+type DescribeImageQuery struct {
 	Filters           []*ec2.Filter
 	Owners            []string
+	// KnownRequirements is a map from image IDs to a set of known requirements.
+	// When discovering image IDs via SSM we know additional requirements which aren't surfaced by ec2:DescribeImage (e.g. GPU / Neuron compatibility)
+	// Sometimes, an image may have multiple sets of known requirements. For example, the AL2 GPU AMI is compatible with both Neuron and Nvidia GPU
+	// instances, which means we need a set of requirements for either instance type.
 	KnownRequirements map[string][]scheduling.Requirements
 }
 
-func (aq AMIQuery) DescribeImagesInput() *ec2.DescribeImagesInput {
+func (q DescribeImageQuery) DescribeImagesInput() *ec2.DescribeImagesInput {
 	return &ec2.DescribeImagesInput{
 		// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
-		Filters:    lo.Ternary(len(aq.Filters) > 0, aq.Filters, nil),
-		Owners:     lo.Ternary(len(aq.Owners) > 0, lo.ToSlicePtr(aq.Owners), nil),
+		Filters:    lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
+		Owners:     lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
 		MaxResults: aws.Int64(1000),
 	}
+}
+
+func (q DescribeImageQuery) RequirementsForImageWithArchitecture(image string, arch string) []scheduling.Requirements {
+	if knownRequirements, ok := q.KnownRequirements[image]; ok {
+		return lo.Map(knownRequirements, func(r scheduling.Requirements, _ int) scheduling.Requirements {
+			r.Add(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, arch))
+			return r
+		})
+	}
+	return []scheduling.Requirements{scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, arch))}
 }

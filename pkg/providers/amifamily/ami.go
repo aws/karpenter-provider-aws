@@ -65,11 +65,11 @@ func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provid
 func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) (AMIs, error) {
 	p.Lock()
 	defer p.Unlock()
-	queries, err := p.GetAMIQueries(ctx, nodeClass)
+	queries, err := p.DescribeImageQueries(ctx, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("getting AMI queries, %w", err)
 	}
-	amis, err := p.getAMIs(ctx, queries)
+	amis, err := p.amis(ctx, queries)
 	if err != nil {
 		return nil, err
 	}
@@ -82,33 +82,34 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	return amis, nil
 }
 
-func (p *DefaultProvider) GetAMIQueries(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]AMIQuery, error) {
-	// Aliases should be mutually exclusive (enforced via CEL validation), we'll treat it as such
-	if amiFamilyKey := nodeClass.AMIFamily(); amiFamilyKey != v1.AMIFamilyCustom {
+func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]DescribeImageQuery, error) {
+	// Aliases are mutually exclusive, both on the term level and field level within a term.
+	// This is enforced by a CEL validation, we will treat this as an invariant.
+	if amiFamilyKey := nodeClass.AMIFamily(); amiFamilyKey != v1beta1.AMIFamilyCustom {
 		amiVersion := nodeClass.AMIVersion()
 		amiFamily := GetAMIFamily(&amiFamilyKey, nil)
 		kubernetesVersion, err := p.versionProvider.Get(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("getting kubernetes version, %w", err)
 		}
-		query, err := amiFamily.AMIQuery(ctx, p.ssmProvider, kubernetesVersion, amiVersion)
-		return []AMIQuery{query}, err
+		query, err := amiFamily.DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, amiVersion)
+		return []DescribeImageQuery{query}, err
 	}
 
 	idFilter := &ec2.Filter{Name: aws.String("image-id")}
-	queries := []AMIQuery{}
+	queries := []DescribeImageQuery{}
 	for _, term := range nodeClass.Spec.AMISelectorTerms {
 		switch {
 		case term.ID != "":
 			idFilter.Values = append(idFilter.Values, aws.String(term.ID))
 		default:
-			query := AMIQuery{
+			query := DescribeImageQuery{
 				Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{}),
 			}
 			if term.Name != "" {
 				// Default owners to self,amazon to ensure Karpenter only discovers cross-account AMIs if the user specifically allows it.
 				// Removing this default would cause Karpenter to discover publicly shared AMIs passing the name filter.
-				query = AMIQuery{
+				query = DescribeImageQuery{
 					Owners: lo.Ternary(term.Owner != "", []string{term.Owner}, []string{"self", "amazon"}),
 				}
 				query.Filters = append(query.Filters, &ec2.Filter{
@@ -134,12 +135,12 @@ func (p *DefaultProvider) GetAMIQueries(ctx context.Context, nodeClass *v1.EC2No
 		}
 	}
 	if len(idFilter.Values) > 0 {
-		queries = append(queries, AMIQuery{Filters: []*ec2.Filter{idFilter}})
+		queries = append(queries, DescribeImageQuery{Filters: []*ec2.Filter{idFilter}})
 	}
 	return queries, nil
 }
 
-func (p *DefaultProvider) getAMIs(ctx context.Context, queries []AMIQuery) (AMIs, error) {
+func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery) (AMIs, error) {
 	hash, err := hashstructure.Hash(queries, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
 		return nil, err
@@ -157,18 +158,11 @@ func (p *DefaultProvider) getAMIs(ctx context.Context, queries []AMIQuery) (AMIs
 				if !ok {
 					continue
 				}
-				requirementSets := func() []scheduling.Requirements {
-					if knownRequirements, ok := query.KnownRequirements[lo.FromPtr(image.ImageId)]; ok {
-						return lo.Map(knownRequirements, func(r scheduling.Requirements, _ int) scheduling.Requirements {
-							r.Add(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, arch))
-							return r
-						})
-					}
-					return []scheduling.Requirements{scheduling.NewRequirements(scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, arch))}
-				}()
-				for _, reqs := range requirementSets {
+				// Each image may have multiple associated sets of requirements. For example, an image may be compatible with Neuron instances
+				// and GPU instances. In that case, we'll have a set of requirements for each, and will create one "image" for each.
+				for _, reqs := range query.RequirementsForImageWithArchitecture(lo.FromPtr(image.ImageId), arch) {
+					// If we already have an image with the same set of requirements, but this image is newer, replace the previous image.
 					reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
-					// If the proposed image is newer, store it so that we can return it
 					if v, ok := images[reqsHash]; ok {
 						candidateCreationTime, _ := time.Parse(time.RFC3339, lo.FromPtr(image.CreationDate))
 						existingCreationTime, _ := time.Parse(time.RFC3339, v.CreationDate)
@@ -201,7 +195,10 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
-			if err := instanceType.Requirements.Compatible(scheduling.NewNodeSelectorRequirements(ami.Requirements...), scheduling.AllowUndefinedWellKnownLabels); err == nil {
+			if err := instanceType.Requirements.Compatible(
+				scheduling.NewNodeSelectorRequirements(ami.Requirements...),
+				scheduling.AllowUndefinedWellKnownLabels,
+			); err == nil {
 				amiIDs[ami.ID] = append(amiIDs[ami.ID], instanceType)
 				break
 			}

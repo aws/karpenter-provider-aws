@@ -18,7 +18,6 @@ import (
 	"context"
 	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
@@ -68,6 +67,9 @@ func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParamet
 }
 
 func (a SSMAPI) GetParametersByPathPagesWithContext(_ context.Context, input *ssm.GetParametersByPathInput, f func(*ssm.GetParametersByPathOutput, bool) bool, _ ...request.Option) error {
+	if !lo.FromPtr(input.Recursive) {
+		panic("fake SSM API currently only supports GetParametersByPathPagesWithContext when recursive is true")
+	}
 	if a.WantErr != nil {
 		return a.WantErr
 	}
@@ -78,9 +80,12 @@ func (a SSMAPI) GetParametersByPathPagesWithContext(_ context.Context, input *ss
 	if len(a.Parameters) != 0 {
 		f(&ssm.GetParametersByPathOutput{
 			Parameters: lo.FilterMap(lo.Entries(a.Parameters), func(p lo.Entry[string, string], _ int) (*ssm.Parameter, bool) {
+				// The parameter does not start with the path
 				if !strings.HasPrefix(p.Key, lo.FromPtr(input.Path)) {
 					return nil, false
 				}
+				// The parameter starts with the input path, but the last segment of the input path is only a subset of the matching segment of the parameters path.
+				// Ex: "/aws/service/eks-optimized-ami/amazon-linux-2" is a prefix for "/aws/service/eks-optimized-ami/amazon-linux-2-gpu/..." but we shouldn't match
 				if strings.TrimPrefix(p.Key, lo.FromPtr(input.Path))[0] != '/' {
 					return nil, false
 				}
@@ -116,7 +121,7 @@ func getDefaultParametersForPath(path string) []*ssm.Parameter {
 			"x86_64/latest/image_id",
 			"arm64/latest/image_id",
 		},
-		`\/aws\/service\/ami-windows-latest`: lo.FlatMap(supportedK8sVersions(), func(version string, _ int) []string {
+		`\/aws\/service\/ami-windows-latest`: lo.FlatMap(version.SupportedK8sVersions(), func(version string, _ int) []string {
 			return []string{
 				fmt.Sprintf("Windows_Server-2019-English-Core-EKS_Optimized-%s/image_id", version),
 				fmt.Sprintf("Windows_Server-2022-English-Core-EKS_Optimized-%s/image_id", version),
@@ -135,16 +140,6 @@ func getDefaultParametersForPath(path string) []*ssm.Parameter {
 		})
 	}
 	return nil
-}
-
-func supportedK8sVersions() []string {
-	minMinor := lo.Must(strconv.Atoi(strings.Split(version.MinK8sVersion, ".")[1]))
-	maxMinor := lo.Must(strconv.Atoi(strings.Split(version.MaxK8sVersion, ".")[1]))
-	versions := make([]string, 0, maxMinor-minMinor+1)
-	for i := minMinor; i <= maxMinor; i++ {
-		versions = append(versions, fmt.Sprintf("1.%d", i))
-	}
-	return versions
 }
 
 func (a *SSMAPI) Reset() {

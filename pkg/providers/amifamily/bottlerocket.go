@@ -41,13 +41,16 @@ type Bottlerocket struct {
 	*Options
 }
 
-func (b Bottlerocket) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (AMIQuery, error) {
-	query := AMIQuery{
+func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
+	query := DescribeImageQuery{
 		Filters: []*ec2.Filter{&ec2.Filter{
 			Name: lo.ToPtr("image-id"),
 		}},
 		KnownRequirements: make(map[string][]scheduling.Requirements),
 	}
+	// Example Paths:
+	// - Latest EKS 1.30 amd64 Standard Image: /aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id
+	// - Specific EKS 1.30 arm64 Nvidia Image: /aws/service/bottlerocket/aws-k8s-1.30-nvidia/arm64/1.10.0/image_id
 	for rootPath, variants := range map[string][]Variant{
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s", k8sVersion):        []Variant{VariantStandard},
 		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia", k8sVersion): []Variant{VariantNeuron, VariantNvidia},
@@ -69,7 +72,7 @@ func (b Bottlerocket) AMIQuery(ctx context.Context, ssmProvider ssm.Provider, k8
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(query.Filters[0].Values) == 0 {
-		return AMIQuery{}, fmt.Errorf("failed to discover any AMIs for alias")
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "bottlerocket@%s"`, amiVersion)
 	}
 	return query, nil
 }

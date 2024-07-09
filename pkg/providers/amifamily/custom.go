@@ -41,8 +41,8 @@ func (c Custom) UserData(_ *v1.KubeletConfiguration, _ []corev1.Taint, _ map[str
 	}
 }
 
-func (c Custom) AMIQuery(_ context.Context, _ ssm.Provider, _ string, _ string) (AMIQuery, error) {
-	return AMIQuery{}, nil
+func (c Custom) DescribeImageQuery(_ context.Context, _ ssm.Provider, _ string, _ string) (DescribeImageQuery, error) {
+	return DescribeImageQuery{}, nil
 }
 
 func (c Custom) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {

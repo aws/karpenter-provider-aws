@@ -307,7 +307,7 @@ var _ = Describe("AMIProvider", func() {
 		// When you tag public or shared resources, the tags you assign are available only to your AWS account; no other AWS account will have access to those tags
 		// https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html#tag-restrictions
 		It("should have empty owners and use tags when prefixes aren't set", func() {
-			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
 					AMISelectorTerms: []v1.AMISelectorTerm{{
 						Tags: map[string]string{
@@ -317,7 +317,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			})
 			Expect(err).To(BeNil())
-			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
+			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -330,7 +330,7 @@ var _ = Describe("AMIProvider", func() {
 			}, queries)
 		})
 		It("should have default owners and use name when prefixed", func() {
-			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
 					AMISelectorTerms: []v1.AMISelectorTerm{{
 						Name: "my-ami",
@@ -338,7 +338,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			})
 			Expect(err).To(BeNil())
-			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
+			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -354,7 +354,7 @@ var _ = Describe("AMIProvider", func() {
 			}, queries)
 		})
 		It("should not set owners when legacy ids are passed", func() {
-			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
 					AMISelectorTerms: []v1.AMISelectorTerm{
 						{
@@ -367,7 +367,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			})
 			Expect(err).To(BeNil())
-			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
+			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
 					Filters: []*ec2.Filter{
 						{
@@ -379,7 +379,7 @@ var _ = Describe("AMIProvider", func() {
 			}, queries)
 		})
 		It("should allow only specifying owners", func() {
-			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
 					AMISelectorTerms: []v1.AMISelectorTerm{
 						{
@@ -392,7 +392,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			})
 			Expect(err).To(BeNil())
-			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
+			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
 					Owners: []string{"abcdef"},
 				},
@@ -402,7 +402,7 @@ var _ = Describe("AMIProvider", func() {
 			}, queries)
 		})
 		It("should allow prefixed name and prefixed owners", func() {
-			queries, err := awsEnv.AMIProvider.GetAMIQueries(ctx, &v1.EC2NodeClass{
+			queries, err := awsEnv.AMIProvider.DescribeImageQueries(ctx, &v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
 					AMISelectorTerms: []v1.AMISelectorTerm{
 						{
@@ -417,7 +417,7 @@ var _ = Describe("AMIProvider", func() {
 				},
 			})
 			Expect(err).To(BeNil())
-			ExpectConsistsOfAMIQueries([]amifamily.AMIQuery{
+			ExpectConsistsOfAMIQueries([]amifamily.DescribeImageQuery{
 				{
 					Owners: []string{"0123456789"},
 					Filters: []*ec2.Filter{
@@ -556,11 +556,11 @@ var _ = Describe("AMIProvider", func() {
 	})
 })
 
-func ExpectConsistsOfAMIQueries(expected, actual []amifamily.AMIQuery) {
+func ExpectConsistsOfAMIQueries(expected, actual []amifamily.DescribeImageQuery) {
 	GinkgoHelper()
 	Expect(actual).To(HaveLen(len(expected)))
 
-	for _, list := range [][]amifamily.AMIQuery{expected, actual} {
+	for _, list := range [][]amifamily.DescribeImageQuery{expected, actual} {
 		for _, elem := range list {
 			for _, f := range elem.Filters {
 				sort.Slice(f.Values, func(i, j int) bool {
@@ -573,5 +573,5 @@ func ExpectConsistsOfAMIQueries(expected, actual []amifamily.AMIQuery) {
 			})
 		}
 	}
-	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.AMIQuery, _ int) interface{} { return q })...))
+	Expect(actual).To(ConsistOf(lo.Map(expected, func(q amifamily.DescribeImageQuery, _ int) interface{} { return q })...))
 }
