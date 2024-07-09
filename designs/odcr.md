@@ -234,6 +234,8 @@ We will propagate this information via [instance](https://github.com/aws/karpent
 
 Since ODCRs are a AWS-specific concept, there needs to be a mechanism to pass down these ODCR options down for the scheduler to reason about. Importantly, we need the scheduler to know to prioritize these ODCR options when a user has specified them in their EC2NodeClass. Further, we need the scheduler to be aware that it can't launch an unlimited amount of these instances into an ODCR.
 
+_Note: Updates to the scheduling representation of our offerings, including changes to how the core scheduling behavior works are going to require extensive performance benchmarking to ensure that we do not significantly trade-off performance when we support users selecting on ODCRs._
+
 ### Adding ODCRs as Additional Instance Type Offerings
 
 We can surface ODCR capacity as additional offerings attached to each instance type. Offerings currently allow us to track the pricing of variants of a specific instance type, primarily based on capacity type and availability zone today.
