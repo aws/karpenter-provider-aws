@@ -275,21 +275,37 @@ Pros:
 Cons:
 - ***TBD***
 
-#### Pricing and consolidation
+## Drift
 
-##### Provisioning
+[TODO: Add a section on Drift]
+
+## Pricing/Consolidation
+
+### Provisioning
 
 Pricing is directly considered during provisioning and consolidation as capacity-reservation is prepaid. It is assumed to have a price of 0 during provisioning.
 
-##### Consolidating Capacity Reserved Instances
+### Consolidation
 
 During consolidation pricing does matter as it affects which candidate will be [prioritized](https://github.com/kubernetes-sigs/karpenter/blob/75826eb51589e546fffb594bfefa91f3850e6c82/pkg/controllers/disruption/consolidation.go#L156). Since all capacity instances are paid ahead of time, their cost is already incurred. Users would likely want to prioritize filling their reserved capacity.
-reservation first then fall back into other instances. Because of this reserved instances should likely show up as 0 dollar pricing when we calculate the instance pricing. Since each candidate is tied to a NodePool and EC2NodeClass, we should be able to safely override the pricing per node under a capacity reservation.
+reservation first then fall back into other instances. Because of this reserved instances should likely show up as 0 dollar pricing when we calculate the instance pricing.
 
-##### Consolidating into Capacity Reserved Instances
+#### Consolidating into Capacity Reserved Instances
 
-If we track Capacity Reservation usage, we can optimize the cluster configuration by moving non-Capacity Reserved instances into 
+If we track Capacity Reservation usage, we can optimize the cluster configuration by moving non-Capacity Reserved instances into
 Capacity Reserved instances. We would need to match the instance type, platform and availability zone prior to doing this.
+
+This would be done by the standard consolidation algorithm and should work with minimal changes, since consolidation already optimizes for cost. 
+
+#### Consolidating between Capacity Reservations
+
+Treating the price of all capacity reservation offerings as `0` sounds sensical but has some adverse interactions with consolidation. Most notably, if we launch an instance into a capacity reservation offering, we will _never_ consolidate out of that offering -- even if there is a smaller instance type that would work just as well for the pods on that node.
+
+In practicality, that larger capacity reservation could have been used for other work -- perhaps on another cluster, but may have been held by a single pod that prevented Karpenter from consolidating it.
+
+To solve for this edge case, we won't model the pricing of capacity reservations as `0` but as a "near-0" value. We'll divide the existing price of the on-demand offering by 1000 to represent a price that is less than every other instance type offering, but still maintains the relative ordering of on-demand instance types. 
+
+In practice, this means that if a user has two capacity reservation offerings available: one for a `c6a.48xlarge` and another for a `c6a.large`, where we launch into the `c6a.48xlarge` first, we will still be able to consolidate down to the `c6a.large` when pods are scaled back down.
 
 #### Labels
 
@@ -315,7 +331,7 @@ The main failure scenario is when Capacity Reservation limit is hit and no new n
 1. We filter inside Karpenter before calling CreateFleet API and throwing an InsufficientCapacityError causing a reevaluation,
 with then a retry recalculation of instances maybe falling back to regular on-demand
 
-1. We call CreateFleet API in certain raise conditions, resulting in an InsufficientCapacityError causing a reevaluation,
+2. We call CreateFleet API in certain raise conditions, resulting in an InsufficientCapacityError causing a reevaluation,
 with then a fallback to on-demand could be selected if Capacity Reservations not available
 
 ## FAQ
