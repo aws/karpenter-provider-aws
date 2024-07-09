@@ -320,7 +320,17 @@ In practice, this means that if a user has two capacity reservation offerings av
 
 ## Drift
 
+Due to capacity reservation expiration or due to changes from the user in their capacity reservation selection in their EC2NodeClass, instances can drift from the NodePool capacity reservation specification. Below outlines two ways that this drift can occur and how it will be re-reconciled.
 
+### The NodePool selects on `karpenter.k8s.aws/capacity-reservation-id` with the `Exists` operator but the instance is no longer in a reservation
+
+Assuming we have a reconciler that we will build as part of this design proposal that will remove the `karpenter.k8s.aws/capacity-reservation-id` label when a node is no longer in a capacity reservation, Karpenter's dynamic requirement drift checking should cause drift reconciliation in this case.
+
+In this case, since the NodePool is selecting on a label that does not exist on the NodeClaim, drift detection will recognize that the NodeClaim is invalid and will mark it as drifted to be replaced by another node.
+
+### The `capacityReservationSelectorTerms` no longer selects an instances `karpenter.k8s.aws/capacity-reservation-id` value
+
+In this case, there is no existing mechanism in Karpenter that would catch this. Karpenter will need to implement an additional mechanism that validates that a node's `karpenter.k8s.aws/capacity-reservation-id` value falls within the valid set of reservations selected-on from the `capacityReservationSelectorTerms`. Specifically, it needs to validate that that id exists with the `capacityReservation` section of the EC2NodeClass status.
 
 ## Launch Failures
 
@@ -330,10 +340,6 @@ The main failure scenario is when Capacity Reservation limit is hit and no new n
 with then a retry recalculation of instances maybe falling back to regular on-demand
 2. We call CreateFleet API in certain race conditions, resulting in an InsufficientCapacityError causing a reevaluation,
 with then a fallback to on-demand could be selected if Capacity Reservations not available
-
-## FAQ
-
-### What happens when a user changes their `capacityReservationSelectorTerms` and some instances are no longer in a selected ODCR?
 
 ## Appendix
 
