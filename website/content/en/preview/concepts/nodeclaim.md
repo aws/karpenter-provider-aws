@@ -34,7 +34,6 @@ labels, and other attributes associated with a particular node.
 NodeClaims provide a critical role in the Karpenter workflow for creating instances and registering them as nodes, then later in responding to node disruptions.
 
 The following diagram illustrates how NodeClaims interact with other components during Karpenter-driven node creation.
-In terms of its interactions with NodeClaims, Karpenter follows this general process:
 
 ![nodeclaim-node-creation](/nodeclaims.png)
 
@@ -49,6 +48,8 @@ kubectl logs -f -n "${KARPENTER_NAMESPACE}" \
 In a separate terminal, start some pods that would require Karpenter to create nodes to handle those pods.
 For example, start up some inflate pods as described in [Scale up deployment]({{< ref "../getting-started/getting-started-with-karpenter/#6-scale-up-deployment" >}}).
 {{% /alert %}}
+
+As illustrated in the previous diagram, Karpenter interacts with NodeClaims and related components when creating a node:
 
 1. Watches for pods and monitors NodePools and NodeClasses:
     * Checks what the pod needs, such as requests for CPU, memory, architecture, and so on.
