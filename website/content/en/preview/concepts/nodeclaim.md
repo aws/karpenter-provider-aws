@@ -36,7 +36,7 @@ NodeClaims provide a critical role in the Karpenter workflow for creating instan
 The following diagram illustrates how NodeClaims interact with other components during Karpenter-driven node creation.
 In terms of its interactions with NodeClaims, Karpenter follows this general process:
 
-![nodeclaim-node-creation](/nodeclaim-node-creation.png)
+![nodeclaim-node-creation](/nodeclaims.png)
 
 {{% alert title="Note" color="primary" %}}
 Assuming that Karpenter is running in the default `kube-system` namespace, if you want to follow along with the Karpenter logs in your cluster, do the following:
