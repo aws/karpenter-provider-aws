@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -42,8 +43,8 @@ var _ = Describe("CEL/Validation", func() {
 		nc = &v1.EC2NodeClass{
 			ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 			Spec: v1.EC2NodeClassSpec{
-				AMIFamily: lo.ToPtr(v1.AMIFamilyAL2023),
-				Role:      "role-1",
+				AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "al2023@latest"}},
+				Role:             "role-1",
 				SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
 					{
 						Tags: map[string]string{
@@ -343,6 +344,12 @@ var _ = Describe("CEL/Validation", func() {
 		})
 	})
 	Context("AMISelectorTerms", func() {
+		It("should succeed with a valid ami selector on alias", func() {
+			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{
+				Alias: "al2023@latest",
+			}}
+			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
 		It("should succeed with a valid ami selector on tags", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{
@@ -388,6 +395,12 @@ var _ = Describe("CEL/Validation", func() {
 				},
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+		It("should fail when no ami selector terms are specified", func() {
+			nc.Spec.AMISelectorTerms = nil
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{}
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 		It("should fail when a ami selector term has no values", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
@@ -448,37 +461,60 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
-		It("should fail when specifying id with tags", func() {
+		DescribeTable(
+			"should fail when specifying id with other fields",
+			func(mutation v1.AMISelectorTerm) {
+				term := v1.AMISelectorTerm{ID: "ami-1234749"}
+				Expect(mergo.Merge(&term, &mutation)).To(Succeed())
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			},
+			Entry("alias", v1.AMISelectorTerm{Alias: "al2023@latest"}),
+			Entry("tags", v1.AMISelectorTerm{
+				Tags: map[string]string{"test": "testvalue"},
+			}),
+			Entry("name", v1.AMISelectorTerm{Name: "my-custom-ami"}),
+			Entry("owner", v1.AMISelectorTerm{Owner: "123456789"}),
+		)
+		DescribeTable(
+			"should fail when specifying alias with other fields",
+			func(mutation v1.AMISelectorTerm) {
+				term := v1.AMISelectorTerm{Alias: "al2023@latest"}
+				Expect(mergo.Merge(&term, &mutation)).To(Succeed())
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			},
+			Entry("id", v1.AMISelectorTerm{ID: "ami-1234749"}),
+			Entry("tags", v1.AMISelectorTerm{
+				Tags: map[string]string{"test": "testvalue"},
+			}),
+			Entry("name", v1.AMISelectorTerm{Name: "my-custom-ami"}),
+			Entry("owner", v1.AMISelectorTerm{Owner: "123456789"}),
+		)
+		It("should fail when specifying alias with other terms", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					ID: "ami-12345749",
-					Tags: map[string]string{
-						"test": "testvalue",
-					},
-				},
+				{Alias: "al2023@latest"},
+				{ID: "ami-1234749"},
 			}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
-		It("should fail when specifying id with name", func() {
-			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					ID:   "ami-12345749",
-					Name: "my-custom-ami",
-				},
-			}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
-		It("should fail when specifying id with owner", func() {
-			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					ID:    "ami-12345749",
-					Owner: "123456789",
-				},
-			}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
-		It("should fail when AMIFamily is Custom and not AMISelectorTerms", func() {
-			nc.Spec.AMIFamily = &v1.AMIFamilyCustom
+		DescribeTable(
+			"should succeed for valid aliases",
+			func(alias string) {
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			},
+			Entry("al2 (latest)", "al2@latest"),
+			Entry("al2 (pinned)", "al2@v20240625"),
+			Entry("al2023 (latest)", "al2023@latest"),
+			Entry("al2023 (pinned)", "al2023@v20240625"),
+			Entry("bottlerocket (latest)", "bottlerocket@latest"),
+			Entry("bottlerocket (pinned)", "bottlerocket@1.10.0"),
+			Entry("windows2019 (latest)", "windows2019@latest"),
+			Entry("windows2022 (latest)", "windows2022@latest"),
+		)
+		It("should fail for an alias with an invalid family", func() {
+			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "ubuntu@latest"}}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
@@ -725,7 +761,7 @@ var _ = Describe("CEL/Validation", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
-					AMIFamily:                  nc.Spec.AMIFamily,
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
@@ -755,7 +791,7 @@ var _ = Describe("CEL/Validation", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
-					AMIFamily:                  nc.Spec.AMIFamily,
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
@@ -776,7 +812,7 @@ var _ = Describe("CEL/Validation", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
-					AMIFamily:                  nc.Spec.AMIFamily,
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
@@ -797,7 +833,7 @@ var _ = Describe("CEL/Validation", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
-					AMIFamily:                  nc.Spec.AMIFamily,
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
@@ -825,7 +861,7 @@ var _ = Describe("CEL/Validation", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
-					AMIFamily:                  nc.Spec.AMIFamily,
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
@@ -846,7 +882,7 @@ var _ = Describe("CEL/Validation", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
-					AMIFamily:                  nc.Spec.AMIFamily,
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
@@ -867,7 +903,7 @@ var _ = Describe("CEL/Validation", func() {
 			nodeClass := &v1.EC2NodeClass{
 				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 				Spec: v1.EC2NodeClassSpec{
-					AMIFamily:                  nc.Spec.AMIFamily,
+					AMISelectorTerms:           nc.Spec.AMISelectorTerms,
 					SubnetSelectorTerms:        nc.Spec.SubnetSelectorTerms,
 					SecurityGroupSelectorTerms: nc.Spec.SecurityGroupSelectorTerms,
 					Role:                       nc.Spec.Role,
