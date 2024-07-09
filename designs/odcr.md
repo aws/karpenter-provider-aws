@@ -215,6 +215,23 @@ The EC2NodeClass API allows selection on capacity reservations, which give addit
    
 We are recommending Option 3. Notably, using capacity reservations is not an application owner concern -- app owners only care that they get the capacity they need to run their applications, they don't care how that capacity is acquired. This option does not require application owners to intervene to begin leveraging capacity reservations and allows cluster admins to describe the constraints necessary to ensure capacity availability for harder-to-get instance types.
 
+## Labels
+
+When a node is launched against a CapacityReservation we will expose Capacity Reservation
+information as labels `karpenter.k8s.aws/capacity-reservation-id`. This is helpful for users to identify those nodes that are being used
+by a capacity reservation and the id of the reservation. Scenarios such as tracking how many nodes are under each capacity reservation and then
+checking how close to limit of the reservation.
+
+```yaml
+Name:               example-node
+Labels:             karpenter.k8s.aws/capacity-reservation-id=cr-12345
+                    karpenter.sh/capacity-type=on-demand
+```
+
+`karpenter.k8s.aws/capacity-reservation-id` will be the capacity reservation the node launched from.
+
+We will propagate this information via [instance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/providers/instance/types.go#L29) by extracting it from [DescribeInstance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/batcher/describeinstances.go#L48) [aws doc]([https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#EC2.DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html)https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html).
+
 ## Scheduling Representation
 
 Since ODCRs are a AWS-specific concept, there needs to be a mechanism to pass down these ODCR options down for the scheduler to reason about. Importantly, we need the scheduler to know to prioritize these ODCR options when a user has specified them in their EC2NodeClass. Further, we need the scheduler to be aware that it can't launch an unlimited amount of these instances into an ODCR.
@@ -257,27 +274,21 @@ offerings:
       - key: 
 ```
 
-### Launching Nodes into Capacity Reservations
+## Capacity Reservation Expiration
 
-#### All Launch Templates are associated with the specified Capacity Reservation
+Capacity reservations [support an option to expire the reservation at a specific date and time](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-reservations-using.html). When the reservation expires, any instances present in the reservation at the time will have their association with the reservation removed and the instances will be charged at the standard on-demand instance rate.
 
-EC2NodeClass currently supports automatically generating Launch Templates based on instance types and their AMI requirements. We are implementing a prioritization within Karpenter for Capacity Reservation (as their price will be set to 0 making it be selected over on-demand and spot). We add a check to ensure before calling CreateFleet API existing available Capacity Reservations are being used. In some raise condition scenarios CreateFleet when creating instances against a single targeted Capacity Reservation will fail if the Reservation is fully utilized, resulting in an `ReservationCapacityExceeded` error.
-By default it will fallback to `on-demand` instances.
+When this occurs, we need to ensure two things in Karpenter:
+1. We no longer attempt to launch instances into this reservation (e.g. we ensure the offering is removed from the set of capacity reservation offerings)
+2. Instances which were marked as part of a capacity reservation have their label removed so we no longer treat their pricing as capacity reservation pricing
 
-To clarify the NodeClass with Capacity Reservations will pin the NodeClass into all instance types and availability zones the Capacity Reservations reserved, if additionally on-demand is provided it can spin up other instance types, but can have unintended side effects during consolidation phase.
+To ensure the first item, we can simply filter out non-active capacity reservations when storing capacity reservations in EC2NodeClass status. Ensuring the second item involves us polling the DescribeInstances API to validate the mapping between the capacity reservation and the instance, removing the mapping from the NodeClaim/Node if the instance is no longer in a reservation.
 
-_Note that these aren't permanent restrictions but simply narrowing down what features exist in the first iteration of supporting Capacity Reservation_ 
+## CloudProvider Launch Behavior
 
-Pros: 
-- Management of ODCRs usage is in hands of administrators (who are creating/updating EC2NodeClass configurations)
-  - Application developers are unaware and can use the existing `on-demand` and `spot` capacity types
+EC2NodeClass currently supports automatically generating Launch Templates based on instance types and their AMI requirements. We are implementing a prioritization within Karpenter for Capacity Reservation (as their price will be set to 0 making it be selected over on-demand and spot). We add a check to ensure before calling CreateFleet API existing available Capacity Reservations are being used. In some race condition scenarios CreateFleet when creating instances against a single targeted Capacity Reservation will fail if the Reservation is fully utilized, resulting in an `ReservationCapacityExceeded` error. By default, CreateFleet will fallback to `on-demand` instances if using `open` ODCRs and using the `use-capacity-reservations-first` capacity reservation usage strategy.
 
-Cons:
-- ***TBD***
-
-## Drift
-
-[TODO: Add a section on Drift]
+To clarify, the NodeClass with Capacity Reservations will pin the NodeClass into all instance types and availability zones the Capacity Reservations reserved. If additionally on-demand is provided it can spin up other instance types, but can have unintended side effects during consolidation phase.
 
 ## Pricing/Consolidation
 
@@ -307,42 +318,22 @@ To solve for this edge case, we won't model the pricing of capacity reservations
 
 In practice, this means that if a user has two capacity reservation offerings available: one for a `c6a.48xlarge` and another for a `c6a.large`, where we launch into the `c6a.48xlarge` first, we will still be able to consolidate down to the `c6a.large` when pods are scaled back down.
 
-#### Labels
+## Drift
 
-When a node is launched against a CapacityReservation we will expose Capacity Reservation
-information as labels `karpenter.k8s.aws/capacity-reservation-id`. This is helpful for users to identify those nodes that are being used
-by a capacity reservation and the id of the reservation. Scenarios such as tracking how many nodes are under each capacity reservation and then
-checking how close to limit of the reservation.
 
-```yaml
-Name:               example-node
-Labels:             karpenter.k8s.aws/capacity-reservation-id=cr-12345
-                    karpenter.sh/capacity-type=on-demand
-```
 
-`karpenter.k8s.aws/capacity-reservation-id` will be the capacity reservation the node launched from. 
-
-We will propagate this information via [instance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/providers/instance/types.go#L29) by extracting it from [DescribeInstance](https://github.com/aws/karpenter-provider-aws/blob/main/pkg/batcher/describeinstances.go#L48) [aws doc]([https://docs.aws.amazon.com/sdk-for-go/api/service/ec2/#EC2.DescribeInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html)https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CapacityReservationSpecificationResponse.html).
-
-### Failed to launch Nodes into Capacity Reservation
+## Launch Failures
 
 The main failure scenario is when Capacity Reservation limit is hit and no new nodes can be launched from any Capacity Reservation the launch template targets.
 
 1. We filter inside Karpenter before calling CreateFleet API and throwing an InsufficientCapacityError causing a reevaluation,
 with then a retry recalculation of instances maybe falling back to regular on-demand
-
-2. We call CreateFleet API in certain raise conditions, resulting in an InsufficientCapacityError causing a reevaluation,
+2. We call CreateFleet API in certain race conditions, resulting in an InsufficientCapacityError causing a reevaluation,
 with then a fallback to on-demand could be selected if Capacity Reservations not available
 
 ## FAQ
 
-### What happens to instances when an ODCR expires?
-
 ### What happens when a user changes their `capacityReservationSelectorTerms` and some instances are no longer in a selected ODCR?
-
-### How do we avoid over-launching instances when scheduling to ODCR instances? 
-
-### How do we handle CreateFleet not supporting specifying the same capacity pool (AZ/Capacity Type combo) with different capacity reservation IDs?
 
 ## Appendix
 
