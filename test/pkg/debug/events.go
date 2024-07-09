@@ -22,7 +22,7 @@ import (
 
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -49,13 +49,13 @@ func (c *EventClient) DumpEvents(ctx context.Context) error {
 }
 
 func (c *EventClient) dumpPodEvents(ctx context.Context) error {
-	el := &v1.EventList{}
+	el := &corev1.EventList{}
 	if err := c.kubeClient.List(ctx, el, &client.ListOptions{
 		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Pod"}),
 	}); err != nil {
 		return err
 	}
-	events := lo.Filter(filterTestEvents(el.Items, c.start), func(e v1.Event, _ int) bool {
+	events := lo.Filter(filterTestEvents(el.Items, c.start), func(e corev1.Event, _ int) bool {
 		return e.InvolvedObject.Namespace != "kube-system"
 	})
 	for k, v := range coallateEvents(events) {
@@ -65,7 +65,7 @@ func (c *EventClient) dumpPodEvents(ctx context.Context) error {
 }
 
 func (c *EventClient) dumpNodeEvents(ctx context.Context) error {
-	el := &v1.EventList{}
+	el := &corev1.EventList{}
 	if err := c.kubeClient.List(ctx, el, &client.ListOptions{
 		FieldSelector: fields.SelectorFromSet(map[string]string{"involvedObject.kind": "Node"}),
 	}); err != nil {
@@ -77,8 +77,8 @@ func (c *EventClient) dumpNodeEvents(ctx context.Context) error {
 	return nil
 }
 
-func filterTestEvents(events []v1.Event, startTime time.Time) []v1.Event {
-	return lo.Filter(events, func(e v1.Event, _ int) bool {
+func filterTestEvents(events []corev1.Event, startTime time.Time) []corev1.Event {
+	return lo.Filter(events, func(e corev1.Event, _ int) bool {
 		if !e.EventTime.IsZero() {
 			if e.EventTime.BeforeTime(&metav1.Time{Time: startTime}) {
 				return false
@@ -90,13 +90,13 @@ func filterTestEvents(events []v1.Event, startTime time.Time) []v1.Event {
 	})
 }
 
-func coallateEvents(events []v1.Event) map[v1.ObjectReference]*v1.EventList {
-	eventMap := map[v1.ObjectReference]*v1.EventList{}
+func coallateEvents(events []corev1.Event) map[corev1.ObjectReference]*corev1.EventList {
+	eventMap := map[corev1.ObjectReference]*corev1.EventList{}
 	for i := range events {
 		elem := events[i]
-		objectKey := v1.ObjectReference{Kind: elem.InvolvedObject.Kind, Namespace: elem.InvolvedObject.Namespace, Name: elem.InvolvedObject.Name}
+		objectKey := corev1.ObjectReference{Kind: elem.InvolvedObject.Kind, Namespace: elem.InvolvedObject.Namespace, Name: elem.InvolvedObject.Name}
 		if _, ok := eventMap[objectKey]; !ok {
-			eventMap[objectKey] = &v1.EventList{}
+			eventMap[objectKey] = &corev1.EventList{}
 		}
 		eventMap[objectKey].Items = append(eventMap[objectKey].Items, elem)
 	}
@@ -105,7 +105,7 @@ func coallateEvents(events []v1.Event) map[v1.ObjectReference]*v1.EventList {
 
 // Partially copied from
 // https://github.com/kubernetes/kubernetes/blob/04ee339c7a4d36b4037ce3635993e2a9e395ebf3/staging/src/k8s.io/kubectl/pkg/describe/describe.go#L4232
-func getEventInformation(o v1.ObjectReference, el *v1.EventList) string {
+func getEventInformation(o corev1.ObjectReference, el *corev1.EventList) string {
 	sb := strings.Builder{}
 	sb.WriteString(fmt.Sprintf("------- %s/%s%s EVENTS -------\n",
 		strings.ToLower(o.Kind), lo.Ternary(o.Namespace != "", o.Namespace+"/", ""), o.Name))

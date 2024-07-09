@@ -36,7 +36,7 @@ import (
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -137,7 +137,7 @@ func (env *Environment) EventuallyExpectInstanceProfileExists(profileName string
 
 // GetInstanceProfileName gets the string for the profile name based on the cluster name, region and the NodeClass name.
 // The length of this string can never exceed the maximum instance profile name limit of 128 characters.
-func (env *Environment) GetInstanceProfileName(nodeClass *v1beta1.EC2NodeClass) string {
+func (env *Environment) GetInstanceProfileName(nodeClass *v1.EC2NodeClass) string {
 	return fmt.Sprintf("%s_%d", env.ClusterName, lo.Must(hashstructure.Hash(fmt.Sprintf("%s%s", env.Region, nodeClass.Name), hashstructure.FormatV2, nil)))
 }
 

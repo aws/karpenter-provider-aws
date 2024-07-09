@@ -17,7 +17,7 @@ package status_test
 import (
 	"github.com/awslabs/operatorpkg/status"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -27,19 +27,19 @@ import (
 
 var _ = Describe("NodeClass Status Condition Controller", func() {
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-			Spec: v1beta1.EC2NodeClassSpec{
-				SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+		nodeClass = test.EC2NodeClass(providerv1.EC2NodeClass{
+			Spec: providerv1.EC2NodeClassSpec{
+				SubnetSelectorTerms: []providerv1.SubnetSelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
 				},
-				SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+				SecurityGroupSelectorTerms: []providerv1.SecurityGroupSelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
 				},
-				AMISelectorTerms: []v1beta1.AMISelectorTerm{
+				AMISelectorTerms: []providerv1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
 					},
@@ -55,7 +55,7 @@ var _ = Describe("NodeClass Status Condition Controller", func() {
 		Expect(nodeClass.StatusConditions().Get(status.ConditionReady).IsTrue()).To(BeTrue())
 	})
 	It("should update status condition as Not Ready", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{"foo": "invalid"},
 			},

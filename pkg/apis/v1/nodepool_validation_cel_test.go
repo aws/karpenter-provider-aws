@@ -20,36 +20,36 @@ import (
 	"github.com/Pallinder/go-randomdata"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 // TODO @engedaam: Updated NodePool and a NodeClaim to use the v1 API
 var _ = Describe("CEL/Validation", func() {
-	var nodePool *v1beta1.NodePool
+	var nodePool *karpv1.NodePool
 
 	BeforeEach(func() {
 		if env.Version.Minor() < 25 {
 			Skip("CEL Validation is for 1.25>")
 		}
-		nodePool = &v1beta1.NodePool{
+		nodePool = &karpv1.NodePool{
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
-			Spec: v1beta1.NodePoolSpec{
-				Template: v1beta1.NodeClaimTemplate{
-					Spec: v1beta1.NodeClaimSpec{
-						NodeClassRef: &v1beta1.NodeClassReference{
-							APIVersion: "karpenter.k8s.aws/v1beta1",
-							Kind:       "EC2NodeClass",
-							Name:       "default",
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimSpec{
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: "karpenter.k8s.aws",
+							Kind:  "EC2NodeClass",
+							Name:  "default",
 						},
-						Requirements: []v1beta1.NodeSelectorRequirementWithMinValues{
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
-								NodeSelectorRequirement: v1.NodeSelectorRequirement{
-									Key:      v1beta1.CapacityTypeLabelKey,
-									Operator: v1.NodeSelectorOpExists,
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      karpv1.CapacityTypeLabelKey,
+									Operator: corev1.NodeSelectorOpExists,
 								},
 							},
 						},
@@ -61,9 +61,9 @@ var _ = Describe("CEL/Validation", func() {
 	Context("Requirements", func() {
 		It("should allow restricted domains exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
-			for label := range v1beta1.LabelDomainExceptions {
-				nodePool.Spec.Template.Spec.Requirements = []v1beta1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: label + "/test", Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}},
+			for label := range karpv1.LabelDomainExceptions {
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: label + "/test", Operator: corev1.NodeSelectorOpIn, Values: []string{"test"}}},
 				}
 				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
 				Expect(nodePool.RuntimeValidate()).To(Succeed())
@@ -73,9 +73,9 @@ var _ = Describe("CEL/Validation", func() {
 		})
 		It("should allow well known label exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
-			for label := range v1beta1.WellKnownLabels.Difference(sets.New(v1beta1.NodePoolLabelKey)) {
-				nodePool.Spec.Template.Spec.Requirements = []v1beta1.NodeSelectorRequirementWithMinValues{
-					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: label, Operator: v1.NodeSelectorOpIn, Values: []string{"test"}}},
+			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey)) {
+				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: label, Operator: corev1.NodeSelectorOpIn, Values: []string{"test"}}},
 				}
 				Expect(env.Client.Create(ctx, nodePool)).To(Succeed())
 				Expect(nodePool.RuntimeValidate()).To(Succeed())
@@ -87,7 +87,7 @@ var _ = Describe("CEL/Validation", func() {
 	Context("Labels", func() {
 		It("should allow restricted domains exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
-			for label := range v1beta1.LabelDomainExceptions {
+			for label := range karpv1.LabelDomainExceptions {
 				nodePool.Spec.Template.Labels = map[string]string{
 					label: "test",
 				}
@@ -99,7 +99,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 		It("should allow well known label exceptions", func() {
 			oldNodePool := nodePool.DeepCopy()
-			for label := range v1beta1.WellKnownLabels.Difference(sets.New(v1beta1.NodePoolLabelKey)) {
+			for label := range karpv1.WellKnownLabels.Difference(sets.New(karpv1.NodePoolLabelKey)) {
 				nodePool.Spec.Template.Labels = map[string]string{
 					label: "test",
 				}

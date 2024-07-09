@@ -25,16 +25,16 @@ import (
 	core "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 )
 
-var DefaultEBS = v1beta1.BlockDevice{
+var DefaultEBS = providerv1.BlockDevice{
 	Encrypted:  aws.Bool(true),
 	VolumeType: aws.String(ec2.VolumeTypeGp3),
 	VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
@@ -52,9 +52,9 @@ type Options struct {
 	ClusterCIDR         *string
 	InstanceProfile     string
 	CABundle            *string `hash:"ignore"`
-	InstanceStorePolicy *v1beta1.InstanceStorePolicy
+	InstanceStorePolicy *providerv1.InstanceStorePolicy
 	// Level-triggered fields that may change out of sync.
-	SecurityGroups           []v1beta1.SecurityGroup
+	SecurityGroups           []providerv1.SecurityGroup
 	Tags                     map[string]string
 	Labels                   map[string]string `hash:"ignore"`
 	KubeDNSIP                net.IP
@@ -66,8 +66,8 @@ type Options struct {
 type LaunchTemplate struct {
 	*Options
 	UserData            bootstrap.Bootstrapper
-	BlockDeviceMappings []*v1beta1.BlockDeviceMapping
-	MetadataOptions     *v1beta1.MetadataOptions
+	BlockDeviceMappings []*providerv1.BlockDeviceMapping
+	MetadataOptions     *providerv1.MetadataOptions
 	AMIID               string
 	InstanceTypes       []*cloudprovider.InstanceType `hash:"ignore"`
 	DetailedMonitoring  bool
@@ -78,9 +78,9 @@ type LaunchTemplate struct {
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
 	DefaultAMIs(version string) []DefaultAMIOutput
-	UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper
-	DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping
-	DefaultMetadataOptions() *v1beta1.MetadataOptions
+	UserData(kubeletConfig *providerv1.KubeletConfiguration, taints []core.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *providerv1.InstanceStorePolicy) bootstrap.Bootstrapper
+	DefaultBlockDeviceMappings() []*providerv1.BlockDeviceMapping
+	DefaultMetadataOptions() *providerv1.MetadataOptions
 	EphemeralBlockDevice() *string
 	FeatureFlags() FeatureFlags
 }
@@ -119,14 +119,14 @@ func NewResolver(amiProvider Provider) *Resolver {
 
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
-func (r Resolver) Resolve(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
+func (r Resolver) Resolve(nodeClass *providerv1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
 	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
 	mappedAMIs := MapToInstanceTypes(instanceTypes, nodeClass.Status.AMIs)
 	if len(mappedAMIs) == 0 {
-		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", lo.Uniq(lo.Map(nodeClass.Status.AMIs, func(a v1beta1.AMI, _ int) string { return a.ID })))
+		return nil, fmt.Errorf("no instance types satisfy requirements of amis %v", lo.Uniq(lo.Map(nodeClass.Status.AMIs, func(a providerv1.AMI, _ int) string { return a.ID })))
 	}
 	var resolvedTemplates []*LaunchTemplate
 	for amiID, instanceTypes := range mappedAMIs {
@@ -142,8 +142,8 @@ func (r Resolver) Resolve(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta
 		paramsToInstanceTypes := lo.GroupBy(instanceTypes, func(instanceType *cloudprovider.InstanceType) launchTemplateParams {
 			return launchTemplateParams{
 				efaCount: lo.Ternary(
-					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), v1beta1.ResourceEFA),
-					int(lo.ToPtr(instanceType.Capacity[v1beta1.ResourceEFA]).Value()),
+					lo.Contains(lo.Keys(nodeClaim.Spec.Resources.Requests), providerv1.ResourceEFA),
+					int(lo.ToPtr(instanceType.Capacity[providerv1.ResourceEFA]).Value()),
 					0,
 				),
 				maxPods: int(instanceType.Capacity.Pods().Value()),
@@ -162,25 +162,25 @@ func (r Resolver) Resolve(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta
 
 func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	switch aws.StringValue(amiFamily) {
-	case v1beta1.AMIFamilyBottlerocket:
+	case providerv1.AMIFamilyBottlerocket:
 		return &Bottlerocket{Options: options}
-	case v1beta1.AMIFamilyUbuntu:
+	case providerv1.AMIFamilyUbuntu:
 		return &Ubuntu{Options: options}
-	case v1beta1.AMIFamilyWindows2019:
-		return &Windows{Options: options, Version: v1beta1.Windows2019, Build: v1beta1.Windows2019Build}
-	case v1beta1.AMIFamilyWindows2022:
-		return &Windows{Options: options, Version: v1beta1.Windows2022, Build: v1beta1.Windows2022Build}
-	case v1beta1.AMIFamilyCustom:
+	case providerv1.AMIFamilyWindows2019:
+		return &Windows{Options: options, Version: providerv1.Windows2019, Build: providerv1.Windows2019Build}
+	case providerv1.AMIFamilyWindows2022:
+		return &Windows{Options: options, Version: providerv1.Windows2022, Build: providerv1.Windows2022Build}
+	case providerv1.AMIFamilyCustom:
 		return &Custom{Options: options}
-	case v1beta1.AMIFamilyAL2023:
+	case providerv1.AMIFamilyAL2023:
 		return &AL2023{Options: options}
 	default:
 		return &AL2{Options: options}
 	}
 }
 
-func (o Options) DefaultMetadataOptions() *v1beta1.MetadataOptions {
-	return &v1beta1.MetadataOptions{
+func (o Options) DefaultMetadataOptions() *providerv1.MetadataOptions {
+	return &providerv1.MetadataOptions{
 		HTTPEndpoint:            aws.String(ec2.LaunchTemplateInstanceMetadataEndpointStateEnabled),
 		HTTPProtocolIPv6:        aws.String(lo.Ternary(o.KubeDNSIP == nil || o.KubeDNSIP.To4() != nil, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Disabled, ec2.LaunchTemplateInstanceMetadataProtocolIpv6Enabled)),
 		HTTPPutResponseHopLimit: aws.Int64(2),
@@ -188,7 +188,7 @@ func (o Options) DefaultMetadataOptions() *v1beta1.MetadataOptions {
 	}
 }
 
-func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.KubeletConfiguration) *corev1beta1.KubeletConfiguration {
+func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *providerv1.KubeletConfiguration) *providerv1.KubeletConfiguration {
 	if opts.KubeDNSIP == nil {
 		return kubeletConfig
 	}
@@ -196,7 +196,7 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.Ku
 		return kubeletConfig
 	}
 	if kubeletConfig == nil {
-		return &corev1beta1.KubeletConfiguration{
+		return &providerv1.KubeletConfiguration{
 			ClusterDNS: []string{opts.KubeDNSIP.String()},
 		}
 	}
@@ -205,11 +205,11 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *corev1beta1.Ku
 	return newKubeletConfig
 }
 
-func (r Resolver) resolveLaunchTemplate(nodeClass *v1beta1.EC2NodeClass, nodeClaim *corev1beta1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
+func (r Resolver) resolveLaunchTemplate(nodeClass *providerv1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
 	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) (*LaunchTemplate, error) {
-	kubeletConfig := &corev1beta1.KubeletConfiguration{}
-	if nodeClaim.Spec.Kubelet != nil {
-		if err := mergo.Merge(kubeletConfig, nodeClaim.Spec.Kubelet); err != nil {
+	kubeletConfig := &providerv1.KubeletConfiguration{}
+	if nodeClass.Spec.Kubelet != nil {
+		if err := mergo.Merge(kubeletConfig, nodeClass.Spec.Kubelet); err != nil {
 			return nil, err
 		}
 	}

@@ -16,7 +16,21 @@ package v1beta1
 
 import (
 	"github.com/awslabs/operatorpkg/status"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+)
+
+const (
+	ConditionTypeSubnetsReady         = "SubnetsReady"
+	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
+	ConditionTypeAMIsReady            = "AMIsReady"
+	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
+)
+
+const (
+	ConditionTypeSubnetsReady         = "SubnetsReady"
+	ConditionTypeSecurityGroupsReady  = "SecurityGroupsReady"
+	ConditionTypeAMIsReady            = "AMIsReady"
+	ConditionTypeInstanceProfileReady = "InstanceProfileReady"
 )
 
 const (
@@ -59,7 +73,7 @@ type AMI struct {
 	Name string `json:"name,omitempty"`
 	// Requirements of the AMI to be utilized on an instance type
 	// +required
-	Requirements []v1.NodeSelectorRequirement `json:"requirements"`
+	Requirements []corev1.NodeSelectorRequirement `json:"requirements"`
 }
 
 // EC2NodeClassStatus contains the resolved state of the EC2NodeClass

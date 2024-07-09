@@ -32,7 +32,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -41,7 +41,7 @@ import (
 )
 
 type Provider interface {
-	List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (AMIs, error)
+	List(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (AMIs, error)
 }
 
 type DefaultProvider struct {
@@ -76,7 +76,7 @@ func (a AMIs) Sort() {
 }
 
 // MapToInstanceTypes returns a map of AMIIDs that are the most recent on creationDate to compatible instancetypes
-func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1beta1.AMI) map[string][]*cloudprovider.InstanceType {
+func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []providerv1.AMI) map[string][]*cloudprovider.InstanceType {
 	amiIDs := map[string][]*cloudprovider.InstanceType{}
 	for _, instanceType := range instanceTypes {
 		for _, ami := range amis {
@@ -100,7 +100,7 @@ func NewDefaultProvider(versionProvider version.Provider, ssm ssmiface.SSMAPI, e
 }
 
 // Get Returning a list of AMIs with its associated requirements
-func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (AMIs, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (AMIs, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -126,7 +126,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	return amis, nil
 }
 
-func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (res AMIs, err error) {
+func (p *DefaultProvider) getDefaultAMIs(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (res AMIs, err error) {
 	if images, ok := p.cache.Get(lo.FromPtr(nodeClass.Spec.AMIFamily)); ok {
 		// Ensure what's returned from this function is a deep-copy of AMIs so alterations
 		// to the data don't affect the original
@@ -175,7 +175,7 @@ func (p *DefaultProvider) resolveSSMParameter(ctx context.Context, ssmQuery stri
 	return ami, nil
 }
 
-func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm) (AMIs, error) {
+func (p *DefaultProvider) getAMIs(ctx context.Context, terms []providerv1.AMISelectorTerm) (AMIs, error) {
 	filterAndOwnerSets := GetFilterAndOwnerSets(terms)
 	hash, err := hashstructure.Hash(filterAndOwnerSets, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {
@@ -196,7 +196,7 @@ func (p *DefaultProvider) getAMIs(ctx context.Context, terms []v1beta1.AMISelect
 		}, func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for i := range page.Images {
 				reqs := p.getRequirementsFromImage(page.Images[i])
-				if !v1beta1.WellKnownArchitectures.Has(reqs.Get(v1.LabelArchStable).Any()) {
+				if !providerv1.WellKnownArchitectures.Has(reqs.Get(v1.LabelArchStable).Any()) {
 					continue
 				}
 				reqsHash := lo.Must(hashstructure.Hash(reqs.NodeSelectorRequirements(), hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true}))
@@ -232,7 +232,7 @@ type FiltersAndOwners struct {
 	Owners  []string
 }
 
-func GetFilterAndOwnerSets(terms []v1beta1.AMISelectorTerm) (res []FiltersAndOwners) {
+func GetFilterAndOwnerSets(terms []providerv1.AMISelectorTerm) (res []FiltersAndOwners) {
 	idFilter := &ec2.Filter{Name: aws.String("image-id")}
 	for _, term := range terms {
 		switch {
@@ -280,7 +280,7 @@ func (p *DefaultProvider) getRequirementsFromImage(ec2Image *ec2.Image) scheduli
 	requirements := scheduling.NewRequirements()
 	// Always add the architecture of an image as a requirement, irrespective of what's specified in EC2 tags.
 	architecture := *ec2Image.Architecture
-	if value, ok := v1beta1.AWSToKubeArchitectures[architecture]; ok {
+	if value, ok := providerv1.AWSToKubeArchitectures[architecture]; ok {
 		architecture = value
 	}
 	requirements.Add(scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, architecture))

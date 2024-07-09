@@ -28,7 +28,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 )
 
@@ -37,8 +37,8 @@ var _ = Describe("Emptiness", func() {
 	var selector labels.Selector
 	var numPods int
 	BeforeEach(func() {
-		nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
-		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
+		nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmpty
+		nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 
 		numPods = 1
 		dep = test.Deployment(test.DeploymentOptions{
@@ -54,7 +54,7 @@ var _ = Describe("Emptiness", func() {
 	Context("Budgets", func() {
 		It("should not allow emptiness if the budget is fully blocking", func() {
 			// We're going to define a budget that doesn't allow any emptiness disruption to happen
-			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+			nodePool.Spec.Disruption.Budgets = []karpv1.Budget{{
 				Nodes: "0",
 			}}
 
@@ -76,7 +76,7 @@ var _ = Describe("Emptiness", func() {
 			// the current time and extends 15 minutes past the current time
 			// Times need to be in UTC since the karpenter containers were built in UTC time
 			windowStart := time.Now().Add(-time.Minute * 15).UTC()
-			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
+			nodePool.Spec.Disruption.Budgets = []karpv1.Budget{{
 				Nodes:    "0",
 				Schedule: lo.ToPtr(fmt.Sprintf("%d %d * * *", windowStart.Minute(), windowStart.Hour())),
 				Duration: &metav1.Duration{Duration: time.Minute * 30},
@@ -96,7 +96,7 @@ var _ = Describe("Emptiness", func() {
 		})
 	})
 	It("should terminate an empty node", func() {
-		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Hour * 300)}
+		nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(time.Hour * 300)}
 
 		const numPods = 1
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
@@ -115,7 +115,7 @@ var _ = Describe("Emptiness", func() {
 		env.EventuallyExpectEmpty(nodeClaim)
 
 		By("waiting for the nodeclaim to deprovision when past its ConsolidateAfter timeout of 0")
-		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
+		nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 		env.ExpectUpdated(nodePool)
 
 		env.EventuallyExpectNotFound(nodeClaim, node)

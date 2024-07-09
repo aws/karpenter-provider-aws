@@ -28,9 +28,9 @@ import (
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	"github.com/awslabs/operatorpkg/reasonable"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type Controller struct {
@@ -43,19 +43,19 @@ func NewController(kubeClient client.Client) *Controller {
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "nodeclass.hash")
 
 	stored := nodeClass.DeepCopy()
 
-	if nodeClass.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion] != v1beta1.EC2NodeClassHashVersion {
+	if nodeClass.Annotations[providerv1.AnnotationEC2NodeClassHashVersion] != providerv1.EC2NodeClassHashVersion {
 		if err := c.updateNodeClaimHash(ctx, nodeClass); err != nil {
 			return reconcile.Result{}, err
 		}
 	}
 	nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-		v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
-		v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+		providerv1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+		providerv1.AnnotationEC2NodeClassHashVersion: providerv1.EC2NodeClassHashVersion,
 	})
 
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
@@ -70,7 +70,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodeclass.hash").
-		For(&v1beta1.EC2NodeClass{}).
+		For(&providerv1.EC2NodeClass{}).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,
@@ -82,8 +82,8 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 // `ec2nodeclass-hash` annotation on the EC2NodeClass will be updated, due to the breaking change, making the `ec2nodeclass-hash` on the NodeClaim different from
 // EC2NodeClass. Since, we cannot rely on the `ec2nodeclass-hash` on the NodeClaims, due to the breaking change, we will need to re-calculate the hash and update the annotation.
 // For more information on the Drift Hash Versioning: https://github.com/kubernetes-sigs/karpenter/blob/main/designs/drift-hash-versioning.md
-func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) error {
-	ncList := &corev1beta1.NodeClaimList{}
+func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *providerv1.EC2NodeClass) error {
+	ncList := &karpv1.NodeClaimList{}
 	if err := c.kubeClient.List(ctx, ncList, client.MatchingFields{"spec.nodeClassRef.name": nodeClass.Name}); err != nil {
 		return err
 	}
@@ -93,16 +93,16 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1beta1
 		nc := ncList.Items[i]
 		stored := nc.DeepCopy()
 
-		if nc.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion] != v1beta1.EC2NodeClassHashVersion {
+		if nc.Annotations[providerv1.AnnotationEC2NodeClassHashVersion] != providerv1.EC2NodeClassHashVersion {
 			nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
-				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+				providerv1.AnnotationEC2NodeClassHashVersion: providerv1.EC2NodeClassHashVersion,
 			})
 
 			// Any NodeClaim that is already drifted will remain drifted if the karpenter.k8s.aws/nodepool-hash-version doesn't match
 			// Since the hashing mechanism has changed we will not be able to determine if the drifted status of the NodeClaim has changed
-			if nc.StatusConditions().Get(corev1beta1.ConditionTypeDrifted) == nil {
+			if nc.StatusConditions().Get(karpv1.ConditionTypeDrifted) == nil {
 				nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
-					v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
+					providerv1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
 				})
 			}
 

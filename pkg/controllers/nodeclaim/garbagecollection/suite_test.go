@@ -22,19 +22,21 @@ import (
 	"testing"
 	"time"
 
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/tools/record"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclaim/garbagecollection"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
@@ -78,21 +80,21 @@ var _ = BeforeEach(func() {
 
 var _ = Describe("GarbageCollection", func() {
 	var instance *ec2.Instance
-	var nodeClass *v1beta1.EC2NodeClass
+	var nodeClass *providerv1.EC2NodeClass
 	var providerID string
 
 	BeforeEach(func() {
 		instanceID := fake.InstanceID()
 		providerID = fake.ProviderID(instanceID)
 		nodeClass = test.EC2NodeClass()
-		nodePool := coretest.NodePool(corev1beta1.NodePool{
-			Spec: corev1beta1.NodePoolSpec{
-				Template: corev1beta1.NodeClaimTemplate{
-					Spec: corev1beta1.NodeClaimSpec{
-						NodeClassRef: &corev1beta1.NodeClassReference{
-							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-							Kind:       object.GVK(nodeClass).Kind,
-							Name:       nodeClass.Name,
+		nodePool := coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimSpec{
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
 						},
 					},
 				},
@@ -108,15 +110,15 @@ var _ = Describe("GarbageCollection", func() {
 					Value: aws.String("owned"),
 				},
 				{
-					Key:   aws.String(corev1beta1.NodePoolLabelKey),
+					Key:   aws.String(karpv1.NodePoolLabelKey),
 					Value: aws.String(nodePool.Name),
 				},
 				{
-					Key:   aws.String(v1beta1.LabelNodeClass),
+					Key:   aws.String(providerv1.LabelNodeClass),
 					Value: aws.String(nodeClass.Name),
 				},
 				{
-					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+					Key:   aws.String(karpv1.ManagedByAnnotationKey),
 					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},
@@ -176,15 +178,15 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("owned"),
 						},
 						{
-							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Key:   aws.String(karpv1.NodePoolLabelKey),
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(v1beta1.LabelNodeClass),
+							Key:   aws.String(providerv1.LabelNodeClass),
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+							Key:   aws.String(karpv1.ManagedByAnnotationKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
@@ -219,7 +221,7 @@ var _ = Describe("GarbageCollection", func() {
 	It("should not delete all instances if they all have NodeClaim owners", func() {
 		// Generate 100 instances that have different instanceIDs
 		var ids []string
-		var nodeClaims []*corev1beta1.NodeClaim
+		var nodeClaims []*karpv1.NodeClaim
 		for i := 0; i < 100; i++ {
 			instanceID := fake.InstanceID()
 			awsEnv.EC2API.Instances.Store(
@@ -244,15 +246,15 @@ var _ = Describe("GarbageCollection", func() {
 					InstanceType: aws.String("m5.large"),
 				},
 			)
-			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
-				Spec: corev1beta1.NodeClaimSpec{
-					NodeClassRef: &corev1beta1.NodeClassReference{
-						APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-						Kind:       object.GVK(nodeClass).Kind,
-						Name:       nodeClass.Name,
+			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					NodeClassRef: &karpv1.NodeClassReference{
+						Group: object.GVK(nodeClass).Group,
+						Kind:  object.GVK(nodeClass).Kind,
+						Name:  nodeClass.Name,
 					},
 				},
-				Status: corev1beta1.NodeClaimStatus{
+				Status: karpv1.NodeClaimStatus{
 					ProviderID: fake.ProviderID(instanceID),
 				},
 			})
@@ -291,7 +293,7 @@ var _ = Describe("GarbageCollection", func() {
 	It("should not delete an instance if it was not launched by a NodeClaim", func() {
 		// Remove the "karpenter.sh/managed-by" tag (this isn't launched by a machine)
 		instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
-			return aws.StringValue(t.Key) == corev1beta1.ManagedByAnnotationKey
+			return aws.StringValue(t.Key) == karpv1.ManagedByAnnotationKey
 		})
 
 		// Launch time was 1m ago
@@ -307,15 +309,15 @@ var _ = Describe("GarbageCollection", func() {
 		instance.LaunchTime = aws.Time(time.Now().Add(-time.Minute))
 		awsEnv.EC2API.Instances.Store(aws.StringValue(instance.InstanceId), instance)
 
-		nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
-			Spec: corev1beta1.NodeClaimSpec{
-				NodeClassRef: &corev1beta1.NodeClassReference{
-					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-					Kind:       object.GVK(nodeClass).Kind,
-					Name:       nodeClass.Name,
+		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
 				},
 			},
-			Status: corev1beta1.NodeClaimStatus{
+			Status: karpv1.NodeClaimStatus{
 				ProviderID: providerID,
 			},
 		})
@@ -347,11 +349,11 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("owned"),
 						},
 						{
-							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Key:   aws.String(karpv1.NodePoolLabelKey),
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+							Key:   aws.String(karpv1.ManagedByAnnotationKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
@@ -365,15 +367,15 @@ var _ = Describe("GarbageCollection", func() {
 					InstanceType: aws.String("m5.large"),
 				},
 			)
-			nodeClaim := coretest.NodeClaim(corev1beta1.NodeClaim{
-				Spec: corev1beta1.NodeClaimSpec{
-					NodeClassRef: &corev1beta1.NodeClassReference{
-						APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-						Kind:       object.GVK(nodeClass).Kind,
-						Name:       nodeClass.Name,
+			nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
+				Spec: karpv1.NodeClaimSpec{
+					NodeClassRef: &karpv1.NodeClassReference{
+						Group: object.GVK(nodeClass).Group,
+						Kind:  object.GVK(nodeClass).Kind,
+						Name:  nodeClass.Name,
 					},
 				},
-				Status: corev1beta1.NodeClaimStatus{
+				Status: karpv1.NodeClaimStatus{
 					ProviderID: fake.ProviderID(instanceID),
 				},
 			})

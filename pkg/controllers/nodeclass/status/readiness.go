@@ -25,18 +25,34 @@ import (
 
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type Readiness struct {
 	launchTemplateProvider launchtemplate.Provider
 }
 
-func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
+	if len(nodeClass.Status.AMIs) == 0 {
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve AMIs")
+		return reconcile.Result{}, nil
+	}
+	if len(nodeClass.Status.Subnets) == 0 {
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve subnets")
+		return reconcile.Result{}, nil
+	}
+	if len(nodeClass.Status.SecurityGroups) == 0 {
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve security groups")
+		return reconcile.Result{}, nil
+	}
+	if len(nodeClass.Status.InstanceProfile) == 0 {
+		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to resolve instance profile")
+		return reconcile.Result{}, nil
+	}
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
 	// will not be done at startup but instead in a reconcile loop.
-	if lo.FromPtr(nodeClass.Spec.AMIFamily) == v1beta1.AMIFamilyAL2023 {
+	if lo.FromPtr(nodeClass.Spec.AMIFamily) == providerv1.AMIFamilyAL2023 {
 		if err := n.launchTemplateProvider.ResolveClusterCIDR(ctx); err != nil {
 			nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Failed to detect the cluster CIDR")
 			return reconcile.Result{}, fmt.Errorf("failed to detect the cluster CIDR, %w", err)
