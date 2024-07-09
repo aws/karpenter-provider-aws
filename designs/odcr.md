@@ -56,8 +56,6 @@ AWS also supports grouping Capacity Reservation into [Capacity Reservation group
 1. Support [Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-using.html) as a capacity-type -- though capacity blocks are not supported with this design, they are a natural extension of it. We could support selection on capacity blocks through the `capacityReservationSelectorTerms`.
 2. Support [Capacity Reservation Groups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-cr-group.html) -- though capacity reservation groups are not supported with this design, they are a natural extension of it. We could support an additional field `reservationGroup` in the `capacityReservationSelectorTerms`.
 
-## Proposed Solution
-
 ## Capacity Reservation Selection
 
 ### EC2NodeClass API
@@ -217,16 +215,49 @@ The EC2NodeClass API allows selection on capacity reservations, which give addit
    
 We are recommending Option 3. Notably, using capacity reservations is not an application owner concern -- app owners only care that they get the capacity they need to run their applications, they don't care how that capacity is acquired. This option does not require application owners to intervene to begin leveraging capacity reservations and allows cluster admins to describe the constraints necessary to ensure capacity availability for harder-to-get instance types.
 
-### Scheduling Representation
+## Scheduling Representation
 
-Since ODCRs are a AWS-specific concept, there needs to be a mechanism to pass down these ODCR options down for the scheduler to reason about. Importantly, we need the scheduler to know to prioritize these ODCR options when a user has specified them in their EC2NodeClass. Further, we need the scheduler to be aware that it can't launch an unlimited amount of these instances into an ODCR, but has a limited number before it must begin trying other options.
+Since ODCRs are a AWS-specific concept, there needs to be a mechanism to pass down these ODCR options down for the scheduler to reason about. Importantly, we need the scheduler to know to prioritize these ODCR options when a user has specified them in their EC2NodeClass. Further, we need the scheduler to be aware that it can't launch an unlimited amount of these instances into an ODCR.
 
-#### Adding ODCRs as Additional Instance Type Offerings
+### Adding ODCRs as Additional Instance Type Offerings
 
+We can surface ODCR capacity as additional offerings attached to each instance type. Offerings currently allow us to track the pricing of variants of a specific instance type, primarily based on capacity type and availability zone today.
 
-#### Representing ODCR Available Instance Counts in Instance Type Offerings
+To track capacity reservation capacity, we can add additional offerings to an instance type when there is a capacity reservation that is matched on by an EC2NodeClass's `capacityReservationSelectorTerms`. This offering will have a price near 0 to model the fact that the reservation is already paid-for and to ensure the offering is prioritized ahead of other offerings. 
 
-### Launching Nodes into Capacity Reservation
+When there are multiple capacity reservation offerings for an instance type for different AZs, we will produce separate offerings for these different zones. When there are multiple capacity reservation offerings for instance type in the same AZ, we will only produce a single offering. With this change, an example instance type offerings set will look like the following
+
+```yaml
+name: c5.large
+offerings:
+  - price:
+    available:
+    requirements:
+      - key: 
+```
+
+### Representing ODCR Available Instance Counts in Instance Type Offerings
+
+ODCRs (unlike spot and on-demand capacity) have much more defined, constrained capacity ceilings. For instance, in an extreme example, a user may select on a capacity reservation with only a single available instance but launch 10,000 pods that contain hostname anti-affinity. The scheduler would do work to determine that it needs to launch 10,000 instances for these pods; however, without any kind of cap on the number of times the capacity reservation offering could be used, the scheduler would think that it could launch 10,000 instances into the capacity reservation offering. 
+
+Attempting to launch this would result in a success for a single instance and an ICE error for the other 9,999. The next scheduling loop would remediate this, but this results in a lot of extra, unneeded work. 
+
+A better way to model this would be to track the available instance count as a numerical value associated with an instance type offering. In this modeling, the scheduler could count the number of simulated NodeClaims that might use the offering and know that it can't simulate NodeClaims into particular offerings once they hit their cap.
+
+Today, we already have an [`available` field](https://github.com/kubernetes-sigs/karpenter/blob/bcd33e924905588b1bdecd5413dc7b268370ec4c/pkg/cloudprovider/types.go#L236) attached to instance type offerings. This field is binary and only tells us whether the instance is or isn't available. With the introduction of ODCR offerings, we could extend this field to be an integer rather than a boolean. This would allow us to exactly represent the number of available instances that can be launched into the offering. Existing spot and on-demand offerings would model this `available` field as `MAX_INT` for current `true` values and `0` for `false` values.
+
+An updated version of the instance type offerings for an ODCR, on-demand, and spot capacity would look like
+
+```yaml
+name: c5.large
+offerings:
+  - price:
+    available:
+    requirements:
+      - key: 
+```
+
+### Launching Nodes into Capacity Reservations
 
 #### All Launch Templates are associated with the specified Capacity Reservation
 
@@ -293,7 +324,9 @@ with then a fallback to on-demand could be selected if Capacity Reservations not
 
 ### What happens when a user changes their `capacityReservationSelectorTerms` and some instances are no longer in a selected ODCR?
 
-### How do we avoid over-launching instances 
+### How do we avoid over-launching instances when scheduling to ODCR instances? 
+
+### How do we handle CreateFleet not supporting specifying the same capacity pool (AZ/Capacity Type combo) with different capacity reservation IDs?
 
 ## Appendix
 
