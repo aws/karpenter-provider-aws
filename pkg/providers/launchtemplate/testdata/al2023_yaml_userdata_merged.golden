@@ -23,6 +23,9 @@ spec:
       clusterDNS:
       - 10.0.100.10
       maxPods: 110
+      registerWithTaints:
+      - effect: NoExecute
+        key: karpenter.sh/unregistered
     flags:
     - --node-labels="karpenter.sh/capacity-type=on-demand,%s=%s,testing/cluster=unspecified"
 

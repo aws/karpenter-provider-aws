@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"strconv"
 	"strings"
 	"testing"
@@ -86,7 +87,7 @@ func TestAWS(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...))
+	env = coretest.NewEnvironment(coretest.WithCRDs(apis.CRDs...), coretest.WithCRDs(v1alpha1.CRDs...))
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
 	ctx, stop = context.WithCancel(ctx)
@@ -1678,7 +1679,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						Expect(ok).To(BeTrue())
 						taints := []v1.Taint{}
 						Expect(yaml.Unmarshal(taintsRaw.Raw, &taints)).To(Succeed())
-						Expect(len(taints)).To(Equal(2))
+						Expect(len(taints)).To(Equal(3))
 						Expect(taints).To(ContainElements(lo.Map(desiredTaints, func(t v1.Taint, _ int) interface{} {
 							return interface{}(t)
 						})))
