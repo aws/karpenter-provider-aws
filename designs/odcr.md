@@ -102,18 +102,11 @@ status:
       availabilityZone: String
       # Available Instance Count of the Capacity Reservation
       availableInstanceCount: Integer
-      # The date and time at which the Capacity Reservation expires. When a Capacity
+      # The time at which the Capacity Reservation expires. When a Capacity
       # Reservation expires, the reserved capacity is released and you can no longer
       # launch instances into it. The Capacity Reservation's state changes to expired
       # when it reaches its end date and time.
-      endDate: String | None
-      # Indicates the way in which the Capacity Reservation ends. A Capacity Reservation
-      # can have one of the following end types:
-      #   * unlimited - The Capacity Reservation remains active until you explicitly
-      #   cancel it.
-      #   * limited - The Capacity Reservation expires automatically at a specified
-      #   date and time.
-      endDateType: String
+      endTime: String | None
       # ID of the Capacity Reservation
       id: String
       # Indicates the type of instance launches that the Capacity Reservation accepts. The options include:
@@ -129,22 +122,16 @@ status:
       #       Availability Zone), and explicitly target the Capacity
       #       Reservation. This ensures that only permitted instances can use
       #       the reserved capacity.
-      instanceMatchCriteria: String
-      # Instance Platform of the Capacity Reservation
-      instancePlatform: String
+      type: String
       # Instance Type of the Capacity Reservation
       instanceType: String
       # Owner Id of the Capacity Reservation
       ownerId: String
-      # The date and time at which the Capacity Reservation was started.
-      startDate: String
       # Total Instance Count of the Capacity Reservation
       totalInstanceCount: Integer
 ```
 
-This follows closely (does not implement all fields) how EC2 [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html) can filter.
-
-Karpenter will perform validation against the spec to ensure there isn't any violation prior to creating the LaunchTemplates.
+This API follows closely with how [DescribeCapacityReservations](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeCapacityReservations.html) can filter capacity reservations -- allowing Karpenter to receive the server-side filtered version of the capacity reservations to store in its status.
 
 ### Adding new label `karpenter.k8s.aws/capacity-reservation-id` nodeClaim/node
 
