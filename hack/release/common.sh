@@ -87,6 +87,10 @@ publishHelmChart() {
   ah_config_file_name="${helm_chart}/artifacthub-repo.yaml"
   helm_chart_artifact="${helm_chart}-${version}.tgz"
 
+  helm_schema_input_file_name="values.yaml"
+  helm_schema_output_file_name="values.schema.json"
+  helm_schema_skip_auto_generation="title,description,required,default,additionalProperties"
+
   yq e -i ".appVersion = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
   yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
 
@@ -99,6 +103,7 @@ publishHelmChart() {
     echo {} > "${temp}"
     oras push "${oci_repo}${helm_chart}:artifacthub.io" --config "${temp}:application/vnd.cncf.artifacthub.config.v1+yaml" "${ah_config_file_name}:application/vnd.cncf.artifacthub.repository-metadata.layer.v1.yaml"
   fi
+  helm-schema -c "${helm_chart}" -f "${helm_schema_input_file_name}" -o "${helm_schema_output_file_name}" --skip-auto-generation "${helm_schema_skip_auto_generation}"
   helm dependency update "${helm_chart}"
   helm lint "${helm_chart}"
   helm package "${helm_chart}" --version "${version}"
