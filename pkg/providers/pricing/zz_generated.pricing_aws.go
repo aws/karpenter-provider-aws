@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-06-03T13:07:54Z for us-east-1
+// generated at 2024-07-10T14:30:58Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -334,6 +334,10 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		"r7iz.12xlarge": 4.464000, "r7iz.16xlarge": 5.952000, "r7iz.2xlarge": 0.744000, "r7iz.32xlarge": 11.904000,
 		"r7iz.4xlarge": 1.488000, "r7iz.8xlarge": 2.976000, "r7iz.large": 0.186000, "r7iz.metal-16xl": 6.547200,
 		"r7iz.metal-32xl": 13.094400, "r7iz.xlarge": 0.372000,
+		// r8g family
+		"r8g.12xlarge": 2.827680, "r8g.16xlarge": 3.770240, "r8g.24xlarge": 5.655360, "r8g.2xlarge": 0.471280,
+		"r8g.48xlarge": 11.310720, "r8g.4xlarge": 0.942560, "r8g.8xlarge": 1.885120, "r8g.large": 0.117820,
+		"r8g.medium": 0.058910, "r8g.metal-24xl": 6.220900, "r8g.metal-48xl": 11.310720, "r8g.xlarge": 0.235640,
 		// t1 family
 		"t1.micro": 0.020000,
 		// t2 family
