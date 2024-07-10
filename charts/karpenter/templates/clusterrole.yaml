@@ -36,13 +36,3 @@ rules:
   - apiGroups: ["karpenter.k8s.aws"]
     resources: ["ec2nodeclasses", "ec2nodeclasses/status"]
     verbs: ["patch", "update"]
-{{- if .Values.webhook.enabled }}
-  - apiGroups: ["admissionregistration.k8s.io"]
-    resources: ["validatingwebhookconfigurations"]
-    verbs: ["update"]
-    resourceNames: ["validation.webhook.karpenter.k8s.aws"]
-  - apiGroups: ["admissionregistration.k8s.io"]
-    resources: ["mutatingwebhookconfigurations"]
-    verbs: ["update"]
-    resourceNames: ["defaulting.webhook.karpenter.k8s.aws"]
-{{- end }}
