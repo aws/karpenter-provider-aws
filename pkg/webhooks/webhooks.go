@@ -50,7 +50,7 @@ func NewWebhooks() []knativeinjection.ControllerConstructor {
 
 func NewCRDConversionWebhook(ctx context.Context, _ configmap.Watcher) *controller.Impl {
 	return conversion.NewConversionController(ctx,
-		"/conversion/karpenter.sh",
+		"/conversion/karpenter.k8s.aws",
 		ConversionResource,
 		func(ctx context.Context) context.Context { return ctx },
 	)
