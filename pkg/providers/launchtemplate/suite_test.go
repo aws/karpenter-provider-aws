@@ -21,11 +21,12 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"

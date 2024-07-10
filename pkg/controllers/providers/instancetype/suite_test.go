@@ -16,8 +16,9 @@ package instancetype_test
 
 import (
 	"context"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	v1 "k8s.io/api/core/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"

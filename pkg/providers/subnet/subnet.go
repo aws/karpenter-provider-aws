@@ -109,7 +109,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *providerv1.EC2Nod
 		}
 	}
 	p.cache.SetDefault(fmt.Sprint(hash), lo.Values(subnets))
-	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), subnets) {
+	if p.cm.HasChanged(fmt.Sprintf("subnets/%s", nodeClass.Name), lo.Keys(subnets)) {
 		log.FromContext(ctx).
 			WithValues("subnets", lo.Map(lo.Values(subnets), func(s *ec2.Subnet, _ int) providerv1.Subnet {
 				return providerv1.Subnet{

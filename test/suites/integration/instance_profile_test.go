@@ -16,8 +16,9 @@ package integration_test
 
 import (
 	"fmt"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"time"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 
 	"github.com/awslabs/operatorpkg/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

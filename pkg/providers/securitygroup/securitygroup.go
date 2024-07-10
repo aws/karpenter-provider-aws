@@ -62,11 +62,10 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	if err != nil {
 		return nil, err
 	}
-	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroups) {
+	securityGroupIDs := lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string { return aws.StringValue(s.GroupId) })
+	if p.cm.HasChanged(fmt.Sprintf("security-groups/%s", nodeClass.Name), securityGroupIDs) {
 		log.FromContext(ctx).
-			WithValues("security-groups", lo.Map(securityGroups, func(s *ec2.SecurityGroup, _ int) string {
-				return aws.StringValue(s.GroupId)
-			})).
+			WithValues("security-groups", securityGroupIDs).
 			V(1).Info("discovered security groups")
 	}
 	return securityGroups, nil

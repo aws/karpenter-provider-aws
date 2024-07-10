@@ -18,10 +18,11 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"strings"
 	"testing"
 	"time"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/awslabs/operatorpkg/object"
 	v1 "k8s.io/api/core/v1"

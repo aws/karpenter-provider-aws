@@ -17,8 +17,9 @@ package operator_test
 import (
 	"context"
 	"errors"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"testing"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/samber/lo"
