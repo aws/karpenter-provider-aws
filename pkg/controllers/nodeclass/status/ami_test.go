@@ -309,7 +309,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 	It("should get error when resolving AMIs and have status condition set to false", func() {
 		awsEnv.EC2API.NextError.Set(fmt.Errorf("unable to resolve AMI"))
 		ExpectApplied(ctx, env.Client, nodeClass)
-		ExpectObjectReconcileFailed(ctx, env.Client, statusController, nodeClass)
+		_ = ExpectObjectReconcileFailed(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeFalse())
 	})

@@ -93,7 +93,7 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second*15)}
+		nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
 		env.ExpectUpdated(nodePool)
 
 		// Eventually the node will be tainted, which means its actively being disrupted
@@ -149,7 +149,7 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Second*15)
+		nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Second * 15)
 		env.ExpectUpdated(nodePool)
 
 		// Eventually the node will be tainted, which means its actively being disrupted
