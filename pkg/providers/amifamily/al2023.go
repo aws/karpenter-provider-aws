@@ -38,12 +38,8 @@ type AL2023 struct {
 }
 
 func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
-	query := DescribeImageQuery{
-		Filters: []*ec2.Filter{&ec2.Filter{
-			Name: lo.ToPtr("image-id"),
-		}},
-		KnownRequirements: make(map[string][]scheduling.Requirements),
-	}
+	requirements := make(map[string][]scheduling.Requirements)
+	imageIDs := make([]*string, 0, 5)
 	// Example Paths:
 	// - Latest EKS 1.30 arm64 Standard Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2023/arm64/standard/recommended/image_id
 	// - Specific EKS 1.30 amd64 Nvidia Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2023/x86_64/nvidia/amazon-eks-node-al2023-x86_64-nvidia-1.30-v20240625/image_id
@@ -65,14 +61,21 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 		if err != nil {
 			continue
 		}
-		query.Filters[0].Values = append(query.Filters[0].Values, lo.ToPtr(value))
-		query.KnownRequirements[value] = []scheduling.Requirements{variant.Requirements()}
+		imageIDs = append(imageIDs, lo.ToPtr(value))
+		requirements[value] = []scheduling.Requirements{variant.Requirements()}
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
-	if len(query.Filters[0].Values) == 0 {
-		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2023@%s"`, amiVersion)
+	if len(imageIDs) == 0 {
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover AMIs for alias "al2023@%s"`, amiVersion)
 	}
-	return query, nil
+
+	return DescribeImageQuery{
+		Filters: []*ec2.Filter{{
+			Name:   lo.ToPtr("image-id"),
+			Values: imageIDs,
+		}},
+		KnownRequirements: requirements,
+	}, nil
 }
 
 func (a AL2023) extractAMIVersion(versionStr string) (string, error) {

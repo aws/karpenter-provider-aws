@@ -17,6 +17,7 @@ package fake
 import (
 	"context"
 	"fmt"
+	"log"
 	"regexp"
 	"strings"
 
@@ -34,10 +35,10 @@ import (
 
 type SSMAPI struct {
 	ssmiface.SSMAPI
-	Parameters               map[string]string
-	GetParameterOutput       *ssm.GetParameterOutput
+	Parameters                map[string]string
+	GetParameterOutput        *ssm.GetParameterOutput
 	GetParametersByPathOutput *ssm.GetParametersByPathOutput
-	WantErr                  error
+	WantErr                   error
 }
 
 func NewSSMAPI() *SSMAPI {
@@ -68,7 +69,7 @@ func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParamet
 
 func (a SSMAPI) GetParametersByPathPagesWithContext(_ context.Context, input *ssm.GetParametersByPathInput, f func(*ssm.GetParametersByPathOutput, bool) bool, _ ...request.Option) error {
 	if !lo.FromPtr(input.Recursive) {
-		panic("fake SSM API currently only supports GetParametersByPathPagesWithContext when recursive is true")
+		log.Fatalf("fake SSM API currently only supports GetParametersByPathPagesWithContext when recursive is true")
 	}
 	if a.WantErr != nil {
 		return a.WantErr
@@ -106,9 +107,9 @@ func (a SSMAPI) GetParametersByPathPagesWithContext(_ context.Context, input *ss
 
 func getDefaultParametersForPath(path string) []*ssm.Parameter {
 	suffixes := map[string][]string{
-		`^\/aws\/service\/eks/optimized-ami\/.*\/amazon-linux-2$`: []string{"recommended/image_id"},
+		`^\/aws\/service\/eks/optimized-ami\/.*\/amazon-linux-2$`:       []string{"recommended/image_id"},
 		`^\/aws\/service\/eks/optimized-ami\/.*\/amazon-linux-2-arm64$`: []string{"recommended/image_id"},
-		`^\/aws\/service\/eks/optimized-ami\/.*\/amazon-linux-2-gpu$`: []string{"recommended/image_id"},
+		`^\/aws\/service\/eks/optimized-ami\/.*\/amazon-linux-2-gpu$`:   []string{"recommended/image_id"},
 		`^\/aws\/service\/eks/optimized-ami\/.*\/amazon-linux-2023$`: []string{
 			"x86_64/standard/recommended/image_id",
 			"arm64/standard/recommended/image_id",
@@ -134,7 +135,7 @@ func getDefaultParametersForPath(path string) []*ssm.Parameter {
 		}
 		return lo.Map(suffixes, func(suffix string, _ int) *ssm.Parameter {
 			return &ssm.Parameter{
-				Name: lo.ToPtr(fmt.Sprintf("%s/%s", path, suffix)),
+				Name:  lo.ToPtr(fmt.Sprintf("%s/%s", path, suffix)),
 				Value: lo.ToPtr(fmt.Sprintf("ami-%s", randomdata.Alphanumeric(16))),
 			}
 		})

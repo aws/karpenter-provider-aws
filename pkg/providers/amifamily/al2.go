@@ -43,12 +43,8 @@ type AL2 struct {
 }
 
 func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
-	query := DescribeImageQuery{
-		Filters: []*ec2.Filter{&ec2.Filter{
-			Name: lo.ToPtr("image-id"),
-		}},
-		KnownRequirements: make(map[string][]scheduling.Requirements),
-	}
+	imageIDs := make([]*string, 0, 5)
+	requirements := make(map[string][]scheduling.Requirements)
 	// Example Paths:
 	// - Latest EKS 1.30 Standard Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2/recommended/image_id
 	// - Specific EKS 1.30 GPU Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2-gpu/amazon-eks-node-1.30-v20240625/image_id
@@ -71,22 +67,28 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 			if av, err := a.extractAMIVersion(pathComponents[7]); err != nil || av != amiVersion {
 				continue
 			}
-			query.Filters[0].Values = append(query.Filters[0].Values, lo.ToPtr(value))
-			query.KnownRequirements[value] = lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
+			imageIDs = append(imageIDs, lo.ToPtr(value))
+			requirements[value] = lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
 		}
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
-	if len(query.Filters[0].Values) == 0 {
+	if len(imageIDs) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2@%s"`, amiVersion)
 	}
-	return query, nil
+	return DescribeImageQuery{
+		Filters: []*ec2.Filter{{
+			Name:   lo.ToPtr("image-id"),
+			Values: imageIDs,
+		}},
+		KnownRequirements: requirements,
+	}, nil
 }
 
 func (a AL2) extractAMIVersion(versionStr string) (string, error) {
 	if versionStr == "recommended" {
 		return AMIVersionLatest, nil
 	}
-	rgx := regexp.MustCompile(`^.*(v\d+)$`)
+	rgx := regexp.MustCompile(`^.*(v\d{8})$`)
 	matches := rgx.FindStringSubmatch(versionStr)
 	if len(matches) != 2 {
 		return "", fmt.Errorf("failed to extract AMI version")

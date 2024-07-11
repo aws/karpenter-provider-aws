@@ -93,7 +93,10 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 			return nil, fmt.Errorf("getting kubernetes version, %w", err)
 		}
 		query, err := amiFamily.DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, amiVersion)
-		return []DescribeImageQuery{query}, err
+		if err != nil {
+			return []DescribeImageQuery{}, err
+		}
+		return []DescribeImageQuery{query}, nil
 	}
 
 	idFilter := &ec2.Filter{Name: aws.String("image-id")}
@@ -206,4 +209,3 @@ func MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType, amis []v1.A
 	}
 	return amiIDs
 }
-

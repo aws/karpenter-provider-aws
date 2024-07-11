@@ -42,12 +42,8 @@ type Bottlerocket struct {
 }
 
 func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
-	query := DescribeImageQuery{
-		Filters: []*ec2.Filter{&ec2.Filter{
-			Name: lo.ToPtr("image-id"),
-		}},
-		KnownRequirements: make(map[string][]scheduling.Requirements),
-	}
+	imageIDs := make([]*string, 0, 5)
+	requirements := make(map[string][]scheduling.Requirements)
 	// Example Paths:
 	// - Latest EKS 1.30 amd64 Standard Image: /aws/service/bottlerocket/aws-k8s-1.30/x86_64/latest/image_id
 	// - Specific EKS 1.30 arm64 Nvidia Image: /aws/service/bottlerocket/aws-k8s-1.30-nvidia/arm64/1.10.0/image_id
@@ -66,15 +62,21 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 			if len(pathComponents) != 8 || pathComponents[7] != "image_id" || pathComponents[6] != amiVersion {
 				continue
 			}
-			query.Filters[0].Values = append(query.Filters[0].Values, lo.ToPtr(value))
-			query.KnownRequirements[value] = lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
+			imageIDs = append(imageIDs, lo.ToPtr(value))
+			requirements[value] = lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
 		}
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
-	if len(query.Filters[0].Values) == 0 {
+	if len(imageIDs) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "bottlerocket@%s"`, amiVersion)
 	}
-	return query, nil
+	return DescribeImageQuery{
+		Filters: []*ec2.Filter{{
+			Name:   lo.ToPtr("image-id"),
+			Values: imageIDs,
+		}},
+		KnownRequirements: make(map[string][]scheduling.Requirements),
+	}, nil
 }
 
 // UserData returns the default userdata script for the AMI Family

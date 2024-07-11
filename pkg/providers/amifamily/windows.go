@@ -45,16 +45,12 @@ type Windows struct {
 	// Only the core version of each version is supported by Karpenter, so this field only indicates the year.
 	Version string
 	// Build is a specific build code associated with the Version
-	Build   string
+	Build string
 }
 
 func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
-	query := DescribeImageQuery{
-		Filters: []*ec2.Filter{&ec2.Filter{
-			Name: lo.ToPtr("image-id"),
-		}},
-		KnownRequirements: make(map[string][]scheduling.Requirements),
-	}
+	requirements := make(map[string][]scheduling.Requirements)
+	imageIDs := make([]*string, 0, 5)
 	// SSM aliases are only maintained for the latest Windows AMI releases
 	if amiVersion != AMIVersionLatest {
 
@@ -74,17 +70,23 @@ func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provide
 		if len(matches) != 3 || matches[1] != w.Version || matches[2] != k8sVersion {
 			continue
 		}
-		query.Filters[0].Values = append(query.Filters[0].Values, lo.ToPtr(value))
-		query.KnownRequirements[value] = []scheduling.Requirements{scheduling.NewRequirements(
+		imageIDs = append(imageIDs, lo.ToPtr(value))
+		requirements[value] = []scheduling.Requirements{scheduling.NewRequirements(
 			scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)),
 			scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpIn, w.Build),
 		)}
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
-	if len(query.Filters[0].Values) == 0 {
+	if len(imageIDs) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s"`, w.Version, amiVersion)
 	}
-	return query, nil
+	return DescribeImageQuery{
+		Filters: []*ec2.Filter{&ec2.Filter{
+			Name:   lo.ToPtr("image-id"),
+			Values: imageIDs,
+		}},
+		KnownRequirements: requirements,
+	}, nil
 }
 
 // UserData returns the default userdata script for the AMI Family
