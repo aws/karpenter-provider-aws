@@ -195,10 +195,10 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 	maxPods *int32, podsPerCore *int32) v1.ResourceList {
 
 	resourceList := v1.ResourceList{
-		v1.ResourceCPU:              *cpu(info),
-		v1.ResourceMemory:           *memory(ctx, info),
-		v1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
-		v1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore),
+		v1.ResourceCPU:                 *cpu(info),
+		v1.ResourceMemory:              *memory(ctx, info),
+		v1.ResourceEphemeralStorage:    *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
+		v1.ResourcePods:                *pods(ctx, info, amiFamily, maxPods, podsPerCore),
 		providerv1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
 		providerv1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
 		providerv1.ResourceAMDGPU:      *amdGPUs(info),

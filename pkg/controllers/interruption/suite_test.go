@@ -214,8 +214,8 @@ var _ = Describe("InterruptionHandling", func() {
 		})
 		It("should mark the ICE cache for the offering when getting a spot interruption warning", func() {
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{
-				v1.LabelTopologyZone:             "coretest-zone-1a",
-				v1.LabelInstanceTypeStable:       "t3.large",
+				v1.LabelTopologyZone:        "coretest-zone-1a",
+				v1.LabelInstanceTypeStable:  "t3.large",
 				corev1.CapacityTypeLabelKey: corev1.CapacityTypeSpot,
 			})
 			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))

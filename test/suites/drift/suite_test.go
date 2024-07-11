@@ -544,8 +544,8 @@ var _ = Describe("Drift", func() {
 						Spec: corev1.NodeClaimSpec{
 							NodeClassRef: &corev1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
-								Kind:       object.GVK(nodeClass).Kind,
-								Name:       nodeClass.Name,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
 							},
 						},
 					},

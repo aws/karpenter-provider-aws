@@ -20,7 +20,7 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 var _ = Describe("NetworkInterfaces", func() {

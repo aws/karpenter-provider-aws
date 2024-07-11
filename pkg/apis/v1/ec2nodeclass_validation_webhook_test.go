@@ -15,10 +15,11 @@ limitations under the License.
 package v1_test
 
 import (
-	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
+
+	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	"github.com/aws/aws-sdk-go/aws"
 

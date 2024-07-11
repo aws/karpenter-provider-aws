@@ -222,8 +222,8 @@ func (c *CloudProvider) Name() string {
 	return "aws"
 }
 
-func (c *CloudProvider) GetSupportedNodeClasses() []schema.GroupVersionKind {
-  return []status.Object{&providerv1.EC2NodeClass{}}
+func (c *CloudProvider) GetSupportedNodeClasses() []status.Object {
+	return []status.Object{&providerv1.EC2NodeClass{}}
 }
 
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1.NodeClaim) (*providerv1.EC2NodeClass, error) {

@@ -17,8 +17,9 @@ package garbagecollection
 import (
 	"context"
 	"fmt"
-	"k8s.io/api/core/v1"
 	"time"
+
+	v1 "k8s.io/api/core/v1"
 
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
@@ -34,8 +35,6 @@ import (
 	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
-
-	providerv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 type Controller struct {
@@ -63,9 +62,9 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
 	managedRetrieved := lo.Filter(retrieved, func(nc *corev1.NodeClaim, _ int) bool {
-		return nc.Annotations[providerv1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
+		return nc.Annotations[corev1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
 	})
-	nodeClaimList := &providerv1.NodeClaimList{}
+	nodeClaimList := &corev1.NodeClaimList{}
 	if err = c.kubeClient.List(ctx, nodeClaimList); err != nil {
 		return reconcile.Result{}, err
 	}
@@ -73,7 +72,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	if err = c.kubeClient.List(ctx, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
-	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n providerv1.NodeClaim, _ int) (string, bool) {
+	resolvedProviderIDs := sets.New(lo.FilterMap(nodeClaimList.Items, func(n corev1.NodeClaim, _ int) (string, bool) {
 		return n.Status.ProviderID, n.Status.ProviderID != ""
 	})...)
 	errs := make([]error, len(retrieved))

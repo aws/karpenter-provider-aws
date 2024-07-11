@@ -17,10 +17,12 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"regexp"
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"strings"
+
+	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"

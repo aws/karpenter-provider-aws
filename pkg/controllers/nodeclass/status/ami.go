@@ -41,7 +41,7 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass)
 	}
 	if len(amis) == 0 {
 		nodeClass.Status.AMIs = nil
-		nodeClass.StatusConditions().SetFalse(v1beta1.ConditionTypeAMIsReady, "AMINotFound", "AMISelector did not match any AMIs")
+		nodeClass.StatusConditions().SetFalse(providerv1.ConditionTypeAMIsReady, "AMINotFound", "AMISelector did not match any AMIs")
 		return reconcile.Result{}, nil
 	}
 	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) providerv1.AMI {
@@ -61,6 +61,6 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeClass)
 			Requirements: reqs,
 		}
 	})
-	nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeAMIsReady)
+	nodeClass.StatusConditions().SetTrue(providerv1.ConditionTypeAMIsReady)
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }

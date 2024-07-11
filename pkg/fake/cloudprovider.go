@@ -17,8 +17,9 @@ package fake
 import (
 	"context"
 
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/awslabs/operatorpkg/status"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 

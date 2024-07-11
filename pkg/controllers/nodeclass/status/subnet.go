@@ -39,7 +39,7 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeCla
 	}
 	if len(subnets) == 0 {
 		nodeClass.Status.Subnets = nil
-		nodeClass.StatusConditions().SetFalse(v1beta1.ConditionTypeSubnetsReady, "SubnetsNotFound", "SubnetSelector did not match any Subnets")
+		nodeClass.StatusConditions().SetFalse(providerv1.ConditionTypeSubnetsReady, "SubnetsNotFound", "SubnetSelector did not match any Subnets")
 		return reconcile.Result{}, nil
 	}
 	sort.Slice(subnets, func(i, j int) bool {
@@ -55,6 +55,6 @@ func (s *Subnet) Reconcile(ctx context.Context, nodeClass *providerv1.EC2NodeCla
 			ZoneID: *ec2subnet.AvailabilityZoneId,
 		}
 	})
-	nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeSubnetsReady)
+	nodeClass.StatusConditions().SetTrue(providerv1.ConditionTypeSubnetsReady)
 	return reconcile.Result{RequeueAfter: time.Minute}, nil
 }

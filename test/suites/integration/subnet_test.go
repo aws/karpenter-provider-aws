@@ -125,7 +125,7 @@ var _ = Describe("Subnets", func() {
 	It("should have the NodeClass status for subnets", func() {
 		env.ExpectCreated(nodeClass)
 		EventuallyExpectSubnets(env, nodeClass)
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1beta1.ConditionTypeSubnetsReady, Status: metav1.ConditionTrue})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: providerv1.ConditionTypeSubnetsReady, Status: metav1.ConditionTrue})
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 	})
 	It("should have the NodeClass status as not ready since subnets were not resolved", func() {
@@ -135,7 +135,7 @@ var _ = Describe("Subnets", func() {
 			},
 		}
 		env.ExpectCreated(nodeClass)
-		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1beta1.ConditionTypeSubnetsReady, Status: metav1.ConditionFalse, Message: "SubnetSelector did not match any Subnets"})
+		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: providerv1.ConditionTypeSubnetsReady, Status: metav1.ConditionFalse, Message: "SubnetSelector did not match any Subnets"})
 		ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "SubnetsReady=False"})
 	})
 })

@@ -31,7 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/karpenter/pkg/apis/v1"
+	v1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/utils/atomic"

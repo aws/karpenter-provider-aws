@@ -56,7 +56,7 @@ func init() {
 var (
 	TerminationFinalizer   = apis.Group + "/termination"
 	AWSToKubeArchitectures = map[string]string{
-		"x86_64":                  corev1.ArchitectureAmd64,
+		"x86_64":                 corev1.ArchitectureAmd64,
 		corev1.ArchitectureArm64: corev1.ArchitectureArm64,
 	}
 	WellKnownArchitectures = sets.NewString(

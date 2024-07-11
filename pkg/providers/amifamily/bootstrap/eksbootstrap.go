@@ -29,7 +29,7 @@ import (
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type EKS struct {

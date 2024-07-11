@@ -25,8 +25,9 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
+
+	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 var _ = Describe("CNITests", func() {

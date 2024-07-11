@@ -92,8 +92,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		version := lo.Must(awsEnv.VersionProvider.Get(ctx))
 
 		awsEnv.SSMAPI.Parameters = map[string]string{
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):                                                      "ami-id-123",
-			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):                                                  "ami-id-456",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version):                                                 "ami-id-123",
+			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version):                                             "ami-id-456",
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2%s/recommended/image_id", version, fmt.Sprintf("-%s", corev1.ArchitectureArm64)): "ami-id-789",
 		}
 
@@ -205,7 +205,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		}))
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(providerv1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
 	It("should resolve amiSelector AMis and requirements into status when all SSM aliases don't resolve", func() {
 		version := lo.Must(awsEnv.VersionProvider.Get(ctx))
@@ -284,7 +284,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		}))
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(providerv1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
 	It("Should resolve a valid AMI selector", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -304,13 +304,13 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		))
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(providerv1.ConditionTypeAMIsReady)).To(BeTrue())
 	})
 	It("should get error when resolving AMIs and have status condition set to false", func() {
 		awsEnv.EC2API.NextError.Set(fmt.Errorf("unable to resolve AMI"))
 		ExpectApplied(ctx, env.Client, nodeClass)
 		_ = ExpectObjectReconcileFailed(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeAMIsReady)).To(BeFalse())
+		Expect(nodeClass.StatusConditions().IsTrue(providerv1.ConditionTypeAMIsReady)).To(BeFalse())
 	})
 })

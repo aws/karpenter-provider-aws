@@ -15,8 +15,6 @@ limitations under the License.
 package status_test
 
 import (
-	"github.com/awslabs/operatorpkg/status"
-
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -66,7 +64,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 				Name: "securityGroup-test3",
 			},
 		}))
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(providerv1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
 	})
 	It("Should resolve a valid selectors for Security Groups by tags", func() {
 		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
@@ -90,7 +88,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 				Name: "securityGroup-test2",
 			},
 		}))
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(providerv1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
 	})
 	It("Should resolve a valid selectors for Security Groups by ids", func() {
 		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
@@ -107,7 +105,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 				Name: "securityGroup-test1",
 			},
 		}))
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(providerv1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
 	})
 	It("Should update Security Groups status when the Security Groups selector gets updated by tags", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -149,7 +147,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 				Name: "securityGroup-test2",
 			},
 		}))
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(providerv1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
 	})
 	It("Should update Security Groups status when the Security Groups selector gets updated by ids", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -184,7 +182,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 				Name: "securityGroup-test1",
 			},
 		}))
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(providerv1.ConditionTypeSecurityGroupsReady).IsTrue()).To(BeTrue())
 	})
 	It("Should not resolve a invalid selectors for Security Groups", func() {
 		nodeClass.Spec.SecurityGroupSelectorTerms = []providerv1.SecurityGroupSelectorTerm{
@@ -196,7 +194,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(BeNil())
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(providerv1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())
 	})
 	It("Should not resolve a invalid selectors for an updated Security Groups selector", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
@@ -226,6 +224,6 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.SecurityGroups).To(BeNil())
-		Expect(nodeClass.StatusConditions().Get(v1beta1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())
+		Expect(nodeClass.StatusConditions().Get(providerv1.ConditionTypeSecurityGroupsReady).IsFalse()).To(BeTrue())
 	})
 })
