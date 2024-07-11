@@ -23,7 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
@@ -59,7 +59,7 @@ func NewDefaultProvider(region string, iamapi iamiface.IAMAPI, cache *cache.Cach
 
 func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, error) {
 	profileName := m.InstanceProfileName(options.FromContext(ctx).ClusterName, p.region)
-	tags := lo.Assign(m.InstanceProfileTags(options.FromContext(ctx).ClusterName), map[string]string{v1.LabelTopologyRegion: p.region})
+	tags := lo.Assign(m.InstanceProfileTags(options.FromContext(ctx).ClusterName), map[string]string{corev1.LabelTopologyRegion: p.region})
 
 	// An instance profile exists for this NodeClass
 	if _, ok := p.cache.Get(string(m.GetUID())); ok {
