@@ -33,11 +33,11 @@ import (
 
 	"github.com/awslabs/operatorpkg/reasonable"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
 
@@ -53,7 +53,7 @@ func NewController(kubeClient client.Client, instanceProvider instance.Provider)
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, nodeClaim *karpv1.NodeClaim) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "nodeclaim.tagging")
 
 	stored := nodeClaim.DeepCopy()
@@ -70,7 +70,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeC
 	if err = c.tagInstance(ctx, nodeClaim, id); err != nil {
 		return reconcile.Result{}, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 	}
-	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1beta1.AnnotationInstanceTagged: "true"})
+	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1.AnnotationInstanceTagged: "true"})
 	if !equality.Semantic.DeepEqual(nodeClaim, stored) {
 		if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
 			return reconcile.Result{}, client.IgnoreNotFound(err)
@@ -82,9 +82,9 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *corev1beta1.NodeC
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodeclaim.tagging").
-		For(&corev1beta1.NodeClaim{}).
+		For(&karpv1.NodeClaim{}).
 		WithEventFilter(predicate.NewPredicateFuncs(func(o client.Object) bool {
-			return isTaggable(o.(*corev1beta1.NodeClaim))
+			return isTaggable(o.(*karpv1.NodeClaim))
 		})).
 		// Ok with using the default MaxConcurrentReconciles of 1 to avoid throttling from CreateTag write API
 		WithOptions(controller.Options{
@@ -93,10 +93,10 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 		Complete(reconcile.AsReconciler(m.GetClient(), c))
 }
 
-func (c *Controller) tagInstance(ctx context.Context, nc *corev1beta1.NodeClaim, id string) error {
+func (c *Controller) tagInstance(ctx context.Context, nc *karpv1.NodeClaim, id string) error {
 	tags := map[string]string{
-		v1beta1.TagName:      nc.Status.NodeName,
-		v1beta1.TagNodeClaim: nc.Name,
+		v1.TagName:      nc.Status.NodeName,
+		v1.TagNodeClaim: nc.Name,
 	}
 
 	// Remove tags which have been already populated
@@ -118,9 +118,9 @@ func (c *Controller) tagInstance(ctx context.Context, nc *corev1beta1.NodeClaim,
 	return nil
 }
 
-func isTaggable(nc *corev1beta1.NodeClaim) bool {
+func isTaggable(nc *karpv1.NodeClaim) bool {
 	// Instance has already been tagged
-	if val := nc.Annotations[v1beta1.AnnotationInstanceTagged]; val == "true" {
+	if val := nc.Annotations[v1.AnnotationInstanceTagged]; val == "true" {
 		return false
 	}
 	// Node name is not yet known

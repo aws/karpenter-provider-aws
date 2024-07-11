@@ -22,7 +22,7 @@ import (
 	"github.com/awslabs/operatorpkg/singleton"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/util/workqueue"
 	"k8s.io/klog/v2"
@@ -34,7 +34,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 type Controller struct {
@@ -61,18 +61,18 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
-	managedRetrieved := lo.Filter(retrieved, func(nc *v1beta1.NodeClaim, _ int) bool {
-		return nc.Annotations[v1beta1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
+	managedRetrieved := lo.Filter(retrieved, func(nc *karpv1.NodeClaim, _ int) bool {
+		return nc.Annotations[karpv1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
 	})
-	nodeClaimList := &v1beta1.NodeClaimList{}
+	nodeClaimList := &karpv1.NodeClaimList{}
 	if err = c.kubeClient.List(ctx, nodeClaimList); err != nil {
 		return reconcile.Result{}, err
 	}
-	nodeList := &v1.NodeList{}
+	nodeList := &corev1.NodeList{}
 	if err = c.kubeClient.List(ctx, nodeList); err != nil {
 		return reconcile.Result{}, err
 	}
-	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n v1beta1.NodeClaim, _ int) (string, bool) {
+	resolvedProviderIDs := sets.New[string](lo.FilterMap(nodeClaimList.Items, func(n karpv1.NodeClaim, _ int) (string, bool) {
 		return n.Status.ProviderID, n.Status.ProviderID != ""
 	})...)
 	errs := make([]error, len(retrieved))
@@ -89,7 +89,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 	return reconcile.Result{RequeueAfter: lo.Ternary(c.successfulCount <= 20, time.Second*10, time.Minute*2)}, nil
 }
 
-func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.NodeClaim, nodeList *v1.NodeList) error {
+func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeList *corev1.NodeList) error {
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("provider-id", nodeClaim.Status.ProviderID))
 	if err := c.cloudProvider.Delete(ctx, nodeClaim); err != nil {
 		return cloudprovider.IgnoreNodeClaimNotFoundError(err)
@@ -97,7 +97,7 @@ func (c *Controller) garbageCollect(ctx context.Context, nodeClaim *v1beta1.Node
 	log.FromContext(ctx).V(1).Info("garbage collected cloudprovider instance")
 
 	// Go ahead and cleanup the node if we know that it exists to make scheduling go quicker
-	if node, ok := lo.Find(nodeList.Items, func(n v1.Node) bool {
+	if node, ok := lo.Find(nodeList.Items, func(n corev1.Node) bool {
 		return n.Spec.ProviderID == nodeClaim.Status.ProviderID
 	}); ok {
 		if err := c.kubeClient.Delete(ctx, &node); err != nil {
