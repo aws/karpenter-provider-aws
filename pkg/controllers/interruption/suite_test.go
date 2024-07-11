@@ -27,14 +27,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -100,16 +100,16 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("InterruptionHandling", func() {
-	var node *v1.Node
-	var nodeClaim *corev1beta1.NodeClaim
+	var node *corev1.Node
+	var nodeClaim *karpv1.NodeClaim
 	BeforeEach(func() {
-		nodeClaim, node = coretest.NodeClaimAndNode(corev1beta1.NodeClaim{
+		nodeClaim, node = coretest.NodeClaimAndNode(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
-					corev1beta1.NodePoolLabelKey: "default",
+					karpv1.NodePoolLabelKey: "default",
 				},
 			},
-			Status: corev1beta1.NodeClaimStatus{
+			Status: karpv1.NodeClaimStatus{
 				ProviderID: fake.RandomProviderID(),
 			},
 		})
@@ -134,17 +134,17 @@ var _ = Describe("InterruptionHandling", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 		})
 		It("should delete the NodeClaim when receiving a state change message", func() {
-			var nodeClaims []*corev1beta1.NodeClaim
+			var nodeClaims []*karpv1.NodeClaim
 			var messages []interface{}
 			for _, state := range []string{"terminated", "stopped", "stopping", "shutting-down"} {
 				instanceID := fake.InstanceID()
-				nc, n := coretest.NodeClaimAndNode(corev1beta1.NodeClaim{
+				nc, n := coretest.NodeClaimAndNode(karpv1.NodeClaim{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
-							corev1beta1.NodePoolLabelKey: "default",
+							karpv1.NodePoolLabelKey: "default",
 						},
 					},
-					Status: corev1beta1.NodeClaimStatus{
+					Status: karpv1.NodeClaimStatus{
 						ProviderID: fake.ProviderID(instanceID),
 					},
 				})
@@ -155,21 +155,21 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectMessagesCreated(messages...)
 			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
-			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) client.Object { return nc })...)
+			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *karpv1.NodeClaim, _ int) client.Object { return nc })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(4))
 		})
 		It("should handle multiple messages that cause nodeClaim deletion", func() {
-			var nodeClaims []*corev1beta1.NodeClaim
+			var nodeClaims []*karpv1.NodeClaim
 			var instanceIDs []string
 			for i := 0; i < 100; i++ {
 				instanceID := fake.InstanceID()
-				nc, n := coretest.NodeClaimAndNode(corev1beta1.NodeClaim{
+				nc, n := coretest.NodeClaimAndNode(karpv1.NodeClaim{
 					ObjectMeta: metav1.ObjectMeta{
 						Labels: map[string]string{
-							corev1beta1.NodePoolLabelKey: "default",
+							karpv1.NodePoolLabelKey: "default",
 						},
 					},
-					Status: corev1beta1.NodeClaimStatus{
+					Status: karpv1.NodeClaimStatus{
 						ProviderID: fake.ProviderID(instanceID),
 					},
 				})
@@ -185,7 +185,7 @@ var _ = Describe("InterruptionHandling", func() {
 			ExpectMessagesCreated(messages...)
 			ExpectSingletonReconciled(ctx, controller)
 			Expect(sqsapi.ReceiveMessageBehavior.SuccessfulCalls()).To(Equal(1))
-			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *corev1beta1.NodeClaim, _ int) client.Object { return nc })...)
+			ExpectNotFound(ctx, env.Client, lo.Map(nodeClaims, func(nc *karpv1.NodeClaim, _ int) client.Object { return nc })...)
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(100))
 		})
 		It("should delete a message when the message can't be parsed", func() {
@@ -214,9 +214,9 @@ var _ = Describe("InterruptionHandling", func() {
 		})
 		It("should mark the ICE cache for the offering when getting a spot interruption warning", func() {
 			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{
-				v1.LabelTopologyZone:             "coretest-zone-1a",
-				v1.LabelInstanceTypeStable:       "t3.large",
-				corev1beta1.CapacityTypeLabelKey: corev1beta1.CapacityTypeSpot,
+				corev1.LabelTopologyZone:             "coretest-zone-1a",
+				corev1.LabelInstanceTypeStable:       "t3.large",
+				karpv1.CapacityTypeLabelKey: karpv1.CapacityTypeSpot,
 			})
 			ExpectMessagesCreated(spotInterruptionMessage(lo.Must(utils.ParseInstanceID(nodeClaim.Status.ProviderID))))
 			ExpectApplied(ctx, env.Client, nodeClaim, node)
@@ -227,7 +227,7 @@ var _ = Describe("InterruptionHandling", func() {
 			Expect(sqsapi.DeleteMessageBehavior.SuccessfulCalls()).To(Equal(1))
 
 			// Expect a t3.large in coretest-zone-1a to be added to the ICE cache
-			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", corev1beta1.CapacityTypeSpot)).To(BeTrue())
+			Expect(unavailableOfferingsCache.IsUnavailable("t3.large", "coretest-zone-1a", karpv1.CapacityTypeSpot)).To(BeTrue())
 		})
 	})
 })
