@@ -48,6 +48,11 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 		nodeClass = env.DefaultEC2NodeClass()
 		nodePool = env.DefaultNodePool(nodeClass)
 		nodePool.Spec.Limits = nil
+		nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{
+			{
+				Nodes: "70%",
+			},
+		}
 		test.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
 			NodeSelectorRequirement: v1.NodeSelectorRequirement{
 				Key:      v1beta1.LabelInstanceHypervisor,
