@@ -19,7 +19,7 @@ limitations under the License.
 package v1beta1 // doc.go is discovered by codegen
 
 import (
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes/scheme"
 
@@ -28,7 +28,7 @@ import (
 
 func init() {
 	gv := schema.GroupVersion{Group: apis.Group, Version: "v1beta1"}
-	v1.AddToGroupVersion(scheme.Scheme, gv)
+	metav1.AddToGroupVersion(scheme.Scheme, gv)
 	scheme.Scheme.AddKnownTypes(gv,
 		&EC2NodeClass{},
 		&EC2NodeClassList{},
