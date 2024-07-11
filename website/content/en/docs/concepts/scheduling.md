@@ -162,7 +162,7 @@ Take care to ensure the label domains are correct. A well known label like `karp
 | karpenter.k8s.aws/instance-local-nvme                          | 900         | [AWS Specific] Number of gibibytes of local nvme storage on the instance                                                                                        |
 
 {{% alert title="Note" color="primary" %}}
-Karpenter translates the following deprecated labels to their stable equivalents: `failure-domain.beta.kubernetes.io/zone`, `failure-domain.beta.kubernetes.io/region`, `beta.kubernetes.io/arch`, `beta.kubernetes.io/os`, and `beta.kubernetes.io/instance-type`.
+Deprecated labels such as: `failure-domain.beta.kubernetes.io/zone`, `failure-domain.beta.kubernetes.io/region`, `beta.kubernetes.io/arch`, `beta.kubernetes.io/os`, and `beta.kubernetes.io/instance-type` should only be used with persistent volumes. Karpenter will translate these deprecated labels to their stable equivalents.
 {{% /alert %}}
 
 #### User-Defined Labels
