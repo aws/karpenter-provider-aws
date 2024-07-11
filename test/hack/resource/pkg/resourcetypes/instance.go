@@ -21,6 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
+	"go.uber.org/multierr"
 	"golang.org/x/exp/slices"
 )
 
@@ -120,12 +121,21 @@ func (i *Instance) Get(ctx context.Context, clusterName string) (ids []string, e
 
 // Cleanup any old instances that were managed by Karpenter or were provisioned as part of testing
 func (i *Instance) Cleanup(ctx context.Context, ids []string) ([]string, error) {
-	if _, err := i.ec2Client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
-		InstanceIds: ids,
-	}); err != nil {
-		return nil, err
+	// The maximum number of EC2 instances which can be specified in a single API call
+	const maxIDCount = 1000
+	chunkedIDs := lo.Chunk(ids, maxIDCount)
+	cleaned := make([]string, 0, len(ids))
+	errs := make([]error, 0, len(chunkedIDs))
+	for _, ids := range chunkedIDs {
+		if _, err := i.ec2Client.TerminateInstances(ctx, &ec2.TerminateInstancesInput{
+			InstanceIds: ids,
+		}); err != nil {
+			errs = append(errs, err)
+			continue
+		}
+		cleaned = append(cleaned, ids...)
 	}
-	return ids, nil
+	return cleaned, multierr.Combine(errs...)
 }
 
 func (i *Instance) getAllInstances(ctx context.Context, params *ec2.DescribeInstancesInput) (instances []ec2types.Instance, err error) {
