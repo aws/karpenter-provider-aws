@@ -44,6 +44,7 @@ func main() {
 
 	op.
 		WithControllers(ctx, corecontrollers.NewControllers(
+			op.Manager,
 			op.Clock,
 			op.GetClient(),
 			op.EventRecorder,
@@ -52,6 +53,7 @@ func main() {
 		WithWebhooks(ctx, corewebhooks.NewWebhooks()...).
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
+			op.Manager,
 			op.Session,
 			op.Clock,
 			op.GetClient(),

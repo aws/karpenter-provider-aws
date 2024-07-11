@@ -176,15 +176,16 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 	// Higher ordering comes first. If a value isn't designated here then the subsystem will be given a default of 0.
 	// Metrics without a subsystem come first since there is no designation for the bucket they fall under
 	subSystemSortOrder := map[string]int{
-		"":                100,
-		"nodepool":        10,
-		"nodeclaims":      9,
-		"nodes":           8,
-		"pods":            7,
-		"workqueue":       -1,
-		"client_go":       -1,
-		"aws_sdk_go":      -1,
-		"leader_election": -2,
+		"":                 100,
+		"nodepool":         10,
+		"nodeclaims":       9,
+		"nodes":            8,
+		"pods":             7,
+		"status_condition": -1,
+		"workqueue":        -1,
+		"client_go":        -1,
+		"aws_sdk_go":       -1,
+		"leader_election":  -2,
 	}
 
 	return func(i, j int) bool {
@@ -314,6 +315,8 @@ func getIdentMapping(identName string) (string, error) {
 		"metrics.Namespace": metrics.Namespace,
 		"Namespace":         metrics.Namespace,
 
+		"MetricNamespace":            "operator",
+		"MetricSubsystem":            "status_condition",
 		"WorkQueueSubsystem":         "workqueue",
 		"DepthKey":                   "depth",
 		"AddsKey":                    "adds_total",
