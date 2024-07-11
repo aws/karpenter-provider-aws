@@ -16,7 +16,7 @@ custom-node-label = 'custom'
 [settings.kubernetes.node-taints]
 baz = ['bin:NoExecute']
 foo = ['bar:NoExecute']
-'karpenter.sh/unregistered' = ['NoExecute']
+'karpenter.sh/unregistered' = [':NoExecute']
 
 [settings.kubernetes.eviction-hard]
 'memory.available' = '12%%'
