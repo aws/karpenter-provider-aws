@@ -43,6 +43,10 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev
 	if drifted := c.areStaticFieldsDrifted(nodeClaim, nodeClass); drifted != "" {
 		return drifted, nil
 	}
+	kubeletDrifted, err := c.isKubeletConfigurationDrifted(nodeClaim, nodeClass, nodePool)
+	if err != nil {
+		return "", err
+	}
 	instance, err := c.getInstance(ctx, nodeClaim.Status.ProviderID)
 	if err != nil {
 		return "", err
@@ -59,7 +63,7 @@ func (c *CloudProvider) isNodeClassDrifted(ctx context.Context, nodeClaim *corev
 	if err != nil {
 		return "", fmt.Errorf("calculating subnet drift, %w", err)
 	}
-	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted}, "", func(i cloudprovider.DriftReason) bool {
+	drifted := lo.FindOrElse([]cloudprovider.DriftReason{amiDrifted, securitygroupDrifted, subnetDrifted, kubeletDrifted}, "", func(i cloudprovider.DriftReason) bool {
 		return string(i) != ""
 	})
 	return drifted, nil
@@ -133,6 +137,27 @@ func (c *CloudProvider) areStaticFieldsDrifted(nodeClaim *corev1.NodeClaim, node
 		return ""
 	}
 	return lo.Ternary(nodeClassHash != nodeClaimHash, NodeClassDrift, "")
+}
+
+// Remove once v1beta1 is dropped
+func (c *CloudProvider) isKubeletConfigurationDrifted(nodeClaim *corev1.NodeClaim, nodeClass *providerv1.EC2NodeClass, nodePool *corev1.NodePool) (cloudprovider.DriftReason, error) {
+	kubeletHash, err := utils.GetHashKubelet(nodePool.Annotations[corev1.KubeletCompatabilityAnnotationKey], nodeClass)
+	if err != nil {
+		return "", err
+	}
+	nodeClaimKubeletHash, foundNodeClaimKubeletHash := nodeClaim.Annotations[providerv1.AnnotationKubeletHash]
+	nodeClassHashVersion, foundNodeClassHashVersion := nodeClass.Annotations[providerv1.AnnotationEC2NodeClassHashVersion]
+	nodeClaimHashVersion, foundNodeClaimHashVersion := nodeClaim.Annotations[providerv1.AnnotationEC2NodeClassHashVersion]
+
+	if !foundNodeClaimKubeletHash || !foundNodeClaimHashVersion || !foundNodeClassHashVersion {
+		return "", nil
+	}
+
+	// validate that the hash version for the EC2NodeClass is the same as the NodeClaim before evaluating for static drift
+	if nodeClassHashVersion != nodeClaimHashVersion {
+		return "", nil
+	}
+	return lo.Ternary(kubeletHash != nodeClaimKubeletHash, cloudprovider.DriftReason("KubeletDrifted"), ""), nil
 }
 
 func (c *CloudProvider) getInstance(ctx context.Context, providerID string) (*instance.Instance, error) {

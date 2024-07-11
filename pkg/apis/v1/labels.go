@@ -119,6 +119,7 @@ var (
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	AnnotationEC2NodeClassHash                = apis.Group + "/ec2nodeclass-hash"
+	AnnotationKubeletHash                     = apis.Group + "/kubelet-drift-hash"
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
 

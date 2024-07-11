@@ -31,6 +31,7 @@ import (
 	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	providerv1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
 type Controller struct {
@@ -93,6 +94,15 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *provide
 		nc := ncList.Items[i]
 		stored := nc.DeepCopy()
 
+		nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, &nc)
+		if err != nil {
+			return err
+		}
+		kubeletHash, err := utils.GetHashKubelet(nodePool.Annotations[corev1.KubeletCompatabilityAnnotationKey], nodeClass)
+		if err != nil {
+			return err
+		}
+
 		if nc.Annotations[providerv1.AnnotationEC2NodeClassHashVersion] != providerv1.EC2NodeClassHashVersion {
 			nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 				providerv1.AnnotationEC2NodeClassHashVersion: providerv1.EC2NodeClassHashVersion,
@@ -103,6 +113,7 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *provide
 			if nc.StatusConditions().Get(corev1.ConditionTypeDrifted) == nil {
 				nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 					providerv1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
+					providerv1.AnnotationKubeletHash:      kubeletHash,
 				})
 			}
 

@@ -92,7 +92,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod",rule="has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true"
 	// +kubebuilder:validation:XValidation:message="evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft",rule="has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true"
 	// +optional
-	Kubelet *KubeletConfiguration `json:"kubelet,omitempty"`
+	Kubelet *KubeletConfiguration `json:"kubelet,omitempty" hash:"ignore"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
 	// +kubebuilder:validation:MaxItems:=50
@@ -416,7 +416,7 @@ type EC2NodeClass struct {
 // 1. A field changes its default value for an existing field that is already hashed
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
-const EC2NodeClassHashVersion = "v2"
+const EC2NodeClassHashVersion = "v3"
 
 func (in *EC2NodeClass) Hash() string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash(in.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{

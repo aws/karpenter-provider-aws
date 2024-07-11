@@ -15,12 +15,21 @@ limitations under the License.
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	coreapis "sigs.k8s.io/karpenter/pkg/apis"
+	corev1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	"github.com/mitchellh/hashstructure/v2"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
@@ -87,6 +96,29 @@ func GetKubelet(kubeletAnnotation string, enc *v1.EC2NodeClass) (*v1.KubeletConf
 	}
 
 	return enc.Spec.Kubelet, nil
+}
+
+func GetHashKubelet(kubeletAnnotation string, enc *v1.EC2NodeClass) (string, error) {
+	kubelet, err := GetKubelet(kubeletAnnotation, enc)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprint(lo.Must(hashstructure.Hash(kubelet, hashstructure.FormatV2, &hashstructure.HashOptions{
+		SlicesAsSets:    true,
+		IgnoreZeroValue: true,
+		ZeroNil:         true,
+	}))), nil
+}
+
+func ResolveNodePoolFromNodeClaim(ctx context.Context, kubeClient client.Client, nodeClaim *corev1.NodeClaim) (*corev1.NodePool, error) {
+	if nodePoolName, ok := nodeClaim.Labels[corev1.NodePoolLabelKey]; ok {
+		nodePool := &corev1.NodePool{}
+		if err := kubeClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool); err != nil {
+			return nil, err
+		}
+		return nodePool, nil
+	}
+	return nil, errors.NewNotFound(schema.GroupResource{Group: coreapis.Group, Resource: "nodepools"}, "")
 }
 
 func updateKubeletType(kubelet *v1beta1.KubeletConfiguration) *v1.KubeletConfiguration {
