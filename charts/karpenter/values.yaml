@@ -27,8 +27,8 @@ serviceMonitor:
   enabled: false
   # -- Additional labels for the ServiceMonitor.
   additionalLabels: {}
-  # -- Configuration on `http-metrics` endpoint for the ServiceMonitor. 
-  # Not to be used to add additional endpoints. 
+  # -- Configuration on `http-metrics` endpoint for the ServiceMonitor.
+  # Not to be used to add additional endpoints.
   # See the Prometheus operator documentation for configurable fields https://github.com/prometheus-operator/prometheus-operator/blob/main/Documentation/api.md#endpoint
   endpointConfig: {}
 # -- Number of replicas.
@@ -138,8 +138,6 @@ controller:
     # -- The container port to use for http health probe.
     port: 8081
 webhook:
-  # -- Whether to enable the webhooks and webhook permissions.
-  enabled: false
   # -- The container port to use for the webhook.
   port: 8443
   metrics:
