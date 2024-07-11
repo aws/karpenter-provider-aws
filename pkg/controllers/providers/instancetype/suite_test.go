@@ -21,7 +21,6 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	corev1 "k8s.io/api/core/v1"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
