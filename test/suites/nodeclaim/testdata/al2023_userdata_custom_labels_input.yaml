@@ -10,6 +10,8 @@ spec:
     config:
       clusterDNS:
       - 10.0.100.10
+      registerWithTaints:
+      - key: karpenter.sh/unregistered
+        effect: NoExecute
     flags:
     - --node-labels="testing/cluster=unspecified,custom-label=custom-value,custom-label2=custom-value2"
-    - --register-with-taints="karpenter.sh/unregistered:NoExecute"
