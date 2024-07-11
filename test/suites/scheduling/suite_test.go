@@ -452,6 +452,8 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 					Template: corev1.NodeClaimTemplate{
 						Spec: corev1.NodeClaimSpec{
 							NodeClassRef: &corev1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind: object.GVK(nodeClass).Kind,
 								Name: nodeClass.Name,
 							},
 							Requirements: []corev1.NodeSelectorRequirementWithMinValues{
