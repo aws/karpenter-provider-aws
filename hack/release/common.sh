@@ -89,7 +89,7 @@ publishHelmChart() {
 
   helm_schema_input_file_name="values.yaml"
   helm_schema_output_file_name="values.schema.json"
-  helm_schema_skip_auto_generation="title,description,required,default,additionalProperties"
+  helm_schema_skip_auto_generation="title,description,required"
 
   yq e -i ".appVersion = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
   yq e -i ".version = \"${version}\"" "charts/${helm_chart}/Chart.yaml"
