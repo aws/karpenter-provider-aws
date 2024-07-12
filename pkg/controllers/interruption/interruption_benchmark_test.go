@@ -272,7 +272,7 @@ func makeScheduledChangeMessagesAndNodes(count int) ([]interface{}, []*corev1.No
 		instanceID := fake.InstanceID()
 		msgs = append(msgs, scheduledChangeMessage(instanceID))
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
-			ObjectMeta: metacorev1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					karpv1.NodePoolLabelKey: "default",
 				},
@@ -291,7 +291,7 @@ func makeStateChangeMessagesAndNodes(count int, states []string) ([]interface{},
 		instanceID := fake.InstanceID()
 		msgs = append(msgs, stateChangeMessage(instanceID, state))
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
-			ObjectMeta: metacorev1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					karpv1.NodePoolLabelKey: "default",
 				},
@@ -309,7 +309,7 @@ func makeSpotInterruptionMessagesAndNodes(count int) ([]interface{}, []*corev1.N
 		instanceID := fake.InstanceID()
 		msgs = append(msgs, spotInterruptionMessage(instanceID))
 		nodes = append(nodes, coretest.Node(coretest.NodeOptions{
-			ObjectMeta: metacorev1.ObjectMeta{
+			ObjectMeta: metav1.ObjectMeta{
 				Labels: map[string]string{
 					karpv1.NodePoolLabelKey: "default",
 				},
