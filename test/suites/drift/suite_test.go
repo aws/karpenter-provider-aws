@@ -617,8 +617,8 @@ var _ = Describe("Drift", func() {
 				// since this will overwrite the default requirements, add instance category and family selectors back into requirements
 				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"c", "m", "r"}}},
-					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.LabelInstanceFamily, Operator: corev1.NodeSelectorOpNotIn, Values: []string{"a1"}}},
+					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.LabelInstanceCategory, Operator: corev1.NodeSelectorOpIn, Values: []string{"c", "m", "r"}}},
+					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: v1.LabelInstanceFamily, Operator: corev1.NodeSelectorOpNotIn, Values: []string{"a1"}}},
 				},
 			},
 		}),
