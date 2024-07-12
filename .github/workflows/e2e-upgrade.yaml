@@ -98,6 +98,9 @@ jobs:
           ecr_region: ${{ vars.SNAPSHOT_REGION }}
           prometheus_workspace_id: ${{ vars.WORKSPACE_ID }}
           prometheus_region: ${{ vars.PROMETHEUS_REGION }}
+      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
+        with:
+          ref: ${{ inputs.to_git_ref }}
       - name: upgrade crds
         uses: ./.github/actions/e2e/upgrade-crds
         with:
@@ -106,9 +109,6 @@ jobs:
           region: ${{ inputs.region }}
           cluster_name: ${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}
           git_ref: ${{ inputs.to_git_ref }}
-      - uses: actions/checkout@9bb56186c3b09b4f86b1c65136769dd318469633 # v4.1.2
-        with:
-          ref: ${{ inputs.to_git_ref }}
       - name: upgrade eks cluster '${{ steps.generate-cluster-name.outputs.CLUSTER_NAME }}'
         uses: ./.github/actions/e2e/setup-cluster
         with:
