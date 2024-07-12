@@ -101,6 +101,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				},
 			},
 		}...)
+		nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{
+			{
+				Nodes: "70%",
+			},
+		}
 		deploymentOptions = test.DeploymentOptions{
 			PodOptions: test.PodOptions{
 				ResourceRequirements: v1.ResourceRequirements{
@@ -297,6 +302,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("enabling deprovisioning across nodePools")
 				for _, p := range nodePoolMap {
+					p.Spec.Disruption.Budgets = []corev1beta1.Budget{
+						{
+							Nodes: "70%",
+						},
+					}
 					env.ExpectCreatedOrUpdated(p)
 				}
 				env.ExpectUpdated(driftNodeClass)
