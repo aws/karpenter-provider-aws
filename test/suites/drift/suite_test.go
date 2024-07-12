@@ -547,6 +547,8 @@ var _ = Describe("Drift", func() {
 								Kind:       object.GVK(nodeClass).Kind,
 								Name:       nodeClass.Name,
 							},
+							// keep the same instance type requirements to prevent considering instance types that require swap
+							Requirements: nodePool.Spec.Template.Spec.Requirements,
 						},
 					},
 				},
@@ -620,7 +622,12 @@ var _ = Describe("Drift", func() {
 		}),
 		Entry("NodeRequirements", corev1beta1.NodeClaimTemplate{
 			Spec: corev1beta1.NodeClaimSpec{
-				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot}}}},
+				// since this will overwrite the default requirements, add instance category and family selectors back into requirements
+				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeSpot}}},
+					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceCategory, Operator: v1.NodeSelectorOpIn, Values: []string{"c", "m", "r"}}},
+					{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: v1beta1.LabelInstanceFamily, Operator: v1.NodeSelectorOpNotIn, Values: []string{"a1"}}},
+				},
 			},
 		}),
 	)
