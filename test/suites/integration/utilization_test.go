@@ -17,17 +17,17 @@ package integration_test
 import (
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/labels"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -36,26 +36,26 @@ import (
 var _ = Describe("Utilization", Label(debug.NoWatch), Label(debug.NoEvents), func() {
 	It("should provision one pod per node", func() {
 		test.ReplaceRequirements(nodePool,
-			corev1beta1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpIn,
+			karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{"t3.small"},
 				},
 			},
-			corev1beta1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCategory,
-					Operator: v1.NodeSelectorOpExists,
+			karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceCategory,
+					Operator: corev1.NodeSelectorOpExists,
 				},
 			},
 		)
 		deployment := test.Deployment(test.DeploymentOptions{
 			Replicas: 100,
 			PodOptions: test.PodOptions{
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{
-						v1.ResourceCPU: func() resource.Quantity {
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						corev1.ResourceCPU: func() resource.Quantity {
 							dsOverhead := env.GetDaemonSetOverhead(nodePool)
 							base := lo.ToPtr(resource.MustParse("1800m"))
 							base.Sub(*dsOverhead.Cpu())
