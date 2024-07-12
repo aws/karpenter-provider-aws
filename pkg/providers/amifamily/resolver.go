@@ -214,7 +214,6 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *k
 	if kubeletConfig == nil {
 		kubeletConfig = &v1.KubeletConfiguration{}
 	}
-	fmt.Printf("resolved kubelet config with maxPods %d\n", lo.FromPtr(kubeletConfig.MaxPods))
 	if kubeletConfig.MaxPods == nil {
 		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
 	}

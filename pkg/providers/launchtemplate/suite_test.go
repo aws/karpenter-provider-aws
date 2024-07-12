@@ -127,9 +127,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(
 			v1.EC2NodeClass{
-				// Spec: v1.EC2NodeClassSpec{
-				// 	Kubelet: &v1.KubeletConfiguration{},
-				// },
 				Status: v1.EC2NodeClassStatus{
 					InstanceProfile: "test-profile",
 					SecurityGroups: []v1.SecurityGroup{

@@ -94,7 +94,7 @@ func parseKubeletConfiguration(annotation string) (*v1.KubeletConfiguration, err
 	kubelet := &karpv1beta1.KubeletConfiguration{}
 	err := json.Unmarshal([]byte(annotation), kubelet)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("parsing kubelet config from %s annotation, %w", karpv1.KubeletCompatabilityAnnotationKey, err)
 	}
 	return &v1.KubeletConfiguration{
 		ClusterDNS:                  kubelet.ClusterDNS,
