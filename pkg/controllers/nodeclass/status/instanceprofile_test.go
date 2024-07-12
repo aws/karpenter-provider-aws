@@ -19,7 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/samber/lo"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
@@ -45,7 +45,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 	It("should add the role to the instance profile when it exists without a role", func() {
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
@@ -65,7 +65,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 	It("should update the role for the instance profile when the wrong role exists", func() {
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
@@ -90,7 +90,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(profileName))
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 	It("should not call CreateInstanceProfile or AddRoleToInstanceProfile when instance profile exists with correct role", func() {
 		awsEnv.IAMAPI.InstanceProfiles = map[string]*iam.InstanceProfile{
@@ -116,7 +116,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 	It("should resolve the specified instance profile into the status when using instanceProfile field", func() {
 		nodeClass.Spec.Role = ""
@@ -126,7 +126,7 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		Expect(nodeClass.Status.InstanceProfile).To(Equal(lo.FromPtr(nodeClass.Spec.InstanceProfile)))
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 	It("should not call the the IAM API when specifying an instance profile", func() {
 		nodeClass.Spec.Role = ""
@@ -137,6 +137,6 @@ var _ = Describe("NodeClass InstanceProfile Status Controller", func() {
 		Expect(awsEnv.IAMAPI.CreateInstanceProfileBehavior.Calls()).To(BeZero())
 		Expect(awsEnv.IAMAPI.AddRoleToInstanceProfileBehavior.Calls()).To(BeZero())
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.StatusConditions().IsTrue(v1beta1.ConditionTypeInstanceProfileReady)).To(BeTrue())
+		Expect(nodeClass.StatusConditions().IsTrue(v1.ConditionTypeInstanceProfileReady)).To(BeTrue())
 	})
 })

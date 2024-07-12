@@ -25,7 +25,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
@@ -33,13 +33,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -103,10 +103,10 @@ func main() {
 		log.Fatalf("updating instance types offerings, %s", err)
 	}
 	// Fake a NodeClass so we can use it to get InstanceTypes
-	nodeClass := &v1beta1.EC2NodeClass{
-		Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily: &v1beta1.AMIFamilyAL2023,
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+	nodeClass := &v1.EC2NodeClass{
+		Spec: v1.EC2NodeClassSpec{
+			AMIFamily: &v1.AMIFamilyAL2023,
+			SubnetSelectorTerms: []v1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{
 						"*": "*",
@@ -119,13 +119,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("listing subnets, %s", err)
 	}
-	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1beta1.Subnet {
-		return v1beta1.Subnet{
+	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
+		return v1.Subnet{
 			ID:   *ec2subnet.SubnetId,
 			Zone: *ec2subnet.AvailabilityZone,
 		}
 	})
-	instanceTypes, err := op.InstanceTypesProvider.List(ctx, &corev1beta1.KubeletConfiguration{}, nodeClass)
+	instanceTypes, err := op.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, nodeClass)
 	if err != nil {
 		log.Fatalf("listing instance types, %s", err)
 	}
@@ -171,9 +171,9 @@ below are the resources available with some assumptions and after the instance o
 	sort.Strings(familyNames)
 
 	// we don't want to show a few labels that will vary amongst regions
-	delete(labelNameMap, v1.LabelTopologyZone)
-	delete(labelNameMap, v1beta1.LabelTopologyZoneID)
-	delete(labelNameMap, corev1beta1.CapacityTypeLabelKey)
+	delete(labelNameMap, corev1.LabelTopologyZone)
+	delete(labelNameMap, v1.LabelTopologyZoneID)
+	delete(labelNameMap, karpv1.CapacityTypeLabelKey)
 
 	labelNames := lo.Keys(labelNameMap)
 
@@ -210,7 +210,7 @@ below are the resources available with some assumptions and after the instance o
 				if !ok {
 					continue
 				}
-				if req.Key == v1.LabelTopologyRegion {
+				if req.Key == corev1.LabelTopologyRegion {
 					continue
 				}
 				if len(req.Values()) == 1 {
@@ -221,11 +221,11 @@ below are the resources available with some assumptions and after the instance o
 			fmt.Fprintln(f, " | Resource | Quantity |")
 			fmt.Fprintln(f, " |--|--|")
 			for _, resourceName := range resourceNames {
-				quantity := minusOverhead[v1.ResourceName(resourceName)]
+				quantity := minusOverhead[corev1.ResourceName(resourceName)]
 				if quantity.IsZero() {
 					continue
 				}
-				if v1.ResourceName(resourceName) == v1.ResourceEphemeralStorage {
+				if corev1.ResourceName(resourceName) == corev1.ResourceEphemeralStorage {
 					i64, _ := quantity.AsInt64()
 					quantity = *resource.NewQuantity(i64, resource.BinarySI)
 				}

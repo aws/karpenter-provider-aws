@@ -17,18 +17,18 @@ package termination
 import (
 	"fmt"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"sigs.k8s.io/karpenter/pkg/events"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 )
 
-func WaitingOnNodeClaimTerminationEvent(nodeClass *v1beta1.EC2NodeClass, names []string) events.Event {
+func WaitingOnNodeClaimTerminationEvent(nodeClass *v1.EC2NodeClass, names []string) events.Event {
 	return events.Event{
 		InvolvedObject: nodeClass,
-		Type:           v1.EventTypeNormal,
+		Type:           corev1.EventTypeNormal,
 		Reason:         "WaitingOnNodeClaimTermination",
 		Message:        fmt.Sprintf("Waiting on NodeClaim termination for %s", utils.PrettySlice(names, 5)),
 		DedupeValues:   []string{string(nodeClass.UID)},

@@ -19,7 +19,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,10 +27,10 @@ import (
 
 var _ = Describe("BlockDeviceMappings", func() {
 	It("should use specified block device mappings", func() {
-		nodeClass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{
+		nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 			{
 				DeviceName: aws.String("/dev/xvda"),
-				EBS: &v1beta1.BlockDevice{
+				EBS: &v1.BlockDevice{
 					VolumeSize:          resources.Quantity("20Gi"),
 					VolumeType:          aws.String("io2"),
 					IOPS:                aws.Int64(1000),

@@ -21,7 +21,7 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 )
 
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
@@ -318,7 +318,6 @@ const (
 
 // EC2NodeClass is the Schema for the EC2NodeClass API
 // +kubebuilder:object:root=true
-// +kubebuilder:storageversion
 // +kubebuilder:resource:path=ec2nodeclasses,scope=Cluster,categories=karpenter,shortName={ec2nc,ec2ncs}
 // +kubebuilder:subresource:status
 type EC2NodeClass struct {
@@ -357,7 +356,7 @@ func (in *EC2NodeClass) InstanceProfileRole() string {
 func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]string {
 	return lo.Assign(in.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
-		corev1beta1.ManagedByAnnotationKey:                   clusterName,
+		karpv1beta1.ManagedByAnnotationKey:                   clusterName,
 		LabelNodeClass:                                       in.Name,
 	})
 }

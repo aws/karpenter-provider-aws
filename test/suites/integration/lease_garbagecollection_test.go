@@ -18,7 +18,7 @@ import (
 	"time"
 
 	coordinationsv1 "k8s.io/api/coordination/v1"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
@@ -29,8 +29,8 @@ var _ = Describe("Lease Garbage Collection", func() {
 	var badLease *coordinationsv1.Lease
 	BeforeEach(func() {
 		badLease = &coordinationsv1.Lease{
-			ObjectMeta: v1.ObjectMeta{
-				CreationTimestamp: v1.Time{Time: time.Now().Add(-time.Hour * 2)},
+			ObjectMeta: metav1.ObjectMeta{
+				CreationTimestamp: metav1.Time{Time: time.Now().Add(-time.Hour * 2)},
 				Name:              "new-lease",
 				Namespace:         "kube-node-lease",
 				Labels:            map[string]string{test.DiscoveryLabel: "unspecified"},
