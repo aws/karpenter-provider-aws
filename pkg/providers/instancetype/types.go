@@ -199,12 +199,12 @@ func computeCapacity(ctx context.Context, info *ec2.InstanceTypeInfo, amiFamily 
 		corev1.ResourceMemory:           *memory(ctx, info),
 		corev1.ResourceEphemeralStorage: *ephemeralStorage(info, amiFamily, blockDeviceMapping, instanceStorePolicy),
 		corev1.ResourcePods:             *pods(ctx, info, amiFamily, maxPods, podsPerCore),
-		v1.ResourceAWSPodENI:   *awsPodENI(aws.StringValue(info.InstanceType)),
-		v1.ResourceNVIDIAGPU:   *nvidiaGPUs(info),
-		v1.ResourceAMDGPU:      *amdGPUs(info),
-		v1.ResourceAWSNeuron:   *awsNeurons(info),
-		v1.ResourceHabanaGaudi: *habanaGaudis(info),
-		v1.ResourceEFA:         *efas(info),
+		v1.ResourceAWSPodENI:            *awsPodENI(aws.StringValue(info.InstanceType)),
+		v1.ResourceNVIDIAGPU:            *nvidiaGPUs(info),
+		v1.ResourceAMDGPU:               *amdGPUs(info),
+		v1.ResourceAWSNeuron:            *awsNeurons(info),
+		v1.ResourceHabanaGaudi:          *habanaGaudis(info),
+		v1.ResourceEFA:                  *efas(info),
 	}
 	return resourceList
 }

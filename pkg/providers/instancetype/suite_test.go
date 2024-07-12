@@ -37,6 +37,7 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
@@ -217,13 +218,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 		nodeSelector := map[string]string{
 			// Well known
-			karpv1.NodePoolLabelKey:     nodePool.Name,
-			corev1.LabelTopologyRegion:           fake.DefaultRegion,
-			corev1.LabelTopologyZone:             "test-zone-1a",
-			corev1.LabelInstanceTypeStable:       "g4dn.8xlarge",
-			corev1.LabelOSStable:                 "linux",
-			corev1.LabelArchStable:               "amd64",
-			karpv1.CapacityTypeLabelKey: "on-demand",
+			karpv1.NodePoolLabelKey:        nodePool.Name,
+			corev1.LabelTopologyRegion:     fake.DefaultRegion,
+			corev1.LabelTopologyZone:       "test-zone-1a",
+			corev1.LabelInstanceTypeStable: "g4dn.8xlarge",
+			corev1.LabelOSStable:           "linux",
+			corev1.LabelArchStable:         "amd64",
+			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
@@ -248,10 +249,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			corev1.LabelFailureDomainBetaZone:   "test-zone-1a",
-			"beta.kubernetes.io/arch":       "amd64",
-			"beta.kubernetes.io/os":         "linux",
+			"beta.kubernetes.io/arch":           "amd64",
+			"beta.kubernetes.io/os":             "linux",
 			corev1.LabelInstanceType:            "g4dn.8xlarge",
-			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
+			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 			corev1.LabelWindowsBuild:            v1.Windows2022Build,
 		}
 
@@ -272,13 +273,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 		nodeSelector := map[string]string{
 			// Well known
-			karpv1.NodePoolLabelKey:     nodePool.Name,
-			corev1.LabelTopologyRegion:           fake.DefaultRegion,
-			corev1.LabelTopologyZone:             "test-zone-1a",
-			corev1.LabelInstanceTypeStable:       "g4dn.8xlarge",
-			corev1.LabelOSStable:                 "linux",
-			corev1.LabelArchStable:               "amd64",
-			karpv1.CapacityTypeLabelKey: "on-demand",
+			karpv1.NodePoolLabelKey:        nodePool.Name,
+			corev1.LabelTopologyRegion:     fake.DefaultRegion,
+			corev1.LabelTopologyZone:       "test-zone-1a",
+			corev1.LabelInstanceTypeStable: "g4dn.8xlarge",
+			corev1.LabelOSStable:           "linux",
+			corev1.LabelArchStable:         "amd64",
+			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
@@ -300,10 +301,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			corev1.LabelFailureDomainBetaZone:   "test-zone-1a",
-			"beta.kubernetes.io/arch":       "amd64",
-			"beta.kubernetes.io/os":         "linux",
+			"beta.kubernetes.io/arch":           "amd64",
+			"beta.kubernetes.io/os":             "linux",
 			corev1.LabelInstanceType:            "g4dn.8xlarge",
-			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
+			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
 		// Ensure that we're exercising all well known labels except for accelerator labels
@@ -325,13 +326,13 @@ var _ = Describe("InstanceTypeProvider", func() {
 
 		nodeSelector := map[string]string{
 			// Well known
-			karpv1.NodePoolLabelKey:     nodePool.Name,
-			corev1.LabelTopologyRegion:           fake.DefaultRegion,
-			corev1.LabelTopologyZone:             "test-zone-1a",
-			corev1.LabelInstanceTypeStable:       "inf1.2xlarge",
-			corev1.LabelOSStable:                 "linux",
-			corev1.LabelArchStable:               "amd64",
-			karpv1.CapacityTypeLabelKey: "on-demand",
+			karpv1.NodePoolLabelKey:        nodePool.Name,
+			corev1.LabelTopologyRegion:     fake.DefaultRegion,
+			corev1.LabelTopologyZone:       "test-zone-1a",
+			corev1.LabelInstanceTypeStable: "inf1.2xlarge",
+			corev1.LabelOSStable:           "linux",
+			corev1.LabelArchStable:         "amd64",
+			karpv1.CapacityTypeLabelKey:    "on-demand",
 			// Well Known to AWS
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
@@ -351,10 +352,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			corev1.LabelFailureDomainBetaZone:   "test-zone-1a",
-			"beta.kubernetes.io/arch":       "amd64",
-			"beta.kubernetes.io/os":         "linux",
+			"beta.kubernetes.io/arch":           "amd64",
+			"beta.kubernetes.io/os":             "linux",
 			corev1.LabelInstanceType:            "inf1.2xlarge",
-			"topology.ebs.csi.aws.com/zone": "test-zone-1a",
+			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
 		// Ensure that we're exercising all well known labels except for gpu labels and nvme
@@ -907,6 +908,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should not set pods to 110 if using ENI-based pod density", func() {
 		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
+		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
@@ -929,7 +931,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 	It("should set pods to 110 if AMI Family doesn't support", func() {
 		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
-
+		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
 			amiFamily := amifamily.GetAMIFamily(windowsNodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
@@ -1051,6 +1053,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Context("System Reserved Resources", func() {
 			It("should use defaults when no kubelet is specified", func() {
 				amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 				it := instancetype.NewInstanceType(ctx,
 					info,
 					fake.DefaultRegion,
@@ -1522,6 +1525,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		It("should default max pods based off of network interfaces", func() {
 			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			for _, info := range instanceInfo.InstanceTypes {
 				if *info.InstanceType == "t3.large" {
 					amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
@@ -1623,6 +1627,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			Expect(ok).To(Equal(true))
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			it := instancetype.NewInstanceType(ctx,
 				t3Large,
 				fake.DefaultRegion,
@@ -1657,6 +1662,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 			Expect(ok).To(Equal(true))
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			it := instancetype.NewInstanceType(ctx,
 				t3Large,
 				fake.DefaultRegion,
@@ -2088,7 +2094,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 							},
 							NodeSelector: map[string]string{
 								karpv1.CapacityTypeLabelKey: ct,
-								corev1.LabelTopologyZone:             zone,
+								corev1.LabelTopologyZone:    zone,
 							},
 						}))
 				}
@@ -2319,7 +2325,10 @@ var _ = Describe("InstanceTypeProvider", func() {
 				SystemReserved: map[string]string{string(corev1.ResourceCPU): "1"},
 				EvictionHard:   map[string]string{"memory.available": "5%"},
 				EvictionSoft:   map[string]string{"nodefs.available": "10%"},
-				MaxPods:        aws.Int32(10),
+				EvictionSoftGracePeriod: map[string]metav1.Duration{
+					"nodefs.available": {Duration: time.Minute},
+				},
+				MaxPods: aws.Int32(10),
 			}
 			kubeletChanges := []*v1.KubeletConfiguration{
 				{}, // Testing the base case black EC2NodeClass

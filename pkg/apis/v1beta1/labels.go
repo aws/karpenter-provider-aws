@@ -56,7 +56,7 @@ func init() {
 var (
 	TerminationFinalizer   = apis.Group + "/termination"
 	AWSToKubeArchitectures = map[string]string{
-		"x86_64":                  karpv1beta1.ArchitectureAmd64,
+		"x86_64":                      karpv1beta1.ArchitectureAmd64,
 		karpv1beta1.ArchitectureArm64: karpv1beta1.ArchitectureArm64,
 	}
 	WellKnownArchitectures = sets.NewString(
@@ -75,18 +75,18 @@ var (
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(LabelNodeClass))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
 	}
-	AMIFamilyBottlerocket                      = "Bottlerocket"
-	AMIFamilyAL2                               = "AL2"
-	AMIFamilyAL2023                            = "AL2023"
-	AMIFamilyUbuntu                            = "Ubuntu"
-	AMIFamilyWindows2019                       = "Windows2019"
-	AMIFamilyWindows2022                       = "Windows2022"
-	AMIFamilyCustom                            = "Custom"
-	Windows2019                                = "2019"
-	Windows2022                                = "2022"
-	WindowsCore                                = "Core"
-	Windows2019Build                           = "10.0.17763"
-	Windows2022Build                           = "10.0.20348"
+	AMIFamilyBottlerocket                          = "Bottlerocket"
+	AMIFamilyAL2                                   = "AL2"
+	AMIFamilyAL2023                                = "AL2023"
+	AMIFamilyUbuntu                                = "Ubuntu"
+	AMIFamilyWindows2019                           = "Windows2019"
+	AMIFamilyWindows2022                           = "Windows2022"
+	AMIFamilyCustom                                = "Custom"
+	Windows2019                                    = "2019"
+	Windows2022                                    = "2022"
+	WindowsCore                                    = "Core"
+	Windows2019Build                               = "10.0.17763"
+	Windows2022Build                               = "10.0.20348"
 	ResourceNVIDIAGPU          corev1.ResourceName = "nvidia.com/gpu"
 	ResourceAMDGPU             corev1.ResourceName = "amd.com/gpu"
 	ResourceAWSNeuron          corev1.ResourceName = "aws.amazon.com/neuron"

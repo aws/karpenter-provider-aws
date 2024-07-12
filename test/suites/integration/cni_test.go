@@ -19,12 +19,13 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 )

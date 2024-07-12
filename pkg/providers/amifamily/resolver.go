@@ -20,7 +20,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -208,14 +207,14 @@ func (r Resolver) defaultClusterDNS(opts *Options, kubeletConfig *v1.KubeletConf
 
 func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string,
 	amiFamily AMIFamily, amiID string, maxPods int, efaCount int, options *Options) (*LaunchTemplate, error) {
-	kubeletConfig := &v1.KubeletConfiguration{}
-	if kc, err := utils.GetKubeletConfigurationWithNodeClaim(nodeClaim, nodeClass); err != nil {
+	kubeletConfig, err := utils.GetKubeletConfigurationWithNodeClaim(nodeClaim, nodeClass)
+	if err != nil {
 		return nil, fmt.Errorf("resolving kubelet configuration, %w", err)
-	} else if kc != nil {
-		if err := mergo.Merge(kubeletConfig, kc); err != nil {
-			return nil, err
-		}
 	}
+	if kubeletConfig == nil {
+		kubeletConfig = &v1.KubeletConfiguration{}
+	}
+	fmt.Printf("resolved kubelet config with maxPods %d\n", lo.FromPtr(kubeletConfig.MaxPods))
 	if kubeletConfig.MaxPods == nil {
 		kubeletConfig.MaxPods = lo.ToPtr(int32(maxPods))
 	}

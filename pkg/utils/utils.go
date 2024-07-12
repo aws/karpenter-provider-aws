@@ -22,10 +22,11 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/samber/lo"
-	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 var (

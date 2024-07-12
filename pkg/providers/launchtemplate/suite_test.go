@@ -127,6 +127,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(
 			v1.EC2NodeClass{
+				// Spec: v1.EC2NodeClassSpec{
+				// 	Kubelet: &v1.KubeletConfiguration{},
+				// },
 				Status: v1.EC2NodeClassStatus{
 					InstanceProfile: "test-profile",
 					SecurityGroups: []v1.SecurityGroup{
@@ -1009,6 +1012,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -1062,6 +1066,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			}))
 
 			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
@@ -1422,7 +1427,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			})
 			It("should override system reserved values in user data", func() {
-				ExpectApplied(ctx, env.Client, nodeClass)
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					SystemReserved: map[string]string{
 						string(corev1.ResourceCPU):              "2",
@@ -1430,7 +1434,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
-				ExpectApplied(ctx, env.Client, nodePool)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1447,7 +1451,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				ExpectApplied(ctx, env.Client, nodeClass)
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					KubeReserved: map[string]string{
 						string(corev1.ResourceCPU):              "2",
@@ -1455,7 +1458,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						string(corev1.ResourceEphemeralStorage): "10Gi",
 					},
 				}
-				ExpectApplied(ctx, env.Client, nodePool)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)
@@ -1472,7 +1475,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				})
 			})
 			It("should override kube reserved values in user data", func() {
-				ExpectApplied(ctx, env.Client, nodeClass)
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 					EvictionHard: map[string]string{
 						"memory.available":  "10%",
@@ -1480,7 +1482,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						"nodefs.inodesFree": "5%",
 					},
 				}
-				ExpectApplied(ctx, env.Client, nodePool)
+				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				pod := coretest.UnschedulablePod()
 				ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 				ExpectScheduled(ctx, env.Client, pod)

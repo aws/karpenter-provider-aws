@@ -37,7 +37,7 @@ import (
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
