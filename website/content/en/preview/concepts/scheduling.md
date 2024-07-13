@@ -70,6 +70,8 @@ Accelerator (e.g., GPU) values include
 - `nvidia.com/gpu`
 - `amd.com/gpu`
 - `aws.amazon.com/neuron`
+- `aws.amazon.com/neuroncore`
+- `aws.amazon.com/neurondevice`
 - `habana.ai/gaudi`
 
 Karpenter supports accelerators, such as GPUs.

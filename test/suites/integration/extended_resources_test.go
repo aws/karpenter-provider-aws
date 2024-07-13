@@ -106,6 +106,39 @@ var _ = Describe("Extended Resources", func() {
 		env.ExpectCreatedNodeCount("==", 1)
 		env.EventuallyExpectInitializedNodeCount("==", 1)
 	})
+	It("should provision nodes for a deployment that requests aws.amazon.com/neurondevice", func() {
+		ExpectNeuronDevicePluginCreated()
+		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
+		numPods := 1
+		dep := test.Deployment(test.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: test.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "large-app"},
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{
+						"aws.amazon.com/neurondevice": resource.MustParse("1"),
+					},
+					Limits: corev1.ResourceList{
+						"aws.amazon.com/neurondevice": resource.MustParse("1"),
+					},
+				},
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+		test.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      v1.LabelInstanceCategory,
+				Operator: corev1.NodeSelectorOpExists,
+			},
+		})
+		env.ExpectCreated(nodeClass, nodePool, dep)
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+		env.EventuallyExpectInitializedNodeCount("==", 1)
+	})
 	It("should provision nodes for a deployment that requests vpc.amazonaws.com/pod-eni (security groups for pods)", func() {
 		env.ExpectPodENIEnabled()
 		DeferCleanup(func() {
@@ -319,6 +352,98 @@ func ExpectNvidiaDevicePluginCreated() {
 							VolumeSource: corev1.VolumeSource{
 								HostPath: &corev1.HostPathVolumeSource{
 									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	})
+}
+
+// https://github.com/aws-neuron/aws-neuron-sdk/blob/master/src/k8/k8s-neuron-device-plugin.yml
+func ExpectNeuronDevicePluginCreated() {
+	GinkgoHelper()
+	env.ExpectCreated(&appsv1.DaemonSet{
+		ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+			Name:      "nvidia-device-plugin-daemonset",
+			Namespace: "kube-system",
+		}),
+		Spec: appsv1.DaemonSetSpec{
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"name": "neuron-device-plugin-ds",
+				},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{
+					Labels: map[string]string{
+						"name": "neuron-device-plugin-ds",
+					},
+				}),
+				Spec: corev1.PodSpec{
+					Tolerations: []corev1.Toleration{
+						{
+							Key:      "aws.amazon.com/neuron",
+							Operator: corev1.TolerationOpExists,
+							Effect:   corev1.TaintEffectNoSchedule,
+						},
+					},
+					PriorityClassName: "system-node-critical",
+					Containers: []corev1.Container{
+						{
+							Name:  "neuron-device-plugin",
+							Image: "public.ecr.aws/neuron/neuron-device-plugin:2.19.16.0",
+							Env: []corev1.EnvVar{
+								{
+									Name:  "KUBECONFIG",
+									Value: "/etc/kubernetes/kubelet.conf",
+								},
+								{
+									Name: "NODE_NAME",
+									ValueFrom: &corev1.EnvVarSource{
+										FieldRef: &corev1.ObjectFieldSelector{
+											FieldPath: "spec.nodeName",
+										},
+									},
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: lo.ToPtr(false),
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "device-plugin",
+									MountPath: "/var/lib/kubelet/device-plugins",
+								},
+								{
+									Name:      "infa-map",
+									MountPath: "/run",
+								},
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "device-plugin",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/var/lib/kubelet/device-plugins",
+								},
+							},
+						},
+						{
+							Name: "infa-map",
+							VolumeSource: corev1.VolumeSource{
+								HostPath: &corev1.HostPathVolumeSource{
+									Path: "/run",
 								},
 							},
 						},

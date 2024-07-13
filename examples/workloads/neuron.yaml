@@ -21,7 +21,7 @@ spec:
         name: neuron
         resources:
           limits:
-            aws.amazon.com/neuron: "1"
+            aws.amazon.com/neurondevice: "1"
           requests:
             cpu: "1"
             memory: 256M

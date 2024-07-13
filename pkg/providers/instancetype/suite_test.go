@@ -243,10 +243,12 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceGPUCount:                     "1",
 			v1.LabelInstanceGPUMemory:                    "16384",
 			v1.LabelInstanceLocalNVME:                    "900",
-			v1.LabelInstanceAcceleratorName:              "inferentia",
-			v1.LabelInstanceAcceleratorManufacturer:      "aws",
-			v1.LabelInstanceAcceleratorCount:             "1",
-			v1.LabelTopologyZoneID:                       "tstz1-1a",
+			// TODO - NVIDIA/GPU instances should not have Neuron/accelerator labels
+			v1.LabelInstanceAcceleratorName:         "inferentia2",
+			v1.LabelInstanceAcceleratorManufacturer: "aws",
+			v1.LabelInstanceAcceleratorCount:        "1",
+			v1.LabelInstanceAcceleratorMemory:       "32768",
+			v1.LabelTopologyZoneID:                  "tstz1-1a",
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			corev1.LabelFailureDomainBetaZone:   "test-zone-1a",
@@ -315,6 +317,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 					v1.LabelInstanceAcceleratorCount,
 					v1.LabelInstanceAcceleratorName,
 					v1.LabelInstanceAcceleratorManufacturer,
+					v1.LabelInstanceAcceleratorMemory,
 					corev1.LabelWindowsBuild,
 				)).UnsortedList(), lo.Keys(karpv1.NormalizedLabels)...)))
 
@@ -330,7 +333,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			karpv1.NodePoolLabelKey:        nodePool.Name,
 			corev1.LabelTopologyRegion:     fake.DefaultRegion,
 			corev1.LabelTopologyZone:       "test-zone-1a",
-			corev1.LabelInstanceTypeStable: "inf1.2xlarge",
+			corev1.LabelInstanceTypeStable: "inf2.xlarge",
 			corev1.LabelOSStable:           "linux",
 			corev1.LabelArchStable:         "amd64",
 			karpv1.CapacityTypeLabelKey:    "on-demand",
@@ -338,24 +341,25 @@ var _ = Describe("InstanceTypeProvider", func() {
 			v1.LabelInstanceHypervisor:                   "nitro",
 			v1.LabelInstanceEncryptionInTransitSupported: "true",
 			v1.LabelInstanceCategory:                     "inf",
-			v1.LabelInstanceGeneration:                   "1",
-			v1.LabelInstanceFamily:                       "inf1",
-			v1.LabelInstanceSize:                         "2xlarge",
-			v1.LabelInstanceCPU:                          "8",
-			v1.LabelInstanceCPUManufacturer:              "intel",
+			v1.LabelInstanceGeneration:                   "2",
+			v1.LabelInstanceFamily:                       "inf2",
+			v1.LabelInstanceSize:                         "xlarge",
+			v1.LabelInstanceCPU:                          "4",
+			v1.LabelInstanceCPUManufacturer:              "amd",
 			v1.LabelInstanceMemory:                       "16384",
-			v1.LabelInstanceEBSBandwidth:                 "4750",
-			v1.LabelInstanceNetworkBandwidth:             "5000",
-			v1.LabelInstanceAcceleratorName:              "inferentia",
+			v1.LabelInstanceEBSBandwidth:                 "10000",
+			v1.LabelInstanceNetworkBandwidth:             "2083",
+			v1.LabelInstanceAcceleratorName:              "inferentia2",
 			v1.LabelInstanceAcceleratorManufacturer:      "aws",
 			v1.LabelInstanceAcceleratorCount:             "1",
+			v1.LabelInstanceAcceleratorMemory:            "32768",
 			v1.LabelTopologyZoneID:                       "tstz1-1a",
 			// Deprecated Labels
 			corev1.LabelFailureDomainBetaRegion: fake.DefaultRegion,
 			corev1.LabelFailureDomainBetaZone:   "test-zone-1a",
 			"beta.kubernetes.io/arch":           "amd64",
 			"beta.kubernetes.io/os":             "linux",
-			corev1.LabelInstanceType:            "inf1.2xlarge",
+			corev1.LabelInstanceType:            "inf2.xlarge",
 			"topology.ebs.csi.aws.com/zone":     "test-zone-1a",
 		}
 
@@ -755,35 +759,35 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
 	})
-	It("should launch instances for aws.amazon.com/neuron resource requests", func() {
+	It("should launch instances for aws.amazon.com/neurondevice resource requests", func() {
 		nodeNames := sets.NewString()
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pods := []*corev1.Pod{
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
-					Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
 				},
 			}),
 			// Should pack onto same instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
 				},
 			}),
 			// Should pack onto a separate instance
 			coretest.UnschedulablePod(coretest.PodOptions{
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("4")},
-					Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("4")},
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("4")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("4")},
 				},
 			}),
 		}
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "inf1.6xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "inf2.24xlarge"))
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(2))
@@ -812,6 +816,34 @@ var _ = Describe("InstanceTypeProvider", func() {
 		for _, pod := range pods {
 			node := ExpectScheduled(ctx, env.Client, pod)
 			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "trn1.2xlarge"))
+			nodeNames.Insert(node.Name)
+		}
+		Expect(nodeNames.Len()).To(Equal(1))
+	})
+	It("should launch inf2 instances for aws.amazon.com/neuroncore resource requests", func() {
+		nodeNames := sets.NewString()
+		nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
+			{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{"inf2.xlarge"},
+				},
+			},
+		}
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+		pods := []*corev1.Pod{
+			coretest.UnschedulablePod(coretest.PodOptions{
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuronCore: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronCore: resource.MustParse("2")},
+				},
+			}),
+		}
+		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
+		for _, pod := range pods {
+			node := ExpectScheduled(ctx, env.Client, pod)
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "inf2.xlarge"))
 			nodeNames.Insert(node.Name)
 		}
 		Expect(nodeNames.Len()).To(Equal(1))
@@ -1871,26 +1903,26 @@ var _ = Describe("InstanceTypeProvider", func() {
 	})
 	Context("Insufficient Capacity Error Cache", func() {
 		It("should launch instances of different type on second reconciliation attempt with Insufficient Capacity Error Cache fallback", func() {
-			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
+			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "inf2.24xlarge", Zone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pods := []*corev1.Pod{
 				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
-						Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
+						Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("1")},
+						Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("1")},
 					},
 				}),
 				coretest.UnschedulablePod(coretest.PodOptions{
 					NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"},
 					ResourceRequirements: corev1.ResourceRequirements{
-						Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
-						Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("1")},
+						Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("1")},
+						Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("1")},
 					},
 				}),
 			}
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
-			// it should've tried to pack them on a single inf1.6xlarge then hit an insufficient capacity error
+			// it should've tried to pack them on a single inf2.24xlarge then hit an insufficient capacity error
 			for _, pod := range pods {
 				ExpectNotScheduled(ctx, env.Client, pod)
 			}
@@ -1898,7 +1930,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pods...)
 			for _, pod := range pods {
 				node := ExpectScheduled(ctx, env.Client, pod)
-				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceAcceleratorName, "inferentia"))
+				Expect(node.Labels).To(HaveKeyWithValue(v1.LabelInstanceAcceleratorName, "inferentia2"))
 				nodeNames.Insert(node.Name)
 			}
 			Expect(nodeNames.Len()).To(Equal(2))
@@ -1965,23 +1997,23 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should launch instances on later reconciliation attempt with Insufficient Capacity Error Cache expiry", func() {
-			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "inf1.6xlarge", Zone: "test-zone-1a"}})
+			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "inf2.24xlarge", Zone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod(coretest.PodOptions{
-				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "inf1.6xlarge"},
+				NodeSelector: map[string]string{corev1.LabelInstanceTypeStable: "inf2.24xlarge"},
 				ResourceRequirements: corev1.ResourceRequirements{
-					Requests: corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
-					Limits:   corev1.ResourceList{v1.ResourceAWSNeuron: resource.MustParse("2")},
+					Requests: corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
+					Limits:   corev1.ResourceList{v1.ResourceAWSNeuronDevice: resource.MustParse("2")},
 				},
 			})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectNotScheduled(ctx, env.Client, pod)
 			// capacity shortage is over - expire the item from the cache and try again
 			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{})
-			awsEnv.UnavailableOfferingsCache.Delete("inf1.6xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)
+			awsEnv.UnavailableOfferingsCache.Delete("inf2.24xlarge", "test-zone-1a", karpv1.CapacityTypeOnDemand)
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			node := ExpectScheduled(ctx, env.Client, pod)
-			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "inf1.6xlarge"))
+			Expect(node.Labels).To(HaveKeyWithValue(corev1.LabelInstanceTypeStable, "inf2.24xlarge"))
 		})
 		It("should launch instances in a different zone on second reconciliation attempt with Insufficient Capacity Error Cache fallback (Habana)", func() {
 			awsEnv.EC2API.InsufficientCapacityPools.Set([]fake.CapacityPool{{CapacityType: karpv1.CapacityTypeOnDemand, InstanceType: "dl1.24xlarge", Zone: "test-zone-1a"}})

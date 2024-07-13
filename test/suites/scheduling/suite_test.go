@@ -259,9 +259,10 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
 		})
-		It("should support well-known labels for an accelerator (inferentia)", func() {
+		It("should support well-known labels for an accelerator (inferentia2)", func() {
 			nodeSelector := map[string]string{
 				v1.LabelInstanceAcceleratorName:         "inferentia",
+				v1.LabelInstanceAcceleratorMemory:       "32768",
 				v1.LabelInstanceAcceleratorManufacturer: "aws",
 				v1.LabelInstanceAcceleratorCount:        "1",
 			}
