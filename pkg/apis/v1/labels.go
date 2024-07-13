@@ -48,6 +48,7 @@ func init() {
 		LabelInstanceAcceleratorName,
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
+		LabelInstanceAcceleratorMemory,
 		LabelTopologyZoneID,
 		corev1.LabelWindowsBuild,
 	)
@@ -90,6 +91,8 @@ var (
 	ResourceNVIDIAGPU          corev1.ResourceName = "nvidia.com/gpu"
 	ResourceAMDGPU             corev1.ResourceName = "amd.com/gpu"
 	ResourceAWSNeuron          corev1.ResourceName = "aws.amazon.com/neuron"
+	ResourceAWSNeuronCore      corev1.ResourceName = "aws.amazon.com/neuroncore"
+	ResourceAWSNeuronDevice    corev1.ResourceName = "aws.amazon.com/neurondevice"
 	ResourceHabanaGaudi        corev1.ResourceName = "habana.ai/gaudi"
 	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
@@ -120,6 +123,7 @@ var (
 	LabelInstanceAcceleratorName              = apis.Group + "/instance-accelerator-name"
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
+	LabelInstanceAcceleratorMemory            = apis.Group + "/instance-accelerator-memory"
 	AnnotationEC2NodeClassHash                = apis.Group + "/ec2nodeclass-hash"
 	AnnotationClusterNameTaggedCompatability  = apis.CompatibilityGroup + "/cluster-name-tagged"
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
