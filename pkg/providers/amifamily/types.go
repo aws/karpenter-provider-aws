@@ -21,11 +21,12 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 const (
@@ -59,9 +60,9 @@ func (a AMIs) Sort() {
 type Variant string
 
 var (
-	VariantStandard    Variant = "standard"
-	VariantNvidia      Variant = "nvidia"
-	VariantNeuron      Variant = "neuron"
+	VariantStandard Variant = "standard"
+	VariantNvidia   Variant = "nvidia"
+	VariantNeuron   Variant = "neuron"
 )
 
 func NewVariant(v string) (Variant, error) {
@@ -89,8 +90,8 @@ func (v Variant) Requirements() scheduling.Requirements {
 }
 
 type DescribeImageQuery struct {
-	Filters           []*ec2.Filter
-	Owners            []string
+	Filters []*ec2.Filter
+	Owners  []string
 	// KnownRequirements is a map from image IDs to a set of known requirements.
 	// When discovering image IDs via SSM we know additional requirements which aren't surfaced by ec2:DescribeImage (e.g. GPU / Neuron compatibility)
 	// Sometimes, an image may have multiple sets of known requirements. For example, the AL2 GPU AMI is compatible with both Neuron and Nvidia GPU

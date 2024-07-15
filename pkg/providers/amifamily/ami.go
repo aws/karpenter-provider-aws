@@ -26,16 +26,16 @@ import (
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
-	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
-	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
 type Provider interface {
@@ -85,7 +85,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]DescribeImageQuery, error) {
 	// Aliases are mutually exclusive, both on the term level and field level within a term.
 	// This is enforced by a CEL validation, we will treat this as an invariant.
-	if amiFamilyKey := nodeClass.AMIFamily(); amiFamilyKey != v1beta1.AMIFamilyCustom {
+	if amiFamilyKey := nodeClass.AMIFamily(); amiFamilyKey != v1.AMIFamilyCustom {
 		amiVersion := nodeClass.AMIVersion()
 		amiFamily := GetAMIFamily(&amiFamilyKey, nil)
 		kubernetesVersion, err := p.versionProvider.Get(ctx)
@@ -143,6 +143,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 	return queries, nil
 }
 
+//nolint:gocyclo
 func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery) (AMIs, error) {
 	hash, err := hashstructure.Hash(queries, hashstructure.FormatV2, &hashstructure.HashOptions{SlicesAsSets: true})
 	if err != nil {

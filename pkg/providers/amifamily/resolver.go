@@ -29,8 +29,8 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
-	"github.com/aws/karpenter-provider-aws/pkg/utils"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"

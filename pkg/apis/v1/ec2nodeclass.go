@@ -54,7 +54,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other amiSelectorTerms",rule="!(self.exists(x, has(x.alias)) && self.size() != 1)"
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=30
-	// +required
+	// +optional
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
@@ -165,7 +165,7 @@ type SecurityGroupSelectorTerm struct {
 // If multiple fields are used for selection, the requirements are ANDed.
 type AMISelectorTerm struct {
 	// Alias specifies which EKS optimized AMI to select.
-	// Each alias consistes of a family and a version, specified as "family@version".
+	// Each alias consists of a family and a version, specified as "family@version".
 	// Valid families include: al2, al2023, bottlerocket, windows2019, and windows2022.
 	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@1.10.0").
 	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released.
@@ -453,8 +453,11 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]strin
 	})
 }
 
-func (in *EC2NodeClassSpec) AMIFamily() string {
-	if term, ok := lo.Find(in.AMISelectorTerms, func(t AMISelectorTerm) bool {
+func (in *EC2NodeClass) AMIFamily() string {
+	if family, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
+		return family
+	}
+	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
 		return t.Alias != ""
 	}); ok {
 		switch strings.Split(term.Alias, "@")[0] {
@@ -473,8 +476,11 @@ func (in *EC2NodeClassSpec) AMIFamily() string {
 	return AMIFamilyCustom
 }
 
-func (in *EC2NodeClassSpec) AMIVersion() string {
-	if term, ok := lo.Find(in.AMISelectorTerms, func(t AMISelectorTerm) bool {
+func (in *EC2NodeClass) AMIVersion() string {
+	if _, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
+		return "latest"
+	}
+	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
 		return t.Alias != ""
 	}); ok {
 		parts := strings.Split(term.Alias, "@")
@@ -483,7 +489,7 @@ func (in *EC2NodeClassSpec) AMIVersion() string {
 		}
 		return parts[1]
 	}
-	return ""
+	return "latest"
 }
 
 // EC2NodeClassList contains a list of EC2NodeClass

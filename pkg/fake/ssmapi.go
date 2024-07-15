@@ -23,9 +23,10 @@ import (
 
 	"github.com/Pallinder/go-randomdata"
 	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
+
+	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"

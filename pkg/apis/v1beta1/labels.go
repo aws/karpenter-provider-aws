@@ -121,6 +121,7 @@ var (
 	AnnotationEC2NodeClassHash                = apis.Group + "/ec2nodeclass-hash"
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
+	AnnotationAMIVersionCompatibility         = apis.CompatibilityGroup + "/v1-ami-version-conversion"
 
 	TagNodeClaim             = coreapis.Group + "/nodeclaim"
 	TagManagedLaunchTemplate = apis.Group + "/cluster"

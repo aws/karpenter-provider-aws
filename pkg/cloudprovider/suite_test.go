@@ -888,8 +888,8 @@ var _ = Describe("CloudProvider", func() {
 						Tags: map[string]string{
 							"fakeKey": "fakeValue",
 						},
-						Context:                  lo.ToPtr("fake-context"),
-						DetailedMonitoring:       lo.ToPtr(false),
+						Context:            lo.ToPtr("fake-context"),
+						DetailedMonitoring: lo.ToPtr(false),
 						AMISelectorTerms: []v1.AMISelectorTerm{{
 							Alias: "al2023@latest",
 						}},

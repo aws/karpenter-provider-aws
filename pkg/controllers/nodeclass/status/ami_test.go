@@ -135,7 +135,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
-		Expect(nodeClass.Status.AMIs).To(Equal([]v1.AMI{
+		Expect(len(nodeClass.Status.AMIs)).To(Equal(4))
+		Expect(nodeClass.Status.AMIs).To(ContainElements([]v1.AMI{
 			{
 				Name: "test-ami-3",
 				ID:   "ami-id-789",
@@ -245,7 +246,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 
-		Expect(nodeClass.Status.AMIs).To(Equal([]v1.AMI{
+		Expect(len(nodeClass.Status.AMIs)).To(Equal(2))
+		Expect(nodeClass.Status.AMIs).To(ContainElements([]v1.AMI{
 			{
 				Name: "test-ami-2",
 				ID:   "ami-id-456",

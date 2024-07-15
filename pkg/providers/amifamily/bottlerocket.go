@@ -31,8 +31,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	"github.com/aws/aws-sdk-go/aws"
-	corev1 "k8s.io/api/core/v1"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 )
 
@@ -75,7 +75,7 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 			Name:   lo.ToPtr("image-id"),
 			Values: imageIDs,
 		}},
-		KnownRequirements: make(map[string][]scheduling.Requirements),
+		KnownRequirements: requirements,
 	}, nil
 }
 

@@ -31,14 +31,14 @@ type Provider interface {
 
 type DefaultProvider struct {
 	sync.Mutex
-	cache *cache.Cache
+	cache  *cache.Cache
 	ssmapi ssmiface.SSMAPI
 }
 
 func NewDefaultProvider(ssmapi ssmiface.SSMAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ssmapi: ssmapi,
-		cache: cache,
+		cache:  cache,
 	}
 }
 
@@ -53,7 +53,7 @@ func (p *DefaultProvider) List(ctx context.Context, path string) (map[string]str
 	values := map[string]string{}
 	if err := p.ssmapi.GetParametersByPathPagesWithContext(ctx, &ssm.GetParametersByPathInput{
 		Recursive: lo.ToPtr(true),
-		Path: &path,
+		Path:      &path,
 	}, func(out *ssm.GetParametersByPathOutput, _ bool) bool {
 		for _, parameter := range out.Parameters {
 			if parameter.Name == nil || parameter.Value == nil {

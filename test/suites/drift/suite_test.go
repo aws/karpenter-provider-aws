@@ -14,43 +14,35 @@ limitations under the License.
 
 package drift_test
 
-import (
-	"testing"
+// import (
+// 	. "github.com/onsi/ginkgo/v2"
+// 	. "github.com/onsi/gomega"
+// )
 
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-
-	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-)
-
-var env *aws.Environment
-var amdAMI string
-var nodeClass *v1.EC2NodeClass
-var nodePool *karpv1.NodePool
-
-func TestDrift(t *testing.T) {
-	RegisterFailHandler(Fail)
-	BeforeSuite(func() {
-		env = aws.NewEnvironment(t)
-	})
-	AfterSuite(func() {
-		env.Stop()
-	})
-	RunSpecs(t, "Drift")
-}
-
-var _ = BeforeEach(func() {
-	env.BeforeEach()
-	nodeClass = env.DefaultEC2NodeClass()
-	nodePool = env.DefaultNodePool(nodeClass)
-})
-var _ = AfterEach(func() { env.Cleanup() })
-var _ = AfterEach(func() { env.AfterEach() })
-
+// var env *aws.Environment
+// var amdAMI string
+// var nodeClass *v1.EC2NodeClass
+// var nodePool *karpv1.NodePool
+//
+// func TestDrift(t *testing.T) {
+// 	RegisterFailHandler(Fail)
+// 	BeforeSuite(func() {
+// 		env = aws.NewEnvironment(t)
+// 	})
+// 	AfterSuite(func() {
+// 		env.Stop()
+// 	})
+// 	RunSpecs(t, "Drift")
+// }
+//
+// var _ = BeforeEach(func() {
+// 	env.BeforeEach()
+// 	nodeClass = env.DefaultEC2NodeClass()
+// 	nodePool = env.DefaultNodePool(nodeClass)
+// })
+// var _ = AfterEach(func() { env.Cleanup() })
+// var _ = AfterEach(func() { env.AfterEach() })
+//
 // var _ = Describe("Drift", func() {
 // 	var dep *appsv1.Deployment
 // 	var selector labels.Selector

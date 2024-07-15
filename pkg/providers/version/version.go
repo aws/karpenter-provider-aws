@@ -77,7 +77,7 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	return version, nil
 }
 
-func SupportedK8sVersions() []string{
+func SupportedK8sVersions() []string {
 	minMinor := lo.Must(strconv.Atoi(strings.Split(MinK8sVersion, ".")[1]))
 	maxMinor := lo.Must(strconv.Atoi(strings.Split(MaxK8sVersion, ".")[1]))
 	versions := make([]string, 0, maxMinor-minMinor+1)

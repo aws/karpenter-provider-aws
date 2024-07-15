@@ -396,12 +396,6 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
 		})
-		It("should fail when no ami selector terms are specified", func() {
-			nc.Spec.AMISelectorTerms = nil
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{}
-			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
-		})
 		It("should fail when a ami selector term has no values", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{},
