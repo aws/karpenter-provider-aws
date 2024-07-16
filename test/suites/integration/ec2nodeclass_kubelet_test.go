@@ -121,7 +121,7 @@ var _ = Describe("EC2nodeClass Kubelet Configuration", func() {
 			np := &karpv1.NodePool{}
 			expectExists(betaNodePool, np)
 
-			hash, found := np.Annotations[karpv1.KubeletCompatabilityAnnotationKey]
+			hash, found := np.Annotations[karpv1.KubeletCompatibilityAnnotationKey]
 			g.Expect(found).To(BeTrue())
 			g.Expect(hash).To(Equal(np.Hash()))
 		})
@@ -139,7 +139,7 @@ var _ = Describe("EC2nodeClass Kubelet Configuration", func() {
 		nc := &v1.EC2NodeClass{}
 		expectExists(betaNodeClass, nc)
 
-		delete(np.Annotations, karpv1.KubeletCompatabilityAnnotationKey)
+		delete(np.Annotations, karpv1.KubeletCompatibilityAnnotationKey)
 		nc.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](20)}
 		env.ExpectUpdated(np, nc)
 
@@ -160,7 +160,7 @@ var _ = Describe("EC2nodeClass Kubelet Configuration", func() {
 		nc := &v1.EC2NodeClass{}
 		expectExists(betaNodeClass, nc)
 
-		delete(np.Annotations, karpv1.KubeletCompatabilityAnnotationKey)
+		delete(np.Annotations, karpv1.KubeletCompatibilityAnnotationKey)
 		nc.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](10)}
 		env.ExpectUpdated(np, nc)
 		env.EventuallyExpectDrifted(nodeClaim)
