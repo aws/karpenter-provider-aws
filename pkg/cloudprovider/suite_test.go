@@ -34,7 +34,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	opstatus "github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -601,9 +600,6 @@ var _ = Describe("CloudProvider", func() {
 			validSecurityGroup = fake.SecurityGroupID()
 			validSubnet1 = fake.SubnetID()
 			validSubnet2 = fake.SubnetID()
-			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
-				Parameter: &ssm.Parameter{Value: aws.String(armAMIID)},
-			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
 					{
@@ -888,9 +884,11 @@ var _ = Describe("CloudProvider", func() {
 						Tags: map[string]string{
 							"fakeKey": "fakeValue",
 						},
-						Context:                  lo.ToPtr("fake-context"),
-						DetailedMonitoring:       lo.ToPtr(false),
-						AMIFamily:                lo.ToPtr(v1.AMIFamilyAL2023),
+						Context:            lo.ToPtr("fake-context"),
+						DetailedMonitoring: lo.ToPtr(false),
+						AMISelectorTerms: []v1.AMISelectorTerm{{
+							Alias: "al2023@latest",
+						}},
 						AssociatePublicIPAddress: lo.ToPtr(false),
 						MetadataOptions: &v1.MetadataOptions{
 							HTTPEndpoint:            lo.ToPtr("disabled"),
@@ -966,7 +964,6 @@ var _ = Describe("CloudProvider", func() {
 				Entry("Tags", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
 				Entry("Context", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: lo.ToPtr("context-2")}}),
 				Entry("DetailedMonitoring", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-				Entry("AMIFamily", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMIFamily: lo.ToPtr(v1.AMIFamilyBottlerocket)}}),
 				Entry("InstanceStorePolicy", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}}),
 				Entry("AssociatePublicIPAddress", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
 				Entry("MetadataOptions HTTPEndpoint", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),

@@ -17,9 +17,11 @@ package version
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/patrickmn/go-cache"
+	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/version"
 	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -73,6 +75,19 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 		}
 	}
 	return version, nil
+}
+
+// SupportedK8sVersions returns a slice of version strings in format "major.minor" for all versions of k8s supported by
+// this version of Karpenter.
+// Note: Assumes k8s only has a single major version (1.x)
+func SupportedK8sVersions() []string {
+	minMinor := lo.Must(strconv.Atoi(strings.Split(MinK8sVersion, ".")[1]))
+	maxMinor := lo.Must(strconv.Atoi(strings.Split(MaxK8sVersion, ".")[1]))
+	versions := make([]string, 0, maxMinor-minMinor+1)
+	for i := minMinor; i <= maxMinor; i++ {
+		versions = append(versions, fmt.Sprintf("1.%d", i))
+	}
+	return versions
 }
 
 func validateK8sVersion(v string) error {

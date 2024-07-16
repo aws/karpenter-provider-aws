@@ -594,7 +594,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	})
 	Context("Block Device Mappings", func() {
 		It("should default AL2 block device mappings", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -608,7 +608,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should default AL2023 block device mappings", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 			awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
 			awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(lo.ToPtr("10.100.0.0/16"))
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
@@ -624,7 +624,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should use custom block device mapping", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
@@ -674,7 +674,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should round up for custom block device mappings when specified in gigabytes", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
 					DeviceName: aws.String("/dev/xvda"),
@@ -711,7 +711,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should default bottlerocket second volume with root volume size", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -730,7 +730,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -742,7 +741,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should use custom block device mapping for custom AMIFamilies", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
@@ -909,7 +907,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
@@ -939,7 +936,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using the configured root volume in blockdevicemappings", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
@@ -1008,9 +1004,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
-			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			amiFamily := amifamily.GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1062,9 +1058,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
-			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			amiFamily := amifamily.GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1088,9 +1084,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				VMMemoryOverheadPercent: lo.ToPtr[float64](0),
 			}))
 
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
-			amiFamily := amifamily.GetAMIFamily(nodeClass.Spec.AMIFamily, &amifamily.Options{})
+			amiFamily := amifamily.GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1360,7 +1356,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectLaunchTemplatesCreatedWithUserDataNotContaining(corev1.LabelNamespaceNodeRestriction)
 		})
 		It("should specify --local-disks raid0 when instance-store policy is set on AL2", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.InstanceStorePolicy = lo.ToPtr(v1.InstanceStorePolicyRAID0)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -1370,7 +1366,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		Context("Bottlerocket", func() {
 			BeforeEach(func() {
-				nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
 			It("should merge in custom user data", func() {
@@ -1644,7 +1640,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		Context("AL2023", func() {
 			BeforeEach(func() {
-				nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 
 				// base64 encoded version of "ca-bundle" to ensure the nodeadm bootstrap provider can decode successfully
 				awsEnv.LaunchTemplateProvider.CABundle = lo.ToPtr("Y2EtYnVuZGxlCg==")
@@ -1866,7 +1862,6 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				nodeClass.Spec.UserData = aws.String("special user data")
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
-				nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
 				nodeClass.Status.AMIs = []v1.AMI{
 					{
 						ID: "ami-123",
@@ -2074,7 +2069,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Context("Windows Custom UserData", func() {
 			BeforeEach(func() {
 				nodePool.Spec.Template.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: corev1.LabelOSStable, Operator: corev1.NodeSelectorOpIn, Values: []string{string(corev1.Windows)}}}}
-				nodeClass.Spec.AMIFamily = &v1.AMIFamilyWindows2022
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}
 				nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 			})
 			It("should merge and bootstrap with custom user data", func() {
@@ -2114,7 +2109,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	})
 	Context("Detailed Monitoring", func() {
 		It("should default detailed monitoring to off", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -2125,7 +2120,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should pass detailed monitoring setting to the launch template at creation", func() {
-			nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.DetailedMonitoring = aws.Bool(true)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()

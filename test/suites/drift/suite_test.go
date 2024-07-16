@@ -16,11 +16,17 @@ package drift_test
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"testing"
 	"time"
 
+	awssdk "github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/eks"
 	"github.com/awslabs/operatorpkg/object"
+	. "github.com/onsi/ginkgo/v2"
+	. "github.com/onsi/gomega"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -31,21 +37,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/karpenter/pkg/utils/resources"
-
-	awssdk "github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/eks"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
+	"sigs.k8s.io/karpenter/pkg/utils/resources"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
-
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
 )
 
 var env *aws.Environment
@@ -76,6 +75,7 @@ var _ = Describe("Drift", func() {
 	var dep *appsv1.Deployment
 	var selector labels.Selector
 	var numPods int
+	var customUserData *string
 	BeforeEach(func() {
 		amdAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 		numPods = 1
@@ -95,6 +95,10 @@ var _ = Describe("Drift", func() {
 			},
 		})
 		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
+		Expect(err).ToNot(HaveOccurred())
+		customUserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName, env.ClusterEndpoint, env.ExpectCABundle()))
 	})
 	Context("Budgets", func() {
 		It("should respect budgets for empty drift", func() {
@@ -377,8 +381,8 @@ var _ = Describe("Drift", func() {
 			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240307/image_id",
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)),
 		))
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
+		nodeClass.Spec.UserData = customUserData
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
@@ -398,8 +402,8 @@ var _ = Describe("Drift", func() {
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersion()))
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: armAMI}}
+		nodeClass.Spec.UserData = customUserData
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
@@ -425,8 +429,8 @@ var _ = Describe("Drift", func() {
 			"/aws/service/eks/optimized-ami/1.23/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-1.23-v20240307/image_id",
 			fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)),
 		))
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
+		nodeClass.Spec.UserData = customUserData
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -654,7 +658,9 @@ var _ = Describe("Drift", func() {
 				},
 			}}}),
 		Entry("DetailedMonitoring", v1.EC2NodeClassSpec{DetailedMonitoring: awssdk.Bool(true)}),
-		Entry("AMIFamily", v1.EC2NodeClassSpec{AMIFamily: awssdk.String(v1.AMIFamilyBottlerocket)}),
+		Entry("AMIFamily", v1.EC2NodeClassSpec{
+			AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}},
+		}),
 		Entry("KubeletConfiguration", v1.EC2NodeClassSpec{
 			Kubelet: &v1.KubeletConfiguration{
 				EvictionSoft:            map[string]string{"memory.available": "5%"},

@@ -45,7 +45,7 @@ var _ = Describe("Extended Resources", func() {
 	It("should provision nodes for a deployment that requests nvidia.com/gpu", func() {
 		ExpectNvidiaDevicePluginCreated()
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -77,7 +77,7 @@ var _ = Describe("Extended Resources", func() {
 	})
 	It("should provision nodes for a deployment that requests nvidia.com/gpu (Bottlerocket)", func() {
 		// For Bottlerocket, we are testing that resources are initialized without needing a device plugin
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -144,12 +144,7 @@ var _ = Describe("Extended Resources", func() {
 		// We use a Custom AMI so that we can reboot after we start the kubelet service
 		rawContent, err := os.ReadFile("testdata/amd_driver_input.sh")
 		Expect(err).ToNot(HaveOccurred())
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyCustom
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-			{
-				ID: customAMI,
-			},
-		}
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
 		nodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))
 
@@ -228,7 +223,7 @@ var _ = Describe("Extended Resources", func() {
 		// Only select private subnets since instances with multiple network instances at launch won't get a public IP.
 		nodeClass.Spec.SubnetSelectorTerms[0].Tags["Name"] = "*Private*"
 		// TODO: jmdeal@ remove AL2 pin once AL2023 accelerated AMIs are available
-		nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 
 		numPods := 1
 		dep := test.Deployment(test.DeploymentOptions{

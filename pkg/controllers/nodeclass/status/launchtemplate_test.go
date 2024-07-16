@@ -52,22 +52,21 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
 	})
 	It("shouldn't resolve cluster CIDR for non-AL2023 NodeClasses", func() {
-		for _, family := range []string{
-			v1.AMIFamilyAL2,
-			v1.AMIFamilyBottlerocket,
-			v1.AMIFamilyUbuntu,
-			v1.AMIFamilyWindows2019,
-			v1.AMIFamilyWindows2022,
-			v1.AMIFamilyCustom,
+		for _, term := range []v1.AMISelectorTerm{
+			{Alias: "al2@latest"},
+			{Alias: "bottlerocket@latest"},
+			{Alias: "windows2019@latest"},
+			{Alias: "windows2022@latest"},
+			{ID: "ami-12345"},
 		} {
-			nodeClass.Spec.AMIFamily = lo.ToPtr(family)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 			Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load()).To(BeNil())
 		}
 	})
 	It("should resolve cluster CIDR for IPv4 clusters", func() {
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("10.100.0.0/16"))
@@ -82,7 +81,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 				},
 			},
 		})
-		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 		Expect(lo.FromPtr(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load())).To(Equal("2001:db8::/64"))

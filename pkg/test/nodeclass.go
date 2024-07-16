@@ -38,8 +38,8 @@ func EC2NodeClass(overrides ...v1.EC2NodeClass) *v1.EC2NodeClass {
 			panic(fmt.Sprintf("Failed to merge settings: %s", err))
 		}
 	}
-	if options.Spec.AMIFamily == nil {
-		options.Spec.AMIFamily = &v1.AMIFamilyAL2
+	if len(options.Spec.AMISelectorTerms) == 0 {
+		options.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		options.Status.AMIs = []v1.AMI{
 			{
 				ID: "ami-test1",

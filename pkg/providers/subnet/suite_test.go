@@ -22,7 +22,6 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
@@ -70,7 +69,9 @@ var _ = BeforeEach(func() {
 	ctx = options.ToContext(ctx, test.Options())
 	nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
 		Spec: v1.EC2NodeClassSpec{
-			AMIFamily: aws.String(v1.AMIFamilyAL2),
+			AMISelectorTerms: []v1.AMISelectorTerm{{
+				Alias: "al2@latest",
+			}},
 			SubnetSelectorTerms: []v1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{

@@ -15,6 +15,8 @@ limitations under the License.
 package amifamily
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -22,6 +24,7 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
 type Custom struct {
@@ -38,8 +41,8 @@ func (c Custom) UserData(_ *v1.KubeletConfiguration, _ []corev1.Taint, _ map[str
 	}
 }
 
-func (c Custom) DefaultAMIs(_ string) []DefaultAMIOutput {
-	return nil
+func (c Custom) DescribeImageQuery(_ context.Context, _ ssm.Provider, _ string, _ string) (DescribeImageQuery, error) {
+	return DescribeImageQuery{}, nil
 }
 
 func (c Custom) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {

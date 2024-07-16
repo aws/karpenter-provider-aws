@@ -15,6 +15,7 @@ limitations under the License.
 package amifamily
 
 import (
+	"context"
 	"fmt"
 	"net"
 
@@ -28,6 +29,7 @@ import (
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -77,7 +79,7 @@ type LaunchTemplate struct {
 
 // AMIFamily can be implemented to override the default logic for generating dynamic launch template parameters
 type AMIFamily interface {
-	DefaultAMIs(version string) []DefaultAMIOutput
+	DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error)
 	UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, instanceTypes []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper
 	DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping
 	DefaultMetadataOptions() *v1.MetadataOptions
@@ -120,7 +122,7 @@ func NewResolver(amiProvider Provider) *Resolver {
 // Resolve generates launch templates using the static options and dynamically generates launch template parameters.
 // Multiple ResolvedTemplates are returned based on the instanceTypes passed in to support special AMIs for certain instance types like GPUs.
 func (r Resolver) Resolve(nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, capacityType string, options *Options) ([]*LaunchTemplate, error) {
-	amiFamily := GetAMIFamily(nodeClass.Spec.AMIFamily, options)
+	amiFamily := GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), options)
 	if len(nodeClass.Status.AMIs) == 0 {
 		return nil, fmt.Errorf("no amis exist given constraints")
 	}
@@ -164,8 +166,6 @@ func GetAMIFamily(amiFamily *string, options *Options) AMIFamily {
 	switch aws.StringValue(amiFamily) {
 	case v1.AMIFamilyBottlerocket:
 		return &Bottlerocket{Options: options}
-	case v1.AMIFamilyUbuntu:
-		return &Ubuntu{Options: options}
 	case v1.AMIFamilyWindows2019:
 		return &Windows{Options: options, Version: v1.Windows2019, Build: v1.Windows2019Build}
 	case v1.AMIFamilyWindows2022:

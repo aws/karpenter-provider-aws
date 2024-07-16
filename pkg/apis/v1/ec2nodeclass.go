@@ -16,6 +16,8 @@ package v1
 
 import (
 	"fmt"
+	"log"
+	"strings"
 
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
@@ -46,15 +48,14 @@ type EC2NodeClassSpec struct {
 	// +optional
 	AssociatePublicIPAddress *bool `json:"associatePublicIPAddress,omitempty"`
 	// AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
-	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name))"
-	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.all(x, has(x.id) && (has(x.tags) || has(x.name) || has(x.owner)))"
+	// +kubebuilder:validation:XValidation:message="expected at least one, got none, ['tags', 'id', 'name', 'alias']",rule="self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias))"
+	// +kubebuilder:validation:XValidation:message="'id' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))"
+	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms",rule="!self.exists(x, has(x.alias) && (has(x.id) || has(x.tags) || has(x.name) || has(x.owner)))"
+	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other amiSelectorTerms",rule="!(self.exists(x, has(x.alias)) && self.size() != 1)"
+	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
-	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms,omitempty" hash:"ignore"`
-	// AMIFamily is the AMI family that instances use.
-	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Ubuntu,Custom,Windows2019,Windows2022}
-	// +required
-	AMIFamily *string `json:"amiFamily"`
+	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -163,6 +164,17 @@ type SecurityGroupSelectorTerm struct {
 // AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
 // If multiple fields are used for selection, the requirements are ANDed.
 type AMISelectorTerm struct {
+	// Alias specifies which EKS optimized AMI to select.
+	// Each alias consists of a family and an AMI version, specified as "family@version".
+	// Valid families include: al2, al2023, bottlerocket, windows2019, and windows2022.
+	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
+	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
+	// Note: The Windows families do **not** support version pinning, and only latest may be used.
+	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]*@.*$')"
+	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.find('^[^@]+') in ['al2','al2023','bottlerocket','windows2019','windows2022']"
+	// +kubebuilder:validation:MaxLength=30
+	// +optional
+	Alias string `json:"alias,omitempty"`
 	// Tags is a map of key/value tags used to select subnets
 	// Specifying '*' for a value selects all values for a given tag key.
 	// +kubebuilder:validation:XValidation:message="empty tag keys or values aren't supported",rule="self.all(k, k != '' && self[k] != '')"
@@ -405,7 +417,6 @@ type EC2NodeClass struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// +kubebuilder:validation:XValidation:message="amiSelectorTerms is required when amiFamily == 'Custom'",rule="self.amiFamily == 'Custom' ? self.amiSelectorTerms.size() != 0 : true"
 	// +kubebuilder:validation:XValidation:message="must specify exactly one of ['role', 'instanceProfile']",rule="(has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))"
 	// +kubebuilder:validation:XValidation:message="changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
@@ -440,6 +451,45 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]strin
 		karpv1.ManagedByAnnotationKey:                        clusterName,
 		LabelNodeClass:                                       in.Name,
 	})
+}
+
+func (in *EC2NodeClass) AMIFamily() string {
+	if family, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
+		return family
+	}
+	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
+		return t.Alias != ""
+	}); ok {
+		switch strings.Split(term.Alias, "@")[0] {
+		case "al2":
+			return AMIFamilyAL2
+		case "al2023":
+			return AMIFamilyAL2023
+		case "bottlerocket":
+			return AMIFamilyBottlerocket
+		case "windows2019":
+			return AMIFamilyWindows2019
+		case "windows2022":
+			return AMIFamilyWindows2022
+		}
+	}
+	return AMIFamilyCustom
+}
+
+func (in *EC2NodeClass) AMIVersion() string {
+	if _, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
+		return "latest"
+	}
+	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
+		return t.Alias != ""
+	}); ok {
+		parts := strings.Split(term.Alias, "@")
+		if len(parts) != 2 {
+			log.Fatalf("failed to parse AMI alias %q, invalid format", term.Alias)
+		}
+		return parts[1]
+	}
+	return "latest"
 }
 
 // EC2NodeClassList contains a list of EC2NodeClass

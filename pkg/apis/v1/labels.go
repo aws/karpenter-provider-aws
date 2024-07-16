@@ -119,9 +119,10 @@ var (
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	AnnotationEC2NodeClassHash                = apis.Group + "/ec2nodeclass-hash"
-	AnnotationKubeletCompatibilityHash        = apis.CompatabilityGroup + "/kubelet-drift-hash"
+	AnnotationKubeletCompatibilityHash        = apis.CompatibilityGroup + "/kubelet-drift-hash"
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
+	AnnotationAMIFamilyCompatibility          = apis.CompatibilityGroup + "/v1beta1-ami-family-conversion"
 
 	TagNodeClaim             = coreapis.Group + "/nodeclaim"
 	TagManagedLaunchTemplate = apis.Group + "/cluster"
