@@ -304,7 +304,7 @@ The following is a list of known CSI drivers which support a startupTaint to eli
 
 These taints should be configured via `startupTaints` on your `NodePool`. For example, to enable this for EBS, add the following to your `NodePool`:
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 spec:
   template:
