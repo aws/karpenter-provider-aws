@@ -24,7 +24,7 @@ you can either look directly at the NodeClaim or at the nodes they are associate
 * Checking NodeClaims: If something goes wrong in the process of creating a node, you can look at the NodeClaim
 to see where the node creation process might have stalled. Using `kubectl get nodeclaims` you can see the NodeClaims
 for the cluster and using `kubectl describe nodeclaim <nodeclaim>` you can see the status of a particular NodeClaim.
-For example, if the node is not available, you might see statuses indicating that the node has expired, is empty, or has drifted.
+For example, if the node is not available, you might see statuses indicating that the NodeClaim failed to launch, register, or initialize.
 
 * Checking nodes: Use commands such as `kubectl get node` and  `kubectl describe node <nodename>` to see the actual resources,
 labels, and other attributes associated with a particular node.
@@ -38,7 +38,7 @@ The following diagram illustrates how NodeClaims interact with other components 
 ![nodeclaim-node-creation](/nodeclaims.png)
 
 {{% alert title="Note" color="primary" %}}
-Assuming that Karpenter is running in the default `kube-system` namespace, if you want to follow along with the Karpenter logs in your cluster, do the following:
+Configure the `KARPENTER_NAMESPACE` environment variable to the namespace where you've installed Karpenter (`kube-system` is the default). Follow along with the Karpenter logs in your cluster and do the following:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
@@ -95,33 +95,23 @@ As illustrated in the previous diagram, Karpenter interacts with NodeClaims and 
       and an allocatable status, indicating that the instance is ready.
     * Checking to see if the node has been synced, adding a finalizer to the node (this provides the same
       termination guarantees that all Karpenter nodes have), passing in labels, and updating the node owner references.
-    * Checking if the node has been synced, adding a finalizer to the node (providing Karpenter termination guarantees), passing in labels, and updating the node owner references.
-    * Making sure that the Node is ready to use. This includes such things as seeing if resources are registered and start-up taints are removed.
-    * Checking the nodes for liveliness.
-7. Registers the instance as a node in the Kubernetes cluster (registered). Example of log message at this stage:
-    ```
-    {"level":"INFO","time":"2024-06-22T02:24:39.998Z","logger":"controller","message":
-       "registered nodeclaim","commit":"490ef94","controller":"nodeclaim.lifecycle",
-       "controllerGroup":"karpenter.sh","controllerKind":"NodeClaim","NodeClaim":
-       {"name":"default-sfpsl"},"namespace":"","name":"default-sfpsl","reconcileID":
-       "4ae2c003-883c-4655-98b9-45871223a6a0",
-       "provider-id":"aws:///us-west-2b/i-08a3bf1cadb205c7e",
-       "Node":{"name":"ip-192-168-170-220.us-west-2.compute.internal"}}
-    ```
-    Finally, you can see the Node is now ready for use.
-    ```
-    {"level":"INFO","time":"2024-06-22T02:24:52.642Z","logger":"controller","message":
-       "initialized nodeclaim","commit":"490ef94","controller":
-       "nodeclaim.lifecycle","controllerGroup":"karpenter.sh","controllerKind":
-       "NodeClaim","NodeClaim":{"name":"default-sfpsl"},"namespace":
-       "","name":"default-sfpsl","reconcileID":
-       "7e7a671d-887f-428d-bd79-ddf603290f0a",
-       "provider-id":"aws:///us-west-2b/i-08a3bf1cadb205c7e",
-       "Node":{"name":"ip-192-168-170-220.us-west-2.compute.internal"},
-       "allocatable":{"cpu":"7910m","ephemeral-storage":"18242267924",
-       "hugepages-2Mi":"0","memory":"14320468Ki","pods":"58"}}
-    ```
-    At this point, the node is considered ready to go.
+      Example of log messages at this stage:
+      ```
+      {"level":"INFO","time":"2024-06-22T02:24:52.642Z","logger":"controller","message":
+         "initialized nodeclaim","commit":"490ef94","controller":
+         "nodeclaim.lifecycle","controllerGroup":"karpenter.sh","controllerKind":
+         "NodeClaim","NodeClaim":{"name":"default-sfpsl"},"namespace":
+         "","name":"default-sfpsl","reconcileID":
+         "7e7a671d-887f-428d-bd79-ddf603290f0a",
+         "provider-id":"aws:///us-west-2b/i-08a3bf1cadb205c7e",
+         "Node":{"name":"ip-192-168-170-220.us-west-2.compute.internal"},
+         "allocatable":{"cpu":"7910m","ephemeral-storage":"18242267924",
+         "hugepages-2Mi":"0","memory":"14320468Ki","pods":"58"}}
+      ```
+7. Making sure that the Node is ready to use. This includes such things as seeing if resources are registered and start-up taints are removed.
+8. Checking the nodes for liveliness.
+
+At this point, the node is considered ready to go.
 
 If a node doesn’t appear as registered after 15 minutes since it was first created, the NodeClaim is deleted.
 Karpenter assumes there is a problem that isn’t going to be fixed.
@@ -130,9 +120,6 @@ No pods will be deployed there. After the node is deleted, Karpenter will try to
 ## NodeClaim drift and disruption
 
 Although NodeClaims play a role in replacing nodes that drift or have been disrupted,
-as someone using Karpenter, there is nothing particular you need to do with NodeClaims
-in relation to those activities.
-Just know that, if a Node become unusable and a new NodeClaim needs to be created,
-it follows the same node creation process just decribed.
+as a Karpenter user, NodeClaims should not be modified, and should only be a tool for monitoring.
 
 For details on Karpenter disruption, see [Disruption]({{< ref "./disruption" >}}).
