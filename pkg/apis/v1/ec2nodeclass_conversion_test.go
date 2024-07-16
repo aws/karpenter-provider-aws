@@ -15,9 +15,6 @@ limitations under the License.
 package v1_test
 
 import (
-	"fmt"
-	"strings"
-
 	"github.com/awslabs/operatorpkg/status"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -47,14 +44,6 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 			Annotations: map[string]string{"foo": "bar"},
 		})
 		Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
-
-		// Remove the compatibility annotations from the EC2NodeClass.
-		v1beta1ec2nodeclass.ObjectMeta.Annotations = lo.OmitByKeys(v1beta1ec2nodeclass.ObjectMeta.Annotations, []string{
-			v1beta1.AnnotationAMIVersionCompatibility,
-		})
-		if len(v1beta1ec2nodeclass.ObjectMeta.Annotations) == 0 {
-			v1beta1ec2nodeclass.ObjectMeta.Annotations = nil
-		}
 		Expect(v1beta1ec2nodeclass.ObjectMeta).To(BeEquivalentTo(v1ec2nodeclass.ObjectMeta))
 	})
 	Context("EC2NodeClass Spec", func() {
@@ -127,14 +116,6 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 			v1ec2nodeclass.Spec.AMISelectorTerms = []AMISelectorTerm{{Alias: "al2023@latest"}}
 			Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
 			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyAL2023))
-		})
-		It("should convert v1 ec2nodeclass alias with pinned version", func() {
-			family := AMIFamilyAL2023
-			version := "v20240625"
-			v1ec2nodeclass.Spec.AMISelectorTerms = []AMISelectorTerm{{Alias: fmt.Sprintf("%s@%s", strings.ToLower(family), version)}}
-			Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
-			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(family))
-			Expect(v1beta1ec2nodeclass.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationAMIVersionCompatibility, version))
 		})
 		It("should convert v1 ec2nodeclass with AMIFamily compat annotation", func() {
 			v1ec2nodeclass.Annotations = lo.Assign(v1ec2nodeclass.Annotations, map[string]string{
@@ -383,14 +364,6 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
 			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(ContainElement(AMISelectorTerm{Alias: "al2023@latest"}))
-		})
-		It("should convert v1beta1 ec2nodeclass ami family (pinned AMI)", func() {
-			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
-			v1beta1ec2nodeclass.Annotations = lo.Assign(v1beta1ec2nodeclass.Annotations, map[string]string{
-				v1beta1.AnnotationAMIVersionCompatibility: "v20240625",
-			})
-			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
-			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(ContainElement(AMISelectorTerm{Alias: "al2023@v20240625"}))
 		})
 		It("should convert v1beta1 ec2nodeclass ami family (ubuntu compat)", func() {
 			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu

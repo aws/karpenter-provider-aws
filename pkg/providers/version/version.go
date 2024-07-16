@@ -77,6 +77,9 @@ func (p *DefaultProvider) Get(ctx context.Context) (string, error) {
 	return version, nil
 }
 
+// SupportedK8sVersions returns a slice of version strings in format "major.minor" for all versions of k8s supported by
+// this version of Karpenter.
+// Note: Assumes k8s only has a single major version (1.x)
 func SupportedK8sVersions() []string {
 	minMinor := lo.Must(strconv.Atoi(strings.Split(MinK8sVersion, ".")[1]))
 	maxMinor := lo.Must(strconv.Atoi(strings.Split(MaxK8sVersion, ".")[1]))

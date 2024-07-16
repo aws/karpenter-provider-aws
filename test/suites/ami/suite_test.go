@@ -71,8 +71,12 @@ var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("AMI", func() {
 	var customAMI string
+	var customUserData *string
 	BeforeEach(func() {
 		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+		rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
+		Expect(err).ToNot(HaveOccurred())
+		customUserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName, env.ClusterEndpoint, env.ExpectCABundle()))
 	})
 
 	It("should use the AMI defined by the AMI Selector Terms", func() {
@@ -82,6 +86,7 @@ var _ = Describe("AMI", func() {
 				ID: customAMI,
 			},
 		}
+		nodeClass.Spec.UserData = customUserData
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -99,6 +104,7 @@ var _ = Describe("AMI", func() {
 				ID: oldCustomAMI,
 			},
 		}
+		nodeClass.Spec.UserData = customUserData
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
@@ -119,6 +125,7 @@ var _ = Describe("AMI", func() {
 				Owner: "fakeOwnerValue",
 			},
 		}
+		nodeClass.Spec.UserData = customUserData
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
@@ -137,6 +144,7 @@ var _ = Describe("AMI", func() {
 				Name: *output.Images[0].Name,
 			},
 		}
+		nodeClass.Spec.UserData = customUserData
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
@@ -151,6 +159,7 @@ var _ = Describe("AMI", func() {
 				ID: customAMI,
 			},
 		}
+		nodeClass.Spec.UserData = customUserData
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)

@@ -22,13 +22,10 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
@@ -37,35 +34,16 @@ import (
 type SSMAPI struct {
 	ssmiface.SSMAPI
 	Parameters                map[string]string
-	GetParameterOutput        *ssm.GetParameterOutput
 	GetParametersByPathOutput *ssm.GetParametersByPathOutput
 	WantErr                   error
+
+	defaultParametersForPath map[string][]*ssm.Parameter
 }
 
 func NewSSMAPI() *SSMAPI {
-	return &SSMAPI{}
-}
-
-func (a SSMAPI) GetParameterWithContext(_ context.Context, input *ssm.GetParameterInput, _ ...request.Option) (*ssm.GetParameterOutput, error) {
-	if a.WantErr != nil {
-		return nil, a.WantErr
+	return &SSMAPI{
+		defaultParametersForPath: map[string][]*ssm.Parameter{},
 	}
-	if len(a.Parameters) > 0 {
-		if amiID, ok := a.Parameters[*input.Name]; ok {
-			return &ssm.GetParameterOutput{
-				Parameter: &ssm.Parameter{Value: aws.String(amiID)},
-			}, nil
-		}
-		return nil, awserr.New(ssm.ErrCodeParameterNotFound, fmt.Sprintf("%s couldn't be found", *input.Name), nil)
-	}
-	hc, _ := hashstructure.Hash(input.Name, hashstructure.FormatV2, nil)
-	if a.GetParameterOutput != nil {
-		return a.GetParameterOutput, nil
-	}
-
-	return &ssm.GetParameterOutput{
-		Parameter: &ssm.Parameter{Value: aws.String(fmt.Sprintf("test-ami-id-%x", hc))},
-	}, nil
 }
 
 func (a SSMAPI) GetParametersByPathPagesWithContext(_ context.Context, input *ssm.GetParametersByPathInput, f func(*ssm.GetParametersByPathOutput, bool) bool, _ ...request.Option) error {
@@ -99,14 +77,19 @@ func (a SSMAPI) GetParametersByPathPagesWithContext(_ context.Context, input *ss
 		}, true)
 		return nil
 	}
-	if params := getDefaultParametersForPath(lo.FromPtr(input.Path)); params != nil {
+	if params := a.getDefaultParametersForPath(lo.FromPtr(input.Path)); params != nil {
 		f(&ssm.GetParametersByPathOutput{Parameters: params}, true)
 		return nil
 	}
 	return fmt.Errorf("path %q does not exist", lo.FromPtr(input.Path))
 }
 
-func getDefaultParametersForPath(path string) []*ssm.Parameter {
+func (a SSMAPI) getDefaultParametersForPath(path string) []*ssm.Parameter {
+	// If we've already generated default parameters, return the same parameters across calls. This ensures we don't
+	// drift due to different results from one call to the next.
+	if params, ok := a.defaultParametersForPath[path]; ok {
+		return params
+	}
 	suffixes := map[string][]string{
 		`^\/aws\/service\/eks/optimized-ami\/.*\/amazon-linux-2$`:       []string{"recommended/image_id"},
 		`^\/aws\/service\/eks/optimized-ami\/.*\/amazon-linux-2-arm64$`: []string{"recommended/image_id"},
@@ -134,18 +117,20 @@ func getDefaultParametersForPath(path string) []*ssm.Parameter {
 		if !regexp.MustCompile(matchStr).MatchString(path) {
 			continue
 		}
-		return lo.Map(suffixes, func(suffix string, _ int) *ssm.Parameter {
+		params := lo.Map(suffixes, func(suffix string, _ int) *ssm.Parameter {
 			return &ssm.Parameter{
 				Name:  lo.ToPtr(fmt.Sprintf("%s/%s", path, suffix)),
 				Value: lo.ToPtr(fmt.Sprintf("ami-%s", randomdata.Alphanumeric(16))),
 			}
 		})
+		a.defaultParametersForPath[path] = params
+		return params
 	}
 	return nil
 }
 
 func (a *SSMAPI) Reset() {
-	a.GetParameterOutput = nil
+	a.GetParametersByPathOutput = nil
 	a.Parameters = nil
 	a.WantErr = nil
 }

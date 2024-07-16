@@ -53,7 +53,6 @@ func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provide
 	imageIDs := make([]*string, 0, 5)
 	// SSM aliases are only maintained for the latest Windows AMI releases
 	if amiVersion != AMIVersionLatest {
-
 		return DescribeImageQuery{}, fmt.Errorf(`discovering AMIs for alias "windows%s@%s", %q is not a supported version`, w.Version, amiVersion, amiVersion)
 	}
 	// Example Path: /aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-1.30/image_id
@@ -63,7 +62,7 @@ func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provide
 	}
 	for path, value := range results {
 		pathComponents := strings.Split(path, "/")
-		if len(pathComponents) != 6 && pathComponents[5] != "image_id" {
+		if len(pathComponents) != 6 || pathComponents[5] != "image_id" {
 			continue
 		}
 		matches := regexp.MustCompile(`^Windows_Server-(\d+)-English-Core-EKS_Optimized-(\d\.\d+)$`).FindStringSubmatch(pathComponents[4])

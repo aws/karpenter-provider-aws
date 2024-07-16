@@ -167,8 +167,8 @@ type AMISelectorTerm struct {
 	// Alias specifies which EKS optimized AMI to select.
 	// Each alias consists of a family and a version, specified as "family@version".
 	// Valid families include: al2, al2023, bottlerocket, windows2019, and windows2022.
-	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@1.10.0").
-	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released.
+	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
+	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
 	// Note: The Windows families do **not** support version pinning, and only latest may be used.
 	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]*@.*$')"
 	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.find('^[^@]+') in ['al2','al2023','bottlerocket','windows2019','windows2022']"

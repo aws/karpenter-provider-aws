@@ -53,13 +53,14 @@ func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Pr
 	} {
 		results, err := ssmProvider.List(ctx, rootPath)
 		if err != nil {
-			log.FromContext(ctx).WithValues("path", rootPath).Error(err, "discovering AMIs from ssm")
+			log.FromContext(ctx).WithValues("path", rootPath, "family", "bottlerocket").Error(err, "discovering AMIs from ssm")
 			continue
 		}
 		for path, value := range results {
 			pathComponents := strings.Split(path, "/")
 			// Only select image_id paths which match the desired AMI version
-			if len(pathComponents) != 8 || pathComponents[7] != "image_id" || pathComponents[6] != amiVersion {
+			// Note: The SSM path doesn't prefix the version with a v, but Bottlerocket's GitHub releases do. We'll support both.
+			if len(pathComponents) != 8 || pathComponents[7] != "image_id" || pathComponents[6] != strings.TrimPrefix(amiVersion, "v") {
 				continue
 			}
 			imageIDs = append(imageIDs, lo.ToPtr(value))

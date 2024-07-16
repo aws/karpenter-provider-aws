@@ -47,7 +47,7 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 	rootPath := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023", k8sVersion)
 	results, err := ssmProvider.List(ctx, rootPath)
 	if err != nil {
-		log.FromContext(ctx).WithValues("path", rootPath, "family", "AL2023").Error(err, "discovering AMIs from ssm")
+		log.FromContext(ctx).WithValues("path", rootPath, "family", "al2023").Error(err, "discovering AMIs from ssm")
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2023@%s"`, amiVersion)
 	}
 	for path, value := range results {

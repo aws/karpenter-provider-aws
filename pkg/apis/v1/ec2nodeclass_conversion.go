@@ -30,9 +30,6 @@ func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) erro
 	v1beta1enc.ObjectMeta = in.ObjectMeta
 
 	v1beta1enc.Spec.AMIFamily = lo.ToPtr(in.AMIFamily())
-	v1beta1enc.Annotations = lo.Assign(v1beta1enc.Annotations, map[string]string{
-		v1beta1.AnnotationAMIVersionCompatibility: in.AMIVersion(),
-	})
 	in.Spec.convertTo(&v1beta1enc.Spec)
 	in.Status.convertTo((&v1beta1enc.Status))
 	return nil
@@ -111,8 +108,9 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 	// In practice, this is only used to support the Ubuntu AMI family during conversion.
 	switch lo.FromPtr(v1beta1enc.Spec.AMIFamily) {
 	case AMIFamilyAL2, AMIFamilyAL2023, AMIFamilyBottlerocket, Windows2019, Windows2022:
-		version := lo.ValueOr(v1beta1enc.Annotations, v1beta1.AnnotationAMIVersionCompatibility, "latest")
-		in.Spec.AMISelectorTerms = []AMISelectorTerm{{Alias: fmt.Sprintf("%s@%s", strings.ToLower(lo.FromPtr(v1beta1enc.Spec.AMIFamily)), version)}}
+		in.Spec.AMISelectorTerms = []AMISelectorTerm{{
+			Alias: fmt.Sprintf("%s@latest", strings.ToLower(lo.FromPtr(v1beta1enc.Spec.AMIFamily))),
+		}}
 	default:
 		in.Annotations = lo.Assign(in.Annotations, map[string]string{
 			AnnotationAMIFamilyCompatibility: lo.FromPtr(v1beta1enc.Spec.AMIFamily),

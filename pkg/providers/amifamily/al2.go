@@ -55,7 +55,7 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 	} {
 		results, err := ssmProvider.List(ctx, rootPath)
 		if err != nil {
-			log.FromContext(ctx).WithValues("path", rootPath, "family", "AL2").Error(err, "discovering AMIs from ssm")
+			log.FromContext(ctx).WithValues("path", rootPath, "family", "al2").Error(err, "discovering AMIs from ssm")
 			continue
 		}
 		for path, value := range results {
