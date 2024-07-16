@@ -17,6 +17,8 @@ package hash
 import (
 	"context"
 
+	"github.com/aws/karpenter-provider-aws/pkg/utils"
+
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -93,6 +95,15 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1.EC2N
 		nc := ncList.Items[i]
 		stored := nc.DeepCopy()
 
+		nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, &nc)
+		if err != nil {
+			return err
+		}
+		kubeletHash, err := utils.GetHashKubelet(nodePool, nodeClass)
+		if err != nil {
+			return err
+		}
+
 		if nc.Annotations[v1.AnnotationEC2NodeClassHashVersion] != v1.EC2NodeClassHashVersion {
 			nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
@@ -102,7 +113,8 @@ func (c *Controller) updateNodeClaimHash(ctx context.Context, nodeClass *v1.EC2N
 			// Since the hashing mechanism has changed we will not be able to determine if the drifted status of the NodeClaim has changed
 			if nc.StatusConditions().Get(karpv1.ConditionTypeDrifted) == nil {
 				nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
-					v1.AnnotationEC2NodeClassHash: nodeClass.Hash(),
+					v1.AnnotationEC2NodeClassHash:         nodeClass.Hash(),
+					v1.AnnotationKubeletCompatibilityHash: kubeletHash,
 				})
 			}
 

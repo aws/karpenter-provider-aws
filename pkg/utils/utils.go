@@ -15,6 +15,7 @@ limitations under the License.
 package utils
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"regexp"
@@ -22,7 +23,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/types"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
@@ -110,4 +114,27 @@ func parseKubeletConfiguration(annotation string) (*v1.KubeletConfiguration, err
 		ImageGCLowThresholdPercent:  kubelet.ImageGCLowThresholdPercent,
 		CPUCFSQuota:                 kubelet.CPUCFSQuota,
 	}, nil
+}
+
+func GetHashKubelet(nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (string, error) {
+	kubelet, err := GetKubletConfigurationWithNodePool(nodePool, nodeClass)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprint(lo.Must(hashstructure.Hash(kubelet, hashstructure.FormatV2, &hashstructure.HashOptions{
+		SlicesAsSets:    true,
+		IgnoreZeroValue: true,
+		ZeroNil:         true,
+	}))), nil
+}
+
+func ResolveNodePoolFromNodeClaim(ctx context.Context, kubeClient client.Client, nodeClaim *karpv1.NodeClaim) (*karpv1.NodePool, error) {
+	if nodePoolName, ok := nodeClaim.Labels[karpv1.NodePoolLabelKey]; ok {
+		nodePool := &karpv1.NodePool{}
+		if err := kubeClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool); err != nil {
+			return nil, err
+		}
+		return nodePool, nil
+	}
+	return nil, fmt.Errorf("nodePool label not found on nodeClaim")
 }
