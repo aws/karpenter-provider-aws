@@ -50,6 +50,8 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 		log.FromContext(ctx).WithValues("path", rootPath, "family", "al2023").Error(err, "discovering AMIs from ssm")
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2023@%s"`, amiVersion)
 	}
+
+	ids := map[string]Variant{}
 	for path, value := range results {
 		pathComponents := strings.Split(path, "/")
 		if len(pathComponents) != 11 || pathComponents[10] != "image_id" {
@@ -62,9 +64,22 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 		if err != nil {
 			continue
 		}
-		imageIDs = append(imageIDs, lo.ToPtr(value))
-		requirements[value] = []scheduling.Requirements{variant.Requirements()}
+		ids[value] = variant
 	}
+
+	// EKS doesn't currently vend any accelerated AL2023 AMIs. We should schedule all workloads to
+	// these standard AMIs until accelerated AMIs are available. This approach ensures Karpenter is
+	// forwards compatible with acclerated AMIs once they become available.
+	hasAcceleratedAMIs := lo.ContainsBy(lo.Values(ids), func(v Variant) bool {
+		return v != VariantStandard
+	})
+	for id, variant := range ids {
+		imageIDs = append(imageIDs, lo.ToPtr(id))
+		if hasAcceleratedAMIs {
+			requirements[id] = []scheduling.Requirements{variant.Requirements()}
+		}
+	}
+
 	// Failed to discover any AMIs, we should short circuit AMI discovery
 	if len(imageIDs) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover AMIs for alias "al2023@%s"`, amiVersion)

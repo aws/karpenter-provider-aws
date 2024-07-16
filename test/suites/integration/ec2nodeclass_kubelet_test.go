@@ -74,8 +74,38 @@ var _ = Describe("EC2nodeClass Kubelet Configuration", func() {
 						Requirements: []karpv1beta1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
-									Key:      karpv1beta1.CapacityTypeLabelKey,
-									Operator: corev1.NodeSelectorOpExists,
+									Key:      corev1.LabelOSStable,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{string(corev1.Linux)},
+								},
+							},
+							{
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      karpv1.CapacityTypeLabelKey,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{karpv1.CapacityTypeOnDemand},
+								},
+							},
+							{
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      v1.LabelInstanceCategory,
+									Operator: corev1.NodeSelectorOpIn,
+									Values:   []string{"c", "m", "r"},
+								},
+							},
+							{
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      v1.LabelInstanceGeneration,
+									Operator: corev1.NodeSelectorOpGt,
+									Values:   []string{"2"},
+								},
+							},
+							// Filter out a1 instance types, which are incompatible with AL2023 AMIs
+							{
+								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+									Key:      v1.LabelInstanceFamily,
+									Operator: corev1.NodeSelectorOpNotIn,
+									Values:   []string{"a1"},
 								},
 							},
 						},

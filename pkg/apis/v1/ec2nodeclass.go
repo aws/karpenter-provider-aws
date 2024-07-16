@@ -165,7 +165,7 @@ type SecurityGroupSelectorTerm struct {
 // If multiple fields are used for selection, the requirements are ANDed.
 type AMISelectorTerm struct {
 	// Alias specifies which EKS optimized AMI to select.
-	// Each alias consists of a family and a version, specified as "family@version".
+	// Each alias consists of a family and an AMI version, specified as "family@version".
 	// Valid families include: al2, al2023, bottlerocket, windows2019, and windows2022.
 	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
 	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
