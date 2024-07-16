@@ -115,13 +115,13 @@ spec:
                             description: |-
                               Reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
                               Otherwise, this will apply to each reason defined.
-                              allowed reasons are underutilized, empty, and drifted.
+                              allowed reasons are Underutilized, Empty, and Drifted.
                             items:
                               description: DisruptionReason defines valid reasons for disruption budgets.
                               enum:
-                                - underutilized
-                                - empty
-                                - drifted
+                                - Underutilized
+                                - Empty
+                                - Drifted
                               type: string
                             type: array
                           schedule:
@@ -390,6 +390,26 @@ spec:
                               - key
                             type: object
                           type: array
+                        terminationGracePeriod:
+                          description: |-
+                            TerminationGracePeriod is the maximum duration the controller will wait before forcefully deleting the pods on a node, measured from when deletion is first initiated.
+
+
+                            Warning: this feature takes precedence over a Pod's terminationGracePeriodSeconds value, and bypasses any blocked PDBs or the karpenter.sh/do-not-disrupt annotation.
+
+
+                            This field is intended to be used by cluster administrators to enforce that nodes can be cycled within a given time period.
+                            When set, drifted nodes will begin draining even if there are pods blocking eviction. Draining will respect PDBs and the do-not-disrupt annotation until the TGP is reached.
+
+
+                            Karpenter will preemptively delete pods so their terminationGracePeriodSeconds align with the node's terminationGracePeriod.
+                            If a pod would be terminated without being granted its full terminationGracePeriodSeconds prior to the node timeout,
+                            that pod will be deleted at T = node timeout - pod terminationGracePeriodSeconds.
+
+
+                            The feature can also be used to allow maximum time limits for long-running jobs which can delay node termination with preStop hooks.
+                            If left undefined, the controller will wait indefinitely for pods to be drained.
+                          type: string
                       required:
                         - nodeClassRef
                         - requirements
@@ -573,13 +593,13 @@ spec:
                             description: |-
                               Reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
                               Otherwise, this will apply to each reason defined.
-                              allowed reasons are underutilized, empty, and drifted.
+                              allowed reasons are Underutilized, Empty, and Drifted.
                             items:
                               description: DisruptionReason defines valid reasons for disruption budgets.
                               enum:
-                                - underutilized
-                                - empty
-                                - drifted
+                                - Underutilized
+                                - Empty
+                                - Drifted
                               type: string
                             type: array
                           schedule:
@@ -970,6 +990,26 @@ spec:
                               - key
                             type: object
                           type: array
+                        terminationGracePeriod:
+                          description: |-
+                            TerminationGracePeriod is the maximum duration the controller will wait before forcefully deleting the pods on a node, measured from when deletion is first initiated.
+
+
+                            Warning: this feature takes precedence over a Pod's terminationGracePeriodSeconds value, and bypasses any blocked PDBs or the karpenter.sh/do-not-disrupt annotation.
+
+
+                            This field is intended to be used by cluster administrators to enforce that nodes can be cycled within a given time period.
+                            When set, drifted nodes will begin draining even if there are pods blocking eviction. Draining will respect PDBs and the do-not-disrupt annotation until the TGP is reached.
+
+
+                            Karpenter will preemptively delete pods so their terminationGracePeriodSeconds align with the node's terminationGracePeriod.
+                            If a pod would be terminated without being granted its full terminationGracePeriodSeconds prior to the node timeout,
+                            that pod will be deleted at T = node timeout - pod terminationGracePeriodSeconds.
+
+
+                            The feature can also be used to allow maximum time limits for long-running jobs which can delay node termination with preStop hooks.
+                            If left undefined, the controller will wait indefinitely for pods to be drained.
+                          type: string
                       required:
                         - nodeClassRef
                         - requirements
