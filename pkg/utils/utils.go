@@ -152,5 +152,5 @@ func ResolveNodePoolFromNodeClaim(ctx context.Context, kubeClient client.Client,
 		}
 		return nodePool, nil
 	}
-	return nil, fmt.Errorf("nodePool label not found on nodeClaim")
+	return nil, fmt.Errorf("label %s not found on nodeClaim", karpv1.NodePoolLabelKey)
 }
