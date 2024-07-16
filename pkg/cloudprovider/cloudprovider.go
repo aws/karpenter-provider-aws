@@ -86,6 +86,16 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		// We treat a failure to resolve the NodeClass as an ICE since this means there is no capacity possibilities for this NodeClaim
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
 	}
+
+	// TODO: Remove this after v1
+	nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, nodeClaim)
+	if err != nil {
+		return nil, err
+	}
+	kubeletHash, err := utils.GetHashKubelet(nodePool, nodeClass)
+	if err != nil {
+		return nil, err
+	}
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
 	if !nodeClassReady.IsTrue() {
 		return nil, fmt.Errorf("resolving ec2nodeclass, %s", nodeClassReady.Message)
@@ -106,8 +116,9 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	})
 	nc := c.instanceToNodeClaim(instance, instanceType, nodeClass)
 	nc.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
-		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
+		v1.AnnotationKubeletCompatibilityHash: kubeletHash,
+		v1.AnnotationEC2NodeClassHash:         nodeClass.Hash(),
+		v1.AnnotationEC2NodeClassHashVersion:  v1.EC2NodeClassHashVersion,
 	})
 	return nc, nil
 }
