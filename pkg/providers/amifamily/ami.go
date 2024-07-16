@@ -85,14 +85,15 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]DescribeImageQuery, error) {
 	// Aliases are mutually exclusive, both on the term level and field level within a term.
 	// This is enforced by a CEL validation, we will treat this as an invariant.
-	if amiFamilyKey := nodeClass.AMIFamily(); amiFamilyKey != v1.AMIFamilyCustom {
-		amiVersion := nodeClass.AMIVersion()
-		amiFamily := GetAMIFamily(&amiFamilyKey, nil)
+	if lo.ContainsBy(nodeClass.Spec.AMISelectorTerms, func(term v1.AMISelectorTerm) bool {
+		return term.Alias != ""
+	}) {
 		kubernetesVersion, err := p.versionProvider.Get(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("getting kubernetes version, %w", err)
 		}
-		query, err := amiFamily.DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, amiVersion)
+		amiFamily := GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), nil)
+		query, err := amiFamily.DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, nodeClass.AMIVersion())
 		if err != nil {
 			return []DescribeImageQuery{}, err
 		}
