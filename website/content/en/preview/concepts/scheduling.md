@@ -285,7 +285,7 @@ Taints are the opposite of affinity.
 Setting a taint on a node tells the scheduler to not run a pod on it unless the pod has explicitly said it can tolerate that taint. This example shows a NodePool that was set up with a taint for only running pods that require a GPU, such as the following:
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: gpu
@@ -482,7 +482,7 @@ If you have purchased a [Savings Plan](https://aws.amazon.com/savingsplans/) or 
 To enable this, you will need to tell the Karpenter controllers which instance types to prioritize and what is the maximum amount of capacity that should be provisioned using those instance types. We can set the `.spec.limits` field on the NodePool to limit the capacity that can be launched by this NodePool. Combined with the `.spec.weight` value, we can tell Karpenter to pull from instance types in the reserved NodePool before defaulting to generic instance types.
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: reserved-instance
@@ -497,7 +497,7 @@ spec:
         operator: In
         values: ["c4.large"]
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -520,7 +520,7 @@ Pods that do not specify node selectors or affinities can potentially be assigne
 By assigning a higher `.spec.weight` value and restricting a NodePool to a specific capacity type or architecture, we can set default configuration for the nodes launched by pods that don't have node configuration restrictions.
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -536,7 +536,7 @@ spec:
         operator: In
         values: ["amd64"]
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: arm64-specific
@@ -654,7 +654,7 @@ If using Gt/Lt operators, make sure to use values under the actual label values 
 The `Exists` operator can be used on a NodePool to provide workload segregation across nodes.
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 spec:
   template:
@@ -738,7 +738,7 @@ This is not identical to a topology spread with a specified ratio.  We are const
 #### NodePools
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: spot
@@ -757,7 +757,7 @@ spec:
         - "4"
         - "5"
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: on-demand
