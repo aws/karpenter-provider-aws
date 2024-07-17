@@ -97,8 +97,10 @@ func WithDefaultFloat64(key string, def float64) float64 {
 // 1.) v1 NodePool kubelet annotation (Showing a user configured using v1beta1 NodePool at some point)
 // 2.) v1 EC2NodeClass will be used (showing a user configured using v1 EC2NodeClass)
 func GetKubletConfigurationWithNodePool(nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (*v1.KubeletConfiguration, error) {
-	if annotation, ok := nodePool.Annotations[karpv1.KubeletCompatibilityAnnotationKey]; ok {
-		return parseKubeletConfiguration(annotation)
+	if nodePool != nil {
+		if annotation, ok := nodePool.Annotations[karpv1.KubeletCompatibilityAnnotationKey]; ok {
+			return parseKubeletConfiguration(annotation)
+		}
 	}
 	return nodeClass.Spec.Kubelet, nil
 }
@@ -152,5 +154,6 @@ func ResolveNodePoolFromNodeClaim(ctx context.Context, kubeClient client.Client,
 		}
 		return nodePool, nil
 	}
-	return nil, fmt.Errorf("label %s not found on nodeClaim", karpv1.NodePoolLabelKey)
+	// There will be no nodePool referenced inside the nodeClaim in case of standalone nodeClaims
+	return nil, nil
 }
