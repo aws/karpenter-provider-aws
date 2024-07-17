@@ -46,7 +46,7 @@ spec:
     spec:
       # References the Cloud Provider's NodeClass resource, see your cloud provider specific documentation
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1
+        apiVersion: karpenter.k8s.aws  # Updated since only a single version will be served
         kind: EC2NodeClass
         name: default
 
@@ -97,37 +97,6 @@ spec:
           operator: In
           values: ["spot", "on-demand"]
 
-      # Karpenter provides the ability to specify a few additional Kubelet args.
-      # These are all optional and provide support for additional customization and use cases.
-      kubelet:
-        clusterDNS: ["10.0.1.100"]
-        systemReserved:
-          cpu: 100m
-          memory: 100Mi
-          ephemeral-storage: 1Gi
-        kubeReserved:
-          cpu: 200m
-          memory: 100Mi
-          ephemeral-storage: 3Gi
-        evictionHard:
-          memory.available: 5%
-          nodefs.available: 10%
-          nodefs.inodesFree: 10%
-        evictionSoft:
-          memory.available: 500Mi
-          nodefs.available: 15%
-          nodefs.inodesFree: 15%
-        evictionSoftGracePeriod:
-          memory.available: 1m
-          nodefs.available: 1m30s
-          nodefs.inodesFree: 2m
-        evictionMaxPodGracePeriod: 60
-        imageGCHighThresholdPercent: 85
-        imageGCLowThresholdPercent: 80
-        cpuCFSQuota: true
-        podsPerCore: 2
-        maxPods: 20
-
   # Disruption section which describes the ways in which Karpenter can disrupt and replace Nodes
   # Configuration in this section constrains how aggressive Karpenter can be with performing operations
   # like rolling Nodes due to them hitting their maximum lifetime (expiry) or scaling down nodes to reduce cluster cost
@@ -140,12 +109,12 @@ spec:
     # The amount of time Karpenter should wait after discovering a consolidation decision
     # This value can currently only be set when the consolidationPolicy is 'WhenEmpty'
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
-    consolidateAfter: 30s
+    consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 
     # The amount of time a Node can live on the cluster before being removed
     # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
     # You can choose to disable expiration entirely by setting the string value 'Never' here
-    expireAfter: 720h
+    expireAfter: 720h | Never
 
     # Budgets control the speed Karpenter can scale down nodes.
     # Karpenter will respect the minimum of the currently active budgets, and will round up
@@ -167,6 +136,18 @@ spec:
   # to select. Higher weights indicate higher priority when comparing NodePools.
   # Specifying no weight is equivalent to specifying a weight of 0.
   weight: 10
+status:
+  conditions:
+    - type: Initialized
+      status: "False"
+      observedGeneration: 1
+      lastTransitionTime: "2024-02-02T19:54:34Z"
+      reason: NodeClaimNotLaunched
+      message: "NodeClaim hasn't succeeded launch"
+  resources:
+    cpu: "20"
+    memory: "8192Mi"
+    ephemeral-storage: "100Gi"
 ```
 
 ## spec.template.spec.requirements
@@ -335,150 +316,6 @@ spec:
 
 This field points to the Cloud Provider NodeClass resource. Learn more about [EC2NodeClasses]({{<ref "nodeclasses" >}}).
 
-## spec.template.spec.kubelet
-
-Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
-additional customization and use cases. Adjust these only if you know you need to do so. For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
-The implemented fields are a subset of the full list of upstream kubelet configuration arguments. Please cut an issue if you'd like to see another field implemented.
-
-```yaml
-kubelet:
-  clusterDNS: ["10.0.1.100"]
-  systemReserved:
-    cpu: 100m
-    memory: 100Mi
-    ephemeral-storage: 1Gi
-  kubeReserved:
-    cpu: 200m
-    memory: 100Mi
-    ephemeral-storage: 3Gi
-  evictionHard:
-    memory.available: 5%
-    nodefs.available: 10%
-    nodefs.inodesFree: 10%
-  evictionSoft:
-    memory.available: 500Mi
-    nodefs.available: 15%
-    nodefs.inodesFree: 15%
-  evictionSoftGracePeriod:
-    memory.available: 1m
-    nodefs.available: 1m30s
-    nodefs.inodesFree: 2m
-  evictionMaxPodGracePeriod: 60
-  imageGCHighThresholdPercent: 85
-  imageGCLowThresholdPercent: 80
-  cpuCFSQuota: true
-  podsPerCore: 2
-  maxPods: 20
-```
-
-### Reserved Resources
-
-Karpenter will automatically configure the system and kube reserved resource requests on the fly on your behalf. These requests are used to configure your node and to make scheduling decisions for your pods. If you have specific requirements or know that you will have additional capacity requirements, you can optionally override the `--system-reserved` configuration defaults with the `.spec.template.spec.kubelet.systemReserved` values and the `--kube-reserved` configuration defaults with the `.spec.template.spec.kubelet.kubeReserved` values.
-
-{{% alert title="Note" color="primary" %}}
-Karpenter considers these reserved resources when computing the allocatable ephemeral storage on a given instance type.
-If `kubeReserved` is not specified, Karpenter will compute the default reserved [CPU](https://github.com/awslabs/amazon-eks-ami/blob/db28da15d2b696bc08ac3aacc9675694f4a69933/files/bootstrap.sh#L251) and [memory](https://github.com/awslabs/amazon-eks-ami/blob/db28da15d2b696bc08ac3aacc9675694f4a69933/files/bootstrap.sh#L235) resources for the purpose of ephemeral storage computation.
-These defaults are based on the defaults on Karpenter's supported AMI families, which are not the same as the kubelet defaults.
-You should be aware of the CPU and memory default calculation when using Custom AMI Families. If they don't align, there may be a difference in Karpenter's computed allocatable ephemeral storage and the actually ephemeral storage available on the node.
-{{% /alert %}}
-
-### Eviction Thresholds
-
-The kubelet supports eviction thresholds by default. When enough memory or file system pressure is exerted on the node, the kubelet will begin to evict pods to ensure that system daemons and other system processes can continue to run in a healthy manner.
-
-Kubelet has the notion of [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) and [soft evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#soft-eviction-thresholds). In hard evictions, pods are evicted as soon as a threshold is met, with no grace period to terminate. Soft evictions, on the other hand, provide an opportunity for pods to be terminated gracefully. They do so by sending a termination signal to pods that are planning to be evicted and allowing those pods to terminate up to their grace period.
-
-Karpenter supports [hard evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#hard-eviction-thresholds) through the `.spec.template.spec.kubelet.evictionHard` field and [soft evictions](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#soft-eviction-thresholds) through the `.spec.template.spec.kubelet.evictionSoft` field. `evictionHard` and `evictionSoft` are configured by listing [signal names](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction/#eviction-signals) with either percentage values or resource values.
-
-```yaml
-kubelet:
-  evictionHard:
-    memory.available: 500Mi
-    nodefs.available: 10%
-    nodefs.inodesFree: 10%
-    imagefs.available: 5%
-    imagefs.inodesFree: 5%
-    pid.available: 7%
-  evictionSoft:
-    memory.available: 1Gi
-    nodefs.available: 15%
-    nodefs.inodesFree: 15%
-    imagefs.available: 10%
-    imagefs.inodesFree: 10%
-    pid.available: 10%
-```
-
-#### Supported Eviction Signals
-
-| Eviction Signal    | Description                                                                     |
-|--------------------|---------------------------------------------------------------------------------|
-| memory.available   | memory.available := node.status.capacity[memory] - node.stats.memory.workingSet |
-| nodefs.available   | nodefs.available := node.stats.fs.available                                     |
-| nodefs.inodesFree  | nodefs.inodesFree := node.stats.fs.inodesFree                                   |
-| imagefs.available  | imagefs.available := node.stats.runtime.imagefs.available                       |
-| imagefs.inodesFree | imagefs.inodesFree := node.stats.runtime.imagefs.inodesFree                     |
-| pid.available      | pid.available := node.stats.rlimit.maxpid - node.stats.rlimit.curproc           |
-
-For more information on eviction thresholds, view the [Node-pressure Eviction](https://kubernetes.io/docs/concepts/scheduling-eviction/node-pressure-eviction) section of the official Kubernetes docs.
-
-#### Soft Eviction Grace Periods
-
-Soft eviction pairs an eviction threshold with a specified grace period. With soft eviction thresholds, the kubelet will only begin evicting pods when the node exceeds its soft eviction threshold over the entire duration of its grace period. For example, if you specify `evictionSoft[memory.available]` of `500Mi` and a `evictionSoftGracePeriod[memory.available]` of `1m30`, the node must have less than `500Mi` of available memory over a minute and a half in order for the kubelet to begin evicting pods.
-
-Optionally, you can specify an `evictionMaxPodGracePeriod` which defines the administrator-specified maximum pod termination grace period to use during soft eviction. If a namespace-owner had specified a pod `terminationGracePeriodInSeconds` on pods in their namespace, the minimum of `evictionPodGracePeriod` and `terminationGracePeriodInSeconds` would be used.
-
-```yaml
-kubelet:
-  evictionSoftGracePeriod:
-    memory.available: 1m
-    nodefs.available: 1m30s
-    nodefs.inodesFree: 2m
-    imagefs.available: 1m30s
-    imagefs.inodesFree: 2m
-    pid.available: 2m
-  evictionMaxPodGracePeriod: 60
-```
-
-### Pod Density
-
-By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
-
-{{% alert title="Note" color="primary" %}}
-By default, the VPC CNI allocates IPs for a node and pods from the same subnet. With [VPC CNI Custom Networking](https://aws.github.io/aws-eks-best-practices/networking/custom-networking), the pods will receive IP addresses from another subnet dedicated to pod IPs. This approach makes it easier to manage IP addresses and allows for separate Network Access Control Lists (NACLs) applied to your pods. VPC CNI Custom Networking reduces the pod density of a node since one of the ENI attachments will be used for the node and cannot share the allocated IPs on the interface to pods. Karpenter supports VPC CNI Custom Networking and similar CNI setups where the primary node interface is separated from the pods interfaces through a global [setting](./settings.md#configmap) within the karpenter-global-settings configmap: `aws.reservedENIs`. In the common case, `aws.reservedENIs` should be set to `"1"` if using Custom Networking.
-{{% /alert %}}
-
-{{% alert title="Windows Support Notice" color="warning" %}}
-It's currently not possible to specify custom networking with Windows nodes.
-{{% /alert %}}
-
-#### Max Pods
-
-For small instances that require an increased pod density or large instances that require a reduced pod density, you can override this default value with `.spec.template.spec.kubelet.maxPods`. This value will be used during Karpenter pod scheduling and passed through to `--max-pods` on kubelet startup.
-
-{{% alert title="Note" color="primary" %}}
-When using small instance types, it may be necessary to enable [prefix assignment mode](https://aws.amazon.com/blogs/containers/amazon-vpc-cni-increases-pods-per-node-limits/) in the AWS VPC CNI plugin to support a higher pod density per node.  Prefix assignment mode was introduced in AWS VPC CNI v1.9 and allows ENIs to manage a broader set of IP addresses.  Much higher pod densities are supported as a result.
-{{% /alert %}}
-
-{{% alert title="Windows Support Notice" color="warning" %}}
-Presently, Windows worker nodes do not support using more than one ENI.
-As a consequence, the number of IP addresses, and subsequently, the number of pods that a Windows worker node can support is limited by the number of IPv4 addresses available on the primary ENI.
-Currently, Karpenter will only consider individual secondary IP addresses when calculating the pod density limit.
-{{% /alert %}}
-
-#### Pods Per Core
-
-An alternative way to dynamically set the maximum density of pods on a node is to use the `.spec.template.spec.kubelet.podsPerCore` value. Karpenter will calculate the pod density during scheduling by multiplying this value by the number of logical cores (vCPUs) on an instance type. This value will also be passed through to the `--pods-per-core` value on kubelet startup to configure the number of allocatable pods the kubelet can assign to the node instance.
-
-The value generated from `podsPerCore` cannot exceed `maxPods`, meaning, if both are set, the minimum of the `podsPerCore` dynamic pod density and the static `maxPods` value will be used for scheduling.
-
-{{% alert title="Note" color="primary" %}}
-`maxPods` may not be set in the `kubelet` of a NodePool, but may still be restricted by the `ENI_LIMITED_POD_DENSITY` value. You may want to ensure that the `podsPerCore` value that will be used for instance families associated with the NodePool will not cause unexpected behavior by exceeding the `maxPods` value.
-{{% /alert %}}
-
-{{% alert title="Pods Per Core on Bottlerocket" color="warning" %}}
-Bottlerocket AMIFamily currently does not support `podsPerCore` configuration. If a NodePool contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `podsPerCore` value will be ignored for scheduling and for configuring the kubelet.
-{{% /alert %}}
 
 ## spec.disruption
 
