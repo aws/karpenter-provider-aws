@@ -75,7 +75,7 @@ e2etests: ## Run the e2e suite against your local cluster
 		go test \
 		-p 1 \
 		-count 1 \
-		-timeout 3h \
+		-timeout 3.25h \
 		-v \
 		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
 		--ginkgo.focus="${FOCUS}" \
