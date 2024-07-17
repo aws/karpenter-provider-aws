@@ -75,9 +75,6 @@ var _ = Describe("Expiration", func() {
 					Labels: map[string]string{
 						"app": "my-app",
 					},
-					Annotations: map[string]string{
-						karpv1.DoNotDisruptAnnotationKey: "true",
-					},
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
 			},
