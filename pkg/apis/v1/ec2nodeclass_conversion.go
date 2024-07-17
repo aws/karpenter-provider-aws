@@ -104,14 +104,22 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 	v1beta1enc := from.(*v1beta1.EC2NodeClass)
 	in.ObjectMeta = v1beta1enc.ObjectMeta
 
-	// If the v1beta1 AMI family is supported on v1, construct an alias. Otherwise, use the compatibility annotation.
-	// In practice, this is only used to support the Ubuntu AMI family during conversion.
-	switch lo.FromPtr(v1beta1enc.Spec.AMIFamily) {
-	case AMIFamilyAL2, AMIFamilyAL2023, AMIFamilyBottlerocket, Windows2019, Windows2022:
+	// TODO: jmdeal@ remove before v1
+	// Temporarily fail closed when trying to convert EC2NodeClasses with the Ubuntu AMI family since compatibility support isn't yet integrated.
+	// This check can be removed once it's added.
+	if lo.FromPtr(v1beta1enc.Spec.AMIFamily) == v1beta1.AMIFamilyUbuntu {
+		return fmt.Errorf("failed to convert v1beta1 EC2NodeClass to v1, conversion for Ubuntu AMIFamily is currently unsupported")
+	}
+
+	// If the AMIFamily is still supported by the v1 APIs, and there are no AMISelectorTerms defined, create an alias.
+	// Otherwise, don't modify the AMISelectorTerms and add the compatibility annotation.
+	if lo.Contains([]string{
+		AMIFamilyAL2, AMIFamilyAL2023, AMIFamilyBottlerocket, AMIFamilyWindows2019, AMIFamilyWindows2022,
+	}, lo.FromPtr(v1beta1enc.Spec.AMIFamily)) && len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
 		in.Spec.AMISelectorTerms = []AMISelectorTerm{{
 			Alias: fmt.Sprintf("%s@latest", strings.ToLower(lo.FromPtr(v1beta1enc.Spec.AMIFamily))),
 		}}
-	default:
+	} else {
 		in.Annotations = lo.Assign(in.Annotations, map[string]string{
 			AnnotationAMIFamilyCompatibility: lo.FromPtr(v1beta1enc.Spec.AMIFamily),
 		})
