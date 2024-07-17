@@ -150,7 +150,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		}
 		kubeletConfigString, _ := json.Marshal(kubeletConfig)
 		nodePool.Annotations = lo.Assign(nodePool.Annotations, map[string]string{
-			karpv1.KubeletCompatabilityAnnotationKey: string(kubeletConfigString),
+			karpv1.KubeletCompatibilityAnnotationKey: string(kubeletConfigString),
 		})
 		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
@@ -214,7 +214,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 		}
 		kubeletConfigString, _ := json.Marshal(kubeletConfig)
 		nodePool.Annotations = lo.Assign(nodePool.Annotations, map[string]string{
-			karpv1.KubeletCompatabilityAnnotationKey: string(kubeletConfigString),
+			karpv1.KubeletCompatibilityAnnotationKey: string(kubeletConfigString),
 		})
 		nodeClaim := coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
