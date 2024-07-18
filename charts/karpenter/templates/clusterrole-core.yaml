@@ -69,6 +69,10 @@ rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["update"]
+  # Delete
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["delete"]
   {{- with .Values.additionalClusterRoleRules -}}
   {{ toYaml . | nindent 2 }}
   {{- end -}}
