@@ -15,14 +15,16 @@ limitations under the License.
 package amifamily
 
 import (
-	v1 "k8s.io/api/core/v1"
+	"context"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
 type Custom struct {
@@ -31,7 +33,7 @@ type Custom struct {
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (c Custom) UserData(_ *corev1beta1.KubeletConfiguration, _ []v1.Taint, _ map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (c Custom) UserData(_ *v1.KubeletConfiguration, _ []corev1.Taint, _ map[string]string, _ *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Custom{
 		Options: bootstrap.Options{
 			CustomUserData: customUserData,
@@ -39,11 +41,11 @@ func (c Custom) UserData(_ *corev1beta1.KubeletConfiguration, _ []v1.Taint, _ ma
 	}
 }
 
-func (c Custom) DefaultAMIs(_ string) []DefaultAMIOutput {
-	return nil
+func (c Custom) DescribeImageQuery(_ context.Context, _ ssm.Provider, _ string, _ string) (DescribeImageQuery, error) {
+	return DescribeImageQuery{}, nil
 }
 
-func (c Custom) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
+func (c Custom) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
 	// By returning nil, we ensure that EC2 will automatically choose the volumes defined by the AMI
 	// and we don't need to describe the AMI ourselves.
 	return nil

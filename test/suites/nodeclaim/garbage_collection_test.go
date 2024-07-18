@@ -23,12 +23,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awserrors "github.com/aws/karpenter-provider-aws/pkg/errors"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 	environmentaws "github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
@@ -82,11 +82,11 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("owned"),
 						},
 						{
-							Key:   aws.String(corev1beta1.NodePoolLabelKey),
+							Key:   aws.String(karpv1.NodePoolLabelKey),
 							Value: aws.String(nodePool.Name),
 						},
 						{
-							Key:   aws.String(v1beta1.LabelNodeClass),
+							Key:   aws.String(v1.LabelNodeClass),
 							Value: aws.String(nodeClass.Name),
 						},
 					},
@@ -130,7 +130,7 @@ var _ = Describe("GarbageCollection", func() {
 			Resources: []*string{out.Instances[0].InstanceId},
 			Tags: []*ec2.Tag{
 				{
-					Key:   aws.String(corev1beta1.ManagedByAnnotationKey),
+					Key:   aws.String(karpv1.ManagedByAnnotationKey),
 					Value: aws.String(env.ClusterName),
 				},
 			},
@@ -145,7 +145,7 @@ var _ = Describe("GarbageCollection", func() {
 	})
 	It("should succeed to garbage collect an Instance that was deleted without the cluster's knowledge", func() {
 		// Disable the interruption queue for the garbage collection coretest
-		env.ExpectSettingsOverridden(v1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: ""})
+		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "INTERRUPTION_QUEUE", Value: ""})
 
 		pod := coretest.Pod()
 		env.ExpectCreated(nodeClass, nodePool, pod)

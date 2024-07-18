@@ -22,7 +22,8 @@ import (
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
+	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
@@ -33,6 +34,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
@@ -42,7 +44,8 @@ import (
 )
 
 func init() {
-	corev1beta1.NormalizedLabels = lo.Assign(corev1beta1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	karpv1beta1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
+	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 
 type Environment struct {
@@ -64,6 +67,7 @@ type Environment struct {
 	AssociatePublicIPAddressCache *cache.Cache
 	SecurityGroupCache            *cache.Cache
 	InstanceProfileCache          *cache.Cache
+	SSMCache                      *cache.Cache
 
 	// Providers
 	InstanceTypesProvider   *instancetype.DefaultProvider
@@ -96,6 +100,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	associatePublicIPAddressCache := cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ssmCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
@@ -104,7 +109,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache)
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmapi, ec2api, ec2Cache)
+	ssmProvider := ssmp.NewDefaultProvider(ssmapi, ssmCache)
+	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewResolver(amiProvider)
 	instanceTypesProvider := instancetype.NewDefaultProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
@@ -147,6 +153,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		SecurityGroupCache:            securityGroupCache,
 		InstanceProfileCache:          instanceProfileCache,
 		UnavailableOfferingsCache:     unavailableOfferingsCache,
+		SSMCache:                      ssmCache,
 
 		InstanceTypesProvider:   instanceTypesProvider,
 		InstanceProvider:        instanceProvider,
@@ -179,7 +186,7 @@ func (env *Environment) Reset() {
 	env.AvailableIPAdressCache.Flush()
 	env.SecurityGroupCache.Flush()
 	env.InstanceProfileCache.Flush()
-
+	env.SSMCache.Flush()
 	mfs, err := crmetrics.Registry.Gather()
 	if err != nil {
 		for _, mf := range mfs {

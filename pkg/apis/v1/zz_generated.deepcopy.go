@@ -237,11 +237,6 @@ func (in *EC2NodeClassSpec) DeepCopyInto(out *EC2NodeClassSpec) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
-	if in.AMIFamily != nil {
-		in, out := &in.AMIFamily, &out.AMIFamily
-		*out = new(string)
-		**out = **in
-	}
 	if in.UserData != nil {
 		in, out := &in.UserData, &out.UserData
 		*out = new(string)

@@ -18,15 +18,15 @@ import (
 	"testing"
 
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -34,8 +34,8 @@ import (
 )
 
 var env *aws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *v1.EC2NodeClass
+var nodePool *karpv1.NodePool
 
 func TestLocalZone(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -53,9 +53,9 @@ var _ = BeforeEach(func() {
 	nodeClass = env.DefaultEC2NodeClass()
 	// The majority of local zones do not support GP3. Feature support in local zones can be tracked here:
 	// https://aws.amazon.com/about-aws/global-infrastructure/localzones/features/
-	nodeClass.Spec.BlockDeviceMappings = append(nodeClass.Spec.BlockDeviceMappings, &v1beta1.BlockDeviceMapping{
+	nodeClass.Spec.BlockDeviceMappings = append(nodeClass.Spec.BlockDeviceMappings, &v1.BlockDeviceMapping{
 		DeviceName: lo.ToPtr("/dev/xvda"),
-		EBS: &v1beta1.BlockDevice{
+		EBS: &v1.BlockDevice{
 			VolumeSize: func() *resource.Quantity {
 				quantity, err := resource.ParseQuantity("80Gi")
 				Expect(err).To(BeNil())
@@ -66,10 +66,10 @@ var _ = BeforeEach(func() {
 		},
 	})
 	nodePool = env.DefaultNodePool(nodeClass)
-	nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, corev1beta1.NodeSelectorRequirementWithMinValues{
-		NodeSelectorRequirement: v1.NodeSelectorRequirement{
-			Key:      v1.LabelTopologyZone,
-			Operator: v1.NodeSelectorOpIn,
+	nodePool.Spec.Template.Spec.Requirements = append(nodePool.Spec.Template.Spec.Requirements, karpv1.NodeSelectorRequirementWithMinValues{
+		NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+			Key:      corev1.LabelTopologyZone,
+			Operator: corev1.NodeSelectorOpIn,
 			Values: lo.FilterMap(env.GetSubnetInfo(map[string]string{"karpenter.sh/discovery": env.ClusterName}), func(info aws.SubnetInfo, _ int) (string, bool) {
 				return info.Zone, info.ZoneType == "local-zone"
 			}),
@@ -90,10 +90,10 @@ var _ = Describe("LocalZone", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: depLabels,
 				},
-				TopologySpreadConstraints: []v1.TopologySpreadConstraint{{
-					TopologyKey:       v1.LabelHostname,
+				TopologySpreadConstraints: []corev1.TopologySpreadConstraint{{
+					TopologyKey:       corev1.LabelHostname,
 					MaxSkew:           1,
-					WhenUnsatisfiable: v1.DoNotSchedule,
+					WhenUnsatisfiable: corev1.DoNotSchedule,
 					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: depLabels,
 					},

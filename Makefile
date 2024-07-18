@@ -75,7 +75,7 @@ e2etests: ## Run the e2e suite against your local cluster
 		go test \
 		-p 1 \
 		-count 1 \
-		-timeout 3h \
+		-timeout 3.25h \
 		-v \
 		./suites/$(shell echo $(TEST_SUITE) | tr A-Z a-z)/... \
 		--ginkgo.focus="${FOCUS}" \
@@ -105,6 +105,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	hack/validation/kubelet.sh
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
+	hack/mutation/conversion_webhooks_injection.sh
 	hack/github/dependabot.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\

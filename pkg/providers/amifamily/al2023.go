@@ -15,16 +15,22 @@ limitations under the License.
 package amifamily
 
 import (
+	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/aws-sdk-go/service/ec2"
+
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
 type AL2023 struct {
@@ -32,24 +38,75 @@ type AL2023 struct {
 	*Options
 }
 
-func (a AL2023) DefaultAMIs(version string) []DefaultAMIOutput {
-	return []DefaultAMIOutput{
-		{
-			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-			),
-		},
+func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
+	requirements := make(map[string][]scheduling.Requirements)
+	imageIDs := make([]*string, 0, 5)
+	// Example Paths:
+	// - Latest EKS 1.30 arm64 Standard Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2023/arm64/standard/recommended/image_id
+	// - Specific EKS 1.30 amd64 Nvidia Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2023/x86_64/nvidia/amazon-eks-node-al2023-x86_64-nvidia-1.30-v20240625/image_id
+	rootPath := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023", k8sVersion)
+	results, err := ssmProvider.List(ctx, rootPath)
+	if err != nil {
+		log.FromContext(ctx).WithValues("path", rootPath, "family", "al2023").Error(err, "discovering AMIs from ssm")
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2023@%s"`, amiVersion)
 	}
+
+	ids := map[string]Variant{}
+	for path, value := range results {
+		pathComponents := strings.Split(path, "/")
+		if len(pathComponents) != 11 || pathComponents[10] != "image_id" {
+			continue
+		}
+		if av, err := a.extractAMIVersion(pathComponents[9]); err != nil || av != amiVersion {
+			continue
+		}
+		variant, err := NewVariant(pathComponents[8])
+		if err != nil {
+			continue
+		}
+		ids[value] = variant
+	}
+
+	// EKS doesn't currently vend any accelerated AL2023 AMIs. We should schedule all workloads to
+	// these standard AMIs until accelerated AMIs are available. This approach ensures Karpenter is
+	// forwards compatible with acclerated AMIs once they become available.
+	hasAcceleratedAMIs := lo.ContainsBy(lo.Values(ids), func(v Variant) bool {
+		return v != VariantStandard
+	})
+	for id, variant := range ids {
+		imageIDs = append(imageIDs, lo.ToPtr(id))
+		if hasAcceleratedAMIs {
+			requirements[id] = []scheduling.Requirements{variant.Requirements()}
+		}
+	}
+
+	// Failed to discover any AMIs, we should short circuit AMI discovery
+	if len(imageIDs) == 0 {
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover AMIs for alias "al2023@%s"`, amiVersion)
+	}
+
+	return DescribeImageQuery{
+		Filters: []*ec2.Filter{{
+			Name:   lo.ToPtr("image-id"),
+			Values: imageIDs,
+		}},
+		KnownRequirements: requirements,
+	}, nil
 }
 
-func (a AL2023) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (a AL2023) extractAMIVersion(versionStr string) (string, error) {
+	if versionStr == "recommended" {
+		return AMIVersionLatest, nil
+	}
+	rgx := regexp.MustCompile(`^.*(v\d{8})$`)
+	matches := rgx.FindStringSubmatch(versionStr)
+	if len(matches) != 2 {
+		return "", fmt.Errorf("failed to extract AMI version")
+	}
+	return matches[1], nil
+}
+
+func (a AL2023) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Nodeadm{
 		Options: bootstrap.Options{
 			ClusterName:             a.Options.ClusterName,
@@ -67,8 +124,8 @@ func (a AL2023) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (a AL2023) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
-	return []*v1beta1.BlockDeviceMapping{{
+func (a AL2023) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
+	return []*v1.BlockDeviceMapping{{
 		DeviceName: a.EphemeralBlockDevice(),
 		EBS:        &DefaultEBS,
 	}}

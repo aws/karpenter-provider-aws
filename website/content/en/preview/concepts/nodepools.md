@@ -25,7 +25,7 @@ Here are things you should know about NodePools:
 For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/v1beta1/).
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -46,7 +46,7 @@ spec:
     spec:
       # References the Cloud Provider's NodeClass resource, see your cloud provider specific documentation
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        apiVersion: karpenter.k8s.aws/v1
         kind: EC2NodeClass
         name: default
 
@@ -338,7 +338,8 @@ This field points to the Cloud Provider NodeClass resource. Learn more about [EC
 ## spec.template.spec.kubelet
 
 Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
-additional customization and use cases. Adjust these only if you know you need to do so. For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1beta1/). The implemented fields are a subset of the full list of upstream kubelet configuration arguments. Please cut an issue if you'd like to see another field implemented.
+additional customization and use cases. Adjust these only if you know you need to do so. For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
+The implemented fields are a subset of the full list of upstream kubelet configuration arguments. Please cut an issue if you'd like to see another field implemented.
 
 ```yaml
 kubelet:
@@ -490,7 +491,7 @@ The NodePool spec includes a limits section (`spec.limits`), which constrains th
 Karpenter supports limits of any resource type reported by your cloudprovider. It limits instance types when scheduling to those that will not exceed the specified limits.  If a limit has been exceeded, nodes provisioning is prevented until some nodes have been terminated.
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -536,7 +537,7 @@ A NodePool can be set up to only provision nodes on particular processor types.
 The following example sets a taint that only allows pods with tolerations for Nvidia GPUs to be scheduled:
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: gpu
@@ -563,7 +564,7 @@ Per the Cilium [docs](https://docs.cilium.io/en/stable/installation/taints/#tain
 Failure to provide accurate `startupTaints` can result in Karpenter continually provisioning new nodes. When the new node joins and the startup taint that Karpenter is unaware of is added, Karpenter now considers the pending pod to be unschedulable to this node. Karpenter will attempt to provision yet another new node to schedule the pending pod.
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: cilium-startup

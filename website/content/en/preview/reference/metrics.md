@@ -232,6 +232,14 @@ Current depth of workqueue
 ### `workqueue_adds_total`
 Total number of adds handled by workqueue
 
+## Status Condition Metrics
+
+### `operator_status_condition_transition_seconds`
+The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+
+### `operator_status_condition_count`
+The number of an condition for a given object, type and status. e.g. Alarm := Available=False > 0
+
 ## Client Go Metrics
 
 ### `client_go_request_total`

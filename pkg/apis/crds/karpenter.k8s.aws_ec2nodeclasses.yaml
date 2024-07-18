@@ -57,17 +57,6 @@ spec:
                 EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
                 This will contain configuration necessary to launch instances in AWS.
               properties:
-                amiFamily:
-                  description: AMIFamily is the AMI family that instances use.
-                  enum:
-                    - AL2
-                    - AL2023
-                    - Bottlerocket
-                    - Ubuntu
-                    - Custom
-                    - Windows2019
-                    - Windows2022
-                  type: string
                 amiSelectorTerms:
                   description: AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
                   items:
@@ -75,6 +64,21 @@ spec:
                       AMISelectorTerm defines selection logic for an ami used by Karpenter to launch nodes.
                       If multiple fields are used for selection, the requirements are ANDed.
                     properties:
+                      alias:
+                        description: |-
+                          Alias specifies which EKS optimized AMI to select.
+                          Each alias consists of a family and an AMI version, specified as "family@version".
+                          Valid families include: al2, al2023, bottlerocket, windows2019, and windows2022.
+                          The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
+                          The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
+                          Note: The Windows families do **not** support version pinning, and only latest may be used.
+                        maxLength: 30
+                        type: string
+                        x-kubernetes-validations:
+                          - message: '''alias'' is improperly formatted, must match the format ''family@version'''
+                            rule: self.matches('^[a-zA-Z0-9]*@.*$')
+                          - message: 'family is not supported, must be one of the following: ''al2'', ''al2023'', ''bottlerocket'', ''windows2019'', ''windows2022'''
+                            rule: self.find('^[^@]+') in ['al2','al2023','bottlerocket','windows2019','windows2022']
                       id:
                         description: ID is the ami id in EC2
                         pattern: ami-[0-9a-z]+
@@ -102,12 +106,17 @@ spec:
                             rule: self.all(k, k != '' && self[k] != '')
                     type: object
                   maxItems: 30
+                  minItems: 1
                   type: array
                   x-kubernetes-validations:
-                    - message: expected at least one, got none, ['tags', 'id', 'name']
-                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name))
+                    - message: expected at least one, got none, ['tags', 'id', 'name', 'alias']
+                      rule: self.all(x, has(x.tags) || has(x.id) || has(x.name) || has(x.alias))
                     - message: '''id'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
-                      rule: '!self.all(x, has(x.id) && (has(x.tags) || has(x.name) || has(x.owner)))'
+                      rule: '!self.exists(x, has(x.id) && (has(x.alias) || has(x.tags) || has(x.name) || has(x.owner)))'
+                    - message: '''alias'' is mutually exclusive, cannot be set with a combination of other fields in amiSelectorTerms'
+                      rule: '!self.exists(x, has(x.alias) && (has(x.id) || has(x.tags) || has(x.name) || has(x.owner)))'
+                    - message: '''alias'' is mutually exclusive, cannot be set with a combination of other amiSelectorTerms'
+                      rule: '!(self.exists(x, has(x.alias)) && self.size() != 1)'
                 associatePublicIPAddress:
                   description: AssociatePublicIPAddress controls if public IP addresses are assigned to instances that are launched with the nodeclass.
                   type: boolean
@@ -549,13 +558,10 @@ spec:
                     this UserData to ensure nodes are being provisioned with the correct configuration.
                   type: string
               required:
-                - amiFamily
                 - securityGroupSelectorTerms
                 - subnetSelectorTerms
               type: object
               x-kubernetes-validations:
-                - message: amiSelectorTerms is required when amiFamily == 'Custom'
-                  rule: 'self.amiFamily == ''Custom'' ? self.amiSelectorTerms.size() != 0 : true'
                 - message: must specify exactly one of ['role', 'instanceProfile']
                   rule: (has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))
                 - message: changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.
@@ -717,7 +723,7 @@ spec:
               type: object
           type: object
       served: true
-      storage: false
+      storage: true
       subresources:
         status: {}
     - name: v1beta1
@@ -1293,6 +1299,17 @@ spec:
               type: object
           type: object
       served: true
-      storage: true
+      storage: false
       subresources:
         status: {}
+  conversion:
+    strategy: Webhook
+    webhook:
+      conversionReviewVersions:
+        - v1beta1
+        - v1
+      clientConfig:
+        service:
+          name: karpenter
+          namespace: kube-system
+          port: 8443

@@ -16,16 +16,20 @@ package v1
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/samber/lo"
 	"knative.dev/pkg/apis"
+
+	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
 
 func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) error {
 	v1beta1enc := to.(*v1beta1.EC2NodeClass)
 	v1beta1enc.ObjectMeta = in.ObjectMeta
 
+	v1beta1enc.Spec.AMIFamily = lo.ToPtr(in.AMIFamily())
 	in.Spec.convertTo(&v1beta1enc.Spec)
 	in.Status.convertTo((&v1beta1enc.Status))
 	return nil
@@ -53,7 +57,6 @@ func (in *EC2NodeClassSpec) convertTo(v1beta1enc *v1beta1.EC2NodeClassSpec) {
 			Tags:  ami.Tags,
 		}
 	})
-	v1beta1enc.AMIFamily = in.AMIFamily
 	v1beta1enc.AssociatePublicIPAddress = in.AssociatePublicIPAddress
 	v1beta1enc.Context = in.Context
 	v1beta1enc.DetailedMonitoring = in.DetailedMonitoring
@@ -101,6 +104,27 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 	v1beta1enc := from.(*v1beta1.EC2NodeClass)
 	in.ObjectMeta = v1beta1enc.ObjectMeta
 
+	// TODO: jmdeal@ remove before v1
+	// Temporarily fail closed when trying to convert EC2NodeClasses with the Ubuntu AMI family since compatibility support isn't yet integrated.
+	// This check can be removed once it's added.
+	if lo.FromPtr(v1beta1enc.Spec.AMIFamily) == v1beta1.AMIFamilyUbuntu {
+		return fmt.Errorf("failed to convert v1beta1 EC2NodeClass to v1, conversion for Ubuntu AMIFamily is currently unsupported")
+	}
+
+	// If the AMIFamily is still supported by the v1 APIs, and there are no AMISelectorTerms defined, create an alias.
+	// Otherwise, don't modify the AMISelectorTerms and add the compatibility annotation.
+	if lo.Contains([]string{
+		AMIFamilyAL2, AMIFamilyAL2023, AMIFamilyBottlerocket, AMIFamilyWindows2019, AMIFamilyWindows2022,
+	}, lo.FromPtr(v1beta1enc.Spec.AMIFamily)) && len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
+		in.Spec.AMISelectorTerms = []AMISelectorTerm{{
+			Alias: fmt.Sprintf("%s@latest", strings.ToLower(lo.FromPtr(v1beta1enc.Spec.AMIFamily))),
+		}}
+	} else {
+		in.Annotations = lo.Assign(in.Annotations, map[string]string{
+			AnnotationAMIFamilyCompatibility: lo.FromPtr(v1beta1enc.Spec.AMIFamily),
+		})
+	}
+
 	in.Spec.convertFrom(&v1beta1enc.Spec)
 	in.Status.convertFrom((&v1beta1enc.Status))
 	return nil
@@ -120,15 +144,14 @@ func (in *EC2NodeClassSpec) convertFrom(v1beta1enc *v1beta1.EC2NodeClassSpec) {
 			Tags: sg.Tags,
 		}
 	})
-	in.AMISelectorTerms = lo.Map(v1beta1enc.AMISelectorTerms, func(ami v1beta1.AMISelectorTerm, _ int) AMISelectorTerm {
+	in.AMISelectorTerms = append(in.AMISelectorTerms, lo.Map(v1beta1enc.AMISelectorTerms, func(ami v1beta1.AMISelectorTerm, _ int) AMISelectorTerm {
 		return AMISelectorTerm{
 			ID:    ami.ID,
 			Name:  ami.Name,
 			Owner: ami.Owner,
 			Tags:  ami.Tags,
 		}
-	})
-	in.AMIFamily = v1beta1enc.AMIFamily
+	})...)
 	in.AssociatePublicIPAddress = v1beta1enc.AssociatePublicIPAddress
 	in.Context = v1beta1enc.Context
 	in.DetailedMonitoring = v1beta1enc.DetailedMonitoring

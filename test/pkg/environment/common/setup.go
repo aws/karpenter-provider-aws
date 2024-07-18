@@ -21,7 +21,7 @@ import (
 
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	storagev1 "k8s.io/api/storage/v1"
@@ -31,11 +31,11 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/utils/pod"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/debug"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -46,19 +46,19 @@ const TestingFinalizer = "testing/finalizer"
 
 var (
 	CleanableObjects = []client.Object{
-		&v1.Pod{},
+		&corev1.Pod{},
 		&appsv1.Deployment{},
 		&appsv1.DaemonSet{},
 		&policyv1.PodDisruptionBudget{},
-		&v1.PersistentVolumeClaim{},
-		&v1.PersistentVolume{},
+		&corev1.PersistentVolumeClaim{},
+		&corev1.PersistentVolume{},
 		&storagev1.StorageClass{},
-		&corev1beta1.NodePool{},
-		&v1.LimitRange{},
+		&karpv1.NodePool{},
+		&corev1.LimitRange{},
 		&schedulingv1.PriorityClass{},
-		&v1.Node{},
-		&corev1beta1.NodeClaim{},
-		&v1beta1.EC2NodeClass{},
+		&corev1.Node{},
+		&karpv1.NodeClaim{},
+		&v1.EC2NodeClass{},
 	}
 )
 
@@ -74,14 +74,14 @@ func (env *Environment) BeforeEach() {
 }
 
 func (env *Environment) ExpectCleanCluster() {
-	var nodes v1.NodeList
+	var nodes corev1.NodeList
 	Expect(env.Client.List(env.Context, &nodes)).To(Succeed())
 	for _, node := range nodes.Items {
 		if len(node.Spec.Taints) == 0 && !node.Spec.Unschedulable {
 			Fail(fmt.Sprintf("expected system pool node %s to be tainted", node.Name))
 		}
 	}
-	var pods v1.PodList
+	var pods corev1.PodList
 	Expect(env.Client.List(env.Context, &pods)).To(Succeed())
 	for i := range pods.Items {
 		Expect(pod.IsProvisionable(&pods.Items[i])).To(BeFalse(),
@@ -89,7 +89,7 @@ func (env *Environment) ExpectCleanCluster() {
 		Expect(pods.Items[i].Namespace).ToNot(Equal("default"),
 			fmt.Sprintf("expected no pods in the `default` namespace, found %s/%s", pods.Items[i].Namespace, pods.Items[i].Name))
 	}
-	for _, obj := range []client.Object{&corev1beta1.NodePool{}, &v1beta1.EC2NodeClass{}} {
+	for _, obj := range []client.Object{&karpv1.NodePool{}, &v1.EC2NodeClass{}} {
 		metaList := &metav1.PartialObjectMetadataList{}
 		gvk := lo.Must(apiutil.GVKForObject(obj, env.Client.Scheme()))
 		metaList.SetGroupVersionKind(gvk)
@@ -106,7 +106,7 @@ func (env *Environment) Cleanup() {
 
 func (env *Environment) AfterEach() {
 	debug.AfterEach(env.Context)
-	env.printControllerLogs(&v1.PodLogOptions{Container: "controller"})
+	env.printControllerLogs(&corev1.PodLogOptions{Container: "controller"})
 }
 
 func (env *Environment) CleanupObjects(cleanableObjects ...client.Object) {

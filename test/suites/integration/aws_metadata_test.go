@@ -19,7 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -27,7 +27,7 @@ import (
 
 var _ = Describe("MetadataOptions", func() {
 	It("should use specified metadata options", func() {
-		nodeClass.Spec.MetadataOptions = &v1beta1.MetadataOptions{
+		nodeClass.Spec.MetadataOptions = &v1.MetadataOptions{
 			HTTPEndpoint:            aws.String("enabled"),
 			HTTPProtocolIPv6:        aws.String("enabled"),
 			HTTPPutResponseHopLimit: aws.Int64(1),

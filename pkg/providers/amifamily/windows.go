@@ -15,21 +15,25 @@ limitations under the License.
 package amifamily
 
 import (
+	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 )
@@ -37,25 +41,55 @@ import (
 type Windows struct {
 	DefaultFamily
 	*Options
+	// Version is the major version of Windows Server (2019 or 2022).
+	// Only the core version of each version is supported by Karpenter, so this field only indicates the year.
 	Version string
-	Build   string
+	// Build is a specific build code associated with the Version
+	Build string
 }
 
-func (w Windows) DefaultAMIs(version string) []DefaultAMIOutput {
-	return []DefaultAMIOutput{
-		{
-			Query: fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1beta1.WindowsCore, version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-				scheduling.NewRequirement(v1.LabelOSStable, v1.NodeSelectorOpIn, string(v1.Windows)),
-				scheduling.NewRequirement(v1.LabelWindowsBuild, v1.NodeSelectorOpIn, w.Build),
-			),
-		},
+func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
+	requirements := make(map[string][]scheduling.Requirements)
+	imageIDs := make([]*string, 0, 5)
+	// SSM aliases are only maintained for the latest Windows AMI releases
+	if amiVersion != AMIVersionLatest {
+		return DescribeImageQuery{}, fmt.Errorf(`discovering AMIs for alias "windows%s@%s", %q is not a supported version`, w.Version, amiVersion, amiVersion)
 	}
+	// Example Path: /aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-1.30/image_id
+	results, err := ssmProvider.List(ctx, "/aws/service/ami-windows-latest")
+	if err != nil {
+		return DescribeImageQuery{}, fmt.Errorf("discovering AMIs from ssm")
+	}
+	for path, value := range results {
+		pathComponents := strings.Split(path, "/")
+		if len(pathComponents) != 6 || pathComponents[5] != "image_id" {
+			continue
+		}
+		matches := regexp.MustCompile(`^Windows_Server-(\d+)-English-Core-EKS_Optimized-(\d\.\d+)$`).FindStringSubmatch(pathComponents[4])
+		if len(matches) != 3 || matches[1] != w.Version || matches[2] != k8sVersion {
+			continue
+		}
+		imageIDs = append(imageIDs, lo.ToPtr(value))
+		requirements[value] = []scheduling.Requirements{scheduling.NewRequirements(
+			scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)),
+			scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpIn, w.Build),
+		)}
+	}
+	// Failed to discover any AMIs, we should short circuit AMI discovery
+	if len(imageIDs) == 0 {
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s"`, w.Version, amiVersion)
+	}
+	return DescribeImageQuery{
+		Filters: []*ec2.Filter{&ec2.Filter{
+			Name:   lo.ToPtr("image-id"),
+			Values: imageIDs,
+		}},
+		KnownRequirements: requirements,
+	}, nil
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (w Windows) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.Windows{
 		Options: bootstrap.Options{
 			ClusterName:     w.Options.ClusterName,
@@ -70,10 +104,10 @@ func (w Windows) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taint
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (w Windows) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
+func (w Windows) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
 	sda1EBS := DefaultEBS
 	sda1EBS.VolumeSize = lo.ToPtr(resource.MustParse("50Gi"))
-	return []*v1beta1.BlockDeviceMapping{{
+	return []*v1.BlockDeviceMapping{{
 		DeviceName: w.EphemeralBlockDevice(),
 		EBS:        &sda1EBS,
 	}}

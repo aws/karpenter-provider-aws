@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	controllerruntime "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -29,7 +29,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	nodeutils "sigs.k8s.io/karpenter/pkg/utils/node"
 )
@@ -45,7 +45,7 @@ func NewNodeController(kubeClient client.Client) *NodeController {
 }
 
 func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (reconcile.Result, error) {
-	n := &v1.Node{}
+	n := &corev1.Node{}
 	if err := c.kubeClient.Get(ctx, req.NamespacedName, n); err != nil {
 		if errors.IsNotFound(err) {
 			fmt.Printf("[DELETED %s] NODE %s\n", time.Now().Format(time.RFC3339), req.NamespacedName.String())
@@ -56,25 +56,25 @@ func (c *NodeController) Reconcile(ctx context.Context, req reconcile.Request) (
 	return reconcile.Result{}, nil
 }
 
-func (c *NodeController) GetInfo(ctx context.Context, n *v1.Node) string {
+func (c *NodeController) GetInfo(ctx context.Context, n *corev1.Node) string {
 	pods, _ := nodeutils.GetPods(ctx, c.kubeClient, n)
-	return fmt.Sprintf("ready=%s schedulable=%t initialized=%s pods=%d taints=%v", nodeutils.GetCondition(n, v1.NodeReady).Status, !n.Spec.Unschedulable, n.Labels[v1beta1.NodeInitializedLabelKey], len(pods), n.Spec.Taints)
+	return fmt.Sprintf("ready=%s schedulable=%t initialized=%s pods=%d taints=%v", nodeutils.GetCondition(n, corev1.NodeReady).Status, !n.Spec.Unschedulable, n.Labels[karpv1.NodeInitializedLabelKey], len(pods), n.Spec.Taints)
 }
 
 func (c *NodeController) Register(ctx context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("node").
-		For(&v1.Node{}).
+		For(&corev1.Node{}).
 		WithEventFilter(predicate.And(
 			predicate.Funcs{
 				UpdateFunc: func(e event.UpdateEvent) bool {
-					oldNode := e.ObjectOld.(*v1.Node)
-					newNode := e.ObjectNew.(*v1.Node)
+					oldNode := e.ObjectOld.(*corev1.Node)
+					newNode := e.ObjectNew.(*corev1.Node)
 					return c.GetInfo(ctx, oldNode) != c.GetInfo(ctx, newNode)
 				},
 			},
 			predicate.NewPredicateFuncs(func(o client.Object) bool {
-				return o.GetLabels()[v1beta1.NodePoolLabelKey] != ""
+				return o.GetLabels()[karpv1.NodePoolLabelKey] != ""
 			}),
 		)).
 		WithOptions(controller.Options{MaxConcurrentReconciles: 10}).

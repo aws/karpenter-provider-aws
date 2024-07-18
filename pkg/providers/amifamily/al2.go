@@ -15,19 +15,26 @@ limitations under the License.
 package amifamily
 
 import (
+	"context"
 	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
+
+	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 )
 
 type AL2 struct {
@@ -35,47 +42,65 @@ type AL2 struct {
 	*Options
 }
 
-// DefaultAMIs returns the AMI name, and Requirements, with an SSM query
-func (a AL2) DefaultAMIs(version string) []DefaultAMIOutput {
-	return []DefaultAMIOutput{
-		{
-			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/recommended/image_id", version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-				scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-				scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-				scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpExists),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/recommended/image_id", version),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
-				scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpExists),
-			),
-		},
-		{
-			Query: fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-%s/recommended/image_id", version, corev1beta1.ArchitectureArm64),
-			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
-				scheduling.NewRequirement(v1beta1.LabelInstanceGPUCount, v1.NodeSelectorOpDoesNotExist),
-				scheduling.NewRequirement(v1beta1.LabelInstanceAcceleratorCount, v1.NodeSelectorOpDoesNotExist),
-			),
-		},
+func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
+	imageIDs := make([]*string, 0, 5)
+	requirements := make(map[string][]scheduling.Requirements)
+	// Example Paths:
+	// - Latest EKS 1.30 Standard Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2/recommended/image_id
+	// - Specific EKS 1.30 GPU Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2-gpu/amazon-eks-node-1.30-v20240625/image_id
+	for rootPath, variants := range map[string][]Variant{
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2", k8sVersion):       []Variant{VariantStandard},
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64", k8sVersion): []Variant{VariantStandard},
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu", k8sVersion):   []Variant{VariantNeuron, VariantNvidia},
+	} {
+		results, err := ssmProvider.List(ctx, rootPath)
+		if err != nil {
+			log.FromContext(ctx).WithValues("path", rootPath, "family", "al2").Error(err, "discovering AMIs from ssm")
+			continue
+		}
+		for path, value := range results {
+			pathComponents := strings.Split(path, "/")
+			// Only select image_id paths which match the desired AMI version
+			if len(pathComponents) != 9 || pathComponents[8] != "image_id" {
+				continue
+			}
+			if av, err := a.extractAMIVersion(pathComponents[7]); err != nil || av != amiVersion {
+				continue
+			}
+			imageIDs = append(imageIDs, lo.ToPtr(value))
+			requirements[value] = lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
+		}
 	}
+	// Failed to discover any AMIs, we should short circuit AMI discovery
+	if len(imageIDs) == 0 {
+		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2@%s"`, amiVersion)
+	}
+	return DescribeImageQuery{
+		Filters: []*ec2.Filter{{
+			Name:   lo.ToPtr("image-id"),
+			Values: imageIDs,
+		}},
+		KnownRequirements: requirements,
+	}, nil
+}
+
+func (a AL2) extractAMIVersion(versionStr string) (string, error) {
+	if versionStr == "recommended" {
+		return AMIVersionLatest, nil
+	}
+	rgx := regexp.MustCompile(`^.*(v\d{8})$`)
+	matches := rgx.FindStringSubmatch(versionStr)
+	if len(matches) != 2 {
+		return "", fmt.Errorf("failed to extract AMI version")
+	}
+	return matches[1], nil
 }
 
 // UserData returns the exact same string for equivalent input,
 // even if elements of those inputs are in differing orders,
 // guaranteeing it won't cause spurious hash differences.
 // AL2 userdata also works on Ubuntu
-func (a AL2) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (a AL2) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, instanceStorePolicy *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
 			ClusterName:         a.Options.ClusterName,
@@ -91,8 +116,8 @@ func (a AL2) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (a AL2) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
-	return []*v1beta1.BlockDeviceMapping{{
+func (a AL2) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
+	return []*v1.BlockDeviceMapping{{
 		DeviceName: a.EphemeralBlockDevice(),
 		EBS:        &DefaultEBS,
 	}}

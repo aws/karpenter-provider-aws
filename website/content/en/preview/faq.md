@@ -7,6 +7,9 @@ description: >
 ---
 ## General
 
+### Is Karpenter safe for production use?
+Karpenter v1 is the first stable Karpenter API. Any future incompatible API changes will require a v2 version.
+
 ### How does a NodePool decide to manage a particular node?
 See [Configuring NodePools]({{< ref "./concepts/#configuring-nodepools" >}}) for information on how Karpenter configures and manages nodes.
 
@@ -119,7 +122,7 @@ Karpenter has a concept of an “offering” for each instance type, which is a 
 Yes! Karpenter dynamically discovers if you are running in an IPv6 cluster by checking the kube-dns service's cluster-ip. When using an AMI Family such as `AL2`, Karpenter will automatically configure the EKS Bootstrap script for IPv6. Some EC2 instance types do not support IPv6 and the Amazon VPC CNI only supports instance types that run on the Nitro hypervisor. It's best to add a requirement to your NodePool to only allow Nitro instance types:
 
 ```
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 ...
 spec:
@@ -146,7 +149,7 @@ The solution is to configure [startupTaints]({{<ref "./concepts/nodepools/#ciliu
 
 Here's an example for Cilium's startup taint.
 ```
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 ...
 spec:

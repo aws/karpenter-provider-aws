@@ -16,17 +16,18 @@ package securitygroup_test
 
 import (
 	"context"
-	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 	"sort"
 	"sync"
 	"testing"
+
+	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -43,7 +44,7 @@ var ctx context.Context
 var stop context.CancelFunc
 var env *coretest.Environment
 var awsEnv *test.Environment
-var nodeClass *v1beta1.EC2NodeClass
+var nodeClass *v1.EC2NodeClass
 
 func TestAWS(t *testing.T) {
 	ctx = TestContextWithLogger(t)
@@ -67,17 +68,19 @@ var _ = AfterSuite(func() {
 var _ = BeforeEach(func() {
 	ctx = coreoptions.ToContext(ctx, coretest.Options())
 	ctx = options.ToContext(ctx, test.Options())
-	nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
-		Spec: v1beta1.EC2NodeClassSpec{
-			AMIFamily: aws.String(v1beta1.AMIFamilyAL2),
-			SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+	nodeClass = test.EC2NodeClass(v1.EC2NodeClass{
+		Spec: v1.EC2NodeClassSpec{
+			AMISelectorTerms: []v1.AMISelectorTerm{{
+				Alias: "al2@latest",
+			}},
+			SubnetSelectorTerms: []v1.SubnetSelectorTerm{
 				{
 					Tags: map[string]string{
 						"*": "*",
 					},
 				},
 			},
-			SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+			SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
 				{
 					Tags: map[string]string{
 						"*": "*",
@@ -131,7 +134,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}, securityGroups)
 	})
 	It("should discover security groups by multiple tag values", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				Tags: map[string]string{"Name": "test-security-group-1"},
 			},
@@ -153,7 +156,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}, securityGroups)
 	})
 	It("should discover security groups by ID", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				ID: "sg-test1",
 			},
@@ -168,7 +171,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}, securityGroups)
 	})
 	It("should discover security groups by IDs", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				ID: "sg-test1",
 			},
@@ -190,7 +193,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}, securityGroups)
 	})
 	It("should discover security groups by IDs and tags", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				ID:   "sg-test1",
 				Tags: map[string]string{"foo": "bar"},
@@ -214,7 +217,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}, securityGroups)
 	})
 	It("should discover security groups by IDs intersected with tags", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				ID:   "sg-test2",
 				Tags: map[string]string{"foo": "bar"},
@@ -230,7 +233,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}, securityGroups)
 	})
 	It("should discover security groups by names", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				Name: "securityGroup-test2",
 			},
@@ -252,7 +255,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		}, securityGroups)
 	})
 	It("should discover security groups by names intersected with tags", func() {
-		nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+		nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 			{
 				Name: "securityGroup-test3",
 				Tags: map[string]string{"TestTag": "*"},
@@ -271,7 +274,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		It("should resolve security groups from cache that are filtered by id", func() {
 			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsOutput.Clone().SecurityGroups
 			for _, sg := range expectedSecurityGroups {
-				nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+				nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 					{
 						ID: *sg.GroupId,
 					},
@@ -290,7 +293,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 		It("should resolve security groups from cache that are filtered by Name", func() {
 			expectedSecurityGroups := awsEnv.EC2API.DescribeSecurityGroupsOutput.Clone().SecurityGroups
 			for _, sg := range expectedSecurityGroups {
-				nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+				nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 					{
 						Name: *sg.GroupName,
 					},
@@ -315,7 +318,7 @@ var _ = Describe("SecurityGroupProvider", func() {
 				return map[string]string{"Name": lo.FromPtr(tag.Value)}
 			})
 			for _, tag := range tagSet {
-				nodeClass.Spec.SecurityGroupSelectorTerms = []v1beta1.SecurityGroupSelectorTerm{
+				nodeClass.Spec.SecurityGroupSelectorTerms = []v1.SecurityGroupSelectorTerm{
 					{
 						Tags: tag,
 					},
