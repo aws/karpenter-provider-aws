@@ -22,6 +22,11 @@ Here are things you should know about NodePools:
 * If Karpenter encounters a startup taint in the NodePool it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
 * It is recommended to create NodePools that are mutually exclusive. So no Pod should match multiple NodePools. If multiple NodePools are matched, Karpenter will use the NodePool with the highest [weight](#specweight).
 
+
+{{% alert title="Note" color="primary" %}}
+Objects for setting Kubelet features have been moved from the NodePool spec to the EC2NodeClasses spec, to not require other Karpenter providers to support those features.
+{{% /alert %}}
+
 For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/v1beta1/).
 
 ```yaml
@@ -149,6 +154,28 @@ status:
     memory: "8192Mi"
     ephemeral-storage: "100Gi"
 ```
+## metadata.name
+The name of the NodePool.
+
+## spec.template.metadata.labels
+Arbitrary key/value pairs to apply to all nodes.
+
+## spec.template.metadata.annotations
+Arbitrary key/value pairs to apply to all nodes.
+
+## spec.template.spec.nodeClassRef
+
+This field points to the Cloud Provider NodeClass resource. See [EC2NodeClasses]({{<ref "nodeclasses" >}}) for details.
+
+## spec.taints
+
+Taints to add to provisioned nodes. Pods that don't tolerate those taints could be prevented from scheduling.
+See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for details.
+
+## spec.startupTaints
+
+Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node is can be initialized. 
+These taints must be cleared before pods can be deployed to a node.
 
 ## spec.template.spec.requirements
 
@@ -312,14 +339,12 @@ spec:
 
 {{% /alert %}}
 
-## spec.template.spec.nodeClassRef
-
-This field points to the Cloud Provider NodeClass resource. Learn more about [EC2NodeClasses]({{<ref "nodeclasses" >}}).
-
 
 ## spec.disruption
 
-You can configure Karpenter to disrupt Nodes through your NodePool in multiple ways. You can use `spec.disruption.consolidationPolicy`, `spec.disruption.consolidateAfter` or `spec.disruption.expireAfter`. Read [Disruption]({{<ref "disruption" >}}) for more.
+You can configure Karpenter to disrupt Nodes through your NodePool in multiple ways. You can use `spec.disruption.consolidationPolicy`, `spec.disruption.consolidateAfter` or `spec.disruption.expireAfter`.
+You can also rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`.
+Read [Disruption]({{<ref "disruption" >}}) for more.
 
 ## spec.limits
 
@@ -365,6 +390,18 @@ Review the [Kubernetes core API](https://github.com/kubernetes/api/blob/37748cca
 Karpenter allows you to describe NodePool preferences through a `weight` mechanism similar to how weight is described with [pod and node affinities](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity).
 
 For more information on weighting NodePools, see the [Weighted NodePools section]({{<ref "scheduling#weighted-nodepools" >}}) in the scheduling docs.
+
+## status.conditions
+[Conditions](https://github.com/kubernetes/apimachinery/blob/f14778da5523847e4c07346e3161a4b4f6c9186e/pkg/apis/meta/v1/types.go#L1523) objects add observability features to Karpenter.
+* The `status.conditions.type` object reflects node status, such as `Initialized` or `Available`.
+* The status of the condition, `status.conditions.status`, indicates if the condition is `True` or `False`.
+* The `status.conditions.observedGeneration` indicates  if the instance is out of date with the current state of `.metadata.generation`.
+* The `status.conditions.lastTransitionTime` object contains a programatic identifier that indicates the time of the condition's previous transition.
+* The `status.conditions.reason` object indicates the reason for the condition's previous transition.
+* The `status.conditions.message` object provides human-readable details about the condition's previous transition.
+
+## status.resources
+Objects under `status.resources` provide information about the status of resources such as `cpu`, `memory`, and `ephemeral-storage`.
 
 ## Examples
 
