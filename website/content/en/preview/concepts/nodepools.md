@@ -63,6 +63,11 @@ spec:
         - key: example.com/another-taint
           effect: NoSchedule
 
+      # The amount of time a Node can live on the cluster before being removed
+      # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
+      # You can choose to disable expiration entirely by setting the string value 'Never' here
+      expireAfter: 720h
+
       # Requirements that constrain the parameters of provisioned nodes.
       # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
       # Operators { In, NotIn, Exists, DoesNotExist, Gt, and Lt } are supported.
@@ -141,11 +146,6 @@ spec:
     # This value can currently only be set when the consolidationPolicy is 'WhenEmpty'
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
     consolidateAfter: 30s
-
-    # The amount of time a Node can live on the cluster before being removed
-    # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
-    # You can choose to disable expiration entirely by setting the string value 'Never' here
-    expireAfter: 720h
 
     # Budgets control the speed Karpenter can scale down nodes.
     # Karpenter will respect the minimum of the currently active budgets, and will round up
@@ -482,7 +482,7 @@ Bottlerocket AMIFamily currently does not support `podsPerCore` configuration. I
 
 ## spec.disruption
 
-You can configure Karpenter to disrupt Nodes through your NodePool in multiple ways. You can use `spec.disruption.consolidationPolicy`, `spec.disruption.consolidateAfter` or `spec.disruption.expireAfter`. Read [Disruption]({{<ref "disruption" >}}) for more.
+You can configure Karpenter to disrupt Nodes through your NodePool in multiple ways. You can use `spec.disruption.consolidationPolicy`, `spec.disruption.consolidateAfter` or `spec.template.spec.expireAfter`. Read [Disruption]({{<ref "disruption" >}}) for more.
 
 ## spec.limits
 

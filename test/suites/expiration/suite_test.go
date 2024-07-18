@@ -75,9 +75,6 @@ var _ = Describe("Expiration", func() {
 					Labels: map[string]string{
 						"app": "my-app",
 					},
-					Annotations: map[string]string{
-						karpv1.DoNotDisruptAnnotationKey: "true",
-					},
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
 			},
@@ -93,7 +90,7 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
+		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
 		env.ExpectUpdated(nodePool)
 
 		// Eventually the node will be tainted, which means its actively being disrupted
@@ -108,7 +105,7 @@ var _ = Describe("Expiration", func() {
 		// Set the expireAfter to "Never" to make sure new node isn't deleted
 		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
 		// racing at the end of the E2E test, leaking node resources into subsequent tests
-		nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+		nodePool.Spec.Template.Spec.ExpireAfter.Duration = nil
 		env.ExpectUpdated(nodePool)
 
 		// After the deletion timestamp is set and all pods are drained
@@ -125,21 +122,11 @@ var _ = Describe("Expiration", func() {
 		minAvailable := intstr.FromInt32(numPods - 1)
 		pdb := coretest.PodDisruptionBudget(coretest.PDBOptions{
 			Labels: map[string]string{
-				"app": "large-app",
+				"app": "my-app",
 			},
 			MinAvailable: &minAvailable,
 		})
-		dep := coretest.Deployment(coretest.DeploymentOptions{
-			Replicas: numPods,
-			PodOptions: coretest.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						karpv1.DoNotDisruptAnnotationKey: "true",
-					},
-					Labels: map[string]string{"app": "large-app"},
-				},
-			},
-		})
+		dep.Spec.Replicas = &numPods
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		env.ExpectCreated(nodeClass, nodePool, pdb, dep)
 
@@ -149,7 +136,7 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Second * 15)
+		nodePool.Spec.Template.Spec.ExpireAfter.Duration = lo.ToPtr(time.Second * 15)
 		env.ExpectUpdated(nodePool)
 
 		// Eventually the node will be tainted, which means its actively being disrupted
@@ -164,7 +151,7 @@ var _ = Describe("Expiration", func() {
 		// Set the expireAfter to "Never" to make sure new node isn't deleted
 		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
 		// racing at the end of the E2E test, leaking node resources into subsequent tests
-		nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+		nodePool.Spec.Template.Spec.ExpireAfter.Duration = nil
 		env.ExpectUpdated(nodePool)
 
 		// After the deletion timestamp is set and all pods are drained

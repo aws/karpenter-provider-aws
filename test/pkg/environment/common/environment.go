@@ -178,7 +178,7 @@ func (env *Environment) DefaultNodePool(nodeClass *v1.EC2NodeClass) *karpv1.Node
 		},
 	}
 	nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{}
-	nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+	nodePool.Spec.Template.Spec.ExpireAfter.Duration = nil
 	nodePool.Spec.Limits = karpv1.Limits(corev1.ResourceList{
 		corev1.ResourceCPU:    resource.MustParse("1000"),
 		corev1.ResourceMemory: resource.MustParse("1000Gi"),
