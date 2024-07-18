@@ -122,21 +122,11 @@ var _ = Describe("Expiration", func() {
 		minAvailable := intstr.FromInt32(numPods - 1)
 		pdb := coretest.PodDisruptionBudget(coretest.PDBOptions{
 			Labels: map[string]string{
-				"app": "large-app",
+				"app": "my-app",
 			},
 			MinAvailable: &minAvailable,
 		})
-		dep := coretest.Deployment(coretest.DeploymentOptions{
-			Replicas: numPods,
-			PodOptions: coretest.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						karpv1.DoNotDisruptAnnotationKey: "true",
-					},
-					Labels: map[string]string{"app": "large-app"},
-				},
-			},
-		})
+		dep.Spec.Replicas = &numPods
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		env.ExpectCreated(nodeClass, nodePool, pdb, dep)
 
