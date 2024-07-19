@@ -120,9 +120,11 @@ You can set Disruption Budgets in a `NodePool` spec.
 Here is an example:
 
 ```yaml
+template:
+  spec:
+    expireAfter: 1440h
 disruption:
   consolidationPolicy: WhenEmpty
-  expireAfter: 1440h
   budgets:
   - nodes: 15%
   - nodes: "3"
