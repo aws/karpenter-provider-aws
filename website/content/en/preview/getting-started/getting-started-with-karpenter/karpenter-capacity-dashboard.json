@@ -215,7 +215,7 @@
 						"uid": "${datasource}"
 					},
 					"editorMode": "builder",
-					"expr": "sum by(cluster,nodepool) (karpenter_nodes_terminated{nodepool=~\"$nodepool\"})",
+					"expr": "sum by(cluster,nodepool) (karpenter_nodes_terminated_total{nodepool=~\"$nodepool\"})",
 					"format": "time_series",
 					"legendFormat": "{{cluster}}",
 					"range": true,
@@ -408,109 +408,13 @@
 						"uid": "${datasource}"
 					},
 					"editorMode": "code",
-					"expr": "sum by(action,consolidation_type,method)(karpenter_disruption_actions_performed_total)",
+					"expr": "sum by(action,consolidation_type,method)(karpenter_disruption_decisions_total)",
 					"legendFormat": "{{label_name}}",
 					"range": true,
 					"refId": "A"
 				}
 			],
 			"title": "Disruption Actions Performed",
-			"type": "timeseries"
-		},
-		{
-			"datasource": {
-				"type": "prometheus",
-				"uid": "${datasource}"
-			},
-			"description": "See: https://karpenter.sh/v0.35/concepts/disruption/#automated-methods",
-			"fieldConfig": {
-				"defaults": {
-					"color": {
-						"mode": "palette-classic"
-					},
-					"custom": {
-						"axisBorderShow": false,
-						"axisCenteredZero": false,
-						"axisColorMode": "text",
-						"axisLabel": "",
-						"axisPlacement": "auto",
-						"barAlignment": 0,
-						"drawStyle": "line",
-						"fillOpacity": 10,
-						"gradientMode": "none",
-						"hideFrom": {
-							"legend": false,
-							"tooltip": false,
-							"viz": false
-						},
-						"insertNulls": false,
-						"lineInterpolation": "linear",
-						"lineWidth": 1,
-						"pointSize": 5,
-						"scaleDistribution": {
-							"type": "linear"
-						},
-						"showPoints": "auto",
-						"spanNulls": false,
-						"stacking": {
-							"group": "A",
-							"mode": "normal"
-						},
-						"thresholdsStyle": {
-							"mode": "off"
-						}
-					},
-					"mappings": [],
-					"thresholds": {
-						"mode": "absolute",
-						"steps": [
-							{
-								"color": "green"
-							},
-							{
-								"color": "red",
-								"value": 80
-							}
-						]
-					}
-				},
-				"overrides": []
-			},
-			"gridPos": {
-				"h": 6,
-				"w": 24,
-				"x": 0,
-				"y": 22
-			},
-			"id": 17,
-			"options": {
-				"legend": {
-					"calcs": [
-						"last"
-					],
-					"displayMode": "table",
-					"placement": "right",
-					"showLegend": true
-				},
-				"tooltip": {
-					"mode": "single",
-					"sort": "none"
-				}
-			},
-			"targets": [
-				{
-					"datasource": {
-						"type": "prometheus",
-						"uid": "${datasource}"
-					},
-					"editorMode": "code",
-					"expr": "sum by(action,consolidation_type,method)(karpenter_disruption_nodes_disrupted_total{nodepool=~\"$nodepool\"})",
-					"legendFormat": "{{label_name}}",
-					"range": true,
-					"refId": "A"
-				}
-			],
-			"title": "Voluntary Node Disruptions: nodepool \"$nodepool\"",
 			"type": "timeseries"
 		},
 		{
@@ -1609,7 +1513,7 @@
 					"type": "prometheus",
 					"uid": "prometheus"
 				},
-				"definition": "label_values(karpenter_disruption_actions_performed_total,method)",
+				"definition": "label_values(karpenter_disruption_decisions_total,method)",
 				"hide": 0,
 				"includeAll": true,
 				"multi": true,
@@ -1617,7 +1521,7 @@
 				"options": [],
 				"query": {
 					"qryType": 1,
-					"query": "label_values(karpenter_disruption_actions_performed_total,method)",
+					"query": "label_values(karpenter_disruption_decisions_total,method)",
 					"refId": "PrometheusVariableQueryEditor-VariableQuery"
 				},
 				"refresh": 2,
