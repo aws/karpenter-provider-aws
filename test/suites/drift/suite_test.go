@@ -589,7 +589,7 @@ var _ = Describe("Drift", func() {
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeTwo), nodeTwo)).To(Succeed())
 				_, found := lo.Find(nodeTwo.Spec.Taints, func(t corev1.Taint) bool {
-					return t.MatchTaint(&corev1.Taint{Key: "example.com/another-taint-2", Effect: corev1.TaintEffectNoExecute})
+					return t.MatchTaint(&corev1.Taint{Key: "example.com/another-taint-2", Effect: corev1.TaintEffectPreferNoSchedule})
 				})
 				g.Expect(found).To(BeTrue())
 				stored := nodeTwo.DeepCopy()
