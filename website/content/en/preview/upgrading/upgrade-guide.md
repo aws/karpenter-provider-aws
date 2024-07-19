@@ -37,6 +37,75 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.0.0`+
+
+{{% alert title="Warning" color="warning" %}}
+`1.0.0`+ supports Karpenter v1 and v1beta1 APIs and will not work with earlier Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `1.0.0`+ without first [upgrading to `0.32.x`]({{<ref "#upgrading-to-0320" >}}) or later. This version supports both the v1beta1 and v1 APIs, allowing you to migrate all of your existing APIs to v1beta1 APIs without experiencing downtime.
+{{% /alert %}}
+
+Before you begin upgrading to `1.0.0`, you should know that:
+
+* Every Karpenter upgrade from pre-v1.0.0 versions must go through an upgrade to minor version `v1.0.0`.
+* You must be on a version of Karpenter that supports NodePools, NodeClaims, and NodeClasses (`0.33.0`+ Karpenter versions support v1beta1 APIs).
+* You must complete all `Before upgrading to 1.0.0` Prerequisites.
+* Support for v1beta1 yaml files will end with the release of `v1.1.0`.
+
+#### Prerequisites
+
+Consider two different categories of `1.0.0` prerequisites: those you must do before `1.0.0` upgrades and those you must do before `1.1.0` upgrades.
+
+
+Before upgrading to `1.0.0`:
+
+* **Deprecated annotations, labels and tags are removed for v1.0.0**: For v1, `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict
+(annotation)`, and `karpenter.sh/managed-by` (tag) all have support removed.
+The `karpenter.sh/managed-by`, which currently stores the cluster name in its value, is replaced by `eks:eks-cluster-name`, to allow
+for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-abac.html).
+
+* **Zap logging removed**: Support for setting the Zap logging config was deprecated in beta and is now removed for v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
+
+* **metadataOptions could break workloads**: If you have workload pods that are not using `hostNetworking`, the updated default `metadataOptions`
+could cause your containers to break when you apply new EC2NodeClasses on v1.
+
+* **Ubuntu alias dropped**: If you are using Ubuntu, be aware that Karpenter v1 no longer supports an `alias` for using Ubuntu.
+
+* **Migrating userData**: Consider migrating your userData ahead of the v1.0.0 upgrade. See the description of `AMISelectorTerms` below.
+
+Before upgrading to `1.1.0` (though okay to do for for `1.0.0`):
+
+* **v1beta1 support gone`**: Migrate all Karpenter yaml files ([NodePools]({{<ref "../concepts/nodepools" >}}), [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}), and so on) to v1.
+In `1.1.0`, v1beta1 is not supported.
+
+* **Remove kubelet objects from NodePools**: Check that NodePools no longer contain the kubelet-configuration annotation (`karpenter.sh/v1beta1-kubelet-conversion` annotation).
+Karpenter will crash if NodePool resources contain this annotation.
+
+* **Remove BootstrapMode annotation**: Check that EC2NodeClasses no longer contain the `BootstrapMode` annotation.
+Karpenter will crash if NodePool resources contain this annotation.
+
+* **KubeletConfiguration**: If you have multiple NodePools pointing to the same EC2NodeClass that have different kubeletConfigurations,
+then you have to manually intervene to add more EC2NodeClasses and point their NodePools to them.
+Otherwise, this will induce drift.
+If you have multiple NodePools pointing to the same EC2NodeClass, but they have the same configuration, then you can proceed with the migration
+without having drift or having any additional NodePools or EC2NodeClasses configured.
+
+* **AMISelectorTerms**: If you are using the Custom AMIFamily or are using an AMIFamily with no amiSelectorTerms, then you don’t need to take
+any action on your userData for this migration.
+If you are using an AMIFamily with amiSelectorTerms, then you are relying on the merge logic between Karpenters' known userData for an AMIFamily
+and your custom userData.
+This is no longer be possible with v1. You need to update your userData to match what is produced when Karpenter does this merge,
+because this will not be auto-generated for you.
+
+#### Results
+
+When you upgrade to `1.0.0` CRDs, Karpenter supports serving both the `v1beta1` versions and the `v1` versions of NodePools, NodeClaims, and EC2NodeClasses.
+The results of upgrading these CRDs include the following:
+
+* The storage version of these resources change to v1. After the upgrade, Karpenter starts converting these resources to v1 storage versins in real time.
+Users should experience no differences from this change.
+
+* You are still able to GET and make updates using the v1beta1 versions.
+
+
 ### Upgrading to `0.37.0`+
 
 {{% alert title="Warning" color="warning" %}}
