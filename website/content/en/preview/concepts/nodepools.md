@@ -68,6 +68,11 @@ spec:
         - key: example.com/another-taint
           effect: NoSchedule
 
+      # The amount of time a Node can live on the cluster before being removed
+      # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
+      # You can choose to disable expiration entirely by setting the string value 'Never' here
+      expireAfter: 720h | Never
+
       # Requirements that constrain the parameters of provisioned nodes.
       # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
       # Operators { In, NotIn, Exists, DoesNotExist, Gt, and Lt } are supported.
@@ -116,11 +121,6 @@ spec:
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
     consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 
-    # The amount of time a Node can live on the cluster before being removed
-    # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
-    # You can choose to disable expiration entirely by setting the string value 'Never' here
-    expireAfter: 720h | Never
-
     # Budgets control the speed Karpenter can scale down nodes.
     # Karpenter will respect the minimum of the currently active budgets, and will round up
     # when considering percentages. Duration and Schedule must be set together.
@@ -167,15 +167,19 @@ Arbitrary key/value pairs to apply to all nodes.
 
 This field points to the Cloud Provider NodeClass resource. See [EC2NodeClasses]({{<ref "nodeclasses" >}}) for details.
 
-## spec.taints
+## spec.template.spec.taints
 
 Taints to add to provisioned nodes. Pods that don't tolerate those taints could be prevented from scheduling.
 See [Taints and Tolerations](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/) for details.
 
-## spec.startupTaints
+## spec.template.spec.startupTaints
 
 Taints that are added to nodes to indicate that a certain condition must be met, such as starting an agent or setting up networking, before the node is can be initialized. 
 These taints must be cleared before pods can be deployed to a node.
+
+## spec.template.spec.expireAfter
+
+The amount of time a Node can live on the cluster before being removed. 
 
 ## spec.template.spec.requirements
 
@@ -342,7 +346,7 @@ spec:
 
 ## spec.disruption
 
-You can configure Karpenter to disrupt Nodes through your NodePool in multiple ways. You can use `spec.disruption.consolidationPolicy`, `spec.disruption.consolidateAfter` or `spec.disruption.expireAfter`.
+You can configure Karpenter to disrupt Nodes through your NodePool in multiple ways. You can use `spec.disruption.consolidationPolicy`, `spec.disruption.consolidateAfter`, or `spec.template.spec.expireAfter`.
 You can also rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`.
 Read [Disruption]({{<ref "disruption" >}}) for more.
 
