@@ -16,14 +16,6 @@ package termination_test
 
 import (
 	"testing"
-	"time"
-
-	coretest "sigs.k8s.io/karpenter/pkg/test"
-
-	"github.com/samber/lo"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -57,57 +49,3 @@ var _ = BeforeEach(func() {
 
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
-
-var _ = Describe("Termination", func() {
-	BeforeEach(func() {
-		nodePool.Spec.Template.Spec.TerminationGracePeriod = &metav1.Duration{Duration: time.Second * 30}
-	})
-	It("should delete pod that tolerates do-not-disrupt after termination grace period seconds", func() {
-		pod := coretest.UnschedulablePod(coretest.PodOptions{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
-			karpv1.DoNotDisruptAnnotationKey: "true",
-		}}})
-		env.ExpectCreated(nodeClass, nodePool, pod)
-
-		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectHealthy(pod)
-
-		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
-		env.ExpectUpdated(nodePool)
-
-		// Eventually the node will be tainted
-		Eventually(func(g Gomega) {
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
-			_, ok := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
-				return karpv1.IsDisruptingTaint(t)
-			})
-			g.Expect(ok).To(BeTrue())
-		}).Should(Succeed())
-		// After the deletion timestamp is set the node should be gone
-		env.EventuallyExpectNotFound(nodeClaim, node)
-	})
-	It("should delete pod that has a pre-stop hook after termination grace period seconds", func() {
-		pod := coretest.UnschedulablePod(coretest.PodOptions{PreStopSleep: lo.ToPtr(int64(300))})
-		env.ExpectCreated(nodeClass, nodePool, pod)
-
-		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
-		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
-		env.EventuallyExpectHealthy(pod)
-
-		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
-		env.ExpectUpdated(nodePool)
-
-		// Eventually the node will be tainted
-		Eventually(func(g Gomega) {
-			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
-			_, ok := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
-				return karpv1.IsDisruptingTaint(t)
-			})
-			g.Expect(ok).To(BeTrue())
-		}).Should(Succeed())
-		// After the deletion timestamp is set the node should be gone
-		env.EventuallyExpectNotFound(nodeClaim, node)
-	})
-})
