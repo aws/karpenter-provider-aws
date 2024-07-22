@@ -56,6 +56,10 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +optional
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms" hash:"ignore"`
+	// AMIFamily is the AMI family that instances use.
+	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022}
+	// +optional
+	AMIFamily *string `json:"amiFamily,omitempty"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -419,6 +423,8 @@ type EC2NodeClass struct {
 
 	// +kubebuilder:validation:XValidation:message="must specify exactly one of ['role', 'instanceProfile']",rule="(has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))"
 	// +kubebuilder:validation:XValidation:message="changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="when both are specified, amiFamily must match amiSelectorTerms[].alias or be 'Custom'",rule="(has(self.amiFamily) && self.amiSelectorTerms.exists(x, has(x.alias))) ? (self.amiFamily == 'Custom' || self.amiSelectorTerms.exists(x, has(x.alias) && (x.alias.find('^[^@]+') == self.amiFamily.lowerAscii()))) : true"
+	// +kubebuilder:validation:XValidation:message="must specify amiFamily if amiSelectorTerms does not contain an alias",rule="self.amiSelectorTerms.exists(x, has(x.alias)) ? true : has(self.amiFamily)"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 }
@@ -456,6 +462,9 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]strin
 func (in *EC2NodeClass) AMIFamily() string {
 	if family, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
 		return family
+	}
+	if in.Spec.AMIFamily != nil {
+		return *in.Spec.AMIFamily
 	}
 	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
 		return t.Alias != ""

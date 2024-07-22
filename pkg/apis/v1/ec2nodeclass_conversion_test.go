@@ -24,6 +24,8 @@ import (
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/aws/aws-sdk-go/service/ec2"
+
 	. "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
@@ -119,10 +121,10 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 		})
 		It("should convert v1 ec2nodeclass with AMIFamily compat annotation", func() {
 			v1ec2nodeclass.Annotations = lo.Assign(v1ec2nodeclass.Annotations, map[string]string{
-				AnnotationAMIFamilyCompatibility: v1beta1.AMIFamilyAL2023,
+				AnnotationAMIFamilyCompatibility: v1beta1.AMIFamilyUbuntu,
 			})
 			Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
-			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyAL2023))
+			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyUbuntu))
 		})
 		It("should convert v1 ec2nodeclass user data", func() {
 			v1ec2nodeclass.Spec.UserData = lo.ToPtr("test user data")
@@ -371,14 +373,41 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 				ID: "ami-0123456789abcdef",
 			}}
 			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
-			Expect(v1ec2nodeclass.Annotations).To(HaveKeyWithValue(AnnotationAMIFamilyCompatibility, AMIFamilyAL2023))
+			Expect(lo.FromPtr(v1ec2nodeclass.Spec.AMIFamily)).To(Equal(AMIFamilyAL2023))
 			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(Equal([]AMISelectorTerm{{
 				ID: "ami-0123456789abcdef",
 			}}))
 		})
+		// TODO: jmdeal@ remove once Ubuntu compatibility is supported
 		It("should fail to convert v1beta1 ec2nodeclass when ami family is Ubuntu", func() {
 			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
 			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).ToNot(Succeed())
+		})
+		It("should succeed to convert v1beta1 ec2nodeclass when amiFamily is Ubuntu (with amiSelectorTerms)", func() {
+			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+			v1beta1ec2nodeclass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: "ami-0123456789abcdef"}}
+			Expect(v1ec2nodeclass.Annotations).ToNot(HaveKey(AnnotationAMIFamilyCompatibility))
+			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(v1ec2nodeclass.AMIFamily()).To(Equal(AMIFamilyAL2))
+			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(Equal([]AMISelectorTerm{{ID: "ami-0123456789abcdef"}}))
+			Expect(v1ec2nodeclass.Spec.BlockDeviceMappings).To(Equal([]*BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/sda1"),
+				EBS: &BlockDevice{
+					Encrypted:  lo.ToPtr(true),
+					VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
+					VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+				},
+			}}))
+		})
+		It("should succeed to convert v1beta1 ec2nodeclass when amiFamily is Ubuntu (without amiSelectorTerms)", func() {
+			// TODO: jmdeal@ remove once Ubuntu compatibility is supported
+			Skip("ubuntu compatibility support not yet implemented")
+			v1beta1ec2nodeclass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyUbuntu)
+			v1beta1ec2nodeclass.Spec.AMISelectorTerms = nil
+			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(v1ec2nodeclass.AMIFamily()).To(Equal(AMIFamilyUbuntu))
+			Expect(len(v1ec2nodeclass.Spec.AMISelectorTerms)).To(Equal(0))
+			Expect(len(v1ec2nodeclass.Spec.BlockDeviceMappings)).To(Equal(0))
 		})
 		It("should convert v1beta1 ec2nodeclass user data", func() {
 			v1beta1ec2nodeclass.Spec.UserData = lo.ToPtr("test user data")

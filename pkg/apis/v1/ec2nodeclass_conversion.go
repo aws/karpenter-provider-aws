@@ -20,7 +20,10 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
+	"k8s.io/apimachinery/pkg/api/resource"
 	"knative.dev/pkg/apis"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 )
@@ -107,22 +110,47 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 	// TODO: jmdeal@ remove before v1
 	// Temporarily fail closed when trying to convert EC2NodeClasses with the Ubuntu AMI family since compatibility support isn't yet integrated.
 	// This check can be removed once it's added.
-	if lo.FromPtr(v1beta1enc.Spec.AMIFamily) == v1beta1.AMIFamilyUbuntu {
-		return fmt.Errorf("failed to convert v1beta1 EC2NodeClass to v1, conversion for Ubuntu AMIFamily is currently unsupported")
+	if lo.FromPtr(v1beta1enc.Spec.AMIFamily) == v1beta1.AMIFamilyUbuntu && len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
+		return fmt.Errorf("failed to convert v1beta1 EC2NodeClass to v1, conversion for Ubuntu AMIFamily without AMISelectorTerms is currently unsupported")
 	}
 
-	// If the AMIFamily is still supported by the v1 APIs, and there are no AMISelectorTerms defined, create an alias.
-	// Otherwise, don't modify the AMISelectorTerms and add the compatibility annotation.
-	if lo.Contains([]string{
-		AMIFamilyAL2, AMIFamilyAL2023, AMIFamilyBottlerocket, AMIFamilyWindows2019, AMIFamilyWindows2022,
-	}, lo.FromPtr(v1beta1enc.Spec.AMIFamily)) && len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
-		in.Spec.AMISelectorTerms = []AMISelectorTerm{{
-			Alias: fmt.Sprintf("%s@latest", strings.ToLower(lo.FromPtr(v1beta1enc.Spec.AMIFamily))),
-		}}
-	} else {
-		in.Annotations = lo.Assign(in.Annotations, map[string]string{
-			AnnotationAMIFamilyCompatibility: lo.FromPtr(v1beta1enc.Spec.AMIFamily),
-		})
+	switch lo.FromPtr(v1beta1enc.Spec.AMIFamily) {
+	case AMIFamilyAL2, AMIFamilyAL2023, AMIFamilyBottlerocket, AMIFamilyWindows2019, AMIFamilyWindows2022:
+		// If no amiSelectorTerms are specified, we can create an alias and don't need to specify amiFamily. Otherwise,
+		// we'll carry over the amiSelectorTerms and amiFamily.
+		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
+			in.Spec.AMIFamily = nil
+			in.Spec.AMISelectorTerms = []AMISelectorTerm{{
+				Alias: fmt.Sprintf("%s@latest", strings.ToLower(lo.FromPtr(v1beta1enc.Spec.AMIFamily))),
+			}}
+		} else {
+			in.Spec.AMIFamily = v1beta1enc.Spec.AMIFamily
+		}
+	case AMIFamilyUbuntu:
+		// If there are no amiSelectorTerms specified, we need to use the compatibility annotation so we can discover
+		// amis at runtime. Otherwise, we can carry over the amiSelectorTerms and use the AL2 family for bootstrapping
+		// (they have the same UserData). In this case, we'll have to override AL2's default block device mappings.
+		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
+			in.Annotations = lo.Assign(in.Annotations, map[string]string{
+				AnnotationAMIFamilyCompatibility: AMIFamilyUbuntu,
+			})
+		} else {
+			in.Spec.AMIFamily = lo.ToPtr(AMIFamilyAL2)
+			if v1beta1enc.Spec.BlockDeviceMappings == nil {
+				in.Spec.BlockDeviceMappings = []*BlockDeviceMapping{{
+					DeviceName: lo.ToPtr("/dev/sda1"),
+					EBS: &BlockDevice{
+						Encrypted:  lo.ToPtr(true),
+						VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
+						VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+					},
+				}}
+			}
+		}
+	default:
+		// The amiFamily is custom or undefined (shouldn't be possible via validation). We'll treat it as custom
+		// regardless.
+		in.Spec.AMIFamily = lo.ToPtr(AMIFamilyCustom)
 	}
 
 	in.Spec.convertFrom(&v1beta1enc.Spec)
@@ -161,13 +189,15 @@ func (in *EC2NodeClassSpec) convertFrom(v1beta1enc *v1beta1.EC2NodeClassSpec) {
 	in.Tags = v1beta1enc.Tags
 	in.UserData = v1beta1enc.UserData
 	in.MetadataOptions = (*MetadataOptions)(v1beta1enc.MetadataOptions)
-	in.BlockDeviceMappings = lo.Map(v1beta1enc.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping, _ int) *BlockDeviceMapping {
-		return &BlockDeviceMapping{
-			DeviceName: bdm.DeviceName,
-			RootVolume: bdm.RootVolume,
-			EBS:        (*BlockDevice)(bdm.EBS),
-		}
-	})
+	if v1beta1enc.BlockDeviceMappings != nil {
+		in.BlockDeviceMappings = lo.Map(v1beta1enc.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping, _ int) *BlockDeviceMapping {
+			return &BlockDeviceMapping{
+				DeviceName: bdm.DeviceName,
+				RootVolume: bdm.RootVolume,
+				EBS:        (*BlockDevice)(bdm.EBS),
+			}
+		})
+	}
 }
 
 func (in *EC2NodeClassStatus) convertFrom(v1beta1enc *v1beta1.EC2NodeClassStatus) {

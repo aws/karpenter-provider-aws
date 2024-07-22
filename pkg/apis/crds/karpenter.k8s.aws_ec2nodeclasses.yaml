@@ -57,6 +57,16 @@ spec:
                 EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
                 This will contain configuration necessary to launch instances in AWS.
               properties:
+                amiFamily:
+                  description: AMIFamily is the AMI family that instances use.
+                  enum:
+                    - AL2
+                    - AL2023
+                    - Bottlerocket
+                    - Custom
+                    - Windows2019
+                    - Windows2022
+                  type: string
                 amiSelectorTerms:
                   description: AMISelectorTerms is a list of or ami selector terms. The terms are ORed.
                   items:
@@ -566,6 +576,10 @@ spec:
                   rule: (has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))
                 - message: changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.
                   rule: (has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))
+                - message: when both are specified, amiFamily must match amiSelectorTerms[].alias or be 'Custom'
+                  rule: '(has(self.amiFamily) && self.amiSelectorTerms.exists(x, has(x.alias))) ? (self.amiFamily == ''Custom'' || self.amiSelectorTerms.exists(x, has(x.alias) && (x.alias.find(''^[^@]+'') == self.amiFamily.lowerAscii()))) : true'
+                - message: must specify amiFamily if amiSelectorTerms does not contain an alias
+                  rule: 'self.amiSelectorTerms.exists(x, has(x.alias)) ? true : has(self.amiFamily)'
             status:
               description: EC2NodeClassStatus contains the resolved state of the EC2NodeClass
               properties:
