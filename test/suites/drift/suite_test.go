@@ -588,6 +588,11 @@ var _ = Describe("Drift", func() {
 			// Remove the startup taints from the new nodes to initialize them
 			Eventually(func(g Gomega) {
 				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeTwo), nodeTwo)).To(Succeed())
+				g.Expect(len(nodeTwo.Spec.Taints)).To(BeNumerically("==", 1))
+				_, found := lo.Find(nodeTwo.Spec.Taints, func(t corev1.Taint) bool {
+					return t.MatchTaint(&corev1.Taint{Key: "example.com/another-taint-2", Effect: corev1.TaintEffectPreferNoSchedule})
+				})
+				g.Expect(found).To(BeTrue())
 				stored := nodeTwo.DeepCopy()
 				nodeTwo.Spec.Taints = lo.Reject(nodeTwo.Spec.Taints, func(t corev1.Taint, _ int) bool { return t.Key == "example.com/another-taint-2" })
 				g.Expect(env.Client.Patch(env.Context, nodeTwo, client.StrategicMergeFrom(stored))).To(Succeed())
