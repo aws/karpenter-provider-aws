@@ -191,12 +191,6 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 
 	// Record metric and event for this action
 	c.notifyForMessage(msg, nodeClaim, node)
-	actionsPerformed.With(
-		prometheus.Labels{
-			actionTypeLabel:       string(action),
-			metrics.NodePoolLabel: nodeClaim.Labels[karpv1.NodePoolLabelKey],
-		},
-	).Inc()
 
 	// Mark the offering as unavailable in the ICE cache since we got a spot interruption warning
 	if msg.Kind() == messages.SpotInterruptionKind {
