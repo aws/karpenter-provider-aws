@@ -1,7 +1,7 @@
 module:
   hugoVersion:
     extended: true
-    max: "v0.120.3"
+    max: "v0.123.3"
     min: "v0.119.0"
   imports:
     - path: github.com/google/docsy
