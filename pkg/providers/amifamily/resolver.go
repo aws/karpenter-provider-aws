@@ -222,9 +222,9 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *k
 		nodeClaim.Spec.StartupTaints,
 	})
 	if _, found := lo.Find(taints, func(t corev1.Taint) bool {
-		return t.MatchTaint(&corev1.Taint{Key: "karpenter.sh/unregistered", Effect: corev1.TaintEffectNoExecute})
+		return t.MatchTaint(&karpv1.UnregisteredNoExecuteTaint)
 	}); !found {
-		taints = append(taints, corev1.Taint{Key: "karpenter.sh/unregistered", Effect: corev1.TaintEffectNoExecute})
+		taints = append(taints, karpv1.UnregisteredNoExecuteTaint)
 	}
 
 	resolved := &LaunchTemplate{
