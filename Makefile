@@ -45,10 +45,11 @@ ci-non-test: verify licenses vulncheck ## Runs checks other than tests
 run: ## Run Karpenter controller binary against your local cluster
 	SYSTEM_NAMESPACE=${KARPENTER_NAMESPACE} \
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
-		DISABLE_LEADER_ELECT=true \
+		DISABLE_LEADER_ELECTION=true \
 		DISABLE_WEBHOOK=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
+		FEATURE_GATES="SpotToSpotConsolidation=true" \
 		go run ./cmd/controller/main.go
 
 test: ## Run tests
