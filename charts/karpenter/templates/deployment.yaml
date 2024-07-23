@@ -171,10 +171,6 @@ spec:
               containerPort: {{ .Values.webhook.port }}
               protocol: TCP
           {{- end }}
-          {{- if not .Values.webhook.enabled }}
-            - name: DISABLE_WEBHOOK
-              value: "true" 
-          {{- end }}
             - name: http
               containerPort: {{ .Values.controller.healthProbe.port }}
               protocol: TCP
