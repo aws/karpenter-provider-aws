@@ -468,6 +468,12 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]strin
 	})
 }
 
+// AMIFamily returns the family for a NodePool based on the following items, in order of precdence:
+//   - v1beta1 compatibility annotation
+//   - ec2nodeclass.spec.amiFamily
+//   - ec2nodeclass.spec.amiSelectorTerms[].alias
+//
+// If an alias is specified, ec2nodeclass.spec.amiFamily must match that alias, or be 'Custom' (enforced via validation).
 func (in *EC2NodeClass) AMIFamily() string {
 	if family, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
 		return family
@@ -480,23 +486,8 @@ func (in *EC2NodeClass) AMIFamily() string {
 	}); ok {
 		return AMIFamilyFromAlias(term.Alias)
 	}
+	// Unreachable: validation enforces that one of the above conditions must be met
 	return AMIFamilyCustom
-}
-
-func (in *EC2NodeClass) AMIVersion() string {
-	if _, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
-		return "latest"
-	}
-	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
-		return t.Alias != ""
-	}); ok {
-		parts := strings.Split(term.Alias, "@")
-		if len(parts) != 2 {
-			log.Fatalf("failed to parse AMI alias %q, invalid format", term.Alias)
-		}
-		return parts[1]
-	}
-	return "latest"
 }
 
 func AMIFamilyFromAlias(alias string) string {
@@ -517,6 +508,14 @@ func AMIFamilyFromAlias(alias string) string {
 		log.Fatalf("%q is an invalid alias family", components[0])
 	}
 	return family
+}
+
+func AMIVersionFromAlias(alias string) string {
+	components := strings.Split(alias, "@")
+	if len(components) != 2 {
+		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)
+	}
+	return components[1]
 }
 
 // EC2NodeClassList contains a list of EC2NodeClass

@@ -93,7 +93,7 @@ func (p *DefaultProvider) DescribeImageQueries(ctx context.Context, nodeClass *v
 			return nil, fmt.Errorf("getting kubernetes version, %w", err)
 		}
 		amiFamily := GetAMIFamily(lo.ToPtr(v1.AMIFamilyFromAlias(term.Alias)), nil)
-		query, err := amiFamily.DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, nodeClass.AMIVersion())
+		query, err := amiFamily.DescribeImageQuery(ctx, p.ssmProvider, kubernetesVersion, v1.AMIVersionFromAlias(term.Alias))
 		if err != nil {
 			return []DescribeImageQuery{}, err
 		}
