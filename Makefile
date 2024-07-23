@@ -102,6 +102,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
+	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* charts/karpenter-crd/templates
 	hack/validation/kubelet.sh
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
@@ -132,6 +133,8 @@ image: ## Build the Karpenter controller images using ko build
 
 apply: verify image ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
 	kubectl apply -f ./pkg/apis/crds/
+	KARPENTER_NAMESPACE=kube-system
+	helm upgrade --install karpenter-crd charts/karpenter-crd --namespace "${KARPENTER_NAMESPACE}"
 	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
         $(HELM_OPTS) \
         --set logLevel=debug \
