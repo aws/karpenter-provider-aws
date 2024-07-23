@@ -59,7 +59,7 @@ type EC2NodeClassSpec struct {
 	// AMIFamily is the AMI family that instances use.
 	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022}
 	// +optional
-	AMIFamily *string `json:"amiFamily,omitempty"`
+	AMIFamily *string `json:"amiFamily,omitempty" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -436,7 +436,12 @@ type EC2NodeClass struct {
 const EC2NodeClassHashVersion = "v3"
 
 func (in *EC2NodeClass) Hash() string {
-	return fmt.Sprint(lo.Must(hashstructure.Hash(in.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
+	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
+		in.Spec,
+		// Hash AMIFamily with the dynamic value rather than that of the field.
+		// This ensures that we're aware of updates to the annotation and dynamic defaults for aliases
+		in.AMIFamily(),
+	}, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
 		ZeroNil:         true,
@@ -469,18 +474,7 @@ func (in *EC2NodeClass) AMIFamily() string {
 	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
 		return t.Alias != ""
 	}); ok {
-		switch strings.Split(term.Alias, "@")[0] {
-		case "al2":
-			return AMIFamilyAL2
-		case "al2023":
-			return AMIFamilyAL2023
-		case "bottlerocket":
-			return AMIFamilyBottlerocket
-		case "windows2019":
-			return AMIFamilyWindows2019
-		case "windows2022":
-			return AMIFamilyWindows2022
-		}
+		return AMIFamilyFromAlias(term.Alias)
 	}
 	return AMIFamilyCustom
 }
@@ -499,6 +493,26 @@ func (in *EC2NodeClass) AMIVersion() string {
 		return parts[1]
 	}
 	return "latest"
+}
+
+func AMIFamilyFromAlias(alias string) string {
+	components := strings.Split(alias, "@")
+	if len(components) != 2 {
+		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)
+	}
+	family, ok := lo.Find([]string{
+		AMIFamilyAL2,
+		AMIFamilyAL2023,
+		AMIFamilyBottlerocket,
+		AMIFamilyWindows2019,
+		AMIFamilyWindows2022,
+	}, func(family string) bool {
+		return strings.ToLower(family) == components[0]
+	})
+	if !ok {
+		log.Fatalf("%q is an invalid alias family", components[0])
+	}
+	return family
 }
 
 // EC2NodeClassList contains a list of EC2NodeClass

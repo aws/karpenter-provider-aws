@@ -15,6 +15,8 @@ limitations under the License.
 package status_test
 
 import (
+	"github.com/samber/lo"
+
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -37,6 +39,7 @@ var _ = Describe("NodeClass Security Group Status Controller", func() {
 						Tags: map[string]string{"*": "*"},
 					},
 				},
+				AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
 				AMISelectorTerms: []v1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},

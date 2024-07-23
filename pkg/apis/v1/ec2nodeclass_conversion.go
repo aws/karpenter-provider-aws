@@ -52,13 +52,16 @@ func (in *EC2NodeClassSpec) convertTo(v1beta1enc *v1beta1.EC2NodeClassSpec) {
 			Tags: sg.Tags,
 		}
 	})
-	v1beta1enc.AMISelectorTerms = lo.Map(in.AMISelectorTerms, func(ami AMISelectorTerm, _ int) v1beta1.AMISelectorTerm {
-		return v1beta1.AMISelectorTerm{
-			ID:    ami.ID,
-			Name:  ami.Name,
-			Owner: ami.Owner,
-			Tags:  ami.Tags,
+	v1beta1enc.AMISelectorTerms = lo.FilterMap(in.AMISelectorTerms, func(term AMISelectorTerm, _ int) (v1beta1.AMISelectorTerm, bool) {
+		if term.Alias != "" {
+			return v1beta1.AMISelectorTerm{}, false
 		}
+		return v1beta1.AMISelectorTerm{
+			ID:    term.ID,
+			Name:  term.Name,
+			Owner: term.Owner,
+			Tags:  term.Tags,
+		}, true
 	})
 	v1beta1enc.AssociatePublicIPAddress = in.AssociatePublicIPAddress
 	v1beta1enc.Context = in.Context

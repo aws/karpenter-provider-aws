@@ -171,6 +171,7 @@ var _ = Describe("CEL/Validation", func() {
 		}()...)
 		It("should fail when neither amiFamily nor an alias are specified", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-01234567890abcdef"}}
+			nc.Spec.AMIFamily = nil
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})

@@ -2198,6 +2198,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should default to EBS defaults when volumeSize is not defined in blockDeviceMappings for custom AMIs", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{
 					Tags: map[string]string{
@@ -2369,13 +2370,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			nodeClassChanges := []*v1.EC2NodeClass{
 				{}, // Testing the base case black EC2NodeClass
 				{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}},
-				{
-					Spec: v1.EC2NodeClassSpec{
-						AMISelectorTerms: []v1.AMISelectorTerm{{
-							Alias: "bottlerocket@latest",
-						}},
-					},
-				},
+				{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}}},
 				{
 					Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{
 						{

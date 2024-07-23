@@ -244,6 +244,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Create userData that adds custom labels through the --node-labels
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
 		nodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle()))
@@ -295,6 +296,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Create userData that adds custom labels through the --node-labels
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
 
 		// Giving bad clusterName and clusterEndpoint to the userData

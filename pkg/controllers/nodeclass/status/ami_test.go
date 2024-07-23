@@ -46,6 +46,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						Tags: map[string]string{"*": "*"},
 					},
 				},
+				AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
 				AMISelectorTerms: []v1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
@@ -131,6 +132,8 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		})
+		fmt.Printf("nodeClass.Spec.AMIFamily: %v\n", lo.FromPtr(nodeClass.Spec.AMIFamily))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
