@@ -115,7 +115,7 @@
 						"uid": "${datasource}"
 					},
 					"editorMode": "builder",
-					"expr": "sum by(cluster,nodepool) (karpenter_nodes_created{nodepool=~\"$nodepool\"})",
+					"expr": "sum by(cluster,nodepool) (karpenter_nodes_created_total{nodepool=~\"$nodepool\"})",
 					"format": "time_series",
 					"legendFormat": "{{cluster}}",
 					"range": true,
