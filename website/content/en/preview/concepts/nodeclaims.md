@@ -6,12 +6,14 @@ description: >
   Understand NodeClaims
 ---
 
-Karpenter uses NodeClaims to perform node autoscaling based on the requests of unschedulable pods and the
-requirements of existing [NodePool]({{<ref "./nodepools" >}}) and associated [NodeClasses]({{<ref "./nodeclasses" >}}).
+Karpenter uses NodeClaims to manage the lifecycle of Kubernetes Nodes with the underlying cloud provider.
+Karpenter's algorithm creates and deletes NodeClaims in response to the demands of the Pods in the cluster.
+NodeClaims are created from the requirements of existing [NodePool]({{<ref "./nodepools" >}}) and associated
+[NodeClasses]({{<ref "./nodeclasses" >}}).
 While NodeClaims require no direct user input, as a Karpenter user you can monitor NodeClaims to keep track of
 the status of your nodes in cases where something goes wrong or a node drifts from its intended state.
 
-Karpenter uses NodeClaims as a merged representation of the cloud provider instance and the node on the cluster.
+Karpenter uses NodeClaims to request capacity and provide a running representation of that capacity.
 Karpenter creates NodeClaims in response to provisioning and disruption needs (pre-spin). Whenever Karpenter
 creates a NodeClaim, it asks the cloud provider to create the instance (launch), register the created node
 with the node claim (registration), and wait for the node and its resources to be ready (initialization).
@@ -113,13 +115,18 @@ As illustrated in the previous diagram, Karpenter interacts with NodeClaims and 
 
 At this point, the node is considered ready to go.
 
-If a node doesn’t appear as registered after 15 minutes since it was first created, the NodeClaim is deleted.
+Karpenter assumes that a NodeClaim will register within 15 minutes of being requested.
+Karpenter will not launch additional capacity while waiting for this.
+As they are booting up, NodeClaims are included in the scheduling simulation for both launch and termination flows.
+
+If a node doesn’t appear as registered after 15 minutes, the NodeClaim is deleted.
 Karpenter assumes there is a problem that isn’t going to be fixed.
 No pods will be deployed there. After the node is deleted, Karpenter will try to create a new NodeClaim.
 
 ## NodeClaim drift and disruption
 
 Although NodeClaims play a role in replacing nodes that drift or have been disrupted,
-as a Karpenter user, NodeClaims should not be modified, and should only be a tool for monitoring.
+to a Karpenter user, NodeClaims are immutable and cannot be modified.
+NodeClaims should only be a tool for monitoring.
 
 For details on Karpenter disruption, see [Disruption]({{< ref "./disruption" >}}).
