@@ -576,8 +576,16 @@ spec:
                   rule: (has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))
                 - message: changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.
                   rule: (has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))
-                - message: when both are specified, amiFamily must match amiSelectorTerms[].alias or be 'Custom'
-                  rule: '(has(self.amiFamily) && self.amiSelectorTerms.exists(x, has(x.alias))) ? (self.amiFamily == ''Custom'' || self.amiSelectorTerms.exists(x, has(x.alias) && (x.alias.find(''^[^@]+'') == self.amiFamily.lowerAscii()))) : true'
+                - message: if set, amiFamily must be 'AL2' or 'Custom' when using an AL2 alias
+                  rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''al2'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''AL2'') : true)'
+                - message: if set, amiFamily must be 'AL2023' or 'Custom' when using an AL2023 alias
+                  rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''al2023'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''AL2023'') : true)'
+                - message: if set, amiFamily must be 'Bottlerocket' or 'Custom' when using a Bottlerocket alias
+                  rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''bottlerocket'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''Bottlerocket'') : true)'
+                - message: if set, amiFamily must be 'Windows2019' or 'Custom' when using a Windows2019 alias
+                  rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''windows2019'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''Windows2019'') : true)'
+                - message: if set, amiFamily must be 'Windows2022' or 'Custom' when using a Windows2022 alias
+                  rule: '!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find(''^[^@]+'') == ''windows2022'') ? (self.amiFamily == ''Custom'' || self.amiFamily == ''Windows2022'') : true)'
                 - message: must specify amiFamily if amiSelectorTerms does not contain an alias
                   rule: 'self.amiSelectorTerms.exists(x, has(x.alias)) ? true : has(self.amiFamily)'
             status:
