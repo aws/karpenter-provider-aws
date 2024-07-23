@@ -116,14 +116,6 @@ spec:
             - name: BATCH_IDLE_DURATION
               value: "{{ . }}"
           {{- end }}
-          {{- with .Values.settings.assumeRoleARN }}
-            - name: ASSUME_ROLE_ARN
-              value: "{{ . }}"
-          {{- end }}
-          {{- with .Values.settings.assumeRoleDuration }}
-            - name: ASSUME_ROLE_DURATION
-              value: "{{ . }}"
-          {{- end }}
           {{- with .Values.settings.clusterCABundle }}
             - name: CLUSTER_CA_BUNDLE
               value: "{{ . }}"

@@ -19,7 +19,6 @@ import (
 	"flag"
 	"os"
 	"testing"
-	"time"
 
 	"github.com/samber/lo"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
@@ -57,8 +56,6 @@ var _ = Describe("Options", func() {
 	It("should correctly override default vars when CLI flags are set", func() {
 		opts.AddFlags(fs)
 		err := opts.Parse(fs,
-			"--assume-role-arn", "env-role",
-			"--assume-role-duration", "20m",
 			"--cluster-ca-bundle", "env-bundle",
 			"--cluster-name", "env-cluster",
 			"--cluster-endpoint", "https://env-cluster",
@@ -68,8 +65,6 @@ var _ = Describe("Options", func() {
 			"--reserved-enis", "10")
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			AssumeRoleARN:           lo.ToPtr("env-role"),
-			AssumeRoleDuration:      lo.ToPtr(20 * time.Minute),
 			ClusterCABundle:         lo.ToPtr("env-bundle"),
 			ClusterName:             lo.ToPtr("env-cluster"),
 			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
@@ -80,8 +75,6 @@ var _ = Describe("Options", func() {
 		}))
 	})
 	It("should correctly fallback to env vars when CLI flags aren't set", func() {
-		os.Setenv("ASSUME_ROLE_ARN", "env-role")
-		os.Setenv("ASSUME_ROLE_DURATION", "20m")
 		os.Setenv("CLUSTER_CA_BUNDLE", "env-bundle")
 		os.Setenv("CLUSTER_NAME", "env-cluster")
 		os.Setenv("CLUSTER_ENDPOINT", "https://env-cluster")
@@ -96,8 +89,6 @@ var _ = Describe("Options", func() {
 		err := opts.Parse(fs)
 		Expect(err).ToNot(HaveOccurred())
 		expectOptionsEqual(opts, test.Options(test.OptionsFields{
-			AssumeRoleARN:           lo.ToPtr("env-role"),
-			AssumeRoleDuration:      lo.ToPtr(20 * time.Minute),
 			ClusterCABundle:         lo.ToPtr("env-bundle"),
 			ClusterName:             lo.ToPtr("env-cluster"),
 			ClusterEndpoint:         lo.ToPtr("https://env-cluster"),
@@ -114,10 +105,6 @@ var _ = Describe("Options", func() {
 		})
 		It("should fail when cluster name is not set", func() {
 			err := opts.Parse(fs)
-			Expect(err).To(HaveOccurred())
-		})
-		It("should fail when assume role duration is less than 15 minutes", func() {
-			err := opts.Parse(fs, "--cluster-name", "test-cluster", "--assume-role-duration", "1s")
 			Expect(err).To(HaveOccurred())
 		})
 		It("should fail when clusterEndpoint is invalid (not absolute)", func() {
@@ -137,8 +124,6 @@ var _ = Describe("Options", func() {
 
 func expectOptionsEqual(optsA *options.Options, optsB *options.Options) {
 	GinkgoHelper()
-	Expect(optsA.AssumeRoleARN).To(Equal(optsB.AssumeRoleARN))
-	Expect(optsA.AssumeRoleDuration).To(Equal(optsB.AssumeRoleDuration))
 	Expect(optsA.ClusterCABundle).To(Equal(optsB.ClusterCABundle))
 	Expect(optsA.ClusterName).To(Equal(optsB.ClusterName))
 	Expect(optsA.ClusterEndpoint).To(Equal(optsB.ClusterEndpoint))
