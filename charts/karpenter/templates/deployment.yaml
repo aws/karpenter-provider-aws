@@ -84,6 +84,10 @@ spec:
             - name: DISABLE_WEBHOOK
               value: "false"
           {{- end }}
+          {{- if not .Values.webhook.enabled }}
+            - name: DISABLE_WEBHOOK
+              value: "true"
+          {{- end }}
           {{- with .Values.logLevel }}
             - name: LOG_LEVEL
               value: "{{ . }}"
