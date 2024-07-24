@@ -133,7 +133,7 @@ controller:
   sidecarVolumeMounts: []
   metrics:
     # -- The container port to use for metrics.
-    port: 8000
+    port: 8080
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
