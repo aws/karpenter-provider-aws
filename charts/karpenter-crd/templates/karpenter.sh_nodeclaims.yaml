@@ -119,6 +119,8 @@ spec:
                             rule: self in ["karpenter.sh/capacity-type", "karpenter.sh/nodepool"] || !self.find("^([^/]+)").endsWith("karpenter.sh")
                           - message: label "kubernetes.io/hostname" is restricted
                             rule: self != "kubernetes.io/hostname"
+                          - message: label domain "karpenter.k8s.aws" is restricted
+                            rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                       minValues:
                         description: |-
                           This field is ALPHA and can be dropped or replaced at any time
@@ -376,7 +378,7 @@ spec:
             - spec
           type: object
       served: true
-      storage: true
+      storage: {{ not .Values.rollbackToV1beta1 }}
       subresources:
         status: {}
     - additionalPrinterColumns:
@@ -839,9 +841,10 @@ spec:
             - spec
           type: object
       served: true
-      storage: false
+      storage: {{ .Values.rollbackToV1beta1 }}
       subresources:
         status: {}
+{{- if .Values.webhook.enabled }} 
   conversion:
     strategy: Webhook
     webhook:
@@ -850,6 +853,8 @@ spec:
         - v1
       clientConfig:
         service:
-          name: karpenter
-          namespace: kube-system
-          port: changeMe
+          name: {{ .Values.webhook.serviceName }}
+          namespace: {{ .Values.webhook.serviceNamespace }}
+          port: {{ .Values.webhook.port }}
+{{- end }}
+

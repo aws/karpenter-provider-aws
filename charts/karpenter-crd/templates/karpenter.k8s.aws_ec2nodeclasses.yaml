@@ -723,7 +723,7 @@ spec:
               type: object
           type: object
       served: true
-      storage: true
+      storage: {{ not .Values.rollbackToV1beta1 }}
       subresources:
         status: {}
     - name: v1beta1
@@ -1299,9 +1299,10 @@ spec:
               type: object
           type: object
       served: true
-      storage: false
+      storage: {{ .Values.rollbackToV1beta1 }}
       subresources:
         status: {}
+{{- if .Values.webhook.enabled }} 
   conversion:
     strategy: Webhook
     webhook:
@@ -1310,6 +1311,8 @@ spec:
         - v1
       clientConfig:
         service:
-          name: karpenter
-          namespace: kube-system
-          port: changeMe
+          name: {{ .Values.webhook.serviceName }}
+          namespace: {{ .Values.webhook.serviceNamespace }}
+          port: {{ .Values.webhook.port }}
+{{- end }}
+

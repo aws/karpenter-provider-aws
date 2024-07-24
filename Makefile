@@ -102,10 +102,10 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	go generate ./...
 	hack/boilerplate.sh
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
-	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* charts/karpenter-crd/templates
 	hack/validation/kubelet.sh
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
+	cp  pkg/apis/crds/* charts/karpenter-crd/templates
 	hack/mutation/conversion_webhooks_injection.sh
 	hack/github/dependabot.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
@@ -132,9 +132,8 @@ image: ## Build the Karpenter controller images using ko build
 	$(eval IMG_DIGEST=$(shell echo $(CONTROLLER_IMG) | cut -d "@" -f 2))
 
 apply: verify image ## Deploy the controller from the current state of your git repository into your ~/.kube/config cluster
-	kubectl apply -f ./pkg/apis/crds/
 	KARPENTER_NAMESPACE=kube-system
-	helm upgrade --install karpenter-crd charts/karpenter-crd --namespace "${KARPENTER_NAMESPACE}"
+#	helm upgrade --install karpenter-crd charts/karpenter-crd --namespace "${KARPENTER_NAMESPACE}"
 	helm upgrade --install karpenter charts/karpenter --namespace ${KARPENTER_NAMESPACE} \
         $(HELM_OPTS) \
         --set logLevel=debug \
@@ -148,6 +147,7 @@ install:  ## Deploy the latest released version into your ~/.kube/config cluster
 		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
+#	helm uninstall karpenter-crd --namespace "${KARPENTER_NAMESPACE}"
 	helm uninstall karpenter --namespace ${KARPENTER_NAMESPACE}
 
 docgen: ## Generate docs

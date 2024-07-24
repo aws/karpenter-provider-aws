@@ -1,5 +1,9 @@
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
   enabled: true
+  serviceName: karpenter
+  serviceNamespace: kube-system
   # -- The container port to use for the webhook.
   port: 8443
+
+rollbackToV1beta1: false
