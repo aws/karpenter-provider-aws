@@ -55,7 +55,6 @@ runs:
       ECR_REGION: ${{ inputs.ecr_region }}
       ACCOUNT_ID: ${{ inputs.account_id }}
       CLUSTER_NAME: ${{ inputs.cluster_name }}
-      K8S_VERSION: ${{ inputs.k8s_version }}
       PRIVATE_CLUSTER: ${{ inputs.private_cluster }}
     run: |
       ./test/hack/e2e_scripts/install_karpenter.sh
