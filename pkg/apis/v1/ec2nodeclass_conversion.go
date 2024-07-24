@@ -31,8 +31,21 @@ import (
 func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) error {
 	v1beta1enc := to.(*v1beta1.EC2NodeClass)
 	v1beta1enc.ObjectMeta = in.ObjectMeta
+	v1beta1enc.Annotations = lo.OmitByKeys(v1beta1enc.Annotations, []string{AnnotationUbuntuCompatibilityKey})
 
-	v1beta1enc.Spec.AMIFamily = lo.ToPtr(in.AMIFamily())
+	if value, ok := in.Annotations[AnnotationUbuntuCompatibilityKey]; ok {
+		compatSpecifiers := strings.Split(value, ",")
+		// The only blockDeviceMappings present on the v1 EC2NodeClass are those that we injected during conversion.
+		// These should be dropped.
+		if lo.Contains(compatSpecifiers, AnnotationUbuntuCompatibilityBlockDeviceMappings) {
+			in.Spec.BlockDeviceMappings = nil
+		}
+		// We don't need to explicitly check for the AMIFamily compat specifier, the presence of the annotation implies its existence
+		v1beta1enc.Spec.AMIFamily = lo.ToPtr(AMIFamilyUbuntu)
+	} else {
+		v1beta1enc.Spec.AMIFamily = lo.ToPtr(in.AMIFamily())
+	}
+
 	in.Spec.convertTo(&v1beta1enc.Spec)
 	in.Status.convertTo((&v1beta1enc.Status))
 	return nil
@@ -110,13 +123,6 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 	v1beta1enc := from.(*v1beta1.EC2NodeClass)
 	in.ObjectMeta = v1beta1enc.ObjectMeta
 
-	// TODO: jmdeal@ remove before v1
-	// Temporarily fail closed when trying to convert EC2NodeClasses with the Ubuntu AMI family since compatibility support isn't yet integrated.
-	// This check can be removed once it's added.
-	if lo.FromPtr(v1beta1enc.Spec.AMIFamily) == v1beta1.AMIFamilyUbuntu && len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
-		return fmt.Errorf("failed to convert v1beta1 EC2NodeClass to v1, conversion for Ubuntu AMIFamily without AMISelectorTerms is currently unsupported")
-	}
-
 	switch lo.FromPtr(v1beta1enc.Spec.AMIFamily) {
 	case AMIFamilyAL2, AMIFamilyAL2023, AMIFamilyBottlerocket, AMIFamilyWindows2019, AMIFamilyWindows2022:
 		// If no amiSelectorTerms are specified, we can create an alias and don't need to specify amiFamily. Otherwise,
@@ -130,26 +136,36 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 			in.Spec.AMIFamily = v1beta1enc.Spec.AMIFamily
 		}
 	case AMIFamilyUbuntu:
-		// If there are no amiSelectorTerms specified, we need to use the compatibility annotation so we can discover
-		// amis at runtime. Otherwise, we can carry over the amiSelectorTerms and use the AL2 family for bootstrapping
-		// (they have the same UserData). In this case, we'll have to override AL2's default block device mappings.
+		// If there are no AMISelectorTerms specified, we will fail closed when converting the NodeClass. Users must
+		// pin their AMIs **before** upgrading to Karpenter v1.0.0 if they were using the Ubuntu AMIFamily.
+		// TODO: jmdeal@ add doc link to the upgrade guide once available
 		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
-			in.Annotations = lo.Assign(in.Annotations, map[string]string{
-				AnnotationAMIFamilyCompatibility: AMIFamilyUbuntu,
-			})
-		} else {
-			in.Spec.AMIFamily = lo.ToPtr(AMIFamilyAL2)
-			if v1beta1enc.Spec.BlockDeviceMappings == nil {
-				in.Spec.BlockDeviceMappings = []*BlockDeviceMapping{{
-					DeviceName: lo.ToPtr("/dev/sda1"),
-					EBS: &BlockDevice{
-						Encrypted:  lo.ToPtr(true),
-						VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
-						VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
-					},
-				}}
-			}
+			return fmt.Errorf("converting EC2NodeClass %q from v1beta1 to v1, automatic Ubuntu AMI discovery is not supported (docs link)", v1beta1enc.Name)
 		}
+
+		// If AMISelectorTerms were specified, we can continue to use them to discover Ubuntu AMIs and use the AL2 AMI
+		// family for bootstrapping. AL2 and Ubuntu have an identical UserData format, but do have different default
+		// BlockDeviceMappings. We'll set the BlockDeviceMappings to Ubuntu's default if no user specified
+		// BlockDeviceMappings are present.
+		compatSpecifiers := []string{AnnotationUbuntuCompatibilityAMIFamily}
+		in.Spec.AMIFamily = lo.ToPtr(AMIFamilyAL2)
+		if v1beta1enc.Spec.BlockDeviceMappings == nil {
+			compatSpecifiers = append(compatSpecifiers, AnnotationUbuntuCompatibilityBlockDeviceMappings)
+			in.Spec.BlockDeviceMappings = []*BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/sda1"),
+				RootVolume: true,
+				EBS: &BlockDevice{
+					Encrypted:  lo.ToPtr(true),
+					VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
+					VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+				},
+			}}
+		}
+		// This compatibility annotation will be used to determine if the amiFamily was mutated from Ubuntu to AL2, and
+		// if we needed to inject any blockDeviceMappings. This is required to enable a round-trip conversion.
+		in.Annotations = lo.Assign(in.Annotations, map[string]string{
+			AnnotationUbuntuCompatibilityKey: strings.Join(compatSpecifiers, ","),
+		})
 	default:
 		// The amiFamily is custom or undefined (shouldn't be possible via validation). We'll treat it as custom
 		// regardless.
@@ -157,11 +173,31 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 	}
 
 	in.Spec.convertFrom(&v1beta1enc.Spec)
-	in.Status.convertFrom((&v1beta1enc.Status))
+	in.Status.convertFrom(&v1beta1enc.Status)
 	return nil
 }
 
 func (in *EC2NodeClassSpec) convertFrom(v1beta1enc *v1beta1.EC2NodeClassSpec) {
+	if in.AMISelectorTerms == nil {
+		in.AMISelectorTerms = lo.Map(v1beta1enc.AMISelectorTerms, func(ami v1beta1.AMISelectorTerm, _ int) AMISelectorTerm {
+			return AMISelectorTerm{
+				ID:    ami.ID,
+				Name:  ami.Name,
+				Owner: ami.Owner,
+				Tags:  ami.Tags,
+			}
+		})
+	}
+	if in.BlockDeviceMappings == nil {
+		in.BlockDeviceMappings = lo.Map(v1beta1enc.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping, _ int) *BlockDeviceMapping {
+			return &BlockDeviceMapping{
+				DeviceName: bdm.DeviceName,
+				RootVolume: bdm.RootVolume,
+				EBS:        (*BlockDevice)(bdm.EBS),
+			}
+		})
+	}
+
 	in.SubnetSelectorTerms = lo.Map(v1beta1enc.SubnetSelectorTerms, func(subnet v1beta1.SubnetSelectorTerm, _ int) SubnetSelectorTerm {
 		return SubnetSelectorTerm{
 			ID:   subnet.ID,
@@ -175,14 +211,6 @@ func (in *EC2NodeClassSpec) convertFrom(v1beta1enc *v1beta1.EC2NodeClassSpec) {
 			Tags: sg.Tags,
 		}
 	})
-	in.AMISelectorTerms = append(in.AMISelectorTerms, lo.Map(v1beta1enc.AMISelectorTerms, func(ami v1beta1.AMISelectorTerm, _ int) AMISelectorTerm {
-		return AMISelectorTerm{
-			ID:    ami.ID,
-			Name:  ami.Name,
-			Owner: ami.Owner,
-			Tags:  ami.Tags,
-		}
-	})...)
 	in.AssociatePublicIPAddress = v1beta1enc.AssociatePublicIPAddress
 	in.Context = v1beta1enc.Context
 	in.DetailedMonitoring = v1beta1enc.DetailedMonitoring
@@ -192,15 +220,6 @@ func (in *EC2NodeClassSpec) convertFrom(v1beta1enc *v1beta1.EC2NodeClassSpec) {
 	in.Tags = v1beta1enc.Tags
 	in.UserData = v1beta1enc.UserData
 	in.MetadataOptions = (*MetadataOptions)(v1beta1enc.MetadataOptions)
-	if v1beta1enc.BlockDeviceMappings != nil {
-		in.BlockDeviceMappings = lo.Map(v1beta1enc.BlockDeviceMappings, func(bdm *v1beta1.BlockDeviceMapping, _ int) *BlockDeviceMapping {
-			return &BlockDeviceMapping{
-				DeviceName: bdm.DeviceName,
-				RootVolume: bdm.RootVolume,
-				EBS:        (*BlockDevice)(bdm.EBS),
-			}
-		})
-	}
 }
 
 func (in *EC2NodeClassStatus) convertFrom(v1beta1enc *v1beta1.EC2NodeClassStatus) {

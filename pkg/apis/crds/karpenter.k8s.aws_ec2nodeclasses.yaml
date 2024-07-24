@@ -568,6 +568,7 @@ spec:
                     this UserData to ensure nodes are being provisioned with the correct configuration.
                   type: string
               required:
+                - amiSelectorTerms
                 - securityGroupSelectorTerms
                 - subnetSelectorTerms
               type: object

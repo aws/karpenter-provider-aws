@@ -54,7 +54,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other amiSelectorTerms",rule="!(self.exists(x, has(x.alias)) && self.size() != 1)"
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=30
-	// +optional
+	// +required
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms" hash:"ignore"`
 	// AMIFamily is the AMI family that instances use.
 	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022}
@@ -469,15 +469,11 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]strin
 }
 
 // AMIFamily returns the family for a NodePool based on the following items, in order of precdence:
-//   - v1beta1 compatibility annotation
 //   - ec2nodeclass.spec.amiFamily
 //   - ec2nodeclass.spec.amiSelectorTerms[].alias
 //
 // If an alias is specified, ec2nodeclass.spec.amiFamily must match that alias, or be 'Custom' (enforced via validation).
 func (in *EC2NodeClass) AMIFamily() string {
-	if family, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
-		return family
-	}
 	if in.Spec.AMIFamily != nil {
 		return *in.Spec.AMIFamily
 	}
