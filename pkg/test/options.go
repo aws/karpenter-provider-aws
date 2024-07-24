@@ -16,7 +16,6 @@ package test
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -25,8 +24,6 @@ import (
 )
 
 type OptionsFields struct {
-	AssumeRoleARN           *string
-	AssumeRoleDuration      *time.Duration
 	ClusterCABundle         *string
 	ClusterName             *string
 	ClusterEndpoint         *string
@@ -44,8 +41,6 @@ func Options(overrides ...OptionsFields) *options.Options {
 		}
 	}
 	return &options.Options{
-		AssumeRoleARN:           lo.FromPtrOr(opts.AssumeRoleARN, ""),
-		AssumeRoleDuration:      lo.FromPtrOr(opts.AssumeRoleDuration, 15*time.Minute),
 		ClusterCABundle:         lo.FromPtrOr(opts.ClusterCABundle, ""),
 		ClusterName:             lo.FromPtrOr(opts.ClusterName, "test-cluster"),
 		ClusterEndpoint:         lo.FromPtrOr(opts.ClusterEndpoint, "https://test-cluster"),
