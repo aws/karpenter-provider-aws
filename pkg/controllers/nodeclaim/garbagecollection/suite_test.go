@@ -117,7 +117,7 @@ var _ = Describe("GarbageCollection", func() {
 					Value: aws.String(nodeClass.Name),
 				},
 				{
-					Key:   aws.String("eks:eks-cluster-name"),
+					Key:   aws.String(v1.EKSClusterNameTagKey),
 					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},
@@ -185,7 +185,7 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String("eks:eks-cluster-name"),
+							Key:   aws.String(v1.EKSClusterNameTagKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
@@ -352,7 +352,7 @@ var _ = Describe("GarbageCollection", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String("eks:eks-cluster-name"),
+							Key:   aws.String(v1.EKSClusterNameTagKey),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},

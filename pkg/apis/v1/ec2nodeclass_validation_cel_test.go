@@ -106,7 +106,7 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
-				"eks:eks-cluster-name": "test",
+				v1.EKSClusterNameTagKey: "test",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{

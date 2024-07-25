@@ -95,6 +95,8 @@ var (
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
 
+	EKSClusterNameTagKey = "eks:eks-cluster-name"
+
 	LabelNodeClass = apis.Group + "/ec2nodeclass"
 
 	LabelTopologyZoneID = "topology.k8s.aws/zone-id"
