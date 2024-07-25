@@ -62,7 +62,7 @@ func (c *Controller) Reconcile(ctx context.Context) (reconcile.Result, error) {
 		return reconcile.Result{}, fmt.Errorf("listing cloudprovider machines, %w", err)
 	}
 	managedRetrieved := lo.Filter(retrieved, func(nc *karpv1.NodeClaim, _ int) bool {
-		return nc.Annotations[karpv1.ManagedByAnnotationKey] != "" && nc.DeletionTimestamp.IsZero()
+		return nc.Annotations[karpv1.NodePoolLabelKey] != "" && nc.DeletionTimestamp.IsZero()
 	})
 	nodeClaimList := &karpv1.NodeClaimList{}
 	if err = c.kubeClient.List(ctx, nodeClaimList); err != nil {

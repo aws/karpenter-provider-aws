@@ -177,7 +177,7 @@ var _ = Describe("Validation", func() {
 			nodeClass.Spec.Tags = map[string]string{"karpenter.sh/nodepool": "custom-value"}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 
-			nodeClass.Spec.Tags = map[string]string{"karpenter.sh/managed-by": env.ClusterName}
+			nodeClass.Spec.Tags = map[string]string{"eks:eks-cluster-name": env.ClusterName}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 
 			nodeClass.Spec.Tags = map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName): "owned"}

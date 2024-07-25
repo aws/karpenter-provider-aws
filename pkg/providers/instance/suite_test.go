@@ -162,7 +162,7 @@ var _ = Describe("InstanceProvider", func() {
 							Value: aws.String("default"),
 						},
 						{
-							Key:   aws.String(karpv1.ManagedByAnnotationKey),
+							Key:   aws.String("eks:eks-cluster-name"),
 							Value: aws.String(options.FromContext(ctx).ClusterName),
 						},
 					},
