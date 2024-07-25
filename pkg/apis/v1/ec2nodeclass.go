@@ -56,7 +56,10 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:MaxItems:=30
 	// +required
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms" hash:"ignore"`
-	// AMIFamily is the AMI family that instances use.
+	// AMIFamily dictates the UserData format and default BlockDeviceMappings used when generating launch templates.
+	// This field is optional when using an alias amiSelectorTerm, and the value will be inferred from the alias'
+	// family. When an alias is specified, this field may only be set to its corresponding family or 'Custom'. If no
+	// alias is specified, this field is required.
 	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022}
 	// +optional
 	AMIFamily *string `json:"amiFamily,omitempty" hash:"ignore"`

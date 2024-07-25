@@ -58,7 +58,11 @@ spec:
                 This will contain configuration necessary to launch instances in AWS.
               properties:
                 amiFamily:
-                  description: AMIFamily is the AMI family that instances use.
+                  description: |-
+                    AMIFamily dictates the UserData format and default BlockDeviceMappings used when generating launch templates.
+                    This field is optional when using an alias amiSelectorTerm, and the value will be inferred from the alias'
+                    family. When an alias is specified, this field may only be set to its corresponding family or 'Custom'. If no
+                    alias is specified, this field is required.
                   enum:
                     - AL2
                     - AL2023
