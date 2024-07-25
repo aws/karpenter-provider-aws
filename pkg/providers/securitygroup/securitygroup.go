@@ -29,11 +29,11 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 type Provider interface {
-	List(context.Context, *v1beta1.EC2NodeClass) ([]*ec2.SecurityGroup, error)
+	List(context.Context, *v1.EC2NodeClass) ([]*ec2.SecurityGroup, error)
 }
 
 type DefaultProvider struct {
@@ -52,7 +52,7 @@ func NewDefaultProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProv
 	}
 }
 
-func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) ([]*ec2.SecurityGroup, error) {
+func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) ([]*ec2.SecurityGroup, error) {
 	p.Lock()
 	defer p.Unlock()
 
@@ -95,7 +95,7 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 	return lo.Values(securityGroups), nil
 }
 
-func getFilterSets(terms []v1beta1.SecurityGroupSelectorTerm) (res [][]*ec2.Filter) {
+func getFilterSets(terms []v1.SecurityGroupSelectorTerm) (res [][]*ec2.Filter) {
 	idFilter := &ec2.Filter{Name: aws.String("group-id")}
 	nameFilter := &ec2.Filter{Name: aws.String("group-name")}
 	for _, term := range terms {

@@ -21,7 +21,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 // Instance is an internal data representation of either an ec2.Instance or an ec2.FleetInstance
@@ -48,7 +48,7 @@ func NewInstance(out *ec2.Instance) *Instance {
 		ImageID:      aws.StringValue(out.ImageId),
 		Type:         aws.StringValue(out.InstanceType),
 		Zone:         aws.StringValue(out.Placement.AvailabilityZone),
-		CapacityType: lo.Ternary(out.SpotInstanceRequestId != nil, corev1beta1.CapacityTypeSpot, corev1beta1.CapacityTypeOnDemand),
+		CapacityType: lo.Ternary(out.SpotInstanceRequestId != nil, karpv1.CapacityTypeSpot, karpv1.CapacityTypeOnDemand),
 		SecurityGroupIDs: lo.Map(out.SecurityGroups, func(securitygroup *ec2.GroupIdentifier, _ int) string {
 			return aws.StringValue(securitygroup.GroupId)
 		}),

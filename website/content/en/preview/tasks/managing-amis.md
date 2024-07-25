@@ -58,7 +58,7 @@ For example, you could have:
 * **Test clusters**: On lower environment clusters, you can run the latest AMIs for your workloads in a safe environment. The `EC2NodeClass` for these clusters could be set with a chosen `amiFamily`, but no `amiSelectorTerms` set. For example, the `NodePool` and `EC2NodeClass` could begin with the following:
 
   ```yaml
-  apiVersion: karpenter.sh/v1beta1
+  apiVersion: karpenter.sh/v1
   kind: NodePool
   metadata:
     name: default
@@ -66,11 +66,11 @@ For example, you could have:
     template:
       spec:
         nodeClassRef:
-          apiVersion: karpenter.k8s.aws/v1beta1
+          apiVersion: karpenter.k8s.aws/v1
           kind: EC2NodeClass
           name: default
   ---
-  apiVersion: karpenter.k8s.aws/v1beta1
+  apiVersion: karpenter.k8s.aws/v1
   kind: EC2NodeClass
   metadata:
     name: default
@@ -120,9 +120,11 @@ You can set Disruption Budgets in a `NodePool` spec.
 Here is an example:
 
 ```yaml
+template:
+  spec:
+    expireAfter: 1440h
 disruption:
   consolidationPolicy: WhenEmpty
-  expireAfter: 1440h
   budgets:
   - nodes: 15%
   - nodes: "3"

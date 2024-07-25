@@ -21,12 +21,12 @@ import (
 	"time"
 
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 )
 
@@ -34,18 +34,18 @@ type AMI struct {
 	amiProvider amifamily.Provider
 }
 
-func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	amis, err := a.amiProvider.List(ctx, nodeClass)
 	if err != nil {
 		return reconcile.Result{}, fmt.Errorf("getting amis, %w", err)
 	}
 	if len(amis) == 0 {
 		nodeClass.Status.AMIs = nil
-		nodeClass.StatusConditions().SetFalse(v1beta1.ConditionTypeAMIsReady, "AMINotFound", "AMISelector did not match any AMIs")
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeAMIsReady, "AMINotFound", "AMISelector did not match any AMIs")
 		return reconcile.Result{}, nil
 	}
-	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1beta1.AMI {
-		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item corev1beta1.NodeSelectorRequirementWithMinValues, _ int) v1.NodeSelectorRequirement {
+	nodeClass.Status.AMIs = lo.Map(amis, func(ami amifamily.AMI, _ int) v1.AMI {
+		reqs := lo.Map(ami.Requirements.NodeSelectorRequirements(), func(item karpv1.NodeSelectorRequirementWithMinValues, _ int) corev1.NodeSelectorRequirement {
 			return item.NodeSelectorRequirement
 		})
 
@@ -55,12 +55,12 @@ func (a *AMI) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (r
 			}
 			return reqs[i].Key < reqs[j].Key
 		})
-		return v1beta1.AMI{
+		return v1.AMI{
 			Name:         ami.Name,
 			ID:           ami.AmiID,
 			Requirements: reqs,
 		}
 	})
-	nodeClass.StatusConditions().SetTrue(v1beta1.ConditionTypeAMIsReady)
+	nodeClass.StatusConditions().SetTrue(v1.ConditionTypeAMIsReady)
 	return reconcile.Result{RequeueAfter: 5 * time.Minute}, nil
 }

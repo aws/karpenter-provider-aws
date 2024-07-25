@@ -22,13 +22,13 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
@@ -67,11 +67,11 @@ var _ = Describe("Tags", func() {
 			}
 		})
 		It("should tag spot instance requests when creating resources", func() {
-			coretest.ReplaceRequirements(nodePool, corev1beta1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      corev1beta1.CapacityTypeLabelKey,
-					Operator: v1.NodeSelectorOpIn,
-					Values:   []string{corev1beta1.CapacityTypeSpot},
+			coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      karpv1.CapacityTypeLabelKey,
+					Operator: corev1.NodeSelectorOpIn,
+					Values:   []string{karpv1.CapacityTypeSpot},
 				}})
 			nodeClass.Spec.Tags = map[string]string{"TestTag": "TestVal"}
 			pod := coretest.Pod()
@@ -96,9 +96,9 @@ var _ = Describe("Tags", func() {
 			nodeName := client.ObjectKeyFromObject(node)
 
 			Eventually(func(g Gomega) {
-				node = &v1.Node{}
+				node = &corev1.Node{}
 				g.Expect(env.Client.Get(env.Context, nodeName, node)).To(Succeed())
-				g.Expect(node.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationInstanceTagged, "true"))
+				g.Expect(node.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
 			}, time.Minute)
 
 			nodeInstance := instance.NewInstance(lo.ToPtr(env.GetInstance(node.Name)))
@@ -107,21 +107,21 @@ var _ = Describe("Tags", func() {
 		})
 
 		It("shouldn't overwrite custom Name tags", func() {
-			nodeClass = test.EC2NodeClass(*nodeClass, v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{
+			nodeClass = test.EC2NodeClass(*nodeClass, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{
 				Tags: map[string]string{"Name": "custom-name", "testing/cluster": env.ClusterName},
 			}})
 			if env.PrivateCluster {
 				nodeClass.Spec.Role = ""
 				nodeClass.Spec.InstanceProfile = lo.ToPtr(fmt.Sprintf("KarpenterNodeInstanceProfile-%s", env.ClusterName))
 			}
-			nodePool = coretest.NodePool(*nodePool, corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-								Kind:       object.GVK(nodeClass).Kind,
-								Name:       nodeClass.Name,
+			nodePool = coretest.NodePool(*nodePool, karpv1.NodePool{
+				Spec: karpv1.NodePoolSpec{
+					Template: karpv1.NodeClaimTemplate{
+						Spec: karpv1.NodeClaimSpec{
+							NodeClassRef: &karpv1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
 							},
 						},
 					},
@@ -135,9 +135,9 @@ var _ = Describe("Tags", func() {
 			nodeName := client.ObjectKeyFromObject(node)
 
 			Eventually(func(g Gomega) {
-				node = &v1.Node{}
+				node = &corev1.Node{}
 				g.Expect(env.Client.Get(env.Context, nodeName, node)).To(Succeed())
-				g.Expect(node.Annotations).To(HaveKeyWithValue(v1beta1.AnnotationInstanceTagged, "true"))
+				g.Expect(node.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
 			}, time.Minute)
 
 			nodeInstance := instance.NewInstance(lo.ToPtr(env.GetInstance(node.Name)))

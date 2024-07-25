@@ -181,7 +181,7 @@ Resources:
               "Sid": "AllowSSMReadActions",
               "Effect": "Allow",
               "Resource": "arn:${AWS::Partition}:ssm:${AWS::Region}::parameter/aws/service/*",
-              "Action": "ssm:GetParameter"
+              "Action": "ssm:GetParametersByPath"
             },
             {
               "Sid": "AllowPricingReadActions",

@@ -18,12 +18,12 @@ import (
 	"math"
 	"time"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/samber/lo"
 
@@ -31,7 +31,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	. "github.com/onsi/ginkgo/v2"
 )
@@ -40,18 +40,18 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 	Context("All kubelet configuration set", func() {
 		BeforeEach(func() {
 			// MaxPods needs to account for the daemonsets that will run on the nodes
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods:     lo.ToPtr(int32(110)),
 				PodsPerCore: lo.ToPtr(int32(10)),
 				SystemReserved: map[string]string{
-					string(v1.ResourceCPU):              "200m",
-					string(v1.ResourceMemory):           "200Mi",
-					string(v1.ResourceEphemeralStorage): "1Gi",
+					string(corev1.ResourceCPU):              "200m",
+					string(corev1.ResourceMemory):           "200Mi",
+					string(corev1.ResourceEphemeralStorage): "1Gi",
 				},
 				KubeReserved: map[string]string{
-					string(v1.ResourceCPU):              "200m",
-					string(v1.ResourceMemory):           "200Mi",
-					string(v1.ResourceEphemeralStorage): "1Gi",
+					string(corev1.ResourceCPU):              "200m",
+					string(corev1.ResourceMemory):           "200Mi",
+					string(corev1.ResourceEphemeralStorage): "1Gi",
 				},
 				EvictionHard: map[string]string{
 					"memory.available":   "5%",
@@ -84,57 +84,48 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			}
 		})
 		DescribeTable("Linux AMIFamilies",
-			func(amiFamily *string) {
-				nodeClass.Spec.AMIFamily = amiFamily
+			func(term v1.AMISelectorTerm) {
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
 				// TODO (jmdeal@): remove once 22.04 AMIs are supported
-				if *amiFamily == v1beta1.AMIFamilyUbuntu && env.K8sMinorVersion() >= 29 {
-					nodeClass.Spec.AMISelectorTerms = lo.Map([]string{
-						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/amd64/hvm/ebs-gp2/ami-id",
-						"/aws/service/canonical/ubuntu/eks/20.04/1.28/stable/current/arm64/hvm/ebs-gp2/ami-id",
-					}, func(ssmPath string, _ int) v1beta1.AMISelectorTerm {
-						return v1beta1.AMISelectorTerm{ID: env.GetAMIBySSMPath(ssmPath)}
-					})
-				}
 				pod := test.Pod(test.PodOptions{
 					NodeSelector: map[string]string{
-						v1.LabelOSStable:   string(v1.Linux),
-						v1.LabelArchStable: "amd64",
+						corev1.LabelOSStable:   string(corev1.Linux),
+						corev1.LabelArchStable: "amd64",
 					},
 				})
 				env.ExpectCreated(nodeClass, nodePool, pod)
 				env.EventuallyExpectHealthy(pod)
 				env.ExpectCreatedNodeCount("==", 1)
 			},
-			Entry("when the AMIFamily is AL2", &v1beta1.AMIFamilyAL2),
-			Entry("when the AMIFamily is AL2023", &v1beta1.AMIFamilyAL2023),
-			Entry("when the AMIFamily is Ubuntu", &v1beta1.AMIFamilyUbuntu),
-			Entry("when the AMIFamily is Bottlerocket", &v1beta1.AMIFamilyBottlerocket),
+			Entry("when the AMIFamily is AL2", v1.AMISelectorTerm{Alias: "al2@latest"}),
+			Entry("when the AMIFamily is AL2023", v1.AMISelectorTerm{Alias: "al2023@latest"}),
+			Entry("when the AMIFamily is Bottlerocket", v1.AMISelectorTerm{Alias: "bottlerocket@latest"}),
 		)
 		DescribeTable("Windows AMIFamilies",
-			func(amiFamily *string) {
+			func(term v1.AMISelectorTerm) {
 				env.ExpectWindowsIPAMEnabled()
 				DeferCleanup(func() {
 					env.ExpectWindowsIPAMDisabled()
 				})
 
-				nodeClass.Spec.AMIFamily = amiFamily
+				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
 				// Need to enable nodepool-level OS-scoping for now since DS evaluation is done off of the nodepool
 				// requirements, not off of the instance type options so scheduling can fail if nodepool aren't
 				// properly scoped
 				test.ReplaceRequirements(nodePool,
-					corev1beta1.NodeSelectorRequirementWithMinValues{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      v1.LabelOSStable,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{string(v1.Windows)},
+					karpv1.NodeSelectorRequirementWithMinValues{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      corev1.LabelOSStable,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{string(corev1.Windows)},
 						},
 					},
 				)
 				pod := test.Pod(test.PodOptions{
 					Image: aws.WindowsDefaultImage,
 					NodeSelector: map[string]string{
-						v1.LabelOSStable:   string(v1.Windows),
-						v1.LabelArchStable: "amd64",
+						corev1.LabelOSStable:   string(corev1.Windows),
+						corev1.LabelArchStable: "amd64",
 					},
 				})
 				env.ExpectCreated(nodeClass, nodePool, pod)
@@ -146,14 +137,14 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 			// If the instance type is not supported by the controller resource `vpc.amazonaws.com/PrivateIPv4Address` will not register.
 			// Issue: https://github.com/aws/karpenter-provider-aws/issues/4472
 			// See: https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go
-			Entry("when the AMIFamily is Windows2019", &v1beta1.AMIFamilyWindows2019),
-			Entry("when the AMIFamily is Windows2022", &v1beta1.AMIFamilyWindows2022),
+			Entry("when the AMIFamily is Windows2019", v1.AMISelectorTerm{Alias: "windows2019@latest"}),
+			Entry("when the AMIFamily is Windows2022", v1.AMISelectorTerm{Alias: "windows2022@latest"}),
 		)
 	})
 	It("should schedule pods onto separate nodes when maxPods is set", func() {
 		// Get the DS pod count and use it to calculate the DS pod overhead
 		dsCount := env.GetDaemonSetCount(nodePool)
-		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 			MaxPods: lo.ToPtr(1 + int32(dsCount)),
 		}
 
@@ -164,8 +155,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("100m")},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
 				},
 			},
 		})
@@ -180,10 +171,10 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		// PodsPerCore needs to account for the daemonsets that will run on the nodes
 		// This will have 4 pods available on each node (2 taken by daemonset pods)
 		test.ReplaceRequirements(nodePool,
-			corev1beta1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCPU,
-					Operator: v1.NodeSelectorOpIn,
+			karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceCPU,
+					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{"2"},
 				},
 			},
@@ -195,8 +186,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("100m")},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
 				},
 			},
 		})
@@ -211,7 +202,7 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		//      Since we restrict node to two cores, we will allow 6 pods. Both nodes will have
 		//      4 DS pods and 2 test pods.
 		dsCount := env.GetDaemonSetCount(nodePool)
-		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{
+		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 			PodsPerCore: lo.ToPtr(int32(math.Ceil(float64(2+dsCount) / 2))),
 		}
 
@@ -221,20 +212,20 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 		env.EventuallyExpectUniqueNodeNames(selector, 2)
 	})
 	It("should ignore podsPerCore value when Bottlerocket is used", func() {
-		nodeClass.Spec.AMIFamily = &v1beta1.AMIFamilyBottlerocket
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 		// All pods should schedule to a single node since we are ignoring podsPerCore value
 		// This would normally schedule to 3 nodes if not using Bottlerocket
 		test.ReplaceRequirements(nodePool,
-			corev1beta1.NodeSelectorRequirementWithMinValues{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1beta1.LabelInstanceCPU,
-					Operator: v1.NodeSelectorOpIn,
+			karpv1.NodeSelectorRequirementWithMinValues{
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      v1.LabelInstanceCPU,
+					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{"2"},
 				},
 			},
 		)
 
-		nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{PodsPerCore: lo.ToPtr(int32(1))}
+		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{PodsPerCore: lo.ToPtr(int32(1))}
 		numPods := 6
 		dep := test.Deployment(test.DeploymentOptions{
 			Replicas: int32(numPods),
@@ -242,8 +233,8 @@ var _ = Describe("KubeletConfiguration Overrides", func() {
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{"app": "large-app"},
 				},
-				ResourceRequirements: v1.ResourceRequirements{
-					Requests: v1.ResourceList{v1.ResourceCPU: resource.MustParse("100m")},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m")},
 				},
 			},
 		})

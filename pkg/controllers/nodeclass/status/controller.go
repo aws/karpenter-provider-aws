@@ -31,7 +31,7 @@ import (
 
 	"github.com/awslabs/operatorpkg/reasonable"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
@@ -40,7 +40,7 @@ import (
 )
 
 type nodeClassStatusReconciler interface {
-	Reconcile(context.Context, *v1beta1.EC2NodeClass) (reconcile.Result, error)
+	Reconcile(context.Context, *v1.EC2NodeClass) (reconcile.Result, error)
 }
 
 type Controller struct {
@@ -66,12 +66,12 @@ func NewController(kubeClient client.Client, subnetProvider subnet.Provider, sec
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "nodeclass.status")
 
-	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
+	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {
 		stored := nodeClass.DeepCopy()
-		controllerutil.AddFinalizer(nodeClass, v1beta1.TerminationFinalizer)
+		controllerutil.AddFinalizer(nodeClass, v1.TerminationFinalizer)
 		if err := c.kubeClient.Patch(ctx, nodeClass, client.MergeFrom(stored)); err != nil {
 			return reconcile.Result{}, err
 		}
@@ -106,7 +106,7 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodeclass.status").
-		For(&v1beta1.EC2NodeClass{}).
+		For(&v1.EC2NodeClass{}).
 		WithOptions(controller.Options{
 			RateLimiter:             reasonable.RateLimiter(),
 			MaxConcurrentReconciles: 10,

@@ -24,28 +24,28 @@ The nodepool limits are the limits specified on the nodepool that restrict the q
 ### `karpenter_nodeclaims_termination_duration_seconds`
 Duration of NodeClaim termination in seconds.
 
-### `karpenter_nodeclaims_terminated`
+### `karpenter_nodeclaims_terminated_total`
 Number of nodeclaims terminated in total by Karpenter. Labeled by reason the nodeclaim was terminated and the owning nodepool.
 
-### `karpenter_nodeclaims_registered`
+### `karpenter_nodeclaims_registered_total`
 Number of nodeclaims registered in total by Karpenter. Labeled by the owning nodepool.
 
-### `karpenter_nodeclaims_launched`
+### `karpenter_nodeclaims_launched_total`
 Number of nodeclaims launched in total by Karpenter. Labeled by the owning nodepool.
 
 ### `karpenter_nodeclaims_instance_termination_duration_seconds`
 Duration of CloudProvider Instance termination in seconds.
 
-### `karpenter_nodeclaims_initialized`
+### `karpenter_nodeclaims_initialized_total`
 Number of nodeclaims initialized in total by Karpenter. Labeled by the owning nodepool.
 
-### `karpenter_nodeclaims_drifted`
+### `karpenter_nodeclaims_drifted_total`
 Number of nodeclaims drifted reasons in total by Karpenter. Labeled by drift type of the nodeclaim and the owning nodepool.
 
-### `karpenter_nodeclaims_disrupted`
+### `karpenter_nodeclaims_disrupted_total`
 Number of nodeclaims disrupted in total by Karpenter. Labeled by disruption type of the nodeclaim and the owning nodepool.
 
-### `karpenter_nodeclaims_created`
+### `karpenter_nodeclaims_created_total`
 Number of nodeclaims created in total by Karpenter. Labeled by reason the nodeclaim was created and the owning nodepool.
 
 ## Nodes Metrics
@@ -65,19 +65,19 @@ Node total daemon limits are the resources specified by DaemonSet pod limits.
 ### `karpenter_nodes_termination_time_seconds`
 The time taken between a node's deletion request and the removal of its finalizer
 
-### `karpenter_nodes_terminated`
+### `karpenter_nodes_terminated_total`
 Number of nodes terminated in total by Karpenter. Labeled by owning nodepool.
 
 ### `karpenter_nodes_system_overhead`
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
 
-### `karpenter_nodes_leases_deleted`
+### `karpenter_nodes_leases_deleted_total`
 Number of deleted leaked leases.
 
 ### `karpenter_nodes_eviction_queue_depth`
 The number of pods currently waiting for a successful eviction in the eviction queue.
 
-### `karpenter_nodes_created`
+### `karpenter_nodes_created_total`
 Number of nodes created in total by Karpenter. Labeled by owning nodepool.
 
 ### `karpenter_nodes_allocatable`
@@ -104,24 +104,21 @@ Duration of scheduling process in seconds.
 
 ## Interruption Metrics
 
-### `karpenter_interruption_received_messages`
+### `karpenter_interruption_received_messages_total`
 Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.
 
-### `karpenter_interruption_message_latency_time_seconds`
+### `karpenter_interruption_message_queue_duration_seconds`
 Length of time between message creation in queue and an action taken on the message by the controller.
 
-### `karpenter_interruption_deleted_messages`
+### `karpenter_interruption_deleted_messages_total`
 Count of messages deleted from the SQS queue.
-
-### `karpenter_interruption_actions_performed`
-Number of notification actions performed. Labeled by action
 
 ## Disruption Metrics
 
 ### `karpenter_disruption_replacement_nodeclaim_initialized_seconds`
 Amount of time required for a replacement nodeclaim to become initialized.
 
-### `karpenter_disruption_replacement_nodeclaim_failures_total`
+### `karpenter_disruption_queue_failures_total`
 The number of times that Karpenter failed to launch a replacement node for disruption. Labeled by disruption method.
 
 ### `karpenter_disruption_queue_depth`
@@ -129,9 +126,6 @@ The number of commands currently being waited on in the disruption orchestration
 
 ### `karpenter_disruption_pods_disrupted_total`
 Total number of reschedulable pods disrupted on nodes. Labeled by NodePool, disruption action, method, and consolidation type.
-
-### `karpenter_disruption_nodes_disrupted_total`
-Total number of nodes disrupted. Labeled by NodePool, disruption action, method, and consolidation type.
 
 ### `karpenter_disruption_evaluation_duration_seconds`
 Duration of the disruption evaluation process in seconds. Labeled by method and consolidation type.
@@ -142,15 +136,15 @@ Number of nodes eligible for disruption by Karpenter. Labeled by disruption meth
 ### `karpenter_disruption_consolidation_timeouts_total`
 Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
 
-### `karpenter_disruption_budgets_allowed_disruptions`
+### `karpenter_nodepools_allowed_disruptions`
 The number of nodes for a given NodePool that can be disrupted at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
 
-### `karpenter_disruption_actions_performed_total`
+### `karpenter_disruption_decisions_total`
 Number of disruption actions performed. Labeled by disruption action, method, and consolidation type.
 
 ## Consistency Metrics
 
-### `karpenter_consistency_errors`
+### `karpenter_consistency_errors_total`
 Number of consistency checks that have failed.
 
 ## Cluster State Metrics

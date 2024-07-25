@@ -20,12 +20,10 @@ import (
 	"strings"
 
 	"github.com/samber/lo"
-	core "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 // Options is the node bootstrapping parameters passed from Karpenter to the provisioning node
@@ -33,14 +31,14 @@ type Options struct {
 	ClusterName             string
 	ClusterEndpoint         string
 	ClusterCIDR             *string
-	KubeletConfig           *corev1beta1.KubeletConfiguration
-	Taints                  []core.Taint      `hash:"set"`
+	KubeletConfig           *v1.KubeletConfiguration
+	Taints                  []corev1.Taint    `hash:"set"`
 	Labels                  map[string]string `hash:"set"`
 	CABundle                *string
 	AWSENILimitedPodDensity bool
 	ContainerRuntime        *string
 	CustomUserData          *string
-	InstanceStorePolicy     *v1beta1.InstanceStorePolicy
+	InstanceStorePolicy     *v1.InstanceStorePolicy
 }
 
 func (o Options) kubeletExtraArgs() (args []string) {

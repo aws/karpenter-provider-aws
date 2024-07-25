@@ -17,9 +17,9 @@ package integration_test
 import (
 	"testing"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	. "github.com/onsi/ginkgo/v2"
@@ -27,8 +27,8 @@ import (
 )
 
 var env *aws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *v1.EC2NodeClass
+var nodePool *karpv1.NodePool
 
 func TestIntegration(t *testing.T) {
 	RegisterFailHandler(Fail)

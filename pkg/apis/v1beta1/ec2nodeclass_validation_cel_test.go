@@ -18,7 +18,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -34,7 +34,7 @@ var _ = Describe("CEL/Validation", func() {
 		if env.Version.Minor() < 25 {
 			Skip("CEL Validation is for 1.25>")
 		}
-		nc = test.EC2NodeClass()
+		nc = test.BetaEC2NodeClass()
 	})
 	It("should succeed if just specifying role", func() {
 		Expect(env.Client.Create(ctx, nc)).To(Succeed())
@@ -72,7 +72,7 @@ var _ = Describe("CEL/Validation", func() {
 		})
 		It("should fail if tags contain a restricted domain key", func() {
 			nc.Spec.Tags = map[string]string{
-				corev1beta1.NodePoolLabelKey: "value",
+				karpv1beta1.NodePoolLabelKey: "value",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
@@ -80,7 +80,7 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
-				corev1beta1.ManagedByAnnotationKey: "test",
+				karpv1beta1.ManagedByAnnotationKey: "test",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
@@ -494,7 +494,7 @@ var _ = Describe("CEL/Validation", func() {
 	})
 	Context("BlockDeviceMappings", func() {
 		It("should succeed if more than one root volume is specified", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
@@ -519,7 +519,7 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 		It("should succeed for valid VolumeSize in G", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
@@ -535,7 +535,7 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 		It("should succeed for valid VolumeSize in T", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
@@ -551,7 +551,7 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Succeed())
 		})
 		It("should fail if more than one root volume is specified", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
@@ -574,7 +574,7 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 		It("should fail VolumeSize is less then 1Gi/1G", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
@@ -590,7 +590,7 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 		It("should fail VolumeSize is greater then 64T", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{
@@ -606,7 +606,7 @@ var _ = Describe("CEL/Validation", func() {
 			Expect(env.Client.Create(ctx, nodeClass)).To(Not(Succeed()))
 		})
 		It("should fail for VolumeSize that do not parse into quantity values", func() {
-			nodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+			nodeClass := test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 				Spec: v1beta1.EC2NodeClassSpec{
 					BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
 						{

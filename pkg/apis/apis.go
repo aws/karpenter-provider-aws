@@ -26,7 +26,8 @@ import (
 
 //go:generate controller-gen crd object:headerFile="../../hack/boilerplate.go.txt" paths="./..." output:crd:artifacts:config=crds
 var (
-	Group = "karpenter.k8s.aws"
+	Group              = "karpenter.k8s.aws"
+	CompatibilityGroup = "compatibility." + Group
 	//go:embed crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 	EC2NodeClassCRD []byte
 	CRDs            = append(apis.CRDs,

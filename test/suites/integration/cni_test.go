@@ -25,7 +25,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 )
@@ -42,7 +42,7 @@ var _ = Describe("CNITests", func() {
 		Expect(allocatablePods).To(Equal(eniLimitedPodsFor(node.Labels["node.kubernetes.io/instance-type"])))
 	})
 	It("should set max pods to 110 if maxPods is set in kubelet", func() {
-		nodePool.Spec.Template.Spec.Kubelet = &v1beta1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
+		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
 		pod := test.Pod()
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)

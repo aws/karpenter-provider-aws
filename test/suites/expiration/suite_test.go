@@ -20,15 +20,16 @@ import (
 
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/aws"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"
@@ -38,8 +39,8 @@ import (
 )
 
 var env *aws.Environment
-var nodeClass *v1beta1.EC2NodeClass
-var nodePool *corev1beta1.NodePool
+var nodeClass *v1.EC2NodeClass
+var nodePool *karpv1.NodePool
 
 func TestExpiration(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -67,16 +68,12 @@ var _ = Describe("Expiration", func() {
 	var numPods int
 	BeforeEach(func() {
 		numPods = 1
-		// Add pods with a do-not-disrupt annotation so that we can check node metadata before we disrupt
 		dep = coretest.Deployment(coretest.DeploymentOptions{
 			Replicas: int32(numPods),
 			PodOptions: coretest.PodOptions{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
 						"app": "my-app",
-					},
-					Annotations: map[string]string{
-						corev1beta1.DoNotDisruptAnnotationKey: "true",
 					},
 				},
 				TerminationGracePeriodSeconds: lo.ToPtr[int64](0),
@@ -85,6 +82,7 @@ var _ = Describe("Expiration", func() {
 		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 	})
 	It("should expire the node after the expiration is reached", func() {
+		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute * 2)}
 		env.ExpectCreated(nodeClass, nodePool, dep)
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
@@ -92,23 +90,21 @@ var _ = Describe("Expiration", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
-		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 15)}
-		env.ExpectUpdated(nodePool)
-
 		// Eventually the node will be tainted, which means its actively being disrupted
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
-			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
-				return corev1beta1.IsDisruptingTaint(t)
+			_, ok := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
+				return karpv1.IsDisruptingTaint(t)
 			})
 			g.Expect(ok).To(BeTrue())
 		}).Should(Succeed())
 
-		// Set the expireAfter to "Never" to make sure new node isn't deleted
-		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
-		// racing at the end of the E2E test, leaking node resources into subsequent tests
-		nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+		env.EventuallyExpectCreatedNodeCount("==", 2)
+		// Set the limit to 0 to make sure we don't continue to create nodeClaims.
+		// This is CRITICAL since it prevents leaking node resources into subsequent tests
+		nodePool.Spec.Limits = karpv1.Limits{
+			corev1.ResourceCPU: resource.MustParse("0"),
+		}
 		env.ExpectUpdated(nodePool)
 
 		// After the deletion timestamp is set and all pods are drained
@@ -120,26 +116,19 @@ var _ = Describe("Expiration", func() {
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
 	})
 	It("should replace expired node with a single node and schedule all pods", func() {
+		// Set expire after to 5 minutes since we have to respect PDB and move over pods one at a time from one node to another.
+		// The new nodes should not expire before all the pods are moved over.
+		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute * 5)}
 		var numPods int32 = 5
 		// We should setup a PDB that will only allow a minimum of 1 pod to be pending at a time
 		minAvailable := intstr.FromInt32(numPods - 1)
 		pdb := coretest.PodDisruptionBudget(coretest.PDBOptions{
 			Labels: map[string]string{
-				"app": "large-app",
+				"app": "my-app",
 			},
 			MinAvailable: &minAvailable,
 		})
-		dep := coretest.Deployment(coretest.DeploymentOptions{
-			Replicas: numPods,
-			PodOptions: coretest.PodOptions{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						corev1beta1.DoNotDisruptAnnotationKey: "true",
-					},
-					Labels: map[string]string{"app": "large-app"},
-				},
-			},
-		})
+		dep.Spec.Replicas = &numPods
 		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 		env.ExpectCreated(nodeClass, nodePool, pdb, dep)
 
@@ -148,23 +137,21 @@ var _ = Describe("Expiration", func() {
 		env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
-		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Second * 15)
-		env.ExpectUpdated(nodePool)
-
 		// Eventually the node will be tainted, which means its actively being disrupted
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
-			_, ok := lo.Find(node.Spec.Taints, func(t v1.Taint) bool {
-				return corev1beta1.IsDisruptingTaint(t)
+			_, ok := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
+				return karpv1.IsDisruptingTaint(t)
 			})
 			g.Expect(ok).To(BeTrue())
 		}).Should(Succeed())
 
-		// Set the expireAfter to "Never" to make sure new node isn't deleted
-		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
-		// racing at the end of the E2E test, leaking node resources into subsequent tests
-		nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+		env.EventuallyExpectCreatedNodeCount("==", 2)
+		// Set the limit to 0 to make sure we don't continue to create nodeClaims.
+		// This is CRITICAL since it prevents leaking node resources into subsequent tests
+		nodePool.Spec.Limits = karpv1.Limits{
+			corev1.ResourceCPU: resource.MustParse("0"),
+		}
 		env.ExpectUpdated(nodePool)
 
 		// After the deletion timestamp is set and all pods are drained

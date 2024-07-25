@@ -31,7 +31,7 @@ var _ = Describe("Hash", func() {
 	const staticHash = "10790156025840984195"
 	var nodeClass *v1beta1.EC2NodeClass
 	BeforeEach(func() {
-		nodeClass = test.EC2NodeClass(v1beta1.EC2NodeClass{
+		nodeClass = test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: v1beta1.EC2NodeClassSpec{
 				AMIFamily: lo.ToPtr(v1beta1.AMIFamilyAL2023),
 				Role:      "role-1",
@@ -202,7 +202,7 @@ var _ = Describe("Hash", func() {
 		Expect(hash).To(Equal(updatedHash))
 	})
 	It("should expect two EC2NodeClasses with the same spec to have the same hash", func() {
-		otherNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
+		otherNodeClass := test.BetaEC2NodeClass(v1beta1.EC2NodeClass{
 			Spec: nodeClass.Spec,
 		})
 		Expect(nodeClass.Hash()).To(Equal(otherNodeClass.Hash()))

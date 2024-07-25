@@ -39,10 +39,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	"github.com/awslabs/operatorpkg/reasonable"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	"sigs.k8s.io/karpenter/pkg/events"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instanceprofile"
 )
 
@@ -64,7 +64,7 @@ func NewController(kubeClient client.Client, recorder events.Recorder,
 	}
 }
 
-func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	ctx = injection.WithControllerName(ctx, "nodeclass.termination")
 
 	if !nodeClass.GetDeletionTimestamp().IsZero() {
@@ -73,17 +73,17 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClass *v1beta1.EC2NodeCl
 	return reconcile.Result{}, nil
 }
 
-func (c *Controller) finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeClass) (reconcile.Result, error) {
+func (c *Controller) finalize(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
 	stored := nodeClass.DeepCopy()
-	if !controllerutil.ContainsFinalizer(nodeClass, v1beta1.TerminationFinalizer) {
+	if !controllerutil.ContainsFinalizer(nodeClass, v1.TerminationFinalizer) {
 		return reconcile.Result{}, nil
 	}
-	nodeClaimList := &corev1beta1.NodeClaimList{}
+	nodeClaimList := &karpv1.NodeClaimList{}
 	if err := c.kubeClient.List(ctx, nodeClaimList, client.MatchingFields{"spec.nodeClassRef.name": nodeClass.Name}); err != nil {
 		return reconcile.Result{}, fmt.Errorf("listing nodeclaims that are using nodeclass, %w", err)
 	}
 	if len(nodeClaimList.Items) > 0 {
-		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc corev1beta1.NodeClaim, _ int) string { return nc.Name })))
+		c.recorder.Publish(WaitingOnNodeClaimTerminationEvent(nodeClass, lo.Map(nodeClaimList.Items, func(nc karpv1.NodeClaim, _ int) string { return nc.Name })))
 		return reconcile.Result{RequeueAfter: time.Minute * 10}, nil // periodically fire the event
 	}
 	if nodeClass.Spec.Role != "" {
@@ -94,7 +94,7 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 	if err := c.launchTemplateProvider.DeleteAll(ctx, nodeClass); err != nil {
 		return reconcile.Result{}, fmt.Errorf("deleting launch templates, %w", err)
 	}
-	controllerutil.RemoveFinalizer(nodeClass, v1beta1.TerminationFinalizer)
+	controllerutil.RemoveFinalizer(nodeClass, v1.TerminationFinalizer)
 	if !equality.Semantic.DeepEqual(stored, nodeClass) {
 		// We call Update() here rather than Patch() because patching a list with a JSON merge patch
 		// can cause races due to the fact that it fully replaces the list on a change
@@ -112,11 +112,11 @@ func (c *Controller) finalize(ctx context.Context, nodeClass *v1beta1.EC2NodeCla
 func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 	return controllerruntime.NewControllerManagedBy(m).
 		Named("nodeclass.termination").
-		For(&v1beta1.EC2NodeClass{}).
+		For(&v1.EC2NodeClass{}).
 		Watches(
-			&corev1beta1.NodeClaim{},
+			&karpv1.NodeClaim{},
 			handler.EnqueueRequestsFromMapFunc(func(_ context.Context, o client.Object) []reconcile.Request {
-				nc := o.(*corev1beta1.NodeClaim)
+				nc := o.(*karpv1.NodeClaim)
 				if nc.Spec.NodeClassRef == nil {
 					return nil
 				}

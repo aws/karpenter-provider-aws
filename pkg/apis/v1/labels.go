@@ -18,17 +18,17 @@ import (
 	"fmt"
 	"regexp"
 
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	coreapis "sigs.k8s.io/karpenter/pkg/apis"
-	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
 )
 
 func init() {
-	v1beta1.RestrictedLabelDomains = v1beta1.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
-	v1beta1.WellKnownLabels = v1beta1.WellKnownLabels.Insert(
+	karpv1.RestrictedLabelDomains = karpv1.RestrictedLabelDomains.Insert(RestrictedLabelDomains...)
+	karpv1.WellKnownLabels = karpv1.WellKnownLabels.Insert(
 		LabelInstanceHypervisor,
 		LabelInstanceEncryptionInTransitSupported,
 		LabelInstanceCategory,
@@ -49,19 +49,19 @@ func init() {
 		LabelInstanceAcceleratorManufacturer,
 		LabelInstanceAcceleratorCount,
 		LabelTopologyZoneID,
-		v1.LabelWindowsBuild,
+		corev1.LabelWindowsBuild,
 	)
 }
 
 var (
 	TerminationFinalizer   = apis.Group + "/termination"
 	AWSToKubeArchitectures = map[string]string{
-		"x86_64":                  v1beta1.ArchitectureAmd64,
-		v1beta1.ArchitectureArm64: v1beta1.ArchitectureArm64,
+		"x86_64":                 karpv1.ArchitectureAmd64,
+		karpv1.ArchitectureArm64: karpv1.ArchitectureArm64,
 	}
 	WellKnownArchitectures = sets.NewString(
-		v1beta1.ArchitectureAmd64,
-		v1beta1.ArchitectureArm64,
+		karpv1.ArchitectureAmd64,
+		karpv1.ArchitectureArm64,
 	)
 	RestrictedLabelDomains = []string{
 		apis.Group,
@@ -70,30 +70,30 @@ var (
 		// Adheres to cluster name pattern matching as specified in the API spec
 		// https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateCluster.html
 		regexp.MustCompile(`^kubernetes\.io/cluster/[0-9A-Za-z][A-Za-z0-9\-_]*$`),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.NodePoolLabelKey))),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(v1beta1.ManagedByAnnotationKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(karpv1.NodePoolLabelKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(karpv1.ManagedByAnnotationKey))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(LabelNodeClass))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
 	}
-	AMIFamilyBottlerocket                      = "Bottlerocket"
-	AMIFamilyAL2                               = "AL2"
-	AMIFamilyAL2023                            = "AL2023"
-	AMIFamilyUbuntu                            = "Ubuntu"
-	AMIFamilyWindows2019                       = "Windows2019"
-	AMIFamilyWindows2022                       = "Windows2022"
-	AMIFamilyCustom                            = "Custom"
-	Windows2019                                = "2019"
-	Windows2022                                = "2022"
-	WindowsCore                                = "Core"
-	Windows2019Build                           = "10.0.17763"
-	Windows2022Build                           = "10.0.20348"
-	ResourceNVIDIAGPU          v1.ResourceName = "nvidia.com/gpu"
-	ResourceAMDGPU             v1.ResourceName = "amd.com/gpu"
-	ResourceAWSNeuron          v1.ResourceName = "aws.amazon.com/neuron"
-	ResourceHabanaGaudi        v1.ResourceName = "habana.ai/gaudi"
-	ResourceAWSPodENI          v1.ResourceName = "vpc.amazonaws.com/pod-eni"
-	ResourcePrivateIPv4Address v1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
-	ResourceEFA                v1.ResourceName = "vpc.amazonaws.com/efa"
+	AMIFamilyBottlerocket                          = "Bottlerocket"
+	AMIFamilyAL2                                   = "AL2"
+	AMIFamilyAL2023                                = "AL2023"
+	AMIFamilyUbuntu                                = "Ubuntu"
+	AMIFamilyWindows2019                           = "Windows2019"
+	AMIFamilyWindows2022                           = "Windows2022"
+	AMIFamilyCustom                                = "Custom"
+	Windows2019                                    = "2019"
+	Windows2022                                    = "2022"
+	WindowsCore                                    = "Core"
+	Windows2019Build                               = "10.0.17763"
+	Windows2022Build                               = "10.0.20348"
+	ResourceNVIDIAGPU          corev1.ResourceName = "nvidia.com/gpu"
+	ResourceAMDGPU             corev1.ResourceName = "amd.com/gpu"
+	ResourceAWSNeuron          corev1.ResourceName = "aws.amazon.com/neuron"
+	ResourceHabanaGaudi        corev1.ResourceName = "habana.ai/gaudi"
+	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
+	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
+	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
 
 	LabelNodeClass = apis.Group + "/ec2nodeclass"
 
@@ -119,8 +119,10 @@ var (
 	LabelInstanceAcceleratorManufacturer      = apis.Group + "/instance-accelerator-manufacturer"
 	LabelInstanceAcceleratorCount             = apis.Group + "/instance-accelerator-count"
 	AnnotationEC2NodeClassHash                = apis.Group + "/ec2nodeclass-hash"
+	AnnotationKubeletCompatibilityHash        = apis.CompatibilityGroup + "/kubelet-drift-hash"
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
+	AnnotationAMIFamilyCompatibility          = apis.CompatibilityGroup + "/v1beta1-ami-family-conversion"
 
 	TagNodeClaim             = coreapis.Group + "/nodeclaim"
 	TagManagedLaunchTemplate = apis.Group + "/cluster"

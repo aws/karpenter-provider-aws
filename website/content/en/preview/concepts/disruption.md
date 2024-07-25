@@ -73,13 +73,15 @@ Automated graceful methods, can be rate limited through [NodePool Disruption Bud
 * [**Interruption**]({{<ref "#interruption" >}}): Karpenter will watch for upcoming interruption events that could affect your nodes (health events, spot interruption, etc.) and will taint, drain, and terminate the node(s) ahead of the event to reduce workload disruption.
 
 {{% alert title="Defaults" color="secondary" %}}
-Disruption is configured through the NodePool's disruption block by the `consolidationPolicy`, `expireAfter` and `consolidateAfter` fields. Karpenter will configure these fields with the following values by default if they are not set:
+Disruption is configured through the NodePool's disruption block by the `consolidationPolicy`, and `consolidateAfter` fields. `expireAfter` can also be used to control disruption. Karpenter will configure these fields with the following values by default if they are not set:
 
 ```yaml
 spec:
   disruption:
     consolidationPolicy: WhenUnderutilized
-    expireAfter: 720h
+  template:
+    spec:
+      expireAfter: 720h
 ```
 {{% /alert %}}
 
@@ -173,7 +175,7 @@ Karpenter will add the `Drifted` status condition on NodeClaims if the NodeClaim
 Automated forceful methods will begin draining nodes as soon as the condition is met. Note that these methods blow past NodePool Disruption Budgets, and do not wait for a pre-spin replacement node to be healthy for the pods to reschedule, unlike the graceful methods mentioned above. Use Pod Disruption Budgets and `do-not-disrupt` on your nodes to rate-limit the speed at which your applications are disrupted.
 
 ### Expiration
-Karpenter will disrupt nodes as soon as they're expired after they've lived for the duration of the NodePool's `spec.disruption.expireAfter`. You can use expiration to periodically recycle nodes due to security concern. 
+Karpenter will disrupt nodes as soon as they're expired after they've lived for the duration of the NodePool's `spec.template.spec.expireAfter`. You can use expiration to periodically recycle nodes due to security concern. 
 
 ### Interruption
 
@@ -218,14 +220,16 @@ For example, the following NodePool with three budgets defines the following req
 - The last budget only blocks disruptions during the first 10 minutes of the day, where 0 disruptions are allowed, only applying to underutilized nodes. 
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
 spec:
+  template:
+    spec: 
+      expireAfter: 720h # 30 * 24h = 720h
   disruption:
     consolidationPolicy: WhenUnderutilized
-    expireAfter: 720h # 30 * 24h = 720h
     budgets:
     - nodes: "20%"
       reasons: 
@@ -308,7 +312,7 @@ metadata:
 To disable disruption for all nodes launched by a NodePool, you can configure its `.spec.disruption.budgets`. Setting a budget of zero nodes will prevent any of those nodes from being considered for voluntary disruption.
 
 ```yaml
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default

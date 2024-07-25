@@ -25,7 +25,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
 	"github.com/awslabs/operatorpkg/object"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -34,20 +34,19 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ssm"
 	opstatus "github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis"
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/cloudprovider"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/nodeclass/status"
 	"github.com/aws/karpenter-provider-aws/pkg/fake"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 	corecloudproivder "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
@@ -113,15 +112,15 @@ var _ = AfterEach(func() {
 })
 
 var _ = Describe("CloudProvider", func() {
-	var nodeClass *v1beta1.EC2NodeClass
-	var nodePool *corev1beta1.NodePool
-	var nodeClaim *corev1beta1.NodeClaim
+	var nodeClass *v1.EC2NodeClass
+	var nodePool *karpv1.NodePool
+	var nodeClaim *karpv1.NodeClaim
 	var _ = BeforeEach(func() {
 		nodeClass = test.EC2NodeClass(
-			v1beta1.EC2NodeClass{
-				Status: v1beta1.EC2NodeClassStatus{
+			v1.EC2NodeClass{
+				Status: v1.EC2NodeClassStatus{
 					InstanceProfile: "test-profile",
-					SecurityGroups: []v1beta1.SecurityGroup{
+					SecurityGroups: []v1.SecurityGroup{
 						{
 							ID:   "sg-test1",
 							Name: "securityGroup-test1",
@@ -135,7 +134,7 @@ var _ = Describe("CloudProvider", func() {
 							Name: "securityGroup-test3",
 						},
 					},
-					Subnets: []v1beta1.Subnet{
+					Subnets: []v1.Subnet{
 						{
 							ID:     "subnet-test1",
 							Zone:   "test-zone-1a",
@@ -156,38 +155,38 @@ var _ = Describe("CloudProvider", func() {
 			},
 		)
 		nodeClass.StatusConditions().SetTrue(opstatus.ConditionReady)
-		nodePool = coretest.NodePool(corev1beta1.NodePool{
-			Spec: corev1beta1.NodePoolSpec{
-				Template: corev1beta1.NodeClaimTemplate{
-					Spec: corev1beta1.NodeClaimSpec{
-						NodeClassRef: &corev1beta1.NodeClassReference{
-							APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-							Kind:       object.GVK(nodeClass).Kind,
-							Name:       nodeClass.Name,
+		nodePool = coretest.NodePool(karpv1.NodePool{
+			Spec: karpv1.NodePoolSpec{
+				Template: karpv1.NodeClaimTemplate{
+					Spec: karpv1.NodeClaimSpec{
+						NodeClassRef: &karpv1.NodeClassReference{
+							Group: object.GVK(nodeClass).Group,
+							Kind:  object.GVK(nodeClass).Kind,
+							Name:  nodeClass.Name,
 						},
-						Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
-							{NodeSelectorRequirement: v1.NodeSelectorRequirement{Key: corev1beta1.CapacityTypeLabelKey, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.CapacityTypeOnDemand}}},
+						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+							{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeOnDemand}}},
 						},
 					},
 				},
 			},
 		})
-		nodeClaim = coretest.NodeClaim(corev1beta1.NodeClaim{
+		nodeClaim = coretest.NodeClaim(karpv1.NodeClaim{
 			ObjectMeta: metav1.ObjectMeta{
-				Labels: map[string]string{corev1beta1.NodePoolLabelKey: nodePool.Name},
+				Labels: map[string]string{karpv1.NodePoolLabelKey: nodePool.Name},
 			},
-			Spec: corev1beta1.NodeClaimSpec{
-				NodeClassRef: &corev1beta1.NodeClassReference{
-					APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-					Kind:       object.GVK(nodeClass).Kind,
-					Name:       nodeClass.Name,
+			Spec: karpv1.NodeClaimSpec{
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
 				},
-				Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 					{
-						NodeSelectorRequirement: v1.NodeSelectorRequirement{
-							Key:      corev1beta1.CapacityTypeLabelKey,
-							Operator: v1.NodeSelectorOpIn,
-							Values:   []string{corev1beta1.CapacityTypeOnDemand},
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      karpv1.CapacityTypeLabelKey,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.CapacityTypeOnDemand},
 						},
 					},
 				},
@@ -206,11 +205,11 @@ var _ = Describe("CloudProvider", func() {
 	})
 	It("should return an ICE error when there are no instance types to launch", func() {
 		// Specify no instance types and expect to receive a capacity error
-		nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
+		nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 			{
-				NodeSelectorRequirement: v1.NodeSelectorRequirement{
-					Key:      v1.LabelInstanceTypeStable,
-					Operator: v1.NodeSelectorOpIn,
+				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+					Key:      corev1.LabelInstanceTypeStable,
+					Operator: corev1.NodeSelectorOpIn,
 					Values:   []string{"test-instance-type"},
 				},
 			},
@@ -232,11 +231,11 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).ToNot(HaveOccurred())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		zone, ok := cloudProviderNodeClaim.GetLabels()[v1.LabelTopologyZone]
+		zone, ok := cloudProviderNodeClaim.GetLabels()[corev1.LabelTopologyZone]
 		Expect(ok).To(BeTrue())
-		zoneID, ok := cloudProviderNodeClaim.GetLabels()[v1beta1.LabelTopologyZoneID]
+		zoneID, ok := cloudProviderNodeClaim.GetLabels()[v1.LabelTopologyZoneID]
 		Expect(ok).To(BeTrue())
-		subnet, ok := lo.Find(nodeClass.Status.Subnets, func(s v1beta1.Subnet) bool {
+		subnet, ok := lo.Find(nodeClass.Status.Subnets, func(s v1.Subnet) bool {
 			return s.Zone == zone
 		})
 		Expect(ok).To(BeTrue())
@@ -247,7 +246,7 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHash]
+		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHash]
 		Expect(ok).To(BeTrue())
 	})
 	It("should return NodeClass Hash Version on the nodeClaim", func() {
@@ -255,9 +254,9 @@ var _ = Describe("CloudProvider", func() {
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(BeNil())
 		Expect(cloudProviderNodeClaim).ToNot(BeNil())
-		v, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHashVersion]
+		v, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1.AnnotationEC2NodeClassHashVersion]
 		Expect(ok).To(BeTrue())
-		Expect(v).To(Equal(v1beta1.EC2NodeClassHashVersion))
+		Expect(v).To(Equal(v1.EC2NodeClassHashVersion))
 	})
 	Context("EC2 Context", func() {
 		contextID := "context-1234"
@@ -316,27 +315,27 @@ var _ = Describe("CloudProvider", func() {
 			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
 			// Define NodePool that has minValues on instance-type requirement.
-			nodePool = coretest.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-								Kind:       object.GVK(nodeClass).Kind,
-								Name:       nodeClass.Name,
+			nodePool = coretest.NodePool(karpv1.NodePool{
+				Spec: karpv1.NodePoolSpec{
+					Template: karpv1.NodeClaimTemplate{
+						Spec: karpv1.NodeClaimSpec{
+							NodeClassRef: &karpv1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
 							},
-							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      corev1beta1.CapacityTypeLabelKey,
-										Operator: v1.NodeSelectorOpIn,
-										Values:   []string{corev1beta1.CapacityTypeSpot},
+									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+										Key:      karpv1.CapacityTypeLabelKey,
+										Operator: corev1.NodeSelectorOpIn,
+										Values:   []string{karpv1.CapacityTypeSpot},
 									},
 								},
 								{
-									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceTypeStable,
-										Operator: v1.NodeSelectorOpIn,
+									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+										Key:      corev1.LabelInstanceTypeStable,
+										Operator: corev1.NodeSelectorOpIn,
 										Values:   instanceNames,
 									},
 									MinValues: lo.ToPtr(2),
@@ -352,14 +351,14 @@ var _ = Describe("CloudProvider", func() {
 			// 2 pods are created with resources such that both fit together only in one of the 2 InstanceTypes created above.
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			pod2 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -414,27 +413,27 @@ var _ = Describe("CloudProvider", func() {
 			instanceNames := lo.Map(instances, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
 			// Define NodePool that has minValues on instance-type requirement.
-			nodePool = coretest.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-								Kind:       object.GVK(nodeClass).Kind,
-								Name:       nodeClass.Name,
+			nodePool = coretest.NodePool(karpv1.NodePool{
+				Spec: karpv1.NodePoolSpec{
+					Template: karpv1.NodeClaimTemplate{
+						Spec: karpv1.NodeClaimSpec{
+							NodeClassRef: &karpv1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
 							},
-							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceTypeStable,
-										Operator: v1.NodeSelectorOpExists,
+									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+										Key:      corev1.LabelInstanceTypeStable,
+										Operator: corev1.NodeSelectorOpExists,
 									},
 									MinValues: lo.ToPtr(2),
 								},
 								{
-									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceTypeStable,
-										Operator: v1.NodeSelectorOpIn,
+									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+										Key:      corev1.LabelInstanceTypeStable,
+										Operator: corev1.NodeSelectorOpIn,
 										Values:   instanceNames,
 									},
 									MinValues: lo.ToPtr(1),
@@ -450,14 +449,14 @@ var _ = Describe("CloudProvider", func() {
 			// 2 pods are created with resources such that both fit together only in one of the 2 InstanceTypes created above.
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			pod2 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -519,29 +518,29 @@ var _ = Describe("CloudProvider", func() {
 			instanceNames := lo.Map(uniqInstanceTypes, func(info *ec2.InstanceTypeInfo, _ int) string { return *info.InstanceType })
 
 			// Define NodePool that has minValues in multiple requirements.
-			nodePool = coretest.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(nodeClass).GroupVersion().String(),
-								Kind:       object.GVK(nodeClass).Kind,
-								Name:       nodeClass.Name,
+			nodePool = coretest.NodePool(karpv1.NodePool{
+				Spec: karpv1.NodePoolSpec{
+					Template: karpv1.NodeClaimTemplate{
+						Spec: karpv1.NodeClaimSpec{
+							NodeClassRef: &karpv1.NodeClassReference{
+								Group: object.GVK(nodeClass).Group,
+								Kind:  object.GVK(nodeClass).Kind,
+								Name:  nodeClass.Name,
 							},
-							Requirements: []corev1beta1.NodeSelectorRequirementWithMinValues{
+							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
-									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1.LabelInstanceTypeStable,
-										Operator: v1.NodeSelectorOpIn,
+									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+										Key:      corev1.LabelInstanceTypeStable,
+										Operator: corev1.NodeSelectorOpIn,
 										Values:   instanceNames,
 									},
 									// consider at least 2 unique instance types
 									MinValues: lo.ToPtr(2),
 								},
 								{
-									NodeSelectorRequirement: v1.NodeSelectorRequirement{
-										Key:      v1beta1.LabelInstanceFamily,
-										Operator: v1.NodeSelectorOpIn,
+									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+										Key:      v1.LabelInstanceFamily,
+										Operator: corev1.NodeSelectorOpIn,
 										Values:   instanceFamilies.UnsortedList(),
 									},
 									// consider at least 3 unique instance families
@@ -556,14 +555,14 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod1 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			pod2 := coretest.UnschedulablePod(
 				coretest.PodOptions{
-					ResourceRequirements: v1.ResourceRequirements{Requests: v1.ResourceList{
-						v1.ResourceCPU: resource.MustParse("0.9")},
+					ResourceRequirements: corev1.ResourceRequirements{Requests: corev1.ResourceList{
+						corev1.ResourceCPU: resource.MustParse("0.9")},
 					},
 				})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
@@ -601,9 +600,6 @@ var _ = Describe("CloudProvider", func() {
 			validSecurityGroup = fake.SecurityGroupID()
 			validSubnet1 = fake.SubnetID()
 			validSubnet2 = fake.SubnetID()
-			awsEnv.SSMAPI.GetParameterOutput = &ssm.GetParameterOutput{
-				Parameter: &ssm.Parameter{Value: aws.String(armAMIID)},
-			}
 			awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{
 				Images: []*ec2.Image{
 					{
@@ -670,9 +666,9 @@ var _ = Describe("CloudProvider", func() {
 					},
 				},
 			})
-			nodeClass.Status = v1beta1.EC2NodeClassStatus{
+			nodeClass.Status = v1.EC2NodeClassStatus{
 				InstanceProfile: "test-profile",
-				Subnets: []v1beta1.Subnet{
+				Subnets: []v1.Subnet{
 					{
 						ID:   validSubnet1,
 						Zone: "zone-1",
@@ -682,22 +678,22 @@ var _ = Describe("CloudProvider", func() {
 						Zone: "zone-2",
 					},
 				},
-				SecurityGroups: []v1beta1.SecurityGroup{
+				SecurityGroups: []v1.SecurityGroup{
 					{
 						ID: validSecurityGroup,
 					},
 				},
-				AMIs: []v1beta1.AMI{
+				AMIs: []v1.AMI{
 					{
 						ID: armAMIID,
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64}},
 						},
 					},
 					{
 						ID: amdAMIID,
-						Requirements: []v1.NodeSelectorRequirement{
-							{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+						Requirements: []corev1.NodeSelectorRequirement{
+							{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
 						},
 					},
 				},
@@ -708,7 +704,7 @@ var _ = Describe("CloudProvider", func() {
 			var ok bool
 			selectedInstanceType, ok = lo.Find(instanceTypes, func(i *corecloudproivder.InstanceType) bool {
 				return i.Requirements.Compatible(scheduling.NewLabelRequirements(map[string]string{
-					v1.LabelArchStable: corev1beta1.ArchitectureAmd64,
+					corev1.LabelArchStable: karpv1.ArchitectureAmd64,
 				})) == nil
 			})
 			Expect(ok).To(BeTrue())
@@ -732,15 +728,15 @@ var _ = Describe("CloudProvider", func() {
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{instance}}},
 			})
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
-				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+				v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 			})
 			nodeClaim.Status.ProviderID = fake.ProviderID(lo.FromPtr(instance.InstanceId))
 			nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
-				v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
-				v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+				v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+				v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 			})
-			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{v1.LabelInstanceTypeStable: selectedInstanceType.Name})
+			nodeClaim.Labels = lo.Assign(nodeClaim.Labels, map[string]string{corev1.LabelInstanceTypeStable: selectedInstanceType.Name})
 		})
 		It("should not fail if NodeClass does not exist", func() {
 			ExpectDeleted(ctx, env.Client, nodeClass)
@@ -768,7 +764,7 @@ var _ = Describe("CloudProvider", func() {
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
 			// Assign a fake hash
 			nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-				v1beta1.AnnotationEC2NodeClassHash: "abcdefghijkl",
+				v1.AnnotationEC2NodeClassHash: "abcdefghijkl",
 			})
 			ExpectApplied(ctx, env.Client, nodeClass)
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -783,7 +779,7 @@ var _ = Describe("CloudProvider", func() {
 		})
 		It("should return an error if subnets are empty", func() {
 			awsEnv.SubnetCache.Flush()
-			nodeClass.Status.Subnets = []v1beta1.Subnet{}
+			nodeClass.Status.Subnets = []v1.Subnet{}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
@@ -794,7 +790,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should return an error if the security groups are empty", func() {
-			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{}
+			nodeClass.Status.SecurityGroups = []v1.SecurityGroup{}
 			ExpectApplied(ctx, env.Client, nodeClass)
 			// Instance is a reference to what we return in the GetInstances call
 			instance.SecurityGroups = []*ec2.GroupIdentifier{{GroupId: aws.String(fake.SecurityGroupID())}}
@@ -816,7 +812,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(Equal(cloudprovider.SecurityGroupDrift))
 		})
 		It("should return drifted if more security groups are present than instance security groups then discovered from nodeclass", func() {
-			nodeClass.Status.SecurityGroups = []v1beta1.SecurityGroup{
+			nodeClass.Status.SecurityGroups = []v1.SecurityGroup{
 				{
 					ID:   validSecurityGroup,
 					Name: "test-securitygroup",
@@ -837,12 +833,12 @@ var _ = Describe("CloudProvider", func() {
 			Expect(isDrifted).To(BeEmpty())
 		})
 		It("should error if the NodeClaim doesn't have the instance-type label", func() {
-			delete(nodeClaim.Labels, v1.LabelInstanceTypeStable)
+			delete(nodeClaim.Labels, corev1.LabelInstanceTypeStable)
 			_, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 		})
 		It("should error drift if NodeClaim doesn't have provider id", func() {
-			nodeClaim.Status = corev1beta1.NodeClaimStatus{}
+			nodeClaim.Status = karpv1.NodeClaimStatus{}
 			isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeEmpty())
@@ -855,12 +851,12 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).To(HaveOccurred())
 		})
 		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: amdAMIID}}
-			nodeClass.Status.AMIs = []v1beta1.AMI{
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amdAMIID}}
+			nodeClass.Status.AMIs = []v1.AMI{
 				{
 					ID: amdAMIID,
-					Requirements: []v1.NodeSelectorRequirement{
-						{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+					Requirements: []corev1.NodeSelectorRequirement{
+						{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
 					},
 				},
 			}
@@ -872,15 +868,15 @@ var _ = Describe("CloudProvider", func() {
 		})
 		Context("Static Drift Detection", func() {
 			BeforeEach(func() {
-				armRequirements := []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureArm64}},
+				armRequirements := []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureArm64}},
 				}
-				amdRequirements := []v1.NodeSelectorRequirement{
-					{Key: v1.LabelArchStable, Operator: v1.NodeSelectorOpIn, Values: []string{corev1beta1.ArchitectureAmd64}},
+				amdRequirements := []corev1.NodeSelectorRequirement{
+					{Key: corev1.LabelArchStable, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.ArchitectureAmd64}},
 				}
-				nodeClass = &v1beta1.EC2NodeClass{
+				nodeClass = &v1.EC2NodeClass{
 					ObjectMeta: nodeClass.ObjectMeta,
-					Spec: v1beta1.EC2NodeClassSpec{
+					Spec: v1.EC2NodeClassSpec{
 						SubnetSelectorTerms:        nodeClass.Spec.SubnetSelectorTerms,
 						SecurityGroupSelectorTerms: nodeClass.Spec.SecurityGroupSelectorTerms,
 						Role:                       nodeClass.Spec.Role,
@@ -888,21 +884,23 @@ var _ = Describe("CloudProvider", func() {
 						Tags: map[string]string{
 							"fakeKey": "fakeValue",
 						},
-						Context:                  lo.ToPtr("fake-context"),
-						DetailedMonitoring:       lo.ToPtr(false),
-						AMIFamily:                lo.ToPtr(v1beta1.AMIFamilyAL2023),
+						Context:            lo.ToPtr("fake-context"),
+						DetailedMonitoring: lo.ToPtr(false),
+						AMISelectorTerms: []v1.AMISelectorTerm{{
+							Alias: "al2023@latest",
+						}},
 						AssociatePublicIPAddress: lo.ToPtr(false),
-						MetadataOptions: &v1beta1.MetadataOptions{
+						MetadataOptions: &v1.MetadataOptions{
 							HTTPEndpoint:            lo.ToPtr("disabled"),
 							HTTPProtocolIPv6:        lo.ToPtr("disabled"),
 							HTTPPutResponseHopLimit: lo.ToPtr(int64(1)),
 							HTTPTokens:              lo.ToPtr("optional"),
 						},
-						BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{
+						BlockDeviceMappings: []*v1.BlockDeviceMapping{
 							{
 								DeviceName: lo.ToPtr("fakeName"),
 								RootVolume: false,
-								EBS: &v1beta1.BlockDevice{
+								EBS: &v1.BlockDevice{
 									DeleteOnTermination: lo.ToPtr(false),
 									Encrypted:           lo.ToPtr(false),
 									IOPS:                lo.ToPtr(int64(0)),
@@ -915,9 +913,9 @@ var _ = Describe("CloudProvider", func() {
 							},
 						},
 					},
-					Status: v1beta1.EC2NodeClassStatus{
+					Status: v1.EC2NodeClassStatus{
 						InstanceProfile: "test-profile",
-						Subnets: []v1beta1.Subnet{
+						Subnets: []v1.Subnet{
 							{
 								ID:   validSubnet1,
 								Zone: "zone-1",
@@ -927,12 +925,12 @@ var _ = Describe("CloudProvider", func() {
 								Zone: "zone-2",
 							},
 						},
-						SecurityGroups: []v1beta1.SecurityGroup{
+						SecurityGroups: []v1.SecurityGroup{
 							{
 								ID: validSecurityGroup,
 							},
 						},
-						AMIs: []v1beta1.AMI{
+						AMIs: []v1.AMI{
 							{
 								ID:           armAMIID,
 								Requirements: armRequirements,
@@ -944,50 +942,49 @@ var _ = Describe("CloudProvider", func() {
 						},
 					},
 				}
-				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
-				nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+				nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 			})
 			DescribeTable("should return drifted if a statically drifted EC2NodeClass.Spec field is updated",
-				func(changes v1beta1.EC2NodeClass) {
+				func(changes v1.EC2NodeClass) {
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride, mergo.WithSliceDeepCopy)).To(Succeed())
-					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
 				},
-				Entry("UserData", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{UserData: lo.ToPtr("userdata-test-2")}}),
-				Entry("Tags", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
-				Entry("Context", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{Context: lo.ToPtr("context-2")}}),
-				Entry("DetailedMonitoring", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
-				Entry("AMIFamily", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMIFamily: lo.ToPtr(v1beta1.AMIFamilyBottlerocket)}}),
-				Entry("InstanceStorePolicy", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1beta1.InstanceStorePolicyRAID0)}}),
-				Entry("AssociatePublicIPAddress", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
-				Entry("MetadataOptions HTTPEndpoint", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),
-				Entry("MetadataOptions HTTPProtocolIPv6", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPProtocolIPv6: lo.ToPtr("enabled")}}}),
-				Entry("MetadataOptions HTTPPutResponseHopLimit", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPPutResponseHopLimit: lo.ToPtr(int64(10))}}}),
-				Entry("MetadataOptions HTTPTokens", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{MetadataOptions: &v1beta1.MetadataOptions{HTTPTokens: lo.ToPtr("required")}}}),
-				Entry("BlockDeviceMapping DeviceName", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{DeviceName: lo.ToPtr("map-device-test-3")}}}}),
-				Entry("BlockDeviceMapping RootVolume", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{RootVolume: true}}}}),
-				Entry("BlockDeviceMapping DeleteOnTermination", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{DeleteOnTermination: lo.ToPtr(true)}}}}}),
-				Entry("BlockDeviceMapping Encrypted", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{Encrypted: lo.ToPtr(true)}}}}}),
-				Entry("BlockDeviceMapping IOPS", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{IOPS: lo.ToPtr(int64(10))}}}}}),
-				Entry("BlockDeviceMapping KMSKeyID", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{KMSKeyID: lo.ToPtr("test")}}}}}),
-				Entry("BlockDeviceMapping SnapshotID", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
-				Entry("BlockDeviceMapping Throughput", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
-				Entry("BlockDeviceMapping VolumeType", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{BlockDeviceMappings: []*v1beta1.BlockDeviceMapping{{EBS: &v1beta1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
+				Entry("UserData", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{UserData: lo.ToPtr("userdata-test-2")}}),
+				Entry("Tags", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Tags: map[string]string{"keyTag-test-3": "valueTag-test-3"}}}),
+				Entry("Context", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{Context: lo.ToPtr("context-2")}}),
+				Entry("DetailedMonitoring", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{DetailedMonitoring: aws.Bool(true)}}),
+				Entry("InstanceStorePolicy", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{InstanceStorePolicy: lo.ToPtr(v1.InstanceStorePolicyRAID0)}}),
+				Entry("AssociatePublicIPAddress", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AssociatePublicIPAddress: lo.ToPtr(true)}}),
+				Entry("MetadataOptions HTTPEndpoint", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPEndpoint: lo.ToPtr("enabled")}}}),
+				Entry("MetadataOptions HTTPProtocolIPv6", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPProtocolIPv6: lo.ToPtr("enabled")}}}),
+				Entry("MetadataOptions HTTPPutResponseHopLimit", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPPutResponseHopLimit: lo.ToPtr(int64(10))}}}),
+				Entry("MetadataOptions HTTPTokens", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{MetadataOptions: &v1.MetadataOptions{HTTPTokens: lo.ToPtr("required")}}}),
+				Entry("BlockDeviceMapping DeviceName", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{DeviceName: lo.ToPtr("map-device-test-3")}}}}),
+				Entry("BlockDeviceMapping RootVolume", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{RootVolume: true}}}}),
+				Entry("BlockDeviceMapping DeleteOnTermination", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{DeleteOnTermination: lo.ToPtr(true)}}}}}),
+				Entry("BlockDeviceMapping Encrypted", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Encrypted: lo.ToPtr(true)}}}}}),
+				Entry("BlockDeviceMapping IOPS", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{IOPS: lo.ToPtr(int64(10))}}}}}),
+				Entry("BlockDeviceMapping KMSKeyID", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{KMSKeyID: lo.ToPtr("test")}}}}}),
+				Entry("BlockDeviceMapping SnapshotID", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{SnapshotID: lo.ToPtr("test")}}}}}),
+				Entry("BlockDeviceMapping Throughput", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{Throughput: lo.ToPtr(int64(10))}}}}}),
+				Entry("BlockDeviceMapping VolumeType", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{BlockDeviceMappings: []*v1.BlockDeviceMapping{{EBS: &v1.BlockDevice{VolumeType: lo.ToPtr("io1")}}}}}),
 			)
 			// We create a separate test for updating blockDeviceMapping volumeSize, since resource.Quantity is a struct, and mergo.WithSliceDeepCopy
 			// doesn't work well with unexported fields, like the ones that are present in resource.Quantity
 			It("should return drifted when updating blockDeviceMapping volumeSize", func() {
 				nodeClass.Spec.BlockDeviceMappings[0].EBS.VolumeSize = resource.NewScaledQuantity(10, resource.Giga)
-				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+				nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 
 				ExpectApplied(ctx, env.Client, nodeClass)
 				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -995,27 +992,27 @@ var _ = Describe("CloudProvider", func() {
 				Expect(isDrifted).To(Equal(cloudprovider.NodeClassDrift))
 			})
 			DescribeTable("should not return drifted if dynamic fields are updated",
-				func(changes v1beta1.EC2NodeClass) {
+				func(changes v1.EC2NodeClass) {
 					ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 					isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 
 					Expect(mergo.Merge(nodeClass, changes, mergo.WithOverride))
-					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1beta1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
+					nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationEC2NodeClassHash: nodeClass.Hash()})
 
 					ExpectApplied(ctx, env.Client, nodeClass)
 					isDrifted, err = cloudProvider.IsDrifted(ctx, nodeClaim)
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 				},
-				Entry("AMI Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{AMISelectorTerms: []v1beta1.AMISelectorTerm{{Tags: map[string]string{"ami-key-1": "ami-value-1"}}}}}),
-				Entry("Subnet Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"sn-key-1": "sn-value-1"}}}}}),
-				Entry("SecurityGroup Drift", v1beta1.EC2NodeClass{Spec: v1beta1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{{Tags: map[string]string{"sg-key": "sg-value"}}}}}),
+				Entry("AMI Drift", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"ami-key-1": "ami-value-1"}}}}}),
+				Entry("Subnet Drift", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SubnetSelectorTerms: []v1.SubnetSelectorTerm{{Tags: map[string]string{"sn-key-1": "sn-value-1"}}}}}),
+				Entry("SecurityGroup Drift", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"sg-key": "sg-value"}}}}}),
 			)
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash annotation is not present on the NodeClaim", func() {
 				nodeClaim.Annotations = map[string]string{
-					v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
+					v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 				}
 				nodeClass.Spec.Tags = map[string]string{
 					"Test Key": "Test Value",
@@ -1027,12 +1024,12 @@ var _ = Describe("CloudProvider", func() {
 			})
 			It("should not return drifted if the NodeClaim's karpenter.k8s.aws/ec2nodeclass-hash-version annotation does not match the EC2NodeClass's", func() {
 				nodeClass.ObjectMeta.Annotations = map[string]string{
-					v1beta1.AnnotationEC2NodeClassHash:        "test-hash-111111",
-					v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
+					v1.AnnotationEC2NodeClassHash:        "test-hash-111111",
+					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
 				}
 				nodeClaim.ObjectMeta.Annotations = map[string]string{
-					v1beta1.AnnotationEC2NodeClassHash:        "test-hash-222222",
-					v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
+					v1.AnnotationEC2NodeClassHash:        "test-hash-222222",
+					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
 				ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 				isDrifted, err := cloudProvider.IsDrifted(ctx, nodeClaim)
@@ -1041,11 +1038,11 @@ var _ = Describe("CloudProvider", func() {
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClass", func() {
 				nodeClass.ObjectMeta.Annotations = map[string]string{
-					v1beta1.AnnotationEC2NodeClassHash: "test-hash-111111",
+					v1.AnnotationEC2NodeClassHash: "test-hash-111111",
 				}
 				nodeClaim.ObjectMeta.Annotations = map[string]string{
-					v1beta1.AnnotationEC2NodeClassHash:        "test-hash-222222",
-					v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
+					v1.AnnotationEC2NodeClassHash:        "test-hash-222222",
+					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-2",
 				}
 				// should trigger drift
 				nodeClass.Spec.Tags = map[string]string{
@@ -1058,11 +1055,11 @@ var _ = Describe("CloudProvider", func() {
 			})
 			It("should not return drifted if karpenter.k8s.aws/ec2nodeclass-hash-version annotation is not present on the NodeClaim", func() {
 				nodeClass.ObjectMeta.Annotations = map[string]string{
-					v1beta1.AnnotationEC2NodeClassHash:        "test-hash-111111",
-					v1beta1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
+					v1.AnnotationEC2NodeClassHash:        "test-hash-111111",
+					v1.AnnotationEC2NodeClassHashVersion: "test-hash-version-1",
 				}
 				nodeClaim.ObjectMeta.Annotations = map[string]string{
-					v1beta1.AnnotationEC2NodeClassHash: "test-hash-222222",
+					v1.AnnotationEC2NodeClassHash: "test-hash-222222",
 				}
 				// should trigger drift
 				nodeClass.Spec.Tags = map[string]string{
@@ -1081,7 +1078,7 @@ var _ = Describe("CloudProvider", func() {
 		It("should default to the cluster's subnets", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod(
-				coretest.PodOptions{NodeSelector: map[string]string{v1.LabelArchStable: corev1beta1.ArchitectureAmd64}})
+				coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelArchStable: karpv1.ArchitectureAmd64}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Len()).To(Equal(1))
@@ -1114,7 +1111,7 @@ var _ = Describe("CloudProvider", func() {
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -1129,18 +1126,21 @@ var _ = Describe("CloudProvider", func() {
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
-			nodePool.Spec.Template.Spec.Kubelet = &corev1beta1.KubeletConfiguration{MaxPods: aws.Int32(1)}
+			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
+				MaxPods: aws.Int32(1),
+			}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
+			nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
-			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
-			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
+			pod2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1, pod2)
 			ExpectScheduled(ctx, env.Client, pod1)
 			ExpectScheduled(ctx, env.Client, pod2)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 			// Provision for another pod that should now use the other subnet since we've consumed some from the first launch.
-			pod3 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod3 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod3)
 			ExpectScheduled(ctx, env.Client, pod3)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
@@ -1151,7 +1151,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-1"), AvailabilityZone: aws.String("test-zone-1a"), AvailableIpAddressCount: aws.Int64(10),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-1")}}},
 			}})
-			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{v1.LabelTopologyZone: "test-zone-1a"}})
+			pod1 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, pod1)
 			awsEnv.EC2API.CreateFleetBehavior.Error.Set(fmt.Errorf("CreateFleet synthetic error"))
 			bindings := ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod1)
@@ -1164,7 +1164,7 @@ var _ = Describe("CloudProvider", func() {
 				{SubnetId: aws.String("test-subnet-2"), AvailabilityZone: aws.String("test-zone-1b"), AvailabilityZoneId: aws.String("tstz1-1a"), AvailableIpAddressCount: aws.Int64(100),
 					Tags: []*ec2.Tag{{Key: aws.String("Name"), Value: aws.String("test-subnet-2")}}},
 			}})
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{Tags: map[string]string{"Name": "test-subnet-1"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass)
@@ -1174,36 +1174,36 @@ var _ = Describe("CloudProvider", func() {
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
 
-			nodeClass2 := test.EC2NodeClass(v1beta1.EC2NodeClass{
-				Spec: v1beta1.EC2NodeClassSpec{
-					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+			nodeClass2 := test.EC2NodeClass(v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
+					SubnetSelectorTerms: []v1.SubnetSelectorTerm{
 						{
 							Tags: map[string]string{"Name": "test-subnet-2"},
 						},
 					},
-					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
 						{
 							Tags: map[string]string{"*": "*"},
 						},
 					},
 				},
-				Status: v1beta1.EC2NodeClassStatus{
+				Status: v1.EC2NodeClassStatus{
 					AMIs: nodeClass.Status.AMIs,
-					SecurityGroups: []v1beta1.SecurityGroup{
+					SecurityGroups: []v1.SecurityGroup{
 						{
 							ID: "sg-test1",
 						},
 					},
 				},
 			})
-			nodePool2 := coretest.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(nodeClass2).GroupVersion().String(),
-								Kind:       object.GVK(nodeClass2).Kind,
-								Name:       nodeClass2.Name,
+			nodePool2 := coretest.NodePool(karpv1.NodePool{
+				Spec: karpv1.NodePoolSpec{
+					Template: karpv1.NodeClaimTemplate{
+						Spec: karpv1.NodeClaimSpec{
+							NodeClassRef: &karpv1.NodeClassReference{
+								Group: object.GVK(nodeClass2).Group,
+								Kind:  object.GVK(nodeClass2).Kind,
+								Name:  nodeClass2.Name,
 							},
 						},
 					},
@@ -1211,43 +1211,43 @@ var _ = Describe("CloudProvider", func() {
 			})
 			ExpectApplied(ctx, env.Client, nodePool2, nodeClass2)
 			ExpectObjectReconciled(ctx, env.Client, controller, nodeClass2)
-			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1beta1.NodePoolLabelKey: nodePool2.Name}})
+			podSubnet2 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{karpv1.NodePoolLabelKey: nodePool2.Name}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
 			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
 		It("should launch instances with an alternate NodePool when a NodeClass selects 0 subnets, security groups, or amis", func() {
-			misconfiguredNodeClass := test.EC2NodeClass(v1beta1.EC2NodeClass{
-				Spec: v1beta1.EC2NodeClassSpec{
+			misconfiguredNodeClass := test.EC2NodeClass(v1.EC2NodeClass{
+				Spec: v1.EC2NodeClassSpec{
 					// select nothing!
-					SubnetSelectorTerms: []v1beta1.SubnetSelectorTerm{
+					SubnetSelectorTerms: []v1.SubnetSelectorTerm{
 						{
 							Tags: map[string]string{"Name": "nothing"},
 						},
 					},
 					// select nothing!
-					SecurityGroupSelectorTerms: []v1beta1.SecurityGroupSelectorTerm{
+					SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
 						{
 							Tags: map[string]string{"Name": "nothing"},
 						},
 					},
 					// select nothing!
-					AMISelectorTerms: []v1beta1.AMISelectorTerm{
+					AMISelectorTerms: []v1.AMISelectorTerm{
 						{
 							Tags: map[string]string{"Name": "nothing"},
 						},
 					},
 				},
 			})
-			nodePool2 := coretest.NodePool(corev1beta1.NodePool{
-				Spec: corev1beta1.NodePoolSpec{
-					Template: corev1beta1.NodeClaimTemplate{
-						Spec: corev1beta1.NodeClaimSpec{
-							NodeClassRef: &corev1beta1.NodeClassReference{
-								APIVersion: object.GVK(misconfiguredNodeClass).GroupVersion().String(),
-								Kind:       object.GVK(misconfiguredNodeClass).Kind,
-								Name:       misconfiguredNodeClass.Name,
+			nodePool2 := coretest.NodePool(karpv1.NodePool{
+				Spec: karpv1.NodePoolSpec{
+					Template: karpv1.NodeClaimTemplate{
+						Spec: karpv1.NodeClaimSpec{
+							NodeClassRef: &karpv1.NodeClassReference{
+								Group: object.GVK(misconfiguredNodeClass).Group,
+								Kind:  object.GVK(misconfiguredNodeClass).Kind,
+								Name:  misconfiguredNodeClass.Name,
 							},
 						},
 					},
@@ -1261,27 +1261,27 @@ var _ = Describe("CloudProvider", func() {
 	})
 	Context("EFA", func() {
 		It("should include vpc.amazonaws.com/efa on a nodeclaim if it requests it", func() {
-			nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1.LabelInstanceTypeStable,
-						Operator: v1.NodeSelectorOpIn,
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"dl1.24xlarge"},
 					},
 				},
 			}
-			nodeClaim.Spec.Resources.Requests = v1.ResourceList{v1beta1.ResourceEFA: resource.MustParse("1")}
+			nodeClaim.Spec.Resources.Requests = corev1.ResourceList{v1.ResourceEFA: resource.MustParse("1")}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
-			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1beta1.ResourceEFA))
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).To(ContainElement(v1.ResourceEFA))
 		})
 		It("shouldn't include vpc.amazonaws.com/efa on a nodeclaim if it doesn't request it", func() {
-			nodeClaim.Spec.Requirements = []corev1beta1.NodeSelectorRequirementWithMinValues{
+			nodeClaim.Spec.Requirements = []karpv1.NodeSelectorRequirementWithMinValues{
 				{
-					NodeSelectorRequirement: v1.NodeSelectorRequirement{
-						Key:      v1.LabelInstanceTypeStable,
-						Operator: v1.NodeSelectorOpIn,
+					NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+						Key:      corev1.LabelInstanceTypeStable,
+						Operator: corev1.NodeSelectorOpIn,
 						Values:   []string{"dl1.24xlarge"},
 					},
 				},
@@ -1289,7 +1289,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
 			Expect(err).To(BeNil())
-			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1beta1.ResourceEFA))
+			Expect(lo.Keys(cloudProviderNodeClaim.Status.Allocatable)).ToNot(ContainElement(v1.ResourceEFA))
 		})
 	})
 })

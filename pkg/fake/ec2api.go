@@ -31,7 +31,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
 	"sigs.k8s.io/karpenter/pkg/test"
 	"sigs.k8s.io/karpenter/pkg/utils/atomic"
@@ -118,7 +118,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 		var skippedPools []CapacityPool
 		var spotInstanceRequestID *string
 
-		if aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) == corev1beta1.CapacityTypeSpot {
+		if aws.StringValue(input.TargetCapacitySpecification.DefaultTargetCapacityType) == karpv1.CapacityTypeSpot {
 			spotInstanceRequestID = aws.String(test.RandomName())
 		}
 

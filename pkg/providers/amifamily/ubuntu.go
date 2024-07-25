@@ -18,11 +18,11 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 
-	corev1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
+	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/amifamily/bootstrap"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -38,22 +38,22 @@ type Ubuntu struct {
 func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
-			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, corev1beta1.ArchitectureAmd64),
+			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, karpv1.ArchitectureAmd64),
 			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureAmd64),
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureAmd64),
 			),
 		},
 		{
-			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, corev1beta1.ArchitectureArm64),
+			Query: fmt.Sprintf("/aws/service/canonical/ubuntu/eks/20.04/%s/stable/current/%s/hvm/ebs-gp2/ami-id", version, karpv1.ArchitectureArm64),
 			Requirements: scheduling.NewRequirements(
-				scheduling.NewRequirement(v1.LabelArchStable, v1.NodeSelectorOpIn, corev1beta1.ArchitectureArm64),
+				scheduling.NewRequirement(corev1.LabelArchStable, corev1.NodeSelectorOpIn, karpv1.ArchitectureArm64),
 			),
 		},
 	}
 }
 
 // UserData returns the default userdata script for the AMI Family
-func (u Ubuntu) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints []v1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1beta1.InstanceStorePolicy) bootstrap.Bootstrapper {
+func (u Ubuntu) UserData(kubeletConfig *v1.KubeletConfiguration, taints []corev1.Taint, labels map[string]string, caBundle *string, _ []*cloudprovider.InstanceType, customUserData *string, _ *v1.InstanceStorePolicy) bootstrap.Bootstrapper {
 	return bootstrap.EKS{
 		Options: bootstrap.Options{
 			ClusterName:     u.Options.ClusterName,
@@ -68,8 +68,8 @@ func (u Ubuntu) UserData(kubeletConfig *corev1beta1.KubeletConfiguration, taints
 }
 
 // DefaultBlockDeviceMappings returns the default block device mappings for the AMI Family
-func (u Ubuntu) DefaultBlockDeviceMappings() []*v1beta1.BlockDeviceMapping {
-	return []*v1beta1.BlockDeviceMapping{{
+func (u Ubuntu) DefaultBlockDeviceMappings() []*v1.BlockDeviceMapping {
+	return []*v1.BlockDeviceMapping{{
 		DeviceName: u.EphemeralBlockDevice(),
 		EBS:        &DefaultEBS,
 	}}

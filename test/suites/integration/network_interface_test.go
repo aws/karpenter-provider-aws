@@ -20,14 +20,14 @@ import (
 	"github.com/samber/lo"
 	"sigs.k8s.io/karpenter/pkg/test"
 
-	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 var _ = Describe("NetworkInterfaces", func() {
 	DescribeTable(
 		"should correctly configure public IP assignment on instances",
 		func(associatePublicIPAddress *bool) {
-			nodeClass.Spec.SubnetSelectorTerms = []v1beta1.SubnetSelectorTerm{{
+			nodeClass.Spec.SubnetSelectorTerms = []v1.SubnetSelectorTerm{{
 				Tags: map[string]string{
 					"Name":                   "*Private*",
 					"karpenter.sh/discovery": env.ClusterName,
