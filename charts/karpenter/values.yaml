@@ -81,7 +81,7 @@ affinity:
 topologySpreadConstraints:
   - maxSkew: 1
     topologyKey: topology.kubernetes.io/zone
-    whenUnsatisfiable: ScheduleAnyway
+    whenUnsatisfiable: DoNotSchedule
 # -- Tolerations to allow the pod to be scheduled to nodes with taints.
 tolerations:
   - key: CriticalAddonsOnly
@@ -176,10 +176,6 @@ settings:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
-  # -- Role to assume for calling AWS services.
-  assumeRoleARN: ""
-  # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless assumeRoleARN set.
-  assumeRoleDuration: 15m
   # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
   clusterCABundle: ""
   # -- Cluster name.
