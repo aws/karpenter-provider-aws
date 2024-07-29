@@ -27,25 +27,25 @@ Duration of NodeClaim termination in seconds.
 ### `karpenter_nodeclaims_terminated_total`
 Number of nodeclaims terminated in total by Karpenter. Labeled by reason the nodeclaim was terminated and the owning nodepool.
 
-### `karpenter_nodeclaims_registered`
+### `karpenter_nodeclaims_registered_total`
 Number of nodeclaims registered in total by Karpenter. Labeled by the owning nodepool.
 
-### `karpenter_nodeclaims_launched`
+### `karpenter_nodeclaims_launched_total`
 Number of nodeclaims launched in total by Karpenter. Labeled by the owning nodepool.
 
 ### `karpenter_nodeclaims_instance_termination_duration_seconds`
 Duration of CloudProvider Instance termination in seconds.
 
-### `karpenter_nodeclaims_initialized`
+### `karpenter_nodeclaims_initialized_total`
 Number of nodeclaims initialized in total by Karpenter. Labeled by the owning nodepool.
 
-### `karpenter_nodeclaims_drifted`
+### `karpenter_nodeclaims_drifted_total`
 Number of nodeclaims drifted reasons in total by Karpenter. Labeled by drift type of the nodeclaim and the owning nodepool.
 
-### `karpenter_nodeclaims_disrupted`
+### `karpenter_nodeclaims_disrupted_total`
 Number of nodeclaims disrupted in total by Karpenter. Labeled by disruption type of the nodeclaim and the owning nodepool.
 
-### `karpenter_nodeclaims_created`
+### `karpenter_nodeclaims_created_total`
 Number of nodeclaims created in total by Karpenter. Labeled by reason the nodeclaim was created and the owning nodepool.
 
 ## Nodes Metrics
@@ -71,13 +71,13 @@ Number of nodes terminated in total by Karpenter. Labeled by owning nodepool.
 ### `karpenter_nodes_system_overhead`
 Node system daemon overhead are the resources reserved for system overhead, the difference between the node's capacity and allocatable values are reported by the status.
 
-### `karpenter_nodes_leases_deleted`
+### `karpenter_nodes_leases_deleted_total`
 Number of deleted leaked leases.
 
 ### `karpenter_nodes_eviction_queue_depth`
 The number of pods currently waiting for a successful eviction in the eviction queue.
 
-### `karpenter_nodes_created`
+### `karpenter_nodes_created_total`
 Number of nodes created in total by Karpenter. Labeled by owning nodepool.
 
 ### `karpenter_nodes_allocatable`
@@ -144,7 +144,7 @@ Number of disruption actions performed. Labeled by disruption action, method, an
 
 ## Consistency Metrics
 
-### `karpenter_consistency_errors`
+### `karpenter_consistency_errors_total`
 Number of consistency checks that have failed.
 
 ## Cluster State Metrics

@@ -13,6 +13,7 @@ helm upgrade --install prometheus "${CHART}" \
 -f ${VALUES} \
 --set prometheus.prometheusSpec.remoteWrite[0].url=https://aps-workspaces.$PROMETHEUS_REGION.amazonaws.com/workspaces/$WORKSPACE_ID/api/v1/remote_write \
 --set prometheus.prometheusSpec.remoteWrite[0].sigv4.region=$PROMETHEUS_REGION \
+--set prometheus.serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$ACCOUNT_ID:role/prometheus-irsa-$CLUSTER_NAME" \
 $ADDITIONAL_FLAGS \
 --set "kubelet.serviceMonitor.cAdvisorRelabelings[0].targetLabel=metrics_path" \
 --set "kubelet.serviceMonitor.cAdvisorRelabelings[0].action=replace" \

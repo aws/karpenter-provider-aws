@@ -81,6 +81,8 @@ jobs:
             region: ${{ inputs.region }}
           - name: IPv6
             region: ${{ inputs.region }}
+          - name: Termination
+            region: ${{ inputs.region }}
           - name: LocalZone
             # LAX is the only local zone available in the CI account, therefore only use us-west-2
             region: us-west-2

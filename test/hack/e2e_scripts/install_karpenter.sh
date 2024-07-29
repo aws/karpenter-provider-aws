@@ -1,5 +1,7 @@
 aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
+WEBHOOK_ENABLED=true
+
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
 ADDITIONAL_FLAGS=""
 if (( "$PRIVATE_CLUSTER" == 'true' )); then
@@ -11,8 +13,9 @@ helm upgrade --install karpenter "${CHART}" \
   -n kube-system \
   --version "0-$(git rev-parse HEAD)" \
   --set logLevel=debug \
-  --set webhook.enabled=false\
+  --set webhook.enabled=${WEBHOOK_ENABLED} \
   --set settings.isolatedVPC=${PRIVATE_CLUSTER} \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"="arn:aws:iam::$ACCOUNT_ID:role/karpenter-irsa-$CLUSTER_NAME" \
   $ADDITIONAL_FLAGS \
   --set settings.clusterName="$CLUSTER_NAME" \
   --set settings.interruptionQueue="$CLUSTER_NAME" \
