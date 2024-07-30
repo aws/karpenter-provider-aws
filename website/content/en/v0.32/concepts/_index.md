@@ -29,7 +29,7 @@ Once privileges are in place, Karpenter is deployed with a Helm chart.
 
 ### Configuring NodePools
 
-Karpenter's job is to add nodes to handle unschedulable pods, schedule pods on those nodes, and remove the nodes when they are not needed. To configure Karpenter, you create [NodePools]({{<ref "nodepools" >}}) that define how Karpenter manages unschedulable pods and configures nodes. You will also define behaviors for your NodePools, capturing details like how Karpenter handles disruption of nodes and setting limits and weights for each NodePool
+Karpenter's job is to add nodes to handle unschedulable pods, schedule pods on those nodes, and remove the nodes when they are not needed. To configure Karpenter, you create [NodePools]({{<ref "nodepools" >}}) that define how Karpenter manages unschedulable pods and configures nodes. You will also define behaviors for your NodePools, capturing details like how Karpenter handles disruption of nodes and setting limits and weights for each NodePool.
 
 Here are some things to know about Karpenter's NodePools:
 
