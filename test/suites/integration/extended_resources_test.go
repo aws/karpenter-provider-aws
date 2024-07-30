@@ -144,6 +144,7 @@ var _ = Describe("Extended Resources", func() {
 		// We use a Custom AMI so that we can reboot after we start the kubelet service
 		rawContent, err := os.ReadFile("testdata/amd_driver_input.sh")
 		Expect(err).ToNot(HaveOccurred())
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
 		nodeClass.Spec.UserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName,
 			env.ClusterEndpoint, env.ExpectCABundle(), nodePool.Name))
@@ -179,6 +180,7 @@ var _ = Describe("Extended Resources", func() {
 		Skip("skipping test on an exotic instance type")
 		ExpectHabanaDevicePluginCreated()
 
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				ID: "ami-0fae925f94979981f",

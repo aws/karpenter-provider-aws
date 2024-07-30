@@ -851,6 +851,7 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).To(HaveOccurred())
 		})
 		It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: amdAMIID}}
 			nodeClass.Status.AMIs = []v1.AMI{
 				{
@@ -1006,7 +1007,10 @@ var _ = Describe("CloudProvider", func() {
 					Expect(err).NotTo(HaveOccurred())
 					Expect(isDrifted).To(BeEmpty())
 				},
-				Entry("AMI Drift", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"ami-key-1": "ami-value-1"}}}}}),
+				Entry("AMI Drift", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{
+					AMIFamily:        lo.ToPtr(v1.AMIFamilyAL2023),
+					AMISelectorTerms: []v1.AMISelectorTerm{{Tags: map[string]string{"ami-key-1": "ami-value-1"}}},
+				}}),
 				Entry("Subnet Drift", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SubnetSelectorTerms: []v1.SubnetSelectorTerm{{Tags: map[string]string{"sn-key-1": "sn-value-1"}}}}}),
 				Entry("SecurityGroup Drift", v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{{Tags: map[string]string{"sg-key": "sg-value"}}}}}),
 			)
@@ -1232,6 +1236,7 @@ var _ = Describe("CloudProvider", func() {
 							Tags: map[string]string{"Name": "nothing"},
 						},
 					},
+					AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
 					// select nothing!
 					AMISelectorTerms: []v1.AMISelectorTerm{
 						{
