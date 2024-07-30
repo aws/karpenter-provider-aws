@@ -1147,6 +1147,8 @@ spec:
                       rule: self.all(k, !k.startsWith('kubernetes.io/cluster') )
                     - message: tag contains a restricted tag matching karpenter.sh/nodepool
                       rule: self.all(k, k != 'karpenter.sh/nodepool')
+                    - message: tag contains a restricted tag matching karpenter.sh/managed-by
+                      rule: self.all(k, k !='karpenter.sh/managed-by')
                     - message: tag contains a restricted tag matching karpenter.sh/nodeclaim
                       rule: self.all(k, k !='karpenter.sh/nodeclaim')
                     - message: tag contains a restricted tag matching karpenter.k8s.aws/ec2nodeclass

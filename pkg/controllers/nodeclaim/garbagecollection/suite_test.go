@@ -290,7 +290,7 @@ var _ = Describe("GarbageCollection", func() {
 		Expect(err).NotTo(HaveOccurred())
 	})
 	It("should not delete an instance if it was not launched by a NodeClaim", func() {
-		// Remove the "karpv1.NodePoolLabelKey" tag (this isn't launched by a machine)
+		// Remove the "karpenter.sh/nodepool" tag (this isn't launched by a machine)
 		instance.Tags = lo.Reject(instance.Tags, func(t *ec2.Tag, _ int) bool {
 			return aws.StringValue(t.Key) == karpv1.NodePoolLabelKey
 		})
