@@ -57,6 +57,11 @@ func main() {
 		allMetrics = append(allMetrics, getMetricsFromPackages(packages...)...)
 	}
 
+	// Dedupe metrics
+	allMetrics = lo.UniqBy(allMetrics, func(m metricInfo) string {
+		return fmt.Sprintf("%s/%s/%s", m.namespace, m.subsystem, m.name)
+	})
+
 	// Drop some metrics
 	for _, subsystem := range []string{"rest_client", "certwatcher_read", "controller_runtime_webhook"} {
 		allMetrics = lo.Reject(allMetrics, func(m metricInfo, _ int) bool {
@@ -326,6 +331,7 @@ func getIdentMapping(identName string) (string, error) {
 		"LongestRunningProcessorKey": "longest_running_processor_seconds",
 		"RetriesKey":                 "retries_total",
 
+		"metrics.PodSubsystem":       "pods",
 		"NodeSubsystem":              "nodes",
 		"metrics.NodeSubsystem":      "nodes",
 		"machineSubsystem":           "machines",
@@ -333,14 +339,15 @@ func getIdentMapping(identName string) (string, error) {
 		"metrics.NodeClaimSubsystem": "nodeclaims",
 		// TODO @joinnis: We should eventually change this subsystem to be
 		// plural so that it aligns with the other subsystems
-		"nodePoolSubsystem":       "nodepool",
-		"interruptionSubsystem":   "interruption",
-		"deprovisioningSubsystem": "deprovisioning",
-		"disruptionSubsystem":     "disruption",
-		"consistencySubsystem":    "consistency",
-		"batcherSubsystem":        "cloudprovider_batcher",
-		"cloudProviderSubsystem":  "cloudprovider",
-		"stateSubsystem":          "cluster_state",
+		"nodePoolSubsystem":         "nodepool",
+		"metrics.NodePoolSubsystem": "nodepool",
+		"interruptionSubsystem":     "interruption",
+		"deprovisioningSubsystem":   "deprovisioning",
+		"disruptionSubsystem":       "disruption",
+		"consistencySubsystem":      "consistency",
+		"batcherSubsystem":          "cloudprovider_batcher",
+		"cloudProviderSubsystem":    "cloudprovider",
+		"stateSubsystem":            "cluster_state",
 	}
 	if v, ok := identMapping[identName]; ok {
 		return v, nil
