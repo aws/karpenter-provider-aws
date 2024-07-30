@@ -48,7 +48,7 @@ Before you begin upgrading to `1.0.0`, you should know that:
 * Every Karpenter upgrade from pre-v1.0.0 versions must go through an upgrade to minor version `v1.0.0`.
 * You must be on a version of Karpenter that supports NodePools, NodeClaims, and NodeClasses (`0.33.0`+ Karpenter versions support v1beta1 APIs).
 * You must complete all `Before upgrading to 1.0.0` Prerequisites.
-* Support for v1beta1 yaml files will end with the release of `v1.1.0`.
+* You must complete all `Before upgrading to `1.1.0` Prerequisites before upgrading to `1.1.0` later. Although v1beta1 yaml files should work for `v1.0.0`, the will fail with the release of `v1.1.0`.
 
 #### Prerequisites
 
@@ -84,7 +84,7 @@ Karpenter will crash if NodePool resources contain this annotation.
 
 * **KubeletConfiguration**: If you have multiple NodePools pointing to the same EC2NodeClass that have different kubeletConfigurations,
 then you have to manually intervene to add more EC2NodeClasses and point their NodePools to them.
-Otherwise, this will induce drift.
+Otherwise, this will induce drift and you will have to roll your cluster.
 If you have multiple NodePools pointing to the same EC2NodeClass, but they have the same configuration, then you can proceed with the migration
 without having drift or having any additional NodePools or EC2NodeClasses configured.
 
