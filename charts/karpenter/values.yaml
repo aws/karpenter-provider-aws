@@ -133,11 +133,13 @@ controller:
   sidecarVolumeMounts: []
   metrics:
     # -- The container port to use for metrics.
-    port: 8000
+    port: 8080
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
 webhook:
+  # -- Whether to enable the webhooks and webhook permissions.
+  enabled: true
   # -- The container port to use for the webhook.
   port: 8443
   metrics:
@@ -174,10 +176,6 @@ settings:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
-  # -- Role to assume for calling AWS services.
-  assumeRoleARN: ""
-  # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless assumeRoleARN set.
-  assumeRoleDuration: 15m
   # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
   clusterCABundle: ""
   # -- Cluster name.
@@ -199,10 +197,6 @@ settings:
   # -- Feature Gate configuration values. Feature Gates will follow the same graduation process and requirements as feature gates
   # in Kubernetes. More information here https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features
   featureGates:
-    # -- drift is in BETA and is enabled by default.
-    # Setting drift to false disables the drift disruption method to watch for drift between currently deployed nodes
-    # and the desired state of nodes set in nodepools and nodeclasses
-    drift: true
     # -- spotToSpotConsolidation is ALPHA and is disabled by default.
     # Setting this to true will enable spot replacement consolidation for both single and multi-node consolidation.
     spotToSpotConsolidation: false

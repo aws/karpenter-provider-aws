@@ -357,7 +357,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
 {
   "Sid": "AllowScopedInstanceProfileCreationActions",
   "Effect": "Allow",
-  "Resource": "*",
+  "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
   "Action": [
     "iam:CreateInstanceProfile"
   ],
@@ -382,7 +382,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
 {
   "Sid": "AllowScopedInstanceProfileTagActions",
   "Effect": "Allow",
-  "Resource": "*",
+  "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
   "Action": [
     "iam:TagInstanceProfile"
   ],
@@ -412,7 +412,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This permissio
 {
   "Sid": "AllowScopedInstanceProfileActions",
   "Effect": "Allow",
-  "Resource": "*",
+  "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
   "Action": [
     "iam:AddRoleToInstanceProfile",
     "iam:RemoveRoleFromInstanceProfile",
@@ -438,7 +438,7 @@ The AllowInstanceProfileActions Sid gives the Karpenter controller permission to
 {
   "Sid": "AllowInstanceProfileReadActions",
   "Effect": "Allow",
-  "Resource": "*",
+  "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
   "Action": "iam:GetInstanceProfile"
 }
 ```

@@ -1,11 +1,6 @@
 aws eks update-kubeconfig --name "$CLUSTER_NAME"
 
-# Parse minor version to determine whether to enable the webhooks
-K8S_VERSION_MINOR="${K8S_VERSION#*.}"
-WEBHOOK_ENABLED=false
-if (( K8S_VERSION_MINOR < 25 )); then
-  WEBHOOK_ENABLED=true
-fi
+WEBHOOK_ENABLED=true
 
 CHART="oci://$ECR_ACCOUNT_ID.dkr.ecr.$ECR_REGION.amazonaws.com/karpenter/snapshot/karpenter"
 ADDITIONAL_FLAGS=""

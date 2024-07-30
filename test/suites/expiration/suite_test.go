@@ -21,6 +21,7 @@ import (
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -98,9 +99,12 @@ var _ = Describe("Expiration", func() {
 			g.Expect(ok).To(BeTrue())
 		}).Should(Succeed())
 
+		env.EventuallyExpectCreatedNodeCount("==", 2)
 		// Set the limit to 0 to make sure we don't continue to create nodeClaims.
 		// This is CRITICAL since it prevents leaking node resources into subsequent tests
-		nodePool.Spec.Limits = nil
+		nodePool.Spec.Limits = karpv1.Limits{
+			corev1.ResourceCPU: resource.MustParse("0"),
+		}
 		env.ExpectUpdated(nodePool)
 
 		// After the deletion timestamp is set and all pods are drained
@@ -142,9 +146,12 @@ var _ = Describe("Expiration", func() {
 			g.Expect(ok).To(BeTrue())
 		}).Should(Succeed())
 
+		env.EventuallyExpectCreatedNodeCount("==", 2)
 		// Set the limit to 0 to make sure we don't continue to create nodeClaims.
 		// This is CRITICAL since it prevents leaking node resources into subsequent tests
-		nodePool.Spec.Limits = nil
+		nodePool.Spec.Limits = karpv1.Limits{
+			corev1.ResourceCPU: resource.MustParse("0"),
+		}
 		env.ExpectUpdated(nodePool)
 
 		// After the deletion timestamp is set and all pods are drained
