@@ -12,6 +12,10 @@ spec:
       labels:
         app: neuron
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 3000
+        fsGroup: 2000
       containers:
       - image: public.ecr.aws/eks-distro/kubernetes/pause:3.2
         name: neuron
@@ -21,3 +25,5 @@ spec:
           requests:
             cpu: "1"
             memory: 256M
+        securityContext:
+          allowPrivilegeEscalation: false
