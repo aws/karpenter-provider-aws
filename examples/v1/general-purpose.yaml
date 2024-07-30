@@ -1,13 +1,11 @@
-# This example NodePool limits the amount of compute managed by
-# Karpenter for this NodePool. Karpenter will not provision compute that
-# takes the pool over a total of 100 (virtual or physical) CPU cores.
+# This example NodePool will provision general purpose instances
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: limitcpu100
+  name: general-purpose
   annotations:
-    kubernetes.io/description: "NodePool to restrict the number of cpus provisioned to 100"
+    kubernetes.io/description: "General purpose NodePool for generic workloads"
 spec:
   template:
     spec:
@@ -28,20 +26,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: default
-  limits:
-    cpu: 100
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: default
   annotations:
     kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
 spec:
-  amiFamily: AL2 # Amazon Linux 2
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -49,3 +44,5 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: al2023@latest # Amazon Linux 2023

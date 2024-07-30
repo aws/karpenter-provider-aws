@@ -1,21 +1,23 @@
-# This example NodePool will provision instances running Windows Server 2022
+# This example NodePool will provision instances
+# running Bottlerocket OS and the user data settings specified in
+# this EC2NodeClass will be merged into Karpenter defaults.
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: windows2022
+  name: default
   annotations:
-    kubernetes.io/description: "General purpose NodePool for Windows workloads"
+    kubernetes.io/description: "General purpose NodePool for generic workloads"
 spec:
   template:
     spec:
       requirements:
-        - key: kubernetes.io/os
-          operator: In
-          values: ["windows"]
         - key: kubernetes.io/arch
           operator: In
           values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
         - key: karpenter.sh/capacity-type
           operator: In
           values: ["on-demand"]
@@ -26,18 +28,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: windows2022
+        name: bottlerocket
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: windows2022
+  name: bottlerocket
   annotations:
-    kubernetes.io/description: "Nodes running Windows Server 2022"
+    kubernetes.io/description: "EC2NodeClass for running Bottlerocket nodes with custom user data"
 spec:
-  amiFamily: Windows2022
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -45,6 +46,8 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-  metadataOptions:
-    httpProtocolIPv6: disabled
-    httpTokens: required
+  amiSelectorTerms:
+    - alias: bottlerocket@latest # Bottlerocket
+  userData:  |
+    [settings.kubernetes]
+    kube-api-qps = 30

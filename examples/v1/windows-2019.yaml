@@ -1,12 +1,9 @@
-# This example NodePool provisions instances using the Windows 2022 EKS-Optimized AMI.
-# The UserData defined in spec.UserData should be PowerShell commands
-# and they will be prepended to a Karpenter managed section that will bootstrap the kubelet.
-# This example also applies to the Windows 2019 EKS-Optimized AMI.
+# This example NodePool will provision instances running Windows Server 2019
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: windows2022
+  name: windows2019
   annotations:
     kubernetes.io/description: "General purpose NodePool for Windows workloads"
 spec:
@@ -29,18 +26,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: windows2022
+        name: windows2019
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: windows2022
+  name: windows2019
   annotations:
-    kubernetes.io/description: "Nodes running Windows Server 2022"
+    kubernetes.io/description: "Nodes running Windows Server 2019"
 spec:
-  amiFamily: Windows2022
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -48,9 +44,8 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: windows2019@latest # Windows Pinning
   metadataOptions:
     httpProtocolIPv6: disabled
     httpTokens: required
-  userData: |
-    New-Item -Path 'C:\temp\' -ItemType Directory
-    New-Item -Path 'C:\temp\sample.txt' -ItemType File

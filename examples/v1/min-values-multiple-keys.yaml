@@ -2,7 +2,7 @@
 # at least 2 unique instance families from [c,m,r], 5 unique instance families [eg: "m5","m5d","m5dn","c5","c5d","c4" etc], 2 unique instance types [eg: "c5.2xlarge","c4.xlarge" etc] are required by the scheduler for the NodeClaim creation.
 # This ensures minimum flexiblity required to schedule pods into spot nodes.
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: spot
@@ -35,18 +35,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: default
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: default
   annotations:
     kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
 spec:
-  amiFamily: AL2 # Amazon Linux 2
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -54,3 +53,5 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: al2023@v20240625 # Amazon Linux 2023

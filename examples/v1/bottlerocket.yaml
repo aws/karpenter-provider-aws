@@ -1,7 +1,7 @@
-# This example NodePool provisions instances using an AMI that belongs to a custom AMIFamily
-# Keep in mind, that you're in charge of bootstrapping your worker nodes.
+# This example NodePool will provision instances
+# running Bottlerocket OS
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -27,18 +27,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: custom-family
+        name: bottlerocket
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: custom-family
+  name: bottlerocket
   annotations:
-    kubernetes.io/description: "EC2NodeClass for running Custom AMIFamily with custom user data that doesn't conform to the other AMIFamilies"
+    kubernetes.io/description: "EC2NodeClass for running Bottlerocket nodes"
 spec:
-  amiFamily: Custom
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -47,19 +46,16 @@ spec:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
   amiSelectorTerms:
-    - id: ami-123
-    - id: ami-456
-  userData: |
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="BOUNDARY"
-
-    --BOUNDARY
-    Content-Type: text/x-shellscript; charset="us-ascii"
-
-    #!/bin/bash
-    echo "Running my custom set-up"
-    
-    # Have the kubelet label the node
-    /etc/eks/bootstrap.sh my-cluster --kubelet-extra-args='--node-labels=foo=bar'
-
-    --BOUNDARY
+    - alias: bottlerocket@latest # Bottlerocket
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeType: gp3
+        volumeSize: 4Gi
+        deleteOnTermination: true
+    # Bottlerocket data volume
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeType: gp3
+        volumeSize: 20Gi # replace with your required disk size
+        deleteOnTermination: true

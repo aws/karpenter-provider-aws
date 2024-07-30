@@ -1,7 +1,6 @@
-# This example NodePool will provision AL2 instances with
-# local NVMe instance-store disks used for node ephemeral storage.
+# This example NodePool will provision instances using the AL2023 EKS-Optimized AMI.
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -26,23 +25,18 @@ spec:
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
           values: ["2"]
-        - key: karpenter.k8s.aws/instance-local-nvme
-          operator: Gt
-          values: ["300"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: instance-store-ephemeral-storage
+        name: al2023
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: instance-store-ephemeral-storage
+  name: al2023
   annotations:
-    kubernetes.io/description: "EC2NodeClass to provision nodes with instance-store ephemeral storage"
+    kubernetes.io/description: "EC2NodeClass for running Amazon Linux 2023 nodes with custom user data"
 spec:
-  amiFamily: AL2 # Amazon Linux 2
-  instanceStorePolicy: "RAID0"
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -50,3 +44,26 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: al2023@latest # Amazon Linux 2023
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="//"
+
+    --//
+    Content-Type: application/node.eks.aws
+
+    # Example custom nodeconfig which mounts individual drives on an instance
+    apiVersion: node.eks.aws/v1alpha1
+    kind: NodeConfig
+    spec:
+      instance:
+        localStorage:
+          strategy: Mount
+
+    --//
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "Hello, AL2023!"
+    --//
