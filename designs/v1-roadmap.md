@@ -19,8 +19,7 @@ This list represents the minimal set of changes that are needed to ensure proper
 1. [v1 APIs](./v1-api)
 2. [Removing Ubuntu AMIFamily](#removing-ubuntu-amifamily)
 3. [Change default TopologySpreadConstraint policy for Deployment from `ScheduleAnyways` to `DoNotSchedule`](#change-default-topologyspreadconstraint-policy-for-karpenter-deployment-from-scheduleanyways-to-donotschedule)
-4. [Karpenter Global Logging Configuration Changes](#karpenter-global-logging-configuration-changes)
-5. [Removing Implicit ENI Public IP Configuration](#removing-implicit-eni-public-ip-configuration)
+4. [Removing Implicit ENI Public IP Configuration](#removing-implicit-eni-public-ip-configuration)
 
 ### v1 APIs
 
@@ -70,18 +69,6 @@ As part of v1, we are changing our default from `ScheduleAnyways` to `DoNotSched
 #### Tasks
 
 - [ ] Update Karpenter's zonal topologySpreadConstraint from `whenUnsatisfiable: ScheduleAnyways` to `whenUnsatisfiable: DoNotSchedule`
-
-### Karpenter Global Logging Configuration Changes
-
-**Issue Ref(s):** https://github.com/aws/karpenter-provider-aws/issues/5352
-
-**Category:** Planned Deprecations, Breaking
-
-Dropping our global logging configuration was a planned deprecation at v1beta1 and we will continue by fully dropping support for the ConfigMap-based configuration for our logging at v1.
-
-#### Tasks
-
-- [ ] Remove logging configuration (only allow LOG_LEVEL, potentially LOG_ENCODING if users request it)
 
 ### Removing Implicit ENI Public IP Configuration
 
