@@ -17,6 +17,7 @@ package status_test
 import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/samber/lo"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
@@ -40,6 +41,7 @@ var _ = Describe("NodeClass Subnet Status Controller", func() {
 						Tags: map[string]string{"*": "*"},
 					},
 				},
+				AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
 				AMISelectorTerms: []v1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},

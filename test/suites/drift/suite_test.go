@@ -16,7 +16,6 @@ package drift_test
 
 import (
 	"fmt"
-	"os"
 	"sort"
 	"testing"
 	"time"
@@ -75,7 +74,6 @@ var _ = Describe("Drift", func() {
 	var dep *appsv1.Deployment
 	var selector labels.Selector
 	var numPods int
-	var customUserData *string
 	BeforeEach(func() {
 		amdAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
 		numPods = 1
@@ -95,10 +93,6 @@ var _ = Describe("Drift", func() {
 			},
 		})
 		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
-
-		rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
-		Expect(err).ToNot(HaveOccurred())
-		customUserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName, env.ClusterEndpoint, env.ExpectCABundle()))
 	})
 	Context("Budgets", func() {
 		It("should respect budgets for empty drift", func() {
@@ -378,7 +372,6 @@ var _ = Describe("Drift", func() {
 	It("should disrupt nodes that have drifted due to AMIs", func() {
 		oldCustomAMI := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1))
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
-		nodeClass.Spec.UserData = customUserData
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
@@ -398,8 +391,8 @@ var _ = Describe("Drift", func() {
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersion()))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: armAMI}}
-		nodeClass.Spec.UserData = customUserData
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		pod := env.EventuallyExpectHealthyPodCount(selector, numPods)[0]
@@ -422,7 +415,6 @@ var _ = Describe("Drift", func() {
 
 		oldCustomAMI := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1))
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
-		nodeClass.Spec.UserData = customUserData
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
 		env.EventuallyExpectHealthyPodCount(selector, numPods)
@@ -846,6 +838,7 @@ var _ = Describe("Drift", func() {
 			env.EventuallyExpectCreatedNodeCount("==", int(numPods))
 
 			// Drift the nodeClaim with bad configuration that will not register a NodeClaim
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: env.GetAMIBySSMPath("/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-ebs")}}
 			env.ExpectCreatedOrUpdated(nodeClass)
 

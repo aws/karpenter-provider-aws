@@ -15,6 +15,8 @@ limitations under the License.
 package v1_test
 
 import (
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -43,6 +45,7 @@ var _ = Describe("CEL/Validation", func() {
 		nc = &v1.EC2NodeClass{
 			ObjectMeta: test.ObjectMeta(metav1.ObjectMeta{}),
 			Spec: v1.EC2NodeClassSpec{
+				AMIFamily:        &v1.AMIFamilyAL2023,
 				AMISelectorTerms: []v1.AMISelectorTerm{{Alias: "al2023@latest"}},
 				Role:             "role-1",
 				SecurityGroupSelectorTerms: []v1.SecurityGroupSelectorTerm{
@@ -81,6 +84,95 @@ var _ = Describe("CEL/Validation", func() {
 	Context("UserData", func() {
 		It("should succeed if user data is empty", func() {
 			Expect(env.Client.Create(ctx, nc)).To(Succeed())
+		})
+	})
+	Context("AMIFamily", func() {
+		amiFamilies := []string{v1.AMIFamilyAL2, v1.AMIFamilyAL2023, v1.AMIFamilyBottlerocket, v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2022, v1.AMIFamilyCustom}
+		DescribeTable("should succeed with valid families", func() []interface{} {
+			f := func(amiFamily string) {
+				// Set a custom AMI family so it's compatible with all ami family types
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-0123456789abcdef"}}
+				nc.Spec.AMIFamily = lo.ToPtr(amiFamily)
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			}
+			entries := lo.Map(amiFamilies, func(family string, _ int) interface{} {
+				return Entry(family, family)
+			})
+			return append([]interface{}{f}, entries...)
+		}()...)
+		It("should fail with the ubuntu family", func() {
+			// Set a custom AMI family so it's compatible with all ami family types
+			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-0123456789abcdef"}}
+			nc.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyUbuntu)
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+		})
+		DescribeTable("should succeed when the amiFamily matches amiSelectorTerms[].alias", func() []interface{} {
+			f := func(amiFamily, alias string) {
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				nc.Spec.AMIFamily = lo.ToPtr(amiFamily)
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			}
+			entries := lo.FilterMap(amiFamilies, func(family string, _ int) (interface{}, bool) {
+				if family == v1.AMIFamilyCustom {
+					return nil, false
+				}
+				alias := fmt.Sprintf("%s@latest", strings.ToLower(family))
+				return Entry(
+					fmt.Sprintf("family %q with alias %q", family, alias),
+					family,
+					alias,
+				), true
+			})
+			return append([]interface{}{f}, entries...)
+		}()...)
+		DescribeTable("should succeed when the amiFamily is custom with amiSelectorTerms[].alias", func() []interface{} {
+			f := func(alias string) {
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				nc.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
+				Expect(env.Client.Create(ctx, nc)).To(Succeed())
+			}
+			entries := lo.FilterMap(amiFamilies, func(family string, _ int) (interface{}, bool) {
+				if family == v1.AMIFamilyCustom {
+					return nil, false
+				}
+				alias := fmt.Sprintf("%s@latest", strings.ToLower(family))
+				return Entry(
+					fmt.Sprintf(`family "Custom" with alias %q`, alias),
+					alias,
+				), true
+			})
+			return append([]interface{}{f}, entries...)
+		}()...)
+		DescribeTable("should fail when then amiFamily does not match amiSelectorTerms[].alias", func() []interface{} {
+			f := func(amiFamily, alias string) {
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				nc.Spec.AMIFamily = lo.ToPtr(amiFamily)
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			}
+			entries := []interface{}{}
+			families := lo.Reject(amiFamilies, func(family string, _ int) bool {
+				return family == v1.AMIFamilyCustom
+			})
+			for i := range families {
+				for j := range families {
+					if i == j {
+						continue
+					}
+					alias := fmt.Sprintf("%s@latest", strings.ToLower(families[j]))
+					entries = append(entries, Entry(
+						fmt.Sprintf("family %q with alias %q", families[i], alias),
+						families[i],
+						alias,
+					))
+				}
+
+			}
+			return append([]interface{}{f}, entries...)
+		}()...)
+		It("should fail when neither amiFamily nor an alias are specified", func() {
+			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-01234567890abcdef"}}
+			nc.Spec.AMIFamily = nil
+			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
 	})
 	Context("Tags", func() {
@@ -494,18 +586,19 @@ var _ = Describe("CEL/Validation", func() {
 		})
 		DescribeTable(
 			"should succeed for valid aliases",
-			func(alias string) {
+			func(alias, family string) {
+				nc.Spec.AMIFamily = lo.ToPtr(family)
 				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
 				Expect(env.Client.Create(ctx, nc)).To(Succeed())
 			},
-			Entry("al2 (latest)", "al2@latest"),
-			Entry("al2 (pinned)", "al2@v20240625"),
-			Entry("al2023 (latest)", "al2023@latest"),
-			Entry("al2023 (pinned)", "al2023@v20240625"),
-			Entry("bottlerocket (latest)", "bottlerocket@latest"),
-			Entry("bottlerocket (pinned)", "bottlerocket@1.10.0"),
-			Entry("windows2019 (latest)", "windows2019@latest"),
-			Entry("windows2022 (latest)", "windows2022@latest"),
+			Entry("al2 (latest)", "al2@latest", v1.AMIFamilyAL2),
+			Entry("al2 (pinned)", "al2@v20240625", v1.AMIFamilyAL2),
+			Entry("al2023 (latest)", "al2023@latest", v1.AMIFamilyAL2023),
+			Entry("al2023 (pinned)", "al2023@v20240625", v1.AMIFamilyAL2023),
+			Entry("bottlerocket (latest)", "bottlerocket@latest", v1.AMIFamilyBottlerocket),
+			Entry("bottlerocket (pinned)", "bottlerocket@1.10.0", v1.AMIFamilyBottlerocket),
+			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019),
+			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022),
 		)
 		It("should fail for an alias with an invalid family", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "ubuntu@latest"}}

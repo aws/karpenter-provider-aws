@@ -122,7 +122,10 @@ var (
 	AnnotationKubeletCompatibilityHash        = apis.CompatibilityGroup + "/kubelet-drift-hash"
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
-	AnnotationAMIFamilyCompatibility          = apis.CompatibilityGroup + "/v1beta1-ami-family-conversion"
+
+	AnnotationUbuntuCompatibilityKey                 = apis.CompatibilityGroup + "/v1beta1-ubuntu"
+	AnnotationUbuntuCompatibilityAMIFamily           = "amiFamily"
+	AnnotationUbuntuCompatibilityBlockDeviceMappings = "blockDeviceMappings"
 
 	TagNodeClaim             = coreapis.Group + "/nodeclaim"
 	TagManagedLaunchTemplate = apis.Group + "/cluster"

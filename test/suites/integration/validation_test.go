@@ -158,10 +158,12 @@ var _ = Describe("Validation", func() {
 	})
 	Context("EC2NodeClass", func() {
 		It("should error when amiSelectorTerms are not defined", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should fail for poorly formatted AMI ids", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{
 					ID: "must-start-with-ami",
@@ -208,6 +210,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should fail when amiSelectorTerms has id and other filters", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{
 					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},

@@ -71,22 +71,14 @@ var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("AMI", func() {
 	var customAMI string
-	var customUserData *string
 	BeforeEach(func() {
 		customAMI = env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
-		rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
-		Expect(err).ToNot(HaveOccurred())
-		customUserData = lo.ToPtr(fmt.Sprintf(string(rawContent), env.ClusterName, env.ClusterEndpoint, env.ExpectCABundle()))
 	})
 
 	It("should use the AMI defined by the AMI Selector Terms", func() {
 		pod := coretest.Pod()
-		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-			{
-				ID: customAMI,
-			},
-		}
-		nodeClass.Spec.UserData = customUserData
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
 		env.ExpectCreated(pod, nodeClass, nodePool)
 		env.EventuallyExpectHealthy(pod)
 		env.ExpectCreatedNodeCount("==", 1)
@@ -96,15 +88,11 @@ var _ = Describe("AMI", func() {
 	It("should use the most recent AMI when discovering multiple", func() {
 		// choose an old static image that will definitely have an older creation date
 		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%[1]s/amazon-linux-2023/x86_64/standard/amazon-eks-node-al2023-x86_64-standard-%[1]s-v20240514/image_id", env.K8sVersion()))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-			{
-				ID: customAMI,
-			},
-			{
-				ID: oldCustomAMI,
-			},
+			{ID: customAMI},
+			{ID: oldCustomAMI},
 		}
-		nodeClass.Spec.UserData = customUserData
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
@@ -119,13 +107,13 @@ var _ = Describe("AMI", func() {
 		})
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				Name:  *output.Images[0].Name,
 				Owner: "fakeOwnerValue",
 			},
 		}
-		nodeClass.Spec.UserData = customUserData
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
@@ -139,12 +127,12 @@ var _ = Describe("AMI", func() {
 		Expect(err).To(BeNil())
 		Expect(output.Images).To(HaveLen(1))
 
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				Name: *output.Images[0].Name,
 			},
 		}
-		nodeClass.Spec.UserData = customUserData
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
@@ -154,12 +142,12 @@ var _ = Describe("AMI", func() {
 		env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(customAMI))))
 	})
 	It("should support ami selector ids", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 			{
 				ID: customAMI,
 			},
 		}
-		nodeClass.Spec.UserData = customUserData
 		pod := coretest.Pod()
 
 		env.ExpectCreated(pod, nodeClass, nodePool)
@@ -193,6 +181,7 @@ var _ = Describe("AMI", func() {
 		})
 		It("should support Custom AMIFamily with AMI Selectors", func() {
 			al2023AMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersion()))
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: al2023AMI}}
 			rawContent, err := os.ReadFile("testdata/al2023_userdata_input.yaml")
 			Expect(err).ToNot(HaveOccurred())
@@ -207,6 +196,7 @@ var _ = Describe("AMI", func() {
 			env.ExpectInstance(pod.Spec.NodeName).To(HaveField("ImageId", HaveValue(Equal(al2023AMI))))
 		})
 		It("should have the EC2NodeClass status for AMIs using wildcard", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{
 					Name: "*",
@@ -217,11 +207,8 @@ var _ = Describe("AMI", func() {
 			Expect(len(nc.Status.AMIs)).To(BeNumerically("<", 10))
 		})
 		It("should have the EC2NodeClass status for AMIs using tags", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					ID: customAMI,
-				},
-			}
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: customAMI}}
 			env.ExpectCreated(nodeClass)
 			nc := EventuallyExpectAMIsToExist(nodeClass)
 			Expect(len(nc.Status.AMIs)).To(BeNumerically("==", 1))
@@ -230,11 +217,8 @@ var _ = Describe("AMI", func() {
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionTrue})
 		})
 		It("should have ec2nodeClass status as not ready since AMI was not resolved", func() {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
-				{
-					ID: "ami-123",
-				},
-			}
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-123"}}
 			env.ExpectCreated(nodeClass)
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: v1.ConditionTypeAMIsReady, Status: metav1.ConditionFalse, Message: "AMISelector did not match any AMIs"})
 			ExpectStatusConditions(env, env.Client, 1*time.Minute, nodeClass, status.Condition{Type: status.ConditionReady, Status: metav1.ConditionFalse, Message: "AMIsReady=False"})
