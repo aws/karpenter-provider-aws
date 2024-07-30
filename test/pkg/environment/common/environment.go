@@ -113,10 +113,10 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 		node := o.(*corev1.Node)
 		return []string{strconv.FormatBool(node.Spec.Unschedulable)}
 	}))
-	lo.Must0(cache.IndexField(ctx, &corev1.Node{}, "spec.taints[*].karpenter.sh/disruption", func(o client.Object) []string {
+	lo.Must0(cache.IndexField(ctx, &corev1.Node{}, "spec.taints[*].karpenter.sh/disrupted", func(o client.Object) []string {
 		node := o.(*corev1.Node)
 		t, _ := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
-			return t.Key == karpv1.DisruptionTaintKey
+			return t.Key == karpv1.DisruptedTaintKey
 		})
 		return []string{t.Value}
 	}))

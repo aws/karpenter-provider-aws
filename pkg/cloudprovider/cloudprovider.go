@@ -358,7 +358,6 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v
-		annotations[karpv1.NodePoolLabelKey] = v
 	}
 	nodeClaim.Labels = labels
 	nodeClaim.Annotations = annotations
