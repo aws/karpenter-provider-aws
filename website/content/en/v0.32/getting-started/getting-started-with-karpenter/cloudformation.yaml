@@ -196,7 +196,7 @@ Resources:
             {
               "Sid": "AllowScopedInstanceProfileCreationActions",
               "Effect": "Allow",
-              "Resource": "*",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
               "Action": [
                 "iam:CreateInstanceProfile"
               ],
@@ -213,7 +213,7 @@ Resources:
             {
               "Sid": "AllowScopedInstanceProfileTagActions",
               "Effect": "Allow",
-              "Resource": "*",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
               "Action": [
                 "iam:TagInstanceProfile"
               ],
@@ -233,7 +233,7 @@ Resources:
             {
               "Sid": "AllowScopedInstanceProfileActions",
               "Effect": "Allow",
-              "Resource": "*",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
               "Action": [
                 "iam:AddRoleToInstanceProfile",
                 "iam:RemoveRoleFromInstanceProfile",
@@ -252,7 +252,7 @@ Resources:
             {
               "Sid": "AllowInstanceProfileReadActions",
               "Effect": "Allow",
-              "Resource": "*",
+              "Resource": "arn:${AWS::Partition}:iam::${AWS::AccountId}:instance-profile/*",
               "Action": "iam:GetInstanceProfile"
             },
             {
