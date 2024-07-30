@@ -445,8 +445,9 @@ const EC2NodeClassHashVersion = "v3"
 func (in *EC2NodeClass) Hash() string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
 		in.Spec,
-		// Hash AMIFamily with the dynamic value rather than that of the field.
-		// This ensures that we're aware of updates to the annotation and dynamic defaults for aliases
+		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
+		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
+		// doesn't trigger drift.
 		in.AMIFamily(),
 	}, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,

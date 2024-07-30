@@ -138,9 +138,9 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 	case AMIFamilyUbuntu:
 		// If there are no AMISelectorTerms specified, we will fail closed when converting the NodeClass. Users must
 		// pin their AMIs **before** upgrading to Karpenter v1.0.0 if they were using the Ubuntu AMIFamily.
-		// TODO: jmdeal@ add doc link to the upgrade guide once available
+		// TODO: jmdeal@ verify doc link to the upgrade guide once available
 		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
-			return fmt.Errorf("converting EC2NodeClass %q from v1beta1 to v1, automatic Ubuntu AMI discovery is not supported (docs link)", v1beta1enc.Name)
+			return fmt.Errorf("converting EC2NodeClass %q from v1beta1 to v1, automatic Ubuntu AMI discovery is not supported (https://karpenter.sh/v1.0/upgrading/upgrade-guide/)", v1beta1enc.Name)
 		}
 
 		// If AMISelectorTerms were specified, we can continue to use them to discover Ubuntu AMIs and use the AL2 AMI
