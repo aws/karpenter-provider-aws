@@ -14,10 +14,13 @@ A metric with a constant '1' value labeled by version from which karpenter was b
 ## Nodepool Metrics
 
 ### `karpenter_nodepool_usage`
-The nodepool usage is the amount of resources that have been provisioned by a particular nodepool. Labeled by nodepool name and resource type.
+The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
 
 ### `karpenter_nodepool_limit`
-The nodepool limits are the limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
+Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
+
+### `karpenter_nodepool_allowed_disruptions`
+The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
 
 ## Nodeclaims Metrics
 
@@ -74,9 +77,6 @@ Node system daemon overhead are the resources reserved for system overhead, the 
 ### `karpenter_nodes_leases_deleted_total`
 Number of deleted leaked leases.
 
-### `karpenter_nodes_eviction_queue_depth`
-The number of pods currently waiting for a successful eviction in the eviction queue.
-
 ### `karpenter_nodes_created_total`
 Number of nodes created in total by Karpenter. Labeled by owning nodepool.
 
@@ -88,7 +88,7 @@ Node allocatable are the resources allocatable by nodes.
 ### `karpenter_pods_state`
 Pod state is the current state of pods. This metric can be used several ways as it is labeled by the pod name, namespace, owner, node, nodepool name, zone, architecture, capacity type, instance type and pod phase.
 
-### `karpenter_pods_startup_time_seconds`
+### `karpenter_pods_startup_duration_seconds`
 The time from pod creation until the pod is running.
 
 ## Provisioner Metrics
@@ -119,10 +119,7 @@ Count of messages deleted from the SQS queue.
 Amount of time required for a replacement nodeclaim to become initialized.
 
 ### `karpenter_disruption_queue_failures_total`
-The number of times that Karpenter failed to launch a replacement node for disruption. Labeled by disruption method.
-
-### `karpenter_disruption_queue_depth`
-The number of commands currently being waited on in the disruption orchestration queue.
+The number of times that an enqueued disruption decision failed. Labeled by disruption method.
 
 ### `karpenter_disruption_pods_disrupted_total`
 Total number of reschedulable pods disrupted on nodes. Labeled by NodePool, disruption action, method, and consolidation type.
@@ -133,14 +130,11 @@ Duration of the disruption evaluation process in seconds. Labeled by method and 
 ### `karpenter_disruption_eligible_nodes`
 Number of nodes eligible for disruption by Karpenter. Labeled by disruption method and consolidation type.
 
+### `karpenter_disruption_decisions_total`
+Number of disruption decisions performed. Labeled by disruption action, method, and consolidation type.
+
 ### `karpenter_disruption_consolidation_timeouts_total`
 Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
-
-### `karpenter_nodepools_allowed_disruptions`
-The number of nodes for a given NodePool that can be disrupted at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
-
-### `karpenter_disruption_decisions_total`
-Number of disruption actions performed. Labeled by disruption action, method, and consolidation type.
 
 ## Consistency Metrics
 
