@@ -9,7 +9,6 @@ if (( "$PRIVATE_CLUSTER" == 'true' )); then
   ADDITIONAL_FLAGS="--set .Values.controller.image.repository=$ACCOUNT_ID.dkr.ecr.$REGION.amazonaws.com/karpenter/snapshot/controller --set .Values.controller.image.digest=\"\""
 fi
 
-# Remove service account annotation when dropping support for 1.23
 helm upgrade --install karpenter "${CHART}" \
   -n kube-system \
   --version "0-$(git rev-parse HEAD)" \

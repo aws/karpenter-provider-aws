@@ -1,5 +1,3 @@
-# Remove service account annotation when dropping support for 1.23
-
 CHART=prometheus-community/kube-prometheus-stack
 VALUES=./.github/actions/e2e/install-prometheus/values.yaml
 ENABLED=true
