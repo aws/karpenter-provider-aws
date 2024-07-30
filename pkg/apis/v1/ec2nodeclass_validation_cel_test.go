@@ -198,7 +198,7 @@ var _ = Describe("CEL/Validation", func() {
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
-				karpv1.ManagedByAnnotationKey: "test",
+				v1.EKSClusterNameTagKey: "test",
 			}
 			Expect(env.Client.Create(ctx, nc)).To(Not(Succeed()))
 			nc.Spec.Tags = map[string]string{
