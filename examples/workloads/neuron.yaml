@@ -25,3 +25,5 @@ spec:
           requests:
             cpu: "1"
             memory: 256M
+        securityContext:
+          allowPrivilegeEscalation: false
