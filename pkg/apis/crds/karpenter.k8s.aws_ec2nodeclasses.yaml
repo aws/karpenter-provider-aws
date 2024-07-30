@@ -1143,8 +1143,6 @@ spec:
                   x-kubernetes-validations:
                     - message: empty tag keys aren't supported
                       rule: self.all(k, k != '')
-                    - message: tag contains a restricted tag matching eks:eks-cluster-name
-                      rule: self.all(k, k !='eks:eks-cluster-name')
                     - message: tag contains a restricted tag matching kubernetes.io/cluster/
                       rule: self.all(k, !k.startsWith('kubernetes.io/cluster') )
                     - message: tag contains a restricted tag matching karpenter.sh/nodepool
