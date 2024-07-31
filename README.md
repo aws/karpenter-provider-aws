@@ -16,6 +16,21 @@ Karpenter improves the efficiency and cost of running workloads on Kubernetes cl
 * **Provisioning** nodes that meet the requirements of the pods
 * **Removing** the nodes when the nodes are no longer needed
 
+
+## Karpenter Architecture
+
+![designs/images/karpenter_arch.png](karpenter_arch.png)
+
+### Architecture Workflow
+
+1. Karpenter continuously watches for unschedulable (pending) pods in the EKS cluster.
+2. When unschedulable pods are detected, Karpenter finds matching NodePools and EC2NodeClass to meet the pod requirements.
+3. Karpenter creates a NodeClaim and issues a CreateFleet API call to AWS.
+4. AWS provisions the necessary EC2 instances as per the NodeClaim.
+5. The newly created nodes are registered with the Kubernetes API server.
+6. The previously pending pods are then scheduled on these new nodes.
+7. The new nodes and pods are now running, ensuring that the cluster scales dynamically based on demand.
+
 Come discuss Karpenter in the [#karpenter](https://kubernetes.slack.com/archives/C02SFFZSA2K) channel, in the [Kubernetes slack](https://slack.k8s.io/) or join the [Karpenter working group](https://karpenter.sh/docs/contributing/working-group/) bi-weekly calls. If you want to contribute to the Karpenter project, please refer to the Karpenter docs.
 
 Check out the [Docs](https://karpenter.sh/docs/) to learn more.
