@@ -707,12 +707,12 @@ func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Dur
 	}, duration).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*karpv1.NodeClaim) {
+func (env *Environment) EventuallyExpectConsolidatable(nodeClaims ...*karpv1.NodeClaim) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().Get(karpv1.ConditionTypeEmpty).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(karpv1.ConditionTypeConsolidatable).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }

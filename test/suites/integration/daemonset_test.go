@@ -38,7 +38,7 @@ var _ = Describe("DaemonSet", func() {
 
 	BeforeEach(func() {
 		nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-		nodePool.Spec.Disruption.ConsolidateAfter = nil
+		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
 		priorityclass = &schedulingv1.PriorityClass{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "high-priority-daemonsets",
