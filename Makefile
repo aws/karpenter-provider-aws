@@ -19,6 +19,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set controller.resources.limits.cpu=1 \
 			--set controller.resources.limits.memory=1Gi \
 			--set settings.featureGates.spotToSpotConsolidation=true \
+			--set webhook.enabled=true \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -109,6 +110,8 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
+	hack/validation/kubelet.sh
+	hack/mutation/conversion_webhook_injection.sh
 	hack/github/dependabot.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
