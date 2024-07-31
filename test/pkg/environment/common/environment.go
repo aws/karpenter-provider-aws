@@ -115,10 +115,10 @@ func NewClient(ctx context.Context, config *rest.Config) client.Client {
 	}))
 	lo.Must0(cache.IndexField(ctx, &corev1.Node{}, "spec.taints[*].karpenter.sh/disrupted", func(o client.Object) []string {
 		node := o.(*corev1.Node)
-		t, _ := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
+		_, found := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
 			return t.Key == karpv1.DisruptedTaintKey
 		})
-		return []string{t.Value}
+		return []string{lo.Ternary(found, "true", "false")}
 	}))
 
 	c := lo.Must(client.New(config, client.Options{Scheme: scheme.Scheme, Cache: &client.CacheOptions{Reader: cache}}))
@@ -177,6 +177,7 @@ func (env *Environment) DefaultNodePool(nodeClass *v1.EC2NodeClass) *karpv1.Node
 			},
 		},
 	}
+	nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
 	nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
 	nodePool.Spec.Template.Spec.ExpireAfter.Duration = nil
 	nodePool.Spec.Limits = karpv1.Limits(corev1.ResourceList{
