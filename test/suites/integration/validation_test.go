@@ -106,10 +106,10 @@ var _ = Describe("Validation", func() {
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(-time.Second)}
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
-		It("should error when ConsolidationPolicy=WhenUnderutilized is used with consolidateAfter", func() {
+		It("should succeed when ConsolidationPolicy=WhenUnderutilized is used with consolidateAfter", func() {
 			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute)}
-			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})
 		It("should error when minValues for a requirement key is negative", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{

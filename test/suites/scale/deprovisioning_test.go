@@ -250,7 +250,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			nodePoolMap[noExpirationValue].Spec = *nodePoolMap[expirationValue].Spec.DeepCopy()
 
 			// Enable consolidation, emptiness, and expiration
-			nodePoolMap[consolidationValue].Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
+			nodePoolMap[consolidationValue].Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmpty
 			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidateAfter.Duration = lo.ToPtr(time.Duration(0))
 			nodePoolMap[expirationValue].Spec.Template.Spec.ExpireAfter.Duration = lo.ToPtr(time.Duration(0))
@@ -383,7 +383,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
 				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
+				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
@@ -437,7 +437,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
 				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
+				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", int(float64(expectedNodeCount)*0.8))
@@ -504,7 +504,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				// The nodePool defaults to a larger instance type than we need so enabling consolidation and making
 				// the requirements wide-open should cause deletes and increase our utilization on the cluster
 				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
+				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 				nodePool.Spec.Template.Spec.Requirements = lo.Reject(nodePool.Spec.Template.Spec.Requirements, func(r karpv1.NodeSelectorRequirementWithMinValues, _ int) bool {
 					return r.Key == v1.LabelInstanceSize
 				})
