@@ -68,5 +68,5 @@ func main() {
 			op.AMIProvider,
 		)...).
 		WithWebhooks(ctx, webhooks.NewWebhooks()...).
-		Start(ctx)
+		Start(ctx, cloudProvider)
 }
