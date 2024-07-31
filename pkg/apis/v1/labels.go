@@ -71,7 +71,7 @@ var (
 		// https://docs.aws.amazon.com/eks/latest/APIReference/API_CreateCluster.html
 		regexp.MustCompile(`^kubernetes\.io/cluster/[0-9A-Za-z][A-Za-z0-9\-_]*$`),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(karpv1.NodePoolLabelKey))),
-		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(karpv1.ManagedByAnnotationKey))),
+		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(EKSClusterNameTagKey))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(LabelNodeClass))),
 		regexp.MustCompile(fmt.Sprintf("^%s$", regexp.QuoteMeta(TagNodeClaim))),
 	}
@@ -94,6 +94,8 @@ var (
 	ResourceAWSPodENI          corev1.ResourceName = "vpc.amazonaws.com/pod-eni"
 	ResourcePrivateIPv4Address corev1.ResourceName = "vpc.amazonaws.com/PrivateIPv4Address"
 	ResourceEFA                corev1.ResourceName = "vpc.amazonaws.com/efa"
+
+	EKSClusterNameTagKey = "eks:eks-cluster-name"
 
 	LabelNodeClass = apis.Group + "/ec2nodeclass"
 
@@ -122,7 +124,10 @@ var (
 	AnnotationKubeletCompatibilityHash        = apis.CompatibilityGroup + "/kubelet-drift-hash"
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
-	AnnotationAMIFamilyCompatibility          = apis.CompatibilityGroup + "/v1beta1-ami-family-conversion"
+
+	AnnotationUbuntuCompatibilityKey                 = apis.CompatibilityGroup + "/v1beta1-ubuntu"
+	AnnotationUbuntuCompatibilityAMIFamily           = "amiFamily"
+	AnnotationUbuntuCompatibilityBlockDeviceMappings = "blockDeviceMappings"
 
 	TagNodeClaim             = coreapis.Group + "/nodeclaim"
 	TagManagedLaunchTemplate = apis.Group + "/cluster"

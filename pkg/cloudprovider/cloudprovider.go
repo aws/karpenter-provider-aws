@@ -359,9 +359,6 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v
 	}
-	if v, ok := i.Tags[karpv1.ManagedByAnnotationKey]; ok {
-		annotations[karpv1.ManagedByAnnotationKey] = v
-	}
 	nodeClaim.Labels = labels
 	nodeClaim.Annotations = annotations
 	nodeClaim.CreationTimestamp = metav1.Time{Time: i.LaunchTime}

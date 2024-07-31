@@ -32,11 +32,6 @@ type Readiness struct {
 }
 
 func (n Readiness) Reconcile(ctx context.Context, nodeClass *v1.EC2NodeClass) (reconcile.Result, error) {
-	// TODO: Drop runtime check once support for conversion is dropped, and make AMISelectorTerms required via CEL.
-	if _, ok := nodeClass.Annotations[v1.AnnotationAMIFamilyCompatibility]; !ok && len(nodeClass.Spec.AMISelectorTerms) == 0 {
-		nodeClass.StatusConditions().SetFalse(status.ConditionReady, "NodeClassNotReady", "Invalid AMI configuration")
-		return reconcile.Result{}, fmt.Errorf("invalid configuration, AMISelectorTerms or 'karpenter.sh/v1beta1-amifamily' compatibility annotation must be specified")
-	}
 	// A NodeClass that uses AL2023 requires the cluster CIDR for launching nodes.
 	// To allow Karpenter to be used for Non-EKS clusters, resolving the Cluster CIDR
 	// will not be done at startup but instead in a reconcile loop.

@@ -95,6 +95,7 @@ var _ = Describe("NodeClass Hash Controller", func() {
 						Tags: map[string]string{"*": "*"},
 					},
 				},
+				AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
 				AMISelectorTerms: []v1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},

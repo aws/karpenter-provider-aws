@@ -20,6 +20,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"golang.org/x/exp/slices"
 	"io/fs"
 	"log"
 	"os"
@@ -39,6 +40,16 @@ type metricInfo struct {
 	help      string
 }
 
+var (
+	stableMetrics = []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election", "interruption", "cluster_state", "workqueue", "karpenter_build_info", "karpenter_nodepool_usage", "karpenter_nodepool_limit",
+		"karpenter_nodeclaims_terminated_total", "karpenter_nodeclaims_created_total", "karpenter_nodes_terminated_total", "karpenter_nodes_created_total", "karpenter_pods_startup_duration_seconds",
+		"karpenter_provisioner_scheduling_simulation_duration_seconds", "karpenter_provisioner_scheduling_duration_seconds", "karpenter_nodepool_allowed_disruptions", "karpenter_disruption_decisions_total"}
+	betaMetrics = []string{"status_condition", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
+		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_time_seconds",
+		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_provisioner_scheduling_queue_depth", "karpenter_disruption_queue_failures_total",
+		"karpenter_disruption_evaluation_duration_seconds", "karpenter_disruption_eligible_nodes", "karpenter_disruption_consolidation_timeouts_total"}
+)
+
 func (i metricInfo) qualifiedName() string {
 	return strings.Join(lo.Compact([]string{i.namespace, i.subsystem, i.name}), "_")
 }
@@ -56,6 +67,11 @@ func main() {
 		packages := getPackages(flag.Arg(i))
 		allMetrics = append(allMetrics, getMetricsFromPackages(packages...)...)
 	}
+
+	// Dedupe metrics
+	allMetrics = lo.UniqBy(allMetrics, func(m metricInfo) string {
+		return fmt.Sprintf("%s/%s/%s", m.namespace, m.subsystem, m.name)
+	})
 
 	// Drop some metrics
 	for _, subsystem := range []string{"rest_client", "certwatcher_read", "controller_runtime_webhook"} {
@@ -114,6 +130,14 @@ description: >
 		}
 		fmt.Fprintf(f, "### `%s`\n", metric.qualifiedName())
 		fmt.Fprintf(f, "%s\n", metric.help)
+		switch {
+		case slices.Contains(stableMetrics, metric.subsystem) || slices.Contains(stableMetrics, metric.qualifiedName()):
+			fmt.Fprintf(f, "- Stability Level: %s\n", "STABLE")
+		case slices.Contains(betaMetrics, metric.subsystem) || slices.Contains(betaMetrics, metric.qualifiedName()):
+			fmt.Fprintf(f, "- Stability Level: %s\n", "BETA")
+		default:
+			fmt.Fprintf(f, "- Stability Level: %s\n", "ALPHA")
+		}
 		fmt.Fprintln(f)
 	}
 
@@ -326,6 +350,7 @@ func getIdentMapping(identName string) (string, error) {
 		"LongestRunningProcessorKey": "longest_running_processor_seconds",
 		"RetriesKey":                 "retries_total",
 
+		"metrics.PodSubsystem":       "pods",
 		"NodeSubsystem":              "nodes",
 		"metrics.NodeSubsystem":      "nodes",
 		"machineSubsystem":           "machines",
@@ -333,14 +358,15 @@ func getIdentMapping(identName string) (string, error) {
 		"metrics.NodeClaimSubsystem": "nodeclaims",
 		// TODO @joinnis: We should eventually change this subsystem to be
 		// plural so that it aligns with the other subsystems
-		"nodePoolSubsystem":       "nodepool",
-		"interruptionSubsystem":   "interruption",
-		"deprovisioningSubsystem": "deprovisioning",
-		"disruptionSubsystem":     "disruption",
-		"consistencySubsystem":    "consistency",
-		"batcherSubsystem":        "cloudprovider_batcher",
-		"cloudProviderSubsystem":  "cloudprovider",
-		"stateSubsystem":          "cluster_state",
+		"nodePoolSubsystem":         "nodepool",
+		"metrics.NodePoolSubsystem": "nodepool",
+		"interruptionSubsystem":     "interruption",
+		"deprovisioningSubsystem":   "deprovisioning",
+		"disruptionSubsystem":       "disruption",
+		"consistencySubsystem":      "consistency",
+		"batcherSubsystem":          "cloudprovider_batcher",
+		"cloudProviderSubsystem":    "cloudprovider",
+		"stateSubsystem":            "cluster_state",
 	}
 	if v, ok := identMapping[identName]; ok {
 		return v, nil
