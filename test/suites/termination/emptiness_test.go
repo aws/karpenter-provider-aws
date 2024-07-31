@@ -96,7 +96,7 @@ var _ = Describe("Emptiness", func() {
 		})
 	})
 	It("should terminate an empty node", func() {
-		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Hour * 300)}
+		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(10 * time.Second))}
 
 		const numPods = 1
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
