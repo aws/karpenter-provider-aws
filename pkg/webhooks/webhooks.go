@@ -22,17 +22,41 @@ import (
 	"knative.dev/pkg/controller"
 	knativeinjection "knative.dev/pkg/injection"
 	"knative.dev/pkg/webhook/resourcesemantics"
+	"knative.dev/pkg/webhook/resourcesemantics/conversion"
 	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
+	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+)
+
+var (
+	ConversionResource = map[schema.GroupKind]conversion.GroupKindConversion{
+		v1beta1.SchemeGroupVersion.WithKind("EC2NodeClass").GroupKind(): {
+			DefinitionName: "ec2nodeclasses.karpenter.k8s.aws",
+			HubVersion:     "v1",
+			Zygotes: map[string]conversion.ConvertibleObject{
+				"v1":      &v1.EC2NodeClass{},
+				"v1beta1": &v1beta1.EC2NodeClass{},
+			},
+		},
+	}
 )
 
 func NewWebhooks() []knativeinjection.ControllerConstructor {
 	return []knativeinjection.ControllerConstructor{
 		NewCRDDefaultingWebhook,
 		NewCRDValidationWebhook,
+		NewCRDConversionWebhook,
 	}
+}
+
+func NewCRDConversionWebhook(ctx context.Context, _ configmap.Watcher) *controller.Impl {
+	return conversion.NewConversionController(ctx,
+		"/conversion/karpenter.k8s.aws",
+		ConversionResource,
+		func(ctx context.Context) context.Context { return ctx },
+	)
 }
 
 func NewCRDDefaultingWebhook(ctx context.Context, _ configmap.Watcher) *controller.Impl {
