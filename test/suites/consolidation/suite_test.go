@@ -66,7 +66,7 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = FDescribe("Consolidation", func() {
+var _ = Describe("Consolidation", func() {
 	Context("LastPodEventTime", func() {
 		var nodePool *karpv1.NodePool
 		BeforeEach(func() {
@@ -131,9 +131,8 @@ var _ = FDescribe("Consolidation", func() {
 			podLabels := map[string]string{"app": "regular-app"}
 			pod := test.Pod(test.PodOptions{
 				// use a non-pause image so that we can have a sleep
-				Image:        "alpine:3.20.2",
-				Command:      []string{"/bin/sh", "-c", "sleep 30"},
-				PreStopSleep: lo.ToPtr(int64(30)),
+				Image:   "alpine:3.20.2",
+				Command: []string{"/bin/sh", "-c", "sleep 30"},
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: podLabels,
 				},
