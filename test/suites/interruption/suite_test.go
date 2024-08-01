@@ -97,7 +97,7 @@ var _ = Describe("Interruption", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		By("interrupting the spot instance")
-		exp := env.ExpectSpotInterruptionExperiment(instanceID)
+		exp := env.ExpectSpotInterruptionExperiment(120, instanceID)
 		DeferCleanup(func() {
 			env.ExpectExperimentTemplateDeleted(*exp.ExperimentTemplateId)
 		})
@@ -185,6 +185,91 @@ var _ = Describe("Interruption", func() {
 		By("Creating a scheduled change health event in the SQS message queue")
 		env.ExpectMessagesCreated(scheduledChangeMessage(env.Region, "000000000000", instanceID))
 		env.EventuallyExpectNotFoundAssertion(node).Should(Succeed())
+		env.EventuallyExpectHealthyPodCount(selector, 1)
+	})
+	It("should terminate the spot instance and spin-up a new node on rebalance recommendation event when enabled", func() {
+		By("Creating a single healthy node with a healthy deployment")
+		// TODO enable rebalance recommendations once API is agreed
+		nodePool = coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeSpot},
+			}})
+		numPods := 1
+		dep := coretest.Deployment(coretest.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "my-app"},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		node := env.Monitor.CreatedNodes()[0]
+		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("interrupting the spot instance")
+		exp := env.ExpectSpotInterruptionExperiment(240, instanceID)
+		DeferCleanup(func() {
+			env.ExpectExperimentTemplateDeleted(*exp.ExperimentTemplateId)
+		})
+
+		// We are expecting the node to be terminated before the INT is triggered
+		// at 120 seconds remaining
+		By("waiting to receive the rebalance recommendation and terminate the node")
+		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Second * 110).Should(Succeed())
+		env.EventuallyExpectHealthyPodCount(selector, 1)
+	})
+
+	It("should not terminate the spot instance and spin-up a new node on rebalance recommendation event when disabled", func() {
+		By("Creating a single healthy node with a healthy deployment")
+		// Rebalance recommendation handling should be disabled by default
+		nodePool = coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
+			NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+				Key:      karpv1.CapacityTypeLabelKey,
+				Operator: corev1.NodeSelectorOpIn,
+				Values:   []string{karpv1.CapacityTypeSpot},
+			}})
+		numPods := 1
+		dep := coretest.Deployment(coretest.DeploymentOptions{
+			Replicas: int32(numPods),
+			PodOptions: coretest.PodOptions{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{"app": "my-app"},
+				},
+				TerminationGracePeriodSeconds: lo.ToPtr(int64(0)),
+			},
+		})
+		selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+
+		env.ExpectCreated(nodeClass, nodePool, dep)
+
+		env.EventuallyExpectHealthyPodCount(selector, numPods)
+		env.ExpectCreatedNodeCount("==", 1)
+
+		node := env.Monitor.CreatedNodes()[0]
+		instanceID, err := utils.ParseInstanceID(node.Spec.ProviderID)
+		Expect(err).ToNot(HaveOccurred())
+
+		By("interrupting the spot instance")
+		exp := env.ExpectSpotInterruptionExperiment(40+120, instanceID)
+		DeferCleanup(func() {
+			env.ExpectExperimentTemplateDeleted(*exp.ExperimentTemplateId)
+		})
+
+		// We timeout after the RBR is sent but before the ITN is sent
+		// so we expect no node termination.
+		By("waiting to receive the rebalance recommendation and terminate the node")
+		env.EventuallyExpectNotFoundAssertion(node).WithTimeout(time.Second * 30).Should(Not(Succeed()))
 		env.EventuallyExpectHealthyPodCount(selector, 1)
 	})
 })

@@ -77,7 +77,7 @@ func (env *Environment) ExpectIPv6ClusterDNS() string {
 	return kubeDNSIP.String()
 }
 
-func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) *fis.Experiment {
+func (env *Environment) ExpectSpotInterruptionExperiment(delaySeconds uint32, instanceIDs ...string) *fis.Experiment {
 	GinkgoHelper()
 	template := &fis.CreateExperimentTemplateInput{
 		Actions:        map[string]*fis.CreateExperimentTemplateActionInput{},
@@ -91,8 +91,10 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 		template.Actions[key] = &fis.CreateExperimentTemplateActionInput{
 			ActionId: aws.String(spotITNAction),
 			Parameters: map[string]*string{
-				// durationBeforeInterruption is the time before the instance is terminated, so we add 2 minutes
-				"durationBeforeInterruption": aws.String("PT120S"),
+				// If we set delaySeconds == 120 we get an ITN immediately.  If we set delaySeconds > 120
+				// then we get an RBR first then a ITN at 120 seconds remaining.
+				// We can't set delaySeconds < 120.
+				"durationBeforeInterruption": aws.String(fmt.Sprintf("PT%dS", delaySeconds)),
 			},
 			Targets: map[string]*string{"SpotInstances": aws.String(key)},
 		}
