@@ -402,7 +402,7 @@ var _ = Describe("Consolidation", func() {
 			nodePool := test.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
-						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenUnderutilized,
+						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
 						// Disable Consolidation until we're ready
 						ConsolidateAfter: karpv1.NillableDuration{},
 					},
@@ -468,7 +468,7 @@ var _ = Describe("Consolidation", func() {
 			env.ExpectUpdated(dep)
 			env.EventuallyExpectAvgUtilization(corev1.ResourceCPU, "<", 0.5)
 
-			// Enable consolidation as WhenUnderutilized doesn't allow a consolidateAfter value
+			// Enable consolidation as WhenEmptyOrUnderutilized doesn't allow a consolidateAfter value
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 			env.ExpectUpdated(nodePool)
 
@@ -485,7 +485,7 @@ var _ = Describe("Consolidation", func() {
 			nodePool := test.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
-						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenUnderutilized,
+						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
 						// Disable Consolidation until we're ready
 						ConsolidateAfter: karpv1.NillableDuration{},
 					},
@@ -640,7 +640,7 @@ var _ = Describe("Consolidation", func() {
 		nodePool := test.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Disruption: karpv1.Disruption{
-					ConsolidationPolicy: karpv1.ConsolidationPolicyWhenUnderutilized,
+					ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
 					// Disable Consolidation until we're ready
 					ConsolidateAfter: karpv1.NillableDuration{},
 				},

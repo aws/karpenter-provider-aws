@@ -101,13 +101,13 @@ var _ = Describe("Validation", func() {
 				}})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
-		It("should error when ttlSecondAfterEmpty is negative", func() {
+		It("should error when consolidateAfter is negative", func() {
 			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmpty
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(-time.Second)}
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
-		It("should succeed when ConsolidationPolicy=WhenUnderutilized is used with consolidateAfter", func() {
-			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
+		It("should succeed when ConsolidationPolicy=WhenEmptyOrUnderutilized is used with consolidateAfter", func() {
+			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute)}
 			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})

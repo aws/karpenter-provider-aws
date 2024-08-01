@@ -81,7 +81,7 @@ var _ = Describe("Chaos", func() {
 					Values:   []string{karpv1.CapacityTypeSpot},
 				},
 			})
-			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
+			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
 			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 
 			numPods := 1

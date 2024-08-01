@@ -177,7 +177,7 @@ func (env *Environment) DefaultNodePool(nodeClass *v1.EC2NodeClass) *karpv1.Node
 			},
 		},
 	}
-	nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
+	nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
 	nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
 	nodePool.Spec.Template.Spec.ExpireAfter.Duration = nil
 	nodePool.Spec.Limits = karpv1.Limits(corev1.ResourceList{

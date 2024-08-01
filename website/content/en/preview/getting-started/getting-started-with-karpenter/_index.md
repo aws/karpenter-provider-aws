@@ -151,7 +151,7 @@ A single Karpenter NodePool is capable of handling many different pod shapes. Ka
 
 Create a default NodePool using the command below. This NodePool uses `securityGroupSelectorTerms` and `subnetSelectorTerms` to discover resources used to launch nodes. We applied the tag `karpenter.sh/discovery` in the `eksctl` command above. Depending on how these resources are shared between clusters, you may need to use different tagging schemes.
 
-The `consolidationPolicy` set to `WhenUnderutilized` in the `disruption` block configures Karpenter to reduce cluster cost by removing and replacing nodes. As a result, consolidation will terminate any empty nodes on the cluster. This behavior can be disabled by setting `consolidateAfter` to `Never`, telling Karpenter that it should never consolidate nodes. Review the [NodePool API docs]({{<ref "../../concepts/nodepools" >}}) for more information.
+The `consolidationPolicy` set to `WhenEmptyOrUnderutilized` in the `disruption` block configures Karpenter to reduce cluster cost by removing and replacing nodes. As a result, consolidation will terminate any empty nodes on the cluster. This behavior can be disabled by setting `consolidateAfter` to `Never`, telling Karpenter that it should never consolidate nodes. Review the [NodePool API docs]({{<ref "../../concepts/nodepools" >}}) for more information.
 
 Note: This NodePool will create capacity as long as the sum of all created capacity is less than the specified limit.
 

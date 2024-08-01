@@ -40,7 +40,7 @@ var _ = Describe("DaemonSet", func() {
 	var dep *appsv1.Deployment
 
 	BeforeEach(func() {
-		nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
+		nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
 		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 		priorityclass = &schedulingv1.PriorityClass{
 			ObjectMeta: metav1.ObjectMeta{
