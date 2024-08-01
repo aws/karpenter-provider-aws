@@ -85,4 +85,4 @@ runs:
       helm diff upgrade --namespace kube-system \
         karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
         --version v0-$(git rev-parse HEAD) \
-        --reuse-values --three-way-merge --detailed-exitcode
+        --reuse-values --three-way-merge --detailed-exitcode --no-hooks
