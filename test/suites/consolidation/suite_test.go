@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -65,7 +66,119 @@ var _ = BeforeEach(func() {
 var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
-var _ = Describe("Consolidation", func() {
+var _ = FDescribe("Consolidation", func() {
+	Context("LastPodEventTime", func() {
+		var nodePool *karpv1.NodePool
+		BeforeEach(func() {
+			nodePool = env.DefaultNodePool(nodeClass)
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
+
+		})
+		It("should update lastPodEventTime when pods are scheduled and removed", func() {
+			var numPods int32 = 5
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: numPods,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "regular-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			nodePool.Spec.Disruption.Budgets = []karpv1.Budget{
+				{
+					Nodes: "0%",
+				},
+			}
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 1)
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+
+			nodeClaim := env.ExpectExists(nodeClaims[0]).(*karpv1.NodeClaim)
+			lastPodEventTime := nodeClaim.Status.LastPodEventTime
+
+			// wait 10 seconds so that we don't run into the de-dupe timeout
+			time.Sleep(10 * time.Second)
+
+			dep.Spec.Replicas = lo.ToPtr[int32](4)
+			By("removing one pod from the node")
+			env.ExpectUpdated(dep)
+
+			Eventually(func(g Gomega) {
+				nodeClaim = env.ExpectExists(nodeClaim).(*karpv1.NodeClaim)
+				g.Expect(nodeClaim.Status.LastPodEventTime.Time).ToNot(BeEquivalentTo(lastPodEventTime.Time))
+			}).WithTimeout(5 * time.Second).WithPolling(1 * time.Second).Should(Succeed())
+			lastPodEventTime = nodeClaim.Status.LastPodEventTime
+
+			// wait 10 seconds so that we don't run into the de-dupe timeout
+			time.Sleep(10 * time.Second)
+
+			dep.Spec.Replicas = lo.ToPtr[int32](5)
+			By("adding one pod to the node")
+			env.ExpectUpdated(dep)
+
+			Eventually(func(g Gomega) {
+				nodeClaim = env.ExpectExists(nodeClaim).(*karpv1.NodeClaim)
+				g.Expect(nodeClaim.Status.LastPodEventTime.Time).ToNot(BeEquivalentTo(lastPodEventTime.Time))
+			}).WithTimeout(5 * time.Second).WithPolling(1 * time.Second).Should(Succeed())
+		})
+		It("should update lastPodEventTime when pods go terminal", func() {
+			podLabels := map[string]string{"app": "regular-app"}
+			pod := test.Pod(test.PodOptions{
+				// use a non-pause image so that we can have a sleep
+				Image:        "alpine:3.20.2",
+				Command:      []string{"/bin/sh", "-c", "sleep 30"},
+				PreStopSleep: lo.ToPtr(int64(30)),
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
+				},
+				RestartPolicy: corev1.RestartPolicyNever,
+			})
+			job := &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      test.RandomName(),
+					Namespace: "default",
+				},
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: pod.ObjectMeta,
+						Spec:       pod.Spec,
+					},
+				},
+			}
+			selector := labels.SelectorFromSet(podLabels)
+			nodePool.Spec.Disruption.Budgets = []karpv1.Budget{
+				{
+					Nodes: "0%",
+				},
+			}
+			env.ExpectCreated(nodeClass, nodePool, job)
+
+			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 1)
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			pods := env.EventuallyExpectHealthyPodCount(selector, int(1))
+
+			nodeClaim := env.ExpectExists(nodeClaims[0]).(*karpv1.NodeClaim)
+			lastPodEventTime := nodeClaim.Status.LastPodEventTime
+
+			Eventually(func(g Gomega) {
+				pod := env.ExpectExists(pods[0]).(*corev1.Pod)
+				g.Expect(pod.Status.Phase).To(Equal(corev1.PodSucceeded))
+			}).WithTimeout(1 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
+
+			nodeClaim = env.ExpectExists(nodeClaims[0]).(*karpv1.NodeClaim)
+			Expect(nodeClaim.Status.LastPodEventTime).ToNot(BeEquivalentTo(lastPodEventTime.Time))
+		})
+
+	})
 	Context("Budgets", func() {
 		var nodePool *karpv1.NodePool
 		var dep *appsv1.Deployment
