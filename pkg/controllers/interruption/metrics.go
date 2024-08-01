@@ -22,9 +22,8 @@ import (
 )
 
 const (
-	interruptionSubsystem  = "interruption"
-	messageTypeLabel       = "message_type"
-	terminationReasonLabel = "interruption"
+	interruptionSubsystem = "interruption"
+	messageTypeLabel      = "message_type"
 )
 
 var (
@@ -50,7 +49,7 @@ var (
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
 			Name:      "message_queue_duration_seconds",
-			Help:      "Length of time between message creation in queue and an action taken on the message by the controller.",
+			Help:      "Amount of time an interruption message is on the queue before it is processed by karpenter.",
 			Buckets:   metrics.DurationBuckets(),
 		},
 	)
