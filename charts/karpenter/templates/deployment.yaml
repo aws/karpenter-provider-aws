@@ -178,7 +178,7 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-        {{- if (.Values.controller.extraVolumeMounts) }}
+        {{- if .Values.controller.extraVolumeMounts }}
           volumeMounts:
           {{- with .Values.controller.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
@@ -216,7 +216,7 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-    {{- if (.Values.extraVolumes) }}
+    {{- if .Values.extraVolumes }}
       volumes:
       {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
