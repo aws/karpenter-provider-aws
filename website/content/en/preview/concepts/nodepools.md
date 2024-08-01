@@ -112,7 +112,7 @@ spec:
   # like rolling Nodes due to them hitting their maximum lifetime (expiry) or scaling down nodes to reduce cluster cost
   disruption:
     # Describes which types of Nodes Karpenter should consider for consolidation
-    # If using 'WhenEmptyOrUnderutilized', Karpenter will consider all nodes for consolidation and attempt to remove or replace Nodes when it discovers that the Node is underutilized and could be changed to reduce cost
+    # If using 'WhenEmptyOrUnderutilized', Karpenter will consider all nodes for consolidation and attempt to remove or replace Nodes when it discovers that the Node is empty or underutilized and could be changed to reduce cost
     # If using `WhenEmpty`, Karpenter will only consider nodes for consolidation that contain no workload pods
     consolidationPolicy: WhenEmptyOrUnderutilized | WhenEmpty
 
