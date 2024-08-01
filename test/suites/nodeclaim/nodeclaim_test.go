@@ -350,4 +350,65 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		// Expect that the nodeClaim is eventually de-provisioned due to the registration timeout
 		env.EventuallyExpectNotFoundAssertion(nodeClaim).WithTimeout(time.Minute * 20).Should(Succeed())
 	})
+	It("should delete a NodeClaim if it references a NodeClass that doesn't exist", func() {
+		nodeClaim := test.NodeClaim(karpv1.NodeClaim{
+			Spec: karpv1.NodeClaimSpec{
+				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      v1.LabelInstanceCategory,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"c"},
+						},
+					},
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      karpv1.CapacityTypeLabelKey,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.CapacityTypeOnDemand},
+						},
+					},
+				},
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
+				},
+			},
+		})
+		// Don't create the NodeClass and expect that the NodeClaim fails and gets deleted
+		env.ExpectCreated(nodeClaim)
+		env.ExpectDeleted(nodeClaim)
+	})
+	It("should delete a NodeClaim if it references a NodeClass that isn't Ready", func() {
+		nodeClaim := test.NodeClaim(karpv1.NodeClaim{
+			Spec: karpv1.NodeClaimSpec{
+				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      v1.LabelInstanceCategory,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{"c"},
+						},
+					},
+					{
+						NodeSelectorRequirement: corev1.NodeSelectorRequirement{
+							Key:      karpv1.CapacityTypeLabelKey,
+							Operator: corev1.NodeSelectorOpIn,
+							Values:   []string{karpv1.CapacityTypeOnDemand},
+						},
+					},
+				},
+				NodeClassRef: &karpv1.NodeClassReference{
+					Group: object.GVK(nodeClass).Group,
+					Kind:  object.GVK(nodeClass).Kind,
+					Name:  nodeClass.Name,
+				},
+			},
+		})
+		// Point to an AMI that doesn't exist so that the NodeClass goes NotReady
+		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-123456789"}}
+		env.ExpectCreated(nodeClass, nodeClaim)
+		env.ExpectDeleted(nodeClaim)
+	})
 })

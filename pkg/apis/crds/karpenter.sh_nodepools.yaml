@@ -587,19 +587,6 @@ spec:
                               Ref: https://github.com/kubernetes-sigs/controller-tools/blob/55efe4be40394a288216dab63156b0a64fb82929/pkg/crd/markers/validation.go#L379-L388
                             pattern: ^((100|[0-9]{1,2})%|[0-9]+)$
                             type: string
-                          reasons:
-                            description: |-
-                              Reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
-                              Otherwise, this will apply to each reason defined.
-                              allowed reasons are Underutilized, Empty, and Drifted.
-                            items:
-                              description: DisruptionReason defines valid reasons for disruption budgets.
-                              enum:
-                                - Underutilized
-                                - Empty
-                                - Drifted
-                              type: string
-                            type: array
                           schedule:
                             description: |-
                               Schedule specifies when a budget begins being active, following
