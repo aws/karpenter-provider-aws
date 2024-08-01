@@ -143,6 +143,8 @@ func GetTimeStreamAPI(session *session.Session) timestreamwriteiface.TimestreamW
 
 func (env *Environment) DefaultEC2NodeClass() *v1.EC2NodeClass {
 	nodeClass := test.EC2NodeClass()
+	// Set the AMI Family to AL2023 in case the AMISelectorTerms change.
+	nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 	nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 	nodeClass.Spec.Tags = map[string]string{
 		"testing/cluster": env.ClusterName,

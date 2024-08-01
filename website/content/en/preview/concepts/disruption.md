@@ -78,15 +78,11 @@ Disruption is configured through the NodePool's disruption block by the `consoli
 ```yaml
 spec:
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
   template:
     spec:
       expireAfter: 720h
 ```
-{{% /alert %}}
-
-{{% alert title="Warning" color="warning" %}}
-`consolidateAfter` **cannot** be set if `consolidationPolicy` is set to `WhenUnderutilized`. See [kubernetes-sigs/karpenter#735](https://github.com/kubernetes-sigs/karpenter/issues/735) for more information.
 {{% /alert %}}
 
 ### Consolidation
@@ -229,7 +225,7 @@ spec:
     spec: 
       expireAfter: 720h # 30 * 24h = 720h
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
     budgets:
     - nodes: "20%"
       reasons: 

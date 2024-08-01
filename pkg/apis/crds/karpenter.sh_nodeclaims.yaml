@@ -367,6 +367,13 @@ spec:
                 imageID:
                   description: ImageID is an identifier for the image that runs on the node
                   type: string
+                lastPodEventTime:
+                  description: |-
+                    LastPodEventTime is updated with the last time a pod was scheduled
+                    or removed from the node. A pod going terminal or terminating
+                    is also considered as removed.
+                  format: date-time
+                  type: string
                 nodeName:
                   description: NodeName is the name of the corresponding node object
                   type: string
@@ -720,27 +727,6 @@ spec:
                       - key
                     type: object
                   type: array
-                terminationGracePeriod:
-                  description: |-
-                    TerminationGracePeriod is the maximum duration the controller will wait before forcefully deleting the pods on a node, measured from when deletion is first initiated.
-
-
-                    Warning: this feature takes precedence over a Pod's terminationGracePeriodSeconds value, and bypasses any blocked PDBs or the karpenter.sh/do-not-disrupt annotation.
-
-
-                    This field is intended to be used by cluster administrators to enforce that nodes can be cycled within a given time period.
-                    When set, drifted nodes will begin draining even if there are pods blocking eviction. Draining will respect PDBs and the do-not-disrupt annotation until the TGP is reached.
-
-
-                    Karpenter will preemptively delete pods so their terminationGracePeriodSeconds align with the node's terminationGracePeriod.
-                    If a pod would be terminated without being granted its full terminationGracePeriodSeconds prior to the node timeout,
-                    that pod will be deleted at T = node timeout - pod terminationGracePeriodSeconds.
-
-
-                    The feature can also be used to allow maximum time limits for long-running jobs which can delay node termination with preStop hooks.
-                    If left undefined, the controller will wait indefinitely for pods to be drained.
-                  pattern: ^([0-9]+(s|m|h))+$
-                  type: string
               required:
                 - nodeClassRef
                 - requirements
@@ -799,8 +785,7 @@ spec:
                           The value should be a CamelCase string.
                           This field may not be empty.
                         maxLength: 1024
-                        minLength: 1
-                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        pattern: ^([A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?|)$
                         type: string
                       status:
                         description: status of the condition, one of True, False, Unknown.
@@ -821,8 +806,6 @@ spec:
                         type: string
                     required:
                       - lastTransitionTime
-                      - message
-                      - reason
                       - status
                       - type
                     type: object

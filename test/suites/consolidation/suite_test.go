@@ -24,6 +24,7 @@ import (
 	"github.com/awslabs/operatorpkg/object"
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -66,6 +67,119 @@ var _ = AfterEach(func() { env.Cleanup() })
 var _ = AfterEach(func() { env.AfterEach() })
 
 var _ = Describe("Consolidation", func() {
+	Context("LastPodEventTime", func() {
+		var nodePool *karpv1.NodePool
+		BeforeEach(func() {
+			nodePool = env.DefaultNodePool(nodeClass)
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
+
+		})
+		It("should update lastPodEventTime when pods are scheduled and removed", func() {
+			var numPods int32 = 5
+			dep := test.Deployment(test.DeploymentOptions{
+				Replicas: numPods,
+				PodOptions: test.PodOptions{
+					ObjectMeta: metav1.ObjectMeta{
+						Labels: map[string]string{"app": "regular-app"},
+					},
+					ResourceRequirements: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
+					},
+				},
+			})
+			selector := labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
+			nodePool.Spec.Disruption.Budgets = []karpv1.Budget{
+				{
+					Nodes: "0%",
+				},
+			}
+			env.ExpectCreated(nodeClass, nodePool, dep)
+
+			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 1)
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
+
+			nodeClaim := env.ExpectExists(nodeClaims[0]).(*karpv1.NodeClaim)
+			lastPodEventTime := nodeClaim.Status.LastPodEventTime
+
+			// wait 10 seconds so that we don't run into the de-dupe timeout
+			time.Sleep(10 * time.Second)
+
+			dep.Spec.Replicas = lo.ToPtr[int32](4)
+			By("removing one pod from the node")
+			env.ExpectUpdated(dep)
+
+			Eventually(func(g Gomega) {
+				nodeClaim = env.ExpectExists(nodeClaim).(*karpv1.NodeClaim)
+				g.Expect(nodeClaim.Status.LastPodEventTime.Time).ToNot(BeEquivalentTo(lastPodEventTime.Time))
+			}).WithTimeout(5 * time.Second).WithPolling(1 * time.Second).Should(Succeed())
+			lastPodEventTime = nodeClaim.Status.LastPodEventTime
+
+			// wait 10 seconds so that we don't run into the de-dupe timeout
+			time.Sleep(10 * time.Second)
+
+			dep.Spec.Replicas = lo.ToPtr[int32](5)
+			By("adding one pod to the node")
+			env.ExpectUpdated(dep)
+
+			Eventually(func(g Gomega) {
+				nodeClaim = env.ExpectExists(nodeClaim).(*karpv1.NodeClaim)
+				g.Expect(nodeClaim.Status.LastPodEventTime.Time).ToNot(BeEquivalentTo(lastPodEventTime.Time))
+			}).WithTimeout(5 * time.Second).WithPolling(1 * time.Second).Should(Succeed())
+		})
+		It("should update lastPodEventTime when pods go terminal", func() {
+			podLabels := map[string]string{"app": "regular-app"}
+			pod := test.Pod(test.PodOptions{
+				// use a non-pause image so that we can have a sleep
+				Image:   "alpine:3.20.2",
+				Command: []string{"/bin/sh", "-c", "sleep 30"},
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: podLabels,
+				},
+				ResourceRequirements: corev1.ResourceRequirements{
+					Requests: corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("1")},
+				},
+				RestartPolicy: corev1.RestartPolicyNever,
+			})
+			job := &batchv1.Job{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      test.RandomName(),
+					Namespace: "default",
+				},
+				Spec: batchv1.JobSpec{
+					Template: corev1.PodTemplateSpec{
+						ObjectMeta: pod.ObjectMeta,
+						Spec:       pod.Spec,
+					},
+				},
+			}
+			selector := labels.SelectorFromSet(podLabels)
+			nodePool.Spec.Disruption.Budgets = []karpv1.Budget{
+				{
+					Nodes: "0%",
+				},
+			}
+			env.ExpectCreated(nodeClass, nodePool, job)
+
+			nodeClaims := env.EventuallyExpectCreatedNodeClaimCount("==", 1)
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			pods := env.EventuallyExpectHealthyPodCount(selector, int(1))
+
+			// pods are healthy, which means the job has started its 30s sleep
+			nodeClaim := env.ExpectExists(nodeClaims[0]).(*karpv1.NodeClaim)
+			lastPodEventTime := nodeClaim.Status.LastPodEventTime
+
+			// wait a minute for the pod's sleep to finish, and for the nodeclaim to update
+			Eventually(func(g Gomega) {
+				pod := env.ExpectExists(pods[0]).(*corev1.Pod)
+				g.Expect(pod.Status.Phase).To(Equal(corev1.PodSucceeded))
+			}).WithTimeout(1 * time.Minute).WithPolling(10 * time.Second).Should(Succeed())
+
+			nodeClaim = env.ExpectExists(nodeClaims[0]).(*karpv1.NodeClaim)
+			Expect(nodeClaim.Status.LastPodEventTime).ToNot(BeEquivalentTo(lastPodEventTime.Time))
+		})
+
+	})
 	Context("Budgets", func() {
 		var nodePool *karpv1.NodePool
 		var dep *appsv1.Deployment
@@ -73,7 +187,7 @@ var _ = Describe("Consolidation", func() {
 		var numPods int32
 		BeforeEach(func() {
 			nodePool = env.DefaultNodePool(nodeClass)
-			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 
 			numPods = 5
 			dep = test.Deployment(test.DeploymentOptions{
@@ -125,7 +239,7 @@ var _ = Describe("Consolidation", func() {
 			// Update the deployment to only contain 1 replica.
 			env.ExpectUpdated(dep)
 
-			// Ensure that we get two nodes tainted, and they have overlap during the drift
+			// Ensure that we get two nodes tainted, and they have overlap during consolidation
 			env.EventuallyExpectTaintedNodeCount("==", 2)
 			nodes = env.ConsistentlyExpectDisruptionsWithNodeCount(2, 5, 5*time.Second)
 
@@ -152,7 +266,7 @@ var _ = Describe("Consolidation", func() {
 		})
 		It("should respect budgets for non-empty delete consolidation", func() {
 			// This test will hold consolidation until we are ready to execute it
-			nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{}
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
 
 			nodePool = test.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
@@ -205,7 +319,7 @@ var _ = Describe("Consolidation", func() {
 			}
 
 			By("enabling consolidation")
-			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 			env.ExpectUpdated(nodePool)
 
 			// Ensure that we get two nodes tainted, and they have overlap during consolidation
@@ -221,7 +335,7 @@ var _ = Describe("Consolidation", func() {
 		It("should respect budgets for non-empty replace consolidation", func() {
 			appLabels := map[string]string{"app": "large-app"}
 			// This test will hold consolidation until we are ready to execute it
-			nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{}
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{}
 
 			nodePool = test.ReplaceRequirements(nodePool,
 				karpv1.NodeSelectorRequirementWithMinValues{
@@ -309,7 +423,7 @@ var _ = Describe("Consolidation", func() {
 			env.EventuallyExpectHealthyPodCount(selector, int(numPods))
 
 			By("enabling consolidation")
-			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 			env.ExpectUpdated(nodePool)
 
 			// Ensure that we get three nodes tainted, and they have overlap during the consolidation
@@ -402,9 +516,9 @@ var _ = Describe("Consolidation", func() {
 			nodePool := test.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
-						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenUnderutilized,
+						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
 						// Disable Consolidation until we're ready
-						ConsolidateAfter: &karpv1.NillableDuration{},
+						ConsolidateAfter: karpv1.NillableDuration{},
 					},
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimSpec{
@@ -468,8 +582,8 @@ var _ = Describe("Consolidation", func() {
 			env.ExpectUpdated(dep)
 			env.EventuallyExpectAvgUtilization(corev1.ResourceCPU, "<", 0.5)
 
-			// Enable consolidation as WhenUnderutilized doesn't allow a consolidateAfter value
-			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			// Enable consolidation as WhenEmptyOrUnderutilized doesn't allow a consolidateAfter value
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 			env.ExpectUpdated(nodePool)
 
 			// With consolidation enabled, we now must delete nodes
@@ -485,9 +599,9 @@ var _ = Describe("Consolidation", func() {
 			nodePool := test.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Disruption: karpv1.Disruption{
-						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenUnderutilized,
+						ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
 						// Disable Consolidation until we're ready
-						ConsolidateAfter: &karpv1.NillableDuration{},
+						ConsolidateAfter: karpv1.NillableDuration{},
 					},
 					Template: karpv1.NodeClaimTemplate{
 						Spec: karpv1.NodeClaimSpec{
@@ -603,7 +717,7 @@ var _ = Describe("Consolidation", func() {
 			env.ExpectUpdated(largeDep)
 			env.EventuallyExpectAvgUtilization(corev1.ResourceCPU, "<", 0.5)
 
-			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 			env.ExpectUpdated(nodePool)
 
 			// With consolidation enabled, we now must replace each node in turn to consolidate due to the anti-affinity
@@ -640,9 +754,9 @@ var _ = Describe("Consolidation", func() {
 		nodePool := test.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Disruption: karpv1.Disruption{
-					ConsolidationPolicy: karpv1.ConsolidationPolicyWhenUnderutilized,
+					ConsolidationPolicy: karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized,
 					// Disable Consolidation until we're ready
-					ConsolidateAfter: &karpv1.NillableDuration{},
+					ConsolidateAfter: karpv1.NillableDuration{},
 				},
 				Template: karpv1.NodeClaimTemplate{
 					Spec: karpv1.NodeClaimSpec{
@@ -722,7 +836,7 @@ var _ = Describe("Consolidation", func() {
 		// Enable spot capacity type after the on-demand node is provisioned
 		// Expect the node to consolidate to a spot instance as it will be a cheaper
 		// instance than on-demand
-		nodePool.Spec.Disruption.ConsolidateAfter = nil
+		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 		test.ReplaceRequirements(nodePool,
 			karpv1.NodeSelectorRequirementWithMinValues{
 				NodeSelectorRequirement: corev1.NodeSelectorRequirement{
