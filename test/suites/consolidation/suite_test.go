@@ -165,9 +165,11 @@ var _ = Describe("Consolidation", func() {
 			env.EventuallyExpectCreatedNodeCount("==", 1)
 			pods := env.EventuallyExpectHealthyPodCount(selector, int(1))
 
+			// pods are healthy, which means the job has started its 30s sleep
 			nodeClaim := env.ExpectExists(nodeClaims[0]).(*karpv1.NodeClaim)
 			lastPodEventTime := nodeClaim.Status.LastPodEventTime
 
+			// wait a minute for the pod's sleep to finish, and for the nodeclaim to update
 			Eventually(func(g Gomega) {
 				pod := env.ExpectExists(pods[0]).(*corev1.Pod)
 				g.Expect(pod.Status.Phase).To(Equal(corev1.PodSucceeded))
