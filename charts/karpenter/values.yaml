@@ -147,26 +147,12 @@ webhook:
     port: 8001
 # -- Global log level, defaults to 'info'
 logLevel: info
-# -- Log configuration (Deprecated: Logging configuration will be dropped by v1, use logLevel instead)
-logConfig:
-  # -- Whether to enable provisioning and mounting the log ConfigMap
-  enabled: false
-  # -- Log outputPaths - defaults to stdout only
-  outputPaths:
-    - stdout
-  # -- Log errorOutputPaths - defaults to stderr only
-  errorOutputPaths:
-    - stderr
-  # -- Log encoding - defaults to json - must be one of 'json', 'console'
-  logEncoding: json
-  # -- Component-based log configuration
-  logLevel:
-    # -- Global log level, defaults to 'info'
-    global: info
-    # -- Controller log level, defaults to 'info'
-    controller: info
-    # -- Error log level, defaults to 'error'
-    webhook: error
+# -- Log outputPaths - defaults to stdout only
+logOutputPaths:
+  - stdout
+# -- Log errorOutputPaths - defaults to stderr only
+logErrorOutputPaths:
+  - stderr
 # -- Global Settings to configure Karpenter
 settings:
   # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one

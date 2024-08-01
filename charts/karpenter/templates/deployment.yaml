@@ -178,12 +178,8 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-        {{- if or (.Values.logConfig.enabled) (.Values.controller.extraVolumeMounts) }}
+        {{- if (.Values.controller.extraVolumeMounts) }}
           volumeMounts:
-          {{- if .Values.logConfig.enabled }}
-            - name: config-logging
-              mountPath: /etc/karpenter/logging
-          {{- end }}
           {{- with .Values.controller.extraVolumeMounts }}
             {{- toYaml . | nindent 12 }}
           {{- end }}
@@ -220,13 +216,8 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-    {{- if or (.Values.logConfig.enabled) (.Values.extraVolumes) }}
+    {{- if (.Values.extraVolumes) }}
       volumes:
-      {{- if .Values.logConfig.enabled }}
-        - name: config-logging
-          configMap:
-            name: config-logging
-      {{- end }}
       {{- with .Values.extraVolumes }}
         {{- toYaml . | nindent 8 }}
       {{- end }}
