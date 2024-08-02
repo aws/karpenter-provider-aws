@@ -371,6 +371,7 @@ var _ = Describe("Drift", func() {
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
 		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
@@ -391,6 +392,7 @@ var _ = Describe("Drift", func() {
 	})
 	It("should return drifted if the AMI no longer matches the existing NodeClaims instance type", func() {
 		armAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/arm64/standard/recommended/image_id", env.K8sVersion()))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: armAMI}}
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
@@ -413,6 +415,7 @@ var _ = Describe("Drift", func() {
 		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 
 		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
