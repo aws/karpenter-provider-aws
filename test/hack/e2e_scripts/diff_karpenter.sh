@@ -6,4 +6,4 @@ fi
 helm diff upgrade --namespace kube-system \
 karpenter "${CHART}" \
 --version 0-$(git rev-parse HEAD) \
---reuse-values --three-way-merge --detailed-exitcode
+--reuse-values --three-way-merge --detailed-exitcode --no-hooks

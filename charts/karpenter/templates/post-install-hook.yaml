@@ -5,13 +5,13 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
-  {{- with .Values.additionalAnnotations }}
   annotations:
-    {{- toYaml . | nindent 4 }}
-  {{- end }}
     "helm.sh/hook": post-install
     "helm.sh/hook-delete-policy": hook-succeeded
     "helm.sh/hook-delete-policy": hook-failed
+    {{- with .Values.additionalAnnotations }}
+      {{- toYaml . | nindent 4 }}
+    {{- end }}
 spec:
   ttlSecondsAfterFinished: 0
   template:
