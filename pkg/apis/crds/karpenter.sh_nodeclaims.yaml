@@ -120,7 +120,7 @@ spec:
                           - message: label "kubernetes.io/hostname" is restricted
                             rule: self != "kubernetes.io/hostname"
                           - message: label domain "karpenter.k8s.aws" is restricted
-                            rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
+                            rule: self in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !self.find("^([^/]+)").endsWith("karpenter.k8s.aws")
                       minValues:
                         description: |-
                           This field is ALPHA and can be dropped or replaced at any time
@@ -339,8 +339,7 @@ spec:
                           The value should be a CamelCase string.
                           This field may not be empty.
                         maxLength: 1024
-                        minLength: 1
-                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        pattern: ^([A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?|)$
                         type: string
                       status:
                         description: status of the condition, one of True, False, Unknown.
@@ -361,8 +360,6 @@ spec:
                         type: string
                     required:
                       - lastTransitionTime
-                      - message
-                      - reason
                       - status
                       - type
                     type: object
@@ -638,7 +635,7 @@ spec:
                       - key
                       - operator
                     type: object
-                  maxItems: 30
+                  maxItems: 100
                   type: array
                   x-kubernetes-validations:
                     - message: requirements with operator 'In' must have a value defined
