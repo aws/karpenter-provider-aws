@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "karpenter.labels" . | nindent 4 }}
   annotations:
-    "helm.sh/hook": post-install
+    "helm.sh/hook": post-install,post-upgrade,post-rollback
     "helm.sh/hook-delete-policy": hook-succeeded
     "helm.sh/hook-delete-policy": hook-failed
     {{- with .Values.additionalAnnotations }}
@@ -24,15 +24,15 @@ spec:
       {{- end }}
       containers:
       - name: post-install-job
-        image: bitnami/kubectl:latest
+        image: public.ecr.aws/bitnami/kubectl:1.30
         command:
         - /bin/sh
         - -c
         - |
           if  "{{ .Values.webhook.enabled }}" == "true"; then 
-            kubectl patch customresourcedefinitions nodepools.karpenter.sh  --type='merge' -p '{"spec":{"conversion":{"webhook":{"clientConfig":{"service":{"name":"{{ include "karpenter.fullname" . }}", "port": {{ .Values.webhook.port }} ,"namespace": "{{ .Release.Namespace }}"}}}}}}'
-            kubectl patch customresourcedefinitions nodeclaims.karpenter.sh  --type='merge' -p '{"spec":{"conversion":{"webhook":{"clientConfig":{"service":{"name":"{{ include "karpenter.fullname" . }}", "port": {{ .Values.webhook.port }} ,"namespace": "{{ .Release.Namespace }}"}}}}}}'
-            kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws  --type='merge' -p '{"spec":{"conversion":{"webhook":{"clientConfig":{"service":{"name":"{{ include "karpenter.fullname" . }}", "port": {{ .Values.webhook.port }} ,"namespace": "{{ .Release.Namespace }}"}}}}}}'
+            kubectl patch customresourcedefinitions nodepools.karpenter.sh  --type='merge' -p '{"spec":{"conversion":{"strategy": "Webhook", "webhook":{"conversionReviewVersions": ["v1beta1", "v1"], "clientConfig":{"service":{"name":"{{ include "karpenter.fullname" . }}", "port": {{ .Values.webhook.port }} ,"namespace": "{{ .Release.Namespace }}"}}}}}}'
+            kubectl patch customresourcedefinitions nodeclaims.karpenter.sh  --type='merge' -p '{"spec":{"conversion":{"strategy": "Webhook", "webhook":{"conversionReviewVersions": ["v1beta1", "v1"], "clientConfig":{"service":{"name":"{{ include "karpenter.fullname" . }}", "port": {{ .Values.webhook.port }} ,"namespace": "{{ .Release.Namespace }}"}}}}}}'
+            kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws  --type='merge' -p '{"spec":{"conversion":{"strategy": "Webhook", "webhook":{"conversionReviewVersions": ["v1beta1", "v1"], "clientConfig":{"service":{"name":"{{ include "karpenter.fullname" . }}", "port": {{ .Values.webhook.port }} ,"namespace": "{{ .Release.Namespace }}"}}}}}}'
           else
             echo "disabled webhooks"
             kubectl patch customresourcedefinitions nodepools.karpenter.sh  --type='json' -p '[{'op': 'remove', 'path': '/spec/conversion'}]'
