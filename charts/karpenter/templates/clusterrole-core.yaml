@@ -47,7 +47,11 @@ rules:
     verbs: ["get", "watch", "list"]
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
-    verbs: ["watch", "list"]
+    verbs: ["get", "watch", "list"]
+{{- else }}
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get"]
 {{- end }}
   - apiGroups: ["policy"]
     resources: ["poddisruptionbudgets"]
@@ -75,7 +79,11 @@ rules:
     resourceNames: ["validation.webhook.karpenter.sh", "validation.webhook.config.karpenter.sh"]
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
-    verbs: ["update"]
+    verbs: ["update", "patch"]
+{{- else }}
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["patch"]
 {{- end }}
   {{- with .Values.additionalClusterRoleRules -}}
   {{ toYaml . | nindent 2 }}
