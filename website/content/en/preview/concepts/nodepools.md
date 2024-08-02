@@ -72,15 +72,15 @@ spec:
       # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
       # You can choose to disable expiration entirely by setting the string value 'Never' here
 
-      # Note, changing this value in the nodepool will drift the nodeclaims. 
+      # Note: changing this value in the nodepool will drift the nodeclaims. 
       expireAfter: 720h | Never
 
-      # The amount of time that a node can be draining before it's forcibly deleted. A node begins draining when it's deleted. Pods with 
-      # TerminationGracePeriodSeconds will be deleted preemptively before this terminationGracePeriod ends to give as much time to cleanup as possible.
-      # Note that if your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod
+      # The amount of time that a node can be draining before it's forcibly deleted. A node begins draining when a delete call is made against it, starting
+      # its finalization flow. Pods with TerminationGracePeriodSeconds will be deleted preemptively before this terminationGracePeriod ends to give as much time to cleanup as possible. 
+      # If your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod
       # before it has its full terminationGracePeriod to cleanup. 
 
-      # Note, changing this value in the nodepool will drift the nodeclaims. 
+      # Note: changing this value in the nodepool will drift the nodeclaims. 
       terminationGracePeriod: 48h 
 
       # Requirements that constrain the parameters of provisioned nodes.
