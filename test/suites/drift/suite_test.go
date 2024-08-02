@@ -528,7 +528,7 @@ var _ = Describe("Drift", func() {
 			karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,
@@ -595,17 +595,17 @@ var _ = Describe("Drift", func() {
 			},
 		}),
 		Entry("Taints", karpv1.NodeClaimTemplate{
-			Spec: karpv1.NodeClaimSpec{
+			Spec: karpv1.NodeClaimTemplateSpec{
 				Taints: []corev1.Taint{{Key: "example.com/another-taint-2", Effect: corev1.TaintEffectPreferNoSchedule}},
 			},
 		}),
 		Entry("Start-up Taints", karpv1.NodeClaimTemplate{
-			Spec: karpv1.NodeClaimSpec{
+			Spec: karpv1.NodeClaimTemplateSpec{
 				StartupTaints: []corev1.Taint{{Key: "example.com/another-taint-2", Effect: corev1.TaintEffectPreferNoSchedule}},
 			},
 		}),
 		Entry("NodeRequirements", karpv1.NodeClaimTemplate{
-			Spec: karpv1.NodeClaimSpec{
+			Spec: karpv1.NodeClaimTemplateSpec{
 				// since this will overwrite the default requirements, add instance category and family selectors back into requirements
 				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}}},
