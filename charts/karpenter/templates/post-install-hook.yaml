@@ -24,7 +24,7 @@ spec:
       {{- end }}
       containers:
       - name: post-install-job
-        image: bitnami/kubectl:latest
+        image: public.ecr.aws/bitnami/kubectl:1.30
         command:
         - /bin/sh
         - -c
