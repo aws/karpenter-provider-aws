@@ -36,7 +36,7 @@ rules:
     resources: ["pods", "nodes", "persistentvolumes", "persistentvolumeclaims", "replicationcontrollers", "namespaces"]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["storage.k8s.io"]
-    resources: ["storageclasses", "csinodes"]
+    resources: ["storageclasses", "csinodes", "volumeattachments"]
     verbs: ["get", "watch", "list"]
   - apiGroups: ["apps"]
     resources: ["daemonsets", "deployments", "replicasets", "statefulsets"]
