@@ -373,6 +373,14 @@ var _ = Describe("CloudProvider", func() {
 			Expect(err).To(HaveOccurred())
 			Expect(isDrifted).To(BeEmpty())
 		})
+		It("should expect a strict set of annotation keys", func() {
+			ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+			cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+			Expect(err).To(BeNil())
+			Expect(cloudProviderNodeClaim).ToNot(BeNil())
+			Expect(len(lo.Keys(cloudProviderNodeClaim.Annotations))).To(BeNumerically("==", 3))
+			Expect(lo.Keys(cloudProviderNodeClaim.Annotations)).To(ContainElements(corev1beta1.ManagedByAnnotationKey, v1beta1.AnnotationEC2NodeClassHash, v1beta1.AnnotationEC2NodeClassHashVersion))
+		})
 		It("should error if the underlying NodeClaim doesn't exist", func() {
 			awsEnv.EC2API.DescribeInstancesBehavior.Output.Set(&ec2.DescribeInstancesOutput{
 				Reservations: []*ec2.Reservation{{Instances: []*ec2.Instance{}}},

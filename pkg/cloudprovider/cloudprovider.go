@@ -101,7 +101,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 		return i.Name == instance.Type
 	})
 	nc := c.instanceToNodeClaim(instance, instanceType)
-	nc.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 		v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 		v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 	})

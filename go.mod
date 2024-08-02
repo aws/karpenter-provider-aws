@@ -1,10 +1,6 @@
 module github.com/aws/karpenter
 
-go 1.22.2
-
-toolchain go1.22.5
-
-replace sigs.k8s.io/karpenter => github.com/engedaam/karpenter-core v0.0.0-20240731091026-ffde9e0412d6
+go 1.22.5
 
 require (
 	github.com/Pallinder/go-randomdata v1.2.0
@@ -33,7 +29,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.18.4
-	sigs.k8s.io/karpenter v0.33.6-0.20240731031339-a8979ac87d97
+	sigs.k8s.io/karpenter v0.33.6-0.20240806010051-e8a18ee753ac
 )
 
 require (

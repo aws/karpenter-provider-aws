@@ -49,6 +49,7 @@ rules:
     resources: ["customresourcedefinitions"]
     verbs: ["get", "watch", "list"]
 {{- else }}
+  # Used for the post install hook
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
     verbs: ["get"]
