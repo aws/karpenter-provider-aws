@@ -326,13 +326,6 @@ var _ = Describe("Stateful workloads", func() {
 
 		env.EventuallyExpectCreatedNodeCount(">=", 1)
 
-		// Set the limit to 0 to make sure we don't continue to create nodeClaims.
-		// This is CRITICAL since it prevents leaking node resources into subsequent tests
-		nodePool.Spec.Limits = karpv1.Limits{
-			corev1.ResourceCPU: resource.MustParse("0"),
-		}
-		env.ExpectUpdated(nodePool)
-
 		// After the deletion timestamp is set and all pods are drained the node should be gone.
 		env.EventuallyExpectNotFound(nodeClaim, node)
 
