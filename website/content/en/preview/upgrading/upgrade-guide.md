@@ -46,16 +46,17 @@ WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE T
 Before you begin upgrading to `1.0.0`, you should know that:
 
 * Every Karpenter upgrade from pre-v1.0.0 versions must go through an upgrade to minor version `v1.0.0`.
-* You must be on a version of Karpenter that supports NodePools, NodeClaims, and NodeClasses (`0.33.0`+ Karpenter versions support v1beta1 APIs).
+* You must be on a version of Karpenter that supports NodePools, NodeClaims, and NodeClasses (`0.32.0`+ Karpenter versions support v1beta1 APIs).
 * You must complete all `Before upgrading to 1.0.0` Prerequisites.
 * You must complete all `Before upgrading to `1.1.0` Prerequisites before upgrading to `1.1.0` later. Although v1beta1 yaml files should work for `v1.0.0`, the will fail with the release of `v1.1.0`.
+
 
 #### Prerequisites
 
 Consider two different categories of `1.0.0` prerequisites: those you must do before `1.0.0` upgrades and those you must do before `1.1.0` upgrades.
 
 
-Before upgrading to `1.0.0`:
+**Before upgrading to `1.0.0`**:
 
 * **Deprecated annotations, labels and tags are removed for v1.0.0**: For v1, `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict
 (annotation)`, and `karpenter.sh/managed-by` (tag) all have support removed.
@@ -67,20 +68,48 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
 * **metadataOptions could break workloads**: If you have workload pods that are not using `hostNetworking`, the updated default `metadataOptions`
 could cause your containers to break when you apply new EC2NodeClasses on v1.
 
-* **Ubuntu alias dropped**: If you are using Ubuntu, be aware that Karpenter v1 no longer supports an `alias` for using Ubuntu.
+* **Support for native Ubuntu AMI selection is dropped**: If you are using Ubuntu, be aware that Karpenter v1 no longer natively supports Ubuntu. To continue using Ubuntu in v1, you can update `amiSelectorTerms` in your EC2NodeClasses to identify Ubuntu as the AMI you want to use. See [reimplement amiFamily](https://github.com/aws/karpenter-provider-aws/pull/6569) for an example. Once you have done that, you can leave the amiFamily as Ubuntu and proceed to upgrading to v1. This will result in the following Transformation:
+   ```yaml
+   version: karpenter.k8s.aws/v1beta1
+   kind: EC2NodeClass
+   spec:
+     amiFamily: Ubuntu
+     amiSelectorTerms:
+     - id: ami-foo
+   ---
+   # Conversion Webhook Output
+   version: karpenter.k8s.aws/v1
+   kind: EC2NodeClass
+   metadata:
+     annotations:
+       compatibility.karpenter.k8s.aws/v1beta1-ubuntu: amiFamily,blockDeviceMappings
+   spec:
+     amiFamily: AL2
+     amiSelectorTerms:
+     - id: ami-foo
+     blockDeviceMappings:
+     - deviceName: 'dev/sda1'
+       rootVolume: true
+       ebs:
+         encrypted: true
+         volumeType: gp3
+         volumeSize: 20Gi
+   ```
+   **NOTE**: If you do not specify amiSelectorTerms before upgrading with an Ubuntu AMI, the conversion webhoot will fail. If you do this, downgrade to Karpenter `v0.37.1 and add amiSelectorTerms before upgrading again.
 
-* **Migrating userData**: Consider migrating your userData ahead of the v1.0.0 upgrade. See the description of `AMISelectorTerms` below.
+* **Migrating userData**: Consider migrating your userData ahead of the v1.0.0 upgrade. See the description of `amiSelectorTerms` below.
 
-Before upgrading to `1.1.0` (though okay to do for for `1.0.0`):
+**Before upgrading to `1.1.0` (though okay to do for for `1.0.0`)**:
 
-* **v1beta1 support gone`**: Migrate all Karpenter yaml files ([NodePools]({{<ref "../concepts/nodepools" >}}), [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}), and so on) to v1.
-In `1.1.0`, v1beta1 is not supported.
+* **v1beta1 support gone`**: In `1.1.0`, v1beta1 is not supported. Migrate all Karpenter yaml files ([NodePools]({{<ref "../concepts/nodepools" >}}), [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}), and so on) to v1.
+Also, know that all resources in the cluster also need to be on v1. It's possible (although unlikely) that some resources still may be stored as v1beta1 in ETCD if no writes had been made to them since the v1 upgrade.
+You could use a tool such as [kube-storage-version-migrator](https://github.com/kubernetes-sigs/kube-storage-version-migrator) to handle this.
 
 * **Remove kubelet objects from NodePools**: Check that NodePools no longer contain the kubelet-configuration annotation (`karpenter.sh/v1beta1-kubelet-conversion` annotation).
 Karpenter will crash if NodePool resources contain this annotation.
 
-* **Remove BootstrapMode annotation**: Check that EC2NodeClasses no longer contain the `BootstrapMode` annotation.
-Karpenter will crash if NodePool resources contain this annotation.
+* **Remove BootstrapMode annotation**: Karpenter will crash if NodePool resources contain the `BootstrapMode` annotation.
+This annotation is no longer being added. If you are migrating an Ubuntu NodeClass to v1, you need to remove the `karpenter.k8s.aws/v1beta1-ubuntu` annotation.
 
 * **KubeletConfiguration**: If you have multiple NodePools pointing to the same EC2NodeClass that have different kubeletConfigurations,
 then you have to manually intervene to add more EC2NodeClasses and point their NodePools to them.
@@ -88,23 +117,63 @@ Otherwise, this will induce drift and you will have to roll your cluster.
 If you have multiple NodePools pointing to the same EC2NodeClass, but they have the same configuration, then you can proceed with the migration
 without having drift or having any additional NodePools or EC2NodeClasses configured.
 
-* **AMISelectorTerms**: If you are using the Custom AMIFamily or are using an AMIFamily with no amiSelectorTerms, then you don’t need to take
-any action on your userData for this migration.
-If you are using an AMIFamily with amiSelectorTerms, then you are relying on the merge logic between Karpenters' known userData for an AMIFamily
-and your custom userData.
-This is no longer be possible with v1. You need to update your userData to match what is produced when Karpenter does this merge,
-because this will not be auto-generated for you.
+* **amiSelectorTerms and amiFamily**: For v1, `amiFamily` is no longer required if you instead specify an `alias` in `amiSelectorTerms` in your `EC2NodeClass`. However, you need to update those settings if you are using:
+   * A Custom amiFamily. You must ensure that the node is registered with the `karpenter.sh/unregistered` taint.
+   * An Ubuntu AMI, as described earlier.
+
+#### Updated metrics
+
+Changes to Karpenter metrics from v1beta1 to v1 are shown in the following tables.
+
+This table shows metrics names that changed from v1beta1 to v1:
+
+| Metric type | v1beta1 metrics name | new v1 metrics name| 
+|--|--|--|
+| Node | karpenter_nodes_termination_time_seconds | karpenter_nodes_termination_duration_seconds |
+| Node | karpenter_nodes_terminated | karpenter_nodes_terminated_total |
+| Node | karpenter_nodes_leases_deleted | karpenter_nodes_leases_deleted_total |
+| Node | karpenter_nodes_created | karpenter_nodes_created_total |
+| Pod | karpenter_pods_startup_time_seconds | karpenter_pods_startup_duration_seconds |
+| Disruption | karpenter_disruption_replacement_nodeclaim_failures_total | karpenter_voluntary_disruption_queue_failures_total |
+| Disruption | karpenter_disruption_evaluation_duration_seconds | karpenter_voluntary_disruption_decision_evaluation_duration_seconds |
+| Disruption | karpenter_disruption_eligible_nodes | karpenter_voluntary_disruption_eligible_nodes |
+| Disruption | karpenter_disruption_consolidation_timeouts_total | karpenter_voluntary_disruption_consolidation_timeouts_total |
+| Disruption | karpenter_disruption_budgets_allowed_disruptions | karpenter_nodepools_allowed_disruptions |
+| Disruption | karpenter_disruption_actions_performed_total | karpenter_voluntary_disruption_decisions_total |
+| Provisioner | karpenter_provisioner_scheduling_simulation_duration_seconds | karpenter_scheduler_scheduling_duration_seconds |
+| Provisioner | karpenter_provisioner_scheduling_queue_depth | karpenter_scheduler_queue_depth |
+| Interruption | karpenter_interruption_received_messages | karpenter_interruption_received_messages_total |
+| Interruption | karpenter_interruption_deleted_messages | karpenter_interruption_deleted_messages_total |
+| Interruption | karpenter_interruption_message_latency_time_seconds | karpenter_interruption_message_queue_duration_seconds |
+| NodePool     | karpenter_nodepool_usage | karpenter_nodepools_usage |
+| NodePool     | karpenter_nodepool_limit | karpenter_nodepools_limit |
+| NodeClaim    | karpenter_nodeclaims_terminated | karpenter_nodeclaims_terminated_total |
+| NodeClaim    | karpenter_nodeclaims_disrupted | karpenter_nodeclaims_disrupted_total |
+| NodeClaim    | karpenter_nodeclaims_created | karpenter_nodeclaims_created_total |
+
+This table shows v1beta1 metrics that were dropped for v1:
+
+| Metric type | Metric dropped for v1 |
+| Disruption  | karpenter_disruption_replacement_nodeclaim_initialized_seconds |
+| Disruption  | karpenter_disruption_queue_depth |
+| Disruption  | karpenter_disruption_pods_disrupted_total |
+|             | karpenter_consistency_errors |
+| NodeClaim   | karpenter_nodeclaims_registered |
+| NodeClaim   | karpenter_nodeclaims_launched |
+| NodeClaim   | karpenter_nodeclaims_initialized |
+| NodeClaim   | karpenter_nodeclaims_drifted |
+| Provisioner | karpenter_provisioner_scheduling_duration_seconds |
+| Interruption | karpenter_interruption_actions_performed |
 
 #### Results
 
 When you upgrade to `1.0.0` CRDs, Karpenter supports serving both the `v1beta1` versions and the `v1` versions of NodePools, NodeClaims, and EC2NodeClasses.
 The results of upgrading these CRDs include the following:
 
-* The storage version of these resources change to v1. After the upgrade, Karpenter starts converting these resources to v1 storage versins in real time.
+* The storage version of these resources change to v1. After the upgrade, Karpenter starts converting these resources to v1 storage versions in real time.
 Users should experience no differences from this change.
 
 * You are still able to GET and make updates using the v1beta1 versions.
-
 
 ### Upgrading to `0.37.0`+
 
