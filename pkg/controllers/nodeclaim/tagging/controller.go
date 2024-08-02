@@ -34,6 +34,7 @@ import (
 	"github.com/awslabs/operatorpkg/reasonable"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
+	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/instance"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
@@ -70,7 +71,10 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	if err = c.tagInstance(ctx, nodeClaim, id); err != nil {
 		return reconcile.Result{}, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 	}
-	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{v1.AnnotationInstanceTagged: "true"})
+	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
+		v1.AnnotationInstanceTagged:                  "true",
+		v1.AnnotationClusterNameTagCompatabilityHash: "true",
+	})
 	if !equality.Semantic.DeepEqual(nodeClaim, stored) {
 		if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
 			return reconcile.Result{}, client.IgnoreNotFound(err)
@@ -95,8 +99,9 @@ func (c *Controller) Register(_ context.Context, m manager.Manager) error {
 
 func (c *Controller) tagInstance(ctx context.Context, nc *karpv1.NodeClaim, id string) error {
 	tags := map[string]string{
-		v1.TagName:      nc.Status.NodeName,
-		v1.TagNodeClaim: nc.Name,
+		v1.TagName:              nc.Status.NodeName,
+		v1.TagNodeClaim:         nc.Name,
+		v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 	}
 
 	// Remove tags which have been already populated
@@ -120,7 +125,9 @@ func (c *Controller) tagInstance(ctx context.Context, nc *karpv1.NodeClaim, id s
 
 func isTaggable(nc *karpv1.NodeClaim) bool {
 	// Instance has already been tagged
-	if val := nc.Annotations[v1.AnnotationInstanceTagged]; val == "true" {
+	instanceTagged := nc.Annotations[v1.AnnotationInstanceTagged]
+	clusterNameTagged := nc.Annotations[v1.AnnotationCompatabilityClusterNameTagged]
+	if instanceTagged == "true" && clusterNameTagged == "true" {
 		return false
 	}
 	// Node name is not yet known
