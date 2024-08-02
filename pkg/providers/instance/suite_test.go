@@ -88,7 +88,7 @@ var _ = Describe("InstanceProvider", func() {
 		nodePool = coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Template: karpv1.NodeClaimTemplate{
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						NodeClassRef: &karpv1.NodeClassReference{
 							Group: object.GVK(nodeClass).Group,
 							Kind:  object.GVK(nodeClass).Kind,
