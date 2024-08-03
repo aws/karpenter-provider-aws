@@ -86,7 +86,8 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 			return lo.FromPtr(t.Key) == v1.EKSClusterNameTagKey
 		}) {
 			if _, err = p.iamapi.TagInstanceProfileWithContext(ctx, &iam.TagInstanceProfileInput{
-				Tags: lo.MapToSlice(tags, func(k, v string) *iam.Tag { return &iam.Tag{Key: aws.String(k), Value: aws.String(v)} }),
+				InstanceProfileName: aws.String(profileName),
+				Tags:                lo.MapToSlice(tags, func(k, v string) *iam.Tag { return &iam.Tag{Key: aws.String(k), Value: aws.String(v)} }),
 			}); err != nil {
 				return "", fmt.Errorf("tagging instance profile %q, %w", profileName, err)
 			}

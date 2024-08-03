@@ -83,7 +83,8 @@ Resources:
               ],
               "Condition": {
                 "StringEquals": {
-                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
+                  "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
                 },
                 "StringLike": {
                   "aws:RequestTag/karpenter.sh/nodepool": "*"
@@ -105,6 +106,7 @@ Resources:
               "Condition": {
                 "StringEquals": {
                   "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
                   "ec2:CreateAction": [
                     "RunInstances",
                     "CreateFleet",
@@ -123,17 +125,19 @@ Resources:
               "Action": "ec2:CreateTags",
               "Condition": {
                 "StringEquals": {
-                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
-                  "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+                  "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned"
                 },
                 "StringLike": {
                   "aws:ResourceTag/karpenter.sh/nodepool": "*"
                 },
+                "StringEqualsIfExists": {
+                  "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+                },
                 "ForAllValues:StringEquals": {
                   "aws:TagKeys": [
+                    "eks:eks-cluster-name",
                     "karpenter.sh/nodeclaim",
-                    "Name",
-                    "eks:eks-cluster-name"
+                    "Name"
                   ]
                 }
               }
@@ -222,6 +226,7 @@ Resources:
               "Condition": {
                 "StringEquals": {
                   "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+                  "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
                   "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
                 },
                 "StringLike": {
@@ -241,8 +246,8 @@ Resources:
                   "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
                   "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}",
                   "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
-                  "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}",
-                  "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+                  "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
+                  "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
                 },
                 "StringLike": {
                   "aws:ResourceTag/karpenter.k8s.aws/ec2nodeclass": "*",

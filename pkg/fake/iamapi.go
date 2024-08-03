@@ -37,6 +37,7 @@ type IAMAPIBehavior struct {
 	CreateInstanceProfileBehavior         MockedFunction[iam.CreateInstanceProfileInput, iam.CreateInstanceProfileOutput]
 	DeleteInstanceProfileBehavior         MockedFunction[iam.DeleteInstanceProfileInput, iam.DeleteInstanceProfileOutput]
 	AddRoleToInstanceProfileBehavior      MockedFunction[iam.AddRoleToInstanceProfileInput, iam.AddRoleToInstanceProfileOutput]
+	TagInstanceProfileBehavior            MockedFunction[iam.TagInstanceProfileInput, iam.TagInstanceProfileOutput]
 	RemoveRoleFromInstanceProfileBehavior MockedFunction[iam.RemoveRoleFromInstanceProfileInput, iam.RemoveRoleFromInstanceProfileOutput]
 }
 
@@ -107,6 +108,21 @@ func (s *IAMAPI) DeleteInstanceProfileWithContext(_ context.Context, input *iam.
 			}
 			delete(s.InstanceProfiles, aws.StringValue(input.InstanceProfileName))
 			return &iam.DeleteInstanceProfileOutput{}, nil
+		}
+		return nil, awserr.New(iam.ErrCodeNoSuchEntityException, fmt.Sprintf("Instance Profile %s cannot be found", aws.StringValue(input.InstanceProfileName)), nil)
+	})
+}
+
+func (s *IAMAPI) TagInstanceProfileWithContext(_ context.Context, input *iam.TagInstanceProfileInput, _ ...request.Option) (*iam.TagInstanceProfileOutput, error) {
+	return s.TagInstanceProfileBehavior.Invoke(input, func(output *iam.TagInstanceProfileInput) (*iam.TagInstanceProfileOutput, error) {
+		s.Lock()
+		defer s.Unlock()
+
+		if profile, ok := s.InstanceProfiles[aws.StringValue(input.InstanceProfileName)]; ok {
+			profile.Tags = lo.UniqBy(append(input.Tags, profile.Tags...), func(t *iam.Tag) string {
+				return lo.FromPtr(t.Key)
+			})
+			return nil, nil
 		}
 		return nil, awserr.New(iam.ErrCodeNoSuchEntityException, fmt.Sprintf("Instance Profile %s cannot be found", aws.StringValue(input.InstanceProfileName)), nil)
 	})

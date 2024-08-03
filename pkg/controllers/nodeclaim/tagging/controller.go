@@ -72,8 +72,8 @@ func (c *Controller) Reconcile(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return reconcile.Result{}, cloudprovider.IgnoreNodeClaimNotFoundError(err)
 	}
 	nodeClaim.Annotations = lo.Assign(nodeClaim.Annotations, map[string]string{
-		v1.AnnotationInstanceTagged:                  "true",
-		v1.AnnotationClusterNameTagCompatabilityHash: "true",
+		v1.AnnotationInstanceTagged:                 "true",
+		v1.AnnotationClusterNameTaggedCompatability: "true",
 	})
 	if !equality.Semantic.DeepEqual(nodeClaim, stored) {
 		if err := c.kubeClient.Patch(ctx, nodeClaim, client.MergeFrom(stored)); err != nil {
@@ -126,7 +126,7 @@ func (c *Controller) tagInstance(ctx context.Context, nc *karpv1.NodeClaim, id s
 func isTaggable(nc *karpv1.NodeClaim) bool {
 	// Instance has already been tagged
 	instanceTagged := nc.Annotations[v1.AnnotationInstanceTagged]
-	clusterNameTagged := nc.Annotations[v1.AnnotationCompatabilityClusterNameTagged]
+	clusterNameTagged := nc.Annotations[v1.AnnotationClusterNameTaggedCompatability]
 	if instanceTagged == "true" && clusterNameTagged == "true" {
 		return false
 	}

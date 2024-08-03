@@ -479,20 +479,22 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*
 	return createdNodes
 }
 
-func (env *Environment) ExpectNodeCount(comparator string, count int) {
+func (env *Environment) ExpectNodeCount(comparator string, count int) []*corev1.Node {
 	GinkgoHelper()
 
 	nodeList := &corev1.NodeList{}
 	Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 	Expect(len(nodeList.Items)).To(BeNumerically(comparator, count))
+	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) ExpectNodeClaimCount(comparator string, count int) {
+func (env *Environment) ExpectNodeClaimCount(comparator string, count int) []*karpv1.NodeClaim {
 	GinkgoHelper()
 
 	nodeClaimList := &karpv1.NodeClaimList{}
 	Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 	Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
+	return lo.ToSlicePtr(nodeClaimList.Items)
 }
 
 func NodeClaimNames(nodeClaims []*karpv1.NodeClaim) []string {
