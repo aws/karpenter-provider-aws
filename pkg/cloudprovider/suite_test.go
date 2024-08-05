@@ -241,6 +241,21 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 		Expect(zoneID).To(Equal(subnet.ZoneID))
 	})
+	It("should include nodeclaim with the original set of annotations", func() {
+		nodeClaim.Annotations = map[string]string{
+			"test-key-1": "test-value-1",
+			"test-key-2": "test-value-2",
+			"test-key-3": "test-value-3",
+		}
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderNodeClaim).ToNot(BeNil())
+		Expect(cloudProviderNodeClaim.ObjectMeta.Annotations["test-key-1"]).To(BeTrue())
+		Expect(cloudProviderNodeClaim.ObjectMeta.Annotations["test-key-2"]).To(BeTrue())
+		Expect(cloudProviderNodeClaim.ObjectMeta.Annotations["test-key-3"]).To(BeTrue())
+
+	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
