@@ -363,8 +363,8 @@ Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`
 AMIFamily is no longer responsible for AMI discovery, only UserData generation and default BlockDeviceMappings. To automatically discover EKS optimized AMIs, use the new `alias` amiSelectorTerms.
 
 Beginning with v1, Karpenter is no longer able to automatically discover Ubuntu AMIs.
-If still want to use Ubuntu, can set up a Custom `amiFamily` with amiSelectorTerms pinned to the latest Ubuntu AMI ID and reference `bootstrapMode: AL2` to get the same userData configuration you received before.
-See the v1 section of the ([Upgrade Guide]({{< relref "../upgrading/upgrade-guide/" >}})) for information on migrating an Ubuntu amiFamily to v1.
+If you still want to use Ubuntu, you can set up a Custom `amiFamily` with amiSelectorTerms pinned to the latest Ubuntu AMI, referencing `amiFamily: AL2` to get the same userData configuration you received before.
+See the v1 section of the ([Upgrade Guide]({{< relref "../upgrading/upgrade-guide/" >}})) for information on migrating the Ubuntu amiFamily to v1.
 
 ### AL2
 
@@ -632,7 +632,7 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 ## spec.amiSelectorTerms
 
-AMI Selector Terms are required and are used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
+AMI Selector Terms are __required__ and are used to configure custom AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
 
 This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
@@ -650,6 +650,7 @@ amiSelectorTerms:
   - id: ami-123
 ```
 
+An `alias` has the following format: `family@version`.
 Use the `alias` field to select an EKS-optimized AMI family and version. Family can be one of the following values:
 
 * `al2`
@@ -658,9 +659,8 @@ Use the `alias` field to select an EKS-optimized AMI family and version. Family 
 * `windows2019`
 * `windows2022`
 
-An `alias` has the following format: `family@version`.
 The version string can be set to `latest`, or pinned to a specific AMI using the format of that AMI's GitHub release tags.
-For example, AL2 and AL2023 use a date for their release, so they can be pinned as follows:
+For example, AL2 and AL2023 use dates for their release, so they can be pinned as follows:
 ```
 alias: al2023@v20240703
 ```
@@ -670,7 +670,7 @@ alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only latest is supported.
 
-To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To ensure that AMIs are owned by the expected owner, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
+To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
 If owner is not set for `name`, it defaults to `self,amazon`, preventing Karpenter from inadvertently selecting an AMI that is owned by a different account. Tags don't require an owner as tags can only be discovered by the user who created them.
 
