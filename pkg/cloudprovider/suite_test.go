@@ -249,6 +249,14 @@ var _ = Describe("CloudProvider", func() {
 		Expect(ok).To(BeTrue())
 		Expect(zoneID).To(Equal(subnet.ZoneID))
 	})
+	It("should expect a strict set of annotation keys", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderNodeClaim).ToNot(BeNil())
+		Expect(len(lo.Keys(cloudProviderNodeClaim.Annotations))).To(BeNumerically("==", 3))
+		Expect(lo.Keys(cloudProviderNodeClaim.Annotations)).To(ContainElements(v1.AnnotationKubeletCompatibilityHash, v1.AnnotationEC2NodeClassHash, v1.AnnotationEC2NodeClassHashVersion))
+	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
