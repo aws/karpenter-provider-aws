@@ -1,3 +1,7 @@
+crds:
+  # Set to true will add the "helm.sh/resource-policy": keep annotation to the CRDs.
+  # This will prevent Helm from uninstalling the CRDs.
+  keep: true
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
   enabled: true

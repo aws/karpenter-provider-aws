@@ -96,6 +96,10 @@ extraVolumes: []
 #         audience: sts.amazonaws.com
 #         expirationSeconds: 86400
 #         path: token
+crds:
+  # Set to true will add the "helm.sh/resource-policy": keep annotation to the CRDs.
+  # This will prevent Helm from uninstalling the CRDs.
+  keep: true
 controller:
   image:
     # -- Repository path to the controller image.

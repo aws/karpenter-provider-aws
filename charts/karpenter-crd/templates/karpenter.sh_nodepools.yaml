@@ -4,6 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.15.0
+{{- if .Values.crds.keep }}
+    helm.sh/resource-policy: keep
+{{- end }}
   name: nodepools.karpenter.sh
 spec:
   group: karpenter.sh

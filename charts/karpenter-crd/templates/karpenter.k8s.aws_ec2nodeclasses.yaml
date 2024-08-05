@@ -4,6 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.15.0
+{{- if .Values.crds.keep }}
+    helm.sh/resource-policy: keep
+{{- end }}
   name: ec2nodeclasses.karpenter.k8s.aws
 spec:
   group: karpenter.k8s.aws
