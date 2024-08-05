@@ -97,8 +97,11 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, err
 	}
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
-	if !nodeClassReady.IsTrue() {
-		return nil, fmt.Errorf("resolving ec2nodeclass, %s", nodeClassReady.Message)
+	if nodeClassReady.IsFalse() {
+		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf(nodeClassReady.Message))
+	}
+	if nodeClassReady.IsUnknown() {
+		return nil, fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message)
 	}
 	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
 	if err != nil {
