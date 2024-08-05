@@ -208,7 +208,10 @@ spec:
                               rule: self.all(x, x in ["karpenter.k8s.aws/instance-encryption-in-transit-supported", "karpenter.k8s.aws/instance-category", "karpenter.k8s.aws/instance-hypervisor", "karpenter.k8s.aws/instance-family", "karpenter.k8s.aws/instance-generation", "karpenter.k8s.aws/instance-local-nvme", "karpenter.k8s.aws/instance-size", "karpenter.k8s.aws/instance-cpu","karpenter.k8s.aws/instance-cpu-manufacturer","karpenter.k8s.aws/instance-memory", "karpenter.k8s.aws/instance-ebs-bandwidth", "karpenter.k8s.aws/instance-network-bandwidth", "karpenter.k8s.aws/instance-gpu-name", "karpenter.k8s.aws/instance-gpu-manufacturer", "karpenter.k8s.aws/instance-gpu-count", "karpenter.k8s.aws/instance-gpu-memory", "karpenter.k8s.aws/instance-accelerator-name", "karpenter.k8s.aws/instance-accelerator-manufacturer", "karpenter.k8s.aws/instance-accelerator-count"] || !x.find("^([^/]+)").endsWith("karpenter.k8s.aws"))
                       type: object
                     spec:
-                      description: NodeClaimSpec describes the desired state of the NodeClaim
+                      description: |-
+                        NodeClaimTemplateSpec describes the desired state of the NodeClaim in the Nodepool
+                        NodeClaimTemplateSpec is used in the NodePool's NodeClaimTemplate, with the resource requests omitted since
+                        users are not able to set resource requests in the NodePool.
                       properties:
                         expireAfter:
                           default: 720h
@@ -584,19 +587,6 @@ spec:
                               Ref: https://github.com/kubernetes-sigs/controller-tools/blob/55efe4be40394a288216dab63156b0a64fb82929/pkg/crd/markers/validation.go#L379-L388
                             pattern: ^((100|[0-9]{1,2})%|[0-9]+)$
                             type: string
-                          reasons:
-                            description: |-
-                              Reasons is a list of disruption methods that this budget applies to. If Reasons is not set, this budget applies to all methods.
-                              Otherwise, this will apply to each reason defined.
-                              allowed reasons are Underutilized, Empty, and Drifted.
-                            items:
-                              description: DisruptionReason defines valid reasons for disruption budgets.
-                              enum:
-                                - Underutilized
-                                - Empty
-                                - Drifted
-                              type: string
-                            type: array
                           schedule:
                             description: |-
                               Schedule specifies when a budget begins being active, following

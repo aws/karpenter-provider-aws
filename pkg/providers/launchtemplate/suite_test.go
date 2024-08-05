@@ -165,7 +165,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						// TODO @joinnis: Move this into the coretest.NodePool function
 						Labels: map[string]string{coretest.DiscoveryLabel: "unspecified"},
 					},
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -203,7 +203,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		nodePool2 := coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Template: karpv1.NodeClaimTemplate{
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -299,8 +299,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(*launchTemplate.LaunchTemplateSpecification.Version).To(Equal("$Latest"))
 		})
 	})
-	It("should fail to provision if the instance profile isn't defined", func() {
+	It("should fail to provision if the instance profile isn't ready", func() {
 		nodeClass.Status.InstanceProfile = ""
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "reason", "message")
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod()
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -309,6 +310,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	It("should use the instance profile on the EC2NodeClass when specified", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = aws.String("overridden-profile")
+		nodeClass.Status.InstanceProfile = "overridden-profile"
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod()
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)

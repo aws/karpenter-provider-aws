@@ -420,7 +420,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Spec: karpv1.NodePoolSpec{
 					Weight: lo.ToPtr(int32(10)),
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,
@@ -450,7 +450,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Spec: karpv1.NodePoolSpec{
 					Weight: lo.ToPtr(int32(100)),
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,

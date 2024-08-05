@@ -16,7 +16,6 @@ package launchtemplate
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -160,10 +159,6 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1.EC
 			delete(labels, k)
 		}
 	}
-	instanceProfile, err := p.getInstanceProfile(nodeClass)
-	if err != nil {
-		return nil, err
-	}
 	// Relying on the status rather than an API call means that Karpenter is subject to a race
 	// condition where EC2NodeClass spec changes haven't propagated to the status once a node
 	// has launched.
@@ -178,7 +173,7 @@ func (p *DefaultProvider) createAMIOptions(ctx context.Context, nodeClass *v1.EC
 		ClusterName:              options.FromContext(ctx).ClusterName,
 		ClusterEndpoint:          p.ClusterEndpoint,
 		ClusterCIDR:              p.ClusterCIDR.Load(),
-		InstanceProfile:          instanceProfile,
+		InstanceProfile:          nodeClass.Status.InstanceProfile,
 		InstanceStorePolicy:      nodeClass.Spec.InstanceStorePolicy,
 		SecurityGroups:           nodeClass.Status.SecurityGroups,
 		Tags:                     tags,
@@ -371,19 +366,6 @@ func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, in
 			"name", aws.StringValue(launchTemplate.LaunchTemplateName),
 		).V(1).Info("deleted launch template")
 	}
-}
-
-func (p *DefaultProvider) getInstanceProfile(nodeClass *v1.EC2NodeClass) (string, error) {
-	if nodeClass.Spec.InstanceProfile != nil {
-		return aws.StringValue(nodeClass.Spec.InstanceProfile), nil
-	}
-	if nodeClass.Spec.Role != "" {
-		if nodeClass.Status.InstanceProfile == "" {
-			return "", cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("instance profile hasn't resolved for role"))
-		}
-		return nodeClass.Status.InstanceProfile, nil
-	}
-	return "", errors.New("neither spec.instanceProfile or spec.role is specified")
 }
 
 func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeClass) error {

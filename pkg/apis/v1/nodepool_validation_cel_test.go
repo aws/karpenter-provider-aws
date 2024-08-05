@@ -38,7 +38,7 @@ var _ = Describe("CEL/Validation", func() {
 			ObjectMeta: metav1.ObjectMeta{Name: strings.ToLower(randomdata.SillyName())},
 			Spec: karpv1.NodePoolSpec{
 				Template: karpv1.NodeClaimTemplate{
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						NodeClassRef: &karpv1.NodeClassReference{
 							Group: "karpenter.k8s.aws",
 							Kind:  "EC2NodeClass",

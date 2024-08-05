@@ -521,7 +521,7 @@ var _ = Describe("Consolidation", func() {
 						ConsolidateAfter: karpv1.NillableDuration{},
 					},
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -604,7 +604,7 @@ var _ = Describe("Consolidation", func() {
 						ConsolidateAfter: karpv1.NillableDuration{},
 					},
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 								{
 									NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -759,7 +759,7 @@ var _ = Describe("Consolidation", func() {
 					ConsolidateAfter: karpv1.NillableDuration{},
 				},
 				Template: karpv1.NodeClaimTemplate{
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
