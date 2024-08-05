@@ -180,6 +180,7 @@ type AMISelectorTerm struct {
 	// Note: The Windows families do **not** support version pinning, and only latest may be used.
 	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]*@.*$')"
 	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.find('^[^@]+') in ['al2','al2023','bottlerocket','windows2019','windows2022']"
+	// +kubebuilder:validation:XValidation:message="windows families may only specify version 'latest'",rule="self.find('^[^@]+') in ['windows2019','windows2022'] ? self.split('@')[1] == 'latest': true"
 	// +kubebuilder:validation:MaxLength=30
 	// +optional
 	Alias string `json:"alias,omitempty"`

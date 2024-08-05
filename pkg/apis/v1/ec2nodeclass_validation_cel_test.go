@@ -604,6 +604,15 @@ var _ = Describe("CEL/Validation", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "ubuntu@latest"}}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
+		DescribeTable(
+			"should fail when specifying non-latest versions with Windows aliases",
+			func(alias string) {
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			},
+			Entry("Windows2019", "windows2019@v1.0.0"),
+			Entry("Windows2022", "windows2022@v1.0.0"),
+		)
 	})
 	Context("Kubelet", func() {
 		It("should fail on kubeReserved with invalid keys", func() {
