@@ -1,3 +1,6 @@
+# -- Additional annotations for the custom resource definitions.
+additionalAnnotations: {}
+
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
   enabled: true
