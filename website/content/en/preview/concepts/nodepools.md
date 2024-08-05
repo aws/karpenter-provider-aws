@@ -127,7 +127,6 @@ spec:
     consolidationPolicy: WhenEmptyOrUnderutilized | WhenEmpty
 
     # The amount of time Karpenter should wait after discovering a consolidation decision
-    # This value can currently only be set when the consolidationPolicy is 'WhenEmpty'
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
     consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 
