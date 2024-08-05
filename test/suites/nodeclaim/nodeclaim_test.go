@@ -343,8 +343,8 @@ var _ = Describe("StandaloneNodeClaim", func() {
 			temp := &karpv1.NodeClaim{}
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), temp)).To(Succeed())
 			g.Expect(temp.StatusConditions().Get(karpv1.ConditionTypeLaunched).IsTrue()).To(BeTrue())
-			g.Expect(temp.StatusConditions().Get(karpv1.ConditionTypeRegistered).IsFalse()).To(BeTrue())
-			g.Expect(temp.StatusConditions().Get(karpv1.ConditionTypeInitialized).IsFalse()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Get(karpv1.ConditionTypeRegistered).IsUnknown()).To(BeTrue())
+			g.Expect(temp.StatusConditions().Get(karpv1.ConditionTypeInitialized).IsUnknown()).To(BeTrue())
 		}).Should(Succeed())
 
 		// Expect that the nodeClaim is eventually de-provisioned due to the registration timeout
@@ -378,7 +378,7 @@ var _ = Describe("StandaloneNodeClaim", func() {
 		})
 		// Don't create the NodeClass and expect that the NodeClaim fails and gets deleted
 		env.ExpectCreated(nodeClaim)
-		env.ExpectDeleted(nodeClaim)
+		env.EventuallyExpectNotFound(nodeClaim)
 	})
 	It("should delete a NodeClaim if it references a NodeClass that isn't Ready", func() {
 		nodeClaim := test.NodeClaim(karpv1.NodeClaim{
@@ -407,8 +407,9 @@ var _ = Describe("StandaloneNodeClaim", func() {
 			},
 		})
 		// Point to an AMI that doesn't exist so that the NodeClass goes NotReady
+		nodeClass.Spec.AMIFamily = &v1.AMIFamilyAL2023
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-123456789"}}
 		env.ExpectCreated(nodeClass, nodeClaim)
-		env.ExpectDeleted(nodeClaim)
+		env.EventuallyExpectNotFound(nodeClaim)
 	})
 })
