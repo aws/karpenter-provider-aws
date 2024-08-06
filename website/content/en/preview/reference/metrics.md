@@ -37,11 +37,11 @@ Number of nodeclaims created in total by Karpenter. Labeled by reason the nodecl
 ## Nodes Metrics
 
 ### `karpenter_nodes_total_pod_requests`
-Node total pod requests are the resources requested by non-DaemonSet pods bound to nodes.
+Node total pod requests are the resources requested by pods bound to nodes, including the DaemonSet pods.
 - Stability Level: BETA
 
 ### `karpenter_nodes_total_pod_limits`
-Node total pod limits are the resources specified by non-DaemonSet pod limits.
+Node total pod limits are the resources specified by pod limits, including the DaemonSet pods.
 - Stability Level: BETA
 
 ### `karpenter_nodes_total_daemon_requests`
