@@ -7,8 +7,7 @@ metadata:
     {{- include "karpenter.labels" . | nindent 4 }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade,post-rollback
-    "helm.sh/hook-delete-policy": hook-succeeded
-    "helm.sh/hook-delete-policy": hook-failed
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded,hook-failed   
     {{- with .Values.additionalAnnotations }}
       {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -38,5 +37,5 @@ spec:
             kubectl patch customresourcedefinitions nodepools.karpenter.sh  --type='json' -p '[{'op': 'remove', 'path': '/spec/conversion'}]'
             kubectl patch customresourcedefinitions nodeclaims.karpenter.sh  --type='json' -p '[{'op': 'remove', 'path': '/spec/conversion'}]'
             kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws  --type='json' -p '[{'op': 'remove', 'path': '/spec/conversion'}]'
-          {{ end}}
+          {{- end }}
 
