@@ -130,3 +130,147 @@ to a Karpenter user, NodeClaims are immutable and cannot be modified.
 NodeClaims should only be a tool for monitoring.
 
 For details on Karpenter disruption, see [Disruption]({{< ref "./disruption" >}}).
+
+## NodeClaim example
+The following is an example of a NodeClaim. Keep in mind that you cannot modify a NodeClaim, so it is only included here as something you can view.
+To see the contents of a NodeClaim, get the name of your NodeClaim, then run `kubectl describe` to see its contents:
+
+```
+kubectl get nodeclaim
+NAME            TYPE               ZONE         NODE                                           READY   AGE
+default-m6pzn   c7i-flex.2xlarge   us-west-1a   ip-xxx-xxx-xx-xxx.us-west-1.compute.internal   True    7m50s
+
+kubectl describe nodeclaim default-m6pzn
+```
+Starting at the bottom of this example, here are some highlights of what the NodeClaim contains:
+
+* The Node Name (ip-xxx-xxx-xx-xxx.us-west-1.compute.internal) and Provider IDi (aws:///us-west-1a/i-xxxxxxxxxxxxxxxxx) identify the instance that is fulfilling this NodeClaim.
+* Image ID (ami-0ccbbed159cce4e37) represents the operating system image running on the node.
+* Status shows the resources that are available on the node (CPU, memory, and so on) as well as the conditions associated with the node. The conditions show the status of the node, including whether the node is launched, registered, and healthy. This is particularly useful if Pods are not deploying to the node and you want to determine the cause.
+* The Spec sections show the values of different NodeClaim objects. For example, you can see the type of operating system running (linux), the instance type and category, the NodePool that was used for the NodeClaim, the node's architecture (amd64), and resources such as CPU and number of Pods currently running on the node.
+* Metadata show information about how the NodeClaim was created.
+* Other information shows labels and annotations on the node, the API version, and Kind (NodeClaim).
+
+```
+Name:         default-m6pzn
+Namespace:
+Labels:       karpenter.k8s.aws/instance-category=c
+              karpenter.k8s.aws/instance-cpu=8
+              karpenter.k8s.aws/instance-cpu-manufacturer=intel
+              karpenter.k8s.aws/instance-ebs-bandwidth=10000
+              karpenter.k8s.aws/instance-encryption-in-transit-supported=true
+              karpenter.k8s.aws/instance-family=c7i-flex
+              karpenter.k8s.aws/instance-generation=7
+              karpenter.k8s.aws/instance-hypervisor=nitro
+              karpenter.k8s.aws/instance-memory=16384
+              karpenter.k8s.aws/instance-network-bandwidth=1562
+              karpenter.k8s.aws/instance-size=2xlarge
+              karpenter.sh/capacity-type=spot
+              karpenter.sh/nodepool=default
+              kubernetes.io/arch=amd64
+              kubernetes.io/os=linux
+              node.kubernetes.io/instance-type=c7i-flex.2xlarge
+              topology.k8s.aws/zone-id=usw1-az3
+              topology.kubernetes.io/region=us-west-1
+              topology.kubernetes.io/zone=us-west-1a
+Annotations:  karpenter.k8s.aws/ec2nodeclass-hash: 164893570827491067
+              karpenter.k8s.aws/ec2nodeclass-hash-version: v2
+              karpenter.k8s.aws/tagged: true
+              karpenter.sh/nodepool-hash: 15093649574832938182
+              karpenter.sh/nodepool-hash-version: v2
+API Version:  karpenter.sh/v1beta1
+Kind:         NodeClaim
+Metadata:
+  Creation Timestamp:  2024-08-06T15:33:27Z
+  Finalizers:
+    karpenter.sh/termination
+  Generate Name:  default-
+  Generation:     1
+  Owner References:
+    API Version:           karpenter.sh/v1beta1
+    Block Owner Deletion:  true
+    Kind:                  NodePool
+    Name:                  default
+    UID:                   fd25d0e6-1ab3-4ac8-a377-a46cbd0d9b03
+  Resource Version:        486466
+  UID:                     6d4ead04-979f-42a3-ab7c-d697b10155f8
+Spec:
+  Node Class Ref:
+    API Version:  karpenter.k8s.aws/v1beta1
+    Kind:         EC2NodeClass
+    Name:         default
+  Requirements:
+    Key:       kubernetes.io/os
+    Operator:  In
+    Values:
+      linux
+    Key:       karpenter.sh/capacity-type
+    Operator:  In
+    Values:
+      spot
+    Key:       node.kubernetes.io/instance-type
+    Operator:  In
+    Values:
+      c3.2xlarge
+      c3.4xlarge
+      c3.8xlarge
+      ...
+    Key:       karpenter.k8s.aws/instance-category
+    Operator:  In
+    Values:
+      c
+      m
+      r
+    Key:       karpenter.k8s.aws/instance-generation
+    Operator:  Gt
+    Values:
+      2
+    Key:       karpenter.sh/nodepool
+    Operator:  In
+    Values:
+      default
+    Key:       kubernetes.io/arch
+    Operator:  In
+    Values:
+      amd64
+  Resources:
+    Requests:
+      Cpu:   5150m
+      Pods:  8
+Status:
+  Allocatable:
+    Cpu:                  7910m
+    Ephemeral - Storage:  17Gi
+    Memory:               14162Mi
+    Pods:                 58
+  Capacity:
+    Cpu:                  8
+    Ephemeral - Storage:  20Gi
+    Memory:               15155Mi
+    Pods:                 58
+  Conditions:
+    Last Transition Time:  2024-08-06T15:34:01Z
+    Message:               KnownEphemeralTaint "node.kubernetes.io/not-ready:NoSchedule" still exists
+    Reason:                KnownEphemeralTaintsExist
+    Status:                False
+    Type:                  Initialized
+    Last Transition Time:  2024-08-06T15:33:30Z
+    Message:
+    Reason:                Launched
+    Status:                True
+    Type:                  Launched
+    Last Transition Time:  2024-08-06T15:33:51Z
+    Message:               Initialized=False
+    Reason:                UnhealthyDependents
+    Status:                False
+    Type:                  Ready
+    Last Transition Time:  2024-08-06T15:33:51Z
+    Message:
+    Reason:                Registered
+    Status:                True
+    Type:                  Registered
+  Image ID:                ami-0ccbbed159cce4e37
+  Node Name:               ip-xxx-xxx-xx-xxx.us-west-1.compute.internal
+  Provider ID:             aws:///us-west-1a/i-xxxxxxxxxxxxxxxxx
+Events:          
+```
