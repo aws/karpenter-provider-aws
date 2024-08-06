@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/iam"
 	"github.com/awslabs/operatorpkg/object"
 
 	"github.com/samber/lo"
@@ -55,14 +56,14 @@ var _ = Describe("Tags", func() {
 				return ni.NetworkInterfaceId
 			})...)
 
-			Expect(tagMap(instance.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
+			Expect(instance.Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 			for _, volume := range volumes {
-				Expect(tagMap(volume.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
+				Expect(volume.Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 			}
 			for _, networkInterface := range networkInterfaces {
 				// Any ENI that contains this createdAt tag was created by the VPC CNI DaemonSet
-				if _, ok := tagMap(networkInterface.TagSet)[createdAtTag]; !ok {
-					Expect(tagMap(networkInterface.TagSet)).To(HaveKeyWithValue("TestTag", "TestVal"))
+				if !lo.ContainsBy(networkInterface.TagSet, func(t *ec2.Tag) bool { return lo.FromPtr(t.Key) == createdAtTag }) {
+					Expect(networkInterface.TagSet).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
 				}
 			}
 		})
@@ -82,7 +83,41 @@ var _ = Describe("Tags", func() {
 			instance := env.GetInstance(pod.Spec.NodeName)
 			Expect(instance.SpotInstanceRequestId).ToNot(BeNil())
 			spotInstanceRequest := env.GetSpotInstanceRequest(instance.SpotInstanceRequestId)
-			Expect(tagMap(spotInstanceRequest.Tags)).To(HaveKeyWithValue("TestTag", "TestVal"))
+			Expect(spotInstanceRequest.Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr("TestTag"), Value: lo.ToPtr("TestVal")}))
+		})
+		It("should tag managed instance profiles", func() {
+			nodeClass.Spec.Tags["TestTag"] = "TestVal"
+			env.ExpectCreated(nodeClass)
+
+			profile := env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
+			Expect(profile.Tags).To(ContainElements(
+				&iam.Tag{Key: lo.ToPtr(fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName)), Value: lo.ToPtr("owned")},
+				&iam.Tag{Key: lo.ToPtr(v1.LabelNodeClass), Value: lo.ToPtr(nodeClass.Name)},
+				&iam.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)},
+			))
+		})
+		It("should tag managed instance profiles with the eks:eks-cluster-name tag key after restart", func() {
+			env.ExpectCreated(nodeClass)
+			env.EventuallyExpectInstanceProfileExists(env.GetInstanceProfileName(nodeClass))
+
+			_, err := env.IAMAPI.UntagInstanceProfile(&iam.UntagInstanceProfileInput{
+				InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
+				TagKeys: []*string{
+					lo.ToPtr(v1.EKSClusterNameTagKey),
+				},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			// Restart Karpenter to flush the instance profile cache and to trigger re-tagging of the instance profile
+			env.EventuallyExpectKarpenterRestarted()
+
+			Eventually(func(g Gomega) {
+				out, err := env.IAMAPI.GetInstanceProfile(&iam.GetInstanceProfileInput{
+					InstanceProfileName: lo.ToPtr(env.GetInstanceProfileName(nodeClass)),
+				})
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(out.InstanceProfile.Tags).To(ContainElement(&iam.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
+			}).WithTimeout(time.Second * 20).Should(Succeed())
 		})
 	})
 
@@ -93,19 +128,19 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectCreatedNodeCount("==", 1)
 			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
-			nodeName := client.ObjectKeyFromObject(node)
+			nodeClaim := env.ExpectNodeClaimCount("==", 1)[0]
 
 			Eventually(func(g Gomega) {
-				node = &corev1.Node{}
-				g.Expect(env.Client.Get(env.Context, nodeName, node)).To(Succeed())
-				g.Expect(node.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
-			}, time.Minute)
+				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
+				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationClusterNameTaggedCompatability, "true"))
+			}, time.Minute).Should(Succeed())
 
 			nodeInstance := instance.NewInstance(lo.ToPtr(env.GetInstance(node.Name)))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", node.Name))
-			Expect(nodeInstance.Tags).To(HaveKey("karpenter.sh/nodeclaim"))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue("karpenter.sh/nodeclaim", nodeClaim.Name))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue("eks:eks-cluster-name", env.ClusterName))
 		})
-
 		It("shouldn't overwrite custom Name tags", func() {
 			nodeClass = test.EC2NodeClass(*nodeClass, v1.EC2NodeClass{Spec: v1.EC2NodeClassSpec{
 				Tags: map[string]string{"Name": "custom-name", "testing/cluster": env.ClusterName},
@@ -132,23 +167,54 @@ var _ = Describe("Tags", func() {
 			env.ExpectCreated(nodePool, nodeClass, pod)
 			env.EventuallyExpectCreatedNodeCount("==", 1)
 			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
-			nodeName := client.ObjectKeyFromObject(node)
+			nodeClaim := env.ExpectNodeClaimCount("==", 1)[0]
 
 			Eventually(func(g Gomega) {
-				node = &corev1.Node{}
-				g.Expect(env.Client.Get(env.Context, nodeName, node)).To(Succeed())
-				g.Expect(node.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
-			}, time.Minute)
+				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
+				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationClusterNameTaggedCompatability, "true"))
+			}, time.Minute).Should(Succeed())
 
 			nodeInstance := instance.NewInstance(lo.ToPtr(env.GetInstance(node.Name)))
 			Expect(nodeInstance.Tags).To(HaveKeyWithValue("Name", "custom-name"))
-			Expect(nodeInstance.Tags).To(HaveKey("karpenter.sh/nodeclaim"))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue("karpenter.sh/nodeclaim", nodeClaim.Name))
+			Expect(nodeInstance.Tags).To(HaveKeyWithValue("eks:eks-cluster-name", env.ClusterName))
+		})
+		It("should tag instance with eks:eks-cluster-name tag when the tag doesn't exist", func() {
+			pod := coretest.Pod()
+
+			env.ExpectCreated(nodePool, nodeClass, pod)
+			env.EventuallyExpectCreatedNodeCount("==", 1)
+			node := env.EventuallyExpectInitializedNodeCount("==", 1)[0]
+			nodeClaim := env.ExpectNodeClaimCount("==", 1)[0]
+
+			Eventually(func(g Gomega) {
+				g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationInstanceTagged, "true"))
+				g.Expect(nodeClaim.Annotations).To(HaveKeyWithValue(v1.AnnotationClusterNameTaggedCompatability, "true"))
+			}, time.Minute).Should(Succeed())
+
+			_, err := env.EC2API.DeleteTags(&ec2.DeleteTagsInput{
+				Resources: []*string{lo.ToPtr(env.ExpectParsedProviderID(node.Spec.ProviderID))},
+				Tags:      []*ec2.Tag{{Key: lo.ToPtr(v1.EKSClusterNameTagKey)}},
+			})
+			Expect(err).ToNot(HaveOccurred())
+
+			By(fmt.Sprintf("Removing the %s annotation to re-trigger tagging", v1.AnnotationClusterNameTaggedCompatability))
+			Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(nodeClaim), nodeClaim)).To(Succeed())
+			delete(nodeClaim.Annotations, v1.AnnotationClusterNameTaggedCompatability)
+			env.ExpectUpdated(nodeClaim)
+
+			By(fmt.Sprintf("Polling for the %s tag update", v1.EKSClusterNameTagKey))
+			Eventually(func(g Gomega) {
+				out, err := env.EC2API.DescribeInstances(&ec2.DescribeInstancesInput{
+					InstanceIds: []*string{lo.ToPtr(env.ExpectParsedProviderID(node.Spec.ProviderID))},
+				})
+				g.Expect(err).ToNot(HaveOccurred())
+				g.Expect(out.Reservations).To(HaveLen(1))
+				g.Expect(out.Reservations[0].Instances).To(HaveLen(1))
+				g.Expect(out.Reservations[0].Instances[0].Tags).To(ContainElement(&ec2.Tag{Key: lo.ToPtr(v1.EKSClusterNameTagKey), Value: lo.ToPtr(env.ClusterName)}))
+			}).Should(Succeed())
 		})
 	})
 })
-
-func tagMap(tags []*ec2.Tag) map[string]string {
-	return lo.SliceToMap(tags, func(tag *ec2.Tag) (string, string) {
-		return *tag.Key, *tag.Value
-	})
-}
