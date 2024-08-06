@@ -32,14 +32,13 @@ This procedure assumes you are running the Karpenter controller on cluster and w
    Image: public.ecr.aws/karpenter/controller:0.37.1@sha256:157f478f5db1fe999f5e2d27badcc742bf51cc470508b3cebe78224d0947674f
    ```
 
-   The Karpenter version you are running must be between minor version `v0.32` and `v0.37`. To be able to roll back from Karpenter v1, we recommend that you also be on at least the following patch release versions for your minor version:
+   The Karpenter version you are running must be between minor version `v0.33` and `v0.37`. To be able to roll back from Karpenter v1, you must be on at least the following patch release versions for your minor version, which will include the conversion webhooks for a smooth rollback:
 
    * v0.37.1
    * v0.36.3
    * v0.35.6
    * v0.34.7
    * v0.33.6
-   * v0.32.11
 
 2. Review for breaking changes: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
@@ -74,16 +73,16 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 
 5. Apply the v1.0.0 Custom Resource Definitions (CRDs):
 
-   ?????  I'm not able to try this since CRDs don't seem to exist yet.  ?????
-
    ```bash
-   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v1.0.0/pkg/apis/crds/karpenter.sh_nodepools.yaml
-   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v1.0.0/pkg/apis/crds/karpenter.sh_nodeclaims.yaml
-   kubectl apply -f https://raw.githubusercontent.com/aws/karpenter-provider-aws/v1.0.0/pkg/apis/crds/karpenter.k8s.aws_ec2nodeclasses.yaml
+   KARPENTER_NAMESPACE=kube-system 
+   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version 1.0.0 --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+        --set webhook.enabled=true \
+        --set webhook.serviceName=karpenter \
+        --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
+        --set webhook.port=8443
     ```
 
-6. Upgrade Karpenter to the new version:
-   ????? Assuming the karpenter version is 1.0.0, it is not yet available to test.  ?????
+6. Upgrade Karpenter to the new version. At the end of this process, [conversion webhooks](https://github.com/aws/karpenter-provider-aws/blob/main/charts/karpenter/templates/post-install-hook.yaml) run to convert the Karpenter CRDs to v1. You can choose to add the `--no-hooks` flag to prevent the post-install hook from running in the cluster:
 
     ```bash
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace kube-system --create-namespace \
