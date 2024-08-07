@@ -356,11 +356,9 @@ It's currently not possible to specify custom networking with Windows nodes.
 
 AMIFamily dictates the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` and also selects a group of recommended, latest AMIs by default.
 An `amiFamily` is only required if you don't specify a `spec.amiSelectorTerms.alias` object.
-For example, if you specify `alias: al2023@v20240625`, the `amiFamily is implicitly `al2023`.
+For example, if you specify `alias: al2023@v20240625`, the `amiFamily is implicitly `AL2023`.
 
-Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
-
-AMIFamily is no longer responsible for AMI discovery, only UserData generation and default BlockDeviceMappings. To automatically discover EKS optimized AMIs, use the new `alias` amiSelectorTerms.
+AMIFamily is no longer responsible for AMI discovery, only UserData generation and default BlockDeviceMappings. To automatically discover EKS optimized AMIs, use the new [`alias` field in amiSelectorTerms]({{< ref "#specamiselectorterms" >}}).
 
 Beginning with v1, Karpenter is no longer able to automatically discover Ubuntu AMIs.
 If you still want to use Ubuntu, you can set up a Custom `amiFamily` with amiSelectorTerms pinned to the latest Ubuntu AMI, referencing `amiFamily: AL2` to get the same userData configuration you received before.
@@ -668,9 +666,9 @@ Bottlerocket uses a semantic version for their releases. You can pin bottlerocke
 ```
 alias: bottlerocket@v1.20.4
 ```
-The Windows family does not support pinning, so only latest is supported.
+The Windows family does not support pinning, so only `latest` is supported.
 
-To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
+To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are not owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
 If owner is not set for `name`, it defaults to `self,amazon`, preventing Karpenter from inadvertently selecting an AMI that is owned by a different account. Tags don't require an owner as tags can only be discovered by the user who created them.
 

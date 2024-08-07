@@ -14,15 +14,15 @@ Before you begin upgrading to `1.0.0`, you should know that:
 * Every Karpenter upgrade from pre-v1.0.0 versions must go through an upgrade to minor version `v1.0.0`.
 * You must be upgrading to `v1.0.0` from a version of Karpenter that supports NodePools, NodeClaims, and NodeClasses (`0.32.0`+ Karpenter versions support v1beta1 APIs).
 * Karpenter `1.0.0`+ supports Karpenter v1 and v1beta1 APIs and will not work with earlier Provisioner, AWSNodeTemplate or Machine alpha APIs. Do not upgrade to `1.0.0`+ without first [upgrading to `0.32.x`]({{<ref "upgrade-guide#upgrading-to-0320" >}}) or later.
-* Because version `1.0.0` supports both the v1beta1 and v1 APIs, it allows you to migrate your existing APIs without experiencing downtime.
+* Version `1.0.0` adds [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion) to automatically pull the v1 API version of previously applied v1beta1 NodePools, EC2NodeClasses, and NodeClaims. Karpenter will stop serving the v1beta1 API version at v1.1.0 and will drop the conversion webhooks at that time. You will need to migrate all stored manifests to v1 API versions on Karpenter v1.0+. Keep in mind that this is a conversion and not dual support, which means that resources are updated in-place rather than migrated over from the previous version.
+
+See the [Changelog]({{<ref "#changelog" >}}) for details about actions you should take before upgrading to v1.0 or v1.1.
 
 ## Upgrade Procedure
 
-This procedure assumes you are running the Karpenter controller on cluster and want to upgrade that cluster to v1.0.0.
+Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so you should carefully evaluate your cluster and workloads before proceeding.
 
-**NOTE**: Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so you should carefully evaluate your cluster and workloads before proceeding.
-
-1. Determine the current cluster version: Run the following to make sure that your Karpenter version is between `v0.32.11` and `v0.37.1`:
+1. Determine the current cluster version: Run the following to make check your Karpenter version:
    ```bash
    kubectl get pod -A | grep karpenter
    kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image: 
@@ -43,11 +43,10 @@ This procedure assumes you are running the Karpenter controller on cluster and w
 2. Review for breaking changes: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
 3. Set environment variables for your cluster:
-   ????? Should we set  KARPENTER_VERSION=v1.0.0 ??????
 
     ```bash
     export KARPENTER_NAMESPACE=kube-system
-    export KARPENTER_VERSION=v1.0.0
+    export KARPENTER_VERSION=1.0.0
     export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
     export CLUSTER_NAME="${USER}-karpenter-demo"
     export AWS_REGION="us-west-2"
@@ -56,38 +55,34 @@ This procedure assumes you are running the Karpenter controller on cluster and w
     export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
     ```
 
-4. Apply the new Karpenter policy and assign it to the existing Karpenter role:
+4. Update your existing policy using the following:
 
     ```bash
     TEMPOUT=$(mktemp)
-    curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v0.32.10/website/content/en/preview/upgrading/v1beta1-controller-policy.json > ${TEMPOUT}
 
-    AWS_REGION=${AWS_REGION:=$AWS_DEFAULT_REGION} # use the default region if AWS_REGION isn't defined
-    POLICY_DOCUMENT=$(envsubst < ${TEMPOUT})
-    POLICY_NAME="KarpenterControllerPolicy-${CLUSTER_NAME}-v1beta1"
-    ROLE_NAME="${CLUSTER_NAME}-karpenter"
-
-    POLICY_ARN=$(aws iam create-policy --policy-name "${POLICY_NAME}" --policy-document "${POLICY_DOCUMENT}" | jq -r .Policy.Arn)
-    aws iam attach-role-policy --role-name "${ROLE_NAME}" --policy-arn "${POLICY_ARN}"
+    curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
+        && aws cloudformation deploy \
+        --stack-name "Karpenter-${CLUSTER_NAME}" \
+        --template-file "${TEMPOUT}" \
+        --capabilities CAPABILITY_NAMED_IAM \
+        --parameter-overrides "ClusterName=${CLUSTER_NAME}"
     ```
 
 5. Apply the v1.0.0 Custom Resource Definitions (CRDs):
 
    ```bash
    KARPENTER_NAMESPACE=kube-system 
-   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version 1.0.0 --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
         --set webhook.enabled=true \
         --set webhook.serviceName=karpenter \
         --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
         --set webhook.port=8443
     ```
 
-6. Upgrade Karpenter to the new version. At the end of this process, [conversion webhooks](https://github.com/aws/karpenter-provider-aws/blob/main/charts/karpenter/templates/post-install-hook.yaml) run to convert the Karpenter CRDs to v1. You can choose to add the `--no-hooks` flag to prevent the post-install hook from running in the cluster:
+6. Upgrade Karpenter to the new version. At the end of this process, conversion webhooks run to convert the Karpenter CRDs to v1.
 
     ```bash
-    helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace kube-system --create-namespace \
-      --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
-      --set settings.aws.defaultInstanceProfile=KarpenterNodeInstanceProfile-${CLUSTER_NAME} \
+    helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
       --set settings.clusterName=${CLUSTER_NAME} \
       --set settings.interruptionQueue=${CLUSTER_NAME} \
       --set controller.resources.requests.cpu=1 \
@@ -101,29 +96,30 @@ This procedure assumes you are running the Karpenter controller on cluster and w
    Karpenter has deprecated and moved a number of Helm values as part of the v1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1. You can find detail for all the settings that were moved in the [v1 Upgrade Reference]({{<ref "#helm-values" >}}).
    {{% /alert %}}
 
-   Your upgraded Karpenter controller is now installed, with any `v1beta1` workloads continuing to run and be managed by Karpenter.
+   Your upgraded Karpenter controller is now installed.
 
-7. Your NodePool and EC2NodeClass objects should already have been modified during the Karpenter migration. Review and upgrade the following with any further changes as needed:
-
-   * ([NodePools]({{<ref "../concepts/nodepools" >}}): Get the latest copy of your NodePool (`kubectl describe nodepool default > nodepool.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to NodePool objects. Make modifications as needed.
-   * [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}): Get the latest copy of your EC2NodeClass (`kubectl describe ec2nodeclass default > ec2nodeclass.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to EC2NodeClass objects. Make modifications as needed.
-
-8. When you are satisfied with your NodePool and EC2NodeClass files, apply them as follows:
-
-    ```bash
-    kubectl apply -f nodepool.yaml
-    kubectl apply -f ec2nodeclass.yaml
-    ```
-
-9. Review changes to Karpenter [Metrics]({{<ref "../reference/metrics" >}}) and change your use of those metric as needed.
-
-10. Rolling over nodes: There is no need to roll over nodes in most cases. One case where you will need to roll nodes is if you have multiple NodePools with different `kubeletConfiguration`s that are referencing the same EC2NodeClass.
+7. Rolling over nodes: There is no need to roll over nodes in most cases. One case where you will need to roll nodes is if you have multiple NodePools with different `kubeletConfiguration`s that are referencing the same EC2NodeClass.
 
 When you have completed the migration to `1.0.0` CRDs, Karpenter will be able to serve both the `v1beta1` versions and the `v1` versions of NodePools, NodeClaims, and EC2NodeClasses.
 The results of upgrading these CRDs include the following:
 
 * The storage version of these resources change to v1. After the upgrade, Karpenter starts converting these resources to v1 storage versions in real time.  Users should experience no differences from this change.
 * You are still able to GET and make updates using the v1beta1 versions.
+
+
+## Post upgrade considerations
+
+Your NodePool and EC2NodeClass objects are auto-converted to the new v1 storage version during the upgrade. Consider getting the latest versions of those objects to store separately and possibly update.
+
+   * ([NodePools]({{<ref "../concepts/nodepools" >}}): Get the latest copy of your NodePool (`kubectl describe nodepool default > nodepool.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to NodePool objects. Make modifications as needed.
+   * [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}): Get the latest copy of your EC2NodeClass (`kubectl describe ec2nodeclass default > ec2nodeclass.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to EC2NodeClass objects. Make modifications as needed.
+
+When you are satisfied with your NodePool and EC2NodeClass files, apply them as follows:
+
+    ```bash
+    kubectl apply -f nodepool.yaml
+    kubectl apply -f ec2nodeclass.yaml
+    ```
 
 ## Changelog
 
@@ -180,11 +176,12 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
 
 Apply the following changes to your NodePools and EC2NodeClasses, as appropriate, before upgrading them to `v1.1.0` (though okay to make these changes for `1.0.0`)
 
-* **v1beta1 support gone**: In `1.1.0`, v1beta1 is not supported. Migrate all Karpenter yaml files ([NodePools]({{<ref "../concepts/nodepools" >}}), [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}), and so on) to v1.
-Also, know that all resources in the cluster also need to be on v1. It's possible (although unlikely) that some resources still may be stored as v1beta1 in ETCD if no writes had been made to them since the v1 upgrade.
-You could use a tool such as [kube-storage-version-migrator](https://github.com/kubernetes-sigs/kube-storage-version-migrator) to handle this.
+* **v1beta1 support gone**: In `1.1.0`, v1beta1 is not supported. So you need to:
+   * Migrate all Karpenter yaml files ([NodePools]({{<ref "../concepts/nodepools" >}}), [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}), and so on) to v1.
+   * Know that all resources in the cluster also need to be on v1. It's possible (although unlikely) that some resources still may be stored as v1beta1 in ETCD if no writes had been made to them since the v1 upgrade.  You could use a tool such as [kube-storage-version-migrator](https://github.com/kubernetes-sigs/kube-storage-version-migrator) to handle this.
+   * Know that you cannot rollback to v1beta1 once you have upgraded to `v1.1.0`.
 
-* **Remove kubelet objects from NodePools**: Check that NodePools no longer contain the kubelet-configuration annotation (`karpenter.sh/v1beta1-kubelet-conversion` annotation).
+* **Remove kubelet annotation from NodePools**: Check that NodePools no longer contain the kubelet-configuration annotation (`compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation).
 Karpenter will crash if NodePool resources contain this annotation.
 
 * **Remove BootstrapMode annotation**: Karpenter will crash if NodePool resources contain the `BootstrapMode` annotation.
