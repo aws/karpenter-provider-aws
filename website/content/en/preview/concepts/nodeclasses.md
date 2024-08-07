@@ -636,7 +636,7 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 ## spec.amiSelectorTerms
 
-AMI Selector Terms are __required__ and are used to configure  AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
+AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
 
 This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
@@ -813,7 +813,8 @@ spec:
         snapshotID: snap-0123456789
 ```
 
-j
+The following blockDeviceMapping defaults are used for each `AMIFamily` if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
+
 ### AL2
 ```yaml
 spec:
