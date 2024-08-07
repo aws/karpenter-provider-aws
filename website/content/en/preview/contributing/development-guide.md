@@ -84,13 +84,13 @@ By default, `make apply` will set the log level to debug. You can change the log
 OSX:
 
 ```bash
-open http://localhost:8000/metrics && kubectl port-forward service/karpenter -n karpenter 8000
+open http://localhost:8080/metrics && kubectl port-forward service/karpenter -n kube-system 8080
 ```
 
 Linux:
 
 ```bash
-gio open http://localhost:8000/metrics && kubectl port-forward service/karpenter -n karpenter 8000
+gio open http://localhost:8080/metrics && kubectl port-forward service/karpenter -n karpenter 8080
 ```
 
 ### Tailing Logs
@@ -143,8 +143,8 @@ go install github.com/google/pprof@latest
 ### Get a profile
 ```
 # Connect to the metrics endpoint
-kubectl port-forward service/karpenter -n karpenter 8000
-open http://localhost:8000/debug/pprof/
+kubectl port-forward service/karpenter -n karpenter 8080
+open http://localhost:8080/debug/pprof/
 # Visualize the memory
-go tool pprof -http 0.0.0.0:9000 localhost:8000/debug/pprof/heap
+go tool pprof -http 0.0.0.0:9000 localhost:8080/debug/pprof/heap
 ```
