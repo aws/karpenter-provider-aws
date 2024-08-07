@@ -35,6 +35,7 @@ type Ubuntu struct {
 }
 
 // DefaultAMIs returns the AMI name, and Requirements, with an SSM query
+// TODO: This should be removed at v1.1.0
 func (u Ubuntu) DefaultAMIs(version string) []DefaultAMIOutput {
 	return []DefaultAMIOutput{
 		{
