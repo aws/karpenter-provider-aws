@@ -8,32 +8,35 @@ description: >
 
 Karpenter uses NodeClaims to manage the lifecycle of Kubernetes Nodes with the underlying cloud provider.
 Karpenter's algorithm creates and deletes NodeClaims in response to the demands of the Pods in the cluster.
-NodeClaims are created from the requirements of existing [NodePool]({{<ref "./nodepools" >}}) and associated
+NodeClaims are created from the requirements of a [NodePool]({{<ref "./nodepools" >}}) and associated
 [NodeClasses]({{<ref "./nodeclasses" >}}).
-While NodeClaims require no direct user input, as a Karpenter user you can monitor NodeClaims to keep track of
-the status of your nodes in cases where something goes wrong or a node drifts from its intended state.
+While you shouldn't modify the NodeClaim, as a Karpenter user, you can monitor NodeClaims to keep track of
+the status of your nodes to understand how Karpenter is reasoning about your nodes.
 
-Karpenter uses NodeClaims to request capacity and provide a running representation of that capacity.
+Karpenter uses NodeClaims to request capacity with the cloud provider and is a running representation of that capacity.
 Karpenter creates NodeClaims in response to provisioning and disruption needs (pre-spin). Whenever Karpenter
-creates a NodeClaim, it asks the cloud provider to create the instance (launch), register the created node
-with the node claim (registration), and wait for the node and its resources to be ready (initialization).
+creates a NodeClaim, it asks the cloud provider to create the instance (launch), register and link the created node
+with the NodeClaim (registration), and wait for the node and its resources to be ready (initialization).
 
-This page describes how NodeClaims relate to other components of Karpenter and the related cloud provider.
+This page describes how NodeClaims integrate throughout Karpenter and the cloud provider implementation.
 
-If you want to learn more about the nodes being managed by Karpenter, depending on what you are interested in,
+If you want to learn more about the nodes being managed by Karpenter,
 you can either look directly at the NodeClaim or at the nodes they are associated with:
 
-* Checking NodeClaims: If something goes wrong in the process of creating a node, you can look at the NodeClaim
-to see where the node creation process might have stalled. Using `kubectl get nodeclaims` you can see the NodeClaims
-for the cluster and using `kubectl describe nodeclaim <nodeclaim>` you can see the status of a particular NodeClaim.
-For example, if the node is not available, you might see statuses indicating that the NodeClaim failed to launch, register, or initialize.
+* Checking NodeClaims: 
+If something goes wrong in the process of creating a node, you can look at the NodeClaim
+to see where the node creation process might have failed. `kubectl get nodeclaims` will show you the NodeClaims
+for the cluster, and its linked nodes. Using `kubectl describe nodeclaim <nodeclaim>` will show the status of a particular NodeClaim.
+For example, if the node is NotReady, you might see statuses indicating that the NodeClaim failed to launch, register, or initialize.
+There will be logs emitted by the Karpenter controller to indicate this too.
 
-* Checking nodes: Use commands such as `kubectl get node` and  `kubectl describe node <nodename>` to see the actual resources,
+* Checking nodes: 
+Use commands such as `kubectl get node` and  `kubectl describe node <nodename>` to see the actual resources,
 labels, and other attributes associated with a particular node.
 
 ## NodeClaim roles in node creation
 
-NodeClaims provide a critical role in the Karpenter workflow for creating instances and registering them as nodes, then later in responding to node disruptions.
+NodeClaims provide a critical role in the Karpenter workflow for provisioning capacity, and in node disruptions.
 
 The following diagram illustrates how NodeClaims interact with other components during Karpenter-driven node creation.
 
@@ -45,7 +48,7 @@ Configure the `KARPENTER_NAMESPACE` environment variable to the namespace where 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
 kubectl logs -f -n "${KARPENTER_NAMESPACE}" \
-   -l app.kubernetes.io/name=karpenter -c controller
+   -l app.kubernetes.io/name=karpenter
 ```
 In a separate terminal, start some pods that would require Karpenter to create nodes to handle those pods.
 For example, start up some inflate pods as described in [Scale up deployment]({{< ref "../getting-started/getting-started-with-karpenter/#6-scale-up-deployment" >}}).
@@ -54,9 +57,9 @@ For example, start up some inflate pods as described in [Scale up deployment]({{
 As illustrated in the previous diagram, Karpenter interacts with NodeClaims and related components when creating a node:
 
 1. Watches for pods and monitors NodePools and NodeClasses:
-    * Checks what the pod needs, such as requests for CPU, memory, architecture, and so on.
-    * Checks the constraints imposed by existing NodePools and NodeClasses, such as allowing pods to only run in specific zones, on certain architectures, or on particular operating systems.
-   Example of log messages at this stage:
+    * Checks the pod scheduling constraints and resource requests.
+    * Cross-references the requirements with the existing NodePools and NodeClasses, (e.g. zones, arch, os)
+   Example log:
     ```
     {"level":"INFO","time":"2024-06-22T02:24:16.114Z","logger":"controller","message":
        "found provisionable pod(s)","commit":"490ef94","controller":"provisioner",
@@ -65,74 +68,73 @@ As illustrated in the previous diagram, Karpenter interacts with NodeClaims and 
        default/inflate-66fb68585c-nxflz","duration":"100.761702ms"}
     ```
 
-2. Asks the Kubernetes API server to create a NodeClaim object to satisfy the pod and NodePool needs.
-   Example of log messages at this stage:
+2. Computes the shape and size of a NodeClaim to create in the cluster to fit the set of pods from step 1.
+   Example log:
     ```
     {"level":"INFO","time":"2024-06-22T02:24:16.114Z","logger":"controller","message":
        "computed new nodeclaim(s) to fit pod(s)","commit":"490ef94","controller":
        "provisioner","nodeclaims":1,"pods":5}
     ```
-3. Finds the new NodeClaim and checks its requirements (pre-spin)
+3. Creates the NodeClaim object in the cluster.
+   Example log:
     ```
     {"level":"INFO","time":"2024-06-22T02:24:16.128Z","logger":"controller","message":   "created nodeclaim","commit":"490ef94","controller":"provisioner","NodePool":
        {"name":"default"},"NodeClaim":{"name":"default-sfpsl"},"requests":
        {"cpu":"5150m","pods":"8"},"instance-types":"c3.2xlarge, c4.2xlarge, c4.4xlarge,
        c5.2xlarge, c5.4xlarge and 55 other(s)"}
     ```
-4. Based on the NodeClaim’s requirements, directs the cloud provider to create an instance that meets those requirements (launch):
-   Example of log messages at this stage:
+4. Finds the new NodeClaim and translates it into an API call to create a cloud provider instance, logging
+   the response of the API call. 
+
+   If the API response is an unrecoverable error, such as an Insufficient Capacity, Karpenter will delete the NodeClaim, mark that instance type as temporarily unavailable, and create another NodeClaim if necessary.
+   Example log:
     ```
-    {"level":"INFO","time":"2024-06-22T02:24:19.028Z","logger":"controller","message":   "launched nodeclaim","commit":"490ef94","controller":"nodeclaim.lifecycle",
+    {"level":"INFO","time":"2024-06-22T02:24:19.028Z","logger":"controller","message":"launched nodeclaim","commit":"490ef94","controller":"nodeclaim.lifecycle",
        "controllerGroup":"karpenter.sh","controllerKind":"NodeClaim","NodeClaim":
        {"name":"default-sfpsl"},"namespace":"","name":"default-sfpsl","reconcileID":
        "9c9dbc80-3f0f-43ab-b01d-faac6c29e979","provider-id":
-       "aws:///us-west-2b/i-08a3bf1cadb205c7e","instance-type":"c3.2xlarge","zone":
+       "aws:///us-west-2b/i-01234567adb205c7e","instance-type":"c3.2xlarge","zone":
        "us-west-2b","capacity-type":"spot","allocatable":{"cpu":"7910m",
        "ephemeral-storage":"17Gi","memory":"13215Mi","pods":"58"}}
     ```
- 
-5. Gathers necessary metadata from the NodeClaim to check and setup the node.
-6. Checks that the Node exists, and prepares it for use.  This includes:
-    * Waiting for the instance to return a provider ID, instance type, zone, capacity type,
-      and an allocatable status, indicating that the instance is ready.
-    * Checking to see if the node has been synced, adding a finalizer to the node (this provides the same
-      termination guarantees that all Karpenter nodes have), passing in labels, and updating the node owner references.
-      Example of log messages at this stage:
-      ```
-      {"level":"INFO","time":"2024-06-22T02:24:52.642Z","logger":"controller","message":
-         "initialized nodeclaim","commit":"490ef94","controller":
-         "nodeclaim.lifecycle","controllerGroup":"karpenter.sh","controllerKind":
-         "NodeClaim","NodeClaim":{"name":"default-sfpsl"},"namespace":
-         "","name":"default-sfpsl","reconcileID":
-         "7e7a671d-887f-428d-bd79-ddf603290f0a",
-         "provider-id":"aws:///us-west-2b/i-08a3bf1cadb205c7e",
-         "Node":{"name":"ip-192-168-170-220.us-west-2.compute.internal"},
-         "allocatable":{"cpu":"7910m","ephemeral-storage":"18242267924",
-         "hugepages-2Mi":"0","memory":"14320468Ki","pods":"58"}}
-      ```
-7. Making sure that the Node is ready to use. This includes such things as seeing if resources are registered and start-up taints are removed.
-8. Checking the nodes for liveliness.
+5. Karpenter watches for the instance to register itself with the cluster as a node, and updates the node's 
+   labels, annotations and taints to match what was defined in the NodePool and NodeClaim. Once this step is 
+   completed, Karpenter will remove the `karpenter.sh/unregistered` taint from the Node.
 
-At this point, the node is considered ready to go.
+   If this fails to succeed within 15 minutes, Karpenter will remove the NodeClaim from the cluster and delete
+   the underlying instance, creating another NodeClaim if necessary.
+   Example log: 
+   ```
+   {"level":"INFO","time":"2024-06-22T02:26:19.028Z","logger":"controller","message":"registered nodeclaim","commit":"525136f-dirty","controller":"nodeclaim.lifecycle",
+    "controllerGroup":"karpenter.sh","controllerKind":"NodeClaim",
+    "NodeClaim":{"name":"default-xmbww"},"namespace":"","name":"default-xmbww","reconcileID":"1f1a350b-6b3a-4927-9632-074ee4a095da","provider-id":"aws:///us-west-2c/i-01234567adb205c7e","Node":{"name":"ip-xxx-xxx-xx-xxx.us-west-1.compute.internal"}}
+   ```
+6. Karpenter continues to watch the node, waiting until the node becomes ready, has all its startup taints removed, 
+   and has all requested resources registered on the node. 
+   Example log:
+    ```
+    {"level":"INFO","time":"2024-06-22T02:24:52.642Z","logger":"controller","message":
+        "initialized nodeclaim","commit":"490ef94","controller":
+        "nodeclaim.lifecycle","controllerGroup":"karpenter.sh","controllerKind":
+        "NodeClaim","NodeClaim":{"name":"default-sfpsl"},"namespace":
+        "","name":"default-sfpsl","reconcileID":
+        "7e7a671d-887f-428d-bd79-ddf603290f0a",
+        "provider-id":"aws:///us-west-2b/i-01234567adb205c7e",
+        "Node":{"name":"ip-xxx-xxx-xx-xxx.us-west-1.compute.internal"},
+        "allocatable":{"cpu":"7910m","ephemeral-storage":"18242267924",
+        "hugepages-2Mi":"0","memory":"14320468Ki","pods":"58"}}
+    ```
 
-Karpenter assumes that a NodeClaim will register within 15 minutes of being requested.
-Karpenter will not launch additional capacity while waiting for this.
 As they are booting up, NodeClaims are included in the scheduling simulation for both launch and termination flows.
-
-If a node doesn’t appear as registered after 15 minutes, the NodeClaim is deleted.
-Karpenter assumes there is a problem that isn’t going to be fixed.
-No pods will be deployed there. After the node is deleted, Karpenter will try to create a new NodeClaim.
 
 ## NodeClaim drift and disruption
 
-Although NodeClaims play a role in replacing nodes that drift or have been disrupted,
-to a Karpenter user, NodeClaims are immutable and cannot be modified.
-NodeClaims should only be a tool for monitoring.
+NodeClaims are immutable and cannot be modified, but are used to compare to changes made to the NodePool. When NodePools are modified, differing in spec from a created NodeClaim, Karpenter will mark the NodeClaim as drifted.
 
 For details on Karpenter disruption, see [Disruption]({{< ref "./disruption" >}}).
 
 ## NodeClaim example
-The following is an example of a NodeClaim. Keep in mind that you cannot modify a NodeClaim, so it is only included here as something you can view.
+The following is an example of a NodeClaim. Keep in mind that you cannot modify a NodeClaim.
 To see the contents of a NodeClaim, get the name of your NodeClaim, then run `kubectl describe` to see its contents:
 
 ```
