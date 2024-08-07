@@ -49,9 +49,9 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 	// - Latest EKS 1.30 Standard Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2/recommended/image_id
 	// - Specific EKS 1.30 GPU Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2-gpu/amazon-eks-node-1.30-v20240625/image_id
 	for rootPath, variants := range map[string][]Variant{
-		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2", k8sVersion):       []Variant{VariantStandard},
-		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64", k8sVersion): []Variant{VariantStandard},
-		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu", k8sVersion):   []Variant{VariantNeuron, VariantNvidia},
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2", k8sVersion):       {VariantStandard},
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64", k8sVersion): {VariantStandard},
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu", k8sVersion):   {VariantNeuron, VariantNvidia},
 	} {
 		results, err := ssmProvider.List(ctx, rootPath)
 		if err != nil {
