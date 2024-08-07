@@ -71,7 +71,17 @@ spec:
       # The amount of time a Node can live on the cluster before being removed
       # Avoiding long-running Nodes helps to reduce security vulnerabilities as well as to reduce the chance of issues that can plague Nodes with long uptimes such as file fragmentation or memory leaks from system processes
       # You can choose to disable expiration entirely by setting the string value 'Never' here
+
+      # Note: changing this value in the nodepool will drift the nodeclaims. 
       expireAfter: 720h | Never
+
+      # The amount of time that a node can be draining before it's forcibly deleted. A node begins draining when a delete call is made against it, starting
+      # its finalization flow. Pods with TerminationGracePeriodSeconds will be deleted preemptively before this terminationGracePeriod ends to give as much time to cleanup as possible. 
+      # If your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod
+      # before it has its full terminationGracePeriod to cleanup. 
+
+      # Note: changing this value in the nodepool will drift the nodeclaims. 
+      terminationGracePeriod: 48h 
 
       # Requirements that constrain the parameters of provisioned nodes.
       # These requirements are combined with pod.spec.topologySpreadConstraints, pod.spec.affinity.nodeAffinity, pod.spec.affinity.podAffinity, and pod.spec.nodeSelector rules.
@@ -112,12 +122,11 @@ spec:
   # like rolling Nodes due to them hitting their maximum lifetime (expiry) or scaling down nodes to reduce cluster cost
   disruption:
     # Describes which types of Nodes Karpenter should consider for consolidation
-    # If using 'WhenUnderutilized', Karpenter will consider all nodes for consolidation and attempt to remove or replace Nodes when it discovers that the Node is underutilized and could be changed to reduce cost
+    # If using 'WhenEmptyOrUnderutilized', Karpenter will consider all nodes for consolidation and attempt to remove or replace Nodes when it discovers that the Node is empty or underutilized and could be changed to reduce cost
     # If using `WhenEmpty`, Karpenter will only consider nodes for consolidation that contain no workload pods
-    consolidationPolicy: WhenUnderutilized | WhenEmpty
+    consolidationPolicy: WhenEmptyOrUnderutilized | WhenEmpty
 
     # The amount of time Karpenter should wait after discovering a consolidation decision
-    # This value can currently only be set when the consolidationPolicy is 'WhenEmpty'
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
     consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 
@@ -179,7 +188,11 @@ These taints must be cleared before pods can be deployed to a node.
 
 ## spec.template.spec.expireAfter
 
-The amount of time a Node can live on the cluster before being removed. 
+The amount of time a Node can live on the cluster before being deleted by Karpenter. Nodes will begin draining once it's expiration has been hit. 
+
+## spec.template.spec.terminationGracePeriod
+
+The amount of time a Node can be draining before Karpenter forcibly cleans up the node. Pods blocking eviction like PDBs and do-not-disrupt will be respected during draining until the `terminationGracePeriod` is reached, where those pods will be forcibly deleted.
 
 ## spec.template.spec.requirements
 
@@ -421,7 +434,7 @@ metadata:
   name: gpu
 spec:
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
   template:
     spec:
       requirements:
@@ -448,7 +461,7 @@ metadata:
   name: cilium-startup
 spec:
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
   template:
     spec:
       startupTaints:

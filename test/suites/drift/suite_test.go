@@ -370,7 +370,8 @@ var _ = Describe("Drift", func() {
 		})
 	})
 	It("should disrupt nodes that have drifted due to AMIs", func() {
-		oldCustomAMI := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1))
+		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
@@ -413,7 +414,8 @@ var _ = Describe("Drift", func() {
 	It("should not disrupt nodes that have drifted without the featureGate enabled", func() {
 		env.ExpectSettingsOverridden(corev1.EnvVar{Name: "FEATURE_GATES", Value: "Drift=false"})
 
-		oldCustomAMI := fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1))
+		oldCustomAMI := env.GetAMIBySSMPath(fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2023/x86_64/standard/recommended/image_id", env.K8sVersionWithOffset(1)))
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: oldCustomAMI}}
 
 		env.ExpectCreated(dep, nodeClass, nodePool)
@@ -529,7 +531,7 @@ var _ = Describe("Drift", func() {
 			karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,
@@ -596,17 +598,17 @@ var _ = Describe("Drift", func() {
 			},
 		}),
 		Entry("Taints", karpv1.NodeClaimTemplate{
-			Spec: karpv1.NodeClaimSpec{
+			Spec: karpv1.NodeClaimTemplateSpec{
 				Taints: []corev1.Taint{{Key: "example.com/another-taint-2", Effect: corev1.TaintEffectPreferNoSchedule}},
 			},
 		}),
 		Entry("Start-up Taints", karpv1.NodeClaimTemplate{
-			Spec: karpv1.NodeClaimSpec{
+			Spec: karpv1.NodeClaimTemplateSpec{
 				StartupTaints: []corev1.Taint{{Key: "example.com/another-taint-2", Effect: corev1.TaintEffectPreferNoSchedule}},
 			},
 		}),
 		Entry("NodeRequirements", karpv1.NodeClaimTemplate{
-			Spec: karpv1.NodeClaimSpec{
+			Spec: karpv1.NodeClaimTemplateSpec{
 				// since this will overwrite the default requirements, add instance category and family selectors back into requirements
 				Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 					{NodeSelectorRequirement: corev1.NodeSelectorRequirement{Key: karpv1.CapacityTypeLabelKey, Operator: corev1.NodeSelectorOpIn, Values: []string{karpv1.CapacityTypeSpot}}},

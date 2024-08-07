@@ -47,7 +47,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	corecloudproivder "sigs.k8s.io/karpenter/pkg/cloudprovider"
+	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/controllers/provisioning"
 	"sigs.k8s.io/karpenter/pkg/controllers/state"
 	"sigs.k8s.io/karpenter/pkg/events"
@@ -158,7 +158,7 @@ var _ = Describe("CloudProvider", func() {
 		nodePool = coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Template: karpv1.NodeClaimTemplate{
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						NodeClassRef: &karpv1.NodeClassReference{
 							Group: object.GVK(nodeClass).Group,
 							Kind:  object.GVK(nodeClass).Kind,
@@ -197,11 +197,19 @@ var _ = Describe("CloudProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
-	It("should not proceed with instance creation of nodeClass in not ready", func() {
+	It("should not proceed with instance creation if NodeClass is unknown", func() {
+		nodeClass.StatusConditions().SetUnknown(opstatus.ConditionReady)
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		_, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeFalse())
+	})
+	It("should return NodeClassNotReady error on creation if NodeClass is not ready", func() {
 		nodeClass.StatusConditions().SetFalse(opstatus.ConditionReady, "NodeClassNotReady", "NodeClass not ready")
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		_, err := cloudProvider.Create(ctx, nodeClaim)
 		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
 	})
 	It("should return an ICE error when there are no instance types to launch", func() {
 		// Specify no instance types and expect to receive a capacity error
@@ -216,7 +224,7 @@ var _ = Describe("CloudProvider", func() {
 		}
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
-		Expect(corecloudproivder.IsInsufficientCapacityError(err)).To(BeTrue())
+		Expect(corecloudprovider.IsInsufficientCapacityError(err)).To(BeTrue())
 		Expect(cloudProviderNodeClaim).To(BeNil())
 	})
 	It("should set ImageID in the status field of the nodeClaim", func() {
@@ -240,6 +248,14 @@ var _ = Describe("CloudProvider", func() {
 		})
 		Expect(ok).To(BeTrue())
 		Expect(zoneID).To(Equal(subnet.ZoneID))
+	})
+	It("should expect a strict set of annotation keys", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderNodeClaim).ToNot(BeNil())
+		Expect(len(lo.Keys(cloudProviderNodeClaim.Annotations))).To(BeNumerically("==", 3))
+		Expect(lo.Keys(cloudProviderNodeClaim.Annotations)).To(ContainElements(v1.AnnotationKubeletCompatibilityHash, v1.AnnotationEC2NodeClassHash, v1.AnnotationEC2NodeClassHashVersion))
 	})
 	It("should return NodeClass Hash on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
@@ -318,7 +334,7 @@ var _ = Describe("CloudProvider", func() {
 			nodePool = coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,
@@ -416,7 +432,7 @@ var _ = Describe("CloudProvider", func() {
 			nodePool = coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,
@@ -521,7 +537,7 @@ var _ = Describe("CloudProvider", func() {
 			nodePool = coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,
@@ -591,7 +607,7 @@ var _ = Describe("CloudProvider", func() {
 	Context("NodeClaim Drift", func() {
 		var armAMIID, amdAMIID string
 		var validSecurityGroup string
-		var selectedInstanceType *corecloudproivder.InstanceType
+		var selectedInstanceType *corecloudprovider.InstanceType
 		var instance *ec2.Instance
 		var validSubnet1 string
 		var validSubnet2 string
@@ -702,7 +718,7 @@ var _ = Describe("CloudProvider", func() {
 			instanceTypes, err := cloudProvider.GetInstanceTypes(ctx, nodePool)
 			Expect(err).ToNot(HaveOccurred())
 			var ok bool
-			selectedInstanceType, ok = lo.Find(instanceTypes, func(i *corecloudproivder.InstanceType) bool {
+			selectedInstanceType, ok = lo.Find(instanceTypes, func(i *corecloudprovider.InstanceType) bool {
 				return i.Requirements.Compatible(scheduling.NewLabelRequirements(map[string]string{
 					corev1.LabelArchStable: karpv1.ArchitectureAmd64,
 				})) == nil
@@ -1203,7 +1219,7 @@ var _ = Describe("CloudProvider", func() {
 			nodePool2 := coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass2).Group,
 								Kind:  object.GVK(nodeClass2).Kind,
@@ -1248,7 +1264,7 @@ var _ = Describe("CloudProvider", func() {
 			nodePool2 := coretest.NodePool(karpv1.NodePool{
 				Spec: karpv1.NodePoolSpec{
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(misconfiguredNodeClass).Group,
 								Kind:  object.GVK(misconfiguredNodeClass).Kind,

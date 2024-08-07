@@ -78,15 +78,11 @@ Disruption is configured through the NodePool's disruption block by the `consoli
 ```yaml
 spec:
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
   template:
     spec:
       expireAfter: 720h
 ```
-{{% /alert %}}
-
-{{% alert title="Warning" color="warning" %}}
-`consolidateAfter` **cannot** be set if `consolidationPolicy` is set to `WhenUnderutilized`. See [kubernetes-sigs/karpenter#735](https://github.com/kubernetes-sigs/karpenter/issues/735) for more information.
 {{% /alert %}}
 
 ### Consolidation
@@ -202,7 +198,15 @@ To enable interruption handling, configure the `--interruption-queue` CLI argume
 
 ## Controls
 
-### Disruption Budgets
+### TerminationGracePeriod 
+
+This is the duration of time that a node can be draining before it's forcibly deleted. A node begins draining when it's deleted. Pods will be deleted preemptively based on its TerminationGracePeriodSeconds before this terminationGracePeriod ends to give as much time to cleanup as possible. Note that if your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod before it has its full terminationGracePeriod to cleanup. 
+
+This is especially useful in combination with `nodepool.spec.template.spec.expireAfter` to define an absolute maximum on the lifetime of a node, where a node is deleted at `expireAfter` and finishes draining within the `terminationGracePeriod` thereafter. Pods blocking eviction like PDBs and do-not-disrupt will block full draining until the `terminationGracePeriod` is reached. 
+
+For instance, a NodeClaim with `terminationGracePeriod` set to `1h` and an `expireAfter` set to `23h` will begin draining after it's lived for `23h`. Let's say a `do-not-disrupt` pod has `TerminationGracePeriodSeconds` set to `300` seconds. If the node hasn't been fully drained after `55m`, Karpenter will delete the pod to allow it's full `terminationGracePeriodSeconds` to cleanup. If no pods are blocking draining, Karpenter will cleanup the node as soon as the node is fully drained, rather than waiting for the NodeClaim's `terminationGracePeriod` to finish.
+
+### NodePool Disruption Budgets
 
 You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through drift, emptiness, and consolidation. Note that NodePool Disruption Budgets do not prevent Karpenter from cleaning up expired or drifted nodes. 
 
@@ -229,7 +233,7 @@ spec:
     spec: 
       expireAfter: 720h # 30 * 24h = 720h
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
     budgets:
     - nodes: "20%"
       reasons: 
