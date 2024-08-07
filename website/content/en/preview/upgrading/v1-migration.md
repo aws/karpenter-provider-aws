@@ -52,8 +52,6 @@ Please read through the entire procedure before beginning the upgrade. There are
     export CLUSTER_NAME="${USER}-karpenter-demo"
     export AWS_REGION="us-west-2"
     export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
-    export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
-    export CLUSTER_ENDPOINT="$(aws eks describe-cluster --name ${CLUSTER_NAME} --query "cluster.endpoint" --output text)"
     ```
 
 4. Update your existing policy using the following:
@@ -72,7 +70,6 @@ Please read through the entire procedure before beginning the upgrade. There are
 5. Apply the v1.0.0 Custom Resource Definitions (CRDs):
 
    ```bash
-   KARPENTER_NAMESPACE=kube-system 
    helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
         --set webhook.enabled=true \
         --set webhook.serviceName=karpenter \
@@ -97,7 +94,7 @@ Please read through the entire procedure before beginning the upgrade. There are
    Karpenter has deprecated and moved a number of Helm values as part of the v1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1. You can find detail for all the settings that were moved in the [v1 Upgrade Reference]({{<ref "#helm-values" >}}).
    {{% /alert %}}
 
-7. Once upgraded, you won't need to roll your nodes to be compatible with v1.1.0, except if you have multiple NodePools with different `kubeletConfiguration`s that are referencing the same EC2NodeClass. Karpenter has moved the `kubeletConfiguration` to the EC2NodeClass in v1. NodePools with different `kubeletConfiguration` referencing the same EC2NodeClass will be compatible with v1.0.0, but will not be in v1.1.0.
+7. Once upgraded, you won't need to roll your nodes to be compatible with v1.1.0, except if you have multiple NodePools with different `kubelet`s that are referencing the same EC2NodeClass. Karpenter has moved the `kubelet` to the EC2NodeClass in v1. NodePools with different `kubelet` referencing the same EC2NodeClass will be compatible with v1.0.0, but will not be in v1.1.0.
 
 When you have completed the migration to `1.0.0` CRDs, Karpenter will be able to serve both the `v1beta1` versions and the `v1` versions of NodePools, NodeClaims, and EC2NodeClasses.
 The results of upgrading these CRDs include the following:
@@ -108,10 +105,10 @@ The results of upgrading these CRDs include the following:
 
 ## Post upgrade considerations
 
-Your NodePool and EC2NodeClass objects are auto-converted to the new v1 storage version during the upgrade. Consider getting the latest versions of those objects to store separately and possibly update.
+Your NodePool and EC2NodeClass objects are auto-converted to the new v1 storage version during the upgrade. Consider getting the latest versions of those objects to update any stored manifests where you were previously applying the v1beta1 version.
 
-   * ([NodePools]({{<ref "../concepts/nodepools" >}}): Get the latest copy of your NodePool (`kubectl describe nodepool default > nodepool.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to NodePool objects. Make modifications as needed.
-   * [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}): Get the latest copy of your EC2NodeClass (`kubectl describe ec2nodeclass default > ec2nodeclass.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to EC2NodeClass objects. Make modifications as needed.
+   * ([NodePools]({{<ref "../concepts/nodepools" >}}): Get the latest copy of your NodePool (`kubectl get nodepool default -o yaml > nodepool.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to NodePool objects. Make modifications as needed.
+   * [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}): Get the latest copy of your EC2NodeClass (`kubectl get ec2nodeclass default -o yaml > ec2nodeclass.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to EC2NodeClass objects. Make modifications as needed.
 
 When you are satisfied with your NodePool and EC2NodeClass files, apply them as follows:
 
@@ -122,7 +119,7 @@ When you are satisfied with your NodePool and EC2NodeClass files, apply them as 
 
 ## Changelog
 
-Because Karpenter `v1.0.0` will run both `v1` and `v1beta1` versions of NodePools and EC2NodeClasses, you don't immediately have to upgrade them to v1.
+Because Karpenter `v1.0.0` will run both `v1` and `v1beta1` versions of NodePools and EC2NodeClasses, you don't immediately have to upgrade the stored manifests that you have to v1.
 However, in preparation for later Karpenter upgrades (which will not support `v1beta1`, review the following changes from v1beta1 to v1.
 
 Karpenter `v1.0.0` changes are divided into two different categories: those you must do before `1.0.0` upgrades and those you must do before `1.1.0` upgrades.
@@ -136,7 +133,7 @@ Apply the following changes to your NodePools and EC2NodeClasses, as appropriate
 The `karpenter.sh/managed-by`, which currently stores the cluster name in its value, is replaced by `eks:eks-cluster-name`, to allow
 for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-abac.html).
 
-* **Zap logging removed**: Support for setting the Zap logging config was deprecated in beta and is now removed for v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
+* **Zap logging config removed**: Support for setting the Zap logging config was deprecated in beta and is now removed for v1. View the [Logging Configuration Section of the v1beta1 Migration Guide]({{<ref "../../v0.32/upgrading/v1beta1-migration#logging-configuration-is-no-longer-dynamic" >}}) for more details.
 
 * **metadataOptions could break workloads**: If you have workload pods that are not using `hostNetworking`, the updated default `metadataOptions` could cause your containers to break when you apply new EC2NodeClasses on v1.
 
@@ -167,18 +164,22 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
          volumeType: gp3
          volumeSize: 20Gi
    ```
-   **NOTE**: If you do not specify `amiSelectorTerms` before upgrading with the Ubuntu `amiFamily`, the conversion webhook will fail. If you do this, downgrade to Karpenter `v0.37.1` and add `amiSelectorTerms` before upgrading again.
+   **NOTE**: If you do not specify `amiSelectorTerms` before upgrading with the Ubuntu `amiFamily`, the conversion webhook will fail. If you do this, update your EC2NodeClass to specify amiSelectorTerms on v1beta1, resolving the conversion webhook failures.
+
+* **amiSelectorTerms and amiFamily**: For v1, `amiFamily` is no longer required if you instead specify an `alias` in `amiSelectorTerms` in your `EC2NodeClass`. You need to update your `amiSelectorTerms` and `amiFamily` if you are using:
+   * A Custom amiFamily. You must ensure that the node you add the `karpenter.sh/unregistered` taint in your UserData.
+   * An Ubuntu AMI, as described earlier.
 
 ### Before upgrading to `v1.1.0`
 
 Apply the following changes to your NodePools and EC2NodeClasses, as appropriate, before upgrading them to `v1.1.0` (though okay to make these changes for `1.0.0`)
 
 * **v1beta1 support gone**: In `v1.1.0`, v1beta1 is not supported. So you need to:
-   * Migrate all Karpenter yaml files ([NodePools]({{<ref "../concepts/nodepools" >}}), [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}), and so on) to v1.
+   * Migrate all Karpenter yaml files [NodePools]({{<ref "../concepts/nodepools" >}}), [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}) to v1.
    * Know that all resources in the cluster also need to be on v1. It's possible (although unlikely) that some resources still may be stored as v1beta1 in ETCD if no writes had been made to them since the v1 upgrade.  You could use a tool such as [kube-storage-version-migrator](https://github.com/kubernetes-sigs/kube-storage-version-migrator) to handle this.
    * Know that you cannot rollback to v1beta1 once you have upgraded to `v1.1.0`.
 
-* **KubeletConfiguration**: If you have multiple NodePools pointing to the same EC2NodeClass that have different kubeletConfigurations,
+* **Kubelet Configuration**: If you have multiple NodePools pointing to the same EC2NodeClass that have different kubeletConfigurations,
 then you have to manually add more EC2NodeClasses and point their NodePools to them. This will induce drift and you will have to roll your cluster.
 If you have multiple NodePools pointing to the same EC2NodeClass, but they have the same configuration, then you can proceed with the migration
 without having drift or having any additional NodePools or EC2NodeClasses configured.
@@ -186,27 +187,23 @@ without having drift or having any additional NodePools or EC2NodeClasses config
 * **Remove kubelet annotation from NodePools**: Remove the kubelet-configuration annotation (`compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation) from your NodePools. This is used to support the KubeletConfiguration migration path above, but is not supported in v1.1.
 Karpenter will crash on upgrade if NodePool resources contain this annotation. Users should make sure that their kubelet configurations are migrated prior to upgrading to properly drift their nodes to the correct configurations.
 
-* **amiSelectorTerms and amiFamily**: For v1, `amiFamily` is no longer required if you instead specify an `alias` in `amiSelectorTerms` in your `EC2NodeClass`. You need to update your `amiSelectorTerms` and `amiFamily` if you are using:
-   * A Custom amiFamily. You must ensure that the node you add the `karpenter.sh/unregistered` taint in your UserData.
-   * An Ubuntu AMI, as described earlier.
-
 ### Downgrading
 // TODO 
 
 ## Full Changelog
 * Features: 
   * AMI Selector Terms has a new Alias field which can only be set by itself in `EC2NodeClass.Spec.AMISelectorTerms`
-  * Disruption Budgets by Reason in `NodePool.Spec.Disruption.Budgets`
-  * TerminationGracePeriod in the `NodePool.Spec.Template.Spec`.
+  * Disruption Budgets by Reason was added to `NodePool.Spec.Disruption.Budgets`
+  * TerminationGracePeriod was added to `NodePool.Spec.Template.Spec`.
   * LOG_OUTPUT_PATHS and LOG_ERROR_OUTPUT_PATHS environment variables added
-* API Rename: NodePool’s ConsolidationPolicy WhenUnderutilized is now renamed to WhenEmptyOrUnderutilized
+* API Rename: NodePool’s ConsolidationPolicy `WhenUnderutilized` is now renamed to `WhenEmptyOrUnderutilized`
 * Behavior Changes: 
-  * Expiration now begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
+  * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
   * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields). 
-  * Karpenter now adds a karpenter.sh/unregistered taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using AMIFamily: Custom, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes. 
+  * Karpenter now adds a `karpenter.sh/unregistered` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes. 
 * API Moves: 
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
-  * KubeletConfig was moved to the EC2NodeClass from the NodePool.
+  * `Kubelet` was moved to the EC2NodeClass from the NodePool.
 * RBAC changes: added `delete pods` | added `get, patch crds` | added `update nodes` | removed `create nodes`
 * Breaking API (Manual Migration Needed): 
   * Ubuntu is dropped as a first class supported AMI Family
@@ -216,18 +213,18 @@ Karpenter will crash on upgrade if NodePool resources contain this annotation. U
   * Environment Variable Changes
   * LOGGING_CONFIG, ASSUME_ROLE_ARN, ASSUME_ROLE_DURATION Dropped
   * LEADER_ELECT renamed to DISABLE_LEADER_ELECTION
-  * DRIFT_ENABLED dropped and promoted to Stable, cannot be disabled.
+  * `FEATURE_GATES.DRIFT=true` was dropped and promoted to Stable, and cannot be disabled.
       * Users currently opting out of drift, disabling the drift feature flag will no longer be able to do so.
 * Defaults changed: 
-  * API: Karpenter will drop support for IMDS access from containers by default on new EC2NodeClasses by updating the default of httpPutResponseHopLimit from 2 to 1.
+  * API: Karpenter will drop support for IMDS access from containers by default on new EC2NodeClasses by updating the default of `httpPutResponseHopLimit` from 2 to 1.
   * API: ConsolidateAfter is required. Users couldn’t set this before with ConsolidationPolicy: WhenUnderutilized, where this is now required. Users can set it to 0 to have the same behavior as in v1beta1. 
-  * API: NodeClassRef fields are now all required, and apiVersion has been renamed to group
+  * API: All `NodeClassRef` fields are now all required, and apiVersion has been renamed to group
   * API: AMISelectorTerms are required. Setting an Alias cannot be done with any other type of term, and must match the AMI Family that's set or be Custom.
   * Helm: Deployment spec TopologySpreadConstraint to have required zonal spread over preferred. Users who had one node running their Karpenter deployments need to either:
     * Have two nodes in different zones to ensure both Karpenter replicas schedule
     * Scale down their Karpenter replicas from 2 to 1 in the helm chart
     * Edit and relax the topology spread constraint in their helm chart from DoNotSchedule to ScheduleAnyway
-  * Helm: controller.METRICS_PORT default changed back to 8080
+  * Helm/Binary: `controller.METRICS_PORT` default changed back to 8080
  
 ### Updated metrics
 
