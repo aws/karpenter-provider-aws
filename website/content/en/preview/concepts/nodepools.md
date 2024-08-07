@@ -126,7 +126,7 @@ spec:
     # If using `WhenEmpty`, Karpenter will only consider nodes for consolidation that contain no workload pods
     consolidationPolicy: WhenEmptyOrUnderutilized | WhenEmpty
 
-    # The amount of time Karpenter should wait after discovering a consolidation decision
+    # The amount of time Karpenter should wait to consolidate a node after a pod has been added or removed from the node.
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
     consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 
