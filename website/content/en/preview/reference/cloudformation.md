@@ -184,6 +184,7 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
     },
     "StringLike": {
       "aws:RequestTag/karpenter.sh/nodepool": "*"
@@ -213,6 +214,7 @@ actions on `fleet`, `instance`, `volume`, `network-interface`, `launch-template`
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
       "ec2:CreateAction": [
         "RunInstances",
         "CreateFleet",
