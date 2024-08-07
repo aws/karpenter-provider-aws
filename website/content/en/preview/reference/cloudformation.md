@@ -162,7 +162,7 @@ For `RunInstances` and `CreateFleet` actions, the Karpenter controller can read 
 
 The AllowScopedEC2InstanceActionsWithTags Sid allows the
 [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html), [CreateFleet](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateFleet.html), and [CreateLaunchTemplate](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateLaunchTemplate.html)
-actions requested by the Karpenter controller to create all `fleet`, `instance`, `volume`, `network-interface`, `launch-template` or `spot-instances-request` EC2 resources (for the partition and region), and requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned` and a `karpenter.sh/nodepool` tag be set to any value. This ensures that Karpenter is only allowed to create instances for a single EKS cluster.
+actions requested by the Karpenter controller to create all `fleet`, `instance`, `volume`, `network-interface`, `launch-template` or `spot-instances-request` EC2 resources (for the partition and region). It also requires that the `kubernetes.io/cluster/${ClusterName}` tag be set to `owned`, `aws:RequestTag/eks:eks-cluster-name` be set to "${ClusterName}, and a `karpenter.sh/nodepool` tag be set to any value. This ensures that Karpenter is only allowed to create instances for a single EKS cluster.
 
 ```json
 {
@@ -184,6 +184,7 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned"
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
     },
     "StringLike": {
       "aws:RequestTag/karpenter.sh/nodepool": "*"
@@ -196,6 +197,7 @@ actions requested by the Karpenter controller to create all `fleet`, `instance`,
 
 The AllowScopedResourceCreationTagging Sid allows EC2 [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)
 actions on `fleet`, `instance`, `volume`, `network-interface`, `launch-template` and `spot-instances-request` resources, While making `RunInstance`, `CreateFleet`, or `CreateLaunchTemplate` calls. Additionally, this ensures that resources can't be tagged arbitrarily by Karpenter after they are created.
+Conditions that must be met include that `aws:RequestTag/kubernetes.io/cluster/${ClusterName}` be set to `owned` and `aws:RequestTag/eks:eks-cluster-name` be set to `${ClusterName}`.
 
 ```json
 {
@@ -213,6 +215,7 @@ actions on `fleet`, `instance`, `volume`, `network-interface`, `launch-template`
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
       "ec2:CreateAction": [
         "RunInstances",
         "CreateFleet",
@@ -242,8 +245,12 @@ The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amaz
     "StringLike": {
       "aws:ResourceTag/karpenter.sh/nodepool": "*"
     },
+    "StringEqualsIfExists": {
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+    },
     "ForAllValues:StringEquals": {
       "aws:TagKeys": [
+        "eks:eks-cluster-name",
         "karpenter.sh/nodeclaim",
         "Name"
       ]
@@ -376,7 +383,7 @@ This gives EC2 permission explicit permission to use the `KarpenterNodeRole-${Cl
 #### AllowScopedInstanceProfileCreationActions
 
 The AllowScopedInstanceProfileCreationActions Sid gives the Karpenter controller permission to create a new instance profile with [`iam:CreateInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateInstanceProfile.html),
-provided that the request is made to a cluster with `kubernetes.io/cluster/${ClusterName}` set to owned and is made in the current region.
+provided that the request is made to a cluster with `RequestTag` `kubernetes.io/cluster/${ClusterName}` set to owned, the `eks:eks-cluster-name` set to ${ClusterName}, and `topology.kubernetes.io/region` set to the current region.
 Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures that Karpenter can generate instance profiles on your behalf based on roles specified in your `EC2NodeClasses` that you use to configure Karpenter.
 
 ```json
@@ -390,6 +397,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
       "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
     },
     "StringLike": {
@@ -401,8 +409,8 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
 
 #### AllowScopedInstanceProfileTagActions
 
-The AllowScopedInstanceProfileTagActions Sid gives the Karpenter controller permission to tag an instance profile with [`iam:TagInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_TagInstanceProfile.html), based on the values shown below,
-Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures that Karpenter is only able to act on instance profiles that it provisions for this cluster.
+The AllowScopedInstanceProfileTagActions Sid gives the Karpenter controller permission to tag an instance profile with [`iam:TagInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_TagInstanceProfile.html), provided that `ResourceTag`s `/kubernetes.io/cluster/${ClusterName}` is set to `owned` and `topology.kubernetes.io/region` is set to the current region and `RequestTag`s `kubernetes.io/cluster/${ClusterName} is set to "owned", `eks:eks-cluster-name` is set to `${ClusterName}`, and `topology.kubernetes.io/region` is set to the current region.
+Also, `ResourceTag/karpenter.k8s.aws/ec2nodeclass` and `RequestTag/karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures that Karpenter is only able to act on instance profiles that it provisions for this cluster.
 
 ```json
 {
@@ -417,6 +425,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
       "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
       "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}",
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
       "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
     },
     "StringLike": {
@@ -456,9 +465,9 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This permissio
 }
 ```
 
-#### AllowInstanceProfileActions
+#### AllowInstanceProfileReadActions
 
-The AllowInstanceProfileActions Sid gives the Karpenter controller permission to perform [`iam:GetInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetInstanceProfile.html) actions to retrieve information about a specified instance profile, including understanding if an instance profile has been provisioned for an `EC2NodeClass` or needs to be re-provisioned.
+The AllowInstanceProfileReadActions Sid gives the Karpenter controller permission to perform [`iam:GetInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetInstanceProfile.html) actions to retrieve information about a specified instance profile, including understanding if an instance profile has been provisioned for an `EC2NodeClass` or needs to be re-provisioned.
 
 ```json
 {
