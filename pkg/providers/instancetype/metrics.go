@@ -39,7 +39,7 @@ var (
 		[]string{
 			instanceTypeLabel,
 		},
-	)
+	) //stability=BETA
 	instanceTypeMemory = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
@@ -50,7 +50,7 @@ var (
 		[]string{
 			instanceTypeLabel,
 		},
-	)
+	) //stability=BETA
 	instanceTypeOfferingAvailable = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
@@ -63,7 +63,7 @@ var (
 			capacityTypeLabel,
 			zoneLabel,
 		},
-	)
+	) //stability=BETA
 	instanceTypeOfferingPriceEstimate = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Namespace: metrics.Namespace,
@@ -75,7 +75,7 @@ var (
 			instanceTypeLabel,
 			capacityTypeLabel,
 			zoneLabel,
-		})
+		}) //stability=BETA
 )
 
 func init() {

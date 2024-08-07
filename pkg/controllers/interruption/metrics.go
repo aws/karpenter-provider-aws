@@ -35,7 +35,7 @@ var (
 			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
 		},
 		[]string{messageTypeLabel},
-	)
+	) //stability=STABLE
 	deletedMessages = prometheus.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
@@ -43,7 +43,7 @@ var (
 			Name:      "deleted_messages_total",
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
-	)
+	) //stability=STABLE
 	messageLatency = prometheus.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
@@ -52,7 +52,7 @@ var (
 			Help:      "Amount of time an interruption message is on the queue before it is processed by karpenter.",
 			Buckets:   metrics.DurationBuckets(),
 		},
-	)
+	) //stability=STABLE
 )
 
 func init() {

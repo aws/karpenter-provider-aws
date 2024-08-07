@@ -122,15 +122,15 @@ The number of pods currently waiting to be scheduled.
 
 ### `karpenter_nodepools_usage`
 The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
-- Stability Level: ALPHA
+- Stability Level: STABLE
 
 ### `karpenter_nodepools_limit`
 Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
-- Stability Level: ALPHA
+- Stability Level: STABLE
 
 ### `karpenter_nodepools_allowed_disruptions`
 The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
-- Stability Level: ALPHA
+- Stability Level: STABLE
 
 ## Interruption Metrics
 

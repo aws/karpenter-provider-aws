@@ -38,16 +38,12 @@ type metricInfo struct {
 	subsystem string
 	name      string
 	help      string
+	stability string
 }
 
 var (
-	stableMetrics = []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election", "interruption", "cluster_state", "workqueue", "karpenter_build_info", "karpenter_nodepool_usage", "karpenter_nodepool_limit",
-		"karpenter_nodeclaims_terminated_total", "karpenter_nodeclaims_created_total", "karpenter_nodes_terminated_total", "karpenter_nodes_created_total", "karpenter_pods_startup_duration_seconds",
-		"karpenter_scheduler_scheduling_duration_seconds", "karpenter_provisioner_scheduling_duration_seconds", "karpenter_nodepool_allowed_disruptions", "karpenter_voluntary_disruption_decisions_total"}
-	betaMetrics = []string{"status_condition", "cloudprovider", "cloudprovider_batcher", "karpenter_nodeclaims_termination_duration_seconds", "karpenter_nodeclaims_instance_termination_duration_seconds",
-		"karpenter_nodes_total_pod_requests", "karpenter_nodes_total_pod_limits", "karpenter_nodes_total_daemon_requests", "karpenter_nodes_total_daemon_limits", "karpenter_nodes_termination_duration_seconds",
-		"karpenter_nodes_system_overhead", "karpenter_nodes_allocatable", "karpenter_pods_state", "karpenter_scheduler_queue_depth", "karpenter_voluntary_disruption_queue_failures_total",
-		"karpenter_voluntary_disruption_decision_evaluation_duration_seconds", "karpenter_voluntary_disruption_eligible_nodes", "karpenter_voluntary_disruption_consolidation_timeouts_total"}
+	stableMetrics = []string{"controller_runtime", "aws_sdk_go", "client_go", "leader_election", "workqueue"}
+	betaMetrics   = []string{"status_condition"}
 )
 
 func (i metricInfo) qualifiedName() string {
@@ -136,7 +132,7 @@ description: >
 		case slices.Contains(betaMetrics, metric.subsystem) || slices.Contains(betaMetrics, metric.qualifiedName()):
 			fmt.Fprintf(f, "- Stability Level: %s\n", "BETA")
 		default:
-			fmt.Fprintf(f, "- Stability Level: %s\n", "ALPHA")
+			fmt.Fprintf(f, "- Stability Level: %s\n", metric.stability)
 		}
 		fmt.Fprintln(f)
 	}
@@ -159,7 +155,7 @@ func getPackages(root string) []*ast.Package {
 		// parse the packagers that we find
 		pkgs, err := parser.ParseDir(fset, path, func(info fs.FileInfo) bool {
 			return true
-		}, parser.AllErrors)
+		}, parser.ParseComments|parser.AllErrors)
 		if err != nil {
 			log.Fatalf("error parsing, %s", err)
 		}
@@ -225,10 +221,12 @@ func bySubsystem(metrics []metricInfo) func(i int, j int) bool {
 func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 	var promMetrics []metricInfo
 	for _, spec := range v.Specs {
+		var met metricInfo
 		vs, ok := spec.(*ast.ValueSpec)
 		if !ok {
 			continue
 		}
+		var isPrometheusMetric bool
 		for _, v := range vs.Values {
 			ce, ok := v.(*ast.CallExpr)
 			if !ok {
@@ -236,8 +234,10 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 			}
 			funcPkg := getFuncPackage(ce.Fun)
 			if funcPkg != "prometheus" {
+				isPrometheusMetric = false
 				continue
 			}
+			isPrometheusMetric = true
 			if len(ce.Args) == 0 {
 				continue
 			}
@@ -278,13 +278,31 @@ func handleVariableDeclaration(v *ast.GenDecl) []metricInfo {
 					return r == '"'
 				})
 			}
-			promMetrics = append(promMetrics, metricInfo{
+			met = metricInfo{
 				namespace: keyValuePairs["Namespace"],
 				subsystem: keyValuePairs["Subsystem"],
 				name:      keyValuePairs["Name"],
 				help:      keyValuePairs["Help"],
-			})
+			}
 		}
+		// If the variable does not belong to prometheus package then we ignore the comment associated with it.
+		// We also want to get rid of metrics that are empty for example: var Registry RegistererGatherer = prometheus.NewRegistry(),
+		// this will give an empty metric
+		if !isPrometheusMetric || len(met.name) == 0 {
+			continue
+		}
+		if vs.Comment == nil {
+			met.stability = "ALPHA"
+		} else {
+			for _, c := range vs.Comment.List {
+				stability := strings.Split(c.Text, "=")
+				if len(stability) != 2 || stability[0] != "//stability" {
+					log.Fatalf("failed to parse stability %q, invalid format", c.Text)
+				}
+				met.stability = stability[1]
+			}
+		}
+		promMetrics = append(promMetrics, met)
 	}
 	return promMetrics
 }
