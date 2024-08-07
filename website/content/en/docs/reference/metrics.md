@@ -7,7 +7,7 @@ description: >
   Inspect Karpenter Metrics
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
-Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8000/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
+Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
 ### `karpenter_build_info`
 A metric with a constant '1' value labeled by version from which karpenter was built.
 

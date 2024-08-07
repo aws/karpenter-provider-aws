@@ -51,7 +51,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:0.37.0 \
 | controller.image.digest | string | `"sha256:157f478f5db1fe999f5e2d27badcc742bf51cc470508b3cebe78224d0947674f"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
 | controller.image.tag | string | `"0.37.0"` | Tag of the controller image. |
-| controller.metrics.port | int | `8000` | The container port to use for metrics. |
+| controller.metrics.port | int | `8080` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller pod. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
 | controller.sidecarVolumeMounts | list | `[]` | Additional volumeMounts for the sidecar - this will be added to the volume mounts on top of extraVolumeMounts |
