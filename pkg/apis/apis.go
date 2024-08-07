@@ -18,9 +18,10 @@ package apis
 import (
 	_ "embed"
 
-	v1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	v1 "github.com/aws/karpenter/pkg/apis/v1"
 	"github.com/aws/karpenter/pkg/apis/v1beta1"
 
 	"github.com/samber/lo"
@@ -32,6 +33,7 @@ import (
 var (
 	// Builder includes all types within the apis package
 	Builder = runtime.NewSchemeBuilder(
+		v1.SchemeBuilder.AddToScheme,
 		v1beta1.SchemeBuilder.AddToScheme,
 	)
 	// AddToScheme may be used to add all resources defined in the project to a Scheme
@@ -43,6 +45,6 @@ var (
 	//go:embed crds/karpenter.k8s.aws_ec2nodeclasses.yaml
 	EC2NodeClassCRD []byte
 	CRDs            = append(apis.CRDs,
-		lo.Must(functional.Unmarshal[v1.CustomResourceDefinition](EC2NodeClassCRD)),
+		lo.Must(functional.Unmarshal[apiextensionsv1.CustomResourceDefinition](EC2NodeClassCRD)),
 	)
 )

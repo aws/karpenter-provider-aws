@@ -18,6 +18,7 @@ import (
 	"context"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	"sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	corecloudprovider "sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -76,4 +77,14 @@ func (c *CloudProvider) Delete(context.Context, *v1beta1.NodeClaim) error {
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "fake"
+}
+
+func (c *CloudProvider) GetSupportedNodeClasses() []schema.GroupVersionKind {
+	return []schema.GroupVersionKind{
+		{
+			Group:   v1beta1.SchemeGroupVersion.Group,
+			Version: v1beta1.SchemeGroupVersion.Version,
+			Kind:    "EC2NodeClass",
+		},
+	}
 }

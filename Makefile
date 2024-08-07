@@ -18,6 +18,7 @@ HELM_OPTS ?= --set serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${K
 			--set controller.resources.requests.memory=1Gi \
 			--set controller.resources.limits.cpu=1 \
 			--set controller.resources.limits.memory=1Gi \
+			--set webhook.enabled=true \
 			--create-namespace
 
 # CR for local builds of Karpenter
@@ -108,6 +109,9 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	cp  $(KARPENTER_CORE_DIR)/pkg/apis/crds/* pkg/apis/crds
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
+	hack/validation/kubelet.sh
+	cp pkg/apis/crds/* charts/karpenter-crd/templates
+	hack/mutation/conversion_webhook_injection.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\
 		{ echo "New file modification detected in the Git working tree. Please check in before commit."; git --no-pager diff --name-only | uniq | awk '{print "  - " $$0}'; \
@@ -146,7 +150,7 @@ install:  ## Deploy the latest released version into your ~/.kube/config cluster
 		$(HELM_OPTS)
 
 delete: ## Delete the controller from your ~/.kube/config cluster
-	helm uninstall karpenter --namespace karpenter
+	helm uninstall karpenter --namespace ${KARPENTER_NAMESPACE} 
 
 docgen: ## Generate docs
 	KARPENTER_CORE_DIR=$(KARPENTER_CORE_DIR) $(WITH_GOFLAGS) ./hack/docgen.sh

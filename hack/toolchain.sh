@@ -16,7 +16,7 @@ tools() {
     go install github.com/mikefarah/yq/v4@latest
     go install github.com/norwoodj/helm-docs/cmd/helm-docs@latest
     go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-    go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0
+    go install sigs.k8s.io/controller-tools/cmd/controller-gen@latest
     go install github.com/sigstore/cosign/cmd/cosign@latest
     go install -tags extended github.com/gohugoio/hugo@v0.110.0
     go install golang.org/x/vuln/cmd/govulncheck@latest
@@ -35,6 +35,15 @@ kubebuilder() {
     arch=$(go env GOARCH)
     ln -sf $(setup-envtest use -p path "${K8S_VERSION}" --arch="${arch}" --bin-dir="${KUBEBUILDER_ASSETS}")/* ${KUBEBUILDER_ASSETS}
     find $KUBEBUILDER_ASSETS
+
+    # Install latest binaries for 1.25.x (contains CEL fix)
+    if [[ "${K8S_VERSION}" = "1.25.x" ]] && [[ "$OSTYPE" == "linux"* ]]; then
+        for binary in 'kube-apiserver' 'kubectl'; do
+            rm $KUBEBUILDER_ASSETS/$binary
+            wget -P $KUBEBUILDER_ASSETS dl.k8s.io/v1.25.16/bin/linux/${arch}/${binary}
+            chmod +x $KUBEBUILDER_ASSETS/$binary
+        done
+    fi
 }
 
 main "$@"

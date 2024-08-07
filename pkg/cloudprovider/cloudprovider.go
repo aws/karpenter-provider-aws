@@ -35,7 +35,7 @@ import (
 	"github.com/aws/karpenter/pkg/utils"
 
 	"github.com/samber/lo"
-	v1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"knative.dev/pkg/logging"
@@ -101,7 +101,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *corev1beta1.NodeC
 		return i.Name == instance.Type
 	})
 	nc := c.instanceToNodeClaim(instance, instanceType)
-	nc.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 		v1beta1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
 		v1beta1.AnnotationEC2NodeClassHashVersion: v1beta1.EC2NodeClassHashVersion,
 	})
@@ -211,6 +211,16 @@ func (c *CloudProvider) Name() string {
 	return "aws"
 }
 
+func (c *CloudProvider) GetSupportedNodeClasses() []schema.GroupVersionKind {
+	return []schema.GroupVersionKind{
+		{
+			Group:   v1beta1.SchemeGroupVersion.Group,
+			Version: v1beta1.SchemeGroupVersion.Version,
+			Kind:    "EC2NodeClass",
+		},
+	}
+}
+
 func (c *CloudProvider) resolveNodeClassFromNodeClaim(ctx context.Context, nodeClaim *corev1beta1.NodeClaim) (*v1beta1.EC2NodeClass, error) {
 	nodeClass := &v1beta1.EC2NodeClass{}
 	if err := c.kubeClient.Get(ctx, types.NamespacedName{Name: nodeClaim.Spec.NodeClassRef.Name}, nodeClass); err != nil {
@@ -287,7 +297,7 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 				labels[key] = req.Values()[0]
 			}
 		}
-		resourceFilter := func(n v1.ResourceName, v resource.Quantity) bool {
+		resourceFilter := func(n corev1.ResourceName, v resource.Quantity) bool {
 			if resources.IsZero(v) {
 				return false
 			}
@@ -301,7 +311,7 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 		nodeClaim.Status.Capacity = functional.FilterMap(instanceType.Capacity, resourceFilter)
 		nodeClaim.Status.Allocatable = functional.FilterMap(instanceType.Allocatable(), resourceFilter)
 	}
-	labels[v1.LabelTopologyZone] = i.Zone
+	labels[corev1.LabelTopologyZone] = i.Zone
 	labels[corev1beta1.CapacityTypeLabelKey] = i.CapacityType
 	if v, ok := i.Tags[corev1beta1.NodePoolLabelKey]; ok {
 		labels[corev1beta1.NodePoolLabelKey] = v
