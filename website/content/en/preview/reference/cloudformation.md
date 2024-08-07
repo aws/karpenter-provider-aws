@@ -242,8 +242,12 @@ The AllowScopedResourceTagging Sid allows EC2 [CreateTags](https://docs.aws.amaz
     "StringLike": {
       "aws:ResourceTag/karpenter.sh/nodepool": "*"
     },
+    "StringEqualsIfExists": {
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}"
+    },
     "ForAllValues:StringEquals": {
       "aws:TagKeys": [
+        "eks:eks-cluster-name",
         "karpenter.sh/nodeclaim",
         "Name"
       ]
@@ -390,6 +394,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
   "Condition": {
     "StringEquals": {
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
       "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
     },
     "StringLike": {
@@ -417,6 +422,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
       "aws:ResourceTag/kubernetes.io/cluster/${ClusterName}": "owned",
       "aws:ResourceTag/topology.kubernetes.io/region": "${AWS::Region}",
       "aws:RequestTag/kubernetes.io/cluster/${ClusterName}": "owned",
+      "aws:RequestTag/eks:eks-cluster-name": "${ClusterName}",
       "aws:RequestTag/topology.kubernetes.io/region": "${AWS::Region}"
     },
     "StringLike": {
@@ -456,9 +462,9 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This permissio
 }
 ```
 
-#### AllowInstanceProfileActions
+#### AllowInstanceProfileReadActions
 
-The AllowInstanceProfileActions Sid gives the Karpenter controller permission to perform [`iam:GetInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetInstanceProfile.html) actions to retrieve information about a specified instance profile, including understanding if an instance profile has been provisioned for an `EC2NodeClass` or needs to be re-provisioned.
+The AllowInstanceProfileReadActions Sid gives the Karpenter controller permission to perform [`iam:GetInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetInstanceProfile.html) actions to retrieve information about a specified instance profile, including understanding if an instance profile has been provisioned for an `EC2NodeClass` or needs to be re-provisioned.
 
 ```json
 {
