@@ -86,6 +86,7 @@ spec:
                   properties:
                     group:
                       description: API version of the referent
+                      pattern: ^[^/]*$
                       type: string
                     kind:
                       description: 'Kind of the referent; More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"'
