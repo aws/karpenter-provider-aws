@@ -23,7 +23,7 @@ See the [Changelog]({{<ref "#changelog" >}}) for details about actions you shoul
 
 Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so please evaluate the list of breaking changes before continuing.
 
-1. Determine the current cluster version: Run the following to check your Karpenter version:
+1. Determine the current Karpenter version:
    ```bash
    kubectl get pod -A | grep karpenter
    kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image: 
@@ -140,7 +140,7 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
 
 * **metadataOptions could break workloads**: If you have workload pods that are not using `hostNetworking`, the updated default `metadataOptions` could cause your containers to break when you apply new EC2NodeClasses on v1.
 
-* **Support for native Ubuntu AMI selection is dropped**: If you are using Ubuntu and not using `amiSelectorTerms`, be aware that Karpenter v1 no longer natively supports Ubuntu. To continue using Ubuntu in v1, you can update `amiSelectorTerms` in your EC2NodeClasses to identify Ubuntu as the AMI you want to use. See [reimplement amiFamily](https://github.com/aws/karpenter-provider-aws/pull/6569) for an example. Once you have done that, you can leave the amiFamily as Ubuntu and proceed to upgrading to v1. This will result in the following Transformation:
+* **Support for native Ubuntu AMI selection is dropped**: If you are using Ubuntu and not using `amiSelectorTerms`, be aware that Karpenter v1 no longer natively supports Ubuntu. To continue using Ubuntu in v1, you can update `amiSelectorTerms` in your EC2NodeClasses to identify Ubuntu as the AMI you want to use. See [reimplement amiFamily](https://github.com/aws/karpenter-provider-aws/pull/6569) for an example. Once you have done that, you can leave the amiFamily as Ubuntu and proceed to upgrading to v1. This will result in the following transformation:
    ```yaml
    version: karpenter.k8s.aws/v1beta1
    kind: EC2NodeClass
@@ -160,16 +160,14 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
      amiSelectorTerms:
      - id: ami-foo
      blockDeviceMappings:
-     - deviceName: 'dev/sda1'
+     - deviceName: '/dev/sda1'
        rootVolume: true
        ebs:
          encrypted: true
          volumeType: gp3
          volumeSize: 20Gi
    ```
-   **NOTE**: If you do not specify `amiSelectorTerms` before upgrading with an Ubuntu AMI, the conversion webhook will fail. If you do this, downgrade to Karpenter `v0.37.1 and add amiSelectorTerms before upgrading again.
-
-* **Migrating userData**: Consider migrating your userData ahead of the v1.0.0 upgrade. See the description of `amiSelectorTerms` below.
+   **NOTE**: If you do not specify `amiSelectorTerms` before upgrading with the Ubuntu `amiFamily`, the conversion webhook will fail. If you do this, downgrade to Karpenter `v0.37.1` and add `amiSelectorTerms` before upgrading again.
 
 ### Before upgrading to `v1.1.0`
 
@@ -204,8 +202,8 @@ Karpenter will crash on upgrade if NodePool resources contain this annotation. U
 * API Rename: NodePool’s ConsolidationPolicy WhenUnderutilized is now renamed to WhenEmptyOrUnderutilized
 * Behavior Changes: 
   * Expiration now begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
-  * Users with AL2023 setting values in their UserData with a configurable field in the Kubelet Config will be overridden, to ensure that Karpenter knows what the correct state is when provisioning. 
-  * Karpenter now adds a karpenter.sh/unregistered taint to nodes in injected UserData when using alias in AMISelectorTerms or AMIFamily. When using AMIFamily: Custom, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes. 
+  * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields). 
+  * Karpenter now adds a karpenter.sh/unregistered taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using AMIFamily: Custom, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes. 
 * API Moves: 
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
   * KubeletConfig was moved to the EC2NodeClass from the NodePool.
@@ -213,7 +211,7 @@ Karpenter will crash on upgrade if NodePool resources contain this annotation. U
 * Breaking API (Manual Migration Needed): 
   * Ubuntu is dropped as a first class supported AMI Family
   * `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict` (annotation), and `karpenter.sh/managed-by` (tag) are all removed. `karpenter.sh/managed-by`, which currently stores the cluster name in its value, will be replaced by eks:eks-cluster-name
-  * The taint used to mark nodes for disruption and termination changed from `karpenter.sh/disruption=disrupting:NoSchedule` to `karpenter.sh/disrupted:NoSchedule`. It is not recommended to tolerate this taint unless you know what you're doing. If you were tolerating it in your applications, you'll need to adjust your taints to reflect this.
+  * The taint used to mark nodes for disruption and termination changed from `karpenter.sh/disruption=disrupting:NoSchedule` to `karpenter.sh/disrupted:NoSchedule`. It is not recommended to tolerate this taint, however, if you were tolerating it in your applications, you'll need to adjust your taints to reflect this.
 * Environment Variable Changes: 
   * Environment Variable Changes
   * LOGGING_CONFIG, ASSUME_ROLE_ARN, ASSUME_ROLE_DURATION Dropped

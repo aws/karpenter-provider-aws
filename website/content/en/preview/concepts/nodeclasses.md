@@ -354,15 +354,21 @@ It's currently not possible to specify custom networking with Windows nodes.
 
 ## spec.amiFamily
 
-AMIFamily dictates the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` and also selects a group of recommended, latest AMIs by default.
+AMIFamily dictates the default bootstrapping logic for nodes provisioned through this `EC2NodeClass`.
 An `amiFamily` is only required if you don't specify a `spec.amiSelectorTerms.alias` object.
-For example, if you specify `alias: al2023@v20240625`, the `amiFamily is implicitly `AL2023`.
+For example, if you specify `alias: al2023@v20240625`, the `amiFamily` is implicitly `AL2023`.
 
-AMIFamily is no longer responsible for AMI discovery, only UserData generation and default BlockDeviceMappings. To automatically discover EKS optimized AMIs, use the new [`alias` field in amiSelectorTerms]({{< ref "#specamiselectorterms" >}}).
+AMIFamily does not impact which AMI is discovered, only the UserData generation and default BlockDeviceMappings. To automatically discover EKS optimized AMIs, use the new [`alias` field in amiSelectorTerms]({{< ref "#specamiselectorterms" >}}).
+
+
+{{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
 
 Beginning with v1, Karpenter is no longer able to automatically discover Ubuntu AMIs.
 If you still want to use Ubuntu, you can set up a Custom `amiFamily` with amiSelectorTerms pinned to the latest Ubuntu AMI, referencing `amiFamily: AL2` to get the same userData configuration you received before.
 See the v1 section of the ([Upgrade Guide]({{< relref "../upgrading/upgrade-guide/" >}})) for information on migrating the Ubuntu amiFamily to v1.
+
+{{% /alert %}}
+
 
 ### AL2
 
@@ -630,7 +636,7 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 ## spec.amiSelectorTerms
 
-AMI Selector Terms are __required__ and are used to configure custom AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
+AMI Selector Terms are __required__ and are used to configure  AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
 
 This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
@@ -755,6 +761,7 @@ karpenter.sh/nodeclaim: <nodeclaim-name>
 karpenter.sh/nodepool: <nodepool-name>
 karpenter.k8s.aws/ec2nodeclass: <ec2nodeclass-name>
 kubernetes.io/cluster/<cluster-name>: owned
+eks:eks-cluster-name: <cluster-name>
 ```
 
 Additional tags can be added in the tags section, which will be merged with the default tags specified above.
@@ -783,7 +790,7 @@ spec:
   metadataOptions:
     httpEndpoint: enabled
     httpProtocolIPv6: disabled
-    httpPutResponseHopLimit: 2
+    httpPutResponseHopLimit: 1
     httpTokens: required
 ```
 
@@ -806,8 +813,7 @@ spec:
         snapshotID: snap-0123456789
 ```
 
-The following blockDeviceMapping defaults are used for each `AMIFamily` if no `blockDeviceMapping` overrides are specified in the `EC2NodeClass`
-
+j
 ### AL2
 ```yaml
 spec:
@@ -1467,7 +1473,7 @@ status:
 
 ## status.conditions
 
-[`status.conditions`]({{< ref "#statusconditions" >}}) indicates EC2NodeClass readiness. This will be `Ready` when Karpenter successfully discovers AMIs, Instance Profile, Subnets, Cluster CIDR and SecurityGroups for the EC2NodeClass.
+[`status.conditions`]({{< ref "#statusconditions" >}}) indicates EC2NodeClass readiness. This will be `Ready` when Karpenter successfully discovers AMIs, Instance Profile, Subnets, Cluster CIDR (AL2023 only) and SecurityGroups for the EC2NodeClass.
 
 ```yaml
 spec:
@@ -1494,6 +1500,3 @@ status:
     Status:                False
     Type:                  Ready
 ```
-{{% alert title="Note" color="primary" %}}
-An EC2NodeClass that uses AL2023 requires the cluster CIDR for launching nodes. Cluster CIDR will not be resolved for EC2NodeClass that doesn't use AL2023.
-{{% /alert %}}
