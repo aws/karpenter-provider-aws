@@ -45,10 +45,10 @@ func (n Nodeadm) Script() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("parsing custom UserData, %w", err)
 	}
-	mimeArchive := mime.Archive(append([]mime.Entry{{
+	mimeArchive := mime.Archive(append(customEntries, mime.Entry{
 		ContentType: mime.ContentTypeNodeConfig,
 		Content:     nodeConfigYAML,
-	}}, customEntries...))
+	}))
 	userData, err := mimeArchive.Serialize()
 	if err != nil {
 		return "", err

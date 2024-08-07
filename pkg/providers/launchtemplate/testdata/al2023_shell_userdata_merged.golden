@@ -2,6 +2,11 @@ MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
 
 --//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+--//
 Content-Type: application/node.eks.aws
 
 # Karpenter Generated NodeConfig
@@ -29,9 +34,4 @@ spec:
     flags:
     - --node-labels="karpenter.sh/capacity-type=on-demand,%s=%s,testing/cluster=unspecified"
 
---//
-Content-Type: text/x-shellscript; charset="us-ascii"
-
-#!/bin/bash
-echo "Hello, AL2023!"
 --//--
