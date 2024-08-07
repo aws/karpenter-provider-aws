@@ -51,11 +51,8 @@ type Windows struct {
 func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	requirements := make(map[string][]scheduling.Requirements)
 	imageIDs := make([]*string, 0, 5)
-	// SSM aliases are only maintained for the latest Windows AMI releases
-	if amiVersion != AMIVersionLatest {
-		return DescribeImageQuery{}, fmt.Errorf(`discovering AMIs for alias "windows%s@%s", %q is not a supported version`, w.Version, amiVersion, amiVersion)
-	}
 	// Example Path: /aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-1.30/image_id
+	// Note: the version must be latest, this is enforced via CEL validation
 	results, err := ssmProvider.List(ctx, "/aws/service/ami-windows-latest")
 	if err != nil {
 		return DescribeImageQuery{}, fmt.Errorf("discovering AMIs from ssm")
