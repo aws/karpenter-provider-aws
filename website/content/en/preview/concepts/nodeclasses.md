@@ -1,4 +1,4 @@
- ---
+---
 title: "NodeClasses"
 linkTitle: "NodeClasses"
 weight: 2
