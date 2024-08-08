@@ -410,7 +410,7 @@ Also, `karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures t
 
 #### AllowScopedInstanceProfileTagActions
 
-The AllowScopedInstanceProfileTagActions Sid gives the Karpenter controller permission to tag an instance profile with [`iam:TagInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_TagInstanceProfile.html), provided that `ResourceTag` attributes `/kubernetes.io/cluster/${ClusterName}` is set to `owned` and `topology.kubernetes.io/region` is set to the current region and `RequestTag` attributes `kubernetes.io/cluster/${ClusterName}` is set to `owned`, `eks:eks-cluster-name` is set to `${ClusterName}`, and `topology.kubernetes.io/region` is set to the current region.
+The AllowScopedInstanceProfileTagActions Sid gives the Karpenter controller permission to tag an instance profile with [`iam:TagInstanceProfile`](https://docs.aws.amazon.com/IAM/latest/APIReference/API_TagInstanceProfile.html), provided that `ResourceTag` attributes `kubernetes.io/cluster/${ClusterName}` is set to `owned` and `topology.kubernetes.io/region` is set to the current region and `RequestTag` attributes `kubernetes.io/cluster/${ClusterName}` is set to `owned`, `eks:eks-cluster-name` is set to `${ClusterName}`, and `topology.kubernetes.io/region` is set to the current region.
 Also, `ResourceTag/karpenter.k8s.aws/ec2nodeclass` and `RequestTag/karpenter.k8s.aws/ec2nodeclass` must be set to some value. This ensures that Karpenter is only able to act on instance profiles that it provisions for this cluster.
 
 ```json
