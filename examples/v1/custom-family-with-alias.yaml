@@ -1,9 +1,10 @@
-# This example NodePool will provision general purpose instances
+# This example NodePool provisions instances using an AMI that belongs to a custom AMIFamily with an Alisa
+# Keep in mind, that you're in charge of bootstrapping your worker nodes.
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: general-purpose
+  name: default
   annotations:
     kubernetes.io/description: "General purpose NodePool for generic workloads"
 spec:
@@ -26,18 +27,18 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: default
+        name: custom-family
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: default
+  name: custom-family
   annotations:
-    kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
+    kubernetes.io/description: "EC2NodeClass for running Custom AMIFamily with custom user data that doesn't conform to the other AMIFamilies"
 spec:
-  amiFamily: AL2 # Amazon Linux 2
+  amiFamily: Custom
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -45,3 +46,19 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: bottlerocket@latest
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "Running my custom set-up"
+    
+    # Have the kubelet label the node
+    /etc/eks/bootstrap.sh my-cluster --kubelet-extra-args='--node-labels=foo=bar'
+
+    --BOUNDARY
