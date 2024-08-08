@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"sigs.k8s.io/karpenter/pkg/metrics"
+
 	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/awslabs/operatorpkg/singleton"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/util/workqueue"
@@ -33,7 +34,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/karpenter/pkg/metrics"
 	"sigs.k8s.io/karpenter/pkg/operator/injection"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -42,7 +42,6 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/cache"
 	interruptionevents "github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/events"
 	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages"
-	"github.com/aws/karpenter-provider-aws/pkg/controllers/interruption/messages/statechange"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/sqs"
 	"github.com/aws/karpenter-provider-aws/pkg/utils"
 
@@ -201,13 +200,13 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		}
 	}
 	if action != NoAction {
-		return c.deleteNodeClaim(ctx, nodeClaim, node)
+		return c.deleteNodeClaim(ctx, msg, nodeClaim, node)
 	}
 	return nil
 }
 
 // deleteNodeClaim removes the NodeClaim from the api-server
-func (c *Controller) deleteNodeClaim(ctx context.Context, nodeClaim *karpv1.NodeClaim, node *corev1.Node) error {
+func (c *Controller) deleteNodeClaim(ctx context.Context, msg messages.Message, nodeClaim *karpv1.NodeClaim, node *corev1.Node) error {
 	if !nodeClaim.DeletionTimestamp.IsZero() {
 		return nil
 	}
@@ -216,8 +215,8 @@ func (c *Controller) deleteNodeClaim(ctx context.Context, nodeClaim *karpv1.Node
 	}
 	log.FromContext(ctx).Info("initiating delete from interruption message")
 	c.recorder.Publish(interruptionevents.TerminatingOnInterruption(node, nodeClaim)...)
-	metrics.NodeClaimsTerminatedCounter.With(prometheus.Labels{
-		metrics.ReasonLabel:       terminationReasonLabel,
+	metrics.NodeClaimsDisruptedTotal.With(prometheus.Labels{
+		metrics.ReasonLabel:       string(msg.Kind()),
 		metrics.NodePoolLabel:     nodeClaim.Labels[karpv1.NodePoolLabelKey],
 		metrics.CapacityTypeLabel: nodeClaim.Labels[karpv1.CapacityTypeLabelKey],
 	}).Inc()
@@ -236,13 +235,11 @@ func (c *Controller) notifyForMessage(msg messages.Message, nodeClaim *karpv1.No
 	case messages.SpotInterruptionKind:
 		c.recorder.Publish(interruptionevents.SpotInterrupted(n, nodeClaim)...)
 
-	case messages.StateChangeKind:
-		typed := msg.(statechange.Message)
-		if lo.Contains([]string{"stopping", "stopped"}, typed.Detail.State) {
-			c.recorder.Publish(interruptionevents.Stopping(n, nodeClaim)...)
-		} else {
-			c.recorder.Publish(interruptionevents.Terminating(n, nodeClaim)...)
-		}
+	case messages.InstanceStoppedKind:
+		c.recorder.Publish(interruptionevents.Stopping(n, nodeClaim)...)
+
+	case messages.InstanceTerminatedKind:
+		c.recorder.Publish(interruptionevents.Terminating(n, nodeClaim)...)
 
 	default:
 	}
@@ -292,7 +289,7 @@ func (c *Controller) makeNodeInstanceIDMap(ctx context.Context) (map[string]*cor
 
 func actionForMessage(msg messages.Message) Action {
 	switch msg.Kind() {
-	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.StateChangeKind:
+	case messages.ScheduledChangeKind, messages.SpotInterruptionKind, messages.InstanceStoppedKind, messages.InstanceTerminatedKind:
 		return CordonAndDrain
 	default:
 		return NoAction

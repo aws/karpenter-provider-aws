@@ -165,7 +165,7 @@ func computeRequirements(info *ec2.InstanceTypeInfo, offerings cloudprovider.Off
 		requirements.Get(v1.LabelInstanceCPUManufacturer).Insert(lowerKabobCase(aws.StringValue(info.ProcessorInfo.Manufacturer)))
 	}
 	// EBS Max Bandwidth
-	if info.EbsInfo != nil && aws.StringValue(info.EbsInfo.EbsOptimizedSupport) == ec2.EbsOptimizedSupportDefault {
+	if info.EbsInfo != nil && info.EbsInfo.EbsOptimizedInfo != nil && aws.StringValue(info.EbsInfo.EbsOptimizedSupport) == ec2.EbsOptimizedSupportDefault {
 		requirements.Get(v1.LabelInstanceEBSBandwidth).Insert(fmt.Sprint(aws.Int64Value(info.EbsInfo.EbsOptimizedInfo.MaximumBandwidthInMbps)))
 	}
 	return requirements

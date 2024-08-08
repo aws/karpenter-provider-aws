@@ -48,6 +48,7 @@ var (
 	CleanableObjects = []client.Object{
 		&corev1.Pod{},
 		&appsv1.Deployment{},
+		&appsv1.StatefulSet{},
 		&appsv1.DaemonSet{},
 		&policyv1.PodDisruptionBudget{},
 		&corev1.PersistentVolumeClaim{},

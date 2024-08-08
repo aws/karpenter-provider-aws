@@ -101,15 +101,15 @@ var _ = Describe("Validation", func() {
 				}})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
-		It("should error when ttlSecondAfterEmpty is negative", func() {
+		It("should error when consolidateAfter is negative", func() {
 			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmpty
-			nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(-time.Second)}
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(-time.Second)}
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
-		It("should error when ConsolidationPolicy=WhenUnderutilized is used with consolidateAfter", func() {
-			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-			nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute)}
-			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+		It("should succeed when ConsolidationPolicy=WhenEmptyOrUnderutilized is used with consolidateAfter", func() {
+			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute)}
+			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})
 		It("should error when minValues for a requirement key is negative", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{
@@ -158,10 +158,12 @@ var _ = Describe("Validation", func() {
 	})
 	Context("EC2NodeClass", func() {
 		It("should error when amiSelectorTerms are not defined", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should fail for poorly formatted AMI ids", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{
 					ID: "must-start-with-ami",
@@ -177,7 +179,7 @@ var _ = Describe("Validation", func() {
 			nodeClass.Spec.Tags = map[string]string{"karpenter.sh/nodepool": "custom-value"}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 
-			nodeClass.Spec.Tags = map[string]string{"karpenter.sh/managed-by": env.ClusterName}
+			nodeClass.Spec.Tags = map[string]string{v1.EKSClusterNameTagKey: env.ClusterName}
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 
 			nodeClass.Spec.Tags = map[string]string{fmt.Sprintf("kubernetes.io/cluster/%s", env.ClusterName): "owned"}
@@ -208,6 +210,7 @@ var _ = Describe("Validation", func() {
 			Expect(env.Client.Create(env.Context, nodeClass)).ToNot(Succeed())
 		})
 		It("should fail when amiSelectorTerms has id and other filters", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{
 				{
 					Tags: map[string]string{"karpenter.sh/discovery": env.ClusterName},

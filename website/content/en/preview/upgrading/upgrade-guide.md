@@ -37,6 +37,16 @@ kubectl apply -f https://raw.githubusercontent.com/aws/karpenter{{< githubRelRef
 WHEN CREATING A NEW SECTION OF THE UPGRADE GUIDANCE FOR NEWER VERSIONS, ENSURE THAT YOU COPY THE BETA API ALERT SECTION FROM THE LAST RELEASE TO PROPERLY WARN USERS OF THE RISK OF UPGRADING WITHOUT GOING TO 0.32.x FIRST
 -->
 
+### Upgrading to `1.0.0`+
+
+{{% alert title="Warning" color="warning" %}}
+Karpenter `1.0.0` introduces v1 APIs, including _significant_ changes to the API and upgrade procedures for the Karpenter controllers. **Do not** upgrade to `1.0.0`+ without referencing the [v1 Migration Upgrade Procedure]({{<ref "v1-migration#upgrade-procedure" >}}).
+
+This version adds [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion) to automatically pull the v1 API version of previously applied v1beta1 NodePools, EC2NodeClasses, and NodeClaims. Karpenter will stop serving the v1beta1 API version at v1.1.0 and will drop the conversion webhooks at that time. Migrate all stored manifests to v1 API versions on Karpenter v1.0+.
+
+{{% /alert %}}
+
+
 ### Upgrading to `0.37.0`+
 
 {{% alert title="Warning" color="warning" %}}

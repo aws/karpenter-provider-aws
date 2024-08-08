@@ -81,8 +81,8 @@ var _ = Describe("Chaos", func() {
 					Values:   []string{karpv1.CapacityTypeSpot},
 				},
 			})
-			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
 
 			numPods := 1
 			dep := coretest.Deployment(coretest.DeploymentOptions{
@@ -113,7 +113,7 @@ var _ = Describe("Chaos", func() {
 			defer cancel()
 
 			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmpty
-			nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
 			numPods := 1
 			dep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: int32(numPods),

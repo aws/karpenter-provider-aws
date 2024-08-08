@@ -1,4 +1,4 @@
- ---
+---
 title: "NodeClasses"
 linkTitle: "NodeClasses"
 weight: 2
@@ -56,7 +56,7 @@ spec:
     imageGCLowThresholdPercent: 80
     cpuCFSQuota: true
     clusterDNS: ["10.0.1.100"]
-  # Required, resolves a default ami and userdata 
+  # Required, resolves a default ami and userdata
   amiFamily: AL2
 
   # Required, discovers subnets to attach to instances
@@ -354,10 +354,21 @@ It's currently not possible to specify custom networking with Windows nodes.
 
 ## spec.amiFamily
 
-AMIFamily is a required field, dictating both the default bootstrapping logic for nodes provisioned through this `EC2NodeClass` but also selecting a group of recommended, latest AMIs by default. Currently, Karpenter supports `amiFamily` values `AL2`, `AL2023`, `Bottlerocket`, `Windows2019`, `Windows2022` and `Custom`. GPUs are only supported by default with `AL2` and `Bottlerocket`. The `AL2` amiFamily does not support ARM64 GPU instance types unless you specify custom [`amiSelectorTerms`]({{<ref "#specamiselectorterms" >}}). Default bootstrapping logic is shown below for each of the supported families.
+AMIFamily dictates the default bootstrapping logic for nodes provisioned through this `EC2NodeClass`.
+An `amiFamily` is only required if you don't specify a `spec.amiSelectorTerms.alias` object.
+For example, if you specify `alias: al2023@v20240625`, the `amiFamily` is implicitly `AL2023`.
 
-Karpenter no longer supports Ubuntu amiFamily. 
-If still want to use Ubuntu, can set up a custom AMIFamily with amiSelectorTerms pinned to the latest Ubuntu AMI ID and reference `bootstrapMode: AL2` to get the same userData configuration you received before.
+AMIFamily does not impact which AMI is discovered, only the UserData generation and default BlockDeviceMappings. To automatically discover EKS optimized AMIs, use the new [`alias` field in amiSelectorTerms]({{< ref "#specamiselectorterms" >}}).
+
+
+{{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
+
+Beginning with v1, Karpenter is no longer able to automatically discover Ubuntu AMIs.
+If you still want to use Ubuntu, you can set up a Custom `amiFamily` with amiSelectorTerms pinned to the latest Ubuntu AMI, referencing `amiFamily: AL2` to get the same userData configuration you received before.
+See the v1 section of the ([Upgrade Guide]({{< relref "../upgrading/upgrade-guide/" >}})) for information on migrating the Ubuntu amiFamily to v1.
+
+{{% /alert %}}
+
 
 ### AL2
 
@@ -625,7 +636,7 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 ## spec.amiSelectorTerms
 
-AMI Selector Terms are required and are used to configure custom AMIs for Karpenter to use, where the AMIs are discovered through alias, ids, owners, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
+AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
 
 This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
@@ -643,7 +654,27 @@ amiSelectorTerms:
   - id: ami-123
 ```
 
-This field is required. Use the `alias` field do selet an AMI family and version. To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To ensure that AMIs are owned by the expected owner, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
+An `alias` has the following format: `family@version`.
+Use the `alias` field to select an EKS-optimized AMI family and version. Family can be one of the following values:
+
+* `al2`
+* `al2023`
+* `bottlerocket`
+* `windows2019`
+* `windows2022`
+
+The version string can be set to `latest`, or pinned to a specific AMI using the format of that AMI's GitHub release tags.
+For example, AL2 and AL2023 use dates for their release, so they can be pinned as follows:
+```
+alias: al2023@v20240703
+```
+Bottlerocket uses a semantic version for their releases. You can pin bottlerocket as follows:
+```
+alias: bottlerocket@v1.20.4
+```
+The Windows family does not support pinning, so only `latest` is supported.
+
+To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are not owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
 If owner is not set for `name`, it defaults to `self,amazon`, preventing Karpenter from inadvertently selecting an AMI that is owned by a different account. Tags don't require an owner as tags can only be discovered by the user who created them.
 
@@ -730,6 +761,7 @@ karpenter.sh/nodeclaim: <nodeclaim-name>
 karpenter.sh/nodepool: <nodepool-name>
 karpenter.k8s.aws/ec2nodeclass: <ec2nodeclass-name>
 kubernetes.io/cluster/<cluster-name>: owned
+eks:eks-cluster-name: <cluster-name>
 ```
 
 Additional tags can be added in the tags section, which will be merged with the default tags specified above.
@@ -758,7 +790,7 @@ spec:
   metadataOptions:
     httpEndpoint: enabled
     httpProtocolIPv6: disabled
-    httpPutResponseHopLimit: 2
+    httpPutResponseHopLimit: 1
     httpTokens: required
 ```
 
@@ -1030,7 +1062,12 @@ spec:
 
 * Your UserData may be in one of three formats: a [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive), a NodeConfig YAML / JSON string, or a shell script.
 * Karpenter will transform your custom UserData into a MIME part, if necessary, and then create a MIME multi-part archive. This archive will consist of a generated NodeConfig, containing Karpenter's default values, followed by the transformed custom UserData. For more information on the NodeConfig spec, refer to the [AL2023 EKS Optimized AMI docs](https://awslabs.github.io/amazon-eks-ami/nodeadm/doc/examples/).
-* If a value is specified both in the Karpenter generated NodeConfig and the same value is specified in the custom user data, the value in the custom user data will take precedence.
+
+{{% alert title="Warning" color="warning" %}}
+Any values configured by the Karpenter generated NodeConfig object will take precedent over values specifed in `spec.userData`.
+This includes cluster name, cluster CIDR, cluster endpoint, certificate authority, taints, labels, and any value in [spec.kubelet]({{< ref "#speckubelet" >}}).
+These fields must be configured natively through Karpenter rather than through UserData.
+{{% /alert %}}
 
 #### Passed-in UserData (NodeConfig)
 
@@ -1050,7 +1087,16 @@ MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
 
 --//
-# Karpenter Generated NodeConfig
+Content-Type: application/node.eks.aws
+
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      maxPods: 42
+
+--//
 Content-Type: application/node.eks.aws
 
 # Karpenter Generated NodeConfig
@@ -1070,15 +1116,6 @@ spec:
     flags:
     - --node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=default"
 
---//
-Content-Type: application/node.eks.aws
-
-apiVersion: node.eks.aws/v1alpha1
-kind: NodeConfig
-spec:
-  kubelet:
-    config:
-      maxPods: 42
 --//--
 ```
 
@@ -1096,6 +1133,12 @@ MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
 
 --//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+
+--//
 Content-Type: application/node.eks.aws
 
 # Karpenter Generated NodeConfig
@@ -1115,11 +1158,6 @@ spec:
     flags:
     - --node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=default"
 
---//
-Content-Type: text/x-shellscript; charset="us-ascii"
-
-#!/bin/bash
-echo "Hello, AL2023!"
 --//--
 ```
 
@@ -1130,6 +1168,12 @@ MIME-Version: 1.0
 Content-Type: multipart/mixed; boundary="//"
 
 --//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+
+--//
 Content-Type: application/node.eks.aws
 
 apiVersion: node.eks.aws/v1alpha1
@@ -1138,11 +1182,6 @@ spec:
   kubelet:
     config:
       maxPods: 42
---//
-Content-Type: text/x-shellscript; charset="us-ascii"
-
-#!/bin/bash
-echo "Hello, AL2023!"
 --//
 ```
 
@@ -1155,6 +1194,21 @@ Content-Type: multipart/mixed; boundary="//"
 --//
 Content-Type: application/node.eks.aws
 
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  kubelet:
+    config:
+      maxPods: 42
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+
+--//
+Content-Type: application/node.eks.aws
+
 # Karpenter Generated NodeConfig
 apiVersion: node.eks.aws/v1alpha1
 kind: NodeConfig
@@ -1172,31 +1226,19 @@ spec:
     flags:
     - --node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=default"
 
---//
-Content-Type: application/node.eks.aws
-
-apiVersion: node.eks.aws/v1alpha1
-kind: NodeConfig
-spec:
-  kubelet:
-    config:
-      maxPods: 42
---//
-Content-Type: text/x-shellscript; charset="us-ascii"
-
-#!/bin/bash
-echo "Hello, AL2023!"
 --//--
 ```
 
 ### Bottlerocket
 
 * Your UserData must be valid TOML.
-* Karpenter will automatically merge settings to ensure successful bootstrap including `cluster-name`, `api-server` and `cluster-certificate`. Any labels and taints that need to be set based on pod requirements will also be specified in the final merged UserData.
-  * All Kubelet settings that Karpenter applies will override the corresponding settings in the provided UserData. For example, if you've specified `settings.kubernetes.cluster-name`, it will be overridden.
-  * If MaxPods is specified via the binary arg to Karpenter, the value will override anything specified in the UserData.
-  * If ClusterDNS is specified via `spec.kubeletConfiguration`, then that value will override anything specified in the UserData.
 * Unknown TOML fields will be ignored when the final merged UserData is generated by Karpenter.
+
+{{% alert title="Warning" color="warning" %}}
+Any values configured by Karpenter will take precedent over values specifed in `spec.userData`.
+This includes cluster name, cluster endpoint, cluster certificate, taints, labels, and any value in [spec.kubelet]({{< ref "#speckubelet" >}}).
+These fields must be configured natively through Karpenter rather than through UserData.
+{{% /alert %}}
 
 Consider the following example to understand how your custom UserData settings will be merged in.
 
@@ -1432,7 +1474,7 @@ status:
 
 ## status.conditions
 
-[`status.conditions`]({{< ref "#statusconditions" >}}) indicates EC2NodeClass readiness. This will be `Ready` when Karpenter successfully discovers AMIs, Instance Profile, Subnets, Cluster CIDR and SecurityGroups for the EC2NodeClass.
+[`status.conditions`]({{< ref "#statusconditions" >}}) indicates EC2NodeClass readiness. This will be `Ready` when Karpenter successfully discovers AMIs, Instance Profile, Subnets, Cluster CIDR (AL2023 only) and SecurityGroups for the EC2NodeClass.
 
 ```yaml
 spec:
@@ -1459,6 +1501,3 @@ status:
     Status:                False
     Type:                  Ready
 ```
-{{% alert title="Note" color="primary" %}}
-An EC2NodeClass that uses AL2023 requires the cluster CIDR for launching nodes. Cluster CIDR will not be resolved for EC2NodeClass that doesn't use AL2023.
-{{% /alert %}}

@@ -165,7 +165,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						// TODO @joinnis: Move this into the coretest.NodePool function
 						Labels: map[string]string{coretest.DiscoveryLabel: "unspecified"},
 					},
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -203,7 +203,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		nodePool2 := coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Template: karpv1.NodeClaimTemplate{
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -299,8 +299,9 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			Expect(*launchTemplate.LaunchTemplateSpecification.Version).To(Equal("$Latest"))
 		})
 	})
-	It("should fail to provision if the instance profile isn't defined", func() {
+	It("should fail to provision if the instance profile isn't ready", func() {
 		nodeClass.Status.InstanceProfile = ""
+		nodeClass.StatusConditions().SetFalse(v1.ConditionTypeInstanceProfileReady, "reason", "message")
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod()
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -309,6 +310,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 	It("should use the instance profile on the EC2NodeClass when specified", func() {
 		nodeClass.Spec.Role = ""
 		nodeClass.Spec.InstanceProfile = aws.String("overridden-profile")
+		nodeClass.Status.InstanceProfile = "overridden-profile"
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 		pod := coretest.UnschedulablePod()
 		ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
@@ -730,6 +732,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should not default block device mappings for custom AMIFamilies", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			ExpectApplied(ctx, env.Client, nodePool, nodeClass)
 			pod := coretest.UnschedulablePod()
@@ -741,6 +744,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 		})
 		It("should use custom block device mapping for custom AMIFamilies", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
@@ -907,6 +911,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using blockdevicemappings for Custom AMIFamily", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
@@ -936,6 +941,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 		})
 		It("should pack pods using the configured root volume in blockdevicemappings", func() {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 			nodeClass.Spec.BlockDeviceMappings = []*v1.BlockDeviceMapping{
 				{
@@ -1006,7 +1012,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
-			amiFamily := amifamily.GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), &amifamily.Options{})
+			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1060,7 +1066,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
-			amiFamily := amifamily.GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), &amifamily.Options{})
+			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1086,7 +1092,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{MaxPods: lo.ToPtr[int32](110)}
-			amiFamily := amifamily.GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), &amifamily.Options{})
+			amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 			it := instancetype.NewInstanceType(ctx,
 				info,
 				"",
@@ -1841,6 +1847,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		})
 		Context("Custom AMI Selector", func() {
 			It("should use ami selector specified in EC2NodeClass", func() {
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodeClass.Status.AMIs = []v1.AMI{
 					{
@@ -1861,6 +1868,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			})
 			It("should copy over userData untouched when AMIFamily is Custom", func() {
 				nodeClass.Spec.UserData = aws.String("special user data")
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodeClass.Status.AMIs = []v1.AMI{
 					{
@@ -1877,6 +1885,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				ExpectLaunchTemplatesCreatedWithUserData("special user data")
 			})
 			It("should correctly use ami selector with specific IDs in EC2NodeClass", func() {
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{ID: "ami-123"}, {ID: "ami-456"}}
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{
@@ -1911,6 +1920,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(actualFilter).To(Equal(expectedFilter))
 			})
 			It("should create multiple launch templates when multiple amis are discovered with non-equivalent requirements", func() {
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodeClass.Status.AMIs = []v1.AMI{
 					{
@@ -1960,6 +1970,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 						CreationDate: aws.String("2022-01-01T12:00:00Z"),
 					},
 				}})
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				ExpectApplied(ctx, env.Client, nodeClass)
 				controller := status.NewController(env.Client, awsEnv.SubnetProvider, awsEnv.SecurityGroupProvider, awsEnv.AMIProvider, awsEnv.InstanceProfileProvider, awsEnv.LaunchTemplateProvider)
@@ -1985,6 +1996,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 
 			It("should fail if no amis match selector.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{}})
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodeClass.Status.AMIs = []v1.AMI{}
 				ExpectApplied(ctx, env.Client, nodeClass, nodePool)
@@ -1996,6 +2008,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			It("should fail if no instanceType matches ami requirements.", func() {
 				awsEnv.EC2API.DescribeImagesOutput.Set(&ec2.DescribeImagesOutput{Images: []*ec2.Image{
 					{Name: aws.String(coretest.RandomName()), ImageId: aws.String("ami-123"), Architecture: aws.String("newnew"), CreationDate: aws.String("2022-01-01T12:00:00Z")}}})
+				nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyCustom)
 				nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Tags: map[string]string{"*": "*"}}}
 				nodeClass.Status.AMIs = []v1.AMI{
 					{

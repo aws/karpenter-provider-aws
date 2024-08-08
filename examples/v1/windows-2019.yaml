@@ -45,7 +45,7 @@ spec:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
   amiSelectorTerms:
-    - alias: windows2019@latest # Windows Pinning
+    - alias: windows2019@latest #Windows does not support pinning
   metadataOptions:
     httpProtocolIPv6: disabled
     httpTokens: required

@@ -151,7 +151,7 @@ func (p *DefaultProvider) List(ctx context.Context, kc *v1.KubeletConfiguration,
 	if p.cm.HasChanged("zones", allZones) {
 		log.FromContext(ctx).WithValues("zones", allZones.UnsortedList()).V(1).Info("discovered zones")
 	}
-	amiFamily := amifamily.GetAMIFamily(lo.ToPtr(nodeClass.AMIFamily()), &amifamily.Options{})
+	amiFamily := amifamily.GetAMIFamily(nodeClass.AMIFamily(), &amifamily.Options{})
 	result := lo.Map(p.instanceTypesInfo, func(i *ec2.InstanceTypeInfo, _ int) *cloudprovider.InstanceType {
 		instanceTypeVCPU.With(prometheus.Labels{
 			instanceTypeLabel: *i.InstanceType,
