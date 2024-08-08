@@ -246,7 +246,8 @@ func (r Resolver) resolveLaunchTemplate(nodeClass *v1.EC2NodeClass, nodeClaim *k
 		EFACount:            efaCount,
 		CapacityType:        capacityType,
 	}
-	if len(resolved.BlockDeviceMappings) == 0 {
+	// If block device mappings are nil, use the default block device mappings.
+	if resolved.BlockDeviceMappings == nil {
 		resolved.BlockDeviceMappings = amiFamily.DefaultBlockDeviceMappings()
 	}
 	if resolved.MetadataOptions == nil {

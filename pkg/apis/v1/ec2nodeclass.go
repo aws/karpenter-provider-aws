@@ -106,7 +106,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
 	// +kubebuilder:validation:MaxItems:=50
 	// +optional
-	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings,omitempty"`
+	BlockDeviceMappings []*BlockDeviceMapping `json:"blockDeviceMappings"`
 	// InstanceStorePolicy specifies how to handle instance-store disks.
 	// +optional
 	InstanceStorePolicy *InstanceStorePolicy `json:"instanceStorePolicy,omitempty"`
