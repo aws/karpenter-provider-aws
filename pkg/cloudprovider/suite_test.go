@@ -234,6 +234,14 @@ var _ = Describe("CloudProvider", func() {
 		_, ok := cloudProviderNodeClaim.ObjectMeta.Annotations[v1beta1.AnnotationEC2NodeClassHash]
 		Expect(ok).To(BeTrue())
 	})
+	It("should expect a strict set of annotation keys", func() {
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(err).To(BeNil())
+		Expect(cloudProviderNodeClaim).ToNot(BeNil())
+		Expect(len(lo.Keys(cloudProviderNodeClaim.Annotations))).To(BeNumerically("==", 3))
+		Expect(lo.Keys(cloudProviderNodeClaim.Annotations)).To(ContainElements(corev1beta1.ManagedByAnnotationKey, v1beta1.AnnotationEC2NodeClassHash, v1beta1.AnnotationEC2NodeClassHashVersion))
+	})
 	It("should return NodeClass Hash Version on the nodeClaim", func() {
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		cloudProviderNodeClaim, err := cloudProvider.Create(ctx, nodeClaim)
