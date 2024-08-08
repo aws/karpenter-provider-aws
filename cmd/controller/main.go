@@ -69,5 +69,5 @@ func main() {
 			op.LaunchTemplateProvider,
 		)...).
 		WithWebhooks(ctx, webhooks.NewWebhooks()...).
-		Start(ctx)
+		Start(ctx, awsCloudProvider)
 }
