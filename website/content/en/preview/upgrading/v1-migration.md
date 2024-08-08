@@ -184,11 +184,68 @@ then you have to manually add more EC2NodeClasses and point their NodePools to t
 If you have multiple NodePools pointing to the same EC2NodeClass, but they have the same configuration, then you can proceed with the migration
 without having drift or having any additional NodePools or EC2NodeClasses configured.
 
-* **Remove kubelet annotation from NodePools**: Remove the kubelet-configuration annotation (`compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation) from your NodePools. This is used to support the KubeletConfiguration migration path above, but is not supported in v1.1.
-Karpenter will crash on upgrade if NodePool resources contain this annotation. Users should make sure that their kubelet configurations are migrated prior to upgrading to properly drift their nodes to the correct configurations.
+**Remove kubelet annotation from NodePools**: During the upgrade process Karpenter will rely on the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation to determine whether to use the v1beta1 NodePool kubelet configuration or the v1 EC2NodeClass kubelet configuration. As long as the  `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation is present, Karpenter will use that kubelet configuration setting when launching nodes. Remove the kubelet-configuration annotation (`compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation) from your NodePools once you have migrated kubelet from the NodePool to the EC2NodeClass. 
+
+Keep in mind that rollback, without replacing the Karpenter nodes, will not be supported to an earlier version of Karpenter once the annotation is removed. This is annotation is only used to support the KubeletConfiguration migration path, but will not be supported in v1.1.
 
 ### Downgrading
-// TODO 
+Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks: 
+
+* v0.37.1
+* v0.36.3
+* v0.35.6
+* v0.34.7
+* v0.33.6
+
+{{% alert title="Note" color="warning" %}}
+When rolling back from v1, Karpenter will not retain data that was only valid in v1 APIs. For instance, if you were upgrading from v0.33.5 to v1, updated the `NodePool.Spec.Disruption.Budgets` field and then rolled back to v0.33.6, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in v0.34.x. If you are configuring the kubelet field, and have removed the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation, rollback is not supported without replacing your nodes between EC2NodeClass and NodePool.
+{{% /alert %}}
+
+{{% alert title="Note" color="warning" %}}
+Since both v1beta1 and v1 will be served, `kubectl` will default to returning the `v1` version of your CRDs. To interact with the v1beta1 version of your CRDs, you'll need to add the full resource path (including api version) into `kubectl` calls. For example: `k get nodeclaim.v1beta1.karpenter.sh`
+{{% /alert %}}
+
+1.) Rollback the Karpenter Policy
+
+```bash
+TEMPOUT=$(mktemp)
+curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/docs/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
+    && aws cloudformation deploy \
+    --stack-name "Karpenter-${CLUSTER_NAME}" \
+    --template-file "${TEMPOUT}" \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides "ClusterName=${CLUSTER_NAME}"
+```
+
+2.) Rollback the CRDs
+
+```bash
+KARPENTER_NAMESPACE=kube-system 
+helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+  --set webhook.enabled=true \
+  --set webhook.serviceName=karpenter \
+  --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
+  --set webhook.port=8443
+```
+
+3.) Rollback the Karpenter Controller 
+
+```bash
+helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+  --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
+  --set settings.clusterName=${CLUSTER_NAME} \
+  --set settings.interruptionQueue=${CLUSTER_NAME} \
+  --set controller.resources.requests.cpu=1 \
+  --set controller.resources.requests.memory=1Gi \
+  --set controller.resources.limits.cpu=1 \
+  --set controller.resources.limits.memory=1Gi \
+  --set webhook.enabled=true \
+  --set webhook.port=8443 \
+  --wait
+```
+
+Karpenter should now be pulling and operating against the v1beta1 APIVersion as it was prior to the upgrade
+
 
 ## Full Changelog
 * Features: 
