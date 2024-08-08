@@ -359,11 +359,22 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 }
 
 func (p *DefaultProvider) updateUnavailableOfferingsCache(ctx context.Context, errors []*ec2.CreateFleetError, capacityType string) {
-	for _, err := range errors {
-		if awserrors.IsUnfulfillableCapacity(err) {
-			p.unavailableOfferings.MarkUnavailableForFleetErr(ctx, err, capacityType)
-		}
+	unavailableOfferingErrors := lo.Filter(errors, func(e *ec2.CreateFleetError, _ int) bool { return awserrors.IsUnfulfillableCapacity(e) })
+	for _, err := range unavailableOfferingErrors {
+		p.unavailableOfferings.MarkUnavailable(
+			aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.InstanceType),
+			aws.StringValue(err.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
+			capacityType,
+		)
 	}
+	log.FromContext(ctx).WithValues("ttl", cache.UnavailableOfferingsTTL, "offerings", lo.Map(unavailableOfferingErrors, func(e *ec2.CreateFleetError, _ int) string {
+		return fmt.Sprintf(
+			"%s/%s/%s",
+			aws.StringValue(e.LaunchTemplateAndOverrides.Overrides.InstanceType),
+			aws.StringValue(e.LaunchTemplateAndOverrides.Overrides.AvailabilityZone),
+			capacityType,
+		)
+	})).V(1).Info("removing offering(s) from offerings")
 }
 
 // getCapacityType selects spot if both constraints are flexible and there is an

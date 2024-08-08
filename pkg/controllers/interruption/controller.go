@@ -196,7 +196,8 @@ func (c *Controller) handleNodeClaim(ctx context.Context, msg messages.Message, 
 		zone := nodeClaim.Labels[corev1.LabelTopologyZone]
 		instanceType := nodeClaim.Labels[corev1.LabelInstanceTypeStable]
 		if zone != "" && instanceType != "" {
-			c.unavailableOfferingsCache.MarkUnavailable(ctx, string(msg.Kind()), instanceType, zone, karpv1.CapacityTypeSpot)
+			c.unavailableOfferingsCache.MarkUnavailable(instanceType, zone, karpv1.CapacityTypeSpot)
+			log.FromContext(ctx).WithValues("ttl", cache.UnavailableOfferingsTTL, "offerings", fmt.Sprintf("%s/%s/%s", instanceType, zone, karpv1.CapacityTypeSpot)).V(1).Info("removing offering(s) from offerings")
 		}
 	}
 	if action != NoAction {
