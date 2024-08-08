@@ -1,8 +1,6 @@
-# This example NodePool will provision instances
-# that are replaced every 7 days and drain after 1 minute
-# with no workloads
+# This example NodePool will provision instances using the AL2023 EKS-Optimized AMI.
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -28,22 +26,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: default
-  disruption:
-    consolidationPolicy: WhenEmpty
-    consolidateAfter: 60s # scale down nodes after 60 seconds without workloads (excluding daemons)
-    expireAfter: 168h # expire nodes after 7 days = 7 * 24h
+        name: al2023
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: default
+  name: al2023
   annotations:
-    kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
+    kubernetes.io/description: "EC2NodeClass for running Amazon Linux 2023 nodes with custom user data"
 spec:
-  amiFamily: AL2 # Amazon Linux 2
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -51,3 +44,26 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: al2023@latest # Amazon Linux 2023
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="//"
+
+    --//
+    Content-Type: application/node.eks.aws
+
+    # Example custom nodeconfig which mounts individual drives on an instance
+    apiVersion: node.eks.aws/v1alpha1
+    kind: NodeConfig
+    spec:
+      instance:
+        localStorage:
+          strategy: Mount
+
+    --//
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "Hello, AL2023!"
+    --//

@@ -205,7 +205,7 @@ When rolling back from v1, Karpenter will not retain data that was only valid in
 Since both v1beta1 and v1 will be served, `kubectl` will default to returning the `v1` version of your CRDs. To interact with the v1beta1 version of your CRDs, you'll need to add the full resource path (including api version) into `kubectl` calls. For example: `k get nodeclaim.v1beta1.karpenter.sh`
 {{% /alert %}}
 
-1.) Rollback the Karpenter Policy
+1. Rollback the Karpenter Policy
 
 ```bash
 TEMPOUT=$(mktemp)
@@ -217,7 +217,7 @@ curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARP
     --parameter-overrides "ClusterName=${CLUSTER_NAME}"
 ```
 
-2.) Rollback the CRDs
+2. Rollback the CRDs
 
 ```bash
 KARPENTER_NAMESPACE=kube-system 
@@ -228,7 +228,7 @@ helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-cr
   --set webhook.port=8443
 ```
 
-3.) Rollback the Karpenter Controller 
+3. Rollback the Karpenter Controller 
 
 ```bash
 helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \

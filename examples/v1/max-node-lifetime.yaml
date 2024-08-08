@@ -1,8 +1,8 @@
-# This example NodePool will provision instances using the AL2 EKS-Optimized AMI.
-# The UserData defined in spec.UserData needs to be in the MIME-multipart format,
-# and will be prepended to a Karpenter managed section that will bootstrap the kubelet.
+# This example NodePool will provision instances
+# that are replaced every 7 days and drain after 1 minute
+# with no workloads
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -28,18 +28,22 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: al2
+        name: default
+      expireAfter: 168h # expire nodes after 7 days = 7 * 24h
+      terminationGracePeirod: 24h # grace period after 1 day = 7 * 24h, for a max node lifetime of 8 days
+  disruption:
+    consolidationPolicy: WhenEmpty
+    consolidateAfter: 60s # scale down nodes after 60 seconds without workloads (excluding daemons)
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: al2
+  name: default
   annotations:
-    kubernetes.io/description: "EC2NodeClass for running Amazon Linux 2 nodes with custom user data"
+    kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
 spec:
-  amiFamily: AL2 # Amazon Linux 2
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -47,14 +51,5 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-  userData: |
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="BOUNDARY"
-
-    --BOUNDARY
-    Content-Type: text/x-shellscript; charset="us-ascii"
-
-    #!/bin/bash
-    echo "Running a custom user data script"
-
-    --BOUNDARY--
+  amiSelectorTerms:
+    - alias: al2023@latest # Amazon Linux 2023

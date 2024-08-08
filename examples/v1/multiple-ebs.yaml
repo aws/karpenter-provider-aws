@@ -1,6 +1,7 @@
-# This example NodePool will provision instances using the AL2023 EKS-Optimized AMI.
+# This example NodePool will provision instances
+# with multiple EBS volumes attached
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -26,18 +27,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: al2023
+        name: multiple-ebs
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: al2023
+  name: multiple-ebs
   annotations:
-    kubernetes.io/description: "EC2NodeClass for running Amazon Linux 2023 nodes with custom user data"
+    kubernetes.io/description: "EC2NodeClass to provision multiple EBS volumes to attach to new nodes"
 spec:
-  amiFamily: AL2023 # Amazon Linux 2023
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -45,24 +45,21 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-  userData: |
-    MIME-Version: 1.0
-    Content-Type: multipart/mixed; boundary="//"
-
-    --//
-    Content-Type: application/node.eks.aws
-
-    # Example custom nodeconfig which mounts individual drives on an instance
-    apiVersion: node.eks.aws/v1alpha1
-    kind: NodeConfig
-    spec:
-      instance:
-        localStorage:
-          strategy: Mount
-
-    --//
-    Content-Type: text/x-shellscript; charset="us-ascii"
-
-    #!/bin/bash
-    echo "Hello, AL2023!"
-    --//
+  amiSelectorTerms:
+    - alias: al2023@latest # Amazon Linux 2023
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeType: gp3
+        volumeSize: 20Gi
+        deleteOnTermination: true
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeType: gp3
+        volumeSize: 100Gi
+        deleteOnTermination: true
+    - deviceName: /dev/xvdc
+      ebs:
+        volumeType: gp3
+        volumeSize: 2000Gi
+        deleteOnTermination: true

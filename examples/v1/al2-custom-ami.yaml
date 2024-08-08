@@ -1,7 +1,8 @@
-# This example NodePool will provision instances
-# running Bottlerocket OS
+# This example NodePool will provision instances using a custom EKS-Optimized AMI that belongs to the
+# AL2 AMIFamily. If your AMIs are built off https://github.com/awslabs/amazon-eks-ami and can be bootstrapped
+# by Karpenter, this may be a good fit for you.
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -27,18 +28,18 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: bottlerocket
+        name: al2
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: bottlerocket
+  name: al2
   annotations:
-    kubernetes.io/description: "EC2NodeClass for running Bottlerocket nodes"
+    kubernetes.io/description: "EC2NodeClass for running Amazon Linux 2 nodes with a custom AMI"
 spec:
-  amiFamily: Bottlerocket
+  amiFamily: AL2 # Amazon Linux 2
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -46,15 +47,17 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-  blockDeviceMappings:
-    - deviceName: /dev/xvda
-      ebs:
-        volumeType: gp3
-        volumeSize: 4Gi
-        deleteOnTermination: true
-    # Bottlerocket data volume
-    - deviceName: /dev/xvdb
-      ebs:
-        volumeType: gp3
-        volumeSize: 20Gi # replace with your required disk size
-        deleteOnTermination: true
+  amiSelectorTerms:
+    - id: ami-123
+    - id: ami-456
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="EXAMPLEBOUNDARY"
+
+    --EXAMPLEBOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "Running a custom user data script"
+
+    --EXAMPLEBOUNDARY--

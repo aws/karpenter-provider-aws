@@ -1,6 +1,6 @@
 # This example NodePool will provision instances running Windows Server 2022
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: windows2022
@@ -26,18 +26,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: windows2022
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: windows2022
   annotations:
     kubernetes.io/description: "Nodes running Windows Server 2022"
 spec:
-  amiFamily: Windows2022
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -45,6 +44,8 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: windows2022@latest # Windows does not support pinning
   metadataOptions:
     httpProtocolIPv6: disabled
     httpTokens: required

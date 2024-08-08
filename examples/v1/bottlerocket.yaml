@@ -1,7 +1,7 @@
-# This example NodePool will provision AL2 instances with
-# local NVMe instance-store disks used for node ephemeral storage.
+# This example NodePool will provision instances
+# running Bottlerocket OS
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
   name: default
@@ -26,23 +26,18 @@ spec:
         - key: karpenter.k8s.aws/instance-generation
           operator: Gt
           values: ["2"]
-        - key: karpenter.k8s.aws/instance-local-nvme
-          operator: Gt
-          values: ["300"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: instance-store-ephemeral-storage
+        name: bottlerocket
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: instance-store-ephemeral-storage
+  name: bottlerocket
   annotations:
-    kubernetes.io/description: "EC2NodeClass to provision nodes with instance-store ephemeral storage"
+    kubernetes.io/description: "EC2NodeClass for running Bottlerocket nodes"
 spec:
-  amiFamily: AL2 # Amazon Linux 2
-  instanceStorePolicy: "RAID0"
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -50,3 +45,17 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: bottlerocket@latest # Bottlerocket
+  blockDeviceMappings:
+    - deviceName: /dev/xvda
+      ebs:
+        volumeType: gp3
+        volumeSize: 4Gi
+        deleteOnTermination: true
+    # Bottlerocket data volume
+    - deviceName: /dev/xvdb
+      ebs:
+        volumeType: gp3
+        volumeSize: 20Gi # replace with your required disk size
+        deleteOnTermination: true
