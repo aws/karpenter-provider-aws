@@ -52,10 +52,7 @@ runs:
       # Parse minor version to determine whether to enable the webhooks
       VERSION=${{ inputs.k8s_version }}
       RELEASE_VERSION_MINOR="${VERSION#*.}"
-      WEBHOOK_ENABLED=false
-      if (( RELEASE_VRESION_MINOR < 25 )); then
-        WEBHOOK_ENABLED=true
-      fi
+      WEBHOOK_ENABLED=true
       
       helm upgrade --install karpenter oci://${{ inputs.ecr_account_id }}.dkr.ecr.${{ inputs.ecr_region }}.amazonaws.com/karpenter/snapshot/karpenter \
         -n kube-system \
