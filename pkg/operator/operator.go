@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -90,47 +89,7 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	config := &aws.Config{
-		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
-	}
-
-	// prometheusv1.WithPrometheusMetrics is used until the upstream aws-sdk-go or aws-sdk-go-v2 supports
-	// Prometheus metrics for client-side metrics out-of-the-box
-	// See: https://github.com/aws/aws-sdk-go-v2/issues/1744
-	sess := prometheusv1.WithPrometheusMetrics(WithUserAgent(session.Must(session.NewSession(
-		request.WithRetryer(
-			config,
-			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
-		),
-	))), crmetrics.Registry)
-
-	if *sess.Config.Region == "" {
-		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
-		region, err := ec2metadata.New(sess).Region()
-		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
-	}
-	ec2api := ec2.New(sess)
-	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
-		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
-		os.Exit(1)
-	}
-	log.FromContext(ctx).WithValues("region", *sess.Config.Region).V(1).Info("discovered region")
-	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.New(sess))
-	if err != nil {
-		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
-		os.Exit(1)
-	} else {
-		log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
-	}
-	// We perform best-effort on resolving the kube-dns IP
-	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
-	if err != nil {
-		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
-		// https://github.com/aws/karpenter-provider-aws/issues/2787
-		log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to detect the IP of the kube-dns service, %s", err))
-	} else {
-		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
-	}
+	sess, ec2api, clusterEndpoint, kubeDNSIP := resolveOperatorProperties(ctx, operator)
 
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
@@ -194,6 +153,49 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		InstanceProvider:          instanceProvider,
 		SSMProvider:               ssmProvider,
 	}
+}
+
+func resolveOperatorProperties(ctx context.Context, operator *operator.Operator) (*session.Session, *ec2.EC2, string, net.IP) {
+	config := &aws.Config{
+		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
+	}
+
+	// prometheusv1.WithPrometheusMetrics is used until the upstream aws-sdk-go or aws-sdk-go-v2 supports
+	// Prometheus metrics for client-side metrics out-of-the-box
+	// See: https://github.com/aws/aws-sdk-go-v2/issues/1744
+	sess := prometheusv1.WithPrometheusMetrics(WithUserAgent(session.Must(session.NewSession(
+		request.WithRetryer(
+			config,
+			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
+		),
+	))), crmetrics.Registry)
+
+	if *sess.Config.Region == "" {
+		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
+		region, err := ec2metadata.New(sess).Region()
+		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
+	}
+	log.FromContext(ctx).WithValues("region", *sess.Config.Region).V(1).Info("discovered region")
+
+	ec2api := ec2.New(sess)
+	err := CheckEC2Connectivity(ctx, ec2api)
+	lo.Must0(err, "ec2 api connectivity check failed")
+
+	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.New(sess))
+	lo.Must0(err, "failed to resolve cluster endpoint")
+	log.FromContext(ctx).WithValues("cluster-endpoint", clusterEndpoint).V(1).Info("discovered cluster endpoint")
+
+	// We perform best-effort on resolving the kube-dns IP
+	kubeDNSIP, err := KubeDNSIP(ctx, operator.KubernetesInterface)
+	if err != nil {
+		// If we fail to get the kube-dns IP, we don't want to crash because this causes issues with custom DNS setups
+		// https://github.com/aws/karpenter-provider-aws/issues/2787
+		log.FromContext(ctx).V(1).Info(fmt.Sprintf("unable to detect the IP of the kube-dns service, %s", err))
+	} else {
+		log.FromContext(ctx).WithValues("kube-dns-ip", kubeDNSIP).V(1).Info("discovered kube dns")
+	}
+
+	return sess, ec2api, clusterEndpoint, kubeDNSIP
 }
 
 // WithUserAgent adds a karpenter specific user-agent string to AWS session
