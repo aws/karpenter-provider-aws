@@ -16,6 +16,7 @@ package amifamily
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"time"
 
@@ -36,25 +37,45 @@ const (
 )
 
 type AMI struct {
-	Name         string
-	AmiID        string
-	CreationDate string
-	Requirements scheduling.Requirements
+	Name            string
+	AmiID           string
+	CreationDate    string
+	DeprecationTime string
+	Requirements    scheduling.Requirements
 }
 
 type AMIs []AMI
 
 // Sort orders the AMIs by creation date in descending order.
-// If creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
+// If there are any amis with deprecation time, they will be sorted by deprecation time in descending order
+// If deprecation time is nil or two AMIs have the same deprecation time, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
+// finally, if creation date is nil or two AMIs have the same creation date, the AMIs will be sorted by ID, which is guaranteed to be unique, in ascending order.
 func (a AMIs) Sort() {
+	maxTime := time.Unix(math.MaxInt64, 0)
+	minTime := time.Unix(math.MinInt64, 0)
 	sort.Slice(a, func(i, j int) bool {
-		itime, _ := time.Parse(time.RFC3339, a[i].CreationDate)
-		jtime, _ := time.Parse(time.RFC3339, a[j].CreationDate)
+		ideptime := parseTimeWithDefault(a[i].DeprecationTime, maxTime)
+		jdeptime := parseTimeWithDefault(a[j].DeprecationTime, maxTime)
+
+		if ideptime.Unix() != jdeptime.Unix() {
+			return ideptime.Unix() > jdeptime.Unix()
+		}
+
+		itime := parseTimeWithDefault(a[i].CreationDate, minTime)
+		jtime := parseTimeWithDefault(a[j].CreationDate, minTime)
+
 		if itime.Unix() != jtime.Unix() {
 			return itime.Unix() > jtime.Unix()
 		}
 		return a[i].AmiID < a[j].AmiID
 	})
+}
+
+func parseTimeWithDefault(dateStr string, defaultTime time.Time) time.Time {
+	if dateStr == "" {
+		return defaultTime
+	}
+	return lo.Must(time.Parse(time.RFC3339, dateStr))
 }
 
 type Variant string
@@ -102,9 +123,10 @@ type DescribeImageQuery struct {
 func (q DescribeImageQuery) DescribeImagesInput() *ec2.DescribeImagesInput {
 	return &ec2.DescribeImagesInput{
 		// Don't include filters in the Describe Images call as EC2 API doesn't allow empty filters.
-		Filters:    lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
-		Owners:     lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
-		MaxResults: aws.Int64(1000),
+		Filters:           lo.Ternary(len(q.Filters) > 0, q.Filters, nil),
+		Owners:            lo.Ternary(len(q.Owners) > 0, lo.ToSlicePtr(q.Owners), nil),
+		IncludeDeprecated: aws.Bool(true),
+		MaxResults:        aws.Int64(1000),
 	}
 }
 

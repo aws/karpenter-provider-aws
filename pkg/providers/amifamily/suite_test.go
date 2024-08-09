@@ -553,6 +553,212 @@ var _ = Describe("AMIProvider", func() {
 				},
 			))
 		})
+		It("should sort amis with deprecation time and creation date consistently", func() {
+			amis := amifamily.AMIs{
+				{
+					Name:            "test-ami-5",
+					AmiID:           "test-ami-5-id",
+					CreationDate:    "2021-08-31T00:04:42.000Z",
+					DeprecationTime: "2021-09-01T00:06:42.000Z",
+					Requirements:    scheduling.NewRequirements(),
+				},
+				{
+					Name:            "test-ami-4",
+					AmiID:           "test-ami-4-id",
+					CreationDate:    "2021-08-31T00:06:42.000Z",
+					DeprecationTime: "2021-09-01T00:08:42.000Z",
+					Requirements:    scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-3",
+					AmiID:        "test-ami-3-id",
+					CreationDate: "",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:            "test-ami-2",
+					AmiID:           "test-ami-2-id",
+					CreationDate:    "2021-08-31T00:08:42.000Z",
+					DeprecationTime: "",
+					Requirements:    scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-1-id",
+					CreationDate: "2021-08-31T00:12:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+			}
+
+			amis.Sort()
+			Expect(amis).To(Equal(
+				amifamily.AMIs{
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-1-id",
+						CreationDate: "2021-08-31T00:12:42.000Z",
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:            "test-ami-2",
+						AmiID:           "test-ami-2-id",
+						CreationDate:    "2021-08-31T00:08:42.000Z",
+						DeprecationTime: "",
+						Requirements:    scheduling.NewRequirements(),
+					},
+					{
+						Name:         "test-ami-3",
+						AmiID:        "test-ami-3-id",
+						CreationDate: "",
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:            "test-ami-4",
+						AmiID:           "test-ami-4-id",
+						CreationDate:    "2021-08-31T00:06:42.000Z",
+						DeprecationTime: "2021-09-01T00:08:42.000Z",
+						Requirements:    scheduling.NewRequirements(),
+					},
+					{
+						Name:            "test-ami-5",
+						AmiID:           "test-ami-5-id",
+						CreationDate:    "2021-08-31T00:04:42.000Z",
+						DeprecationTime: "2021-09-01T00:06:42.000Z",
+						Requirements:    scheduling.NewRequirements(),
+					},
+				},
+			))
+		})
+		It("should sort non deprecated amis over deprecated amis with same creation time consistently", func() {
+			// If there are 2 AMIs with same creation date and one with a greater id is deprecated
+			// sort should priortize the non deprecated ami first
+			amis := amifamily.AMIs{
+				{
+					Name:            "test-ami-3",
+					AmiID:           "test-ami-3-id",
+					CreationDate:    "2021-08-31T00:12:42.000Z",
+					DeprecationTime: time.Now().Add(-1 * time.Minute).Format(time.RFC3339),
+					Requirements:    scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-2",
+					AmiID:        "test-ami-2-id",
+					CreationDate: "2021-08-31T00:10:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:         "test-ami-1",
+					AmiID:        "test-ami-1-id",
+					CreationDate: "2021-08-31T00:12:42.000Z",
+					Requirements: scheduling.NewRequirements(),
+				},
+				{
+					Name:            "test-ami-4",
+					AmiID:           "test-ami-4-id",
+					CreationDate:    "2021-08-31T00:10:42.000Z",
+					DeprecationTime: time.Now().Add(-2 * time.Minute).Format(time.RFC3339),
+					Requirements:    scheduling.NewRequirements(),
+				},
+			}
+
+			amis.Sort()
+			Expect(amis).To(Equal(
+				amifamily.AMIs{
+					{
+						Name:         "test-ami-1",
+						AmiID:        "test-ami-1-id",
+						CreationDate: "2021-08-31T00:12:42.000Z",
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:         "test-ami-2",
+						AmiID:        "test-ami-2-id",
+						CreationDate: "2021-08-31T00:10:42.000Z",
+						Requirements: scheduling.NewRequirements(),
+					},
+					{
+						Name:            "test-ami-3",
+						AmiID:           "test-ami-3-id",
+						CreationDate:    "2021-08-31T00:12:42.000Z",
+						DeprecationTime: time.Now().Add(-1 * time.Minute).Format(time.RFC3339),
+						Requirements:    scheduling.NewRequirements(),
+					},
+					{
+						Name:            "test-ami-4",
+						AmiID:           "test-ami-4-id",
+						CreationDate:    "2021-08-31T00:10:42.000Z",
+						DeprecationTime: time.Now().Add(-2 * time.Minute).Format(time.RFC3339),
+						Requirements:    scheduling.NewRequirements(),
+					},
+				},
+			))
+		})
+		It("should sort only deprecated amis with the same name and deprecation time consistently", func() {
+			amis := amifamily.AMIs{
+				{
+					Name:            "test-ami-1",
+					AmiID:           "test-ami-4-id",
+					CreationDate:    "2021-08-31T00:10:42.000Z",
+					DeprecationTime: "2021-08-31T00:12:42.000Z",
+					Requirements:    scheduling.NewRequirements(),
+				},
+				{
+					Name:            "test-ami-1",
+					AmiID:           "test-ami-3-id",
+					CreationDate:    "2021-08-31T00:10:42.000Z",
+					DeprecationTime: "2021-08-31T00:12:42.000Z",
+					Requirements:    scheduling.NewRequirements(),
+				},
+				{
+					Name:            "test-ami-1",
+					AmiID:           "test-ami-2-id",
+					CreationDate:    "2021-08-31T00:10:42.000Z",
+					DeprecationTime: "2021-08-31T00:12:42.000Z",
+					Requirements:    scheduling.NewRequirements(),
+				},
+				{
+					Name:            "test-ami-1",
+					AmiID:           "test-ami-1-id",
+					CreationDate:    "2021-08-31T00:10:42.000Z",
+					DeprecationTime: "2021-08-31T00:12:42.000Z",
+					Requirements:    scheduling.NewRequirements(),
+				},
+			}
+
+			amis.Sort()
+			Expect(amis).To(Equal(
+				amifamily.AMIs{
+					{
+						Name:            "test-ami-1",
+						AmiID:           "test-ami-1-id",
+						CreationDate:    "2021-08-31T00:10:42.000Z",
+						DeprecationTime: "2021-08-31T00:12:42.000Z",
+						Requirements:    scheduling.NewRequirements(),
+					},
+					{
+						Name:            "test-ami-1",
+						AmiID:           "test-ami-2-id",
+						CreationDate:    "2021-08-31T00:10:42.000Z",
+						DeprecationTime: "2021-08-31T00:12:42.000Z",
+						Requirements:    scheduling.NewRequirements(),
+					},
+					{
+						Name:            "test-ami-1",
+						AmiID:           "test-ami-3-id",
+						CreationDate:    "2021-08-31T00:10:42.000Z",
+						DeprecationTime: "2021-08-31T00:12:42.000Z",
+						Requirements:    scheduling.NewRequirements(),
+					},
+					{
+						Name:            "test-ami-1",
+						AmiID:           "test-ami-4-id",
+						CreationDate:    "2021-08-31T00:10:42.000Z",
+						DeprecationTime: "2021-08-31T00:12:42.000Z",
+						Requirements:    scheduling.NewRequirements(),
+					},
+				},
+			))
+		})
 	})
 })
 

@@ -179,10 +179,11 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 						}
 					}
 					images[reqsHash] = AMI{
-						Name:         lo.FromPtr(image.Name),
-						AmiID:        lo.FromPtr(image.ImageId),
-						CreationDate: lo.FromPtr(image.CreationDate),
-						Requirements: reqs,
+						Name:            lo.FromPtr(image.Name),
+						AmiID:           lo.FromPtr(image.ImageId),
+						CreationDate:    lo.FromPtr(image.CreationDate),
+						DeprecationTime: lo.FromPtr(image.DeprecationTime),
+						Requirements:    reqs,
 					}
 				}
 			}
