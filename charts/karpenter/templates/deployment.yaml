@@ -140,6 +140,10 @@ spec:
             - name: RESERVED_ENIS
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.settings.prefixDelegation }}
+            - name: PREFIX_DELEGATION
+              value: "{{ . }}"
+          {{- end }}
           {{- with .Values.controller.env }}
             {{- toYaml . | nindent 12 }}
           {{- end }}

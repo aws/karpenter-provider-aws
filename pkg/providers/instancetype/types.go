@@ -336,19 +336,39 @@ func efas(info *ec2.InstanceTypeInfo) *resource.Quantity {
 }
 
 func ENILimitedPods(ctx context.Context, info *ec2.InstanceTypeInfo) *resource.Quantity {
-	// The number of pods per node is calculated using the formula:
-	// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
-	// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
+	if options.FromContext(ctx).PrefixDelegation && info.Hypervisor != nil && *info.Hypervisor == ec2.InstanceTypeHypervisorNitro {
+		// The number of pods per node is calculated using the formula:
+		// max number of (ENIs * (IPv4 Addresses per ENI -1) * Ips per Prefix) + 2
+		//https://github.com/awslabs/amazon-eks-ami/blob/main/templates/al2/runtime/max-pods-calculator.sh
+		networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
+		usableNetworkInterfaces := lo.Max([]int64{networkInterfaces - int64(options.FromContext(ctx).ReservedENIs), 0})
+		if usableNetworkInterfaces == 0 {
+			return resource.NewQuantity(0, resource.DecimalSI)
+		}
+		addressesPerInterface := *info.NetworkInfo.Ipv4AddressesPerInterface
+		count := (usableNetworkInterfaces * (addressesPerInterface - 1) * 16) + 2
+		//Limit the total number of pods that can be launched on any instance type based on the vCPUs on that instance type.
+		if *info.VCpuInfo.DefaultVCpus > 30 {
+			return resources.Quantity(fmt.Sprint(min(250, count)))
+		} else {
+			return resources.Quantity(fmt.Sprint(min(110, count)))
+		}
+	} else {
 
-	// VPC CNI only uses the default network interface
-	// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
-	networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
-	usableNetworkInterfaces := lo.Max([]int64{networkInterfaces - int64(options.FromContext(ctx).ReservedENIs), 0})
-	if usableNetworkInterfaces == 0 {
-		return resource.NewQuantity(0, resource.DecimalSI)
+		// The number of pods per node is calculated using the formula:
+		// max number of ENIs * (IPv4 Addresses per ENI -1) + 2
+		// https://github.com/awslabs/amazon-eks-ami/blob/main/templates/shared/runtime/eni-max-pods.txt
+
+		// VPC CNI only uses the default network interface
+		// https://github.com/aws/amazon-vpc-cni-k8s/blob/3294231c0dce52cfe473bf6c62f47956a3b333b6/scripts/gen_vpc_ip_limits.go#L162
+		networkInterfaces := *info.NetworkInfo.NetworkCards[*info.NetworkInfo.DefaultNetworkCardIndex].MaximumNetworkInterfaces
+		usableNetworkInterfaces := lo.Max([]int64{networkInterfaces - int64(options.FromContext(ctx).ReservedENIs), 0})
+		if usableNetworkInterfaces == 0 {
+			return resource.NewQuantity(0, resource.DecimalSI)
+		}
+		addressesPerInterface := *info.NetworkInfo.Ipv4AddressesPerInterface
+		return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(addressesPerInterface-1) + 2))
 	}
-	addressesPerInterface := *info.NetworkInfo.Ipv4AddressesPerInterface
-	return resources.Quantity(fmt.Sprint(usableNetworkInterfaces*(addressesPerInterface-1) + 2))
 }
 
 func privateIPv4Address(instanceTypeName string) *resource.Quantity {
