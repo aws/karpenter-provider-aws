@@ -1607,7 +1607,7 @@
 				},
 				"datasource": {
 					"type": "prometheus",
-					"uid": "prometheus"
+					"uid": "${datasource}"
 				},
 				"definition": "label_values(karpenter_disruption_actions_performed_total,method)",
 				"hide": 0,
