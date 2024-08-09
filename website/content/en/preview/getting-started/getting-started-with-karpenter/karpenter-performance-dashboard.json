@@ -106,7 +106,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_nodes_termination_time_seconds{quantile=\"0\"}",
+                    "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"0\"}",
                     "legendFormat": "Min",
                     "range": true,
                     "refId": "A"
@@ -117,7 +117,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_nodes_termination_time_seconds{quantile=\"0.5\"}",
+                    "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"0.5\"}",
                     "hide": false,
                     "legendFormat": "P50",
                     "range": true,
@@ -129,7 +129,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_nodes_termination_time_seconds{quantile=\"0.9\"}",
+                    "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"0.9\"}",
                     "hide": false,
                     "legendFormat": "P90",
                     "range": true,
@@ -141,7 +141,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_nodes_termination_time_seconds{quantile=\"0.99\"}",
+                    "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"0.99\"}",
                     "hide": false,
                     "legendFormat": "P99",
                     "range": true,
@@ -153,7 +153,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_nodes_termination_time_seconds{quantile=\"1\"}",
+                    "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"1\"}",
                     "hide": false,
                     "legendFormat": "Max",
                     "range": true,
@@ -245,7 +245,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_pods_startup_time_seconds{quantile=\"0\"}",
+                    "expr": "karpenter_pods_startup_duration_seconds{quantile=\"0\"}",
                     "format": "time_series",
                     "legendFormat": "Min",
                     "range": true,
@@ -257,7 +257,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_pods_startup_time_seconds{quantile=\"0.5\"}",
+                    "expr": "karpenter_pods_startup_duration_seconds{quantile=\"0.5\"}",
                     "hide": false,
                     "legendFormat": "P50",
                     "range": true,
@@ -269,7 +269,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_pods_startup_time_seconds{quantile=\"0.9\"}",
+                    "expr": "karpenter_pods_startup_duration_seconds{quantile=\"0.9\"}",
                     "hide": false,
                     "legendFormat": "P90",
                     "range": true,
@@ -281,7 +281,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_pods_startup_time_seconds{quantile=\"0.99\"}",
+                    "expr": "karpenter_pods_startup_duration_seconds{quantile=\"0.99\"}",
                     "hide": false,
                     "legendFormat": "P99",
                     "range": true,
@@ -293,7 +293,7 @@
                         "uid": "${datasource}"
                     },
                     "editorMode": "code",
-                    "expr": "karpenter_pods_startup_time_seconds{quantile=\"1\"}",
+                    "expr": "karpenter_pods_startup_duration_seconds{quantile=\"1\"}",
                     "hide": false,
                     "legendFormat": "Max",
                     "range": true,
