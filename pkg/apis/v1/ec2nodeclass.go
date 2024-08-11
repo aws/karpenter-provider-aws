@@ -474,7 +474,8 @@ func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]strin
 	})
 }
 
-// UbuntuIncompatible
+// UbuntuIncompatible returns true if the NodeClass has the ubuntu compatibility annotation. This will cause the NodeClass to show
+// as NotReady in its status conditions, opting its referencing NodePools out of provisioning and drift.
 func (in *EC2NodeClass) UbuntuIncompatible() bool {
 	return lo.Contains(strings.Split(in.Annotations[AnnotationUbuntuCompatibilityKey], ","), AnnotationUbuntuCompatibilityIncompatible)
 }

@@ -35,6 +35,8 @@ func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) erro
 
 	if value, ok := in.Annotations[AnnotationUbuntuCompatibilityKey]; ok {
 		compatSpecifiers := strings.Split(value, ",")
+		// Remove the `id: ami-placeholder` AMISelectorTerms that are injected to pass CRD validation at v1
+		// we don't need these in v1beta1, and should be dropped
 		if lo.Contains(compatSpecifiers, AnnotationUbuntuCompatibilityIncompatible) {
 			in.Spec.AMISelectorTerms = nil
 		}
@@ -157,9 +159,10 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 				},
 			}}
 		}
-		// If there are no AMISelectorTerms specified, we will fail closed when converting the NodeClass. Users must
-		// pin their AMIs **before** upgrading to Karpenter v1.0.0 if they were using the Ubuntu AMIFamily.
-		// TODO: jmdeal@ verify doc link to the upgrade guide once available
+
+		// If there are no AMISelectorTerms specified, we mark the ec2nodeclass as incompatible.
+		// Karpenter will ignore incompatible ec2nodeclasses for provisioning and computing drift.
+		// Users should pin their AMIs **before** upgrading to v1.0.0 if they were using the Ubuntu AMIFamily.
 		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
 			compatSpecifiers = append(compatSpecifiers, AnnotationUbuntuCompatibilityIncompatible)
 			in.Spec.AMISelectorTerms = []AMISelectorTerm{{

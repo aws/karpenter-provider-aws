@@ -90,7 +90,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 
 	// TODO: Remove this once support for conversion webhooks is dropped
 	if nodeClass.UbuntuIncompatible() {
-		return nil, fmt.Errorf("EC2NodeClass %q is incompatible with Karpenter v1, specify amiSelectorTerms", nodeClass.Name)
+		return nil, fmt.Errorf("EC2NodeClass %q is incompatible with Karpenter v1, specify your Ubuntu AMIs in your AMISelectorTerms", nodeClass.Name)
 	}
 	// TODO: Remove this after v1
 	nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, nodeClaim)
