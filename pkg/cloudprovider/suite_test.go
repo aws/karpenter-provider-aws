@@ -202,7 +202,7 @@ var _ = Describe("CloudProvider", func() {
 		nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationUbuntuCompatibilityKey: v1.AnnotationUbuntuCompatibilityIncompatible})
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
 		_, err := cloudProvider.Create(ctx, nodeClaim)
-		Expect(err).To(HaveOccurred())
+		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
 	})
 	It("should not proceed with instance creation if NodeClass is unknown", func() {
 		nodeClass.StatusConditions().SetUnknown(opstatus.ConditionReady)
