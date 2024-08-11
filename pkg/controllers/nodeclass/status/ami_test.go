@@ -97,7 +97,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
 		cond := nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady)
 		Expect(cond.IsTrue()).To(BeFalse())
-		Expect(cond.Message).To(Equal("Ubuntu AMI discovery is unsupported, refer to the upgrade guide (https://karpenter.sh/docs/upgrading/upgrade-guide/#upgrading-to-100)"))
+		Expect(cond.Message).To(Equal("Ubuntu AMI discovery is not supported at v1, refer to the upgrade guide (https://karpenter.sh/docs/upgrading/upgrade-guide/#upgrading-to-100)"))
 		Expect(cond.Reason).To(Equal("AMINotFound"))
 
 	})
