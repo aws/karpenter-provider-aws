@@ -61,7 +61,7 @@ var _ = BeforeEach(func() {
 	env.BeforeEach()
 	nodeClass = env.DefaultEC2NodeClass()
 	nodePool = env.DefaultNodePool(nodeClass)
-	nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
+	nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("30s")
 })
 
 var _ = AfterEach(func() { env.Cleanup() })
@@ -106,7 +106,7 @@ var _ = Describe("Expiration", func() {
 			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
 				Nodes: "100%",
 			}}
-			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("Never")
 
 			// Create a deployment with one pod to create one node.
 			dep = coretest.Deployment(coretest.DeploymentOptions{
@@ -155,7 +155,7 @@ var _ = Describe("Expiration", func() {
 			env.ExpectUpdated(node)
 
 			By("enabling expiration")
-			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("30s")
 			env.ExpectUpdated(nodePool)
 
 			// Expect that both of the nodes are expired, but not being disrupted
@@ -189,7 +189,7 @@ var _ = Describe("Expiration", func() {
 			nodePool.Spec.Disruption.Budgets = []corev1beta1.Budget{{
 				Nodes: "50%",
 			}}
-			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("Never")
 
 			numPods = 6
 			dep = coretest.Deployment(coretest.DeploymentOptions{
@@ -230,7 +230,7 @@ var _ = Describe("Expiration", func() {
 			env.ExpectDeleted(dep)
 
 			By("enabling expiration")
-			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("30s")
 			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectExpired(nodeClaims...)
@@ -270,7 +270,7 @@ var _ = Describe("Expiration", func() {
 				Nodes: "50%",
 			}}
 			// disable expiration so that we can enable it later when we want.
-			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("Never")
 			numPods = 9
 			dep = coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: int32(numPods),
@@ -316,7 +316,7 @@ var _ = Describe("Expiration", func() {
 
 			By("expiring the nodes")
 			// expire the nodeclaims
-			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Second * 30)}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("30s")
 			env.ExpectUpdated(nodePool)
 
 			env.EventuallyExpectExpired(nodeClaims...)
@@ -384,7 +384,7 @@ var _ = Describe("Expiration", func() {
 			}
 
 			By("enabling expiration")
-			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("30s")
 			env.ExpectUpdated(nodePool)
 
 			// Ensure that we get two nodes tainted, and they have overlap during the expiration
@@ -396,7 +396,7 @@ var _ = Describe("Expiration", func() {
 			// Set the expireAfter to "Never" to make sure new node isn't deleted
 			// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
 			// racing at the end of the E2E test, leaking node resources into subsequent tests
-			nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+			nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("Never")
 			env.ExpectUpdated(nodePool)
 
 			for _, node := range nodes {
@@ -473,7 +473,7 @@ var _ = Describe("Expiration", func() {
 		// Set the expireAfter to "Never" to make sure new node isn't deleted
 		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
 		// racing at the end of the E2E test, leaking node resources into subsequent tests
-		nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+		nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("Never")
 		env.ExpectUpdated(nodePool)
 
 		// After the deletion timestamp is set and all pods are drained
@@ -514,7 +514,7 @@ var _ = Describe("Expiration", func() {
 		env.Monitor.Reset() // Reset the monitor so that we can expect a single node to be spun up after expiration
 
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Disruption.ExpireAfter.Duration = lo.ToPtr(time.Minute)
+		nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("1m")
 		env.ExpectUpdated(nodePool)
 
 		env.EventuallyExpectExpired(nodeClaim)
@@ -537,7 +537,7 @@ var _ = Describe("Expiration", func() {
 		// Set the expireAfter to "Never" to make sure new node isn't deleted
 		// This is CRITICAL since it prevents nodes that are immediately spun up from immediately being expired and
 		// racing at the end of the E2E test, leaking node resources into subsequent tests
-		nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+		nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("Never")
 		env.ExpectUpdated(nodePool)
 
 		// After the deletion timestamp is set and all pods are drained

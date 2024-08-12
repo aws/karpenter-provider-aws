@@ -182,8 +182,8 @@ func (env *Environment) DefaultNodePool(nodeClass *v1beta1.EC2NodeClass) *corev1
 			},
 		},
 	}
-	nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
-	nodePool.Spec.Disruption.ExpireAfter.Duration = nil
+	nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("Never"))
+	nodePool.Spec.Disruption.ExpireAfter = corev1beta1.MustParseNillableDuration("Never")
 	nodePool.Spec.Limits = corev1beta1.Limits(v1.ResourceList{
 		v1.ResourceCPU:    resource.MustParse("1000"),
 		v1.ResourceMemory: resource.MustParse("1000Gi"),
