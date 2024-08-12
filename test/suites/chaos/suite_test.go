@@ -82,7 +82,7 @@ var _ = Describe("Chaos", func() {
 				},
 			})
 			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
-			nodePool.Spec.Disruption.ConsolidateAfter = nil
+			nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("Never"))
 
 			numPods := 1
 			dep := coretest.Deployment(coretest.DeploymentOptions{
@@ -113,7 +113,7 @@ var _ = Describe("Chaos", func() {
 			defer cancel()
 
 			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
-			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(30 * time.Second)}
+			nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("30s"))
 			numPods := 1
 			dep := coretest.Deployment(coretest.DeploymentOptions{
 				Replicas: int32(numPods),
