@@ -23,7 +23,7 @@ spec:
       {{- end }}
       containers:
       - name: post-install-job
-        image: "{{ .Values.postInstallHook.image }}"
+        image: {{ include "karpenter.postInstallHook.image" . }}
         command:
         - /bin/sh
         - -c
