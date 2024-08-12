@@ -36,7 +36,6 @@ var _ = Describe("Conversion Webhooks", func() {
 	Context("NodePool", func() {
 		It("should not update a metadata generation when the same resource is applied for the v1beta1 APIs", func() {
 			// created v1beta1 resource
-
 			storedv1beta1NodePool := &karpv1beta1.NodePool{
 				ObjectMeta: karptest.ObjectMeta(),
 				Spec: karpv1beta1.NodePoolSpec{
@@ -121,6 +120,18 @@ var _ = Describe("Conversion Webhooks", func() {
 			Expect(v1beta1NodePool.Spec.Template.Spec.NodeClassRef.APIVersion).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.NodeClassRef.APIVersion))
 			Expect(v1beta1NodePool.Spec.Disruption.ConsolidateAfter.Duration.String()).To(Equal(storedv1beta1NodePool.Spec.Disruption.ConsolidateAfter.Duration.String()))
 			Expect(v1beta1NodePool.Spec.Disruption.ExpireAfter.Duration.String()).To(Equal(storedv1beta1NodePool.Spec.Disruption.ExpireAfter.Duration.String()))
+			// Kubelet Validation
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.MaxPods).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.MaxPods))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.PodsPerCore).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.PodsPerCore))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.SystemReserved).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.SystemReserved))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.KubeReserved).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.KubeReserved))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.EvictionHard).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.EvictionHard))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.EvictionSoft).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.EvictionSoft))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.EvictionSoftGracePeriod).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.EvictionSoftGracePeriod))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.EvictionMaxPodGracePeriod).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.EvictionMaxPodGracePeriod))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.ImageGCHighThresholdPercent).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.ImageGCHighThresholdPercent))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.ImageGCLowThresholdPercent).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.ImageGCLowThresholdPercent))
+			Expect(v1beta1NodePool.Spec.Template.Spec.Kubelet.CPUCFSQuota).To(Equal(storedv1beta1NodePool.Spec.Template.Spec.Kubelet.CPUCFSQuota))
 		})
 		It("should not update a metadata generation when the same resource is applied for the v1 APIs", func() {
 			nodePool.Spec.Disruption = karpv1.Disruption{
@@ -211,6 +222,18 @@ var _ = Describe("Conversion Webhooks", func() {
 			env.ExpectUpdated(nodeClass.DeepCopy())
 			v1nodeclass = env.ExpectExists(nodeClass.DeepCopy()).(*v1.EC2NodeClass)
 			Expect(v1nodeclass.Generation).To(BeNumerically("==", 1))
+			// Kubelet Validation
+			Expect(v1nodeclass.Spec.Kubelet.MaxPods).To(Equal(nodeClass.Spec.Kubelet.MaxPods))
+			Expect(v1nodeclass.Spec.Kubelet.PodsPerCore).To(Equal(nodeClass.Spec.Kubelet.PodsPerCore))
+			Expect(v1nodeclass.Spec.Kubelet.SystemReserved).To(Equal(nodeClass.Spec.Kubelet.SystemReserved))
+			Expect(v1nodeclass.Spec.Kubelet.KubeReserved).To(Equal(nodeClass.Spec.Kubelet.KubeReserved))
+			Expect(v1nodeclass.Spec.Kubelet.EvictionHard).To(Equal(nodeClass.Spec.Kubelet.EvictionHard))
+			Expect(v1nodeclass.Spec.Kubelet.EvictionSoft).To(Equal(nodeClass.Spec.Kubelet.EvictionSoft))
+			Expect(v1nodeclass.Spec.Kubelet.EvictionSoftGracePeriod).To(Equal(nodeClass.Spec.Kubelet.EvictionSoftGracePeriod))
+			Expect(v1nodeclass.Spec.Kubelet.EvictionMaxPodGracePeriod).To(Equal(nodeClass.Spec.Kubelet.EvictionMaxPodGracePeriod))
+			Expect(v1nodeclass.Spec.Kubelet.ImageGCHighThresholdPercent).To(Equal(nodeClass.Spec.Kubelet.ImageGCHighThresholdPercent))
+			Expect(v1nodeclass.Spec.Kubelet.ImageGCLowThresholdPercent).To(Equal(nodeClass.Spec.Kubelet.ImageGCLowThresholdPercent))
+			Expect(v1nodeclass.Spec.Kubelet.CPUCFSQuota).To(Equal(nodeClass.Spec.Kubelet.CPUCFSQuota))
 		})
 	})
 })
