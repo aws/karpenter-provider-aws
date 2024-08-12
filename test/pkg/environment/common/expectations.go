@@ -289,11 +289,7 @@ func (env *Environment) EventuallyExpectTerminatingWithTimeout(timeout time.Dura
 	Eventually(func(g Gomega) {
 		for _, pod := range pods {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
-			g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
-			g.Expect(pod.Status.Conditions).To(ContainElement(And(
-				HaveField("Type", Equal(corev1.DisruptionTarget)),
-				HaveField("Status", Equal(corev1.ConditionTrue)),
-			)))
+			g.Expect(pod.DeletionTimestamp.IsZero()).To(BeFalse())
 		}
 	}).WithTimeout(timeout).Should(Succeed())
 }
