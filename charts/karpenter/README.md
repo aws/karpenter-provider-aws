@@ -79,6 +79,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:0.35.4 \
 | podDisruptionBudget.name | string | `"karpenter"` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
 | podSecurityContext | object | `{"fsGroup":65532}` | SecurityContext for the pod. |
+| postInstallHook.image | string | `public.ecr.aws/bitnami/kubectl:1.30` | The image to run the post-install hook. This minimally needs to have `kubectl` installed |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
