@@ -33,20 +33,19 @@ import (
 var _ = Describe("TerminationGracePeriod", func() {
 	BeforeEach(func() {
 		nodePool.Spec.Template.Spec.TerminationGracePeriod = &metav1.Duration{Duration: time.Second * 30}
-		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Second * 90)}
 	})
-	It("should delete pod that tolerates do-not-disrupt after termination grace period seconds", func() {
+	It("should delete pod with do-not-disrupt when it reaches its terminationGracePeriodSeconds", func() {
 		pod := coretest.UnschedulablePod(coretest.PodOptions{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
 			karpv1.DoNotDisruptAnnotationKey: "true",
-		}}})
+		}}, TerminationGracePeriodSeconds: lo.ToPtr(int64(15))})
 		env.ExpectCreated(nodeClass, nodePool, pod)
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
-		// Check that pod remains healthy until termination grace period
-		env.ConsistentlyExpectHealthyPods(time.Second*30, pod)
+
+		// Delete the nodeclaim to start the TerminationGracePeriod
+		env.ExpectDeleted(nodeClaim)
 
 		// Eventually the node will be tainted
 		Eventually(func(g Gomega) {
@@ -55,19 +54,28 @@ var _ = Describe("TerminationGracePeriod", func() {
 				return karpv1.IsDisruptingTaint(t)
 			})
 			g.Expect(ok).To(BeTrue())
-		}).Should(Succeed())
+		}).WithTimeout(3 * time.Second).WithPolling(100 * time.Millisecond).Should(Succeed())
+
+		// Check that pod remains healthy until termination grace period
+		// subtract the polling time of the eventually above to reduce any races.
+		env.ConsistentlyExpectHealthyPods(time.Second*15-100*time.Millisecond, pod)
 		// Both nodeClaim and node should be gone once terminationGracePeriod is reached
-		env.EventuallyExpectNotFound(nodeClaim, node)
+		env.EventuallyExpectNotFound(nodeClaim, node, pod)
 	})
 	It("should delete pod that has a pre-stop hook after termination grace period seconds", func() {
-		pod := coretest.UnschedulablePod(coretest.PodOptions{PreStopSleep: lo.ToPtr(int64(300))})
+		pod := coretest.UnschedulablePod(coretest.PodOptions{
+			PreStopSleep:                  lo.ToPtr(int64(300)),
+			TerminationGracePeriodSeconds: lo.ToPtr(int64(15)),
+			Image:                         "alpine:3.20.2",
+			Command:                       []string{"/bin/sh", "-c", "sleep 30"}})
 		env.ExpectCreated(nodeClass, nodePool, pod)
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 		env.EventuallyExpectHealthy(pod)
-		// Check that pod remains healthy until termination grace period
-		env.ConsistentlyExpectHealthyPods(time.Second*30, pod)
+
+		// Delete the nodeclaim to start the TerminationGracePeriod
+		env.ExpectDeleted(nodeClaim)
 
 		// Eventually the node will be tainted
 		Eventually(func(g Gomega) {
@@ -76,8 +84,15 @@ var _ = Describe("TerminationGracePeriod", func() {
 				return karpv1.IsDisruptingTaint(t)
 			})
 			g.Expect(ok).To(BeTrue())
-		}).Should(Succeed())
+		}).WithTimeout(3 * time.Second).WithPolling(100 * time.Millisecond).Should(Succeed())
+
+		env.EventuallyExpectTerminating(pod)
+
+		// Check that pod remains healthy until termination grace period
+		// subtract the polling time of the eventually above to reduce any races.
+		env.ConsistentlyExpectTerminatingPods(time.Second*15-100*time.Millisecond, pod)
+
 		// Both nodeClaim and node should be gone once terminationGracePeriod is reached
-		env.EventuallyExpectNotFound(nodeClaim, node)
+		env.EventuallyExpectNotFound(nodeClaim, node, pod)
 	})
 })

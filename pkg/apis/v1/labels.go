@@ -127,6 +127,7 @@ var (
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
 
 	AnnotationUbuntuCompatibilityKey                 = apis.CompatibilityGroup + "/v1beta1-ubuntu"
+	AnnotationUbuntuCompatibilityIncompatible        = "incompatible"
 	AnnotationUbuntuCompatibilityAMIFamily           = "amiFamily"
 	AnnotationUbuntuCompatibilityBlockDeviceMappings = "blockDeviceMappings"
 

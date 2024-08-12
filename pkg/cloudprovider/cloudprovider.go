@@ -77,6 +77,7 @@ func New(instanceTypeProvider instancetype.Provider, instanceProvider instance.P
 }
 
 // Create a NodeClaim given the constraints.
+// nolint: gocyclo
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
@@ -87,6 +88,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
 	}
 
+	// TODO: Remove this once support for conversion webhooks is dropped
+	if nodeClass.UbuntuIncompatible() {
+		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("EC2NodeClass %q is incompatible with Karpenter v1, specify your Ubuntu AMIs in your AMISelectorTerms", nodeClass.Name))
+	}
 	// TODO: Remove this after v1
 	nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, nodeClaim)
 	if err != nil {
