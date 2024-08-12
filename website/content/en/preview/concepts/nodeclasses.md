@@ -97,15 +97,17 @@ spec:
   # Each term in the array of amiSelectorTerms is ORed together
   # Within a single term, all conditions are ANDed
   amiSelectorTerms:
-    # Select on any AMI that has both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag
-    # AND the "environment: test" tag OR any AMI with the "my-ami" name
-    # OR any AMI with ID "ami-123"
-    - alias: al2023@v20240625   # Use alias to select a particular EKS optimized AMI
+    # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
+    # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
+    # ID `ami-123`
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
         environment: test
     - name: my-ami
     - id: ami-123
+    # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
+    # exclusive and can't be specified with other terms.
+    # - alias: al2023@v20240703
 
   # Optional, propagates tags to underlying EC2 resources
   tags:
@@ -209,9 +211,11 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 
 ## spec.kubelet
 
-Karpenter provides the ability to specify a few additional Kubelet args. These are all optional and provide support for
-additional customization and use cases. Adjust these only if you know you need to do so. For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
-The implemented fields are a subset of the full list of upstream kubelet configuration arguments. Please cut an issue if you'd like to see another field implemented.
+Karpenter provides the ability to specify a few additional Kubelet arguments.
+These are all optional and provide support for additional customization and use cases.
+Adjust these only if you know you need to do so.
+For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
+The implemented fields are a subset of the full list of upstream kubelet configuration arguments.
 
 ```yaml
 kubelet:
@@ -243,6 +247,32 @@ kubelet:
   cpuCFSQuota: true
   clusterDNS: ["10.0.1.100"]
 ```
+
+{{% alert title="Note" color="primary" %}}
+If you need to specify a field that isn't present in `spec.kubelet`, you can set it via custom [UserData]({{< ref "#specuserdata" >}}).
+For example, if you wanted to configure `maxPods` and `registryPullQPS` you would set the former through `spec.kubelet` and the latter through UserData.
+The following example achieves this with AL2023:
+
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+spec:
+  amiSelectorTerms:
+    - alias: al2023@latest
+  kubelet:
+    maxPods: 42
+  userData: |
+    apiVersion: node.eks.aws/v1alpha1
+    kind: NodeConfig
+    spec:
+      kubelet:
+        config:
+          # Configured through UserData since unavailable in `spec.kubelet`
+          registryPullQPS: 10
+```
+
+Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kublet` and `spec.userData`.
+{{% /alert %}}
 
 #### Pods Per Core
 
@@ -360,7 +390,6 @@ For example, if you specify `alias: al2023@v20240625`, the `amiFamily` is implic
 
 AMIFamily does not impact which AMI is discovered, only the UserData generation and default BlockDeviceMappings. To automatically discover EKS optimized AMIs, use the new [`alias` field in amiSelectorTerms]({{< ref "#specamiselectorterms" >}}).
 
-
 {{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
 
 Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.0`.
@@ -470,10 +499,6 @@ max-pods = 110
 & $EKSBootstrapScriptFile -EKSClusterName 'test-cluster' -APIServerEndpoint 'https://test-cluster' -Base64ClusterCA 'ca-bundle' -KubeletExtraArgs '--node-labels="karpenter.sh/capacity-type=on-demand,karpenter.sh/nodepool=test" --max-pods=110' -DNSClusterIP '10.100.0.10'
 </powershell>
 ```
-
-{{% alert title="Note" color="primary" %}}
-Karpenter will automatically query for the appropriate [EKS optimized AMI](https://docs.aws.amazon.com/eks/latest/userguide/eks-optimized-amis.html) via AWS Systems Manager (SSM). In the case of the `Custom` AMIFamily, no default AMIs are defined. As a result, `amiSelectorTerms` must be specified to inform Karpenter on which custom AMIs are to be used.
-{{% /alert %}}
 
 ### Custom
 
@@ -659,24 +684,28 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 
-This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
+This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match.
+Effectively, all requirements within a single term are ANDed together.
+It's possible that you may want to select on two different AMIs that have unrelated requirements.
+In this case, you can specify multiple terms which will be ORed together to form your selection logic.
+The example below shows how this selection logic is fulfilled.
 
 ```yaml
 amiSelectorTerms:
-  # Select on any AMI that has an al2023 AMI family and 20240625 version,
-  # and both the "karpenter.sh/discovery: ${CLUSTER_NAME}" tag
-  # AND the "environment: test" tag OR any AMI with the "my-ami" name
-  # OR any AMI with ID "ami-123"
-  - alias: al2023@v20240625
+  # Select on any AMI that has both the `karpenter.sh/discovery: ${CLUSTER_NAME}`
+  # AND `environment: test` tags OR any AMI with the name `my-ami` OR an AMI with
+  # ID `ami-123`
   - tags:
       karpenter.sh/discovery: "${CLUSTER_NAME}"
       environment: test
   - name: my-ami
   - id: ami-123
+  # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
+  # exclusive and can't be specified with other terms.
+  # - alias: al2023@v20240703
 ```
 
-An `alias` has the following format: `family@version`.
-Use the `alias` field to select an EKS-optimized AMI family and version. Family can be one of the following values:
+An `alias` term can be used to select EKS-optimized AMIs. An `alias` is formatted as `family@version`. Family can be one of the following values:
 
 * `al2`
 * `al2023`
@@ -686,16 +715,14 @@ Use the `alias` field to select an EKS-optimized AMI family and version. Family 
 
 The version string can be set to `latest`, or pinned to a specific AMI using the format of that AMI's GitHub release tags.
 For example, AL2 and AL2023 use dates for their release, so they can be pinned as follows:
-```
+```yaml
 alias: al2023@v20240703
 ```
 Bottlerocket uses a semantic version for their releases. You can pin bottlerocket as follows:
-```
+```yaml
 alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only `latest` is supported.
-
-An `alias` is mutually exclusive and may not be specified with any other terms.
 
 To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are not owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
@@ -709,7 +736,7 @@ AMIs may be specified by any AWS tag, including `Name`. Selecting by tag or by n
 If `amiSelectorTerms` match more than one AMI, Karpenter will automatically determine which AMI best fits the workloads on the launched worker node under the following constraints:
 
 * When launching nodes, Karpenter automatically determines which architecture a custom AMI is compatible with and will use images that match an instanceType's requirements.
-    * Note that Karpenter **cannot** detect any requirement other than architecture. If you need to specify different AMIs for different kind of nodes (e.g. accelerated GPU AMIs), you should use a separate `EC2NodeClass`.
+    * Unless using an alias, Karpenter **cannot** detect requirements other than architecture. If you need to specify different AMIs for different kind of nodes (e.g. accelerated GPU AMIs), you should use a separate `EC2NodeClass`.
 * If multiple AMIs are found that can be used, Karpenter will choose the latest one.
 * If no AMIs are found that can be used, then no nodes will be provisioned.
 {{% /alert %}}
@@ -1053,8 +1080,8 @@ exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
 --//--
 ```
 
-{{% alert title="Note" color="primary" %}}
-You can also set kubelet-config properties by modifying the kubelet-config.json file before the EKS bootstrap script starts the kubelet:
+{{% alert title="Tip" color="secondary" %}}
+You can set additional kubelet configuration properties, unavailable through `spec.kubelet`, by updating the `kubelet-config.json` file:
 
 ```yaml
 apiVersion: karpenter.k8s.aws/v1
@@ -1062,7 +1089,6 @@ kind: EC2NodeClass
 metadata:
   name: kubelet-config-example
 spec:
-  ...
   amiFamily: AL2
   userData: |
     #!/bin/bash
@@ -1325,6 +1351,9 @@ spec:
 ### Custom
 
 * No merging is performed, your UserData must perform all setup required of the node to allow it to join the cluster.
+* Custom UserData must meet the following requirements to work correctly with Karpenter:
+  * It must ensure the node is registered with the `karpenter.sh/unregistered:NoExecute` taint
+  * It must set kubelet config options to match those configured in `spec.kubelet`
 
 ## spec.detailedMonitoring
 
@@ -1398,11 +1427,12 @@ status:
 
 #### Examples
 
-Default AMIs resolved from the AL2 AMIFamily:
+AMIs resolved with an AL2 alias:
 
 ```yaml
 spec:
-  amiFamily: AL2
+  amiSelectorTerms:
+    - alias: al2@latest
 status:
   amis:
   - id: ami-03c3a3dcda64f5b75
@@ -1447,11 +1477,10 @@ status:
       operator: DoesNotExist
 ```
 
-AMIs resolved from [`spec.amiSelectorTerms`]({{< ref "#specamiselectorterms" >}}):
+AMIs resolved from tags:
 
 ```yaml
 spec:
-  amiFamily: AL2
   amiSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}"
@@ -1472,6 +1501,8 @@ status:
       values:
       - arm64
 ```
+
+Note that Karpenter can only discover architecture based requirements unless using an alias, in which case it can discover additional requirements (e.g. GPU / Accelerator support).
 
 ## status.instanceProfile
 
