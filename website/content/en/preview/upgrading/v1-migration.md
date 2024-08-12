@@ -24,10 +24,26 @@ See the [Changelog]({{<ref "#changelog" >}}) for details about actions you shoul
 
 Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so please evaluate the list of breaking changes before continuing.
 
-1. Determine the current Karpenter version:
+{{% alert title="Note" color="warning" %}}
+The upgrade guide will first require upgrading to your latest patch version prior to upgrade to v1.0.0. This will be to allow the conversion webhooks to operate and minimize downtime of the Karpenter controller when requesting the Karpenter custom resources. 
+{{% /alert %}}
+
+1. Set environment variables for your cluster to upgrade to the latest patch version of the current Karpenter version you're running on:
+
+    ```bash
+    export KARPENTER_NAMESPACE=kube-system
+    export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
+    export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
+    export CLUSTER_NAME="${USER}-karpenter-demo"
+    export AWS_REGION="us-west-2"
+    export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+    ```
+
+
+2. Determine the current Karpenter version:
    ```bash
    kubectl get pod -A | grep karpenter
-   kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image:
+   kubectl describe pod -n "${KARPENTER_NAMESPACE}" karpenter-xxxxxxxxxx-xxxxx | grep Image:
    ```
    Sample output:
    ```bash
@@ -42,20 +58,50 @@ Please read through the entire procedure before beginning the upgrade. There are
    * v0.34.7
    * v0.33.6
 
-2. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
+3. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
-3. Set environment variables for your cluster:
+4. Set environment variables for upgrading to the latest patch version:
 
     ```bash
-    export KARPENTER_NAMESPACE=kube-system
-    export KARPENTER_VERSION=1.0.0
-    export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
-    export CLUSTER_NAME="${USER}-karpenter-demo"
-    export AWS_REGION="us-west-2"
-    export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+    export KARPENTER_VERSION=<latest patch version of your current v1beta1 minor version>
     ```
 
-4. Update your existing policy using the following:
+6. Apply the latest patch version of your current minor version's Custom Resource Definitions (CRDs):
+
+   ```bash
+   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+        --set webhook.enabled=true \
+        --set webhook.serviceName=karpenter \
+        --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
+        --set webhook.port=8443
+    ```
+
+
+7. Upgrade Karpenter to the latest patch version of your current minor version's. At the end of this step, conversion webhooks will run but will not convert any version.
+
+    ```bash
+    # Service account annotation can be dropped when using pod identity 
+    helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+      --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
+      --set settings.clusterName=${CLUSTER_NAME} \
+      --set settings.interruptionQueue=${CLUSTER_NAME} \
+      --set controller.resources.requests.cpu=1 \
+      --set controller.resources.requests.memory=1Gi \
+      --set controller.resources.limits.cpu=1 \
+      --set controller.resources.limits.memory=1Gi \
+      --set webhook.enabled=true \
+      --set webhook.port=8443 \
+      --wait
+    ```
+
+8. Set environment variables for first upgrading to v1.0.0
+
+    ```bash
+    export KARPENTER_VERSION=1.0.0
+    ```
+
+
+9. Update your existing policy using the following to the v1.0.0 controller policy:
    Notable Changes to the IAM Policy include `SSM:GetParameter` to `SSM:GetParametersByPath` and additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
 
     ```bash
@@ -68,20 +114,22 @@ Please read through the entire procedure before beginning the upgrade. There are
         --parameter-overrides "ClusterName=${CLUSTER_NAME}"
     ```
 
-5. Apply the v1.0.0 Custom Resource Definitions (CRDs):
+10. Apply the v1.0.0 Custom Resource Definitions (CRDs):
 
-   ```bash
-   helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+    ```bash
+    helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
         --set webhook.enabled=true \
         --set webhook.serviceName=karpenter \
         --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
         --set webhook.port=8443
     ```
 
-6. Upgrade Karpenter to the new version. At the end of this step, conversion webhooks run to convert the Karpenter CRDs to v1.
+11. Upgrade Karpenter to the new version. At the end of this step, conversion webhooks run to convert the Karpenter CRDs to v1.
 
     ```bash
+    # Service account annotion can be dropped when using pod identity 
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
+        --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.clusterName=${CLUSTER_NAME} \
       --set settings.interruptionQueue=${CLUSTER_NAME} \
       --set controller.resources.requests.cpu=1 \
@@ -95,7 +143,7 @@ Please read through the entire procedure before beginning the upgrade. There are
    Karpenter has deprecated and moved a number of Helm values as part of the v1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1. You can find detail for all the settings that were moved in the [v1 Upgrade Reference]({{<ref "#helm-values" >}}).
    {{% /alert %}}
 
-7. Once upgraded, you won't need to roll your nodes to be compatible with v1.1.0, except if you have multiple NodePools with different `kubelet`s that are referencing the same EC2NodeClass. Karpenter has moved the `kubelet` to the EC2NodeClass in v1. NodePools with different `kubelet` referencing the same EC2NodeClass will be compatible with v1.0.0, but will not be in v1.1.0.
+12. Once upgraded, you won't need to roll your nodes to be compatible with v1.1.0, except if you have multiple NodePools with different `kubelet`s that are referencing the same EC2NodeClass. Karpenter has moved the `kubelet` to the EC2NodeClass in v1. NodePools with different `kubelet` referencing the same EC2NodeClass will be compatible with v1.0.0, but will not be in v1.1.0.
 
 When you have completed the migration to `1.0.0` CRDs, Karpenter will be able to serve both the `v1beta1` versions and the `v1` versions of NodePools, NodeClaims, and EC2NodeClasses.
 The results of upgrading these CRDs include the following:
@@ -223,6 +271,7 @@ Since both v1beta1 and v1 will be served, `kubectl` will default to returning th
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
 export KARPENTER_VERSION="<rollback version of karpenter>"
+export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 export CLUSTER_NAME="<name of your cluster>"
 export TEMPOUT="$(mktemp)"
 ```
@@ -261,6 +310,7 @@ helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-cr
 4. Rollback the Karpenter Controller 
 
 ```bash
+# Service account annotation can be dropped when using pod identity 
 helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
   --set settings.clusterName=${CLUSTER_NAME} \
