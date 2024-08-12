@@ -142,12 +142,12 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
    Support for automatic AMI selection and UserData generation for Ubuntu has been dropped with Karpenter `v1.0.0`.
    To continue using Ubuntu AMIs you will need to specify an AMI using `amiSelectorTerms`.
 
-   UserData generation can be achieved using the AL2 AMIFamily which, at the time of writing, has an identical UserData format.
+   UserData generation can be achieved using the AL2 AMIFamily which has an identical UserData format.
    However, compatibility is not guaranteed long-term and changes to either AL2 or Ubuntu's UserData format may introduce incompatibilities.
    If this occurs, the Custom AMIFamily should be used for Ubuntu and UserData will need to be entirely maintained by the user.
 
    If you are upgrading to `v1.0.0` and already have v1beta1 Ubuntu EC2NodeClasses, all you need to do is specify `amiSelectorTerms` and Karpenter will translate your NodeClasses to the v1 equivalent (as shown below).
-   Failure to specify `amiSelectorTerms` will result in the EC2NodeClass and all associated NodePools going unready.
+   Failure to specify `amiSelectorTerms` will result in the EC2NodeClass and all referencing NodePools to show as NotReady, causing Karpenter to ignore these NodePools and EC2NodeClasses for Provisioning and Drift.
 
    ```yaml
    # Original v1beta1 EC2NodeClass
@@ -211,7 +211,7 @@ Karpenter will crash on upgrade if NodePool resources contain this annotation. U
 * Behavior Changes:
   * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
   * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields).
-  * Karpenter now adds a `karpenter.sh/unregistered` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
+  * Karpenter now adds a `karpenter.sh/unregistered:NoExecute` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
 * API Moves:
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
   * `Kubelet` was moved to the EC2NodeClass from the NodePool.
