@@ -279,6 +279,25 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*corev1.Pod) {
 	env.EventuallyExpectHealthyWithTimeout(-1, pods...)
 }
 
+func (env *Environment) EventuallyExpectTerminating(pods ...*corev1.Pod) {
+	GinkgoHelper()
+	env.EventuallyExpectTerminatingWithTimeout(-1, pods...)
+}
+
+func (env *Environment) EventuallyExpectTerminatingWithTimeout(timeout time.Duration, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
+			g.Expect(pod.Status.Conditions).To(ContainElement(And(
+				HaveField("Type", Equal(corev1.DisruptionTarget)),
+				HaveField("Status", Equal(corev1.ConditionTrue)),
+			)))
+		}
+	}).WithTimeout(timeout).Should(Succeed())
+}
+
 func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration, pods ...*corev1.Pod) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
@@ -290,7 +309,21 @@ func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration
 			)))
 		}
 	}).WithTimeout(timeout).Should(Succeed())
+}
 
+func (env *Environment) ConsistentlyExpectTerminatingPods(duration time.Duration, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting %d pods to be terminating for %s", len(pods), duration))
+	Consistently(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.Status.Phase).To(Equal(corev1.PodRunning))
+			g.Expect(pod.Status.Conditions).To(ContainElement(And(
+				HaveField("Type", Equal(corev1.DisruptionTarget)),
+				HaveField("Status", Equal(corev1.ConditionTrue)),
+			)))
+		}
+	}, duration.String()).Should(Succeed())
 }
 
 func (env *Environment) ConsistentlyExpectHealthyPods(duration time.Duration, pods ...*corev1.Pod) {
