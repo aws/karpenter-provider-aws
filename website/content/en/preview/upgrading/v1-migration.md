@@ -27,7 +27,7 @@ Please read through the entire procedure before beginning the upgrade. There are
 1. Determine the current Karpenter version:
    ```bash
    kubectl get pod -A | grep karpenter
-   kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image: 
+   kubectl describe pod -n karpenter karpenter-xxxxxxxxxx-xxxxx | grep Image:
    ```
    Sample output:
    ```bash
@@ -138,8 +138,20 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
 
 * **metadataOptions could break workloads**: If you have workload pods that are not using `hostNetworking`, the updated default `metadataOptions` could cause your containers to break when you apply new EC2NodeClasses on v1.
 
-* **Support for native Ubuntu AMI selection is dropped**: If you are using Ubuntu and not using `amiSelectorTerms`, be aware that Karpenter v1 no longer natively supports Ubuntu. To continue using Ubuntu in v1, you can update `amiSelectorTerms` in your EC2NodeClasses to identify Ubuntu as the AMI you want to use. See [reimplement amiFamily](https://github.com/aws/karpenter-provider-aws/pull/6569) for an example. Once you have done that, you can leave the amiFamily as Ubuntu and proceed to upgrading to v1. This will result in the following transformation:
+* **Ubuntu AMIFamily Removed**:
+
+   Support for automatic AMI selection and UserData generation for Ubuntu has been dropped with Karpenter `v1.0.0`.
+   To continue using Ubuntu AMIs you will need to specify an AMI using `amiSelectorTerms`.
+
+   UserData generation can be achieved using the AL2 AMIFamily which has an identical UserData format.
+   However, compatibility is not guaranteed long-term and changes to either AL2 or Ubuntu's UserData format may introduce incompatibilities.
+   If this occurs, the Custom AMIFamily should be used for Ubuntu and UserData will need to be entirely maintained by the user.
+
+   If you are upgrading to `v1.0.0` and already have v1beta1 Ubuntu EC2NodeClasses, all you need to do is specify `amiSelectorTerms` and Karpenter will translate your NodeClasses to the v1 equivalent (as shown below).
+   Failure to specify `amiSelectorTerms` will result in the EC2NodeClass and all referencing NodePools to show as NotReady, causing Karpenter to ignore these NodePools and EC2NodeClasses for Provisioning and Drift.
+
    ```yaml
+   # Original v1beta1 EC2NodeClass
    version: karpenter.k8s.aws/v1beta1
    kind: EC2NodeClass
    spec:
@@ -165,10 +177,9 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
          volumeType: gp3
          volumeSize: 20Gi
    ```
-   **NOTE**: If you do not specify `amiSelectorTerms` before upgrading with the Ubuntu `amiFamily`, the conversion webhook will fail. If you do this, update your EC2NodeClass to specify amiSelectorTerms on v1beta1, resolving the conversion webhook failures.
 
 * **amiSelectorTerms and amiFamily**: For v1, `amiFamily` is no longer required if you instead specify an `alias` in `amiSelectorTerms` in your `EC2NodeClass`. You need to update your `amiSelectorTerms` and `amiFamily` if you are using:
-   * A Custom amiFamily. You must ensure that the node you add the `karpenter.sh/unregistered` taint in your UserData.
+   * A Custom amiFamily. You must ensure that the node you add the `karpenter.sh/unregistered:NoExecute` taint in your UserData.
    * An Ubuntu AMI, as described earlier.
 
 ### Before upgrading to `v1.1.0`
@@ -190,6 +201,7 @@ without having drift or having any additional NodePools or EC2NodeClasses config
 Keep in mind that rollback, without replacing the Karpenter nodes, will not be supported to an earlier version of Karpenter once the annotation is removed. This annotation is only used to support the kubelet configuration migration path, but will not be supported in v1.1.
 
 ### Downgrading
+
 Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include: 
 
 * v0.37.1
@@ -264,35 +276,34 @@ helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --vers
 
 Karpenter should now be pulling and operating against the v1beta1 APIVersion as it was prior to the upgrade
 
-
 ## Full Changelog
-* Features: 
+* Features:
   * AMI Selector Terms has a new Alias field which can only be set by itself in `EC2NodeClass.Spec.AMISelectorTerms`
   * Disruption Budgets by Reason was added to `NodePool.Spec.Disruption.Budgets`
   * TerminationGracePeriod was added to `NodePool.Spec.Template.Spec`.
   * LOG_OUTPUT_PATHS and LOG_ERROR_OUTPUT_PATHS environment variables added
 * API Rename: NodePool’s ConsolidationPolicy `WhenUnderutilized` is now renamed to `WhenEmptyOrUnderutilized`
-* Behavior Changes: 
+* Behavior Changes:
   * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
-  * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields). 
-  * Karpenter now adds a `karpenter.sh/unregistered` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes. 
-* API Moves: 
+  * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields).
+  * Karpenter now adds a `karpenter.sh/unregistered:NoExecute` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
+* API Moves:
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
   * `Kubelet` was moved to the EC2NodeClass from the NodePool.
 * RBAC changes: added `delete pods` | added `get, patch crds` | added `update nodes` | removed `create nodes`
-* Breaking API (Manual Migration Needed): 
+* Breaking API (Manual Migration Needed):
   * Ubuntu is dropped as a first class supported AMI Family
   * `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict` (annotation), and `karpenter.sh/managed-by` (tag) are all removed. `karpenter.sh/managed-by`, which currently stores the cluster name in its value, will be replaced by eks:eks-cluster-name
   * The taint used to mark nodes for disruption and termination changed from `karpenter.sh/disruption=disrupting:NoSchedule` to `karpenter.sh/disrupted:NoSchedule`. It is not recommended to tolerate this taint, however, if you were tolerating it in your applications, you'll need to adjust your taints to reflect this.
-* Environment Variable Changes: 
+* Environment Variable Changes:
   * Environment Variable Changes
   * LOGGING_CONFIG, ASSUME_ROLE_ARN, ASSUME_ROLE_DURATION Dropped
   * LEADER_ELECT renamed to DISABLE_LEADER_ELECTION
   * `FEATURE_GATES.DRIFT=true` was dropped and promoted to Stable, and cannot be disabled.
       * Users currently opting out of drift, disabling the drift feature flag will no longer be able to do so.
-* Defaults changed: 
+* Defaults changed:
   * API: Karpenter will drop support for IMDS access from containers by default on new EC2NodeClasses by updating the default of `httpPutResponseHopLimit` from 2 to 1.
-  * API: ConsolidateAfter is required. Users couldn’t set this before with ConsolidationPolicy: WhenUnderutilized, where this is now required. Users can set it to 0 to have the same behavior as in v1beta1. 
+  * API: ConsolidateAfter is required. Users couldn’t set this before with ConsolidationPolicy: WhenUnderutilized, where this is now required. Users can set it to 0 to have the same behavior as in v1beta1.
   * API: All `NodeClassRef` fields are now all required, and apiVersion has been renamed to group
   * API: AMISelectorTerms are required. Setting an Alias cannot be done with any other type of term, and must match the AMI Family that's set or be Custom.
   * Helm: Deployment spec TopologySpreadConstraint to have required zonal spread over preferred. Users who had one node running their Karpenter deployments need to either:
@@ -300,7 +311,7 @@ Karpenter should now be pulling and operating against the v1beta1 APIVersion as 
     * Scale down their Karpenter replicas from 2 to 1 in the helm chart
     * Edit and relax the topology spread constraint in their helm chart from DoNotSchedule to ScheduleAnyway
   * Helm/Binary: `controller.METRICS_PORT` default changed back to 8080
- 
+
 ### Updated metrics
 
 Changes to Karpenter metrics from v1beta1 to v1 are shown in the following tables.
