@@ -143,7 +143,7 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
    To continue using Ubuntu AMIs you will need to specify an AMI using `amiSelectorTerms`.
 
    UserData generation can be achieved using the AL2 AMIFamily which, at the time of writing, has an identical UserData format.
-   However, compatibility is not guaranteed long-term and changes to either AL2 or Ubuntu's UserData format my introduce incompatibilities.
+   However, compatibility is not guaranteed long-term and changes to either AL2 or Ubuntu's UserData format may introduce incompatibilities.
    If this occurs, the Custom AMIFamily should be used for Ubuntu and UserData will need to be entirely maintained by the user.
 
    If you are upgrading to `v1.0.0` and already have v1beta1 Ubuntu EC2NodeClasses, all you need to do is specify `amiSelectorTerms` and Karpenter will translate your NodeClasses to the v1 equivalent (as shown below).

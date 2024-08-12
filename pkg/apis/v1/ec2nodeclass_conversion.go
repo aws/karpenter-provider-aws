@@ -162,7 +162,6 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 
 		// If there are no AMISelectorTerms specified, we mark the ec2nodeclass as incompatible.
 		// Karpenter will ignore incompatible ec2nodeclasses for provisioning and computing drift.
-		// Users should pin their AMIs **before** upgrading to v1.0.0 if they were using the Ubuntu AMIFamily.
 		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
 			compatSpecifiers = append(compatSpecifiers, AnnotationUbuntuCompatibilityIncompatible)
 			in.Spec.AMISelectorTerms = []AMISelectorTerm{{
