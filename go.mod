@@ -29,7 +29,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.18.4
-	sigs.k8s.io/karpenter v0.33.6-0.20240812073634-d2266e58fbae
+	sigs.k8s.io/karpenter v0.33.6-0.20240812193343-34be3540bb3c
 )
 
 require (
