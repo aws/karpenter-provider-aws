@@ -123,6 +123,7 @@ var (
 	AnnotationInstanceTagged                  = Group + "/tagged"
 
 	AnnotationUbuntuCompatibilityKey                 = CompatibilityGroup + "/v1beta1-ubuntu"
+	AnnotationUbuntuCompatibilityIncompatible        = "incompatible"
 	AnnotationUbuntuCompatibilityAMIFamily           = "amiFamily"
 	AnnotationUbuntuCompatibilityBlockDeviceMappings = "blockDeviceMappings"
 
