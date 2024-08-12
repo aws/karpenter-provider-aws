@@ -363,9 +363,30 @@ AMIFamily does not impact which AMI is discovered, only the UserData generation 
 
 {{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
 
-Beginning with v1, Karpenter is no longer able to automatically discover Ubuntu AMIs.
-If you still want to use Ubuntu, you can set up a Custom `amiFamily` with amiSelectorTerms pinned to the latest Ubuntu AMI, referencing `amiFamily: AL2` to get the same userData configuration you received before.
-See the v1 section of the ([Upgrade Guide]({{< relref "../upgrading/upgrade-guide/" >}})) for information on migrating the Ubuntu amiFamily to v1.
+Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.0`.
+This means Karpenter no longer supports automatic AMI discovery and UserData generation for Ubuntu.
+To continue using Ubuntu AMIs, you will need to select Ubuntu AMIs using `amiSelectorTerms`.
+
+Additionally, you will need to either maintain UserData yourself using the `Custom` AMIFamily, or you can use the `AL2` AMIFamily and custom `blockDeviceMappings` (as shown below).
+The `AL2` family has an identical UserData format, but this compatibility isn't guaranteed long term.
+Changes to AL2's or Ubuntu's UserData format could result in incompatibility, at which point the `Custom` AMIFamily must be used.
+
+**Ubuntu NodeClass Example:**
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+spec:
+  amiFamily: AL2
+  amiSelectorTerms:
+    - id: ami-placeholder
+  blockDeviceMappings:
+  - deviceName: '/dev/sda1'
+    rootVolume: true
+    ebs:
+      encrypted: true
+      volumeType: gp3
+      volumeSize: 20Gi
+```
 
 {{% /alert %}}
 
@@ -636,7 +657,7 @@ For [private clusters](https://docs.aws.amazon.com/eks/latest/userguide/private-
 
 ## spec.amiSelectorTerms
 
-AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html). 
+AMI Selector Terms are __required__ and are used to configure AMIs for Karpenter to use. AMIs are discovered through alias, id, owner, name, and [tags](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/Using_Tags.html).
 
 This selection logic is modeled as terms, where each term contains multiple conditions that must all be satisfied for the selector to match. Effectively, all requirements within a single term are ANDed together. It's possible that you may want to select on two different AMIs that have unrelated requirements. In this case, you can specify multiple terms which will be ORed together to form your selection logic. The example below shows how this selection logic is fulfilled.
 
@@ -673,6 +694,8 @@ Bottlerocket uses a semantic version for their releases. You can pin bottlerocke
 alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only `latest` is supported.
+
+An `alias` is mutually exclusive and may not be specified with any other terms.
 
 To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are not owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
@@ -855,17 +878,6 @@ spec:
         encrypted: true
 ```
 
-### Ubuntu (not supported)
-```yaml
-spec:
-  blockDeviceMappings:
-    - deviceName: /dev/sda1
-      ebs:
-        volumeSize: 20Gi
-        volumeType: gp3
-        encrypted: true
-```
-
 ### Windows2019/Windows2022
 ```yaml
 spec:
@@ -965,7 +977,7 @@ For more examples on configuring fields for different AMI families, see the [exa
 
 Karpenter will merge the userData you specify with the default userData for that AMIFamily. See the [AMIFamily]({{< ref "#specamifamily" >}}) section for more details on these defaults. View the sections below to understand the different merge strategies for each AMIFamily.
 
-### AL2/Ubuntu
+### AL2
 
 * Your UserData can be in the [MIME multi part archive](https://cloudinit.readthedocs.io/en/latest/topics/format.html#mime-multi-part-archive) format.
 * Karpenter will transform your custom user-data as a MIME part, if necessary, and then merge a final MIME part to the end of your UserData parts which will bootstrap the worker node. Karpenter will have full control over all the parameters being passed to the bootstrap script.

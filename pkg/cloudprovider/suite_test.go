@@ -197,6 +197,13 @@ var _ = Describe("CloudProvider", func() {
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypes(ctx)).To(Succeed())
 		Expect(awsEnv.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx)).To(Succeed())
 	})
+	// TODO: remove after v1
+	It("should fail instance creation if NodeClass has ubuntu incompatible annotation", func() {
+		nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationUbuntuCompatibilityKey: v1.AnnotationUbuntuCompatibilityIncompatible})
+		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
+		_, err := cloudProvider.Create(ctx, nodeClaim)
+		Expect(corecloudprovider.IsNodeClassNotReadyError(err)).To(BeTrue())
+	})
 	It("should not proceed with instance creation if NodeClass is unknown", func() {
 		nodeClass.StatusConditions().SetUnknown(opstatus.ConditionReady)
 		ExpectApplied(ctx, env.Client, nodePool, nodeClass, nodeClaim)
