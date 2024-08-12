@@ -34,7 +34,7 @@ var _ = Describe("TerminationGracePeriod", func() {
 	BeforeEach(func() {
 		nodePool.Spec.Template.Spec.TerminationGracePeriod = &metav1.Duration{Duration: time.Second * 30}
 		// Set the expireAfter value to get the node deleted
-		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Second * 90)}
+		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.MustParseNillableDuration("90s")
 	})
 	It("should delete pod that tolerates do-not-disrupt after termination grace period seconds", func() {
 		pod := coretest.UnschedulablePod(coretest.PodOptions{ObjectMeta: metav1.ObjectMeta{Annotations: map[string]string{
