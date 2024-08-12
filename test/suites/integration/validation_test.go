@@ -16,7 +16,6 @@ package integration_test
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
@@ -99,12 +98,12 @@ var _ = Describe("Validation", func() {
 		})
 		It("should error when ttlSecondAfterEmpty is negative", func() {
 			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
-			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(-time.Second)}
+			nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("-1s"))
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error when ConsolidationPolicy=WhenUnderutilized is used with consolidateAfter", func() {
 			nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenUnderutilized
-			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Minute)}
+			nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("1m"))
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
 		It("should error if imageGCHighThresholdPercent is less than imageGCLowThresholdPercent", func() {

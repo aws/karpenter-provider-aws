@@ -151,7 +151,7 @@ var _ = Describe("Consolidation", func() {
 		})
 		It("should respect budgets for non-empty delete consolidation", func() {
 			// This test will hold consolidation until we are ready to execute it
-			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+			nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("Never"))
 
 			nodePool = test.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
@@ -219,7 +219,7 @@ var _ = Describe("Consolidation", func() {
 		It("should respect budgets for non-empty replace consolidation", func() {
 			appLabels := map[string]string{"app": "large-app"}
 			// This test will hold consolidation until we are ready to execute it
-			nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{}
+			nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("Never"))
 
 			nodePool = test.ReplaceRequirements(nodePool,
 				v1.NodeSelectorRequirement{
@@ -398,7 +398,7 @@ var _ = Describe("Consolidation", func() {
 					Disruption: corev1beta1.Disruption{
 						ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
 						// Disable Consolidation until we're ready
-						ConsolidateAfter: &corev1beta1.NillableDuration{},
+						ConsolidateAfter: lo.ToPtr(corev1beta1.MustParseNillableDuration("Never")),
 					},
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
@@ -470,7 +470,7 @@ var _ = Describe("Consolidation", func() {
 					Disruption: corev1beta1.Disruption{
 						ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
 						// Disable Consolidation until we're ready
-						ConsolidateAfter: &corev1beta1.NillableDuration{},
+						ConsolidateAfter: lo.ToPtr(corev1beta1.MustParseNillableDuration("Never")),
 					},
 					Template: corev1beta1.NodeClaimTemplate{
 						Spec: corev1beta1.NodeClaimSpec{
@@ -593,7 +593,7 @@ var _ = Describe("Consolidation", func() {
 				Disruption: corev1beta1.Disruption{
 					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
 					// Disable Consolidation until we're ready
-					ConsolidateAfter: &corev1beta1.NillableDuration{},
+					ConsolidateAfter: lo.ToPtr(corev1beta1.MustParseNillableDuration("Never")),
 				},
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
