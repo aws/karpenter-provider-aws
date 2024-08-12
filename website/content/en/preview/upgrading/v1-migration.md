@@ -108,15 +108,15 @@ The results of upgrading these CRDs include the following:
 
 Your NodePool and EC2NodeClass objects are auto-converted to the new v1 storage version during the upgrade. Consider getting the latest versions of those objects to update any stored manifests where you were previously applying the v1beta1 version.
 
-   * ([NodePools]({{<ref "../concepts/nodepools" >}}): Get the latest copy of your NodePool (`kubectl get nodepool default -o yaml > nodepool.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to NodePool objects. Make modifications as needed.
+   * [NodePools]({{<ref "../concepts/nodepools" >}}): Get the latest copy of your NodePool (`kubectl get nodepool default -o yaml > nodepool.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to NodePool objects. Make modifications as needed.
    * [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}): Get the latest copy of your EC2NodeClass (`kubectl get ec2nodeclass default -o yaml > ec2nodeclass.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to EC2NodeClass objects. Make modifications as needed.
 
 When you are satisfied with your NodePool and EC2NodeClass files, apply them as follows:
 
-    ```bash
-    kubectl apply -f nodepool.yaml
-    kubectl apply -f ec2nodeclass.yaml
-    ```
+```bash
+kubectl apply -f nodepool.yaml
+kubectl apply -f ec2nodeclass.yaml
+```
 
 ## Changelog
 
@@ -196,7 +196,7 @@ then you have to manually add more EC2NodeClasses and point their NodePools to t
 If you have multiple NodePools pointing to the same EC2NodeClass, but they have the same configuration, then you can proceed with the migration
 without having drift or having any additional NodePools or EC2NodeClasses configured.
 
-**Remove kubelet annotation from NodePools**: During the upgrade process Karpenter will rely on the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation to determine whether to use the v1beta1 NodePool kubelet configuration or the v1 EC2NodeClass kubelet configuration. The   `compatibility.karpenter.sh/v1beta1-kubelet-conversion` NodePool annotation takes precedence over the EC2NodeClass Kubelet configuration when launching nodes. Remove the kubelet-configuration annotation (`compatibility.karpenter.sh/v1beta1-kubelet-conversion`) from your NodePools once you have migrated kubelet from the NodePool to the EC2NodeClass.
+* **Remove kubelet annotation from NodePools**: During the upgrade process Karpenter will rely on the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation to determine whether to use the v1beta1 NodePool kubelet configuration or the v1 EC2NodeClass kubelet configuration. The   `compatibility.karpenter.sh/v1beta1-kubelet-conversion` NodePool annotation takes precedence over the EC2NodeClass Kubelet configuration when launching nodes. Remove the kubelet-configuration annotation (`compatibility.karpenter.sh/v1beta1-kubelet-conversion`) from your NodePools once you have migrated kubelet from the NodePool to the EC2NodeClass.
 
 Keep in mind that rollback, without replacing the Karpenter nodes, will not be supported to an earlier version of Karpenter once the annotation is removed. This annotation is only used to support the kubelet configuration migration path, but will not be supported in v1.1.
 
