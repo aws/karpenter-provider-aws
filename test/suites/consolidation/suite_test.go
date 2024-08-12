@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/samber/lo"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -68,7 +69,7 @@ var _ = Describe("Consolidation", func() {
 				Disruption: corev1beta1.Disruption{
 					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
 					// Disable Consolidation until we're ready
-					ConsolidateAfter: &corev1beta1.NillableDuration{},
+					ConsolidateAfter: lo.ToPtr(corev1beta1.MustParseNillableDuration("Never")),
 				},
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
@@ -137,7 +138,7 @@ var _ = Describe("Consolidation", func() {
 				Disruption: corev1beta1.Disruption{
 					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
 					// Disable Consolidation until we're ready
-					ConsolidateAfter: &corev1beta1.NillableDuration{},
+					ConsolidateAfter: lo.ToPtr(corev1beta1.MustParseNillableDuration("Never")),
 				},
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{
@@ -258,7 +259,7 @@ var _ = Describe("Consolidation", func() {
 				Disruption: corev1beta1.Disruption{
 					ConsolidationPolicy: corev1beta1.ConsolidationPolicyWhenUnderutilized,
 					// Disable Consolidation until we're ready
-					ConsolidateAfter: &corev1beta1.NillableDuration{},
+					ConsolidateAfter: lo.ToPtr(corev1beta1.MustParseNillableDuration("Never")),
 				},
 				Template: corev1beta1.NodeClaimTemplate{
 					Spec: corev1beta1.NodeClaimSpec{

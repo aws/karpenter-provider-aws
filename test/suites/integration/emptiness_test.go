@@ -15,8 +15,6 @@ limitations under the License.
 package integration_test
 
 import (
-	"time"
-
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/labels"
 	"knative.dev/pkg/ptr"
@@ -33,7 +31,7 @@ import (
 var _ = Describe("Emptiness", func() {
 	It("should terminate an empty node", func() {
 		nodePool.Spec.Disruption.ConsolidationPolicy = corev1beta1.ConsolidationPolicyWhenEmpty
-		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Hour * 300)}
+		nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("300h"))
 
 		const numPods = 1
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
@@ -56,7 +54,7 @@ var _ = Describe("Emptiness", func() {
 		}).Should(Succeed())
 
 		By("waiting for the nodeclaim to deprovision when past its ConsolidateAfter timeout of 0")
-		nodePool.Spec.Disruption.ConsolidateAfter = &corev1beta1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
+		nodePool.Spec.Disruption.ConsolidateAfter = lo.ToPtr(corev1beta1.MustParseNillableDuration("0s"))
 		env.ExpectUpdated(nodePool)
 
 		env.EventuallyExpectNotFound(nodeClaim, node)
