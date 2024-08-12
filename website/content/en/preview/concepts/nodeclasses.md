@@ -1502,7 +1502,7 @@ status:
       - arm64
 ```
 
-Note that Karpenter can only discover architecture based requirements unless using an alias, in which case it can discover additional requirements (e.g. GPU / Accelerator support).
+Note that Karpenter can only discover architecture based requirements. The one exception is using alias, in which case it can discover additional requirements (e.g. GPU / Accelerator support).
 
 ## status.instanceProfile
 
