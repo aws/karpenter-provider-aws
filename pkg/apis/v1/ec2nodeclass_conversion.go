@@ -37,6 +37,11 @@ func (in *EC2NodeClass) ConvertTo(ctx context.Context, to apis.Convertible) erro
 
 	if value, ok := in.Annotations[AnnotationUbuntuCompatibilityKey]; ok {
 		compatSpecifiers := strings.Split(value, ",")
+		// Remove the `id: ami-placeholder` AMISelectorTerms that are injected to pass CRD validation at v1
+		// we don't need these in v1beta1, and should be dropped
+		if lo.Contains(compatSpecifiers, AnnotationUbuntuCompatibilityIncompatible) {
+			in.Spec.AMISelectorTerms = nil
+		}
 		// The only blockDeviceMappings present on the v1 EC2NodeClass are those that we injected during conversion.
 		// These should be dropped.
 		if lo.Contains(compatSpecifiers, AnnotationUbuntuCompatibilityBlockDeviceMappings) {
@@ -140,13 +145,6 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 			in.Spec.AMIFamily = v1beta1enc.Spec.AMIFamily
 		}
 	case AMIFamilyUbuntu:
-		// If there are no AMISelectorTerms specified, we will fail closed when converting the NodeClass. Users must
-		// pin their AMIs **before** upgrading to Karpenter v1.0.0 if they were using the Ubuntu AMIFamily.
-		// TODO: jmdeal@ verify doc link to the upgrade guide once available
-		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
-			return fmt.Errorf("converting EC2NodeClass %q from v1beta1 to v1, automatic Ubuntu AMI discovery is not supported (https://karpenter.sh/v1.0/upgrading/upgrade-guide/)", v1beta1enc.Name)
-		}
-
 		// If AMISelectorTerms were specified, we can continue to use them to discover Ubuntu AMIs and use the AL2 AMI
 		// family for bootstrapping. AL2 and Ubuntu have an identical UserData format, but do have different default
 		// BlockDeviceMappings. We'll set the BlockDeviceMappings to Ubuntu's default if no user specified
@@ -165,6 +163,16 @@ func (in *EC2NodeClass) ConvertFrom(ctx context.Context, from apis.Convertible) 
 				},
 			}}
 		}
+
+		// If there are no AMISelectorTerms specified, we mark the ec2nodeclass as incompatible.
+		// Karpenter will ignore incompatible ec2nodeclasses for provisioning and computing drift.
+		if len(v1beta1enc.Spec.AMISelectorTerms) == 0 {
+			compatSpecifiers = append(compatSpecifiers, AnnotationUbuntuCompatibilityIncompatible)
+			in.Spec.AMISelectorTerms = []AMISelectorTerm{{
+				ID: "ami-placeholder",
+			}}
+		}
+
 		// This compatibility annotation will be used to determine if the amiFamily was mutated from Ubuntu to AL2, and
 		// if we needed to inject any blockDeviceMappings. This is required to enable a round-trip conversion.
 		in.Annotations = lo.Assign(in.Annotations, map[string]string{
