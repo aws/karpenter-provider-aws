@@ -137,6 +137,9 @@ controller:
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
+postInstallHook: 
+  # The image to run the post-install hook. This minimally needs to have `kubectl` installed
+  image: public.ecr.aws/bitnami/kubectl:1.30
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
   enabled: true

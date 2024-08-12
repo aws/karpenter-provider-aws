@@ -23,7 +23,7 @@ spec:
       {{- end }}
       containers:
       - name: post-install-job
-        image: public.ecr.aws/bitnami/kubectl:1.30
+        image: "{{ .Values.postInstallHook.image }}"
         command:
         - /bin/sh
         - -c
