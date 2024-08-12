@@ -363,9 +363,30 @@ AMIFamily does not impact which AMI is discovered, only the UserData generation 
 
 {{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
 
-Beginning with v1, Karpenter is no longer able to automatically discover Ubuntu AMIs.
-If you still want to use Ubuntu, you can set up a Custom `amiFamily` with amiSelectorTerms pinned to the latest Ubuntu AMI, referencing `amiFamily: AL2` to get the same userData configuration you received before.
-See the v1 section of the ([Upgrade Guide]({{< relref "../upgrading/upgrade-guide/" >}})) for information on migrating the Ubuntu amiFamily to v1.
+Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.0`.
+This means Karpenter no longer supports automatic AMI discovery and UserData generation for Ubuntu.
+To continue using Ubuntu AMIs, you will need to select Ubuntu AMIs using `amiSelectorTerms`.
+
+Additionally, you will need to either maintain UserData yourself using the `Custom` AMIFamily, or you can use the `AL2` AMIFamily and custom `blockDeviceMappings` (as shown below).
+The `AL2` family has an identical UserData format, but this compatibility isn't guaranteed long term.
+Changes to AL2's or Ubuntu's UserData format could result in incompatibility, at which point the `Custom` AMIFamily must be used.
+
+**Ubuntu NodeClass Example:**
+```yaml
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+spec:
+  amiFamily: AL2
+  amiSelectorTerms:
+    - id: ami-placeholder
+  blockDeviceMappings:
+  - deviceName: '/dev/sda1'
+    rootVolume: true
+    ebs:
+      encrypted: true
+      volumeType: gp3
+      volumeSize: 20Gi
+```
 
 {{% /alert %}}
 
@@ -673,6 +694,8 @@ Bottlerocket uses a semantic version for their releases. You can pin bottlerocke
 alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only `latest` is supported.
+
+An `alias` is mutually exclusive and may not be specified with any other terms.
 
 To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are not owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
