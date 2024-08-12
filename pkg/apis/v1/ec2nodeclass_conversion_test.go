@@ -459,10 +459,11 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 				},
 			}}))
 		})
-		It("should fail to convert v1beta1 ec2nodeclass when amiFamily is Ubuntu (without amiSelectorTerms)", func() {
+		It("should convert v1beta1 ec2nodeclass when amiFamily is Ubuntu (without amiSelectorTerms) but mark incompatible", func() {
 			v1beta1ec2nodeclass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyUbuntu)
 			v1beta1ec2nodeclass.Spec.AMISelectorTerms = nil
-			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).ToNot(Succeed())
+			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(v1ec2nodeclass.UbuntuIncompatible()).To(BeTrue())
 		})
 		It("should convert v1beta1 ec2nodeclass user data", func() {
 			v1beta1ec2nodeclass.Spec.UserData = lo.ToPtr("test user data")
