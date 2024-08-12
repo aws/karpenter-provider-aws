@@ -108,15 +108,15 @@ The results of upgrading these CRDs include the following:
 
 Your NodePool and EC2NodeClass objects are auto-converted to the new v1 storage version during the upgrade. Consider getting the latest versions of those objects to update any stored manifests where you were previously applying the v1beta1 version.
 
-   * ([NodePools]({{<ref "../concepts/nodepools" >}}): Get the latest copy of your NodePool (`kubectl get nodepool default -o yaml > nodepool.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to NodePool objects. Make modifications as needed.
+   * [NodePools]({{<ref "../concepts/nodepools" >}}): Get the latest copy of your NodePool (`kubectl get nodepool default -o yaml > nodepool.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to NodePool objects. Make modifications as needed.
    * [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}): Get the latest copy of your EC2NodeClass (`kubectl get ec2nodeclass default -o yaml > ec2nodeclass.yaml`) and review the [Changelog]({{<ref "#changelog" >}}) for changes to EC2NodeClass objects. Make modifications as needed.
 
 When you are satisfied with your NodePool and EC2NodeClass files, apply them as follows:
 
-    ```bash
-    kubectl apply -f nodepool.yaml
-    kubectl apply -f ec2nodeclass.yaml
-    ```
+```bash
+kubectl apply -f nodepool.yaml
+kubectl apply -f ec2nodeclass.yaml
+```
 
 ## Changelog
 
