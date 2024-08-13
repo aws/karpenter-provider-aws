@@ -17,8 +17,6 @@ package amifamily
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strings"
 
 	"github.com/aws/aws-sdk-go/aws"
 	corev1 "k8s.io/api/core/v1"
@@ -26,7 +24,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/samber/lo"
 
-	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -43,57 +40,44 @@ type AL2 struct {
 }
 
 func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
-	imageIDs := make([]*string, 0, 5)
-	requirements := make(map[string][]scheduling.Requirements)
-	// Example Paths:
-	// - Latest EKS 1.30 Standard Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2/recommended/image_id
-	// - Specific EKS 1.30 GPU Image: /aws/service/eks/optimized-ami/1.30/amazon-linux-2-gpu/amazon-eks-node-1.30-v20240625/image_id
-	for rootPath, variants := range map[string][]Variant{
-		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2", k8sVersion):       {VariantStandard},
-		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64", k8sVersion): {VariantStandard},
-		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu", k8sVersion):   {VariantNeuron, VariantNvidia},
+	ids := map[string][]Variant{}
+	for path, variants := range map[string][]Variant{
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2/%s/image_id", k8sVersion, lo.Ternary(
+			amiVersion == AMIVersionLatest,
+			"recommended",
+			fmt.Sprintf("amazon-eks-node-%s-%s", k8sVersion, amiVersion),
+		)): {VariantStandard},
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-arm64/%s/image_id", k8sVersion, lo.Ternary(
+			amiVersion == AMIVersionLatest,
+			"recommended",
+			fmt.Sprintf("amazon-eks-arm64-node-%s-%s", k8sVersion, amiVersion),
+		)): {VariantStandard},
+		fmt.Sprintf("/aws/service/eks/optimized-ami/%s/amazon-linux-2-gpu/%s/image_id", k8sVersion, lo.Ternary(
+			amiVersion == AMIVersionLatest,
+			"recommended",
+			fmt.Sprintf("amazon-eks-gpu-node-%s-%s", k8sVersion, amiVersion),
+		)): {VariantNeuron, VariantNvidia},
 	} {
-		results, err := ssmProvider.List(ctx, rootPath)
+		imageID, err := ssmProvider.Get(ctx, path)
 		if err != nil {
-			log.FromContext(ctx).WithValues("path", rootPath, "family", "al2").Error(err, "discovering AMIs from ssm")
 			continue
 		}
-		for path, value := range results {
-			pathComponents := strings.Split(path, "/")
-			// Only select image_id paths which match the desired AMI version
-			if len(pathComponents) != 9 || pathComponents[8] != "image_id" {
-				continue
-			}
-			if av, err := a.extractAMIVersion(pathComponents[7]); err != nil || av != amiVersion {
-				continue
-			}
-			imageIDs = append(imageIDs, lo.ToPtr(value))
-			requirements[value] = lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
-		}
+		ids[imageID] = variants
 	}
 	// Failed to discover any AMIs, we should short circuit AMI discovery
-	if len(imageIDs) == 0 {
+	if len(ids) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2@%s"`, amiVersion)
 	}
+
 	return DescribeImageQuery{
 		Filters: []*ec2.Filter{{
 			Name:   lo.ToPtr("image-id"),
-			Values: imageIDs,
+			Values: lo.ToSlicePtr(lo.Keys(ids)),
 		}},
-		KnownRequirements: requirements,
+		KnownRequirements: lo.MapValues(ids, func(variants []Variant, _ string) []scheduling.Requirements {
+			return lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
+		}),
 	}, nil
-}
-
-func (a AL2) extractAMIVersion(versionStr string) (string, error) {
-	if versionStr == "recommended" {
-		return AMIVersionLatest, nil
-	}
-	rgx := regexp.MustCompile(`^.*(v\d{8})$`)
-	matches := rgx.FindStringSubmatch(versionStr)
-	if len(matches) != 2 {
-		return "", fmt.Errorf("failed to extract AMI version")
-	}
-	return matches[1], nil
 }
 
 // UserData returns the exact same string for equivalent input,
