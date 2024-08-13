@@ -31,6 +31,9 @@ const (
 	InstanceTypesAndZonesTTL = 5 * time.Minute
 	// InstanceProfileTTL is the time before we refresh checking instance profile existence at IAM
 	InstanceProfileTTL = 15 * time.Minute
+	// SSMProviderTTL is the time to drop SSM Provider data. This only queries EKS Optimized AMI
+	// releases, so we should expect this to be updated relatively infrequently.
+	SSMProviderTTL = 24 * time.Hour
 )
 
 const (

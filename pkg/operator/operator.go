@@ -60,6 +60,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	ssmp "github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 )
@@ -86,6 +87,7 @@ type Operator struct {
 	VersionProvider           version.Provider
 	InstanceTypesProvider     instancetype.Provider
 	InstanceProvider          instance.Provider
+	SSMProvider               ssmp.Provider
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
@@ -142,7 +144,8 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		*sess.Config.Region,
 	)
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssm.New(sess), ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
+	ssmProvider := ssmp.NewDefaultProvider( ssm.New(sess), cache.New(awscache.SSMProviderTTL, awscache.DefaultCleanupInterval))
+	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.NewResolver(amiProvider)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
