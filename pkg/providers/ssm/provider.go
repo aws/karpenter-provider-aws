@@ -23,6 +23,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
 type Provider interface {
@@ -55,5 +56,6 @@ func (p *DefaultProvider) Get(ctx context.Context, parameter string) (string, er
 		return "", fmt.Errorf("getting ssm parameter %q, %w", parameter, err)
 	}
 	p.cache.SetDefault(parameter, lo.FromPtr(result.Parameter.Value))
+	log.FromContext(ctx).WithValues("parameter", parameter, "value", result.Parameter.Value).Info("discovered ssm parameter")
 	return lo.FromPtr(result.Parameter.Value), nil
 }
