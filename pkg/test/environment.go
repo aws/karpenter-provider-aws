@@ -35,6 +35,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/securitygroup"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
@@ -67,6 +68,7 @@ type Environment struct {
 	AssociatePublicIPAddressCache *cache.Cache
 	SecurityGroupCache            *cache.Cache
 	InstanceProfileCache          *cache.Cache
+	SSMProviderCache              *cache.Cache
 
 	// Providers
 	InstanceTypesProvider   *instancetype.DefaultProvider
@@ -99,6 +101,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	associatePublicIPAddressCache := cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval)
 	securityGroupCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	instanceProfileCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
+	ssmProviderCache := cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval)
 	fakePricingAPI := &fake.PricingAPI{}
 
 	// Providers
@@ -107,7 +110,8 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, securityGroupCache)
 	versionProvider := version.NewDefaultProvider(env.KubernetesInterface, kubernetesVersionCache)
 	instanceProfileProvider := instanceprofile.NewDefaultProvider(fake.DefaultRegion, iamapi, instanceProfileCache)
-	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmapi, ec2api, ec2Cache)
+	ssmProvider := ssm.NewDefaultProvider(ssmapi, ssmProviderCache)
+	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, ec2Cache)
 	amiResolver := amifamily.NewResolver(amiProvider)
 	instanceTypesProvider := instancetype.NewDefaultProvider(fake.DefaultRegion, instanceTypeCache, ec2api, subnetProvider, unavailableOfferingsCache, pricingProvider)
 	launchTemplateProvider :=
@@ -150,6 +154,7 @@ func NewEnvironment(ctx context.Context, env *coretest.Environment) *Environment
 		SecurityGroupCache:            securityGroupCache,
 		InstanceProfileCache:          instanceProfileCache,
 		UnavailableOfferingsCache:     unavailableOfferingsCache,
+		SSMProviderCache:              ssmProviderCache,
 
 		InstanceTypesProvider:   instanceTypesProvider,
 		InstanceProvider:        instanceProvider,
@@ -182,6 +187,7 @@ func (env *Environment) Reset() {
 	env.AvailableIPAdressCache.Flush()
 	env.SecurityGroupCache.Flush()
 	env.InstanceProfileCache.Flush()
+	env.SSMProviderCache.Flush()
 
 	mfs, err := crmetrics.Registry.Gather()
 	if err != nil {
