@@ -102,7 +102,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
 
 
 9. Update your existing policy using the following to the v1.0.0 controller policy:
-   Notable Changes to the IAM Policy include `SSM:GetParameter` to `SSM:GetParametersByPath` and additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
+   Notable Changes to the IAM Policy include additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
 
     ```bash
     TEMPOUT=$(mktemp)
@@ -167,6 +167,7 @@ kubectl apply -f ec2nodeclass.yaml
 ```
 
 ## Changelog
+Refer to the [Full Changelog]({{<ref "#full-changelog" >}}) for more.
 
 Because Karpenter `v1.0.0` will run both `v1` and `v1beta1` versions of NodePools and EC2NodeClasses, you don't immediately have to upgrade the stored manifests that you have to v1.
 However, in preparation for later Karpenter upgrades (which will not support `v1beta1`, review the following changes from v1beta1 to v1.
