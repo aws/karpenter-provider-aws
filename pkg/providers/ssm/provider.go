@@ -27,6 +27,7 @@ import (
 
 type Provider interface {
 	List(context.Context, string) (map[string]string, error)
+	Get(context.Context, string) (string, error)
 }
 
 type DefaultProvider struct {
@@ -40,6 +41,10 @@ func NewDefaultProvider(ssmapi ssmiface.SSMAPI, cache *cache.Cache) *DefaultProv
 		ssmapi: ssmapi,
 		cache:  cache,
 	}
+}
+
+func (p *DefaultProvider) Get(ctx context.Context, path string) (string, error) {
+	return "", nil
 }
 
 // List calls GetParametersByPath recursively with the provided input path.
