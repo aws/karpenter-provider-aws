@@ -22,7 +22,7 @@ Here are things you should know about NodePools:
 * If Karpenter encounters a startup taint in the NodePool it will be applied to nodes that are provisioned, but pods do not need to tolerate the taint.  Karpenter assumes that the taint is temporary and some other system will remove the taint.
 * It is recommended to create NodePools that are mutually exclusive. So no Pod should match multiple NodePools. If multiple NodePools are matched, Karpenter will use the NodePool with the highest [weight](#specweight).
 
-For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/v1beta1/).
+For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/v0.35.0/examples/v1beta1/).
 
 ```yaml
 apiVersion: karpenter.sh/v1beta1
