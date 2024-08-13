@@ -589,6 +589,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
+			// Enable Expiration
+			nodePool.Spec.Template.Spec.ExpireAfter = karpv1.MustParseNillableDuration("5m")
 
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
@@ -616,8 +618,6 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				By("kicking off deprovisioning expiration by setting the ttlSecondsUntilExpired value on the nodePool")
 				// Change limits so that replacement nodes will use another nodePool.
 				nodePool.Spec.Limits = disableProvisioningLimits
-				// Enable Expiration
-				nodePool.Spec.Template.Spec.ExpireAfter.Duration = lo.ToPtr(time.Duration(0))
 
 				noExpireNodePool := test.NodePool(*nodePool.DeepCopy())
 
