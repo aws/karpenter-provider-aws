@@ -26,7 +26,6 @@ import (
 )
 
 type Provider interface {
-	List(context.Context, string) (map[string]string, error)
 	Get(context.Context, string) (string, error)
 }
 
@@ -43,33 +42,18 @@ func NewDefaultProvider(ssmapi ssmiface.SSMAPI, cache *cache.Cache) *DefaultProv
 	}
 }
 
-func (p *DefaultProvider) Get(ctx context.Context, path string) (string, error) {
-	return "", nil
-}
-
-// List calls GetParametersByPath recursively with the provided input path.
-// The result is a map of paths to values for those paths.
-func (p *DefaultProvider) List(ctx context.Context, path string) (map[string]string, error) {
+func (p *DefaultProvider) Get(ctx context.Context, parameter string) (string, error) {
 	p.Lock()
 	defer p.Unlock()
-	if paths, ok := p.cache.Get(path); ok {
-		return paths.(map[string]string), nil
+	if result, ok := p.cache.Get(parameter); ok {
+		return result.(string), nil
 	}
-	values := map[string]string{}
-	if err := p.ssmapi.GetParametersByPathPagesWithContext(ctx, &ssm.GetParametersByPathInput{
-		Recursive: lo.ToPtr(true),
-		Path:      &path,
-	}, func(out *ssm.GetParametersByPathOutput, _ bool) bool {
-		for _, parameter := range out.Parameters {
-			if parameter.Name == nil || parameter.Value == nil {
-				continue
-			}
-			values[*parameter.Name] = *parameter.Value
-		}
-		return true
-	}); err != nil {
-		return nil, fmt.Errorf("getting ssm parameters for path %q, %w", path, err)
+	result, err := p.ssmapi.GetParameterWithContext(ctx, &ssm.GetParameterInput{
+		Name: lo.ToPtr(parameter),
+	})
+	if err != nil {
+		return "", fmt.Errorf("getting ssm parameter %q, %w", parameter, err)
 	}
-	p.cache.SetDefault(path, values)
-	return values, nil
+	p.cache.SetDefault(parameter, lo.FromPtr(result.Parameter.Value))
+	return lo.FromPtr(result.Parameter.Value), nil
 }
