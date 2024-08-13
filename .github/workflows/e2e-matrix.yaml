@@ -59,13 +59,15 @@ jobs:
       max-parallel: ${{ inputs.parallelism || 100 }}
       matrix:
         suite:
-          - name: Integration
+          - name: IPv6
             region: ${{ inputs.region }}
           - name: AMI
             region: ${{ inputs.region }}
           - name: Scheduling
             region: ${{ inputs.region }}
           - name: Storage
+            region: ${{ inputs.region }}
+          - name: Integration
             region: ${{ inputs.region }}
           - name: NodeClaim
             region: ${{ inputs.region }}
@@ -78,8 +80,6 @@ jobs:
           - name: Expiration
             region: ${{ inputs.region }}
           - name: Chaos
-            region: ${{ inputs.region }}
-          - name: IPv6
             region: ${{ inputs.region }}
           - name: Termination
             region: ${{ inputs.region }}
