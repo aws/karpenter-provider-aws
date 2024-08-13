@@ -69,29 +69,14 @@ func (a AL2) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "al2@%s"`, amiVersion)
 	}
 
-	// Only inject requirements if we were able to discover accelerated AMIs. If we weren't, we should use the standard
-	// AMI for all nodes.
-	hasAcceleratedAMIs := lo.ContainsBy(lo.Values(ids), func(variants []Variant) bool {
-		for _, v := range variants {
-			if v != VariantStandard {
-				return true
-			}
-		}
-		return false
-	})
-	requirements := map[string][]scheduling.Requirements{}
-	if hasAcceleratedAMIs {
-		requirements = lo.MapValues(ids, func(variants []Variant, _ string) []scheduling.Requirements {
-			return lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
-		})
-	}
-
 	return DescribeImageQuery{
 		Filters: []*ec2.Filter{{
 			Name:   lo.ToPtr("image-id"),
 			Values: lo.ToSlicePtr(lo.Keys(ids)),
 		}},
-		KnownRequirements: requirements,
+		KnownRequirements: lo.MapValues(ids, func(variants []Variant, _ string) []scheduling.Requirements {
+			return lo.Map(variants, func(v Variant, _ int) scheduling.Requirements { return v.Requirements() })
+		}),
 	}, nil
 }
 

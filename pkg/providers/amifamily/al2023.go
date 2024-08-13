@@ -37,15 +37,11 @@ type AL2023 struct {
 
 func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
 	ids := map[string]Variant{}
-	for _, arch := range []string{
-		"x86_64",
-		"arm64",
+	for arch, variants := range map[string][]Variant{
+		"x86_64": []Variant{VariantStandard, VariantNvidia, VariantNeuron},
+		"arm64":  []Variant{VariantStandard},
 	} {
-		for _, variant := range []Variant{
-			VariantStandard,
-			VariantNvidia,
-			VariantNeuron,
-		} {
+		for _, variant := range variants {
 			path := a.resolvePath(arch, string(variant), k8sVersion, amiVersion)
 			imageID, err := ssmProvider.Get(ctx, path)
 			if err != nil {
@@ -59,24 +55,14 @@ func (a AL2023) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover AMIs for alias "al2023@%s"`, amiVersion)
 	}
 
-	// Only inject requirements if we were able to discover accelerated AMIs. If we weren't, we should use the standard
-	// AMI for all nodes.
-	hasAcceleratedAMIs := lo.ContainsBy(lo.Values(ids), func(v Variant) bool {
-		return v != VariantStandard
-	})
-	requirements := map[string][]scheduling.Requirements{}
-	if hasAcceleratedAMIs {
-		requirements = lo.MapValues(ids, func(v Variant, _ string) []scheduling.Requirements {
-			return []scheduling.Requirements{v.Requirements()}
-		})
-	}
-
 	return DescribeImageQuery{
 		Filters: []*ec2.Filter{{
 			Name:   lo.ToPtr("image-id"),
 			Values: lo.ToSlicePtr(lo.Keys(ids)),
 		}},
-		KnownRequirements: requirements,
+		KnownRequirements: lo.MapValues(ids, func(v Variant, _ string) []scheduling.Requirements {
+			return []scheduling.Requirements{v.Requirements()}
+		}),
 	}, nil
 }
 
