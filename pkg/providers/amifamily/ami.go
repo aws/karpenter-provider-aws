@@ -25,8 +25,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -34,6 +32,7 @@ import (
 	"knative.dev/pkg/logging"
 
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/ssm"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -44,10 +43,10 @@ import (
 type Provider struct {
 	sync.Mutex
 	cache           *cache.Cache
-	ssm             ssmiface.SSMAPI
 	ec2api          ec2iface.EC2API
 	cm              *pretty.ChangeMonitor
 	versionProvider *version.Provider
+	ssmProvider     ssm.Provider
 }
 
 type AMI struct {
@@ -98,12 +97,12 @@ func (a AMIs) MapToInstanceTypes(instanceTypes []*cloudprovider.InstanceType) ma
 	return amiIDs
 }
 
-func NewProvider(versionProvider *version.Provider, ssm ssmiface.SSMAPI, ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
+func NewProvider(versionProvider *version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *Provider {
 	return &Provider{
 		cache:           cache,
-		ssm:             ssm,
 		ec2api:          ec2api,
 		cm:              pretty.NewChangeMonitor(),
+		ssmProvider: ssmProvider,
 		versionProvider: versionProvider,
 	}
 }
@@ -174,12 +173,11 @@ func (p *Provider) getDefaultAMIs(ctx context.Context, nodeClass *v1beta1.EC2Nod
 }
 
 func (p *Provider) resolveSSMParameter(ctx context.Context, ssmQuery string) (string, error) {
-	output, err := p.ssm.GetParameterWithContext(ctx, &ssm.GetParameterInput{Name: aws.String(ssmQuery)})
+	imageID, err := p.ssmProvider.Get(ctx, ssmQuery)
 	if err != nil {
-		return "", fmt.Errorf("getting ssm parameter %q, %w", ssmQuery, err)
+		return "", err
 	}
-	ami := aws.StringValue(output.Parameter.Value)
-	return ami, nil
+	return imageID, nil
 }
 
 func (p *Provider) getAMIs(ctx context.Context, terms []v1beta1.AMISelectorTerm) (AMIs, error) {
