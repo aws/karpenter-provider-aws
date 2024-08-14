@@ -101,9 +101,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: 0.36.0
+    tag: 0.37.1
     # -- SHA256 digest of the controller image.
-    digest: sha256:90adaba9e8e9f66244324ca64408a5abbfe063f8c41fbbfebf226bdda4fadd58
+    digest: sha256:5a8e54bd67d45df18fd1471496f3b1ad81da9b980f127ebc01bd03d5a6b6be56
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -137,7 +137,7 @@ controller:
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
-postInstallHook: 
+postInstallHook:
   image:
     # -- Repository path to the post-install hook. This minimally needs to have `kubectl` installed
     repository: public.ecr.aws/bitnami/kubectl
