@@ -60,7 +60,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
 
 3. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
-4. Set environment variables for upgrading to the latest patch version:
+4. Set environment variables for upgrading to the latest patch version. Note that `v0.33.6` and `v0.34.7` both need to include the v prefix, whereas `v0.35+` should not.
 
     ```bash
     export KARPENTER_VERSION=<latest patch version of your current v1beta1 minor version>
@@ -271,6 +271,7 @@ Since both v1beta1 and v1 will be served, `kubectl` will default to returning th
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
+# Note: v0.33.6 and v0.34.7 include the v prefix, omit it for versions v0.35+
 export KARPENTER_VERSION="<rollback version of karpenter>"
 export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 export CLUSTER_NAME="<name of your cluster>"
@@ -289,6 +290,17 @@ echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${CLUSTER_NAME}" "${TEMPOU
 
 2. Rollback the Karpenter Policy
 
+**v0.33.6 and v0.34.7:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/docs/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
+    && aws cloudformation deploy \
+    --stack-name "Karpenter-${CLUSTER_NAME}" \
+    --template-file "${TEMPOUT}" \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides "ClusterName=${CLUSTER_NAME}"
+```
+
+**v0.35+:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/docs/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
     && aws cloudformation deploy \
