@@ -214,7 +214,7 @@ Refer to the [NodePool docs]({{<ref "./nodepools" >}}) for settings applicable t
 Karpenter provides the ability to specify a few additional Kubelet arguments.
 These are all optional and provide support for additional customization and use cases.
 Adjust these only if you know you need to do so.
-For more details on kubelet configuration arguments, [see the KubeletConfiguration API specification docs](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
+For more details on kubelet settings, see the [KubeletConfiguration reference](https://kubernetes.io/docs/reference/config-api/kubelet-config.v1/).
 The implemented fields are a subset of the full list of upstream kubelet configuration arguments.
 
 ```yaml
@@ -258,7 +258,7 @@ apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 spec:
   amiSelectorTerms:
-    - alias: al2023@latest
+    - alias: al2023@v20240807
   kubelet:
     maxPods: 42
   userData: |
@@ -274,6 +274,18 @@ spec:
 Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kublet` and `spec.userData`.
 {{% /alert %}}
 
+{{% alert title="Warning" color="warning" %}}
+The Bottlerocket AMIFamily does not support the following fields:
+
+* `evictionSoft`
+* `evictionSoftGracePeriod`
+* `evictionMaxPodGracePeriod`
+* `cpuCFSQuota`
+
+If any of these fields are specified on a Bottlerocket EC2NodeClass, they will be ommited from generated UserData and ignored for scheduling purposes.
+Support for these fields can be tracked via GitHub issue [#3722](https://github.com/aws/karpenter-provider-aws/issues/3722).
+{{% /alert %}}
+
 #### Pods Per Core
 
 An alternative way to dynamically set the maximum density of pods on a node is to use the `.spec.kubelet.podsPerCore` value. Karpenter will calculate the pod density during scheduling by multiplying this value by the number of logical cores (vCPUs) on an instance type. This value will also be passed through to the `--pods-per-core` value on kubelet startup to configure the number of allocatable pods the kubelet can assign to the node instance.
@@ -282,10 +294,6 @@ The value generated from `podsPerCore` cannot exceed `maxPods`, meaning, if both
 
 {{% alert title="Note" color="primary" %}}
 `maxPods` may not be set in the `kubelet` of an EC2NodeClass, but may still be restricted by the `ENI_LIMITED_POD_DENSITY` value. You may want to ensure that the `podsPerCore` value that will be used for instance families associated with the EC2NodeClass will not cause unexpected behavior by exceeding the `maxPods` value.
-{{% /alert %}}
-
-{{% alert title="Pods Per Core on Bottlerocket" color="warning" %}}
-Bottlerocket AMIFamily currently does not support `podsPerCore` configuration. If a EC2NodeClass contains a `provider` or `providerRef` to a node template that will launch a Bottlerocket instance, the `podsPerCore` value will be ignored for scheduling and for configuring the kubelet.
 {{% /alert %}}
 
 #### Max Pods
@@ -386,7 +394,7 @@ It's currently not possible to specify custom networking with Windows nodes.
 
 AMIFamily dictates the default bootstrapping logic for nodes provisioned through this `EC2NodeClass`.
 An `amiFamily` is only required if you don't specify a `spec.amiSelectorTerms.alias` object.
-For example, if you specify `alias: al2023@v20240625`, the `amiFamily` is implicitly `AL2023`.
+For example, if you specify `alias: al2023@v20240807`, the `amiFamily` is implicitly `AL2023`.
 
 AMIFamily does not impact which AMI is discovered, only the UserData generation and default BlockDeviceMappings. To automatically discover EKS optimized AMIs, use the new [`alias` field in amiSelectorTerms]({{< ref "#specamiselectorterms" >}}).
 
@@ -702,7 +710,7 @@ amiSelectorTerms:
   - id: ami-123
   # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
   # exclusive and can't be specified with other terms.
-  # - alias: al2023@v20240703
+  # - alias: al2023@v20240807
 ```
 
 An `alias` term can be used to select EKS-optimized AMIs. An `alias` is formatted as `family@version`. Family can be one of the following values:
@@ -746,7 +754,7 @@ If `amiSelectorTerms` match more than one AMI, Karpenter will automatically dete
 Select by AMI family and version:
 ```yaml
   amiSelectorTerms:
-    - alias: al2023@v20240625
+    - alias: al2023@v20240807
 ```
 
 Select all with a specified tag:
@@ -1352,7 +1360,7 @@ spec:
 
 * No merging is performed, your UserData must perform all setup required of the node to allow it to join the cluster.
 * Custom UserData must meet the following requirements to work correctly with Karpenter:
-  * It must ensure the node is registered with the `karpenter.sh/unregistered:NoExecute` taint
+  * It must ensure the node is registered with the `karpenter.sh/unregistered:NoExecute` taint (via kubelet configuration field `registerWithTaints`)
   * It must set kubelet config options to match those configured in `spec.kubelet`
 
 ## spec.detailedMonitoring
@@ -1432,7 +1440,7 @@ AMIs resolved with an AL2 alias:
 ```yaml
 spec:
   amiSelectorTerms:
-    - alias: al2@latest
+    - alias: al2@v20240807
 status:
   amis:
   - id: ami-03c3a3dcda64f5b75
@@ -1501,8 +1509,6 @@ status:
       values:
       - arm64
 ```
-
-Note that Karpenter can only discover architecture based requirements. The one exception is using alias, in which case it can discover additional requirements (e.g. GPU / Accelerator support).
 
 ## status.instanceProfile
 
