@@ -34,8 +34,6 @@ on:
       k8s_version:
         type: choice
         options:
-          - "1.23"
-          - "1.24"
           - "1.25"
           - "1.26"
           - "1.27"
@@ -61,13 +59,15 @@ jobs:
       max-parallel: ${{ inputs.parallelism || 100 }}
       matrix:
         suite:
-          - name: Integration
+          - name: IPv6
             region: ${{ inputs.region }}
           - name: AMI
             region: ${{ inputs.region }}
           - name: Scheduling
             region: ${{ inputs.region }}
           - name: Storage
+            region: ${{ inputs.region }}
+          - name: Integration
             region: ${{ inputs.region }}
           - name: NodeClaim
             region: ${{ inputs.region }}
@@ -81,7 +81,7 @@ jobs:
             region: ${{ inputs.region }}
           - name: Chaos
             region: ${{ inputs.region }}
-          - name: IPv6
+          - name: Termination
             region: ${{ inputs.region }}
           - name: LocalZone
             # LAX is the only local zone available in the CI account, therefore only use us-west-2

@@ -23,7 +23,6 @@ import (
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 )
 
 // EC2NodeClassSpec is the top level specification for the AWS Karpenter Provider.
@@ -54,8 +53,17 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="'alias' is mutually exclusive, cannot be set with a combination of other amiSelectorTerms",rule="!(self.exists(x, has(x.alias)) && self.size() != 1)"
 	// +kubebuilder:validation:MinItems:=1
 	// +kubebuilder:validation:MaxItems:=30
-	// +optional
+	// +required
 	AMISelectorTerms []AMISelectorTerm `json:"amiSelectorTerms" hash:"ignore"`
+	// AMIFamily dictates the UserData format and default BlockDeviceMappings used when generating launch templates.
+	// This field is optional when using an alias amiSelectorTerm, and the value will be inferred from the alias'
+	// family. When an alias is specified, this field may only be set to its corresponding family or 'Custom'. If no
+	// alias is specified, this field is required.
+	// NOTE: We ignore the AMIFamily for hashing here because we hash the AMIFamily dynamically by using the alias using
+	// the AMIFamily() helper function
+	// +kubebuilder:validation:Enum:={AL2,AL2023,Bottlerocket,Custom,Windows2019,Windows2022}
+	// +optional
+	AMIFamily *string `json:"amiFamily,omitempty" hash:"ignore"`
 	// UserData to be applied to the provisioned nodes.
 	// It must be in the appropriate format based on the AMIFamily in use. Karpenter will merge certain fields into
 	// this UserData to ensure nodes are being provisioned with the correct configuration.
@@ -79,9 +87,9 @@ type EC2NodeClassSpec struct {
 	InstanceProfile *string `json:"instanceProfile,omitempty"`
 	// Tags to be applied on ec2 resources like instances and launch templates.
 	// +kubebuilder:validation:XValidation:message="empty tag keys aren't supported",rule="self.all(k, k != '')"
+	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching eks:eks-cluster-name",rule="self.all(k, k !='eks:eks-cluster-name')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching kubernetes.io/cluster/",rule="self.all(k, !k.startsWith('kubernetes.io/cluster') )"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/nodepool",rule="self.all(k, k != 'karpenter.sh/nodepool')"
-	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/managed-by",rule="self.all(k, k !='karpenter.sh/managed-by')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.sh/nodeclaim",rule="self.all(k, k !='karpenter.sh/nodeclaim')"
 	// +kubebuilder:validation:XValidation:message="tag contains a restricted tag matching karpenter.k8s.aws/ec2nodeclass",rule="self.all(k, k !='karpenter.k8s.aws/ec2nodeclass')"
 	// +optional
@@ -170,8 +178,9 @@ type AMISelectorTerm struct {
 	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
 	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
 	// Note: The Windows families do **not** support version pinning, and only latest may be used.
-	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]*@.*$')"
-	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.find('^[^@]+') in ['al2','al2023','bottlerocket','windows2019','windows2022']"
+	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]+@.+$')"
+	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022']"
+	// +kubebuilder:validation:XValidation:message="windows families may only specify version 'latest'",rule="self.split('@')[0] in ['windows2019','windows2022'] ? self.split('@')[1] == 'latest' : true"
 	// +kubebuilder:validation:MaxLength=30
 	// +optional
 	Alias string `json:"alias,omitempty"`
@@ -419,6 +428,12 @@ type EC2NodeClass struct {
 
 	// +kubebuilder:validation:XValidation:message="must specify exactly one of ['role', 'instanceProfile']",rule="(has(self.role) && !has(self.instanceProfile)) || (!has(self.role) && has(self.instanceProfile))"
 	// +kubebuilder:validation:XValidation:message="changing from 'instanceProfile' to 'role' is not supported. You must delete and recreate this node class if you want to change this.",rule="(has(oldSelf.role) && has(self.role)) || (has(oldSelf.instanceProfile) && has(self.instanceProfile))"
+	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'AL2' or 'Custom' when using an AL2 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'al2') ? (self.amiFamily == 'Custom' || self.amiFamily == 'AL2') : true)"
+	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'AL2023' or 'Custom' when using an AL2023 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'al2023') ? (self.amiFamily == 'Custom' || self.amiFamily == 'AL2023') : true)"
+	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Bottlerocket' or 'Custom' when using a Bottlerocket alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'bottlerocket') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Bottlerocket') : true)"
+	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2019' or 'Custom' when using a Windows2019 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2019') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2019') : true)"
+	// +kubebuilder:validation:XValidation:message="if set, amiFamily must be 'Windows2022' or 'Custom' when using a Windows2022 alias",rule="!has(self.amiFamily) || (self.amiSelectorTerms.exists(x, has(x.alias) && x.alias.find('^[^@]+') == 'windows2022') ? (self.amiFamily == 'Custom' || self.amiFamily == 'Windows2022') : true)"
+	// +kubebuilder:validation:XValidation:message="must specify amiFamily if amiSelectorTerms does not contain an alias",rule="self.amiSelectorTerms.exists(x, has(x.alias)) ? true : has(self.amiFamily)"
 	Spec   EC2NodeClassSpec   `json:"spec,omitempty"`
 	Status EC2NodeClassStatus `json:"status,omitempty"`
 }
@@ -430,7 +445,13 @@ type EC2NodeClass struct {
 const EC2NodeClassHashVersion = "v3"
 
 func (in *EC2NodeClass) Hash() string {
-	return fmt.Sprint(lo.Must(hashstructure.Hash(in.Spec, hashstructure.FormatV2, &hashstructure.HashOptions{
+	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{
+		in.Spec,
+		// AMIFamily should be hashed using the dynamically resolved value rather than the literal value of the field.
+		// This ensures that scenarios such as changing the field from nil to AL2023 with the alias "al2023@latest"
+		// doesn't trigger drift.
+		in.AMIFamily(),
+	}, hashstructure.FormatV2, &hashstructure.HashOptions{
 		SlicesAsSets:    true,
 		IgnoreZeroValue: true,
 		ZeroNil:         true,
@@ -448,48 +469,61 @@ func (in *EC2NodeClass) InstanceProfileRole() string {
 func (in *EC2NodeClass) InstanceProfileTags(clusterName string) map[string]string {
 	return lo.Assign(in.Spec.Tags, map[string]string{
 		fmt.Sprintf("kubernetes.io/cluster/%s", clusterName): "owned",
-		karpv1.ManagedByAnnotationKey:                        clusterName,
-		LabelNodeClass:                                       in.Name,
+		EKSClusterNameTagKey: clusterName,
+		LabelNodeClass:       in.Name,
 	})
 }
 
+// UbuntuIncompatible returns true if the NodeClass has the ubuntu compatibility annotation. This will cause the NodeClass to show
+// as NotReady in its status conditions, opting its referencing NodePools out of provisioning and drift.
+func (in *EC2NodeClass) UbuntuIncompatible() bool {
+	return lo.Contains(strings.Split(in.Annotations[AnnotationUbuntuCompatibilityKey], ","), AnnotationUbuntuCompatibilityIncompatible)
+}
+
+// AMIFamily returns the family for a NodePool based on the following items, in order of precdence:
+//   - ec2nodeclass.spec.amiFamily
+//   - ec2nodeclass.spec.amiSelectorTerms[].alias
+//
+// If an alias is specified, ec2nodeclass.spec.amiFamily must match that alias, or be 'Custom' (enforced via validation).
 func (in *EC2NodeClass) AMIFamily() string {
-	if family, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
-		return family
+	if in.Spec.AMIFamily != nil {
+		return *in.Spec.AMIFamily
 	}
 	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
 		return t.Alias != ""
 	}); ok {
-		switch strings.Split(term.Alias, "@")[0] {
-		case "al2":
-			return AMIFamilyAL2
-		case "al2023":
-			return AMIFamilyAL2023
-		case "bottlerocket":
-			return AMIFamilyBottlerocket
-		case "windows2019":
-			return AMIFamilyWindows2019
-		case "windows2022":
-			return AMIFamilyWindows2022
-		}
+		return AMIFamilyFromAlias(term.Alias)
 	}
+	// Unreachable: validation enforces that one of the above conditions must be met
 	return AMIFamilyCustom
 }
 
-func (in *EC2NodeClass) AMIVersion() string {
-	if _, ok := in.Annotations[AnnotationAMIFamilyCompatibility]; ok {
-		return "latest"
+func AMIFamilyFromAlias(alias string) string {
+	components := strings.Split(alias, "@")
+	if len(components) != 2 {
+		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)
 	}
-	if term, ok := lo.Find(in.Spec.AMISelectorTerms, func(t AMISelectorTerm) bool {
-		return t.Alias != ""
-	}); ok {
-		parts := strings.Split(term.Alias, "@")
-		if len(parts) != 2 {
-			log.Fatalf("failed to parse AMI alias %q, invalid format", term.Alias)
-		}
-		return parts[1]
+	family, ok := lo.Find([]string{
+		AMIFamilyAL2,
+		AMIFamilyAL2023,
+		AMIFamilyBottlerocket,
+		AMIFamilyWindows2019,
+		AMIFamilyWindows2022,
+	}, func(family string) bool {
+		return strings.ToLower(family) == components[0]
+	})
+	if !ok {
+		log.Fatalf("%q is an invalid alias family", components[0])
 	}
-	return "latest"
+	return family
+}
+
+func AMIVersionFromAlias(alias string) string {
+	components := strings.Split(alias, "@")
+	if len(components) != 2 {
+		log.Fatalf("failed to parse AMI alias %q, invalid format", alias)
+	}
+	return components[1]
 }
 
 // EC2NodeClassList contains a list of EC2NodeClass

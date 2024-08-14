@@ -29,7 +29,7 @@ spec:
   limits:
     cpu: 1000
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
     expireAfter: 720h # 30 * 24h = 720h
 ---
 apiVersion: karpenter.k8s.aws/v1

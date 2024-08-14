@@ -17,8 +17,6 @@ package amifamily
 import (
 	"context"
 	"fmt"
-	"regexp"
-	"strings"
 
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 
@@ -49,42 +47,21 @@ type Windows struct {
 }
 
 func (w Windows) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
-	requirements := make(map[string][]scheduling.Requirements)
-	imageIDs := make([]*string, 0, 5)
-	// SSM aliases are only maintained for the latest Windows AMI releases
-	if amiVersion != AMIVersionLatest {
-		return DescribeImageQuery{}, fmt.Errorf(`discovering AMIs for alias "windows%s@%s", %q is not a supported version`, w.Version, amiVersion, amiVersion)
-	}
-	// Example Path: /aws/service/ami-windows-latest/Windows_Server-2022-English-Core-EKS_Optimized-1.30/image_id
-	results, err := ssmProvider.List(ctx, "/aws/service/ami-windows-latest")
+	imageID, err := ssmProvider.Get(ctx, fmt.Sprintf("/aws/service/ami-windows-latest/Windows_Server-%s-English-%s-EKS_Optimized-%s/image_id", w.Version, v1.WindowsCore, k8sVersion))
 	if err != nil {
-		return DescribeImageQuery{}, fmt.Errorf("discovering AMIs from ssm")
-	}
-	for path, value := range results {
-		pathComponents := strings.Split(path, "/")
-		if len(pathComponents) != 6 || pathComponents[5] != "image_id" {
-			continue
-		}
-		matches := regexp.MustCompile(`^Windows_Server-(\d+)-English-Core-EKS_Optimized-(\d\.\d+)$`).FindStringSubmatch(pathComponents[4])
-		if len(matches) != 3 || matches[1] != w.Version || matches[2] != k8sVersion {
-			continue
-		}
-		imageIDs = append(imageIDs, lo.ToPtr(value))
-		requirements[value] = []scheduling.Requirements{scheduling.NewRequirements(
-			scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)),
-			scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpIn, w.Build),
-		)}
-	}
-	// Failed to discover any AMIs, we should short circuit AMI discovery
-	if len(imageIDs) == 0 {
 		return DescribeImageQuery{}, fmt.Errorf(`failed to discover any AMIs for alias "windows%s@%s"`, w.Version, amiVersion)
 	}
 	return DescribeImageQuery{
 		Filters: []*ec2.Filter{&ec2.Filter{
 			Name:   lo.ToPtr("image-id"),
-			Values: imageIDs,
+			Values: []*string{lo.ToPtr(imageID)},
 		}},
-		KnownRequirements: requirements,
+		KnownRequirements: map[string][]scheduling.Requirements{
+			imageID: []scheduling.Requirements{scheduling.NewRequirements(
+				scheduling.NewRequirement(corev1.LabelOSStable, corev1.NodeSelectorOpIn, string(corev1.Windows)),
+				scheduling.NewRequirement(corev1.LabelWindowsBuild, corev1.NodeSelectorOpIn, w.Build),
+			)},
+		},
 	}, nil
 }
 

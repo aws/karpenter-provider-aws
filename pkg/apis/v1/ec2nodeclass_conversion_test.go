@@ -15,6 +15,8 @@ limitations under the License.
 package v1_test
 
 import (
+	"fmt"
+
 	"github.com/awslabs/operatorpkg/status"
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -23,6 +25,8 @@ import (
 	"sigs.k8s.io/karpenter/pkg/test"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
 
 	. "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/apis/v1beta1"
@@ -117,12 +121,53 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 			Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
 			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyAL2023))
 		})
-		It("should convert v1 ec2nodeclass with AMIFamily compat annotation", func() {
+		It("should convert v1 ec2nodeclass ami selector terms with the Ubuntu compatibility annotation", func() {
 			v1ec2nodeclass.Annotations = lo.Assign(v1ec2nodeclass.Annotations, map[string]string{
-				AnnotationAMIFamilyCompatibility: v1beta1.AMIFamilyAL2023,
+				AnnotationUbuntuCompatibilityKey: fmt.Sprintf("%s,%s", AnnotationUbuntuCompatibilityAMIFamily, AnnotationUbuntuCompatibilityBlockDeviceMappings),
 			})
+			v1ec2nodeclass.Spec.AMIFamily = lo.ToPtr(AMIFamilyAL2)
+			v1ec2nodeclass.Spec.AMISelectorTerms = []AMISelectorTerm{{ID: "ami-01234567890abcdef"}}
+			v1ec2nodeclass.Spec.BlockDeviceMappings = []*BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/sda1"),
+				RootVolume: true,
+				EBS: &BlockDevice{
+					Encrypted:  lo.ToPtr(true),
+					VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
+					VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+				},
+			}}
 			Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
-			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyAL2023))
+			Expect(v1beta1ec2nodeclass.Annotations).ToNot(HaveKey(AnnotationUbuntuCompatibilityKey))
+			Expect(len(v1beta1ec2nodeclass.Spec.BlockDeviceMappings)).To(Equal(0))
+			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyUbuntu))
+			Expect(v1beta1ec2nodeclass.Spec.AMISelectorTerms).To(Equal([]v1beta1.AMISelectorTerm{{ID: "ami-01234567890abcdef"}}))
+		})
+		It("should convert v1 ec2nodeclass ami selector terms with the Ubuntu compatibility annotation and custom BlockDeviceMappings", func() {
+			v1ec2nodeclass.Annotations = lo.Assign(v1ec2nodeclass.Annotations, map[string]string{AnnotationUbuntuCompatibilityKey: AnnotationUbuntuCompatibilityAMIFamily})
+			v1ec2nodeclass.Spec.AMIFamily = lo.ToPtr(AMIFamilyAL2)
+			v1ec2nodeclass.Spec.AMISelectorTerms = []AMISelectorTerm{{ID: "ami-01234567890abcdef"}}
+			v1ec2nodeclass.Spec.BlockDeviceMappings = []*BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/sdb1"),
+				RootVolume: true,
+				EBS: &BlockDevice{
+					Encrypted:  lo.ToPtr(false),
+					VolumeType: lo.ToPtr(ec2.VolumeTypeGp2),
+					VolumeSize: lo.ToPtr(resource.MustParse("40Gi")),
+				},
+			}}
+			Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(v1beta1ec2nodeclass.Annotations).ToNot(HaveKey(AnnotationUbuntuCompatibilityKey))
+			Expect(v1beta1ec2nodeclass.Spec.BlockDeviceMappings).To(Equal([]*v1beta1.BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/sdb1"),
+				RootVolume: true,
+				EBS: &v1beta1.BlockDevice{
+					Encrypted:  lo.ToPtr(false),
+					VolumeType: lo.ToPtr(ec2.VolumeTypeGp2),
+					VolumeSize: lo.ToPtr(resource.MustParse("40Gi")),
+				},
+			}}))
+			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyUbuntu))
+			Expect(v1beta1ec2nodeclass.Spec.AMISelectorTerms).To(Equal([]v1beta1.AMISelectorTerm{{ID: "ami-01234567890abcdef"}}))
 		})
 		It("should convert v1 ec2nodeclass user data", func() {
 			v1ec2nodeclass.Spec.UserData = lo.ToPtr("test user data")
@@ -284,14 +329,6 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 			Annotations: map[string]string{"foo": "bar"},
 		})
 		Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
-
-		// Remove the compatibility annotations from the EC2NodeClass
-		v1ec2nodeclass.ObjectMeta.Annotations = lo.OmitByKeys(v1ec2nodeclass.ObjectMeta.Annotations, []string{
-			AnnotationAMIFamilyCompatibility,
-		})
-		if len(v1ec2nodeclass.ObjectMeta.Annotations) == 0 {
-			v1ec2nodeclass.ObjectMeta.Annotations = nil
-		}
 		Expect(v1ec2nodeclass.ObjectMeta).To(BeEquivalentTo(v1beta1ec2nodeclass.ObjectMeta))
 	})
 	Context("EC2NodeClass Spec", func() {
@@ -371,14 +408,62 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 				ID: "ami-0123456789abcdef",
 			}}
 			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
-			Expect(v1ec2nodeclass.Annotations).To(HaveKeyWithValue(AnnotationAMIFamilyCompatibility, AMIFamilyAL2023))
+			Expect(lo.FromPtr(v1ec2nodeclass.Spec.AMIFamily)).To(Equal(AMIFamilyAL2023))
 			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(Equal([]AMISelectorTerm{{
 				ID: "ami-0123456789abcdef",
 			}}))
 		})
-		It("should fail to convert v1beta1 ec2nodeclass when ami family is Ubuntu", func() {
+		It("should convert v1beta1 ec2nodeclass when amiFamily is Ubuntu (with amiSelectorTerms)", func() {
 			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
-			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).ToNot(Succeed())
+			v1beta1ec2nodeclass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: "ami-0123456789abcdef"}}
+			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(v1ec2nodeclass.Annotations).To(HaveKeyWithValue(
+				AnnotationUbuntuCompatibilityKey,
+				fmt.Sprintf("%s,%s", AnnotationUbuntuCompatibilityAMIFamily, AnnotationUbuntuCompatibilityBlockDeviceMappings),
+			))
+			Expect(v1ec2nodeclass.AMIFamily()).To(Equal(AMIFamilyAL2))
+			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(Equal([]AMISelectorTerm{{ID: "ami-0123456789abcdef"}}))
+			Expect(v1ec2nodeclass.Spec.BlockDeviceMappings).To(Equal([]*BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/sda1"),
+				RootVolume: true,
+				EBS: &BlockDevice{
+					Encrypted:  lo.ToPtr(true),
+					VolumeType: lo.ToPtr(ec2.VolumeTypeGp3),
+					VolumeSize: lo.ToPtr(resource.MustParse("20Gi")),
+				},
+			}}))
+		})
+		It("should convert v1beta1 ec2nodeclass when amiFamily is Ubuntu (with amiSelectorTerms and custom BlockDeviceMappings)", func() {
+			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyUbuntu
+			v1beta1ec2nodeclass.Spec.AMISelectorTerms = []v1beta1.AMISelectorTerm{{ID: "ami-0123456789abcdef"}}
+			v1beta1ec2nodeclass.Spec.BlockDeviceMappings = []*v1beta1.BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/sdb1"),
+				RootVolume: true,
+				EBS: &v1beta1.BlockDevice{
+					Encrypted:  lo.ToPtr(false),
+					VolumeType: lo.ToPtr(ec2.VolumeTypeGp2),
+					VolumeSize: lo.ToPtr(resource.MustParse("40Gi")),
+				},
+			}}
+			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(v1ec2nodeclass.Annotations).To(HaveKeyWithValue(AnnotationUbuntuCompatibilityKey, AnnotationUbuntuCompatibilityAMIFamily))
+			Expect(v1ec2nodeclass.AMIFamily()).To(Equal(AMIFamilyAL2))
+			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(Equal([]AMISelectorTerm{{ID: "ami-0123456789abcdef"}}))
+			Expect(v1ec2nodeclass.Spec.BlockDeviceMappings).To(Equal([]*BlockDeviceMapping{{
+				DeviceName: lo.ToPtr("/dev/sdb1"),
+				RootVolume: true,
+				EBS: &BlockDevice{
+					Encrypted:  lo.ToPtr(false),
+					VolumeType: lo.ToPtr(ec2.VolumeTypeGp2),
+					VolumeSize: lo.ToPtr(resource.MustParse("40Gi")),
+				},
+			}}))
+		})
+		It("should convert v1beta1 ec2nodeclass when amiFamily is Ubuntu (without amiSelectorTerms) but mark incompatible", func() {
+			v1beta1ec2nodeclass.Spec.AMIFamily = lo.ToPtr(v1beta1.AMIFamilyUbuntu)
+			v1beta1ec2nodeclass.Spec.AMISelectorTerms = nil
+			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(v1ec2nodeclass.UbuntuIncompatible()).To(BeTrue())
 		})
 		It("should convert v1beta1 ec2nodeclass user data", func() {
 			v1beta1ec2nodeclass.Spec.UserData = lo.ToPtr("test user data")

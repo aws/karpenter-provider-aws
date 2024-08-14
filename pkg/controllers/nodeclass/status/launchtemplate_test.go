@@ -41,6 +41,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 						Tags: map[string]string{"*": "*"},
 					},
 				},
+				AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
 				AMISelectorTerms: []v1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
@@ -51,21 +52,23 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 		// Cluster CIDR will only be resolved once per lifetime of the launch template provider, reset to nil between tests
 		awsEnv.LaunchTemplateProvider.ClusterCIDR.Store(nil)
 	})
-	It("shouldn't resolve cluster CIDR for non-AL2023 NodeClasses", func() {
-		for _, term := range []v1.AMISelectorTerm{
-			{Alias: "al2@latest"},
-			{Alias: "bottlerocket@latest"},
-			{Alias: "windows2019@latest"},
-			{Alias: "windows2022@latest"},
-			{ID: "ami-12345"},
-		} {
-			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{term}
+	DescribeTable(
+		"shouldn't resolve cluster CIDR for non-AL2023 NodeClasses",
+		func(family string, terms []v1.AMISelectorTerm) {
+			nodeClass.Spec.AMIFamily = lo.ToPtr(family)
+			nodeClass.Spec.AMISelectorTerms = terms
 			ExpectApplied(ctx, env.Client, nodeClass)
 			ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
 			Expect(awsEnv.LaunchTemplateProvider.ClusterCIDR.Load()).To(BeNil())
-		}
-	})
+		},
+		Entry(v1.AMIFamilyAL2, v1.AMIFamilyAL2, []v1.AMISelectorTerm{{Alias: "al2@latest"}}),
+		Entry(v1.AMIFamilyBottlerocket, v1.AMIFamilyBottlerocket, []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}),
+		Entry(v1.AMIFamilyWindows2019, v1.AMIFamilyWindows2019, []v1.AMISelectorTerm{{Alias: "windows2019@latest"}}),
+		Entry(v1.AMIFamilyWindows2022, v1.AMIFamilyWindows2022, []v1.AMISelectorTerm{{Alias: "windows2022@latest"}}),
+		Entry(v1.AMIFamilyCustom, v1.AMIFamilyCustom, []v1.AMISelectorTerm{{ID: "ami-12345"}}),
+	)
 	It("should resolve cluster CIDR for IPv4 clusters", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
@@ -81,6 +84,7 @@ var _ = Describe("NodeClass Launch Template CIDR Resolution Controller", func() 
 				},
 			},
 		})
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2023)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2023@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)

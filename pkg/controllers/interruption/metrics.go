@@ -22,10 +22,8 @@ import (
 )
 
 const (
-	interruptionSubsystem  = "interruption"
-	messageTypeLabel       = "message_type"
-	actionTypeLabel        = "action_type"
-	terminationReasonLabel = "interruption"
+	interruptionSubsystem = "interruption"
+	messageTypeLabel      = "message_type"
 )
 
 var (
@@ -33,7 +31,7 @@ var (
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
-			Name:      "received_messages",
+			Name:      "received_messages_total",
 			Help:      "Count of messages received from the SQS queue. Broken down by message type and whether the message was actionable.",
 		},
 		[]string{messageTypeLabel},
@@ -42,7 +40,7 @@ var (
 		prometheus.CounterOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
-			Name:      "deleted_messages",
+			Name:      "deleted_messages_total",
 			Help:      "Count of messages deleted from the SQS queue.",
 		},
 	)
@@ -50,25 +48,13 @@ var (
 		prometheus.HistogramOpts{
 			Namespace: metrics.Namespace,
 			Subsystem: interruptionSubsystem,
-			Name:      "message_latency_time_seconds",
-			Help:      "Length of time between message creation in queue and an action taken on the message by the controller.",
+			Name:      "message_queue_duration_seconds",
+			Help:      "Amount of time an interruption message is on the queue before it is processed by karpenter.",
 			Buckets:   metrics.DurationBuckets(),
-		},
-	)
-	actionsPerformed = prometheus.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: metrics.Namespace,
-			Subsystem: interruptionSubsystem,
-			Name:      "actions_performed",
-			Help:      "Number of notification actions performed. Labeled by action",
-		},
-		[]string{
-			actionTypeLabel,
-			metrics.NodePoolLabel,
 		},
 	)
 )
 
 func init() {
-	crmetrics.Registry.MustRegister(receivedMessages, deletedMessages, messageLatency, actionsPerformed)
+	crmetrics.Registry.MustRegister(receivedMessages, deletedMessages, messageLatency)
 }

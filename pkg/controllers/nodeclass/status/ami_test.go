@@ -46,6 +46,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 						Tags: map[string]string{"*": "*"},
 					},
 				},
+				AMIFamily: lo.ToPtr(v1.AMIFamilyCustom),
 				AMISelectorTerms: []v1.AMISelectorTerm{
 					{
 						Tags: map[string]string{"*": "*"},
@@ -87,6 +88,18 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		})
+	})
+	It("should fail to resolve AMIs if the nodeclass has ubuntu incompatible annotation", func() {
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2)
+		nodeClass.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{v1.AnnotationUbuntuCompatibilityKey: v1.AnnotationUbuntuCompatibilityIncompatible})
+		ExpectApplied(ctx, env.Client, nodeClass)
+		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)
+		nodeClass = ExpectExists(ctx, env.Client, nodeClass)
+		cond := nodeClass.StatusConditions().Get(v1.ConditionTypeAMIsReady)
+		Expect(cond.IsTrue()).To(BeFalse())
+		Expect(cond.Message).To(Equal("Ubuntu AMI discovery is not supported at v1, refer to the upgrade guide (https://karpenter.sh/docs/upgrading/upgrade-guide/#upgrading-to-100)"))
+		Expect(cond.Reason).To(Equal("AMINotFound"))
+
 	})
 	It("should resolve amiSelector AMIs and requirements into status", func() {
 		version := lo.Must(awsEnv.VersionProvider.Get(ctx))
@@ -131,6 +144,7 @@ var _ = Describe("NodeClass AMI Status Controller", func() {
 				},
 			},
 		})
+		nodeClass.Spec.AMIFamily = lo.ToPtr(v1.AMIFamilyAL2)
 		nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 		ExpectApplied(ctx, env.Client, nodeClass)
 		ExpectObjectReconciled(ctx, env.Client, statusController, nodeClass)

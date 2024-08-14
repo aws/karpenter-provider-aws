@@ -1,11 +1,9 @@
-# This example NodePool will provision instances
-# running Bottlerocket OS and the user data settings specified in
-# this EC2NodeClass will be merged into Karpenter defaults.
+# This example NodePool will provision general purpose instances
 ---
-apiVersion: karpenter.sh/v1beta1
+apiVersion: karpenter.sh/v1
 kind: NodePool
 metadata:
-  name: default
+  name: general-purpose
   annotations:
     kubernetes.io/description: "General purpose NodePool for generic workloads"
 spec:
@@ -28,18 +26,17 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1beta1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
-        name: bottlerocket
+        name: default
 ---
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
-  name: bottlerocket
+  name: default
   annotations:
-    kubernetes.io/description: "EC2NodeClass for running Bottlerocket nodes with custom user data"
+    kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
 spec:
-  amiFamily: Bottlerocket
   role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
   subnetSelectorTerms:
     - tags:
@@ -47,6 +44,5 @@ spec:
   securityGroupSelectorTerms:
     - tags:
         karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
-  userData:  |
-    [settings.kubernetes]
-    kube-api-qps = 30
+  amiSelectorTerms:
+    - alias: al2023@latest # Amazon Linux 2023

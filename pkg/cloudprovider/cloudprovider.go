@@ -77,6 +77,7 @@ func New(instanceTypeProvider instancetype.Provider, instanceProvider instance.P
 }
 
 // Create a NodeClaim given the constraints.
+// nolint: gocyclo
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
@@ -87,6 +88,10 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
 	}
 
+	// TODO: Remove this once support for conversion webhooks is dropped
+	if nodeClass.UbuntuIncompatible() {
+		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf("EC2NodeClass %q is incompatible with Karpenter v1, specify your Ubuntu AMIs in your AMISelectorTerms", nodeClass.Name))
+	}
 	// TODO: Remove this after v1
 	nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, nodeClaim)
 	if err != nil {
@@ -97,8 +102,11 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, err
 	}
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
-	if !nodeClassReady.IsTrue() {
-		return nil, fmt.Errorf("resolving ec2nodeclass, %s", nodeClassReady.Message)
+	if nodeClassReady.IsFalse() {
+		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf(nodeClassReady.Message))
+	}
+	if nodeClassReady.IsUnknown() {
+		return nil, fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message)
 	}
 	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
 	if err != nil {
@@ -115,7 +123,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return i.Name == instance.Type
 	})
 	nc := c.instanceToNodeClaim(instance, instanceType, nodeClass)
-	nc.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
+	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
 		v1.AnnotationKubeletCompatibilityHash: kubeletHash,
 		v1.AnnotationEC2NodeClassHash:         nodeClass.Hash(),
 		v1.AnnotationEC2NodeClassHashVersion:  v1.EC2NodeClassHashVersion,
@@ -358,9 +366,6 @@ func (c *CloudProvider) instanceToNodeClaim(i *instance.Instance, instanceType *
 	labels[karpv1.CapacityTypeLabelKey] = i.CapacityType
 	if v, ok := i.Tags[karpv1.NodePoolLabelKey]; ok {
 		labels[karpv1.NodePoolLabelKey] = v
-	}
-	if v, ok := i.Tags[karpv1.ManagedByAnnotationKey]; ok {
-		annotations[karpv1.ManagedByAnnotationKey] = v
 	}
 	nodeClaim.Labels = labels
 	nodeClaim.Annotations = annotations

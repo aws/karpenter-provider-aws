@@ -4,6 +4,25 @@ Content-Type: multipart/mixed; boundary="//"
 --//
 Content-Type: application/node.eks.aws
 
+apiVersion: node.eks.aws/v1alpha1
+kind: NodeConfig
+spec:
+  cluster:
+    name: test-cluster
+    clusterEndpoint: https://test-cluster
+    certificateAuthority: cluster-ca
+    cidr: 10.100.0.0/16
+  kubelet:
+    config:
+      maxPods: 42
+--//
+Content-Type: text/x-shellscript; charset="us-ascii"
+
+#!/bin/bash
+echo "Hello, AL2023!"
+--//
+Content-Type: application/node.eks.aws
+
 # Karpenter Generated NodeConfig
 apiVersion: node.eks.aws/v1alpha1
 kind: NodeConfig
@@ -29,23 +48,4 @@ spec:
     flags:
     - --node-labels="karpenter.sh/capacity-type=on-demand,%s=%s,testing/cluster=unspecified"
 
---//
-Content-Type: application/node.eks.aws
-
-apiVersion: node.eks.aws/v1alpha1
-kind: NodeConfig
-spec:
-  cluster:
-    name: test-cluster
-    clusterEndpoint: https://test-cluster
-    certificateAuthority: cluster-ca
-    cidr: 10.100.0.0/16
-  kubelet:
-    config:
-      maxPods: 42
---//
-Content-Type: text/x-shellscript; charset="us-ascii"
-
-#!/bin/bash
-echo "Hello, AL2023!"
 --//--

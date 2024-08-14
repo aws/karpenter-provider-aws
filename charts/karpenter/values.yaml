@@ -133,11 +133,21 @@ controller:
   sidecarVolumeMounts: []
   metrics:
     # -- The container port to use for metrics.
-    port: 8000
+    port: 8080
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
+postInstallHook: 
+  image:
+    # -- Repository path to the post-install hook. This minimally needs to have `kubectl` installed
+    repository: public.ecr.aws/bitnami/kubectl
+    # -- Tag of the post-install hook image.
+    tag: "1.30"
+    # -- SHA256 digest of the post-install hook image.
+    digest: sha256:13a2ad1bd37ce42ee2a6f1ab0d30595f42eb7fe4a90d6ec848550524104a1ed6
 webhook:
+  # -- Whether to enable the webhooks and webhook permissions.
+  enabled: true
   # -- The container port to use for the webhook.
   port: 8443
   metrics:
@@ -145,26 +155,12 @@ webhook:
     port: 8001
 # -- Global log level, defaults to 'info'
 logLevel: info
-# -- Log configuration (Deprecated: Logging configuration will be dropped by v1, use logLevel instead)
-logConfig:
-  # -- Whether to enable provisioning and mounting the log ConfigMap
-  enabled: false
-  # -- Log outputPaths - defaults to stdout only
-  outputPaths:
-    - stdout
-  # -- Log errorOutputPaths - defaults to stderr only
-  errorOutputPaths:
-    - stderr
-  # -- Log encoding - defaults to json - must be one of 'json', 'console'
-  logEncoding: json
-  # -- Component-based log configuration
-  logLevel:
-    # -- Global log level, defaults to 'info'
-    global: info
-    # -- Controller log level, defaults to 'info'
-    controller: info
-    # -- Error log level, defaults to 'error'
-    webhook: error
+# -- Log outputPaths - defaults to stdout only
+logOutputPaths:
+  - stdout
+# -- Log errorOutputPaths - defaults to stderr only
+logErrorOutputPaths:
+  - stderr
 # -- Global Settings to configure Karpenter
 settings:
   # -- The maximum length of a batch window. The longer this is, the more pods we can consider for provisioning at one
@@ -174,10 +170,6 @@ settings:
   # faster than this time, the batching window will be extended up to the maxDuration. If they arrive slower, the pods
   # will be batched separately.
   batchIdleDuration: 1s
-  # -- Role to assume for calling AWS services.
-  assumeRoleARN: ""
-  # -- Duration of assumed credentials in minutes. Default value is 15 minutes. Not used unless assumeRoleARN set.
-  assumeRoleDuration: 15m
   # -- Cluster CA bundle for TLS configuration of provisioned nodes. If not set, this is taken from the controller's TLS configuration for the API server.
   clusterCABundle: ""
   # -- Cluster name.

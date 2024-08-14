@@ -16,7 +16,6 @@ package expiration_test
 
 import (
 	"testing"
-	"time"
 
 	"github.com/samber/lo"
 	appsv1 "k8s.io/api/apps/v1"
@@ -82,7 +81,7 @@ var _ = Describe("Expiration", func() {
 		selector = labels.SelectorFromSet(dep.Spec.Selector.MatchLabels)
 	})
 	It("should expire the node after the expiration is reached", func() {
-		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute * 2)}
+		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.MustParseNillableDuration("2m")
 		env.ExpectCreated(nodeClass, nodePool, dep)
 
 		nodeClaim := env.EventuallyExpectCreatedNodeClaimCount("==", 1)[0]
@@ -118,7 +117,7 @@ var _ = Describe("Expiration", func() {
 	It("should replace expired node with a single node and schedule all pods", func() {
 		// Set expire after to 5 minutes since we have to respect PDB and move over pods one at a time from one node to another.
 		// The new nodes should not expire before all the pods are moved over.
-		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute * 5)}
+		nodePool.Spec.Template.Spec.ExpireAfter = karpv1.MustParseNillableDuration("5m")
 		var numPods int32 = 5
 		// We should setup a PDB that will only allow a minimum of 1 pod to be pending at a time
 		minAvailable := intstr.FromInt32(numPods - 1)

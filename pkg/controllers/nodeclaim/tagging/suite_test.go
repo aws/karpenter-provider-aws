@@ -92,7 +92,7 @@ var _ = Describe("TaggingController", func() {
 					Value: aws.String("default"),
 				},
 				{
-					Key:   aws.String(karpv1.ManagedByAnnotationKey),
+					Key:   aws.String(v1.EKSClusterNameTagKey),
 					Value: aws.String(options.FromContext(ctx).ClusterName),
 				},
 			},
@@ -209,8 +209,9 @@ var _ = Describe("TaggingController", func() {
 			Expect(nodeClaim.Annotations).To(HaveKey(v1.AnnotationInstanceTagged))
 
 			expectedTags := map[string]string{
-				v1.TagName:      nodeClaim.Status.NodeName,
-				v1.TagNodeClaim: nodeClaim.Name,
+				v1.TagName:              nodeClaim.Status.NodeName,
+				v1.TagNodeClaim:         nodeClaim.Name,
+				v1.EKSClusterNameTagKey: options.FromContext(ctx).ClusterName,
 			}
 			instanceTags := instance.NewInstance(ec2Instance).Tags
 			for tag, value := range expectedTags {
@@ -220,9 +221,12 @@ var _ = Describe("TaggingController", func() {
 				Expect(instanceTags).To(HaveKeyWithValue(tag, value))
 			}
 		},
-		Entry("with only karpenter.k8s.aws/nodeclaim tag", v1.TagName),
-		Entry("with only Name tag", v1.TagNodeClaim),
-		Entry("with both Name and karpenter.k8s.aws/nodeclaim tags"),
-		Entry("with nothing to tag", v1.TagName, v1.TagNodeClaim),
+		Entry("with the karpenter.sh/nodeclaim tag", v1.TagName, v1.EKSClusterNameTagKey),
+		Entry("with the eks:eks-cluster-name tag", v1.TagName, v1.TagNodeClaim),
+		Entry("with the Name tag", v1.TagNodeClaim, v1.EKSClusterNameTagKey),
+		Entry("with the karpenter.sh/nodeclaim and eks:eks-cluster-name tags", v1.TagName),
+		Entry("with the Name and eks:eks-cluster-name tags", v1.TagNodeClaim),
+		Entry("with the karpenter.sh/nodeclaim and Name tags", v1.EKSClusterNameTagKey),
+		Entry("with nothing to tag", v1.TagNodeClaim, v1.EKSClusterNameTagKey, v1.TagName),
 	)
 })

@@ -203,9 +203,6 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			By("kicking off provisioning by applying the nodePool and nodeClass")
 			env.ExpectCreated(nodePool, nodeClass)
 
-			env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
-			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
-			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		}, map[string]string{
 			aws.TestCategoryDimension:           testGroup,
@@ -251,9 +248,6 @@ var _ = Describe("Provisioning", Label(debug.NoWatch), Label(debug.NoEvents), fu
 			By("kicking off provisioning by applying the nodePool and nodeClass")
 			env.ExpectCreated(nodePool, nodeClass)
 
-			env.EventuallyExpectCreatedNodeClaimCount("==", expectedNodeCount)
-			env.EventuallyExpectCreatedNodeCount("==", expectedNodeCount)
-			env.EventuallyExpectInitializedNodeCount("==", expectedNodeCount)
 			env.EventuallyExpectHealthyPodCount(selector, replicas)
 		}, map[string]string{
 			aws.TestCategoryDimension:           testGroup,

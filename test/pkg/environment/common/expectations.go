@@ -279,6 +279,21 @@ func (env *Environment) EventuallyExpectHealthy(pods ...*corev1.Pod) {
 	env.EventuallyExpectHealthyWithTimeout(-1, pods...)
 }
 
+func (env *Environment) EventuallyExpectTerminating(pods ...*corev1.Pod) {
+	GinkgoHelper()
+	env.EventuallyExpectTerminatingWithTimeout(-1, pods...)
+}
+
+func (env *Environment) EventuallyExpectTerminatingWithTimeout(timeout time.Duration, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	Eventually(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.DeletionTimestamp.IsZero()).To(BeFalse())
+		}
+	}).WithTimeout(timeout).Should(Succeed())
+}
+
 func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration, pods ...*corev1.Pod) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
@@ -290,7 +305,31 @@ func (env *Environment) EventuallyExpectHealthyWithTimeout(timeout time.Duration
 			)))
 		}
 	}).WithTimeout(timeout).Should(Succeed())
+}
 
+func (env *Environment) ConsistentlyExpectTerminatingPods(duration time.Duration, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting %d pods to be terminating for %s", len(pods), duration))
+	Consistently(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.DeletionTimestamp.IsZero()).To(BeFalse())
+		}
+	}, duration.String()).Should(Succeed())
+}
+
+func (env *Environment) ConsistentlyExpectHealthyPods(duration time.Duration, pods ...*corev1.Pod) {
+	GinkgoHelper()
+	By(fmt.Sprintf("expecting %d pods to be ready for %s", len(pods), duration))
+	Consistently(func(g Gomega) {
+		for _, pod := range pods {
+			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(pod), pod)).To(Succeed())
+			g.Expect(pod.Status.Conditions).To(ContainElement(And(
+				HaveField("Type", Equal(corev1.PodReady)),
+				HaveField("Status", Equal(corev1.ConditionTrue)),
+			)))
+		}
+	}, duration.String()).Should(Succeed())
 }
 
 func (env *Environment) EventuallyExpectKarpenterRestarted() {
@@ -465,20 +504,22 @@ func (env *Environment) ExpectCreatedNodeCount(comparator string, count int) []*
 	return createdNodes
 }
 
-func (env *Environment) ExpectNodeCount(comparator string, count int) {
+func (env *Environment) ExpectNodeCount(comparator string, count int) []*corev1.Node {
 	GinkgoHelper()
 
 	nodeList := &corev1.NodeList{}
 	Expect(env.Client.List(env, nodeList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 	Expect(len(nodeList.Items)).To(BeNumerically(comparator, count))
+	return lo.ToSlicePtr(nodeList.Items)
 }
 
-func (env *Environment) ExpectNodeClaimCount(comparator string, count int) {
+func (env *Environment) ExpectNodeClaimCount(comparator string, count int) []*karpv1.NodeClaim {
 	GinkgoHelper()
 
 	nodeClaimList := &karpv1.NodeClaimList{}
 	Expect(env.Client.List(env, nodeClaimList, client.HasLabels{test.DiscoveryLabel})).To(Succeed())
 	Expect(len(nodeClaimList.Items)).To(BeNumerically(comparator, count))
+	return lo.ToSlicePtr(nodeClaimList.Items)
 }
 
 func NodeClaimNames(nodeClaims []*karpv1.NodeClaim) []string {
@@ -540,7 +581,7 @@ func (env *Environment) EventuallyExpectTaintedNodeCount(comparator string, coun
 	By(fmt.Sprintf("waiting for tainted nodes to be %s to %d", comparator, count))
 	nodeList := &corev1.NodeList{}
 	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disrupted": "true"})).To(Succeed())
 		g.Expect(len(nodeList.Items)).To(BeNumerically(comparator, count),
 			fmt.Sprintf("expected %d tainted nodes, had %d (%v)", count, len(nodeList.Items), NodeNames(lo.ToSlicePtr(nodeList.Items))))
 	}).Should(Succeed())
@@ -552,7 +593,7 @@ func (env *Environment) EventuallyExpectNodesUntaintedWithTimeout(timeout time.D
 	By(fmt.Sprintf("waiting for %d nodes to be untainted", len(nodes)))
 	nodeList := &corev1.NodeList{}
 	Eventually(func(g Gomega) {
-		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disruption": "disrupting"})).To(Succeed())
+		g.Expect(env.Client.List(env, nodeList, client.MatchingFields{"spec.taints[*].karpenter.sh/disrupted": "true"})).To(Succeed())
 		taintedNodeNames := lo.Map(nodeList.Items, func(n corev1.Node, _ int) string { return n.Name })
 		g.Expect(taintedNodeNames).ToNot(ContainElements(lo.Map(nodes, func(n *corev1.Node, _ int) interface{} { return n.Name })...))
 	}).WithTimeout(timeout).Should(Succeed())
@@ -693,12 +734,12 @@ func (env *Environment) ConsistentlyExpectNodeClaimsNotDrifted(duration time.Dur
 	}, duration).Should(Succeed())
 }
 
-func (env *Environment) EventuallyExpectEmpty(nodeClaims ...*karpv1.NodeClaim) {
+func (env *Environment) EventuallyExpectConsolidatable(nodeClaims ...*karpv1.NodeClaim) {
 	GinkgoHelper()
 	Eventually(func(g Gomega) {
 		for _, nc := range nodeClaims {
 			g.Expect(env.Client.Get(env, client.ObjectKeyFromObject(nc), nc)).To(Succeed())
-			g.Expect(nc.StatusConditions().Get(karpv1.ConditionTypeEmpty).IsTrue()).To(BeTrue())
+			g.Expect(nc.StatusConditions().Get(karpv1.ConditionTypeConsolidatable).IsTrue()).To(BeTrue())
 		}
 	}).Should(Succeed())
 }
