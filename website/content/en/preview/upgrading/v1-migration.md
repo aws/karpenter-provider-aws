@@ -271,7 +271,7 @@ Since both v1beta1 and v1 will be served, `kubectl` will default to returning th
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-# Note: v0.33.6 and v0.34.7 include the v prefix, emit it for versions v0.35+
+# Note: v0.33.6 and v0.34.7 include the v prefix, omit it for versions v0.35+
 export KARPENTER_VERSION="<rollback version of karpenter>"
 export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 export CLUSTER_NAME="<name of your cluster>"
