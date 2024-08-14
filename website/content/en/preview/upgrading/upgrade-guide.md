@@ -24,7 +24,7 @@ Karpenter ships with a few Custom Resource Definitions (CRDs). These CRDs are pu
   ```
 
 {{% alert title="Note" color="warning" %}}
-If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting#helm-error-when-upgrading-from-older-karpenter-version" >}}) for details on how to resolve these errors.
+If you get the error `invalid ownership metadata; label validation error:` while installing the `karpenter-crd` chart from an older version of Karpenter, follow the [Troubleshooting Guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for details on how to resolve these errors.
 {{% /alert %}}
 
 * As part of the helm chart [karpenter](https://gallery.ecr.aws/karpenter/karpenter) - [source](https://github.com/aws/karpenter/blob/main/charts/karpenter/crds). Helm [does not manage the lifecycle of CRDs using this method](https://helm.sh/docs/chart_best_practices/custom_resource_definitions/), the tool will only install the CRD during the first installation of the Helm chart. Subsequent chart upgrades will not add or remove CRDs, even if the CRDs have changed. When CRDs are changed, we will make a note in the version's upgrade guide.
@@ -53,6 +53,7 @@ Below is the full changelog for v1, copied from the [v1 Migration Upgrade Proced
   * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
   * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields).
   * Karpenter now adds a `karpenter.sh/unregistered:NoExecute` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
+  * Karpenter now waits for underlying instances to be completely terminated before removing the associated nodes. This means it may take longer for nodes to be deleted and for nodeclaims to get cleaned up.
 * API Moves:
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
   * `Kubelet` was moved to the EC2NodeClass from the NodePool.
