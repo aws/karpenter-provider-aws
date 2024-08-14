@@ -708,7 +708,7 @@ amiSelectorTerms:
       environment: test
   - name: my-ami
   - id: ami-123
-  # Select EKS optimized AL2023 AMIs with version `v20240703`. This term is mutually
+  # Select EKS optimized AL2023 AMIs with version `v20240807`. This term is mutually
   # exclusive and can't be specified with other terms.
   # - alias: al2023@v20240807
 ```
