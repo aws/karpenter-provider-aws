@@ -339,6 +339,7 @@ Karpenter should now be pulling and operating against the v1beta1 APIVersion as 
   * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields).
   * Karpenter now adds a `karpenter.sh/unregistered:NoExecute` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
   * Discovered standard AL2023 AMIs will no longer be considered compatible with GPU / accelerator workloads. If you're using an AL2023 EC2NodeClass (without AMISelectorTerms) for these workloads, you will need to select your AMI via AMISelectorTerms (non-alias).
+  * Karpenter now waits for underlying instances to be completely terminated before removing the associated nodes. This means it may take longer for nodes to be deleted and for nodeclaims to get cleaned up.
 * API Moves:
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
   * `Kubelet` was moved to the EC2NodeClass from the NodePool.
