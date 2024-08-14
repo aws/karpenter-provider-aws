@@ -3,7 +3,7 @@ title: "Documentation Updates"
 linkTitle: "Documentation Updates"
 weight: 50
 description: >
-  Infomration helpful for contributing simple documentation updates.
+  Information helpful for contributing simple documentation updates.
 ---
 
 - Documentation for https://karpenter.sh/docs/ is built under website/content/en/preview/.
