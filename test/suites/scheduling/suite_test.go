@@ -253,6 +253,8 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
+			// Use AL2 AMIs instead of AL2023 since accelerated AMIs aren't yet available
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
