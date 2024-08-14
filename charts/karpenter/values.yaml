@@ -45,7 +45,7 @@ podDisruptionBudget:
   name: karpenter
   maxUnavailable: 1
 # -- SecurityContext for the pod.
-podSecurityContext: 
+podSecurityContext:
   fsGroup: 65536
 # -- PriorityClass name for the pod.
 priorityClassName: system-cluster-critical
@@ -99,9 +99,9 @@ controller:
     # -- Repository path to the controller image.
     repository: public.ecr.aws/karpenter/controller
     # -- Tag of the controller image.
-    tag: v0.34.0
+    tag: 0.35.6
     # -- SHA256 digest of the controller image.
-    digest: sha256:1ec788c4358106d728a352426462014b7ee4734e9d5ec932d2f37a7b15f9be65
+    digest: sha256:cc4812323a3274f233e60e9f24030476a37513e58683ea84ef4b147bf3d42364
   # -- Additional environment variables for the controller pod.
   env: []
   # - name: AWS_REGION
@@ -135,7 +135,7 @@ controller:
   healthProbe:
     # -- The container port to use for http health probe.
     port: 8081
-postInstallHook: 
+postInstallHook:
   image:
     # -- Repository path to the post-install hook. This minimally needs to have `kubectl` installed
     repository: public.ecr.aws/bitnami/kubectl
