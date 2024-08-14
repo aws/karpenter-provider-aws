@@ -25,7 +25,7 @@ See the [Changelog]({{<ref "#changelog" >}}) for details about actions you shoul
 Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so please evaluate the list of breaking changes before continuing.
 
 {{% alert title="Note" color="warning" %}}
-The upgrade guide will first require upgrading to your latest patch version prior to upgrade to v1.0.0. This will be to allow the conversion webhooks to operate and minimize downtime of the Karpenter controller when requesting the Karpenter custom resources. 
+The upgrade guide will first require upgrading to your latest patch version prior to upgrade to v1.0.0. This will be to allow the conversion webhooks to operate and minimize downtime of the Karpenter controller when requesting the Karpenter custom resources.
 {{% /alert %}}
 
 1. Set environment variables for your cluster to upgrade to the latest patch version of the current Karpenter version you're running on:
@@ -80,7 +80,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
 7. Upgrade Karpenter to the latest patch version of your current minor version's. At the end of this step, conversion webhooks will run but will not convert any version.
 
     ```bash
-    # Service account annotation can be dropped when using pod identity 
+    # Service account annotation can be dropped when using pod identity
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
       --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.clusterName=${CLUSTER_NAME} \
@@ -127,7 +127,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
 11. Upgrade Karpenter to the new version. At the end of this step, conversion webhooks run to convert the Karpenter CRDs to v1.
 
     ```bash
-    # Service account annotion can be dropped when using pod identity 
+    # Service account annotion can be dropped when using pod identity
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.clusterName=${CLUSTER_NAME} \
@@ -251,7 +251,7 @@ Keep in mind that rollback, without replacing the Karpenter nodes, will not be s
 
 ### Downgrading
 
-Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include: 
+Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include:
 
 * v0.37.1
 * v0.36.3
@@ -308,10 +308,10 @@ helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-cr
   --set webhook.port=8443
 ```
 
-4. Rollback the Karpenter Controller 
+4. Rollback the Karpenter Controller
 
 ```bash
-# Service account annotation can be dropped when using pod identity 
+# Service account annotation can be dropped when using pod identity
 helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
   --set settings.clusterName=${CLUSTER_NAME} \
@@ -338,6 +338,7 @@ Karpenter should now be pulling and operating against the v1beta1 APIVersion as 
   * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
   * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields).
   * Karpenter now adds a `karpenter.sh/unregistered:NoExecute` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
+  * Discovered standard AL2023 AMIs will no longer be considered compatible with GPU / accelerator workloads. If you're using an AL2023 EC2NodeClass (without AMISelectorTerms) for these workloads, you will need to select your AMI via AMISelectorTerms (non-alias).
 * API Moves:
   * ExpireAfter has moved from the `NodePool.Spec.Disruption` block to `NodePool.Spec.Template.Spec`, and is now a drift-able field.
   * `Kubelet` was moved to the EC2NodeClass from the NodePool.
