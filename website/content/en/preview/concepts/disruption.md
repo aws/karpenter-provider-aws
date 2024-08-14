@@ -239,14 +239,14 @@ spec:
     budgets:
     - nodes: "20%"
       reasons: 
-      - "empty"
-      - "drifted"
+      - "Empty"
+      - "Drifted"
     - nodes: "5"
     - nodes: "0"
       schedule: "@daily"
       duration: 10m
       reasons: 
-      - "underutilized"
+      - "Underutilized"
 ```
 
 #### Schedule
