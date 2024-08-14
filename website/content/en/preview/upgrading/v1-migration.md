@@ -407,3 +407,7 @@ This table shows v1beta1 metrics that were dropped for v1:
 | NodeClaim   | karpenter_nodeclaims_drifted |
 | Provisioner | karpenter_provisioner_scheduling_duration_seconds |
 | Interruption | karpenter_interruption_actions_performed |
+
+{{% alert title="Note" color="warning" %}}
+Karpenter now waits for the underlying instance to be completely terminated before deleting a node and orchestrates this by emitting `NodeClaimNotFoundError`. With this change we expect to see an increase in the `NodeClaimNotFoundError`. Customers can filter out this error by label in order to get accurate values for `karpenter_cloudprovider_errors_total` metric. Use this Prometheus filter expression - `({controller!="node.termination"} or {controller!="nodeclaim.termination"}) and {error!="NodeClaimNotFoundError"}`.
+{{% /alert %}}
