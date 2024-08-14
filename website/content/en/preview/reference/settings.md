@@ -43,11 +43,11 @@ Karpenter surfaces environment variables and CLI parameters to allow you to conf
 
 Karpenter uses [feature gates](https://kubernetes.io/docs/reference/command-line-tools-reference/feature-gates/#feature-gates-for-alpha-or-beta-features) You can enable the feature gates through the `--feature-gates` CLI environment variable or the `FEATURE_GATES` environment variable in the Karpenter deployment. For example, you can configure drift, spotToSpotConsolidation by setting the CLI argument: `--feature-gates Drift=true,SpotToSpotConsolidation=true`.
 
-| Feature                 | Default | Stage | Since   | Until   |
-|-------------------------|---------|-------|---------|---------|
-| Drift                   | false   | Alpha | v0.21.x | v0.32.x |
-| Drift                   | true    | Beta  | v0.33.x |         |
-| SpotToSpotConsolidation | false   | Beta  | v0.34.x |         |
+| Feature                 | Default | Stage  | Since   | Until   |
+|-------------------------|---------|--------|---------|---------|
+| Drift                   | false   | Alpha  | v0.21.x | v0.32.x |
+| Drift                   | true    | Beta   | v0.33.x |         |
+| SpotToSpotConsolidation | false   | Alpha  | v0.34.x |         |
 
 ### Batching Parameters
 
