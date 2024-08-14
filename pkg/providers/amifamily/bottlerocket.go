@@ -17,6 +17,7 @@ package amifamily
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/samber/lo"
 
@@ -39,12 +40,14 @@ type Bottlerocket struct {
 }
 
 func (b Bottlerocket) DescribeImageQuery(ctx context.Context, ssmProvider ssm.Provider, k8sVersion string, amiVersion string) (DescribeImageQuery, error) {
+	// Bottlerocket AMIs versions are prefixed with a v on GitHub, but not in the SSM path. We should accept both.
+	trimmedAMIVersion := strings.TrimLeft(amiVersion, "v")
 	ids := map[string][]Variant{}
 	for path, variants := range map[string][]Variant{
-		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, amiVersion):        {VariantStandard},
-		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, amiVersion):         {VariantStandard},
-		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/%s/image_id", k8sVersion, amiVersion): {VariantNeuron, VariantNvidia},
-		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/%s/image_id", k8sVersion, amiVersion):  {VariantNeuron, VariantNvidia},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion):        {VariantStandard},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):         {VariantStandard},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/x86_64/%s/image_id", k8sVersion, trimmedAMIVersion): {VariantNeuron, VariantNvidia},
+		fmt.Sprintf("/aws/service/bottlerocket/aws-k8s-%s-nvidia/arm64/%s/image_id", k8sVersion, trimmedAMIVersion):  {VariantNeuron, VariantNvidia},
 	} {
 		imageID, err := ssmProvider.Get(ctx, path)
 		if err != nil {
