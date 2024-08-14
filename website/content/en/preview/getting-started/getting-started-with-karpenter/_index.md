@@ -11,9 +11,10 @@ Karpenter automatically provisions new nodes in response to unschedulable pods. 
 
 This guide shows how to get started with Karpenter by creating a Kubernetes cluster and installing Karpenter.
 To use Karpenter, you must be running a supported Kubernetes cluster on a supported cloud provider.
-Currently, the following Cloud Providers are supported:
-- [AWS](https://github.com/aws/karpenter-provider-aws)
-- [Azure](https://github.com/Azure/karpenter-provider-azure)
+
+The guide below explains how to utilize the [Karpenter provider for AWS](https://github.com/aws/karpenter-provider-aws) with EKS. 
+
+See the [AKS Node autoprovisioning article](https://learn.microsoft.com/azure/aks/node-autoprovision) on how to use Karpenter on Azure's AKS or go to the [Karpenter provider for Azure open source repository](https://github.com/Azure/karpenter-provider-azure) for self-hosting on Azure and additional information.
 
 ## Create a cluster and add Karpenter
 
