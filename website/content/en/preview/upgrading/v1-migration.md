@@ -25,7 +25,7 @@ See the [Changelog]({{<ref "#changelog" >}}) for details about actions you shoul
 Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so please evaluate the list of breaking changes before continuing.
 
 {{% alert title="Note" color="warning" %}}
-The upgrade guide will first require upgrading to your latest patch version prior to upgrade to v1.0.0. This will be to allow the conversion webhooks to operate and minimize downtime of the Karpenter controller when requesting the Karpenter custom resources. 
+The upgrade guide will first require upgrading to your latest patch version prior to upgrade to v1.0.0. This will be to allow the conversion webhooks to operate and minimize downtime of the Karpenter controller when requesting the Karpenter custom resources.
 {{% /alert %}}
 
 1. Set environment variables for your cluster to upgrade to the latest patch version of the current Karpenter version you're running on:
@@ -60,7 +60,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
 
 3. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
-4. Set environment variables for upgrading to the latest patch version:
+4. Set environment variables for upgrading to the latest patch version. Note that `v0.33.6` and `v0.34.7` both need to include the v prefix, whereas `v0.35+` should not.
 
     ```bash
     export KARPENTER_VERSION=<latest patch version of your current v1beta1 minor version>
@@ -80,7 +80,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
 7. Upgrade Karpenter to the latest patch version of your current minor version's. At the end of this step, conversion webhooks will run but will not convert any version.
 
     ```bash
-    # Service account annotation can be dropped when using pod identity 
+    # Service account annotation can be dropped when using pod identity
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
       --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.clusterName=${CLUSTER_NAME} \
@@ -127,7 +127,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
 11. Upgrade Karpenter to the new version. At the end of this step, conversion webhooks run to convert the Karpenter CRDs to v1.
 
     ```bash
-    # Service account annotion can be dropped when using pod identity 
+    # Service account annotion can be dropped when using pod identity
     helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
         --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
       --set settings.clusterName=${CLUSTER_NAME} \
@@ -251,7 +251,7 @@ Keep in mind that rollback, without replacing the Karpenter nodes, will not be s
 
 ### Downgrading
 
-Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include: 
+Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include:
 
 * v0.37.1
 * v0.36.3
@@ -271,6 +271,7 @@ Since both v1beta1 and v1 will be served, `kubectl` will default to returning th
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
+# Note: v0.33.6 and v0.34.7 include the v prefix, emit it for versions v0.35+
 export KARPENTER_VERSION="<rollback version of karpenter>"
 export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
 export CLUSTER_NAME="<name of your cluster>"
@@ -289,6 +290,17 @@ echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${CLUSTER_NAME}" "${TEMPOU
 
 2. Rollback the Karpenter Policy
 
+**v0.33.6 and v0.34.7:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/docs/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
+    && aws cloudformation deploy \
+    --stack-name "Karpenter-${CLUSTER_NAME}" \
+    --template-file "${TEMPOUT}" \
+    --capabilities CAPABILITY_NAMED_IAM \
+    --parameter-overrides "ClusterName=${CLUSTER_NAME}"
+```
+
+**v0.35+:**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/docs/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
     && aws cloudformation deploy \
@@ -308,10 +320,10 @@ helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-cr
   --set webhook.port=8443
 ```
 
-4. Rollback the Karpenter Controller 
+4. Rollback the Karpenter Controller
 
 ```bash
-# Service account annotation can be dropped when using pod identity 
+# Service account annotation can be dropped when using pod identity
 helm upgrade --install karpenter oci://public.ecr.aws/karpenter/karpenter --version ${KARPENTER_VERSION} --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
   --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"=${KARPENTER_IAM_ROLE_ARN} \
   --set settings.clusterName=${CLUSTER_NAME} \
