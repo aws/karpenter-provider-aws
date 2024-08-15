@@ -23,14 +23,15 @@ spec:
           operator: Gt
           values: ["2"]
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: default
+      expireAfter: 720h # 30 * 24h = 720h
   limits:
     cpu: 1000
   disruption:
     consolidationPolicy: WhenEmptyOrUnderutilized
-    expireAfter: 720h # 30 * 24h = 720h
+    consolidateAfter: 1m
 ---
 apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
