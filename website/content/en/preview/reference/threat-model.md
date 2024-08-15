@@ -4,10 +4,9 @@ linkTitle: "Threat Model"
 weight: 999
 ---
 
-Karpenter observes Kubernetes pods and launches nodes in response to those pods’ scheduling constraints. Karpenter does not perform the actual scheduling and instead waits for [kube-scheduler](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/) to schedule the pods.
+Karpenter is an open source dynamic provisioner and autoscaler for Kubernetes. It automatically launches just-in-time compute resources to handle your cluster's applications. It observes Kubernetes pods and launches nodes in response to those pods’ scheduling constraints. It  does not perform the actual scheduling and instead waits for [kube-scheduler](https://kubernetes.io/docs/concepts/scheduling-eviction/kube-scheduler/) to schedule the pods. 
 
-When running in AWS, Karpenter is typically installed onto EC2 instances that run in EKS Clusters. Karpenter relies on public facing AWS APIs and standard IAM Permissions. Karpenter uses AWS-SDK-Go v1, and AWS advises that credentials are provided using [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html).
-
+Customers self deploy and manage the lifecycle of Karpenter in their clusters. When running in AWS, Karpenter is installed on either an [Managed Node Groups](https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html) or a [Fargate Profile](https://docs.aws.amazon.com/eks/latest/userguide/fargate-profile.html) that runs in EKS Clusters. Karpenter relies on public facing AWS APIs and IAM Permissions. It uses AWS-SDK-Go v1, and AWS-vended credentials using [IAM Roles for Service Accounts](https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html) or [EKS Pod Identity](https://docs.aws.amazon.com/eks/latest/userguide/pod-identities.html).
 
 ## Architecture & Actors
 
@@ -118,3 +117,8 @@ Additionally, Karpenter does not allow tags to be modified on instances unowned 
 **Threat:** A threat actor creates a public AMI with the same name as a customer’s AMI in an attempt to get Karpenter to select the threat actor’s AMI instead of the intended AMI.
 
 **Mitigation**: When selecting AMIs by name or tags, Karpenter defaults to adding an ownership filter of `self,amazon` so AMI images external to the account are not used.
+
+## Threats and Mitigations 
+
+
+
