@@ -209,6 +209,10 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	return c.instanceProvider.Delete(ctx, id)
 }
 
+func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
+	return nil
+}
+
 func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim) (cloudprovider.DriftReason, error) {
 	// Not needed when GetInstanceTypes removes nodepool dependency
 	nodePoolName, ok := nodeClaim.Labels[karpv1.NodePoolLabelKey]
