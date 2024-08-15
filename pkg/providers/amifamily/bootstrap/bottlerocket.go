@@ -64,6 +64,9 @@ func (b Bottlerocket) Script() (string, error) {
 		if b.KubeletConfig.EvictionHard != nil {
 			s.Settings.Kubernetes.EvictionHard = b.KubeletConfig.EvictionHard
 		}
+		if b.KubeletConfig.EvictionSoft != nil {
+			s.Settings.Kubernetes.EvictionSoft = b.KubeletConfig.EvictionSoft
+		}
 		if b.KubeletConfig.ImageGCHighThresholdPercent != nil {
 			s.Settings.Kubernetes.ImageGCHighThresholdPercent = lo.ToPtr(strconv.FormatInt(int64(*b.KubeletConfig.ImageGCHighThresholdPercent), 10))
 		}
