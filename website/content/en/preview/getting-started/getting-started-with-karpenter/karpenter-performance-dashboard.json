@@ -113,7 +113,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"0\"}",
+            "expr": "max(karpenter_nodes_termination_duration_seconds{quantile=\"0\"})",
             "legendFormat": "Min",
             "range": true,
             "refId": "A"
@@ -124,7 +124,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"0.5\"}",
+            "expr": "max(karpenter_nodes_termination_duration_seconds{quantile=\"0.5\"})",
             "hide": false,
             "legendFormat": "P50",
             "range": true,
@@ -136,7 +136,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"0.9\"}",
+            "expr": "max(karpenter_nodes_termination_duration_seconds{quantile=\"0.9\"})",
             "hide": false,
             "legendFormat": "P90",
             "range": true,
@@ -148,7 +148,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"0.99\"}",
+            "expr": "max(karpenter_nodes_termination_duration_seconds{quantile=\"0.99\"})",
             "hide": false,
             "legendFormat": "P99",
             "range": true,
@@ -160,7 +160,7 @@
               "uid": "${datasource}"
             },
             "editorMode": "code",
-            "expr": "karpenter_nodes_termination_duration_seconds{quantile=\"1\"}",
+            "expr": "max(karpenter_nodes_termination_duration_seconds{quantile=\"1\"})",
             "hide": false,
             "legendFormat": "Max",
             "range": true,
@@ -583,13 +583,13 @@
       ]
     },
     "time": {
-      "from": "now-6h",
+      "from": "now-3h",
       "to": "now"
     },
     "timepicker": {},
     "timezone": "",
     "title": "Karpenter Performance v1",
-    "uid": "fdusq1f2alerkE",
-    "version": 2,
+    "uid": "fdusq1f2alerke",
+    "version": 3,
     "weekStart": ""
   }
