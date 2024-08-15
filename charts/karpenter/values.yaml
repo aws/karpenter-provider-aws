@@ -145,6 +145,8 @@ postInstallHook:
     tag: "1.30"
     # -- SHA256 digest of the post-install hook image.
     digest: sha256:13a2ad1bd37ce42ee2a6f1ab0d30595f42eb7fe4a90d6ec848550524104a1ed6
+  # -- Delay on removal of job after successful execution
+  ttlSecondsAfterFinished: 0
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
   enabled: true
