@@ -7,17 +7,27 @@ This document proposes supporting ODCR in Karpenter
     - [Capacity Reservations](#capacity-reservations)
   - [Goals](#goals)
   - [Non-Goals](#non-goals)
-  - [Proposed Solution](#proposed-solution)
-    - [Supporting associating Capacity Reservations to EC2NodeClass](#supporting-associating-capacity-reservations-to-ec2nodeclass)
-    - [Adding new label `karpenter.k8s.aws/capacity-reservation-id` nodeClaim/node](#adding-new-label-karpenterk8sawscapacity-reservation-id-nodeclaimnode)
-    - [Launching Nodes into Capacity Reservation](#launching-nodes-into-capacity-reservation)
-      - [All Launch Templates are associated with the specified Capacity Reservation](#all-launch-templates-are-associated-with-the-specified-capacity-reservation)
-      - [Pricing and consolidation](#pricing-and-consolidation)
-        - [Provisioning](#provisioning)
-        - [Consolidating Capacity Reserved Instances](#consolidating-capacity-reserved-instances)
-        - [Consolidating into Capacity Reserved Instances](#consolidating-into-capacity-reserved-instances)
-      - [Labels](#labels)
-    - [Failed to launch Nodes into Capacity Reservation](#failed-to-launch-nodes-into-capacity-reservation)
+  - [Capacity Reservation Selection](#capacity-reservation-selection)
+    - [EC2NodeClass API](#ec2nodeclass-api)
+    - [NodePool API](#nodepool-api)
+  - [Node Labels](#node-labels)
+  - [Scheduling Representation](#scheduling-representation)
+    - [Consider ODCR first during Scheduling](#consider-odcr-first-during-scheduling)
+    - [Adding ODCRs as Additional Instance Type Offerings](#adding-odcrs-as-additional-instance-type-offerings)
+    - [Representing ODCR Available Instance Counts in Instance Type Offerings](#representing-odcr-available-instance-counts-in-instance-type-offerings)
+  - [Capacity Reservation Expiration](#capacity-reservation-expiration)
+  - [CloudProvider Launch Behavior](#cloudprovider-launch-behavior)
+  - [Pricing/Consolidation](#pricingconsolidation)
+    - [Provisioning](#provisioning)
+    - [Consolidation](#consolidation)
+      - [Consolidating into Capacity Reserved Instances](#consolidating-into-capacity-reserved-instances)
+      - [Consolidating between Capacity Reservations](#consolidating-between-capacity-reservations)
+  - [Drift](#drift)
+    - [The NodePool selects on `karpenter.k8s.aws/capacity-reservation-id` with the `Exists` operator but the instance is no longer in a reservation](#the-nodepool-selects-on-karpenterk8sawscapacity-reservation-id-with-the-exists-operator-but-the-instance-is-no-longer-in-a-reservation)
+    - [The `capacityReservationSelectorTerms` no longer selects an instances `karpenter.k8s.aws/capacity-reservation-id` value](#the-capacityreservationselectorterms-no-longer-selects-an-instances-karpenterk8sawscapacity-reservation-id-value)
+  - [Launch Failures](#launch-failures)
+  - [Appendix](#appendix)
+    - [Input/Output for CreateFleet with CapacityReservations](#inputoutput-for-createfleet-with-capacityreservations)
 
 ## Background
 
@@ -41,16 +51,18 @@ AWS also supports grouping Capacity Reservation into [Capacity Reservation group
 
 1. Allow selection of targeted and open ODCRs with Karpenter 
 2. Ensure multiple ODCRs (with different instance types and zones) can be selected from a single NodePool 
-3. Ensure that we only launch capacity into an ODCR as-needed to ensure ODCR sharing between clusters and accounts 
+3. Ensure that we only launch capacity into an ODCR as-needed to ensure ODCR sharing between clusters and accounts
 4. Ensure ODCRs are prioritized over regular OD and spot capacity 
 5. Ensure Karpenter consolidates regular OD and spot instances to ODCR capacity when it is available 
 6. Ensure Karpenter consolidates between ODCRs when a smaller/cheaper ODCR is available
 7. Allow users to constrain a NodePool to only launch into ODCR capacity without fallback 
 8. Allow users to fallback from ODCR to spot capacity and from ODCR to standard OD capacity 
 9. Ensure OD capacity is not unnecessarily churned when a capacity reservation is removed to reduce workload disruption
+10. Ensure open ODCRs outside of NodePool configuration are not selected automatically (no automatic optout of open ODCRs if not configured)
 
 ## Non-Goals
 
+1. Ensure OD instances, created as fallback, can be automatically attached to an ODCR after that fact, if ODCR has availibility later (follow up needed)
 1. Support [Capacity Blocks](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/capacity-blocks-using.html) as a capacity-type -- though capacity blocks are not supported with this design, they are a natural extension of it. We could support selection on capacity blocks through the `capacityReservationSelectorTerms`.
 2. Support [Capacity Reservation Groups](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-cr-group.html) -- though capacity reservation groups are not supported with this design, they are a natural extension of it. We could support an additional field `reservationGroup` in the `capacityReservationSelectorTerms`.
 
@@ -59,19 +71,17 @@ AWS also supports grouping Capacity Reservation into [Capacity Reservation group
 ### EC2NodeClass API
 
 - Add a new field under `spec` for `capacityReservationSelectorTerms` to `EC2NodeClass` for defining which Capacity Reservation to be used for a specific `EC2NodeClass`
-  - This will allow us to attach multiple Capacity Reservations across AZs and Instance Types to a single EC2NodeClass. This capability removes the need for Capacity Reservation Groups for this MVP.
+  - This will allow us to attach multiple Capacity Reservations across AZs and Instance Types to a single EC2NodeClass. This capability removes the need for `Capacity Reservation Groups` for this MVP.
 - Add a new field under `status` for the found Capacity Reservations by the `spec.capacityReservationSelectorTerms` for the `EC2NodeClass`
 
 ```yaml
-apiVersion: karpenter.k8s.aws/v1beta1
+apiVersion: karpenter.k8s.aws/v1
 kind: EC2NodeClass
 metadata:
   name: example-node-class
 spec:
   capacityReservationSelectorTerms:
-    - # The Availability Zone of the Capacity Reservation
-      availabilityZone: String | None
-      # The platform of operating system for which the Capacity Reservation reserves capacity
+    - # The platform of operating system for which the Capacity Reservation reserves capacity
       id: String | None
       # The type of operating system for which the Capacity Reservation reserves capacity
       instanceType: String | None
@@ -136,7 +146,7 @@ This API follows closely with how [DescribeCapacityReservations](https://docs.aw
 The EC2NodeClass API allows selection on capacity reservations, which give additional options to the scheduler to choose from when launching instance types; however, it does not offer a mechanism to scope-down whether instances in a NodePool should only launch into an ODCR, fallback between a capacity reservation to on-demand if none is available, or fallback between a capacity reservation to spot and then finally to on-demand. There are effectively 3 options we could take to allow this kind of selection:
 
 1. Constrain a NodePool to only launch ODCR capacity when it references an EC2NodeClass that has `capacityReservationSelectorTerms`. Fallback to OD and to spot requires additional NodePools of lower weights
-2. Allow a NodePool to launch all types of capacity when `capacityReservationSelectorTerms` are provided, but create an additional `karpenter.k8s.aws/capacity-type` called `reservation`. A cluster admin could then select to support only launching ODCR capacity and falling back between ODCR capacity to on-demand capacity respectively. _NOTE: This option requires any applications (pods) that are using node selection on `karpenter.k8s.aws/capacity-type: "on-demand"` to expand their selection to include `reservation`_
+2. Allow a NodePool to launch all types of capacity when `capacityReservationSelectorTerms` are provided, but create an additional `karpenter.k8s.aws/capacity-type` called `reserved`. A cluster admin could then select to support only launching ODCR capacity and falling back between ODCR capacity to on-demand capacity respectively. _NOTE: This option requires any applications (pods) that are using node selection on `karpenter.k8s.aws/capacity-type: "on-demand"` to expand their selection to include `reservation`_
 
    a. Only launch ODCR instances
    ```yaml
@@ -235,6 +245,10 @@ We will propagate this information via [instance](https://github.com/aws/karpent
 Since ODCRs are a AWS-specific concept, there needs to be a mechanism to pass down these ODCR options down for the scheduler to reason about. Importantly, we need the scheduler to know to prioritize these ODCR options when a user has specified them in their EC2NodeClass. Further, we need the scheduler to be aware that it can't launch an unlimited amount of these instances into an ODCR.
 
 _Note: Updates to the scheduling representation of our offerings, including changes to how the core scheduling behavior works are going to require extensive performance benchmarking to ensure that we do not significantly trade-off performance when we support users selecting on ODCRs._
+
+### Consider ODCR first during Scheduling
+
+TODO: write a text
 
 ### Adding ODCRs as Additional Instance Type Offerings
 
