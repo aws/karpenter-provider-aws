@@ -20,8 +20,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 
@@ -126,7 +126,7 @@ var _ = Describe("GarbageCollection", func() {
 		node := env.EventuallyExpectCreatedNodeCount("==", 1)[0]
 
 		// Update the tags to add the EKSClusterNameTagKey tag
-		_, err = env.EC2API.CreateTagsWithContext(env.Context, &ec2.CreateTagsInput{
+		_, err = env.EC2API.CreateTags(env.Context, &ec2.CreateTagsInput{
 			Resources: []*string{out.Instances[0].InstanceId},
 			Tags: []*ec2.Tag{
 				{

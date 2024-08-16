@@ -28,9 +28,9 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/awserr"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	admv1alpha1 "github.com/awslabs/amazon-eks-ami/nodeadm/api/v1alpha1"
 	"github.com/awslabs/operatorpkg/object"
 	opstatus "github.com/awslabs/operatorpkg/status"
@@ -291,7 +291,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		Expect(len(createFleetInput.LaunchTemplateConfigs)).To(BeNumerically("==", awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()))
 		Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 		awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-			launchTemplate, ok := lo.Find(createFleetInput.LaunchTemplateConfigs, func(ltConfig *ec2.FleetLaunchTemplateConfigRequest) bool {
+			launchTemplate, ok := lo.Find(createFleetInput.LaunchTemplateConfigs, func(ltConfig *ec2.FleetLaunchTemplateConfig) bool {
 				return *ltConfig.LaunchTemplateSpecification.LaunchTemplateName == *ltInput.LaunchTemplateName
 			})
 			Expect(ok).To(BeTrue())
@@ -566,7 +566,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 				Expect(*i.LaunchTemplateData.TagSpecifications[0].ResourceType).To(Equal(ec2.ResourceTypeNetworkInterface))
 				ExpectTags(i.LaunchTemplateData.TagSpecifications[0].Tags, nodeClass.Spec.Tags)
 
-				Expect(*i.LaunchTemplateData.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeSpotInstancesRequest))
+				Expect(*i.LaunchTemplateData.TagSpecifications[1].ResourceType).To(Equal(ec2.ResourceTypeSpotInstances))
 				ExpectTags(i.LaunchTemplateData.TagSpecifications[1].Tags, nodeClass.Spec.Tags)
 			})
 		})
@@ -657,7 +657,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 			ExpectScheduled(ctx, env.Client, pod)
 			Expect(awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.Len()).To(BeNumerically(">=", 1))
 			awsEnv.EC2API.CalledWithCreateLaunchTemplateInput.ForEach(func(ltInput *ec2.CreateLaunchTemplateInput) {
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[0].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDevice{
 					VolumeSize:          aws.Int64(187),
 					VolumeType:          aws.String("io2"),
 					Iops:                aws.Int64(10_000),
@@ -665,7 +665,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 					Encrypted:           aws.Bool(true),
 					KmsKeyId:            aws.String("arn:aws:kms:us-west-2:111122223333:key/1234abcd-12ab-34cd-56ef-1234567890ab"),
 				}))
-				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDeviceRequest{
+				Expect(ltInput.LaunchTemplateData.BlockDeviceMappings[1].Ebs).To(Equal(&ec2.LaunchTemplateEbsBlockDevice{
 					VolumeSize:          aws.Int64(200),
 					VolumeType:          aws.String("io2"),
 					Iops:                aws.Int64(10_000),
@@ -983,7 +983,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		BeforeEach(func() {
 			var ok bool
 			var instanceInfo []*ec2.InstanceTypeInfo
-			err := awsEnv.EC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
+			err := awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
 				Filters: []*ec2.Filter{
 					{
 						Name:   aws.String("supported-virtualization-type"),
@@ -1037,7 +1037,7 @@ var _ = Describe("LaunchTemplate Provider", func() {
 		BeforeEach(func() {
 			var ok bool
 			var instanceInfo []*ec2.InstanceTypeInfo
-			err := awsEnv.EC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
+			err := awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
 				Filters: []*ec2.Filter{
 					{
 						Name:   aws.String("supported-virtualization-type"),

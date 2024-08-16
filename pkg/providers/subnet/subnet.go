@@ -20,9 +20,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -44,9 +44,13 @@ type Provider interface {
 	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []*Subnet, string)
 }
 
+type EC2API interface {
+	describeSubnets(ctx context.Context, params *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error)
+}
+
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api                        ec2iface.EC2API
+	ec2api                        EC2API
 	cache                         *cache.Cache
 	availableIPAddressCache       *cache.Cache
 	associatePublicIPAddressCache *cache.Cache
@@ -61,7 +65,7 @@ type Subnet struct {
 	AvailableIPAddressCount int64
 }
 
-func NewDefaultProvider(ec2api ec2iface.EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ec2api EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
@@ -95,7 +99,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Ensure that all the subnets that are returned here are unique
 	subnets := map[string]*ec2.Subnet{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSubnetsWithContext(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+		output, err := p.ec2api.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 		if err != nil {
 			return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 		}
@@ -178,8 +182,8 @@ func (p *DefaultProvider) UpdateInflightIPs(createFleetInput *ec2.CreateFleetInp
 	defer p.Unlock()
 
 	// Process the CreateFleetInput to pull out all the requested subnetIDs
-	fleetInputSubnets := lo.Compact(lo.Uniq(lo.FlatMap(createFleetInput.LaunchTemplateConfigs, func(req *ec2.FleetLaunchTemplateConfigRequest, _ int) []string {
-		return lo.Map(req.Overrides, func(override *ec2.FleetLaunchTemplateOverridesRequest, _ int) string {
+	fleetInputSubnets := lo.Compact(lo.Uniq(lo.FlatMap(createFleetInput.LaunchTemplateConfigs, func(req *ec2.FleetLaunchTemplateConfig, _ int) []string {
+		return lo.Map(req.Overrides, func(override *ec2.FleetLaunchTemplateOverrides, _ int) string {
 			if override == nil {
 				return ""
 			}

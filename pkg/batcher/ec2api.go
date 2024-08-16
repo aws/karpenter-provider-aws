@@ -17,16 +17,16 @@ package batcher
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
 type EC2API struct {
-	*CreateFleetBatcher
-	*DescribeInstancesBatcher
-	*TerminateInstancesBatcher
+	CreateFleet(ctx context.Context, params *ec2.CreateFleetInput, optFns ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error)
+	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
+	TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error)
 }
 
-func EC2(ctx context.Context, ec2api ec2iface.EC2API) *EC2API {
+func EC2(ctx context.Context, ec2api EC2API) *EC2API {
 	return &EC2API{
 		CreateFleetBatcher:        NewCreateFleetBatcher(ctx, ec2api),
 		DescribeInstancesBatcher:  NewDescribeInstancesBatcher(ctx, ec2api),

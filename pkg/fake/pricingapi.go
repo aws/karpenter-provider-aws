@@ -18,14 +18,18 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go-v2/service/pricing"
+	"github.com/aws/aws-sdk-go-v2/service/pricing/pricing/types"
 )
 
+type PricingAPI interface {
+	GetProductsPages(aws.Context, *pricing.GetProductsInput, func(*pricing.GetProductsOutput, bool) bool, ...request.Option) error
+}
+
 type PricingAPI struct {
-	pricingiface.PricingAPI
+	PricingAPI
 	PricingBehavior
 }
 type PricingBehavior struct {
@@ -38,7 +42,7 @@ func (p *PricingAPI) Reset() {
 	p.GetProductsOutput.Reset()
 }
 
-func (p *PricingAPI) GetProductsPagesWithContext(_ aws.Context, _ *pricing.GetProductsInput, fn func(*pricing.GetProductsOutput, bool) bool, _ ...request.Option) error {
+func (p *PricingAPI) GetProductsPages(_ aws.Context, _ *pricing.GetProductsInput, fn func(*pricing.GetProductsOutput, bool) bool, _ ...request.Option) error {
 	if !p.NextError.IsNil() {
 		return p.NextError.Get()
 	}

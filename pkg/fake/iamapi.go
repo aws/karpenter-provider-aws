@@ -20,11 +20,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/awserr"
+	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/samber/lo"
 )
 
@@ -41,10 +41,20 @@ type IAMAPIBehavior struct {
 	RemoveRoleFromInstanceProfileBehavior MockedFunction[iam.RemoveRoleFromInstanceProfileInput, iam.RemoveRoleFromInstanceProfileOutput]
 }
 
+type IAMAPI interface {
+	Reset()
+	GetInstanceProfile(context.Context, *iam.GetInstanceProfileInput, ...request.Option) (*iam.GetInstanceProfileOutput, error)
+	CreateInstanceProfile(context.Context, *iam.CreateInstanceProfileInput, ...request.Option) (*iam.CreateInstanceProfileOutput, error)
+	DeleteInstanceProfile(context.Context, *iam.DeleteInstanceProfileInput, ...request.Option) (*iam.DeleteInstanceProfileOutput, error)
+	AddRoleToInstanceProfile(context.Context, *iam.AddRoleToInstanceProfileInput, ...request.Option) (*iam.AddRoleToInstanceProfileOutput, error)
+	TagInstanceProfile(context.Context, *iam.TagInstanceProfileInput, ...request.Option) (*iam.TagInstanceProfileOutput, error)
+	RemoveRoleFromInstanceProfile(context.Context, *iam.RemoveRoleFromInstanceProfileInput, ...request.Option) (*iam.RemoveRoleFromInstanceProfileOutput, error)
+}
+
 type IAMAPI struct {
 	sync.Mutex
 
-	iamiface.IAMAPI
+	IAMAPI
 	IAMAPIBehavior
 
 	InstanceProfiles map[string]*iam.InstanceProfile
@@ -65,7 +75,7 @@ func (s *IAMAPI) Reset() {
 	s.InstanceProfiles = map[string]*iam.InstanceProfile{}
 }
 
-func (s *IAMAPI) GetInstanceProfileWithContext(_ context.Context, input *iam.GetInstanceProfileInput, _ ...request.Option) (*iam.GetInstanceProfileOutput, error) {
+func (s *IAMAPI) GetInstanceProfile(_ context.Context, input *iam.GetInstanceProfileInput, _ ...request.Option) (*iam.GetInstanceProfileOutput, error) {
 	return s.GetInstanceProfileBehavior.Invoke(input, func(*iam.GetInstanceProfileInput) (*iam.GetInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -77,7 +87,7 @@ func (s *IAMAPI) GetInstanceProfileWithContext(_ context.Context, input *iam.Get
 	})
 }
 
-func (s *IAMAPI) CreateInstanceProfileWithContext(_ context.Context, input *iam.CreateInstanceProfileInput, _ ...request.Option) (*iam.CreateInstanceProfileOutput, error) {
+func (s *IAMAPI) CreateInstanceProfile(_ context.Context, input *iam.CreateInstanceProfileInput, _ ...request.Option) (*iam.CreateInstanceProfileOutput, error) {
 	return s.CreateInstanceProfileBehavior.Invoke(input, func(output *iam.CreateInstanceProfileInput) (*iam.CreateInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -97,7 +107,7 @@ func (s *IAMAPI) CreateInstanceProfileWithContext(_ context.Context, input *iam.
 	})
 }
 
-func (s *IAMAPI) DeleteInstanceProfileWithContext(_ context.Context, input *iam.DeleteInstanceProfileInput, _ ...request.Option) (*iam.DeleteInstanceProfileOutput, error) {
+func (s *IAMAPI) DeleteInstanceProfile(_ context.Context, input *iam.DeleteInstanceProfileInput, _ ...request.Option) (*iam.DeleteInstanceProfileOutput, error) {
 	return s.DeleteInstanceProfileBehavior.Invoke(input, func(output *iam.DeleteInstanceProfileInput) (*iam.DeleteInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -113,7 +123,7 @@ func (s *IAMAPI) DeleteInstanceProfileWithContext(_ context.Context, input *iam.
 	})
 }
 
-func (s *IAMAPI) TagInstanceProfileWithContext(_ context.Context, input *iam.TagInstanceProfileInput, _ ...request.Option) (*iam.TagInstanceProfileOutput, error) {
+func (s *IAMAPI) TagInstanceProfile(_ context.Context, input *iam.TagInstanceProfileInput, _ ...request.Option) (*iam.TagInstanceProfileOutput, error) {
 	return s.TagInstanceProfileBehavior.Invoke(input, func(output *iam.TagInstanceProfileInput) (*iam.TagInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -128,7 +138,7 @@ func (s *IAMAPI) TagInstanceProfileWithContext(_ context.Context, input *iam.Tag
 	})
 }
 
-func (s *IAMAPI) AddRoleToInstanceProfileWithContext(_ context.Context, input *iam.AddRoleToInstanceProfileInput, _ ...request.Option) (*iam.AddRoleToInstanceProfileOutput, error) {
+func (s *IAMAPI) AddRoleToInstanceProfile(_ context.Context, input *iam.AddRoleToInstanceProfileInput, _ ...request.Option) (*iam.AddRoleToInstanceProfileOutput, error) {
 	return s.AddRoleToInstanceProfileBehavior.Invoke(input, func(output *iam.AddRoleToInstanceProfileInput) (*iam.AddRoleToInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()
@@ -144,7 +154,7 @@ func (s *IAMAPI) AddRoleToInstanceProfileWithContext(_ context.Context, input *i
 	})
 }
 
-func (s *IAMAPI) RemoveRoleFromInstanceProfileWithContext(_ context.Context, input *iam.RemoveRoleFromInstanceProfileInput, _ ...request.Option) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
+func (s *IAMAPI) RemoveRoleFromInstanceProfile(_ context.Context, input *iam.RemoveRoleFromInstanceProfileInput, _ ...request.Option) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
 	return s.RemoveRoleFromInstanceProfileBehavior.Invoke(input, func(output *iam.RemoveRoleFromInstanceProfileInput) (*iam.RemoveRoleFromInstanceProfileOutput, error) {
 		s.Lock()
 		defer s.Unlock()

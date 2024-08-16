@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 
@@ -73,8 +73,8 @@ func PrivateDNSName() string {
 }
 
 // SubnetsFromFleetRequest returns a unique slice of subnetIDs passed as overrides from a CreateFleetInput
-func SubnetsFromFleetRequest(createFleetInput *ec2.CreateFleetInput) []string {
-	return lo.Uniq(lo.Flatten(lo.Map(createFleetInput.LaunchTemplateConfigs, func(ltReq *ec2.FleetLaunchTemplateConfigRequest, _ int) []string {
+func SubnetsFromFleet(createFleetInput *ec2.CreateFleetInput) []string {
+	return lo.Uniq(lo.Flatten(lo.Map(createFleetInput.LaunchTemplateConfigs, func(ltReq *ec2.FleetLaunchTemplateConfig, _ int) []string {
 		var subnets []string
 		for _, override := range ltReq.Overrides {
 			if override.SubnetId != nil {

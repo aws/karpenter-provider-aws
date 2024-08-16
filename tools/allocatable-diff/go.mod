@@ -15,6 +15,7 @@ require (
 	contrib.go.opencensus.io/exporter/ocagent v0.7.1-0.20200907061046-05415f1de66d // indirect
 	contrib.go.opencensus.io/exporter/prometheus v0.4.2 // indirect
 	github.com/aws/aws-sdk-go v1.53.14 // indirect
+	github.com/aws/aws-sdk-go-v2 v1.30.3
 	github.com/awslabs/amazon-eks-ami/nodeadm v0.0.0-20240229193347-cfab22a10647 // indirect
 	github.com/awslabs/operatorpkg v0.0.0-20240605172541-88cf99023fa4 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect

@@ -22,19 +22,19 @@ import (
 	"net"
 	"os"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	awsclient "github.com/aws/aws-sdk-go/aws/client"
-	"github.com/aws/aws-sdk-go/aws/ec2metadata"
-	"github.com/aws/aws-sdk-go/aws/endpoints"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	awsclient "github.com/aws/aws-sdk-go-v2/aws/client"
+	"github.com/aws/aws-sdk-go-v2/aws/ec2metadata"
+	"github.com/aws/aws-sdk-go-v2/aws/endpoints"
+	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/aws/middleware"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks/types"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
 	prometheusv1 "github.com/jonathan-innis/aws-sdk-go-prometheus/v1"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -69,13 +69,21 @@ func init() {
 	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 
+type EC2API interface { 
+	DescribeInstanceTypes(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error)
+}
+
+type EKSAPI interface {
+	DescribeCluster(ctx context.Context, params *eks.DescribeClusterInput, optFns ...func(*eks.Options)) (*eks.DescribeClusterOutput, error)
+}
+
 // Operator is injected into the AWS CloudProvider's factories
 type Operator struct {
 	*operator.Operator
 
-	Session                   *session.Session
+	Config                    aws.Config
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	EC2API                    ec2iface.EC2API
+	EC2API                    EC2API
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider
@@ -90,32 +98,52 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	config := &aws.Config{
-		STSRegionalEndpoint: endpoints.RegionalSTSEndpoint,
+	cfg, err := config.LoadDefaultConfig(ctx,
+		config.WithSTSRegionalEndpoint(endpoints.RegionalSTSEndpoint),
+		config.WithRetryer(func() aws.Retryer {
+			return retry.NewStandard(func(o *retry.StandardOptions) {
+				o.MaxAttempts = 5
+			}),
+		}),
+		config.WithAPIOptions(
+			middleware.AddUserAgentKey("CustomUserAgent"),
+			prometheusv1.WithPrometheusMetrics(crmetrics.Registry),
+		),
+	)
+	if err != nil {
+		log.Fatalf("unable to load SDK config, %v", err)
 	}
 
 	// prometheusv1.WithPrometheusMetrics is used until the upstream aws-sdk-go or aws-sdk-go-v2 supports
 	// Prometheus metrics for client-side metrics out-of-the-box
 	// See: https://github.com/aws/aws-sdk-go-v2/issues/1744
-	sess := prometheusv1.WithPrometheusMetrics(WithUserAgent(session.Must(session.NewSession(
-		request.WithRetryer(
-			config,
-			awsclient.DefaultRetryer{NumMaxRetries: awsclient.DefaultRetryerMaxNumRetries},
-		),
-	))), crmetrics.Registry)
-
-	if *sess.Config.Region == "" {
+	if cfg.Region == "" {
 		log.FromContext(ctx).V(1).Info("retrieving region from IMDS")
-		region, err := ec2metadata.New(sess).Region()
-		*sess.Config.Region = lo.Must(region, err, "failed to get region from metadata server")
+		metadataClient := ec2metadata.NewEC2Metadata(cfg)
+		region, err := metadataClient.Region(ctx)
+		if err != nil {
+			log.FromContext(ctx).Error(err, "failed to get region from metadata server")
+			os.Exit(1)
+		}
+		cfg.Region = region
 	}
-	ec2api := ec2.New(sess)
+
+	ec2api := ec2.NewFromConfig(cfg)
+	eksapi := eks.NewFromConfig(cfg)
+	iamapi := iam.NewFromConfig(cfg)
+	pricingapi := pricing.NewFromConfig(cfg)
+	ssmapi := ssm.NewFromConfig(cfg)
+
+	// Check EC2 connectivity
+	
 	if err := CheckEC2Connectivity(ctx, ec2api); err != nil {
 		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
 		os.Exit(1)
 	}
-	log.FromContext(ctx).WithValues("region", *sess.Config.Region).V(1).Info("discovered region")
-	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eks.New(sess))
+	log.Printf("discovered region: %s\n", cfg.Region)
+
+	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eksapi)
+
 	if err != nil {
 		log.FromContext(ctx).Error(err, "failed detecting cluster endpoint")
 		os.Exit(1)
@@ -135,22 +163,22 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	unavailableOfferingsCache := awscache.NewUnavailableOfferings()
 	subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
 	securityGroupProvider := securitygroup.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	instanceProfileProvider := instanceprofile.NewDefaultProvider(*sess.Config.Region, iam.New(sess), cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
+	instanceProfileProvider := instanceprofile.NewDefaultProvider(cfg.Region, iamapi, cache.New(awscache.InstanceProfileTTL, awscache.DefaultCleanupInterval))
 	pricingProvider := pricing.NewDefaultProvider(
 		ctx,
-		pricing.NewAPI(sess, *sess.Config.Region),
+		pricingapi,
 		ec2api,
-		*sess.Config.Region,
+		cfg.Region,
 	)
 	versionProvider := version.NewDefaultProvider(operator.KubernetesInterface, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
-	ssmProvider := ssmp.NewDefaultProvider(ssm.New(sess), cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
+	ssmProvider := ssmp.NewDefaultProvider(ssmapi, cache.New(awscache.SSMGetParametersByPathTTL, awscache.DefaultCleanupInterval))
 	amiProvider := amifamily.NewDefaultProvider(versionProvider, ssmProvider, ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval))
 	amiResolver := amifamily.NewResolver(amiProvider)
 	launchTemplateProvider := launchtemplate.NewDefaultProvider(
 		ctx,
 		cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval),
 		ec2api,
-		eks.New(sess),
+		eksapi,
 		amiResolver,
 		securityGroupProvider,
 		subnetProvider,
@@ -160,7 +188,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		clusterEndpoint,
 	)
 	instanceTypeProvider := instancetype.NewDefaultProvider(
-		*sess.Config.Region,
+		cfg.Region,
 		cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
 		ec2api,
 		subnetProvider,
@@ -169,7 +197,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 	)
 	instanceProvider := instance.NewDefaultProvider(
 		ctx,
-		aws.StringValue(sess.Config.Region),
+		cfg.Region,
 		ec2api,
 		unavailableOfferingsCache,
 		instanceTypeProvider,
@@ -179,7 +207,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 
 	return ctx, &Operator{
 		Operator:                  operator,
-		Session:                   sess,
+		Config:                    cfg,
 		UnavailableOfferingsCache: unavailableOfferingsCache,
 		EC2API:                    ec2api,
 		SubnetProvider:            subnetProvider,
@@ -197,29 +225,31 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 }
 
 // WithUserAgent adds a karpenter specific user-agent string to AWS session
-func WithUserAgent(sess *session.Session) *session.Session {
+func WithUserAgent(ctx context.Context, cfg aws.Config) (aws.Config, error) {
 	userAgent := fmt.Sprintf("karpenter.sh-%s", operator.Version)
-	sess.Handlers.Build.PushBack(request.MakeAddToUserAgentFreeFormHandler(userAgent))
-	return sess
+	cfg.APIOptions = append(cfg.APIOptions, 
+		middleware.AddUserAgentKey("CustomUserAgent"),
+	)
+	return cfg, nil
 }
 
 // CheckEC2Connectivity makes a dry-run call to DescribeInstanceTypes.  If it fails, we provide an early indicator that we
 // are having issues connecting to the EC2 API.
-func CheckEC2Connectivity(ctx context.Context, api ec2iface.EC2API) error {
-	_, err := api.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
-	var aerr awserr.Error
-	if errors.As(err, &aerr) && aerr.Code() == "DryRunOperation" {
+func CheckEC2Connectivity(ctx context.Context, api EC2API) error {
+	_, err := api.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{DryRun: aws.Bool(true)})
+	var apiErr *ec2types.ClientError
+	if errors.As(err, &apiErr) && apiErr.Code() == "DryRunOperation" {
 		return nil
 	}
 	return err
 }
 
-func ResolveClusterEndpoint(ctx context.Context, eksAPI eksiface.EKSAPI) (string, error) {
+func ResolveClusterEndpoint(ctx context.Context, eksAPI EKSAPI) (string, error) {
 	clusterEndpointFromOptions := options.FromContext(ctx).ClusterEndpoint
 	if clusterEndpointFromOptions != "" {
 		return clusterEndpointFromOptions, nil // cluster endpoint is explicitly set
 	}
-	out, err := eksAPI.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
+	out, err := eksAPI.DescribeCluster(ctx, &eks.DescribeClusterInput{
 		Name: aws.String(options.FromContext(ctx).ClusterName),
 	})
 	if err != nil {

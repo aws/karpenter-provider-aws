@@ -20,9 +20,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -42,16 +42,20 @@ type Provider interface {
 	List(ctx context.Context, nodeClass *v1.EC2NodeClass) (AMIs, error)
 }
 
+type EC2API interface {
+	DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error)
+}
+
 type DefaultProvider struct {
 	sync.Mutex
 	cache           *cache.Cache
-	ec2api          ec2iface.EC2API
+	ec2api          EC2API
 	cm              *pretty.ChangeMonitor
 	versionProvider version.Provider
 	ssmProvider     ssm.Provider
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		cache:           cache,
 		ec2api:          ec2api,
@@ -157,7 +161,7 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 	}
 	images := map[uint64]AMI{}
 	for _, query := range queries {
-		if err = p.ec2api.DescribeImagesPagesWithContext(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
+		if err = p.ec2api.DescribeImagesPages(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for _, image := range page.Images {
 				arch, ok := v1.AWSToKubeArchitectures[lo.FromPtr(image.Architecture)]
 				if !ok {

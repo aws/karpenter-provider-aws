@@ -20,9 +20,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
-	"github.com/aws/aws-sdk-go/service/sqs/sqsiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/service/sqs/types"
 )
 
 type Provider interface {
@@ -32,13 +32,22 @@ type Provider interface {
 	DeleteSQSMessage(context.Context, *sqs.Message) error
 }
 
+type SQSAPI interface {
+	ReceiveMessage(ctx context.Context, params *sqs.ReceiveMessageInput, optFns ...func(*sqs.Options)) (*sqs.ReceiveMessageOutput, error)
+	SendMessage(ctx context.Context, params *sqs.SendMessageInput, optFns ...func(*sqs.Options)) (*sqs.SendMessageOutput, error)
+	DeleteMessage(ctx context.Context, params *sqs.DeleteMessageInput, optFns ...func(*sqs.Options)) (*sqs.DeleteMessageOutput, error)
+}
+
+// DefaultProvider is a default implementation of the Provider interface
+// for interacting with AWS SQS queues.
+//
 type DefaultProvider struct {
-	client sqsiface.SQSAPI
+	client SQSAPI
 
 	queueURL string
 }
 
-func NewDefaultProvider(client sqsiface.SQSAPI, queueURL string) (*DefaultProvider, error) {
+func NewDefaultProvider(client SQSAPI, queueURL string) (*DefaultProvider, error) {
 	return &DefaultProvider{
 		client:   client,
 		queueURL: queueURL,
@@ -64,7 +73,7 @@ func (p *DefaultProvider) GetSQSMessages(ctx context.Context) ([]*sqs.Message, e
 		QueueUrl: aws.String(p.queueURL),
 	}
 
-	result, err := p.client.ReceiveMessageWithContext(ctx, input)
+	result, err := p.client.ReceiveMessage(ctx, input)
 	if err != nil {
 		return nil, fmt.Errorf("receiving sqs messages, %w", err)
 	}
@@ -81,7 +90,7 @@ func (p *DefaultProvider) SendMessage(ctx context.Context, body interface{}) (st
 		MessageBody: aws.String(string(raw)),
 		QueueUrl:    aws.String(p.queueURL),
 	}
-	result, err := p.client.SendMessageWithContext(ctx, input)
+	result, err := p.client.SendMessage(ctx, input)
 	if err != nil {
 		return "", fmt.Errorf("sending messages to sqs queue, %w", err)
 	}
@@ -94,7 +103,7 @@ func (p *DefaultProvider) DeleteSQSMessage(ctx context.Context, msg *sqs.Message
 		ReceiptHandle: msg.ReceiptHandle,
 	}
 
-	if _, err := p.client.DeleteMessageWithContext(ctx, input); err != nil {
+	if _, err := p.client.DeleteMessage(ctx, input); err != nil {
 		return fmt.Errorf("deleting messages from sqs queue, %w", err)
 	}
 	return nil

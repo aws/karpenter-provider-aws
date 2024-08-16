@@ -21,7 +21,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/samber/lo"
 
 	coretest "sigs.k8s.io/karpenter/pkg/test"

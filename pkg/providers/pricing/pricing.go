@@ -29,12 +29,12 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/pricing"
-	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/pricing"
+	"github.com/aws/aws-sdk-go-v2/service/pricing/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
@@ -58,8 +58,8 @@ type Provider interface {
 // fails, the previous pricing information is retained and used which may be the static initial pricing data if pricing
 // updates never succeed.
 type DefaultProvider struct {
-	ec2     ec2iface.EC2API
-	pricing pricingiface.PricingAPI
+	ec2     EC2API
+	pricing PricingAPI
 	region  string
 	cm      *pretty.ChangeMonitor
 
@@ -89,10 +89,7 @@ func newZonalPricing(defaultPrice float64) zonal {
 }
 
 // NewPricingAPI returns a pricing API configured based on a particular region
-func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
-	if sess == nil {
-		return nil
-	}
+func NewAPI(ctx context.Context, cfg aws.Config, region string) *pricing.Client {
 	// pricing API doesn't have an endpoint in all regions
 	pricingAPIRegion := "us-east-1"
 	if strings.HasPrefix(region, "ap-") {
@@ -102,10 +99,18 @@ func NewAPI(sess *session.Session, region string) pricingiface.PricingAPI {
 	} else if strings.HasPrefix(region, "eu-") {
 		pricingAPIRegion = "eu-central-1"
 	}
-	return pricing.New(sess, &aws.Config{Region: aws.String(pricingAPIRegion)})
+	pricingCfg, err := config.LoadDefaultConfig(ctx,
+		config.WithRegion(pricingAPIRegion),
+		config.WithSharedConfigProfile(cfg.SharedConfigProfile),
+	)
+	// if we can't load the default config, we can't load the pricing config
+	if err != nil {
+		return nil
+	}
+	return pricing.NewFromConfig(pricingCfg)
 }
 
-func NewDefaultProvider(_ context.Context, pricing pricingiface.PricingAPI, ec2Api ec2iface.EC2API, region string) *DefaultProvider {
+func NewDefaultProvider(_ context.Context, pricing PricingAPI, ec2Api EC2API, region string) *DefaultProvider {
 	p := &DefaultProvider{
 		region:  region,
 		ec2:     ec2Api,
@@ -260,7 +265,7 @@ func (p *DefaultProvider) fetchOnDemandPricing(ctx context.Context, additionalFi
 		}},
 		additionalFilters...)
 
-	err := p.pricing.GetProductsPagesWithContext(
+	err := p.pricing.GetProductsPages(
 		ctx,
 		&pricing.GetProductsInput{
 			Filters:     filters,
@@ -359,7 +364,7 @@ func (p *DefaultProvider) UpdateSpotPricing(ctx context.Context) error {
 
 	p.muSpot.Lock()
 	defer p.muSpot.Unlock()
-	err := p.ec2.DescribeSpotPriceHistoryPagesWithContext(
+	err := p.ec2.DescribeSpotPriceHistoryPages(
 		ctx,
 		&ec2.DescribeSpotPriceHistoryInput{
 			ProductDescriptions: []*string{

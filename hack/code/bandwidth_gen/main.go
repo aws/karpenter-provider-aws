@@ -15,6 +15,7 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"go/format"
@@ -26,8 +27,8 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/samber/lo"
 )
 
@@ -145,8 +146,12 @@ func getAllInstanceTypes() []string {
 	if err := os.Setenv("AWS_REGION", "us-east-1"); err != nil {
 		log.Fatalf("setting AWS_REGION, %s", err)
 	}
-	sess := session.Must(session.NewSession())
-	ec2api := ec2.New(sess)
+	cfg, err := config.LoadDefaultConfig(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	ec2api := ec2.New(cfg)
 	var allInstanceTypes []string
 
 	params := &ec2.DescribeInstanceTypesInput{}

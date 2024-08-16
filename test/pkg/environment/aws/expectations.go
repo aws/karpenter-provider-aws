@@ -22,12 +22,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/fis"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/fis"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
@@ -104,7 +104,7 @@ func (env *Environment) ExpectSpotInterruptionExperiment(instanceIDs ...string) 
 			})),
 		}
 	}
-	experimentTemplate, err := env.FISAPI.CreateExperimentTemplateWithContext(env.Context, template)
+	experimentTemplate, err := env.FISAPI.CreateExperimentTemplate(env.Context, template)
 	Expect(err).ToNot(HaveOccurred())
 	experiment, err := env.FISAPI.StartExperimentWithContext(env.Context, &fis.StartExperimentInput{ExperimentTemplateId: experimentTemplate.ExperimentTemplate.Id})
 	Expect(err).ToNot(HaveOccurred())
@@ -202,9 +202,9 @@ func (env *Environment) GetNetworkInterfaces(ids ...*string) []*ec2.NetworkInter
 	return dnio.NetworkInterfaces
 }
 
-func (env *Environment) GetSpotInstanceRequest(id *string) *ec2.SpotInstanceRequest {
+func (env *Environment) GetSpotInstance(id *string) *ec2.SpotInstance {
 	GinkgoHelper()
-	siro, err := env.EC2API.DescribeSpotInstanceRequests(&ec2.DescribeSpotInstanceRequestsInput{SpotInstanceRequestIds: []*string{id}})
+	siro, err := env.EC2API.DescribeSpotInstance(&ec2.DescribeSpotInstanceRequestsInput{SpotInstanceRequestIds: []*string{id}})
 	Expect(err).ToNot(HaveOccurred())
 	Expect(siro.SpotInstanceRequests).To(HaveLen(1))
 	return siro.SpotInstanceRequests[0]
@@ -365,7 +365,7 @@ func (env *Environment) GetAMIBySSMPath(ssmPath string) string {
 func (env *Environment) EventuallyExpectRunInstances(instanceInput *ec2.RunInstancesInput) *ec2.Reservation {
 	GinkgoHelper()
 	// implement IMDSv2
-	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptionsRequest{
+	instanceInput.MetadataOptions = &ec2.InstanceMetadataOptions{
 		HttpEndpoint: aws.String("enabled"),
 		HttpTokens:   aws.String("required"),
 	}

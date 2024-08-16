@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
@@ -29,7 +29,11 @@ type CreateFleetBatcher struct {
 	batcher *Batcher[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 }
 
-func NewCreateFleetBatcher(ctx context.Context, ec2api ec2iface.EC2API) *CreateFleetBatcher {
+type EC2API interface {
+	CreateFleet(ctx context.Context, params *ec2.CreateFleetInput, optFns ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error)
+}
+
+func NewCreateFleetBatcher(ctx context.Context, ec2api EC2API) *CreateFleetBatcher {
 	options := Options[ec2.CreateFleetInput, ec2.CreateFleetOutput]{
 		Name:          "create_fleet",
 		IdleTimeout:   35 * time.Millisecond,
@@ -49,12 +53,12 @@ func (b *CreateFleetBatcher) CreateFleet(ctx context.Context, createFleetInput *
 	return result.Output, result.Err
 }
 
-func execCreateFleetBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.CreateFleetInput, ec2.CreateFleetOutput] {
+func execCreateFleetBatch(ec2api EC2API) BatchExecutor[ec2.CreateFleetInput, ec2.CreateFleetOutput] {
 	return func(ctx context.Context, inputs []*ec2.CreateFleetInput) []Result[ec2.CreateFleetOutput] {
 		results := make([]Result[ec2.CreateFleetOutput], 0, len(inputs))
 		firstInput := inputs[0]
 		firstInput.TargetCapacitySpecification.TotalTargetCapacity = aws.Int64(int64(len(inputs)))
-		output, err := ec2api.CreateFleetWithContext(ctx, firstInput)
+		output, err := ec2api.CreateFleet(ctx, firstInput)
 		if err != nil {
 			for range inputs {
 				results = append(results, Result[ec2.CreateFleetOutput]{Err: err})
@@ -79,7 +83,7 @@ func execCreateFleetBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.CreateFleetI
 						Errors:  output.Errors,
 						Instances: []*ec2.CreateFleetInstance{
 							{
-								InstanceIds:                []*string{instanceID},
+								InstanceIds:                []*string{aws.ToString(instanceID)},
 								InstanceType:               reservation.InstanceType,
 								LaunchTemplateAndOverrides: reservation.LaunchTemplateAndOverrides,
 								Lifecycle:                  reservation.Lifecycle,
@@ -94,7 +98,7 @@ func execCreateFleetBatch(ec2api ec2iface.EC2API) BatchExecutor[ec2.CreateFleetI
 		if requestIdx != len(inputs) {
 			// we should receive some sort of error, but just in case
 			if len(output.Errors) == 0 {
-				output.Errors = append(output.Errors, &ec2.CreateFleetError{
+				output.Errors = append(output.Errors, &types.CreateFleetError{
 					ErrorCode:    aws.String("too few instances returned"),
 					ErrorMessage: aws.String("too few instances returned"),
 				})

@@ -19,8 +19,8 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 )
@@ -29,13 +29,17 @@ type Provider interface {
 	List(context.Context, string) (map[string]string, error)
 }
 
+type ssmapi interface {
+	GetParametersByPathPages(ctx context.Context, params *ssm.GetParametersByPathInput, fn func(*ssm.GetParametersByPathOutput, bool) bool) error
+}
+
 type DefaultProvider struct {
 	sync.Mutex
 	cache  *cache.Cache
-	ssmapi ssmiface.SSMAPI
+	ssmapi SSMAPI
 }
 
-func NewDefaultProvider(ssmapi ssmiface.SSMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ssmapi SSMAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ssmapi: ssmapi,
 		cache:  cache,
@@ -51,7 +55,7 @@ func (p *DefaultProvider) List(ctx context.Context, path string) (map[string]str
 		return paths.(map[string]string), nil
 	}
 	values := map[string]string{}
-	if err := p.ssmapi.GetParametersByPathPagesWithContext(ctx, &ssm.GetParametersByPathInput{
+	if err := p.ssmapi.GetParametersByPathPages(ctx, &ssm.GetParametersByPathInput{
 		Recursive: lo.ToPtr(true),
 		Path:      &path,
 	}, func(out *ssm.GetParametersByPathOutput, _ bool) bool {

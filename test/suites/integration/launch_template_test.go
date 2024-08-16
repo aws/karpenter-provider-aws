@@ -17,8 +17,8 @@ package integration_test
 import (
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
@@ -36,7 +36,7 @@ var _ = Describe("Launch Template Deletion", func() {
 
 		env.ExpectDeleted(nodePool, nodeClass)
 		Eventually(func(g Gomega) {
-			output, _ := env.EC2API.DescribeLaunchTemplatesWithContext(env.Context, &ec2.DescribeLaunchTemplatesInput{
+			output, _ := env.EC2API.DescribeLaunchTemplates(env.Context, &ec2.DescribeLaunchTemplatesInput{
 				Filters: []*ec2.Filter{
 					{Name: aws.String(fmt.Sprintf("tag:%s", v1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}},
 				},

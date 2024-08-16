@@ -17,9 +17,9 @@ package fake
 import (
 	"context"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/samber/lo"
 )
 
@@ -31,8 +31,13 @@ type EKSAPIBehavior struct {
 	DescribeClusterBehavior MockedFunction[eks.DescribeClusterInput, eks.DescribeClusterOutput]
 }
 
+type EKSAPI interface {
+	DescribeCluster(context.Context, *eks.DescribeClusterInput, ...request.Option) (*eks.DescribeClusterOutput, error)
+	Reset()
+}
+
 type EKSAPI struct {
-	eksiface.EKSAPI
+	EKSAPI
 	EKSAPIBehavior
 }
 
@@ -46,7 +51,7 @@ func (s *EKSAPI) Reset() {
 	s.DescribeClusterBehavior.Reset()
 }
 
-func (s *EKSAPI) DescribeClusterWithContext(_ context.Context, input *eks.DescribeClusterInput, _ ...request.Option) (*eks.DescribeClusterOutput, error) {
+func (s *EKSAPI) DescribeCluster(_ context.Context, input *eks.DescribeClusterInput, _ ...request.Option) (*eks.DescribeClusterOutput, error) {
 	return s.DescribeClusterBehavior.Invoke(input, func(*eks.DescribeClusterInput) (*eks.DescribeClusterOutput, error) {
 		return &eks.DescribeClusterOutput{
 			Cluster: &eks.Cluster{

@@ -15,7 +15,7 @@ limitations under the License.
 package v1beta1_test
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/api/resource"

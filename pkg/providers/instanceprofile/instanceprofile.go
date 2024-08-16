@@ -18,9 +18,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/iam"
-	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
+	"github.com/aws/aws-sdk-go-v2/service/iam/types"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -39,6 +39,14 @@ type ResourceOwner interface {
 	InstanceProfileTags(string) map[string]string
 }
 
+type iamapi interface {
+	CreateInstanceProfile(ctx context.Context, params *iam.CreateInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.CreateInstanceProfileOutput, error)
+	DeleteInstanceProfile(ctx context.Context, params *iam.DeleteInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.DeleteInstanceProfileOutput, error)
+	GetInstanceProfile(ctx context.Context, params *iam.GetInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.GetInstanceProfileOutput, error)
+	TagInstanceProfile(ctx context.Context, params *iam.TagInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.TagInstanceProfileOutput, error)
+	UntagInstanceProfile(ctx context.Context, params *iam.UntagInstanceProfileInput, optFns ...func(*iam.Options)) (*iam.UntagInstanceProfileOutput, error)
+}
+
 type Provider interface {
 	Create(context.Context, ResourceOwner) (string, error)
 	Delete(context.Context, ResourceOwner) error
@@ -46,11 +54,11 @@ type Provider interface {
 
 type DefaultProvider struct {
 	region string
-	iamapi iamiface.IAMAPI
+	iamapi IAMAPI
 	cache  *cache.Cache
 }
 
-func NewDefaultProvider(region string, iamapi iamiface.IAMAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(region string, iamapi IAMAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		region: region,
 		iamapi: iamapi,
@@ -68,12 +76,12 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 	}
 	// Validate if the instance profile exists and has the correct role assigned to it
 	var instanceProfile *iam.InstanceProfile
-	out, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
+	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{InstanceProfileName: aws.String(profileName)})
 	if err != nil {
 		if !awserrors.IsNotFound(err) {
 			return "", fmt.Errorf("getting instance profile %q, %w", profileName, err)
 		}
-		o, err := p.iamapi.CreateInstanceProfileWithContext(ctx, &iam.CreateInstanceProfileInput{
+		o, err := p.iamapi.CreateInstanceProfile(ctx, &iam.CreateInstanceProfileInput{
 			InstanceProfileName: aws.String(profileName),
 			Tags:                lo.MapToSlice(tags, func(k, v string) *iam.Tag { return &iam.Tag{Key: aws.String(k), Value: aws.String(v)} }),
 		})
@@ -85,7 +93,7 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 		if !lo.ContainsBy(out.InstanceProfile.Tags, func(t *iam.Tag) bool {
 			return lo.FromPtr(t.Key) == v1.EKSClusterNameTagKey
 		}) {
-			if _, err = p.iamapi.TagInstanceProfileWithContext(ctx, &iam.TagInstanceProfileInput{
+			if _, err = p.iamapi.TagInstanceProfile(ctx, &iam.TagInstanceProfileInput{
 				InstanceProfileName: aws.String(profileName),
 				Tags:                lo.MapToSlice(tags, func(k, v string) *iam.Tag { return &iam.Tag{Key: aws.String(k), Value: aws.String(v)} }),
 			}); err != nil {
@@ -100,14 +108,14 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 		if aws.StringValue(instanceProfile.Roles[0].RoleName) == m.InstanceProfileRole() {
 			return profileName, nil
 		}
-		if _, err = p.iamapi.RemoveRoleFromInstanceProfileWithContext(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+		if _, err = p.iamapi.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
 			InstanceProfileName: aws.String(profileName),
 			RoleName:            instanceProfile.Roles[0].RoleName,
 		}); err != nil {
 			return "", fmt.Errorf("removing role %q for instance profile %q, %w", aws.StringValue(instanceProfile.Roles[0].RoleName), profileName, err)
 		}
 	}
-	if _, err = p.iamapi.AddRoleToInstanceProfileWithContext(ctx, &iam.AddRoleToInstanceProfileInput{
+	if _, err = p.iamapi.AddRoleToInstanceProfile(ctx, &iam.AddRoleToInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
 		RoleName:            aws.String(m.InstanceProfileRole()),
 	}); err != nil {
@@ -119,7 +127,7 @@ func (p *DefaultProvider) Create(ctx context.Context, m ResourceOwner) (string, 
 
 func (p *DefaultProvider) Delete(ctx context.Context, m ResourceOwner) error {
 	profileName := m.InstanceProfileName(options.FromContext(ctx).ClusterName, p.region)
-	out, err := p.iamapi.GetInstanceProfileWithContext(ctx, &iam.GetInstanceProfileInput{
+	out, err := p.iamapi.GetInstanceProfile(ctx, &iam.GetInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
 	})
 	if err != nil {
@@ -128,14 +136,14 @@ func (p *DefaultProvider) Delete(ctx context.Context, m ResourceOwner) error {
 	// Instance profiles can only have a single role assigned to them so this profile either has 1 or 0 roles
 	// https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html
 	if len(out.InstanceProfile.Roles) == 1 {
-		if _, err = p.iamapi.RemoveRoleFromInstanceProfileWithContext(ctx, &iam.RemoveRoleFromInstanceProfileInput{
+		if _, err = p.iamapi.RemoveRoleFromInstanceProfile(ctx, &iam.RemoveRoleFromInstanceProfileInput{
 			InstanceProfileName: aws.String(profileName),
 			RoleName:            out.InstanceProfile.Roles[0].RoleName,
 		}); err != nil {
 			return fmt.Errorf("removing role %q from instance profile %q, %w", aws.StringValue(out.InstanceProfile.Roles[0].RoleName), profileName, err)
 		}
 	}
-	if _, err = p.iamapi.DeleteInstanceProfileWithContext(ctx, &iam.DeleteInstanceProfileInput{
+	if _, err = p.iamapi.DeleteInstanceProfile(ctx, &iam.DeleteInstanceProfileInput{
 		InstanceProfileName: aws.String(profileName),
 	}); err != nil {
 		return awserrors.IgnoreNotFound(fmt.Errorf("deleting instance profile %q, %w", profileName, err))

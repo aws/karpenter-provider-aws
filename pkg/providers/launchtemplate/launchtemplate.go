@@ -27,11 +27,11 @@ import (
 	"go.uber.org/multierr"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
-	"github.com/aws/aws-sdk-go/service/eks"
-	"github.com/aws/aws-sdk-go/service/eks/eksiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -60,6 +60,17 @@ type Provider interface {
 	ResolveClusterCIDR(context.Context) error
 }
 
+type EC2API interface {
+	CreateLaunchTemplate(ctx context.Context, params *ec2.CreateLaunchTemplateInput, optFns ...func(*ec2.Options)) (*ec2.CreateLaunchTemplateOutput, error)
+	DeleteLaunchTemplate(ctx context.Context, params *ec2.DeleteLaunchTemplateInput, optFns ...func(*ec2.Options)) (*ec2.DeleteLaunchTemplateOutput, error)
+	DescribeLaunchTemplates(ctx context.Context, params *ec2.DescribeLaunchTemplatesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeLaunchTemplatesOutput, error)
+	ModifyLaunchTemplate(ctx context.Context, params *ec2.ModifyLaunchTemplateInput, optFns ...func(*ec2.Options)) (*ec2.ModifyLaunchTemplateOutput, error)
+}
+
+type EKSAPI interface {
+	DescribeCluster(ctx context.Context, params *eks.DescribeClusterInput, optFns ...func(*eks.Options)) (*eks.DescribeClusterOutput, error)
+}
+
 type LaunchTemplate struct {
 	Name          string
 	InstanceTypes []*cloudprovider.InstanceType
@@ -68,8 +79,8 @@ type LaunchTemplate struct {
 
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api                ec2iface.EC2API
-	eksapi                eksiface.EKSAPI
+	ec2api                EC2API
+	eksapi                EKSAPI
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider securitygroup.Provider
 	subnetProvider        subnet.Provider
@@ -81,7 +92,7 @@ type DefaultProvider struct {
 	ClusterCIDR           atomic.Pointer[string]
 }
 
-func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api ec2iface.EC2API, eksapi eksiface.EKSAPI, amiFamily *amifamily.Resolver,
+func NewDefaultProvider(ctx context.Context, cache *cache.Cache, ec2api EC2API, eksapi EKSAPI, amiFamily *amifamily.Resolver,
 	securityGroupProvider securitygroup.Provider, subnetProvider subnet.Provider,
 	caBundle *string, startAsync <-chan struct{}, kubeDNSIP net.IP, clusterEndpoint string) *DefaultProvider {
 	l := &DefaultProvider{
@@ -195,7 +206,7 @@ func (p *DefaultProvider) ensureLaunchTemplate(ctx context.Context, options *ami
 		return launchTemplate.(*ec2.LaunchTemplate), nil
 	}
 	// Attempt to find an existing LT.
-	output, err := p.ec2api.DescribeLaunchTemplatesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+	output, err := p.ec2api.DescribeLaunchTemplates(ctx, &ec2.DescribeLaunchTemplatesInput{
 		LaunchTemplateNames: []*string{aws.String(name)},
 	})
 	// Create LT if one doesn't exist
@@ -223,29 +234,29 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 	if err != nil {
 		return nil, err
 	}
-	launchTemplateDataTags := []*ec2.LaunchTemplateTagSpecificationRequest{
+	launchTemplateDataTags := []*ec2.LaunchTemplateTagSpecification{
 		{ResourceType: aws.String(ec2.ResourceTypeNetworkInterface), Tags: utils.MergeTags(options.Tags)},
 	}
 	// Add the spot-instances-request tag if trying to launch spot capacity
 	if options.CapacityType == karpv1.CapacityTypeSpot {
-		launchTemplateDataTags = append(launchTemplateDataTags, &ec2.LaunchTemplateTagSpecificationRequest{ResourceType: aws.String(ec2.ResourceTypeSpotInstancesRequest), Tags: utils.MergeTags(options.Tags)})
+		launchTemplateDataTags = append(launchTemplateDataTags, &ec2.LaunchTemplateTagSpecification{ResourceType: aws.String(ec2.ResourceTypeSpotInstances), Tags: utils.MergeTags(options.Tags)})
 	}
 	networkInterfaces := p.generateNetworkInterfaces(options)
-	output, err := p.ec2api.CreateLaunchTemplateWithContext(ctx, &ec2.CreateLaunchTemplateInput{
+	output, err := p.ec2api.CreateLaunchTemplate(ctx, &ec2.CreateLaunchTemplateInput{
 		LaunchTemplateName: aws.String(LaunchTemplateName(options)),
 		LaunchTemplateData: &ec2.RequestLaunchTemplateData{
 			BlockDeviceMappings: p.blockDeviceMappings(options.BlockDeviceMappings),
-			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecificationRequest{
+			IamInstanceProfile: &ec2.LaunchTemplateIamInstanceProfileSpecification{
 				Name: aws.String(options.InstanceProfile),
 			},
-			Monitoring: &ec2.LaunchTemplatesMonitoringRequest{
+			Monitoring: &ec2.LaunchTemplatesMonitoring{
 				Enabled: aws.Bool(options.DetailedMonitoring),
 			},
 			// If the network interface is defined, the security groups are defined within it
 			SecurityGroupIds: lo.Ternary(networkInterfaces != nil, nil, lo.Map(options.SecurityGroups, func(s v1.SecurityGroup, _ int) *string { return aws.String(s.ID) })),
 			UserData:         aws.String(userData),
 			ImageId:          aws.String(options.AMIID),
-			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptionsRequest{
+			MetadataOptions: &ec2.LaunchTemplateInstanceMetadataOptions{
 				HttpEndpoint:            options.MetadataOptions.HTTPEndpoint,
 				HttpProtocolIpv6:        options.MetadataOptions.HTTPProtocolIPv6,
 				HttpPutResponseHopLimit: options.MetadataOptions.HTTPPutResponseHopLimit,
@@ -269,10 +280,10 @@ func (p *DefaultProvider) createLaunchTemplate(ctx context.Context, options *ami
 }
 
 // generateNetworkInterfaces generates network interfaces for the launch template.
-func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
+func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTemplate) []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification {
 	if options.EFACount != 0 {
-		return lo.Times(options.EFACount, func(i int) *ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest {
-			return &ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+		return lo.Times(options.EFACount, func(i int) *ec2.LaunchTemplateInstanceNetworkInterfaceSpecification {
+			return &ec2.LaunchTemplateInstanceNetworkInterfaceSpecification{
 				NetworkCardIndex: lo.ToPtr(int64(i)),
 				// Some networking magic to ensure that one network card has higher priority than all the others (important if an instance needs a public IP w/o adding an EIP to every network card)
 				DeviceIndex:   lo.ToPtr(lo.Ternary[int64](i == 0, 0, 1)),
@@ -286,7 +297,7 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 	}
 
 	if options.AssociatePublicIPAddress != nil {
-		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecificationRequest{
+		return []*ec2.LaunchTemplateInstanceNetworkInterfaceSpecification{
 			{
 				AssociatePublicIpAddress: options.AssociatePublicIPAddress,
 				DeviceIndex:              aws.Int64(0),
@@ -297,16 +308,16 @@ func (p *DefaultProvider) generateNetworkInterfaces(options *amifamily.LaunchTem
 	return nil
 }
 
-func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMappingRequest {
+func (p *DefaultProvider) blockDeviceMappings(blockDeviceMappings []*v1.BlockDeviceMapping) []*ec2.LaunchTemplateBlockDeviceMapping {
 	if len(blockDeviceMappings) == 0 {
 		// The EC2 API fails with empty slices and expects nil.
 		return nil
 	}
-	var blockDeviceMappingsRequest []*ec2.LaunchTemplateBlockDeviceMappingRequest
+	var blockDeviceMappingsRequest []*ec2.LaunchTemplateBlockDeviceMapping
 	for _, blockDeviceMapping := range blockDeviceMappings {
-		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMappingRequest{
+		blockDeviceMappingsRequest = append(blockDeviceMappingsRequest, &ec2.LaunchTemplateBlockDeviceMapping{
 			DeviceName: blockDeviceMapping.DeviceName,
-			Ebs: &ec2.LaunchTemplateEbsBlockDeviceRequest{
+			Ebs: &ec2.LaunchTemplateEbsBlockDevice{
 				DeleteOnTermination: blockDeviceMapping.EBS.DeleteOnTermination,
 				Encrypted:           blockDeviceMapping.EBS.Encrypted,
 				VolumeType:          blockDeviceMapping.EBS.VolumeType,
@@ -335,7 +346,7 @@ func (p *DefaultProvider) volumeSize(quantity *resource.Quantity) *int64 {
 func (p *DefaultProvider) hydrateCache(ctx context.Context) {
 	clusterName := options.FromContext(ctx).ClusterName
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("tag-key", v1.TagManagedLaunchTemplate, "tag-value", clusterName))
-	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+	if err := p.ec2api.DescribeLaunchTemplatesPages(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{{Name: aws.String(fmt.Sprintf("tag:%s", v1.TagManagedLaunchTemplate)), Values: []*string{aws.String(clusterName)}}},
 	}, func(output *ec2.DescribeLaunchTemplatesOutput, _ bool) bool {
 		for _, lt := range output.LaunchTemplates {
@@ -357,7 +368,7 @@ func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, in
 			return
 		}
 		launchTemplate := lt.(*ec2.LaunchTemplate)
-		if _, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); awserrors.IgnoreNotFound(err) != nil {
+		if _, err := p.ec2api.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateId: launchTemplate.LaunchTemplateId}); awserrors.IgnoreNotFound(err) != nil {
 			log.FromContext(ctx).WithValues("launch-template", launchTemplate.LaunchTemplateName).Error(err, "failed to delete launch template")
 			return
 		}
@@ -371,7 +382,7 @@ func (p *DefaultProvider) cachedEvictedFunc(ctx context.Context) func(string, in
 func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeClass) error {
 	clusterName := options.FromContext(ctx).ClusterName
 	var ltNames []*string
-	if err := p.ec2api.DescribeLaunchTemplatesPagesWithContext(ctx, &ec2.DescribeLaunchTemplatesInput{
+	if err := p.ec2api.DescribeLaunchTemplatesPages(ctx, &ec2.DescribeLaunchTemplatesInput{
 		Filters: []*ec2.Filter{
 			{Name: aws.String(fmt.Sprintf("tag:%s", v1.TagManagedLaunchTemplate)), Values: []*string{aws.String(clusterName)}},
 			{Name: aws.String(fmt.Sprintf("tag:%s", v1.LabelNodeClass)), Values: []*string{aws.String(nodeClass.Name)}},
@@ -387,7 +398,7 @@ func (p *DefaultProvider) DeleteAll(ctx context.Context, nodeClass *v1.EC2NodeCl
 
 	var deleteErr error
 	for _, name := range ltNames {
-		_, err := p.ec2api.DeleteLaunchTemplateWithContext(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateName: name})
+		_, err := p.ec2api.DeleteLaunchTemplate(ctx, &ec2.DeleteLaunchTemplateInput{LaunchTemplateName: name})
 		deleteErr = multierr.Append(deleteErr, err)
 	}
 	if len(ltNames) > 0 {
@@ -403,7 +414,7 @@ func (p *DefaultProvider) ResolveClusterCIDR(ctx context.Context) error {
 	if p.ClusterCIDR.Load() != nil {
 		return nil
 	}
-	out, err := p.eksapi.DescribeClusterWithContext(ctx, &eks.DescribeClusterInput{
+	out, err := p.eksapi.DescribeCluster(ctx, &eks.DescribeClusterInput{
 		Name: aws.String(options.FromContext(ctx).ClusterName),
 	})
 	if err != nil {

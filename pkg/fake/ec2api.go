@@ -22,13 +22,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go-v2/aws/awserr"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"k8s.io/apimachinery/pkg/util/sets"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
@@ -67,8 +67,26 @@ type EC2Behavior struct {
 	NextError                           AtomicError
 }
 
+type EC2API interface {
+	DescribeImages(context.Context, *ec2.DescribeImagesInput, ...request.Option) (*ec2.DescribeImagesOutput, error)
+	DescribeLaunchTemplates(context.Context, *ec2.DescribeLaunchTemplatesInput, ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error)
+	DescribeSubnets(context.Context, *ec2.DescribeSubnetsInput, ...request.Option) (*ec2.DescribeSubnetsOutput, error)
+	DescribeSecurityGroups(context.Context, *ec2.DescribeSecurityGroupsInput, ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error)
+	DescribeInstanceTypes(context.Context, *ec2.DescribeInstanceTypesInput, ...request.Option) (*ec2.DescribeInstanceTypesOutput, error)
+	DescribeInstanceTypeOfferings(context.Context, *ec2.DescribeInstanceTypeOfferingsInput, ...request.Option) (*ec2.DescribeInstanceTypeOfferingsOutput, error)
+	DescribeAvailabilityZones(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error)
+	DescribeSpotPriceHistory(context.Context, *ec2.DescribeSpotPriceHistoryInput, ...request.Option) (*ec2.DescribeSpotPriceHistoryOutput, error)
+	CreateFleet(context.Context, *ec2.CreateFleetInput, ...request.Option) (*ec2.CreateFleetOutput, error)
+	TerminateInstances(context.Context, *ec2.TerminateInstancesInput, ...request.Option) (*ec2.TerminateInstancesOutput, error)
+	DescribeInstances(context.Context, *ec2.DescribeInstancesInput, ...request.Option) (*ec2.DescribeInstancesOutput, error)
+	CreateTags(context.Context, *ec2.CreateTagsInput, ...request.Option) (*ec2.CreateTagsOutput, error)
+}
+
+// EC2API is a mock of the EC2API interface.
+// nolint: revive,stylecheck
+}
 type EC2API struct {
-	ec2iface.EC2API
+	EC2API
 	EC2Behavior
 }
 
@@ -109,7 +127,7 @@ func (e *EC2API) Reset() {
 }
 
 // nolint: gocyclo
-func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
+func (e *EC2API) CreateFleet(_ context.Context, input *ec2.CreateFleetInput, _ ...request.Option) (*ec2.CreateFleetOutput, error) {
 	return e.CreateFleetBehavior.Invoke(input, func(input *ec2.CreateFleetInput) (*ec2.CreateFleetOutput, error) {
 		if input.LaunchTemplateConfigs[0].LaunchTemplateSpecification.LaunchTemplateName == nil {
 			return nil, fmt.Errorf("missing launch template name")
@@ -196,7 +214,7 @@ func (e *EC2API) CreateFleetWithContext(_ context.Context, input *ec2.CreateFlee
 	})
 }
 
-func (e *EC2API) TerminateInstancesWithContext(_ context.Context, input *ec2.TerminateInstancesInput, _ ...request.Option) (*ec2.TerminateInstancesOutput, error) {
+func (e *EC2API) TerminateInstances(_ context.Context, input *ec2.TerminateInstancesInput, _ ...request.Option) (*ec2.TerminateInstancesOutput, error) {
 	return e.TerminateInstancesBehavior.Invoke(input, func(input *ec2.TerminateInstancesInput) (*ec2.TerminateInstancesOutput, error) {
 		var instanceStateChanges []*ec2.InstanceStateChange
 		for _, id := range input.InstanceIds {
@@ -213,7 +231,7 @@ func (e *EC2API) TerminateInstancesWithContext(_ context.Context, input *ec2.Ter
 	})
 }
 
-func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
+func (e *EC2API) CreateLaunchTemplate(_ context.Context, input *ec2.CreateLaunchTemplateInput, _ ...request.Option) (*ec2.CreateLaunchTemplateOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -224,7 +242,7 @@ func (e *EC2API) CreateLaunchTemplateWithContext(_ context.Context, input *ec2.C
 	return &ec2.CreateLaunchTemplateOutput{LaunchTemplate: launchTemplate}, nil
 }
 
-func (e *EC2API) CreateTagsWithContext(_ context.Context, input *ec2.CreateTagsInput, _ ...request.Option) (*ec2.CreateTagsOutput, error) {
+func (e *EC2API) CreateTags(_ context.Context, input *ec2.CreateTagsInput, _ ...request.Option) (*ec2.CreateTagsOutput, error) {
 	return e.CreateTagsBehavior.Invoke(input, func(input *ec2.CreateTagsInput) (*ec2.CreateTagsOutput, error) {
 		// Update passed in instances with the passed tags
 		for _, id := range input.Resources {
@@ -247,7 +265,7 @@ func (e *EC2API) CreateTagsWithContext(_ context.Context, input *ec2.CreateTagsI
 	})
 }
 
-func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
+func (e *EC2API) DescribeInstances(_ context.Context, input *ec2.DescribeInstancesInput, _ ...request.Option) (*ec2.DescribeInstancesOutput, error) {
 	return e.DescribeInstancesBehavior.Invoke(input, func(input *ec2.DescribeInstancesInput) (*ec2.DescribeInstancesOutput, error) {
 		var instances []*ec2.Instance
 
@@ -271,8 +289,8 @@ func (e *EC2API) DescribeInstancesWithContext(_ context.Context, input *ec2.Desc
 	})
 }
 
-func (e *EC2API) DescribeInstancesPagesWithContext(ctx context.Context, input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool, opts ...request.Option) error {
-	output, err := e.DescribeInstancesWithContext(ctx, input, opts...)
+func (e *EC2API) DescribeInstancesPages(ctx context.Context, input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool, opts ...request.Option) error {
+	output, err := e.DescribeInstances(ctx, input, opts...)
 	if err != nil {
 		return err
 	}
@@ -326,7 +344,7 @@ func filterInstances(instances []*ec2.Instance, filters []*ec2.Filter) []*ec2.In
 	return ret
 }
 
-func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.DescribeImagesInput, _ ...request.Option) (*ec2.DescribeImagesOutput, error) {
+func (e *EC2API) DescribeImages(_ context.Context, input *ec2.DescribeImagesInput, _ ...request.Option) (*ec2.DescribeImagesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -352,8 +370,8 @@ func (e *EC2API) DescribeImagesWithContext(_ context.Context, input *ec2.Describ
 	}, nil
 }
 
-func (e *EC2API) DescribeImagesPagesWithContext(ctx context.Context, input *ec2.DescribeImagesInput, fn func(*ec2.DescribeImagesOutput, bool) bool, _ ...request.Option) error {
-	out, err := e.DescribeImagesWithContext(ctx, input)
+func (e *EC2API) DescribeImagesPages(ctx context.Context, input *ec2.DescribeImagesInput, fn func(*ec2.DescribeImagesOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeImages(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -361,7 +379,7 @@ func (e *EC2API) DescribeImagesPagesWithContext(ctx context.Context, input *ec2.
 	return nil
 }
 
-func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
+func (e *EC2API) DescribeLaunchTemplates(_ context.Context, input *ec2.DescribeLaunchTemplatesInput, _ ...request.Option) (*ec2.DescribeLaunchTemplatesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -386,8 +404,8 @@ func (e *EC2API) DescribeLaunchTemplatesWithContext(_ context.Context, input *ec
 	return output, nil
 }
 
-func (e *EC2API) DescribeLaunchTemplatesPagesWithContext(ctx context.Context, input *ec2.DescribeLaunchTemplatesInput, fn func(*ec2.DescribeLaunchTemplatesOutput, bool) bool, _ ...request.Option) error {
-	out, err := e.DescribeLaunchTemplatesWithContext(ctx, input)
+func (e *EC2API) DescribeLaunchTemplatesPages(ctx context.Context, input *ec2.DescribeLaunchTemplatesInput, fn func(*ec2.DescribeLaunchTemplatesOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeLaunchTemplates(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -395,7 +413,7 @@ func (e *EC2API) DescribeLaunchTemplatesPagesWithContext(ctx context.Context, in
 	return nil
 }
 
-func (e *EC2API) DeleteLaunchTemplateWithContext(_ context.Context, input *ec2.DeleteLaunchTemplateInput, _ ...request.Option) (*ec2.DeleteLaunchTemplateOutput, error) {
+func (e *EC2API) DeleteLaunchTemplate(_ context.Context, input *ec2.DeleteLaunchTemplateInput, _ ...request.Option) (*ec2.DeleteLaunchTemplateOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -404,7 +422,7 @@ func (e *EC2API) DeleteLaunchTemplateWithContext(_ context.Context, input *ec2.D
 	return nil, nil
 }
 
-func (e *EC2API) DescribeSubnetsWithContext(_ context.Context, input *ec2.DescribeSubnetsInput, _ ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
+func (e *EC2API) DescribeSubnets(_ context.Context, input *ec2.DescribeSubnetsInput, _ ...request.Option) (*ec2.DescribeSubnetsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -465,7 +483,7 @@ func (e *EC2API) DescribeSubnetsWithContext(_ context.Context, input *ec2.Descri
 	return &ec2.DescribeSubnetsOutput{Subnets: FilterDescribeSubnets(subnets, input.Filters)}, nil
 }
 
-func (e *EC2API) DescribeSecurityGroupsWithContext(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
+func (e *EC2API) DescribeSecurityGroups(_ context.Context, input *ec2.DescribeSecurityGroupsInput, _ ...request.Option) (*ec2.DescribeSecurityGroupsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -508,7 +526,7 @@ func (e *EC2API) DescribeSecurityGroupsWithContext(_ context.Context, input *ec2
 	return &ec2.DescribeSecurityGroupsOutput{SecurityGroups: FilterDescribeSecurtyGroups(sgs, input.Filters)}, nil
 }
 
-func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {
+func (e *EC2API) DescribeAvailabilityZones(context.Context, *ec2.DescribeAvailabilityZonesInput, ...request.Option) (*ec2.DescribeAvailabilityZonesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -524,7 +542,7 @@ func (e *EC2API) DescribeAvailabilityZonesWithContext(context.Context, *ec2.Desc
 	}}, nil
 }
 
-func (e *EC2API) DescribeInstanceTypesWithContext(_ context.Context, _ *ec2.DescribeInstanceTypesInput, _ ...request.Option) (*ec2.DescribeInstanceTypesOutput, error) {
+func (e *EC2API) DescribeInstanceTypes(_ context.Context, _ *ec2.DescribeInstanceTypesInput, _ ...request.Option) (*ec2.DescribeInstanceTypesOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -535,8 +553,8 @@ func (e *EC2API) DescribeInstanceTypesWithContext(_ context.Context, _ *ec2.Desc
 	return defaultDescribeInstanceTypesOutput, nil
 }
 
-func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, _ ...request.Option) error {
-	out, err := e.DescribeInstanceTypesWithContext(ctx, input)
+func (e *EC2API) DescribeInstanceTypesPages(ctx context.Context, input *ec2.DescribeInstanceTypesInput, fn func(*ec2.DescribeInstanceTypesOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeInstanceTypes(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -544,7 +562,7 @@ func (e *EC2API) DescribeInstanceTypesPagesWithContext(ctx context.Context, inpu
 	return nil
 }
 
-func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *ec2.DescribeInstanceTypeOfferingsInput, _ ...request.Option) (*ec2.DescribeInstanceTypeOfferingsOutput, error) {
+func (e *EC2API) DescribeInstanceTypeOfferings(_ context.Context, _ *ec2.DescribeInstanceTypeOfferingsInput, _ ...request.Option) (*ec2.DescribeInstanceTypeOfferingsOutput, error) {
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
 		return nil, e.NextError.Get()
@@ -674,8 +692,8 @@ func (e *EC2API) DescribeInstanceTypeOfferingsWithContext(_ context.Context, _ *
 	}, nil
 }
 
-func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(ctx context.Context, input *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, _ ...request.Option) error {
-	out, err := e.DescribeInstanceTypeOfferingsWithContext(ctx, input)
+func (e *EC2API) DescribeInstanceTypeOfferingsPages(ctx context.Context, input *ec2.DescribeInstanceTypeOfferingsInput, fn func(*ec2.DescribeInstanceTypeOfferingsOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeInstanceTypeOfferings(ctx, input)
 	if err != nil {
 		return err
 	}
@@ -683,7 +701,7 @@ func (e *EC2API) DescribeInstanceTypeOfferingsPagesWithContext(ctx context.Conte
 	return nil
 }
 
-func (e *EC2API) DescribeSpotPriceHistoryWithContext(_ aws.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...request.Option) (*ec2.DescribeSpotPriceHistoryOutput, error) {
+func (e *EC2API) DescribeSpotPriceHistory(_ aws.Context, input *ec2.DescribeSpotPriceHistoryInput, _ ...request.Option) (*ec2.DescribeSpotPriceHistoryOutput, error) {
 	e.DescribeSpotPriceHistoryInput.Set(input)
 	if !e.NextError.IsNil() {
 		defer e.NextError.Reset()
@@ -696,8 +714,8 @@ func (e *EC2API) DescribeSpotPriceHistoryWithContext(_ aws.Context, input *ec2.D
 	return nil, errors.New("no pricing data provided")
 }
 
-func (e *EC2API) DescribeSpotPriceHistoryPagesWithContext(ctx aws.Context, input *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, _ ...request.Option) error {
-	out, err := e.DescribeSpotPriceHistoryWithContext(ctx, input)
+func (e *EC2API) DescribeSpotPriceHistoryPages(ctx aws.Context, input *ec2.DescribeSpotPriceHistoryInput, fn func(*ec2.DescribeSpotPriceHistoryOutput, bool) bool, _ ...request.Option) error {
+	out, err := e.DescribeSpotPriceHistory(ctx, input)
 	if err != nil {
 		return err
 	}

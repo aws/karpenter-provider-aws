@@ -28,8 +28,8 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/test/v1alpha1"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	. "github.com/onsi/ginkgo/v2"
@@ -908,7 +908,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		Expect(*node.Status.Capacity.StorageEphemeral()).To(Equal(resource.MustParse("7600G")))
 	})
 	It("should not set pods to 110 if using ENI-based pod density", func() {
-		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
@@ -931,7 +931,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		}
 	})
 	It("should set pods to 110 if AMI Family doesn't support", func() {
-		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+		instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 		Expect(err).To(BeNil())
 		nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 		for _, info := range instanceInfo.InstanceTypes {
@@ -1045,7 +1045,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}))
 
 			var ok bool
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			info, ok = lo.Find(instanceInfo.InstanceTypes, func(i *ec2.InstanceTypeInfo) bool {
 				return aws.StringValue(i.InstanceType) == "m5.xlarge"
@@ -1525,7 +1525,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			})
 		})
 		It("should default max pods based off of network interfaces", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{}
 			for _, info := range instanceInfo.InstanceTypes {
@@ -1568,7 +1568,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should set max-pods to user-defined value if specified", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: lo.ToPtr(int32(10)),
@@ -1593,7 +1593,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should override max-pods value", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: lo.ToPtr(int32(10)),
@@ -1622,7 +1622,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ReservedENIs: lo.ToPtr(1),
 			}))
 
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info *ec2.InstanceTypeInfo) bool {
 				return *info.InstanceType == "t3.large"
@@ -1657,7 +1657,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				ReservedENIs: lo.ToPtr(1_000_000),
 			}))
 
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			t3Large, ok := lo.Find(instanceInfo.InstanceTypes, func(info *ec2.InstanceTypeInfo) bool {
 				return *info.InstanceType == "t3.large"
@@ -1689,7 +1689,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			Expect(it.Capacity.Pods().Value()).To(BeNumerically("==", maxPods))
 		})
 		It("should override pods-per-core value", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: lo.ToPtr(int32(1)),
@@ -1714,7 +1714,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should take the minimum of pods-per-core and max-pods", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: lo.ToPtr(int32(4)),
@@ -1740,7 +1740,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should ignore pods-per-core when using Bottlerocket AMI", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "bottlerocket@latest"}}
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
@@ -1767,7 +1767,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 			}
 		})
 		It("should take limited pod density to be the default pods number when pods-per-core is 0", func() {
-			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{})
+			instanceInfo, err := awsEnv.EC2API.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{})
 			Expect(err).To(BeNil())
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				PodsPerCore: lo.ToPtr(int32(0)),
@@ -2041,7 +2041,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 				HaveKeyWithValue(corev1.LabelTopologyZone, "test-zone-1b")))
 		})
 		It("should launch on-demand capacity if flexible to both spot and on-demand, but spot is unavailable", func() {
-			Expect(awsEnv.EC2API.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
+			Expect(awsEnv.EC2API.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{}, func(dito *ec2.DescribeInstanceTypesOutput, b bool) bool {
 				for _, it := range dito.InstanceTypes {
 					awsEnv.EC2API.InsufficientCapacityPools.Add(fake.CapacityPool{CapacityType: karpv1.CapacityTypeSpot, InstanceType: aws.StringValue(it.InstanceType), Zone: "test-zone-1a"})
 				}

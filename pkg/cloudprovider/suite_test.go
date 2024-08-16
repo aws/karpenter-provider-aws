@@ -32,8 +32,8 @@ import (
 	"k8s.io/client-go/tools/record"
 	clock "k8s.io/utils/clock/testing"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	opstatus "github.com/awslabs/operatorpkg/status"
 	"github.com/imdario/mergo"
 	"github.com/samber/lo"
@@ -1111,9 +1111,9 @@ var _ = Describe("CloudProvider", func() {
 					if *ov.InstanceType == "m5.large" {
 						foundNonGPULT = true
 						Expect(v.Overrides).To(ContainElements(
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
-							&ec2.FleetLaunchTemplateOverridesRequest{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
+							&ec2.FleetLaunchTemplateOverrides{SubnetId: aws.String("subnet-test1"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1a")},
+							&ec2.FleetLaunchTemplateOverrides{SubnetId: aws.String("subnet-test2"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1b")},
+							&ec2.FleetLaunchTemplateOverrides{SubnetId: aws.String("subnet-test3"), ImageId: ov.ImageId, InstanceType: aws.String("m5.large"), AvailabilityZone: aws.String("test-zone-1c")},
 						))
 					}
 				}
@@ -1135,7 +1135,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod)
 			ExpectScheduled(ctx, env.Client, pod)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
 		It("should launch instances into subnet with the most available IP addresses in-between cache refreshes", func() {
 			awsEnv.SubnetCache.Flush()
@@ -1158,13 +1158,13 @@ var _ = Describe("CloudProvider", func() {
 			ExpectScheduled(ctx, env.Client, pod1)
 			ExpectScheduled(ctx, env.Client, pod2)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-2"))
 			// Provision for another pod that should now use the other subnet since we've consumed some from the first launch.
 			pod3 := coretest.UnschedulablePod(coretest.PodOptions{NodeSelector: map[string]string{corev1.LabelTopologyZone: "test-zone-1a"}})
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, pod3)
 			ExpectScheduled(ctx, env.Client, pod3)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
+			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-1"))
 		})
 		It("should update in-flight IPs when a CreateFleet error occurs", func() {
 			awsEnv.EC2API.DescribeSubnetsOutput.Set(&ec2.DescribeSubnetsOutput{Subnets: []*ec2.Subnet{
@@ -1192,7 +1192,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet1)
 			ExpectScheduled(ctx, env.Client, podSubnet1)
 			createFleetInput := awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-1"))
+			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-1"))
 
 			nodeClass2 := test.EC2NodeClass(v1.EC2NodeClass{
 				Spec: v1.EC2NodeClassSpec{
@@ -1235,7 +1235,7 @@ var _ = Describe("CloudProvider", func() {
 			ExpectProvisioned(ctx, env.Client, cluster, cloudProvider, prov, podSubnet2)
 			ExpectScheduled(ctx, env.Client, podSubnet2)
 			createFleetInput = awsEnv.EC2API.CreateFleetBehavior.CalledWithInput.Pop()
-			Expect(fake.SubnetsFromFleetRequest(createFleetInput)).To(ConsistOf("test-subnet-2"))
+			Expect(fake.SubnetsFromFleet(createFleetInput)).To(ConsistOf("test-subnet-2"))
 		})
 		It("should launch instances with an alternate NodePool when a NodeClass selects 0 subnets, security groups, or amis", func() {
 			misconfiguredNodeClass := test.EC2NodeClass(v1.EC2NodeClass{

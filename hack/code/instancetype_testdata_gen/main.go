@@ -25,10 +25,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 )
 
@@ -36,8 +36,8 @@ const packageHeader = `
 package fake
 
 import (
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
 // GENERATED FILE. DO NOT EDIT DIRECTLY.
@@ -63,8 +63,11 @@ func main() {
 		log.Fatalf("setting AWS_REGION, %s", err)
 	}
 	ctx := context.Background()
-	sess := session.Must(session.NewSession())
-	ec2Client := ec2.New(sess)
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+        log.Fatalf("unable to load SDK config, %s", err)
+    }
+	ec2Client := ec2.NewFromConfig(cfg)
 	instanceTypes := strings.Split(instanceTypesStr, ",")
 
 	src := &bytes.Buffer{}
@@ -84,16 +87,20 @@ func main() {
 	}
 }
 
-func getDescribeInstanceTypesOutput(ctx context.Context, ec2Client ec2iface.EC2API, instanceTypes []string) string {
-	out, err := ec2Client.DescribeInstanceTypesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
-		InstanceTypes: aws.StringSlice(instanceTypes),
+type EC2API interface {
+	DescribeInstanceTypes(aws.Context, *ec2.DescribeInstanceTypesInput, ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error)
+}
+
+func getDescribeInstanceTypesOutput(ctx context.Context, ec2Client EC2API, instanceTypes []string) string {
+	out, err := ec2Client.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
+		InstanceTypes: instanceTypes,
 	})
 	if err != nil {
 		log.Fatalf("describing instance types, %s", err)
 	}
 	// Sort them by name so that we get a consistent ordering
 	sort.SliceStable(out.InstanceTypes, func(i, j int) bool {
-		return aws.StringValue(out.InstanceTypes[i].InstanceType) < aws.StringValue(out.InstanceTypes[j].InstanceType)
+		return out.InstanceTypes[i].InstanceType < out.InstanceTypes[j].InstanceType
 	})
 
 	src := &bytes.Buffer{}

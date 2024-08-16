@@ -26,13 +26,17 @@ import (
 
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
 
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/ssm"
-	"github.com/aws/aws-sdk-go/service/ssm/ssmiface"
+	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go-v2/service/ssm"
+	"github.com/aws/aws-sdk-go-v2/service/ssm/types"
 )
 
+type SSMAPI interface {
+	GetParametersByPathPages(_ context.Context, input *ssm.GetParametersByPathInput, f func(*ssm.GetParametersByPathOutput, bool) bool, _ ...request.Option) error
+}
+
 type SSMAPI struct {
-	ssmiface.SSMAPI
+	SSMAPI
 	Parameters                map[string]string
 	GetParametersByPathOutput *ssm.GetParametersByPathOutput
 	WantErr                   error
@@ -46,9 +50,9 @@ func NewSSMAPI() *SSMAPI {
 	}
 }
 
-func (a SSMAPI) GetParametersByPathPagesWithContext(_ context.Context, input *ssm.GetParametersByPathInput, f func(*ssm.GetParametersByPathOutput, bool) bool, _ ...request.Option) error {
+func (a SSMAPI) GetParametersByPathPages(_ context.Context, input *ssm.GetParametersByPathInput, f func(*ssm.GetParametersByPathOutput, bool) bool, _ ...request.Option) error {
 	if !lo.FromPtr(input.Recursive) {
-		log.Fatalf("fake SSM API currently only supports GetParametersByPathPagesWithContext when recursive is true")
+		log.Fatalf("fake SSM API currently only supports GetParametersByPathPages when recursive is true")
 	}
 	if a.WantErr != nil {
 		return a.WantErr

@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	awssdk "github.com/aws/aws-sdk-go/aws"
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
@@ -31,7 +31,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/awslabs/operatorpkg/status"
 	. "github.com/awslabs/operatorpkg/test/expectations"
 	"github.com/samber/lo"

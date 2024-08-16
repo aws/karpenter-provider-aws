@@ -17,7 +17,7 @@ package amifamily
 import (
 	"fmt"
 
-	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go-v2/aws"
 	corev1 "k8s.io/api/core/v1"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"

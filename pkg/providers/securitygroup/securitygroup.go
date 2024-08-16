@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/mitchellh/hashstructure/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
@@ -36,14 +36,18 @@ type Provider interface {
 	List(context.Context, *v1.EC2NodeClass) ([]*ec2.SecurityGroup, error)
 }
 
+type EC2API interface {
+	DescribeSecurityGroups(context.Context, *ec2.DescribeSecurityGroupsInput, ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error)
+}
+
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api ec2iface.EC2API
+	ec2api EC2API
 	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
-func NewDefaultProvider(ec2api ec2iface.EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ec2api EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api: ec2api,
 		cm:     pretty.NewChangeMonitor(),
@@ -83,7 +87,7 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 	}
 	securityGroups := map[string]*ec2.SecurityGroup{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSecurityGroupsWithContext(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+		output, err := p.ec2api.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 		if err != nil {
 			return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
 		}

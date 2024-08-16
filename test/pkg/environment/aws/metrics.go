@@ -19,10 +19,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/request"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite/timestreamwriteiface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/request"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite"
+	"github.com/aws/aws-sdk-go-v2/service/timestreamwrite/types"
 	"github.com/samber/lo"
 
 	"github.com/aws/karpenter-provider-aws/test/pkg/environment/common"
@@ -37,14 +37,12 @@ const (
 	tableName            = "scaleTestDurations"
 )
 
-var _ timestreamwriteiface.TimestreamWriteAPI = (*NoOpTimeStreamAPI)(nil)
+var _ timestreamwrite.TimestreamWriteAPI = (*NoOpTimeStreamAPI)(nil)
 
-type NoOpTimeStreamAPI struct {
-	timestreamwriteiface.TimestreamWriteAPI
-}
+type NoOpTimeStreamAPI struct{}
 
-func (o NoOpTimeStreamAPI) WriteRecordsWithContext(_ context.Context, _ *timestreamwrite.WriteRecordsInput, _ ...request.Option) (*timestreamwrite.WriteRecordsOutput, error) {
-	return nil, nil
+func (o NoOpTimeStreamAPI) WriteRecords(_ context.Context, _ *timestreamwrite.WriteRecordsInput, _ ...request.Option) (*timestreamwrite.WriteRecordsOutput, error) {
+	return &timestreamwrite.WriteRecordsOutput{}, nil
 }
 
 type EventType string
@@ -98,7 +96,7 @@ func (env *Environment) MeasureDurationFor(f func(), eventType EventType, dimens
 
 func (env *Environment) ExpectMetric(name string, value float64, labels map[string]string) {
 	GinkgoHelper()
-	_, err := env.TimeStreamAPI.WriteRecordsWithContext(env.Context, &timestreamwrite.WriteRecordsInput{
+	_, err := env.TimeStreamAPI.WriteRecords(env.Context, &timestreamwrite.WriteRecordsInput{
 		DatabaseName: aws.String(databaseName),
 		TableName:    aws.String(tableName),
 		Records: []*timestreamwrite.Record{

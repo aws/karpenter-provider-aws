@@ -22,10 +22,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/aws/awserr"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"
@@ -69,9 +69,14 @@ type Provider interface {
 	CreateTags(context.Context, string, map[string]string) error
 }
 
+type EC2API interface {
+	DescribeInstancesPages(ctx context.Context, input *ec2.DescribeInstancesInput, fn func(*ec2.DescribeInstancesOutput, bool) bool) error
+	CreateTags(ctx context.Context, input *ec2.CreateTagsInput) error
+}
+
 type DefaultProvider struct {
 	region                 string
-	ec2api                 ec2iface.EC2API
+	ec2api                 EC2API
 	unavailableOfferings   *cache.UnavailableOfferings
 	instanceTypeProvider   instancetype.Provider
 	subnetProvider         subnet.Provider
@@ -79,7 +84,7 @@ type DefaultProvider struct {
 	ec2Batcher             *batcher.EC2API
 }
 
-func NewDefaultProvider(ctx context.Context, region string, ec2api ec2iface.EC2API, unavailableOfferings *cache.UnavailableOfferings,
+func NewDefaultProvider(ctx context.Context, region string, ec2api EC2API, unavailableOfferings *cache.UnavailableOfferings,
 	instanceTypeProvider instancetype.Provider, subnetProvider subnet.Provider, launchTemplateProvider launchtemplate.Provider) *DefaultProvider {
 	return &DefaultProvider{
 		region:                 region,
@@ -139,7 +144,7 @@ func (p *DefaultProvider) Get(ctx context.Context, id string) (*Instance, error)
 
 func (p *DefaultProvider) List(ctx context.Context) ([]*Instance, error) {
 	var out = &ec2.DescribeInstancesOutput{}
-	err := p.ec2api.DescribeInstancesPagesWithContext(ctx, &ec2.DescribeInstancesInput{
+	err := p.ec2api.DescribeInstancesPages(ctx, &ec2.DescribeInstancesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("tag-key"),
@@ -188,7 +193,7 @@ func (p *DefaultProvider) CreateTags(ctx context.Context, id string, tags map[st
 	ec2Tags := lo.MapToSlice(tags, func(key, value string) *ec2.Tag {
 		return &ec2.Tag{Key: aws.String(key), Value: aws.String(value)}
 	})
-	if _, err := p.ec2api.CreateTagsWithContext(ctx, &ec2.CreateTagsInput{
+	if _, err := p.ec2api.CreateTags(ctx, &ec2.CreateTagsInput{
 		Resources: aws.StringSlice([]string{id}),
 		Tags:      ec2Tags,
 	}); err != nil {
@@ -220,7 +225,7 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 		Type:                  aws.String(ec2.FleetTypeInstant),
 		Context:               nodeClass.Spec.Context,
 		LaunchTemplateConfigs: launchTemplateConfigs,
-		TargetCapacitySpecification: &ec2.TargetCapacitySpecificationRequest{
+		TargetCapacitySpecification: &ec2.TargetCapacitySpecification{
 			DefaultTargetCapacityType: aws.String(capacityType),
 			TotalTargetCapacity:       aws.Int64(1),
 		},
@@ -231,9 +236,9 @@ func (p *DefaultProvider) launchInstance(ctx context.Context, nodeClass *v1.EC2N
 		},
 	}
 	if capacityType == karpv1.CapacityTypeSpot {
-		createFleetInput.SpotOptions = &ec2.SpotOptionsRequest{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyPriceCapacityOptimized)}
+		createFleetInput.SpotOptions = &ec2.SpotOptions{AllocationStrategy: aws.String(ec2.SpotAllocationStrategyPriceCapacityOptimized)}
 	} else {
-		createFleetInput.OnDemandOptions = &ec2.OnDemandOptionsRequest{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
+		createFleetInput.OnDemandOptions = &ec2.OnDemandOptions{AllocationStrategy: aws.String(ec2.FleetOnDemandAllocationStrategyLowestPrice)}
 	}
 
 	createFleetOutput, err := p.ec2Batcher.CreateFleet(ctx, createFleetInput)
@@ -268,7 +273,7 @@ func getTags(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.
 	return lo.Assign(nodeClass.Spec.Tags, staticTags)
 }
 
-func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest) error {
+func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceTypes []*cloudprovider.InstanceType, launchTemplateConfigs []*ec2.FleetLaunchTemplateConfig) error {
 	// only evaluate for on-demand fallback if the capacity type for the request is OD and both OD and spot are allowed in requirements
 	if p.getCapacityType(nodeClaim, instanceTypes) != karpv1.CapacityTypeOnDemand || !scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...).Get(karpv1.CapacityTypeLabelKey).Has(karpv1.CapacityTypeSpot) {
 		return nil
@@ -292,8 +297,8 @@ func (p *DefaultProvider) checkODFallback(nodeClaim *karpv1.NodeClaim, instanceT
 }
 
 func (p *DefaultProvider) getLaunchTemplateConfigs(ctx context.Context, nodeClass *v1.EC2NodeClass, nodeClaim *karpv1.NodeClaim,
-	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, capacityType string, tags map[string]string) ([]*ec2.FleetLaunchTemplateConfigRequest, error) {
-	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfigRequest
+	instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, capacityType string, tags map[string]string) ([]*ec2.FleetLaunchTemplateConfig, error) {
+	var launchTemplateConfigs []*ec2.FleetLaunchTemplateConfig
 	launchTemplates, err := p.launchTemplateProvider.EnsureAll(ctx, nodeClass, nodeClaim, instanceTypes, capacityType, tags)
 	if err != nil {
 		return nil, fmt.Errorf("getting launch templates, %w", err)
@@ -301,9 +306,9 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(ctx context.Context, nodeClas
 	requirements := scheduling.NewNodeSelectorRequirementsWithMinValues(nodeClaim.Spec.Requirements...)
 	requirements[karpv1.CapacityTypeLabelKey] = scheduling.NewRequirement(karpv1.CapacityTypeLabelKey, corev1.NodeSelectorOpIn, capacityType)
 	for _, launchTemplate := range launchTemplates {
-		launchTemplateConfig := &ec2.FleetLaunchTemplateConfigRequest{
+		launchTemplateConfig := &ec2.FleetLaunchTemplateConfig{
 			Overrides: p.getOverrides(launchTemplate.InstanceTypes, zonalSubnets, requirements, launchTemplate.ImageID),
-			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecificationRequest{
+			LaunchTemplateSpecification: &ec2.FleetLaunchTemplateSpecification{
 				LaunchTemplateName: aws.String(launchTemplate.Name),
 				Version:            aws.String("$Latest"),
 			},
@@ -320,7 +325,7 @@ func (p *DefaultProvider) getLaunchTemplateConfigs(ctx context.Context, nodeClas
 
 // getOverrides creates and returns launch template overrides for the cross product of InstanceTypes and subnets (with subnets being constrained by
 // zones and the offerings in InstanceTypes)
-func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, reqs scheduling.Requirements, image string) []*ec2.FleetLaunchTemplateOverridesRequest {
+func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceType, zonalSubnets map[string]*subnet.Subnet, reqs scheduling.Requirements, image string) []*ec2.FleetLaunchTemplateOverrides {
 	// Unwrap all the offerings to a flat slice that includes a pointer
 	// to the parent instance type name
 	type offeringWithParentName struct {
@@ -337,7 +342,7 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 		})
 		unwrappedOfferings = append(unwrappedOfferings, ofs...)
 	}
-	var overrides []*ec2.FleetLaunchTemplateOverridesRequest
+	var overrides []*ec2.FleetLaunchTemplateOverrides
 	for _, offering := range unwrappedOfferings {
 		if reqs.Compatible(offering.Requirements, scheduling.AllowUndefinedWellKnownLabels) != nil {
 			continue
@@ -346,7 +351,7 @@ func (p *DefaultProvider) getOverrides(instanceTypes []*cloudprovider.InstanceTy
 		if !ok {
 			continue
 		}
-		overrides = append(overrides, &ec2.FleetLaunchTemplateOverridesRequest{
+		overrides = append(overrides, &ec2.FleetLaunchTemplateOverrides{
 			InstanceType: aws.String(offering.parentInstanceTypeName),
 			SubnetId:     lo.ToPtr(subnet.ID),
 			ImageId:      aws.String(image),

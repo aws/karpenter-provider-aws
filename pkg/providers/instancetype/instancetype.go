@@ -32,9 +32,9 @@ import (
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/ec2"
+	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -54,9 +54,14 @@ type Provider interface {
 	UpdateInstanceTypeOfferings(ctx context.Context) error
 }
 
+type EC2API interface {
+	DescribeInstanceTypes(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error)
+	DescribeInstanceTypeOfferings(ctx context.Context, params *ec2.DescribeInstanceTypeOfferingsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypeOfferingsOutput, error)
+}
+
 type DefaultProvider struct {
 	region          string
-	ec2api          ec2iface.EC2API
+	ec2api          EC2API
 	subnetProvider  subnet.Provider
 	pricingProvider pricing.Provider
 
@@ -81,7 +86,7 @@ type DefaultProvider struct {
 	instanceTypeOfferingsSeqNum uint64
 }
 
-func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2api ec2iface.EC2API, subnetProvider subnet.Provider,
+func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2api EC2API, subnetProvider subnet.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider) *DefaultProvider {
 	return &DefaultProvider{
 		ec2api:                ec2api,
@@ -190,7 +195,7 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	defer p.muInstanceTypeInfo.Unlock()
 	var instanceTypes []*ec2.InstanceTypeInfo
 
-	if err := p.ec2api.DescribeInstanceTypesPagesWithContext(ctx, &ec2.DescribeInstanceTypesInput{
+	if err := p.ec2api.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("supported-virtualization-type"),
@@ -230,7 +235,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 
 	// Get offerings from EC2
 	instanceTypeOfferings := map[string]sets.Set[string]{}
-	if err := p.ec2api.DescribeInstanceTypeOfferingsPagesWithContext(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
+	if err := p.ec2api.DescribeInstanceTypeOfferingsPages(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
 		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
 			for _, offering := range output.InstanceTypeOfferings {
 				if _, ok := instanceTypeOfferings[aws.StringValue(offering.InstanceType)]; !ok {

@@ -30,8 +30,8 @@ import (
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/launchtemplate"
 
-	"github.com/aws/aws-sdk-go/aws/session"
-	servicesqs "github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/aws/aws-sdk-go-v2/config"
+	servicesqs "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/samber/lo"
 	"k8s.io/utils/clock"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -53,7 +53,7 @@ import (
 	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 )
 
-func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Session, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
+func NewControllers(ctx context.Context, mgr manager.Manager, cfg aws.Config, clk clock.Clock, kubeClient client.Client, recorder events.Recorder,
 	unavailableOfferings *cache.UnavailableOfferings, cloudProvider cloudprovider.CloudProvider, subnetProvider subnet.Provider,
 	securityGroupProvider securitygroup.Provider, instanceProfileProvider instanceprofile.Provider, instanceProvider instance.Provider,
 	pricingProvider pricing.Provider, amiProvider amifamily.Provider, launchTemplateProvider launchtemplate.Provider, instanceTypeProvider instancetype.Provider) []controller.Controller {
@@ -69,9 +69,14 @@ func NewControllers(ctx context.Context, mgr manager.Manager, sess *session.Sess
 		status.NewController[*v1.EC2NodeClass](kubeClient, mgr.GetEventRecorderFor("karpenter")),
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
-		sqsapi := servicesqs.New(sess)
-		out := lo.Must(sqsapi.GetQueueUrlWithContext(ctx, &servicesqs.GetQueueUrlInput{QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)}))
-		controllers = append(controllers, interruption.NewController(kubeClient, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsapi, lo.FromPtr(out.QueueUrl))), unavailableOfferings))
+		sqsClient := servicesqs.NewFromConfig(cfg)
+		out, err := sqsClient.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{
+			QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)
+		})
+		if err != nil {
+			log.Fatalf("Failed to get queue URL: %v", err)
+		}
+		controllers = append(controllers, interruption.NewController(KubeClient, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsClient, lo.FromPtr(out.QueueURL))), unavailableOfferings))
 	}
 	return controllers
 }

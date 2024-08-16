@@ -15,7 +15,7 @@ limitations under the License.
 package status_test
 
 import (
-	"github.com/aws/aws-sdk-go/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/eks"
 	"github.com/awslabs/operatorpkg/status"
 	"github.com/samber/lo"
 
