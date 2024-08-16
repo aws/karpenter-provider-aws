@@ -1,0 +1,40 @@
+# This example NodePool will avoid small instance types in the cluster
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: large-instances
+  annotations:
+    kubernetes.io/description: "NodePool for provisioning larger instances using Gt/Lt requirements"
+spec:
+  template:
+    spec:
+      requirements:
+          # exclude instances with < 4 cores and < 8GiB memory (8192 mebibytes)
+        - key: "karpenter.k8s.aws/instance-cpu"
+          operator: Gt
+          values: ["3"]
+        - key: "karpenter.k8s.aws/instance-memory"
+          operator: Gt
+          values: ["8191"]
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+  annotations:
+    kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
+spec:
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: al2023@latest  # Amazon Linux 2023

@@ -1,7 +1,7 @@
 ---
 title: "NodePools"
 linkTitle: "NodePools"
-weight: 1
+weight: 10
 description: >
   Configure Karpenter with NodePools
 ---
@@ -27,7 +27,7 @@ Here are things you should know about NodePools:
 Objects for setting Kubelet features have been moved from the NodePool spec to the EC2NodeClasses spec, to not require other Karpenter providers to support those features.
 {{% /alert %}}
 
-For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/v1beta1/).
+For some example `NodePool` configurations, see the [examples in the Karpenter GitHub repository](https://github.com/aws/karpenter/blob/main/examples/v1/).
 
 ```yaml
 apiVersion: karpenter.sh/v1
@@ -126,7 +126,7 @@ spec:
     # If using `WhenEmpty`, Karpenter will only consider nodes for consolidation that contain no workload pods
     consolidationPolicy: WhenEmptyOrUnderutilized | WhenEmpty
 
-    # The amount of time Karpenter should wait after discovering a consolidation decision
+    # The amount of time Karpenter should wait to consolidate a node after a pod has been added or removed from the node.
     # You can choose to disable consolidation entirely by setting the string value 'Never' here
     consolidateAfter: 1m | Never # Added to allow additional control over consolidation aggressiveness
 

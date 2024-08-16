@@ -1,0 +1,53 @@
+# This example will use spot instance type for all provisioned instances
+# and enforces minValues to instance families which means at least that number of unique instance
+# families is required by the scheduler for the NodeClaim creation.
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: spot
+  annotations:
+    kubernetes.io/description: "NodePool for provisioning spot capacity"
+spec:
+  template:
+    spec:
+      requirements:
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["spot"]
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-family
+          operator: Exists
+          minValues: 5
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: default
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: default
+  annotations:
+    kubernetes.io/description: "General purpose EC2NodeClass for running Amazon Linux 2 nodes"
+spec:
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: al2023@v20240625 # Amazon Linux 2023

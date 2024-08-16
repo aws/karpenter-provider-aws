@@ -77,6 +77,10 @@ func (c *CloudProvider) Delete(context.Context, *karpv1.NodeClaim) error {
 	return nil
 }
 
+func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
+	return nil
+}
+
 // Name returns the CloudProvider implementation name.
 func (c *CloudProvider) Name() string {
 	return "fake"
