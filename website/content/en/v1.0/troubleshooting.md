@@ -75,12 +75,12 @@ If a long cluster name causes the Karpenter node role name to exceed 64 characte
 Keep in mind that `KarpenterNodeRole-` is just a recommendation from the getting started guide.
 Instead of using the eksctl role, you can shorten the name to anything you like, as long as it has the right permissions.
 
-### Unknown field in Provisioner spec
+### Unknown field in NodePool or EC2NodeClass spec
 
 If you are upgrading from an older version of Karpenter, there may have been changes in the CRD between versions. Attempting to utilize newer functionality which is surfaced in newer versions of the CRD may result in the following error message:
 
 ```
-error: error validating "STDIN": error validating data: ValidationError(Provisioner.spec): unknown field "<fieldName>" in sh.karpenter.v1alpha5.Provisioner.spec; if you choose to ignore these errors, turn validation off with --validate=false
+Error from server (BadRequest): error when creating "STDIN": NodePool in version "v1" cannot be handled as a NodePool: strict decoding error: unknown field "spec.template.spec.nodeClassRef.foo"
 ```
 
 If you see this error, you can solve the problem by following the [Custom Resource Definition Upgrade Guidance](../upgrade-guide/#custom-resource-definition-crd-upgrades).
@@ -91,11 +91,10 @@ Info on whether there has been a change to the CRD between versions of Karpenter
 
 `0.16.0` changed the default replicas from 1 to 2.
 
-Karpenter won't launch capacity to run itself (log related to the `karpenter.sh/provisioner-name DoesNotExist requirement`)
+Karpenter won't launch capacity to run itself (log related to the `karpenter.sh/nodepool DoesNotExist requirement`)
 so it can't provision for the second Karpenter pod.
 
-To solve this you can either reduce the replicas back from 2 to 1, or ensure there is enough capacity that isn't being managed by Karpenter
-(these are instances with the name `karpenter.sh/provisioner-name/<PROVIDER_NAME>`) to run both pods.
+To solve this you can either reduce the replicas back from 2 to 1, or ensure there is enough capacity that isn't being managed by Karpenter to run both pods.
 
 To do so on AWS increase the `minimum` and `desired` parameters on the node group autoscaling group to launch at lease 2 instances.
 
@@ -144,52 +143,6 @@ You can fix this by patching the node objects:
 kubectl get nodes -ojsonpath='{range .items[*].metadata}{@.name}:{@.finalizers}{"\n"}' | grep "karpenter.sh/termination" | cut -d ':' -f 1 | xargs kubectl patch node --type='json' -p='[{"op": "remove", "path": "/metadata/finalizers"}]'
 ```
 
-## Webhooks
-
-### Failed calling webhook "validation.webhook.provisioners.karpenter.sh"
-
-If you are not able to create a provisioner due to `Internal error occurred: failed calling webhook "validation.webhook.provisioners.karpenter.sh":`
-
-Webhooks were renamed in `0.19.0`. There's a bug in ArgoCD's upgrade workflow where webhooks are leaked. This results in Provisioner's failing to be validated, since the validation server no longer corresponds to the webhook definition.
-
-Delete the stale webhooks.
-
-```text
-kubectl delete mutatingwebhookconfigurations defaulting.webhook.provisioners.karpenter.sh
-kubectl delete validatingwebhookconfiguration validation.webhook.provisioners.karpenter.sh
-```
-
-### Failed calling webhook "defaulting.webhook.karpenter.sh"
-
-The `defaulting.webhook.karpenter.sh` mutating webhook was removed in `0.27.3`. If you are coming from an older version of Karpenter where this webhook existed and the webhook was not managed by Helm, you may need to delete the stale webhook.
-
-```text
-kubectl delete mutatingwebhookconfigurations defaulting.webhook.karpenter.sh
-```
-
-If you are not able to create a provisioner due to `Error from server (InternalError): error when creating "provisioner.yaml": Internal error occurred: failed calling webhook "defaulting.webhook.karpenter.sh": Post "https://karpenter-webhook.karpenter.svc:443/default-resource?timeout=10s": context deadline exceeded`
-
-Verify that the karpenter pod is running (should see 2/2 containers with a "Ready" status)
-
-```text
-kubectl get po -A -l app.kubernetes.io/name=karpenter
-NAME                       READY   STATUS    RESTARTS   AGE
-karpenter-7b46fb5c-gcr9z   2/2     Running   0          17h
-```
-
-Karpenter service has endpoints assigned to it
-
-```text
-kubectl get ep -A -l app.kubernetes.io/name=karpenter
-NAMESPACE   NAME        ENDPOINTS                               AGE
-karpenter   karpenter   192.168.39.88:8443,192.168.39.88:8080   16d
-```
-
-Your security groups are not blocking you from reaching your webhook.
-
-This is especially relevant if you have used `terraform-eks-module` version `>=18` since that version changed its security
-approach, and now it's much more restrictive.
-
 ## Provisioning
 
 ### Instances with swap volumes fail to register with control plane
@@ -201,7 +154,7 @@ Some instance types (c1.medium and m1.small) are given limited amount of memory 
 ```
 
 ##### Solutions
-Disabling swap will allow kubelet to join the cluster successfully, however users should be mindful of performance, and consider adjusting the Provisioner requirements to use larger instance types.
+Disabling swap will allow kubelet to join the cluster successfully, however users should be mindful of performance, and consider adjusting the NodePool requirements to use larger instance types.
 
 ### DaemonSets can result in deployment failures
 
@@ -209,7 +162,7 @@ For Karpenter versions `0.5.3` and earlier, DaemonSets were not properly conside
 This sometimes caused nodes to be deployed that could not meet the needs of the requested DaemonSets and workloads.
 This issue no longer occurs after Karpenter version `0.5.3` (see [PR #1155](https://github.com/aws/karpenter/pull/1155)).
 
-If you are using a pre `0.5.3` version of Karpenter, one workaround is to set your provisioner to only use larger instance types that you know will be big enough for the DaemonSet and the workload.
+If you are using a pre `0.5.3` version of Karpenter, one workaround is to set your NodePool to only use larger instance types that you know will be big enough for the DaemonSet and the workload.
 For more information, see [Issue #1084](https://github.com/aws/karpenter/issues/1084).
 Examples of this behavior are included in [Issue #1180](https://github.com/aws/karpenter/issues/1180).
 
@@ -224,55 +177,24 @@ This behavior is not unique to Karpenter and can also occur with the standard `k
 To prevent this, you can set LimitRanges on pod deployments on a per-namespace basis.
 See the Karpenter [Best Practices Guide](https://aws.github.io/aws-eks-best-practices/karpenter/#use-limitranges-to-configure-defaults-for-resource-requests-and-limits) for further information on the use of LimitRanges.
 
-### Missing subnetSelector and securityGroupSelector tags causes provisioning failures
-
-Starting with Karpenter `0.5.5`, if you are using Karpenter-generated launch template, provisioners require that [subnetSelector]({{<ref "./concepts/nodeclasses/#subnetselector" >}}) and [securityGroupSelector]({{<ref "./concepts/nodeclasses/#securitygroupselector" >}}) tags be set to match your cluster.
-The [Provisioner]({{<ref "./getting-started/getting-started-with-karpenter/#provisioner" >}}) section in the Karpenter Getting Started Guide uses the following example:
-
-```text
-kind: AWSNodeTemplate
-spec:
-  subnetSelector:
-    karpenter.sh/discovery: ${CLUSTER_NAME}
-  securityGroupSelector:
-    karpenter.sh/discovery: ${CLUSTER_NAME}
-```
-
-To check your subnet and security group selectors, type the following:
-
-```bash
-aws ec2 describe-subnets --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
-```
-
-*Returns subnets matching the selector*
-
-```bash
-aws ec2 describe-security-groups --filters Name=tag:karpenter.sh/discovery,Values=${CLUSTER_NAME}
-```
-
-*Returns security groups matching the selector*
-
-Provisioners created without those tags and run in more recent Karpenter versions will fail with this message when you try to run the provisioner:
-
-```text
- field(s): spec.provider.securityGroupSelector, spec.provider.subnetSelector
-```
-
 ### Pods using Security Groups for Pods stuck in "ContainerCreating" state for up to 30 minutes before transitioning to "Running"
 
-When leveraging [Security Groups for Pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html), Karpenter will launch nodes as expected but pods will be stuck in "ContainerCreating" state for up to 30 minutes before transitioning to "Running". This is related to an interaction between Karpenter and the [amazon-vpc-resource-controller](https://github.com/aws/amazon-vpc-resource-controller-k8s) when a pod requests `vpc.amazonaws.com/pod-eni` resources.  More info can be found in [issue #1252](https://github.com/aws/karpenter/issues/1252).
+When leveraging [Security Groups for Pods](https://docs.aws.amazon.com/eks/latest/userguide/security-groups-for-pods.html), Karpenter will launch nodes as expected but pods will be stuck in "ContainerCreating" state for up to 30 minutes before transitioning to "Running".
+This is related to an interaction between Karpenter and the [amazon-vpc-resource-controller](https://github.com/aws/amazon-vpc-resource-controller-k8s) when a pod requests `vpc.amazonaws.com/pod-eni` resources.
+More info can be found in [issue #1252](https://github.com/aws/karpenter/issues/1252).
 
-To workaround this problem, add the `vpc.amazonaws.com/has-trunk-attached: "false"` label in your Karpenter Provisioner spec and ensure instance-type requirements include [instance-types which support ENI trunking](https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go).
+To workaround this problem, add the `vpc.amazonaws.com/has-trunk-attached: "false"` label in your Karpenter NodePool spec and ensure instance-type requirements include [instance-types which support ENI trunking](https://github.com/aws/amazon-vpc-resource-controller-k8s/blob/master/pkg/aws/vpc/limits.go).
 
 ```yaml
-apiVersion: karpenter.sh/v1alpha5
-kind: Provisioner
+apiVersion: karpenter.sh/v1
+kind: NodePool
 metadata:
   name: default
 spec:
-  labels:
-    vpc.amazonaws.com/has-trunk-attached: "false"
-  ttlSecondsAfterEmpty: 30
+  template
+    metadata:
+      labels:
+        vpc.amazonaws.com/has-trunk-attached: "false"
 ```
 
 ### Pods using PVCs can hit volume limits and fail to scale-up
@@ -329,7 +251,7 @@ time=2023-06-12T19:18:15Z type=Warning reason=FailedCreatePodSandBox from=kubele
 
 By default, the number of pods on a node is limited by both the number of networking interfaces (ENIs) that may be attached to an instance type and the number of IP addresses that can be assigned to each ENI.  See [IP addresses per network interface per instance type](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-eni.html#AvailableIpPerENI) for a more detailed information on these instance types' limits.
 
-If the max-pods (configured through your Provisioner [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
+If the max-pods (configured through your EC2NodeClass [`kubeletConfiguration`]({{<ref "./concepts/nodeclasses/#speckubelet" >}})) is greater than the number of supported IPs for a given instance type, the CNI will fail to assign an IP to the pod and your pod will be left in a `ContainerCreating` state.
 
 If you've enabled [Security Groups per Pod](https://aws.github.io/aws-eks-best-practices/networking/sgpp/), one of the instance's ENIs is reserved as the trunk interface and uses branch interfaces off of that trunk interface to assign different security groups.
 If you do not have any `SecurityGroupPolicies` configured for your pods, they will be unable to utilize branch interfaces attached to the trunk interface, and IPs will only be available from the non-trunk ENIs.
@@ -341,19 +263,19 @@ Note that Karpenter is not aware if [Security Groups per Pod](https://aws.github
 To avoid this discrepancy between `maxPods` and the supported pod density of the EC2 instance based on ENIs and allocatable IPs, you can perform one of the following actions on your cluster:
 
 1. Enable [Prefix Delegation](https://www.eksworkshop.com/docs/networking/prefix/) to increase the number of allocatable IPs for the ENIs on each instance type
-2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your Provisioner
-3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodepools#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
+2. Reduce your `maxPods` value to be under the maximum pod density for the instance types assigned to your NodePods
+3. Remove the `maxPods` value from your [`kubeletConfiguration`]({{<ref "./concepts/nodeclasses#speckubeletconfiguration" >}}) if you no longer need it and instead rely on the defaulted values from Karpenter and EKS AMIs.
 
-For more information on pod density, view the [Pod Density Section in the NodePools doc]({{<ref "./concepts/nodepools#pod-density" >}}).
+For more information on pod density, view the [Pod Density Section in the NodePools doc]({{<ref "./concepts/nodeclasses#pod-density" >}}).
 
 #### IP exhaustion in a subnet
 
-When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/nodeclasses#specsubnetselector" >}}) value in your [`AWSNodeTemplate`]({{<ref "./concepts/nodeclasses" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
+When a node is launched by Karpenter, it is assigned to a subnet within your VPC based on the [`subnetSelector`]({{<ref "./concepts/nodeclasses#specsubnetselector" >}}) value in your [`EC2NodeClass`]({{<ref "./concepts/nodeclasses" >}})). When a subnet becomes IP address constrained, EC2 may think that it can successfully launch an instance in the subnet; however, when the CNI tries to assign IPs to the pods, there are none remaining. In this case, your pod will stay in a `ContainerCreating` state until an IP address is freed in the subnet and the CNI can assign one to the pod.
 
 ##### Solutions
 
 1. Use `topologySpreadConstraints` on `topology.kubernetes.io/zone` to spread your pods and nodes more evenly across zones
-2. Increase the IP address space (CIDR) for the subnets selected by your `AWSNodeTemplate`
+2. Increase the IP address space (CIDR) for the subnets selected by your `EC2NodeClass`
 3. Use [custom networking](https://www.eksworkshop.com/docs/networking/custom-networking/) to assign separate IP address spaces to your pods and your nodes
 4. [Run your EKS cluster on IPv6](https://aws.github.io/aws-eks-best-practices/networking/ipv6/) (Note: IPv6 clusters have some known limitations which should be well-understood before choosing to use one)
 
@@ -479,7 +401,7 @@ Karpenter determines node initialization using three factors:
 
 1. Node readiness
 2. Expected resources are registered
-3. Provisioner startup taints are removed
+3. NodePool startup taints are removed
 
 #### Node Readiness
 
@@ -496,9 +418,9 @@ Common resources that don't register and leave nodes in a non-initialized state:
 1. `nvidia.com/gpu` (or any gpu-based resource): A GPU instance type that supports the `nvidia.com/gpu` resource is launched but the daemon/daemonset to register the resource on the node doesn't exist
 2. `vpc.amazonaws.com/pod-eni`: An instance type is launched by the `ENABLE_POD_ENI` value is set to `false` in the `vpc-cni` plugin. Karpenter will expect that the `vpc.amazonaws.com/pod-eni` will be registered, but it never will.
 
-#### Provisioner startup taints are removed
+#### NodePool startup taints are removed
 
-Karpenter expects all startup taints specified in `.spec.startupTaints` of the provisioner to be completely removed from node `.spec.taints` before it will consider the node initialized.
+Karpenter expects all startup taints specified in `.spec.template.spec.startupTaints` of the NodePool to be completely removed from node `.spec.taints` before it will consider the node initialized.
 
 ### Node NotReady
 
@@ -513,7 +435,7 @@ The easiest way to start debugging is to connect to the instance and get the Kub
 
 ```bash
 # List the nodes managed by Karpenter
-kubectl get node -l karpenter.sh/provisioner-name
+kubectl get node -l karpenter.sh/nodepool
 # Extract the instance ID (replace <node-name> with a node name from the above listing)
 INSTANCE_ID=$(kubectl get node <node-name> -ojson | jq -r ".spec.providerID" | cut -d \/ -f5)
 # Connect to the instance
@@ -526,7 +448,7 @@ For Bottlerocket, you'll need to get access to the root filesystem:
 
 ```bash
 # List the nodes managed by Karpenter
-kubectl get node -l karpenter.sh/provisioner-name
+kubectl get node -l karpenter.sh/nodepool
 # Extract the instance ID (replace <node-name> with a node name from the above listing)
 INSTANCE_ID=$(kubectl get node <node-name> -ojson | jq -r ".spec.providerID" | cut -d \/ -f5)
 # Connect to the instance
@@ -613,7 +535,7 @@ This means that your CNI plugin is out of date. You can find instructions on how
 ### Node terminates before ready on failed encrypted EBS volume
 
 If you are using a custom launch template and an encrypted EBS volume, the IAM principal launching the node may not have sufficient permissions to use the KMS customer managed key (CMK) for the EC2 EBS root volume.
-This issue also applies to [Block Device Mappings]({{<ref "./concepts/nodeclasses/#block-device-mappings" >}}) specified in the Provisioner.
+This issue also applies to [Block Device Mappings]({{<ref "./concepts/nodeclasses/#block-device-mappings" >}}) specified in the EC2NodeClass.
 In either case, this results in the node terminating almost immediately upon creation.
 
 Keep in mind that it is possible that EBS Encryption can be enabled without your knowledge.

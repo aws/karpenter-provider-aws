@@ -90,19 +90,20 @@ func main() {
 		if err != nil {
 			resourceLogger.Errorf("%v", err)
 		}
+		cleaned := []string{}
 		resourceLogger.With("ids", ids, "count", len(ids)).Infof("discovered resourceTypes")
 		if len(ids) > 0 {
-			cleaned, err := resourceTypes[i].Cleanup(ctx, ids)
+			cleaned, err = resourceTypes[i].Cleanup(ctx, ids)
 			if err != nil {
 				resourceLogger.Errorf("%v", err)
 			}
-			// Should only fire metrics if the resource have expired
-			if lo.FromPtr(clusterName) == "" {
-				if err = metricsClient.FireMetric(ctx, sweeperCleanedResourcesTableName, fmt.Sprintf("%sDeleted", resourceTypes[i].String()), float64(len(cleaned)), lo.Ternary(resourceTypes[i].Global(), "global", cfg.Region)); err != nil {
-					resourceLogger.Errorf("%v", err)
-				}
-			}
 			resourceLogger.With("ids", cleaned, "count", len(cleaned)).Infof("deleted resourceTypes")
+		}
+		// Should only fire metrics if the resource have expired
+		if lo.FromPtr(clusterName) == "" {
+			if err = metricsClient.FireMetric(ctx, sweeperCleanedResourcesTableName, fmt.Sprintf("%sDeleted", resourceTypes[i].String()), float64(len(cleaned)), lo.Ternary(resourceTypes[i].Global(), "global", cfg.Region)); err != nil {
+				resourceLogger.Errorf("%v", err)
+			}
 		}
 	}
 }
