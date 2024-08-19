@@ -32,12 +32,12 @@ The upgrade guide will first require upgrading to your latest patch version prio
 1. Set environment variables for your cluster to upgrade to the latest patch version of the current Karpenter version you're running on:
 
     ```bash
-    export KARPENTER_NAMESPACE=kube-system
-    export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
     export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
     export CLUSTER_NAME="${USER}-karpenter-demo"
     export AWS_REGION="us-west-2"
     export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+    export KARPENTER_NAMESPACE=kube-system
+    export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
     ```
 
 
@@ -106,7 +106,7 @@ The upgrade guide will first require upgrading to your latest patch version prio
    Notable Changes to the IAM Policy include additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
 
     ```bash
-    TEMPOUT=$(mktemp)
+    export TEMPOUT=$(mktemp)
     curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
         && aws cloudformation deploy \
         --stack-name "Karpenter-${CLUSTER_NAME}" \
@@ -271,12 +271,19 @@ Since both v1beta1 and v1 will be served, `kubectl` will default to returning th
 1. Set environment variables
 
 ```bash
-export KARPENTER_NAMESPACE="kube-system"
+export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
+export CLUSTER_NAME="${USER}-karpenter-demo"
+export AWS_REGION="us-west-2"
+export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+export KARPENTER_NAMESPACE=kube-system
+export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
+```
+
+2. Set Karpenter Version
+
+```bash
 # Note: v0.33.6 and v0.34.7 include the v prefix, omit it for versions v0.35+
 export KARPENTER_VERSION="<rollback version of karpenter>"
-export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
-export CLUSTER_NAME="<name of your cluster>"
-export TEMPOUT="$(mktemp)"
 ```
 
 {{% alert title="Warning" color="warning" %}}
@@ -289,10 +296,11 @@ echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${CLUSTER_NAME}" "${TEMPOU
 
 {{% /alert %}}
 
-2. Rollback the Karpenter Policy
+3. Rollback the Karpenter Policy
 
 **v0.33.6 and v0.34.7:**
 ```bash
+export TEMPOUT=$(mktemp)
 curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
     && aws cloudformation deploy \
     --stack-name "Karpenter-${CLUSTER_NAME}" \
@@ -303,6 +311,7 @@ curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPE
 
 **v0.35+:**
 ```bash
+export TEMPOUT=$(mktemp)
 curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
     && aws cloudformation deploy \
     --stack-name "Karpenter-${CLUSTER_NAME}" \
@@ -311,7 +320,7 @@ curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARP
     --parameter-overrides "ClusterName=${CLUSTER_NAME}"
 ```
 
-3. Rollback the CRDs
+4. Rollback the CRDs
 
 ```bash
 helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
@@ -321,7 +330,7 @@ helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-cr
   --set webhook.port=8443
 ```
 
-4. Rollback the Karpenter Controller
+5. Rollback the Karpenter Controller
 
 ```bash
 # Service account annotation can be dropped when using pod identity
