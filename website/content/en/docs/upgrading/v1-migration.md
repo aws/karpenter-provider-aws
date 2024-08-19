@@ -33,11 +33,11 @@ The upgrade guide will first require upgrading to your latest patch version prio
 
     ```bash
     export KARPENTER_NAMESPACE=kube-system
-    export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
     export AWS_PARTITION="aws" # if you are not using standard partitions, you may need to configure to aws-cn / aws-us-gov
-    export CLUSTER_NAME="${USER}-karpenter-demo"
-    export AWS_REGION="us-west-2"
     export AWS_ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+    export CLUSTER_NAME="navina-infra-dev"
+    export AWS_REGION="us-east-1"
+    export KARPENTER_IAM_ROLE_ARN="arn:${AWS_PARTITION}:iam::${AWS_ACCOUNT_ID}:role/${CLUSTER_NAME}-karpenter"
     ```
 
 
