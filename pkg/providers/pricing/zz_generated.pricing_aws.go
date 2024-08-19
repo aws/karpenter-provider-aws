@@ -16,7 +16,7 @@ limitations under the License.
 
 package pricing
 
-// generated at 2024-07-10T14:30:58Z for us-east-1
+// generated at 2024-08-16T05:23:42Z for us-east-1
 
 var InitialOnDemandPricesAWS = map[string]map[string]float64{
 	// us-east-1
@@ -130,6 +130,9 @@ var InitialOnDemandPricesAWS = map[string]map[string]float64{
 		// g6 family
 		"g6.12xlarge": 4.601600, "g6.16xlarge": 3.396800, "g6.24xlarge": 6.675200, "g6.2xlarge": 0.977600,
 		"g6.48xlarge": 13.350400, "g6.4xlarge": 1.323200, "g6.8xlarge": 2.014400, "g6.xlarge": 0.804800,
+		// g6e family
+		"g6e.12xlarge": 10.492640, "g6e.16xlarge": 7.577190, "g6e.24xlarge": 15.065590, "g6e.2xlarge": 2.242080,
+		"g6e.48xlarge": 30.131180, "g6e.4xlarge": 3.004240, "g6e.8xlarge": 4.528560, "g6e.xlarge": 1.861000,
 		// gr6 family
 		"gr6.4xlarge": 1.539200, "gr6.8xlarge": 2.446400,
 		// h1 family
