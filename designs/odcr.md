@@ -81,13 +81,17 @@ kind: EC2NodeClass
 metadata:
   name: example-node-class
 spec:
+  # capacityReservationSelectorTerms specify selectors which are ORed together to generate
+  # a list of filters against the EC2 DescribeCapacityReservation API
+  # ID cannot be specified with any other field within a single selector
+  # All other fields are not mutually exclusive and can be combined
   capacityReservationSelectorTerms:
     - # The id for the Capacity Reservation
       id: String | None
       # The instance type for the Capacity Reservation
       instanceType: String | None
       # The id of the AWS account that owns the Capacity Reservation
-      ownerId: String | None
+      ownerID: String | None
       # Tags is a map of key/value tags used to select capacity reservations
       # Specifying '*' for a value selects all values for a given tag key.
       tags: Map | None
@@ -135,7 +139,7 @@ status:
       # Instance Type for the Capacity Reservation
       instanceType: String
       # The id of the AWS account that owns the Capacity Reservation
-      ownerId: String
+      ownerID: String
       # Total Instance Count for the Capacity Reservation
       totalInstanceCount: Integer
 ```
