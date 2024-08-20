@@ -12,7 +12,7 @@ Karpenter automatically provisions new nodes in response to unschedulable pods. 
 This guide shows how to get started with Karpenter by creating a Kubernetes cluster and installing Karpenter.
 To use Karpenter, you must be running a supported Kubernetes cluster on a supported cloud provider.
 
-The guide below explains how to utilize the [Karpenter provider for AWS](https://github.com/aws/karpenter-provider-aws) with EKS. 
+The guide below explains how to utilize the [Karpenter provider for AWS](https://github.com/aws/karpenter-provider-aws) with EKS.
 
 See the [AKS Node autoprovisioning article](https://learn.microsoft.com/azure/aks/node-autoprovision) on how to use Karpenter on Azure's AKS or go to the [Karpenter provider for Azure open source repository](https://github.com/Azure/karpenter-provider-azure) for self-hosting on Azure and additional information.
 
@@ -61,7 +61,7 @@ If you open a new shell to run steps in this procedure, you need to set some or 
 To remind yourself of these values, type:
 
 ```bash
-echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${K8S_VERSION}" "${CLUSTER_NAME}" "${AWS_DEFAULT_REGION}" "${AWS_ACCOUNT_ID}" "${TEMPOUT}" "${ARM_AMI_ID}" "${AMD_AMI_ID}" "${GPU_AMI_ID}"
+echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${K8S_VERSION}" "${CLUSTER_NAME}" "${AWS_DEFAULT_REGION}" "${AWS_ACCOUNT_ID}" "${TEMPOUT}" "${ALIAS_VERSION}"
 ```
 
 {{% /alert %}}
@@ -148,15 +148,24 @@ Karpenter creates a mapping between CloudProvider machines and CustomResources i
 Because Karpenter takes this dependency, any user that has the ability to Create/Delete these tags on CloudProvider machines will have the ability to orchestrate Karpenter to Create/Delete CloudProvider machines as a side effect. We recommend that you [enforce tag-based IAM policies](https://docs.aws.amazon.com/IAM/latest/UserGuide/access_tags.html) on these tags against any EC2 instance resource (`i-*`) for any users that might have [CreateTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_CreateTags.html)/[DeleteTags](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DeleteTags.html) permissions but should not have [RunInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_RunInstances.html)/[TerminateInstances](https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_TerminateInstances.html) permissions.
 {{% /alert %}}
 
-### 5. Create NodePool
+### 5. Create NodePool and EC2NodeClass
 
-A single Karpenter NodePool is capable of handling many different pod shapes. Karpenter makes scheduling and provisioning decisions based on pod attributes such as labels and affinity. In other words, Karpenter eliminates the need to manage many different node groups.
+A single Karpenter NodePool is capable of handling many different pod shapes.
+Karpenter makes scheduling and provisioning decisions based on pod attributes such as labels and affinity.
+In other words, Karpenter eliminates the need to manage many different node groups.
 
-Create a default NodePool using the command below. This NodePool uses `securityGroupSelectorTerms` and `subnetSelectorTerms` to discover resources used to launch nodes. We applied the tag `karpenter.sh/discovery` in the `eksctl` command above. Depending on how these resources are shared between clusters, you may need to use different tagging schemes.
+This NodePool has `consolidationPolicy` set to `WhenEmptyOrUnderutilized` in the `disruption` block, configuring Karpenter to reduce cluster cost by removing and replacing nodes.
+This behavior can be disabled by setting `consolidateAfter` to `Never`, telling Karpenter that it should never consolidate nodes.
+Note that this NodePool will create capacity as long as the sum of all created capacity is less than the specified limit, in this case 1000 vCPUs.
+Review the [NodePool API docs]({{<ref "../../concepts/nodepools" >}}) for more information.
 
-The `consolidationPolicy` set to `WhenEmptyOrUnderutilized` in the `disruption` block configures Karpenter to reduce cluster cost by removing and replacing nodes. As a result, consolidation will terminate any empty nodes on the cluster. This behavior can be disabled by setting `consolidateAfter` to `Never`, telling Karpenter that it should never consolidate nodes. Review the [NodePool API docs]({{<ref "../../concepts/nodepools" >}}) for more information.
+Each NodePool has an associated NodeClass, specified via the NodePool's `nodeClassRef`.
+The EC2NodeClass is used to configure the instances launched by Karpenter, including subnets, security groups, instance roles, and AMIs.
+This NodeClass uses `securityGroupSelectorTerms` and `subnetSelectorTerms` to discover the resources created in the `eksctl` command above by selecting on the `karpenter.sh/discovery` flag.
+Depending on how these resources are shared between clusters, you may need to use different tagging schemes.
+Review the [NodeClass API docs]({{<ref "../../concepts/nodeclasses" >}}) for more information.
 
-Note: This NodePool will create capacity as long as the sum of all created capacity is less than the specified limit.
+Create the NodePool and EC2NodeClass with the following command:
 
 {{% script file="./content/en/{VERSION}/getting-started/getting-started-with-karpenter/scripts/step12-add-nodepool.sh" language="bash"%}}
 

@@ -22,8 +22,8 @@ You can also perform many of these steps in the console, but we will use the com
 Set a variable for your cluster name.
 
 ```bash
-KARPENTER_NAMESPACE=kube-system
-CLUSTER_NAME=<your cluster name>
+export KARPENTER_NAMESPACE=kube-system
+export CLUSTER_NAME=<your cluster name>
 ```
 
 Set other variables from your cluster configuration.
@@ -130,9 +130,9 @@ Now that our deployment is ready we can create the karpenter namespace, create t
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step09-deploy.sh" language="bash" %}}
 
-## Create default NodePool
+## Create default NodePool and EC2NodeClass
 
-We need to create a default NodePool so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree/v1.0.0/examples/v1beta1) for specific needs.
+We need to create a default NodePool and EC2NodeClass so Karpenter knows what types of nodes we want for unscheduled workloads. You can refer to some of the [example NodePool](https://github.com/aws/karpenter/tree/v1.0.0/examples/v1) for specific needs.
 
 {{% script file="./content/en/{VERSION}/getting-started/migrating-from-cas/scripts/step10-create-nodepool.sh" language="bash" %}}
 
