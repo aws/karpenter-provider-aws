@@ -731,6 +731,30 @@ alias: bottlerocket@v1.20.4
 ```
 The Windows family does not support pinning, so only `latest` is supported.
 
+The following commands can be used to determine the versions availble for an alias in your region:
+
+{{< tabpane text=true right=false >}}
+  {{% tab "AL2023" %}}
+  ```bash
+  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2023/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $10}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
+  ```
+  {{% /tab %}}
+  {{% tab "AL2" %}}
+  ```bash
+  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  aws ssm get-parameters-by-path --path "/aws/service/eks/optimized-ami/$K8S_VERSION/amazon-linux-2/" --recursive | jq -cr '.Parameters[].Name' | grep -v "recommended" | awk -F '/' '{print $8}' | sed -r 's/.*(v[[:digit:]]+)$/\1/' | sort | uniq
+  ```
+  {{% /tab %}}
+  {{% tab "Bottlerocket" %}}
+  ```bash
+  export K8S_VERSION="{{< param "latest_k8s_version" >}}"
+  aws ssm get-parameters-by-path --path "/aws/service/bottlerocket/aws-k8s-$K8S_VERSION" --recursive | jq -cr '.Parameters[].Name' | grep -v "latest" | awk -F '/' '{print $7}' | sort | uniq
+  ```
+  {{% /tab %}}
+{{< /tabpane >}}
+
+
 To select an AMI by name, use the `name` field in the selector term. To select an AMI by id, use the `id` field in the selector term. To select AMIs that are not owned by `amazon` or the account that Karpenter is running in, use the `owner` field - you can use a combination of account aliases (e.g. `self` `amazon`, `your-aws-account-name`) and account IDs.
 
 If owner is not set for `name`, it defaults to `self,amazon`, preventing Karpenter from inadvertently selecting an AMI that is owned by a different account. Tags don't require an owner as tags can only be discovered by the user who created them.
