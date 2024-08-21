@@ -45,12 +45,12 @@ compatibility:
   - appVersion: 0.35.x
     minK8sVersion: 1.23
     maxK8sVersion: 1.29
-  - appVersion: 0.36.0
+  - appVersion: 0.36.x
     minK8sVersion: 1.23
     maxK8sVersion: 1.29
-  - appVersion: 0.37.0
+  - appVersion: 0.37.x
     minK8sVersion: 1.23
     maxK8sVersion: 1.30
-  - appVersion: 1.0.0
+  - appVersion: 1.0.x
     minK8sVersion: 1.25
     maxK8sVersion: 1.30
