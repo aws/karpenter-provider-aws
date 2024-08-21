@@ -12,7 +12,7 @@ metadata:
       {{- toYaml . | nindent 4 }}
     {{- end }}
 spec:
-  ttlSecondsAfterFinished: 0
+  ttlSecondsAfterFinished: 60
   template:
     spec:
       serviceAccountName: {{ include "karpenter.serviceAccountName" . }}
