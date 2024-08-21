@@ -75,17 +75,6 @@ Karpenter image to use
 {{- end }}
 {{- end }}
 
-{{/*
-Karpenter post-install hook image to use
-*/}}
-{{- define "karpenter.postInstallHook.image" -}}
-{{- if .Values.postInstallHook.image.digest }}
-{{- printf "%s:%s@%s" .Values.postInstallHook.image.repository  (default (printf "v%s" .Chart.AppVersion) .Values.postInstallHook.image.tag) .Values.postInstallHook.image.digest }}
-{{- else }}
-{{- printf "%s:%s" .Values.postInstallHook.image.repository  (default (printf "v%s" .Chart.AppVersion) .Values.postInstallHook.image.tag) }}
-{{- end }}
-{{- end }}
-
 
 {{/* Get PodDisruptionBudget API Version */}}
 {{- define "karpenter.pdb.apiVersion" -}}
