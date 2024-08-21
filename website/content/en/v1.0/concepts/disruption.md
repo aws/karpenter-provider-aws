@@ -202,7 +202,7 @@ To enable interruption handling, configure the `--interruption-queue` CLI argume
 
 ### TerminationGracePeriod 
 
-This is the duration of time that a node can be draining before it's forcibly deleted. A node begins draining when it's deleted. Pods will be deleted preemptively based on its TerminationGracePeriodSeconds before this terminationGracePeriod ends to give as much time to cleanup as possible. Note that if your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod before it has its full terminationGracePeriod to cleanup. 
+You can set a NodePool's `terminationGracePeriod` through the `spec.template.spec.terminationGracePeriod` field. This field defines  the duration of time that a node can be draining before it's forcibly deleted. A node begins draining when it's deleted. Pods will be deleted preemptively based on its TerminationGracePeriodSeconds before this terminationGracePeriod ends to give as much time to cleanup as possible. Note that if your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod before it has its full terminationGracePeriod to cleanup. 
 
 This is especially useful in combination with `nodepool.spec.template.spec.expireAfter` to define an absolute maximum on the lifetime of a node, where a node is deleted at `expireAfter` and finishes draining within the `terminationGracePeriod` thereafter. Pods blocking eviction like PDBs and do-not-disrupt will block full draining until the `terminationGracePeriod` is reached. 
 
