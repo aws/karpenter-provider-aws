@@ -23,25 +23,29 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
 
-	coreoperator "sigs.k8s.io/karpenter/pkg/operator"
 	coreoptions "sigs.k8s.io/karpenter/pkg/operator/options"
 	coretest "sigs.k8s.io/karpenter/pkg/test"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
-	"github.com/aws/karpenter-provider-aws/pkg/operator"
+	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
 	"github.com/aws/karpenter-provider-aws/pkg/operator/options"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/instancetype"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/pricing"
+	"github.com/aws/karpenter-provider-aws/pkg/providers/subnet"
 	"github.com/aws/karpenter-provider-aws/pkg/test"
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
@@ -83,7 +87,6 @@ func main() {
 
 	lo.Must0(os.Setenv("SYSTEM_NAMESPACE", "karpenter"))
 	lo.Must0(os.Setenv("AWS_SDK_LOAD_CONFIG", "true"))
-	lo.Must0(os.Setenv("AWS_REGION", "us-east-1"))
 
 	ctx := coreoptions.ToContext(context.Background(), coretest.Options())
 	ctx = options.ToContext(ctx, test.Options(test.OptionsFields{
@@ -91,46 +94,6 @@ func main() {
 		ClusterEndpoint: lo.ToPtr("https://docs-gen.aws"),
 		IsolatedVPC:     lo.ToPtr(true), // disable pricing lookup
 	}))
-
-	ctx, op := operator.NewOperator(ctx, &coreoperator.Operator{
-		Manager:             &FakeManager{},
-		KubernetesInterface: kubernetes.NewForConfigOrDie(&rest.Config{}),
-	})
-	if err := op.InstanceTypesProvider.UpdateInstanceTypes(ctx); err != nil {
-		log.Fatalf("updating instance types, %s", err)
-	}
-	if err := op.InstanceTypesProvider.UpdateInstanceTypeOfferings(ctx); err != nil {
-		log.Fatalf("updating instance types offerings, %s", err)
-	}
-	// Fake a NodeClass so we can use it to get InstanceTypes
-	nodeClass := &v1.EC2NodeClass{
-		Spec: v1.EC2NodeClassSpec{
-			AMISelectorTerms: []v1.AMISelectorTerm{{
-				Alias: "al2023@latest",
-			}},
-			SubnetSelectorTerms: []v1.SubnetSelectorTerm{
-				{
-					Tags: map[string]string{
-						"*": "*",
-					},
-				},
-			},
-		},
-	}
-	subnets, err := op.SubnetProvider.List(ctx, nodeClass)
-	if err != nil {
-		log.Fatalf("listing subnets, %s", err)
-	}
-	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
-		return v1.Subnet{
-			ID:   *ec2subnet.SubnetId,
-			Zone: *ec2subnet.AvailabilityZone,
-		}
-	})
-	instanceTypes, err := op.InstanceTypesProvider.List(ctx, &v1.KubeletConfiguration{}, nodeClass)
-	if err != nil {
-		log.Fatalf("listing instance types, %s", err)
-	}
 
 	outputFileName := flag.Arg(0)
 	f, err := os.Create(outputFileName)
@@ -154,21 +117,80 @@ below are the resources available with some assumptions and after the instance o
 - `+"`blockDeviceMappings` are not configured"+`
 - `+"`amiFamily` is set to `AL2023`")
 
-	// generate a map of family -> instance types along with some other sorted lists.  The sorted lists ensure we
+	// generate a map of family -> map[instance type name]instance types along with some other sorted lists.  The sorted lists ensure we
 	// generate consistent docs every run.
-	families := map[string][]*cloudprovider.InstanceType{}
-	labelNameMap := sets.String{}
-	resourceNameMap := sets.String{}
-	for _, it := range instanceTypes {
-		familyName := strings.Split(it.Name, ".")[0]
-		families[familyName] = append(families[familyName], it)
-		for labelName := range it.Requirements {
-			labelNameMap.Insert(labelName)
+	families := map[string]map[string]*cloudprovider.InstanceType{}
+	labelNameMap := sets.New[string]()
+	resourceNameMap := sets.New[string]()
+
+	// Iterate through regions and take the union of instance types we discover across both
+	for _, region := range []string{"us-east-1", "us-west-2"} {
+		sess := session.Must(session.NewSession(&aws.Config{Region: lo.ToPtr(region)}))
+		ec2api := ec2.New(sess)
+		subnetProvider := subnet.NewDefaultProvider(ec2api, cache.New(awscache.DefaultTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AvailableIPAddressTTL, awscache.DefaultCleanupInterval), cache.New(awscache.AssociatePublicIPAddressTTL, awscache.DefaultCleanupInterval))
+		instanceTypeProvider := instancetype.NewDefaultProvider(
+			region,
+			cache.New(awscache.InstanceTypesAndZonesTTL, awscache.DefaultCleanupInterval),
+			ec2api,
+			subnetProvider,
+			awscache.NewUnavailableOfferings(),
+			pricing.NewDefaultProvider(
+				ctx,
+				pricing.NewAPI(sess, *sess.Config.Region),
+				ec2api,
+				*sess.Config.Region,
+			),
+		)
+		if err = instanceTypeProvider.UpdateInstanceTypes(ctx); err != nil {
+			log.Fatalf("updating instance types, %s", err)
 		}
-		for resourceName := range it.Capacity {
-			resourceNameMap.Insert(string(resourceName))
+		if err = instanceTypeProvider.UpdateInstanceTypeOfferings(ctx); err != nil {
+			log.Fatalf("updating instance types offerings, %s", err)
+		}
+		// Fake a NodeClass so we can use it to get InstanceTypes
+		nodeClass := &v1.EC2NodeClass{
+			Spec: v1.EC2NodeClassSpec{
+				AMISelectorTerms: []v1.AMISelectorTerm{{
+					Alias: "al2023@latest",
+				}},
+				SubnetSelectorTerms: []v1.SubnetSelectorTerm{
+					{
+						Tags: map[string]string{
+							"*": "*",
+						},
+					},
+				},
+			},
+		}
+		subnets, err := subnetProvider.List(ctx, nodeClass)
+		if err != nil {
+			log.Fatalf("listing subnets, %s", err)
+		}
+		nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
+			return v1.Subnet{
+				ID:   *ec2subnet.SubnetId,
+				Zone: *ec2subnet.AvailabilityZone,
+			}
+		})
+		instanceTypes, err := instanceTypeProvider.List(ctx, &v1.KubeletConfiguration{}, nodeClass)
+		if err != nil {
+			log.Fatalf("listing instance types, %s", err)
+		}
+		for _, it := range instanceTypes {
+			familyName := strings.Split(it.Name, ".")[0]
+			if _, ok := families[familyName]; !ok {
+				families[familyName] = map[string]*cloudprovider.InstanceType{}
+			}
+			families[familyName][it.Name] = it
+			for labelName := range it.Requirements {
+				labelNameMap.Insert(labelName)
+			}
+			for resourceName := range it.Capacity {
+				resourceNameMap.Insert(string(resourceName))
+			}
 		}
 	}
+
 	familyNames := lo.Keys(families)
 	sort.Strings(familyNames)
 
@@ -186,10 +208,11 @@ below are the resources available with some assumptions and after the instance o
 	for _, familyName := range familyNames {
 		fmt.Fprintf(f, "## %s Family\n", familyName)
 
+		instanceTypes := lo.MapToSlice(families[familyName], func(_ string, it *cloudprovider.InstanceType) *cloudprovider.InstanceType { return it })
 		// sort the instance types within the family, we sort by CPU and memory which should be a pretty good ordering
-		sort.Slice(families[familyName], func(a, b int) bool {
-			lhs := families[familyName][a]
-			rhs := families[familyName][b]
+		sort.Slice(instanceTypes, func(a, b int) bool {
+			lhs := instanceTypes[a]
+			rhs := instanceTypes[b]
 			lhsResources := lhs.Capacity
 			rhsResources := rhs.Capacity
 			if cpuCmp := resources.Cmp(*lhsResources.Cpu(), *rhsResources.Cpu()); cpuCmp != 0 {
@@ -201,7 +224,7 @@ below are the resources available with some assumptions and after the instance o
 			return lhs.Name < rhs.Name
 		})
 
-		for _, it := range families[familyName] {
+		for _, it := range instanceTypes {
 			fmt.Fprintf(f, "### `%s`\n", it.Name)
 			minusOverhead := resources.Subtract(it.Capacity, it.Overhead.Total())
 			fmt.Fprintln(f, "#### Labels")
