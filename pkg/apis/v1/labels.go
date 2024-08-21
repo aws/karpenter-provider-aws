@@ -131,6 +131,8 @@ var (
 	AnnotationUbuntuCompatibilityAMIFamily           = "amiFamily"
 	AnnotationUbuntuCompatibilityBlockDeviceMappings = "blockDeviceMappings"
 
+	AnnotationAliasVersionCompatibilityKey = apis.CompatibilityGroup + "/v1-alias-version"
+
 	TagNodeClaim             = coreapis.Group + "/nodeclaim"
 	TagManagedLaunchTemplate = apis.Group + "/cluster"
 	TagName                  = "Name"
