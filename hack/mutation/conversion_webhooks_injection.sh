@@ -18,7 +18,7 @@ echo "{{- if .Values.webhook.enabled }}
       clientConfig:
         service:
           name: {{ .Values.webhook.serviceName }}
-          namespace: {{ .Values.webhook.serviceNamespace }}
+          namespace: {{ .Release.Namespace }}
           port: {{ .Values.webhook.port }}
 {{- end }}
 " >>  charts/karpenter-crd/templates/karpenter.sh_nodepools.yaml
@@ -33,7 +33,7 @@ echo "{{- if .Values.webhook.enabled }}
       clientConfig:
         service:
           name: {{ .Values.webhook.serviceName }}
-          namespace: {{ .Values.webhook.serviceNamespace }}
+          namespace: {{ .Release.Namespace }}
           port: {{ .Values.webhook.port }}
 {{- end }}
 " >>  charts/karpenter-crd/templates/karpenter.sh_nodeclaims.yaml
@@ -48,7 +48,7 @@ echo "{{- if .Values.webhook.enabled }}
       clientConfig:
         service:
           name: {{ .Values.webhook.serviceName }}
-          namespace: {{ .Values.webhook.serviceNamespace }}
+          namespace: {{ .Release.Namespace }}
           port: {{ .Values.webhook.port }}
 {{- end }}
 " >>  charts/karpenter-crd/templates/karpenter.k8s.aws_ec2nodeclasses.yaml
