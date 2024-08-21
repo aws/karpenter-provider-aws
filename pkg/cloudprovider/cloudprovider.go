@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -103,7 +104,7 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
 	if nodeClassReady.IsFalse() {
-		return nil, cloudprovider.NewNodeClassNotReadyError(fmt.Errorf(nodeClassReady.Message))
+		return nil, cloudprovider.NewNodeClassNotReadyError(stderrors.New(nodeClassReady.Message))
 	}
 	if nodeClassReady.IsUnknown() {
 		return nil, fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message)
@@ -207,6 +208,10 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
 	return c.instanceProvider.Delete(ctx, id)
+}
+
+func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
+	return nil
 }
 
 func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim) (cloudprovider.DriftReason, error) {

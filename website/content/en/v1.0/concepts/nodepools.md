@@ -417,6 +417,16 @@ For more information on weighting NodePools, see the [Weighted NodePools section
 * The `status.conditions.reason` object indicates the reason for the condition's previous transition.
 * The `status.conditions.message` object provides human-readable details about the condition's previous transition.
 
+NodePools have the following status conditions:
+
+| Condition Type      | Description                                                                                                                                       |
+|---------------------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| NodeClassReady      | Underlying nodeClass is ready                                                                                                                     |
+| ValidationSucceeded | NodePool CRD validation succeeded                                                                                                                 |
+| Ready               | Top level condition that indicates if the nodePool is ready. This condition will not be true until all the other conditions on nodePool are true. |
+
+If a NodePool is not ready, it will not be considered for scheduling.
+
 ## status.resources
 Objects under `status.resources` provide information about the status of resources such as `cpu`, `memory`, and `ephemeral-storage`.
 
