@@ -145,6 +145,17 @@ postInstallHook:
     tag: "1.30"
     # -- SHA256 digest of the post-install hook image.
     digest: sha256:13a2ad1bd37ce42ee2a6f1ab0d30595f42eb7fe4a90d6ec848550524104a1ed6
+  # -- Resources for the post-install-hook pod.
+  resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  #  requests:
+  #    cpu: 25m
+  #    memory: 64Mi
+  #  limits:
+  #    memory: 128Mi
 webhook:
   # -- Whether to enable the webhooks and webhook permissions.
   enabled: true

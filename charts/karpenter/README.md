@@ -75,6 +75,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:1.0.0 \
 | postInstallHook.image.digest | string | `"sha256:13a2ad1bd37ce42ee2a6f1ab0d30595f42eb7fe4a90d6ec848550524104a1ed6"` | SHA256 digest of the post-install hook image. |
 | postInstallHook.image.repository | string | `"public.ecr.aws/bitnami/kubectl"` | Repository path to the post-install hook. This minimally needs to have `kubectl` installed |
 | postInstallHook.image.tag | string | `"1.30"` | Tag of the post-install hook image. |
+| postInstallHook.resources | object | `{}` | Resources for the post-install-hook pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
