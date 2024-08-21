@@ -42,7 +42,7 @@ spec:
                 kubectl patch customresourcedefinitions nodeclaims.karpenter.sh  --type='json' -p '[{'op': 'remove', 'path': '/spec/conversion'}]'
                 kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws  --type='json' -p '[{'op': 'remove', 'path': '/spec/conversion'}]'
               {{- end }}
-          {{- with .Values.controller.resources }}
+          {{- with .Values.postInstallHook.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
