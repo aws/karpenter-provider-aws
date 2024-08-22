@@ -2,5 +2,6 @@ webhook:
   # -- Whether to enable the webhooks.
   enabled: false
   serviceName: karpenter
+  serviceNamespace: ""
   # -- The container port to use for the webhook.
   port: 8443
