@@ -1271,7 +1271,7 @@ spec:
       clientConfig:
         service:
           name: {{ .Values.webhook.serviceName }}
-          namespace: {{ .Release.Namespace }}
+          namespace: {{ .Values.webhook.serviceNamespace | default .Release.Namespace }}
           port: {{ .Values.webhook.port }}
 {{- end }}
 
