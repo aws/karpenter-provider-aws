@@ -76,7 +76,9 @@ The upgrade guide will first require upgrading to your latest patch version prio
         --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
         --set webhook.port=8443
     ```
-
+{{% alert title="Note" color="warning" %}}
+If you receive a `label validation error` or `annotation validation error` consult the [troubleshooting guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for steps to resolve. 
+{{% /alert %}}
 
 7. Upgrade Karpenter to the latest patch version of your current minor version's. At the end of this step, conversion webhooks will run but will not convert any version.
 
@@ -124,6 +126,10 @@ The upgrade guide will first require upgrading to your latest patch version prio
         --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
         --set webhook.port=8443
     ```
+
+{{% alert title="Note" color="warning" %}}
+If you receive a `label validation error` or `annotation validation error` consult the [troubleshooting guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for steps to resolve. 
+{{% /alert %}}
 
 11. Upgrade Karpenter to the new version. At the end of this step, conversion webhooks run to convert the Karpenter CRDs to v1.
 
