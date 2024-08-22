@@ -840,7 +840,7 @@ spec:
       clientConfig:
         service:
           name: {{ .Values.webhook.serviceName }}
-          namespace: {{ .Values.webhook.serviceNamespace }}
+          namespace: {{ .Release.Namespace }}
           port: {{ .Values.webhook.port }}
 {{- end }}
 
