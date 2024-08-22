@@ -229,8 +229,10 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
    ```
 
 * **amiSelectorTerms and amiFamily**: For v1, `amiFamily` is no longer required if you instead specify an `alias` in `amiSelectorTerms` in your `EC2NodeClass`. You need to update your `amiSelectorTerms` and `amiFamily` if you are using:
-   * A Custom amiFamily. You must ensure that the node you add the `karpenter.sh/unregistered:NoExecute` taint in your UserData.
+   * A Custom amiFamily. 
    * An Ubuntu AMI, as described earlier.
+
+* **userData**: If you configure [`userData` block](https://karpenter.sh/preview/concepts/nodeclasses/#specuserdata), regardless of the amiFamily used, you must ensure to add the `karpenter.sh/unregistered:NoExecute` taint in your UserData.
 
 ### Before upgrading to `v1.1.0`
 
@@ -359,7 +361,7 @@ Karpenter should now be pulling and operating against the v1beta1 APIVersion as 
 * Behavior Changes:
   * Expiration is now forceful and begins draining as soon as it’s expired. Karpenter does not wait for replacement capacity to be available before draining, but will start provisioning a replacement as soon as the node is expired and begins draining.
   * Karpenter's generated NodeConfig now takes precedence when generating UserData with the AL2023 `amiFamily`. If you're setting any values managed by Karpenter in your AL2023 UserData, configure these through Karpenter natively (e.g. kubelet configuration fields).
-  * Karpenter now adds a `karpenter.sh/unregistered:NoExecute` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using `amiFamily: Custom`, users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
+  * Karpenter now adds a `karpenter.sh/unregistered:NoExecute` taint to nodes in injected UserData when using alias in AMISelectorTerms or non-Custom AMIFamily. When using the [`userData` block](https://karpenter.sh/preview/concepts/nodeclasses/#specuserdata) (with any amiFamily), users will need to add this taint into their UserData, where Karpenter will automatically remove it when provisioning nodes.
   * Discovered standard AL2023 AMIs will no longer be considered compatible with GPU / accelerator workloads. If you're using an AL2023 EC2NodeClass (without AMISelectorTerms) for these workloads, you will need to select your AMI via AMISelectorTerms (non-alias).
   * Karpenter now waits for underlying instances to be completely terminated before removing the associated nodes. This means it may take longer for nodes to be deleted and for nodeclaims to get cleaned up.
   * NodePools now have [status conditions]({{< relref "../concepts/nodepools/#statusconditions" >}}) that indicate if they are ready. If not, then they will not be considered during scheduling.
