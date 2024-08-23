@@ -1,4 +1,4 @@
-<!-- Please follow the guidelines at https://www.conventionalcommits.org/en/v1.0.0/ and use one of the following in your title:
+<!-- Please follow the guidelines at https://www.conventionalcommits.org/en/v1.0.1/ and use one of the following in your title:
 feat:            <-- New features that require a MINOR version update
 fix:             <-- Bug fixes that require at PATCH version update
 chore:           <-- Smaller changes that impact behavior but aren't large enough to be features
