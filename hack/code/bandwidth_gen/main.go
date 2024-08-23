@@ -146,7 +146,7 @@ func getAllInstanceTypes() []string {
 	if err := os.Setenv("AWS_REGION", "us-east-1"); err != nil {
 		log.Fatalf("setting AWS_REGION, %s", err)
 	}
-	cfg, err := config.LoadDefaultConfig(context.Background())
+	cfg := lo.Must(config.LoadDefaultConfig(context.Background()))
 	if err != nil {
 		panic(err)
 	}
