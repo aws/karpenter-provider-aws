@@ -399,7 +399,7 @@ AMIFamily does not impact which AMI is discovered, only the UserData generation 
 
 {{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
 
-Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.0`.
+Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.1`.
 This means Karpenter no longer supports automatic AMI discovery and UserData generation for Ubuntu.
 To continue using Ubuntu AMIs, you will need to select Ubuntu AMIs using `amiSelectorTerms`.
 
