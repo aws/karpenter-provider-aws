@@ -2,7 +2,7 @@
 
 A Helm chart for Karpenter, an open-source node provisioning project built for Kubernetes.
 
-![Version: 0.34.0](https://img.shields.io/badge/Version-0.34.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.34.0](https://img.shields.io/badge/AppVersion-0.34.0-informational?style=flat-square)
+![Version: 0.35.7](https://img.shields.io/badge/Version-0.35.7-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 0.35.7](https://img.shields.io/badge/AppVersion-0.35.7-informational?style=flat-square)
 
 ## Documentation
 
@@ -15,7 +15,7 @@ You can follow the detailed installation instruction in the [documentation](http
 ```bash
 helm upgrade --install --namespace karpenter --create-namespace \
   karpenter oci://public.ecr.aws/karpenter/karpenter \
-  --version 0.34.0 \
+  --version 0.35.7 \
   --set "serviceAccount.annotations.eks\.amazonaws\.com/role-arn=${KARPENTER_IAM_ROLE_ARN}" \
   --set settings.clusterName=${CLUSTER_NAME} \
   --set settings.interruptionQueue=${CLUSTER_NAME} \
@@ -34,9 +34,9 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | controller.envFrom | list | `[]` |  |
 | controller.extraVolumeMounts | list | `[]` | Additional volumeMounts for the controller pod. |
 | controller.healthProbe.port | int | `8081` | The container port to use for http health probe. |
-| controller.image.digest | string | `"sha256:1ec788c4358106d728a352426462014b7ee4734e9d5ec932d2f37a7b15f9be65"` | SHA256 digest of the controller image. |
+| controller.image.digest | string | `"sha256:1c4a1a1704639529ac525721cf0e9e8a48c73e15b28556cf02c4ee97f33492bd"` | SHA256 digest of the controller image. |
 | controller.image.repository | string | `"public.ecr.aws/karpenter/controller"` | Repository path to the controller image. |
-| controller.image.tag | string | `"v0.34.0"` | Tag of the controller image. |
+| controller.image.tag | string | `"0.35.7"` | Tag of the controller image. |
 | controller.metrics.port | int | `8000` | The container port to use for metrics. |
 | controller.resources | object | `{}` | Resources for the controller pod. |
 | controller.sidecarContainer | list | `[]` | Additional sidecarContainer config |
@@ -64,8 +64,7 @@ helm upgrade --install --namespace karpenter --create-namespace \
 | podDisruptionBudget.maxUnavailable | int | `1` |  |
 | podDisruptionBudget.name | string | `"karpenter"` |  |
 | podLabels | object | `{}` | Additional labels for the pod. |
-| podSecurityContext | object | `{"fsGroup":65532}` | SecurityContext for the pod. |
-| postInstallHook.image | string | `public.ecr.aws/bitnami/kubectl:1.30` | The image to run the post-install hook. This minimally needs to have `kubectl` installed |
+| podSecurityContext | object | `{"fsGroup":65536}` | SecurityContext for the pod. |
 | priorityClassName | string | `"system-cluster-critical"` | PriorityClass name for the pod. |
 | replicas | int | `2` | Number of replicas. |
 | revisionHistoryLimit | int | `10` | The number of old ReplicaSets to retain to allow rollback. |
