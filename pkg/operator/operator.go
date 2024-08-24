@@ -107,7 +107,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		}),
 		config.WithAPIOptions(
 			middleware.AddUserAgentKey("CustomUserAgent"),
-			prometheusv1.WithPrometheusMetrics(crmetrics.Registry),
+			prometheusv2.WithPrometheusMetrics(crmetrics.Registry),
 		),
 	)
 	if err != nil {
