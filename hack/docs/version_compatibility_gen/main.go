@@ -32,10 +32,10 @@ func main() {
 		os.Exit(0)
 	}
 
-	v := strings.TrimPrefix(os.Args[2], "v")
+	v := strings.TrimSuffix(strings.TrimPrefix(os.Args[2], "v"), ".0")
 	appendVersion := fmt.Sprintf(
 		`
-  - appVersion: %s
+  - appVersion: %s.x
     minK8sVersion: %s
     maxK8sVersion: %s`,
 		v,

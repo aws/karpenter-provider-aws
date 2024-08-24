@@ -9,15 +9,14 @@ description: >
 This migration guide is designed to help you migrate Karpenter from v1beta1 APIs to v1 (v0.33-v0.37).
 Use this document as a reference to the changes that were introduced in this release and as a guide to how you need to update the manifests and other Karpenter objects you created in previous Karpenter releases.
 
-Before you begin upgrading to `v1.0.0`, you should know that:
+Before you begin upgrading to `v1.0`, you should know that:
 
-* Every Karpenter upgrade from pre-v1.0.0 versions must upgrade to minor version `v1.0.0`.
-* You must be upgrading to `v1.0.0` from a version of Karpenter that only supports v1beta1 APIs, e.g. NodePools, NodeClaims, and NodeClasses (v0.33+).
-* Karpenter `v1.0.0`+ supports Karpenter v1 and v1beta1 APIs and will not work with earlier Provisioner, AWSNodeTemplate or Machine v1alpha1 APIs. Do not upgrade to `v1.0.0`+ without first [upgrading to `0.32.x`]({{<ref "upgrade-guide#upgrading-to-0320" >}}) or later and then upgrading to v0.33.
-* Version `v1.0.0` adds [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion) to automatically pull the v1 API version of previously applied v1beta1 NodePools, EC2NodeClasses, and NodeClaims. Karpenter will stop serving the v1beta1 API version at v1.1.0 and will drop the conversion webhooks at that time. You will need to migrate all stored manifests to v1 API versions on Karpenter v1.0+. Keep in mind that this is a conversion and not dual support, which means that resources are updated in-place rather than migrated over from the previous version.
+* Every Karpenter upgrade from pre-v1.0 versions must upgrade to minor version `v1.0`.
+* You must be upgrading to `v1.0` from a version of Karpenter that only supports v1beta1 APIs, e.g. NodePools, NodeClaims, and NodeClasses (v0.33+).
+* Karpenter `v1.0`+ supports Karpenter v1 and v1beta1 APIs and will not work with earlier Provisioner, AWSNodeTemplate or Machine v1alpha1 APIs. Do not upgrade to `v1.0`+ without first [upgrading to `0.32.x`]({{<ref "upgrade-guide#upgrading-to-0320" >}}) or later and then upgrading to v0.33.
+* Version `v1.0` adds [conversion webhooks](https://kubernetes.io/docs/tasks/extend-kubernetes/custom-resources/custom-resource-definition-versioning/#webhook-conversion) to automatically pull the v1 API version of previously applied v1beta1 NodePools, EC2NodeClasses, and NodeClaims. Karpenter will stop serving the v1beta1 API version at v1.1 and will drop the conversion webhooks at that time. You will need to migrate all stored manifests to v1 API versions on Karpenter v1.0+. Keep in mind that this is a conversion and not dual support, which means that resources are updated in-place rather than migrated over from the previous version.
 * If you need to rollback the upgrade to v1, you need to upgrade to a special patch version of the minor version you came from. For instance, if you came from v0.33.5, you'll need to downgrade back to v0.33.6. More details on how to do this in [Downgrading]({{<ref "#downgrading" >}}).
 * Validate that you are running at least Kubernetes 1.25. Use the [compatibility matrix]({{<ref "compatibility#compatibility-matrix">}}) to confirm you are on a supported Kubernetes version.
-* Karpenter runs a helm post-install-hook as part of upgrading to and from v1.0.0. If you're running Karpenter on a non x86_64 node, you'll need to update your `values.postInstallHook.image` values in your helm `values.yaml` file to point to a compatible image with kubectl. For instance, [an ARM compatible version](https://hub.docker.com/layers/bitnami/kubectl/1.30/images/sha256-d63c6609dd5c336fd036bd303fd4ce5f272e73ddd1923d32c12d62b7149067ed?context=explore).
 
 See the [Changelog]({{<ref "#changelog" >}}) for details about actions you should take before upgrading to v1.0 or v1.1.
 
@@ -26,7 +25,7 @@ See the [Changelog]({{<ref "#changelog" >}}) for details about actions you shoul
 Please read through the entire procedure before beginning the upgrade. There are major changes in this upgrade, so please evaluate the list of breaking changes before continuing.
 
 {{% alert title="Note" color="warning" %}}
-The upgrade guide will first require upgrading to your latest patch version prior to upgrade to v1.0.0. This will be to allow the conversion webhooks to operate and minimize downtime of the Karpenter controller when requesting the Karpenter custom resources.
+The upgrade guide will first require upgrading to your latest patch version prior to upgrade to v1.0. This will be to allow the conversion webhooks to operate and minimize downtime of the Karpenter controller when requesting the Karpenter custom resources.
 {{% /alert %}}
 
 1. Set environment variables for your cluster to upgrade to the latest patch version of the current Karpenter version you're running on:
@@ -53,32 +52,50 @@ The upgrade guide will first require upgrading to your latest patch version prio
 
    The Karpenter version you are running must be between minor version `v0.33` and `v0.37`. To be able to roll back from Karpenter v1, you must rollback to on the following patch release versions for your minor version, which will include the conversion webhooks for a smooth rollback:
 
-   * v0.37.1
-   * v0.36.3
-   * v0.35.6
-   * v0.34.7
-   * v0.33.6
+   * v0.37.2
+   * v0.36.4
+   * v0.35.7
+   * v0.34.8
+   * v0.33.7
 
 3. Review for breaking changes between v0.33 and v0.37: If you are already running Karpenter v0.37.x, you can skip this step. If you are running an earlier Karpenter version, you need to review the [Upgrade Guide]({{<ref "upgrade-guide#upgrading-to-0320" >}}) for each minor release.
 
-4. Set environment variables for upgrading to the latest patch version. Note that `v0.33.6` and `v0.34.7` both need to include the v prefix, whereas `v0.35+` should not.
+4. Set environment variables for upgrading to the latest patch version. Note that `v0.33` and `v0.34` both need to include the v prefix, whereas `v0.35+` should not.
 
-    ```bash
-    export KARPENTER_VERSION=<latest patch version of your current v1beta1 minor version>
-    ```
+  ```bash
+  export KARPENTER_VERSION=<latest patch version of your current v1beta1 minor version>
+  ```
 
-6. Apply the latest patch version of your current minor version's Custom Resource Definitions (CRDs):
+5. Apply the latest patch version of your current minor version's Custom Resource Definitions (CRDs):
 
    ```bash
    helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
         --set webhook.enabled=true \
-        --set webhook.serviceName=karpenter \
-        --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
+        --set webhook.serviceName="karpenter" \
         --set webhook.port=8443
     ```
+{{% alert title="Note" color="warning" %}}
+If you receive a `label validation error` or `annotation validation error` consult the [troubleshooting guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for steps to resolve. 
+{{% /alert %}}
 
+{{% alert title="Note" color="warning" %}}
 
-7. Upgrade Karpenter to the latest patch version of your current minor version's. At the end of this step, conversion webhooks will run but will not convert any version.
+As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows: 
+
+```bash 
+export SERVICE_NAME=<karpenter webhook service name>
+export SERVICE_NAMESPACE=<karpenter webhook service namespace>
+export SERVICE_PORT=<karpenter webhook service port>
+# NodePools
+kubectl patch customresourcedefinitions nodepools.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+# NodeClaims 
+kubectl patch customresourcedefinitions nodeclaims.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+# EC2NodeClass
+kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+```
+{{% /alert %}}
+
+6. Upgrade Karpenter to the latest patch version of your current minor version's. At the end of this step, conversion webhooks will run but will not convert any version.
 
     ```bash
     # Service account annotation can be dropped when using pod identity
@@ -95,14 +112,14 @@ The upgrade guide will first require upgrading to your latest patch version prio
       --wait
     ```
 
-8. Set environment variables for first upgrading to v1.0.0
+7. Set environment variables for first upgrading to v1.0.1
 
     ```bash
-    export KARPENTER_VERSION=1.0.0
+    export KARPENTER_VERSION=1.0.1
     ```
 
 
-9. Update your existing policy using the following to the v1.0.0 controller policy:
+8. Update your existing policy using the following to the v1.0.1 controller policy:
    Notable Changes to the IAM Policy include additional tag-scoping for the `eks:eks-cluster-name` tag for instances and instance profiles.
 
     ```bash
@@ -115,17 +132,37 @@ The upgrade guide will first require upgrading to your latest patch version prio
         --parameter-overrides "ClusterName=${CLUSTER_NAME}"
     ```
 
-10. Apply the v1.0.0 Custom Resource Definitions (CRDs):
+9. Apply the v1.0.1 Custom Resource Definitions (CRDs):
 
     ```bash
     helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
         --set webhook.enabled=true \
-        --set webhook.serviceName=karpenter \
-        --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
+        --set webhook.serviceName="karpenter" \
         --set webhook.port=8443
     ```
 
-11. Upgrade Karpenter to the new version. At the end of this step, conversion webhooks run to convert the Karpenter CRDs to v1.
+{{% alert title="Note" color="warning" %}}
+If you receive a `label validation error` or `annotation validation error` consult the [troubleshooting guide]({{<ref "../troubleshooting/#helm-error-when-installing-the-karpenter-crd-chart" >}}) for steps to resolve. 
+{{% /alert %}}
+
+{{% alert title="Note" color="warning" %}}
+
+As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows: 
+
+```bash 
+export SERVICE_NAME=<karpenter webhook service name>
+export SERVICE_NAMESPACE=<karpenter webhook service namespace>
+export SERVICE_PORT=<karpenter webhook service port>
+# NodePools
+kubectl patch customresourcedefinitions nodepools.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+# NodeClaims 
+kubectl patch customresourcedefinitions nodeclaims.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+# EC2NodeClass
+kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+```
+{{% /alert %}}
+
+10. Upgrade Karpenter to the new version. At the end of this step, conversion webhooks run to convert the Karpenter CRDs to v1.
 
     ```bash
     # Service account annotion can be dropped when using pod identity
@@ -144,9 +181,9 @@ The upgrade guide will first require upgrading to your latest patch version prio
    Karpenter has deprecated and moved a number of Helm values as part of the v1 release. Ensure that you upgrade to the newer version of these helm values during your migration to v1. You can find detail for all the settings that were moved in the [v1 Upgrade Reference]({{<ref "#helm-values" >}}).
    {{% /alert %}}
 
-12. Once upgraded, you won't need to roll your nodes to be compatible with v1.1.0, except if you have multiple NodePools with different `kubelet`s that are referencing the same EC2NodeClass. Karpenter has moved the `kubelet` to the EC2NodeClass in v1. NodePools with different `kubelet` referencing the same EC2NodeClass will be compatible with v1.0.0, but will not be in v1.1.0.
+11. Once upgraded, you won't need to roll your nodes to be compatible with v1.1, except if you have multiple NodePools with different `kubelet`s that are referencing the same EC2NodeClass. Karpenter has moved the `kubelet` to the EC2NodeClass in v1. NodePools with different `kubelet` referencing the same EC2NodeClass will be compatible with v1.0, but will not be in v1.1.
 
-When you have completed the migration to `1.0.0` CRDs, Karpenter will be able to serve both the `v1beta1` versions and the `v1` versions of NodePools, NodeClaims, and EC2NodeClasses.
+When you have completed the migration to `1.0` CRDs, Karpenter will be able to serve both the `v1beta1` versions and the `v1` versions of NodePools, NodeClaims, and EC2NodeClasses.
 The results of upgrading these CRDs include the following:
 
 * The storage version of these resources change to v1. After the upgrade, Karpenter starts converting these resources to v1 storage versions in real time.  Users should experience no differences from this change.
@@ -170,16 +207,16 @@ kubectl apply -f ec2nodeclass.yaml
 ## Changelog
 Refer to the [Full Changelog]({{<ref "#full-changelog" >}}) for more.
 
-Because Karpenter `v1.0.0` will run both `v1` and `v1beta1` versions of NodePools and EC2NodeClasses, you don't immediately have to upgrade the stored manifests that you have to v1.
+Because Karpenter `v1.0` will run both `v1` and `v1beta1` versions of NodePools and EC2NodeClasses, you don't immediately have to upgrade the stored manifests that you have to v1.
 However, in preparation for later Karpenter upgrades (which will not support `v1beta1`, review the following changes from v1beta1 to v1.
 
-Karpenter `v1.0.0` changes are divided into two different categories: those you must do before `1.0.0` upgrades and those you must do before `1.1.0` upgrades.
+Karpenter `v1.0` changes are divided into two different categories: those you must do before `1.0` upgrades and those you must do before `1.1` upgrades.
 
-### Changes required before upgrading to `v1.0.0`
+### Changes required before upgrading to `v1.0`
 
 Apply the following changes to your NodePools and EC2NodeClasses, as appropriate, before upgrading them to v1.
 
-* **Deprecated annotations, labels and tags are removed for v1.0.0**: For v1, `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict
+* **Deprecated annotations, labels and tags are removed for v1.0**: For v1, `karpenter.sh/do-not-consolidate` (annotation), `karpenter.sh/do-not-evict
 (annotation)`, and `karpenter.sh/managed-by` (tag) all have support removed.
 The `karpenter.sh/managed-by`, which currently stores the cluster name in its value, is replaced by `eks:eks-cluster-name`, to allow
 for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/userguide/pod-id-abac.html).
@@ -190,14 +227,14 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
 
 * **Ubuntu AMIFamily Removed**:
 
-   Support for automatic AMI selection and UserData generation for Ubuntu has been dropped with Karpenter `v1.0.0`.
+   Support for automatic AMI selection and UserData generation for Ubuntu has been dropped with Karpenter `v1.0`.
    To continue using Ubuntu AMIs you will need to specify an AMI using `amiSelectorTerms`.
 
    UserData generation can be achieved using the AL2 AMIFamily which has an identical UserData format.
    However, compatibility is not guaranteed long-term and changes to either AL2 or Ubuntu's UserData format may introduce incompatibilities.
    If this occurs, the Custom AMIFamily should be used for Ubuntu and UserData will need to be entirely maintained by the user.
 
-   If you are upgrading to `v1.0.0` and already have v1beta1 Ubuntu EC2NodeClasses, all you need to do is specify `amiSelectorTerms` and Karpenter will translate your NodeClasses to the v1 equivalent (as shown below).
+   If you are upgrading to `v1.0` and already have v1beta1 Ubuntu EC2NodeClasses, all you need to do is specify `amiSelectorTerms` and Karpenter will translate your NodeClasses to the v1 equivalent (as shown below).
    Failure to specify `amiSelectorTerms` will result in the EC2NodeClass and all referencing NodePools to show as NotReady, causing Karpenter to ignore these NodePools and EC2NodeClasses for Provisioning and Drift.
 
    ```yaml
@@ -232,14 +269,14 @@ for [EKS Pod Identity ABAC policies](https://docs.aws.amazon.com/eks/latest/user
    * A Custom amiFamily. You must ensure that the node you add the `karpenter.sh/unregistered:NoExecute` taint in your UserData.
    * An Ubuntu AMI, as described earlier.
 
-### Before upgrading to `v1.1.0`
+### Before upgrading to `v1.1`
 
-Apply the following changes to your NodePools and EC2NodeClasses, as appropriate, before upgrading them to `v1.1.0` (though okay to make these changes for `1.0.0`)
+Apply the following changes to your NodePools and EC2NodeClasses, as appropriate, before upgrading them to `v1.1` (though okay to make these changes for `1.0`)
 
-* **v1beta1 support gone**: In `v1.1.0`, v1beta1 is not supported. So you need to:
+* **v1beta1 support gone**: In `v1.1`, v1beta1 is not supported. So you need to:
    * Migrate all Karpenter yaml files [NodePools]({{<ref "../concepts/nodepools" >}}), [EC2NodeClasses]({{<ref "../concepts/nodeclasses" >}}) to v1.
    * Know that all resources in the cluster also need to be on v1. It's possible (although unlikely) that some resources still may be stored as v1beta1 in ETCD if no writes had been made to them since the v1 upgrade.  You could use a tool such as [kube-storage-version-migrator](https://github.com/kubernetes-sigs/kube-storage-version-migrator) to handle this.
-   * Know that you cannot rollback to v1beta1 once you have upgraded to `v1.1.0`.
+   * Know that you cannot rollback to v1beta1 once you have upgraded to `v1.1`.
 
 * **Kubelet Configuration**: If you have multiple NodePools pointing to the same EC2NodeClass that have different kubeletConfigurations,
 then you have to manually add more EC2NodeClasses and point their NodePools to them. This will induce drift and you will have to roll your cluster.
@@ -254,11 +291,11 @@ Keep in mind that rollback, without replacing the Karpenter nodes, will not be s
 
 Once the Karpenter CRDs are upgraded to v1, conversion webhooks are needed to help convert APIs that are stored in etcd from v1 to v1beta1. Also changes to the CRDs will need to at least include the latest version of the CRD in this case being v1. The patch versions of the v1beta1 Karpenter controller that include the conversion wehooks include:
 
-* v0.37.1
-* v0.36.3
-* v0.35.6
-* v0.34.7
-* v0.33.6
+* v0.37.2
+* v0.36.4
+* v0.35.7
+* v0.34.8
+* v0.33.7
 
 {{% alert title="Note" color="warning" %}}
 When rolling back from v1, Karpenter will not retain data that was only valid in v1 APIs. For instance, if you were upgrading from v0.33.5 to v1, updated the `NodePool.Spec.Disruption.Budgets` field and then rolled back to v0.33.6, Karpenter would not retain the `NodePool.Spec.Disruption.Budgets` field, as that was introduced in v0.34.x. If you are configuring the kubelet field, and have removed the `compatibility.karpenter.sh/v1beta1-kubelet-conversion` annotation, rollback is not supported without replacing your nodes between EC2NodeClass and NodePool.
@@ -298,7 +335,7 @@ echo "${KARPENTER_NAMESPACE}" "${KARPENTER_VERSION}" "${CLUSTER_NAME}" "${TEMPOU
 
 3. Rollback the Karpenter Policy
 
-**v0.33.6 and v0.34.7:**
+**v0.33 and v0.34:**
 ```bash
 export TEMPOUT=$(mktemp)
 curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/"${KARPENTER_VERSION}"/website/content/en/preview/getting-started/getting-started-with-karpenter/cloudformation.yaml > ${TEMPOUT} \
@@ -326,9 +363,25 @@ curl -fsSL https://raw.githubusercontent.com/aws/karpenter-provider-aws/v"${KARP
 helm upgrade --install karpenter-crd oci://public.ecr.aws/karpenter/karpenter-crd --version "${KARPENTER_VERSION}" --namespace "${KARPENTER_NAMESPACE}" --create-namespace \
   --set webhook.enabled=true \
   --set webhook.serviceName=karpenter \
-  --set webhook.serviceNamespace="${KARPENTER_NAMESPACE}" \
   --set webhook.port=8443
 ```
+
+{{% alert title="Note" color="warning" %}}
+
+As an alternative approach to updating the Karpenter CRDs conversion webhook configuration, you can patch the CRDs as follows: 
+
+```bash 
+export SERVICE_NAME=<karpenter webhook service name>
+export SERVICE_NAMESPACE=<karpenter webhook service namespace>
+export SERVICE_PORT=<karpenter webhook service port>
+# NodePools
+kubectl patch customresourcedefinitions nodepools.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+# NodeClaims 
+kubectl patch customresourcedefinitions nodeclaims.karpenter.sh -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+# EC2NodeClass
+kubectl patch customresourcedefinitions ec2nodeclasses.karpenter.k8s.aws -p "{\"spec\":{\"conversion\":{\"webhook\":{\"clientConfig\":{\"service\": {\"name\": \"${SERVICE_NAME}\", \"namespace\": \"${SERVICE_NAMESPACE}\", \"port\":${SERVICE_PORT}}}}}}}"
+```
+{{% /alert %}}
 
 5. Rollback the Karpenter Controller
 
