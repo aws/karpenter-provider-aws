@@ -7,7 +7,7 @@ linters:
     - asciicheck
     - bidichk
     - errorlint
-    - exportloopref
+    - copyloopvar
     - gosec
     - revive
     - stylecheck

@@ -117,7 +117,7 @@ cosign verify public.ecr.aws/karpenter/karpenter:0.37.0 \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v0.37.0 \
+  --certificate-github-workflow-ref=refs/tags/v0.37.2 \
   --annotations version=0.37.0
 ```
 

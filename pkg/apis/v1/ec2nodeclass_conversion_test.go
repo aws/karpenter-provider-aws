@@ -121,6 +121,12 @@ var _ = Describe("Convert v1 to v1beta1 EC2NodeClass API", func() {
 			Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
 			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyAL2023))
 		})
+		It("should convert v1 ec2nodeclass alias (pinned)", func() {
+			v1ec2nodeclass.Spec.AMISelectorTerms = []AMISelectorTerm{{Alias: "al2023@v20240807"}}
+			Expect(v1ec2nodeclass.ConvertTo(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(lo.FromPtr(v1beta1ec2nodeclass.Spec.AMIFamily)).To(Equal(v1beta1.AMIFamilyAL2023))
+			Expect(v1beta1ec2nodeclass.Annotations).To(HaveKeyWithValue(AnnotationAliasVersionCompatibilityKey, "v20240807"))
+		})
 		It("should convert v1 ec2nodeclass ami selector terms with the Ubuntu compatibility annotation", func() {
 			v1ec2nodeclass.Annotations = lo.Assign(v1ec2nodeclass.Annotations, map[string]string{
 				AnnotationUbuntuCompatibilityKey: fmt.Sprintf("%s,%s", AnnotationUbuntuCompatibilityAMIFamily, AnnotationUbuntuCompatibilityBlockDeviceMappings),
@@ -401,6 +407,14 @@ var _ = Describe("Convert v1beta1 to v1 EC2NodeClass API", func() {
 			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
 			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
 			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(ContainElement(AMISelectorTerm{Alias: "al2023@latest"}))
+		})
+		It("should convert v1beta1 ec2nodeclass ami family (alias version annotation)", func() {
+			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
+			v1beta1ec2nodeclass.Annotations = lo.Assign(v1beta1ec2nodeclass.Annotations, map[string]string{
+				AnnotationAliasVersionCompatibilityKey: "v20240807",
+			})
+			Expect(v1ec2nodeclass.ConvertFrom(ctx, v1beta1ec2nodeclass)).To(Succeed())
+			Expect(v1ec2nodeclass.Spec.AMISelectorTerms).To(ContainElement(AMISelectorTerm{Alias: "al2023@v20240807"}))
 		})
 		It("should convert v1beta1 ec2nodeclass ami family with non-custom ami family and ami selector terms", func() {
 			v1beta1ec2nodeclass.Spec.AMIFamily = &v1beta1.AMIFamilyAL2023
