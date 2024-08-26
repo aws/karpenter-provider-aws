@@ -271,7 +271,7 @@ spec:
           registryPullQPS: 10
 ```
 
-Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kublet` and `spec.userData`.
+Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
