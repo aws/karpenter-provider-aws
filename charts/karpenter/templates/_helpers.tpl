@@ -145,24 +145,12 @@ This works because Helm treats dictionaries as mutable objects and allows passin
 Flatten the stdout logging outputs from args provided
 */}}
 {{- define "karpenter.outputPathsList" -}}
-{{ $paths := list -}}
-{{- range .Values.logOutputPaths -}}
-    {{- if not (has (printf "%s" . | quote) $paths) -}}
-        {{- $paths = printf "%s" . | quote  | append $paths -}}
-    {{- end -}}
-{{- end -}}
-{{ $paths | join ", " }}
+{{ join "," .Values.logOutputPaths }}
 {{- end -}}
 
 {{/*
 Flatten the stderr logging outputs from args provided
 */}}
 {{- define "karpenter.errorOutputPathsList" -}}
-{{ $paths := list -}}
-{{- range .Values.logErrorOutputPaths -}}
-    {{- if not (has (printf "%s" . | quote) $paths) -}}
-        {{- $paths = printf "%s" . | quote  | append $paths -}}
-    {{- end -}}
-{{- end -}}
-{{ $paths | join ", " }}
+{{ join "," .Values.logErrorOutputPaths }}
 {{- end -}}
