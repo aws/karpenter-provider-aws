@@ -107,13 +107,11 @@ The EC2 fleet API attempts to provision the instance type based on the [Price Ca
 Karpenter currently calculates the applicable daemonsets at the NodePool level with label selectors/taints, etc. It does not look to see if there are requirements on the daemonsets that would exclude it from running on particular instances that the NodePool could or couldn't launch.
 The recommendation for now is to use multiple NodePools with taints/tolerations or label selectors to limit daemonsets to only nodes launched from specific NodePoools.
 
-### What if there is no Spot capacity? Will Karpenter use On-Demand?
+### What if there is no Spot capacity?
 
 The best defense against running out of Spot capacity is to allow Karpenter to provision as many distinct instance types as possible. Even instance types that have higher specs (e.g. vCPU, memory, etc.) than what you need can still be cheaper in the Spot market than using On-Demand instances. When Spot capacity is constrained, On-Demand capacity can also be constrained since Spot is fundamentally spare On-Demand capacity.
 
-Allowing Karpenter to provision nodes from a large, diverse set of instance types will help you to stay on Spot longer and lower your costs due to Spot’s discounted pricing. Moreover, if Spot capacity becomes constrained, this diversity will also increase the chances that you’ll be able to continue to launch On-Demand capacity for your workloads.
-
-If your Karpenter NodePool specifies allows both Spot and On-Demand capacity, Karpenter will fallback to provision On-Demand capacity if there is no Spot capacity available. However, it’s strongly recommended that you allow at least 20 instance types in your NodePool since this additional diversity increases the chances that your workloads will not need to launch On-Demand capacity at all.
+Allowing Karpenter to provision nodes from a large, diverse set of instance types will help you to stay on Spot longer and lower your costs due to Spot’s discounted pricing. Moreover, if Spot capacity becomes constrained, this instance type diversity will also increase the chances that you’ll be able to continue to launch On-Demand capacity for your workloads.
 
 Karpenter has a concept of an “offering” for each instance type, which is a combination of zone and capacity type. Whenever the Fleet API returns an insufficient capacity error for Spot instances, those particular offerings are temporarily removed from consideration (across the entire NodePool) so that Karpenter can make forward progress with different options.
 
