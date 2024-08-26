@@ -98,7 +98,7 @@ type Operator struct {
 }
 
 func NewOperator(ctx context.Context, operator *operator.Operator) (context.Context, *Operator) {
-	cfg, err := config.LoadDefaultConfig(ctx,
+	cfg := lo.Must(config.LoadDefaultConfig(ctx,
 		config.WithSTSRegionalEndpoint(endpoints.RegionalSTSEndpoint),
 		config.WithRetryer(func() aws.Retryer {
 			return retry.NewStandard(func(o *retry.StandardOptions) {
@@ -109,10 +109,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 			middleware.AddUserAgentKey("CustomUserAgent"),
 			prometheusv2.WithPrometheusMetrics(crmetrics.Registry),
 		),
-	)
-	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
-	}
+	))
 
 	// prometheusv1.WithPrometheusMetrics is used until the upstream aws-sdk-go or aws-sdk-go-v2 supports
 	// Prometheus metrics for client-side metrics out-of-the-box

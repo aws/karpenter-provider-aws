@@ -63,10 +63,8 @@ func main() {
 		log.Fatalf("setting AWS_REGION, %s", err)
 	}
 	ctx := context.Background()
-	cfg, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-        log.Fatalf("unable to load SDK config, %s", err)
-    }
+	cfg := lo.Must(config.LoadDefaultConfig(ctx))
+
 	ec2Client := ec2.NewFromConfig(cfg)
 	instanceTypes := strings.Split(instanceTypesStr, ",")
 

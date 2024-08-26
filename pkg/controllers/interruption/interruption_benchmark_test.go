@@ -176,7 +176,7 @@ type providerSet struct {
 }
 
 func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
-	cfg, err := config.LoadDefaultConfig(ctx,
+	cfg := lo.Must(config.LoadDefaultConfig(ctx,
 		config.WithRegion("us-west-2"),
 		config.WithSTSRegionalEndpoints(endpoints.RegionalSTSEndpoint),
 		config.WithRetryer(func() aws.Retryer {
@@ -184,10 +184,8 @@ func newProviders(ctx context.Context, kubeClient client.Client) providerSet {
 				o.MaxAttemps = aws.Int(awsclient.DefaultRetryerMaxNumRetries)
 			})
 		}),
-	)
-	if err != nil {
-		log.Fatalf("unable to load SDK config, %v", err)
-	}
+	))
+	
 	sqsAPI := sqs.NewFromConfig(cfg)
 
 	out, err := sqsAPI.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{
