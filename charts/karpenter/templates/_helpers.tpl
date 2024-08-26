@@ -140,17 +140,3 @@ This works because Helm treats dictionaries as mutable objects and allows passin
 {{- include "karpenter.patchLabelSelector" (merge (dict "_target" $constraint) $) }}
 {{- end }}
 {{- end }}
-
-{{/*
-Flatten the stdout logging outputs from args provided
-*/}}
-{{- define "karpenter.outputPathsList" -}}
-{{ join "," .Values.logOutputPaths }}
-{{- end -}}
-
-{{/*
-Flatten the stderr logging outputs from args provided
-*/}}
-{{- define "karpenter.errorOutputPathsList" -}}
-{{ join "," .Values.logErrorOutputPaths }}
-{{- end -}}
