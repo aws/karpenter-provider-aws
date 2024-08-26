@@ -117,10 +117,7 @@ func main() {
 			},
 		},
 	}
-	subnets, err := op.SubnetProvider.List(ctx, nodeClass)
-	if err != nil {
-		log.Fatalf("listing subnets, %s", err)
-	}
+	subnets := lo.Must(op.SubnetProvider.List(ctx, nodeClass))
 	nodeClass.Status.Subnets = lo.Map(subnets, func(ec2subnet *ec2.Subnet, _ int) v1.Subnet {
 		return v1.Subnet{
 			ID:   *ec2subnet.SubnetId,

@@ -87,7 +87,7 @@ type ZoneInfo struct {
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
 
-	cfg, err := config.LoadDefaultConfig(context.TODO(),
+	cfg := lo.Must(config.LoadDefaultConfig(context.TODO(),
 		config.WithRegion(os.Getenv("AWS_REGION")),
 		config.WithSTSRegionalEndpoint(endpoints.RegionalSTSEndpoint),
 		config.WithRetryer(func() aws.Retryer {
@@ -95,10 +95,7 @@ func NewEnvironment(t *testing.T) *Environment {
 				o.MaxAttempts = 10
 			})
 		}),
-	)
-	if err != nil {
-		t.Fatalf("failed to load AWS config, %v", err)
-	}
+	))
 
 	awsEnv := &Environment{
 		Region:      cfg.Region,

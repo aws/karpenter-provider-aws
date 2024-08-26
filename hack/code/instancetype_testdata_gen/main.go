@@ -63,7 +63,7 @@ func main() {
 		log.Fatalf("setting AWS_REGION, %s", err)
 	}
 	ctx := context.Background()
-	cfg := lo.Must(config.LoadDefaultConfig(ctx))
+	cfg := lo.Must(config.LoadDefaultConfig(ctx)
 
 	ec2Client := ec2.NewFromConfig(cfg)
 	instanceTypes := strings.Split(instanceTypesStr, ",")
