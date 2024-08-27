@@ -15,8 +15,6 @@ limitations under the License.
 package utils
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"regexp"
@@ -25,14 +23,7 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/mitchellh/hashstructure/v2"
 	"github.com/samber/lo"
-	"k8s.io/apimachinery/pkg/types"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
-
-	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 )
 
 var (
@@ -90,70 +81,4 @@ func WithDefaultFloat64(key string, def float64) float64 {
 		return def
 	}
 	return f
-}
-
-// GetKubletConfigurationWithNodePool use the most recent version of the kubelet configuration.
-// The priority of fields is listed below:
-// 1.) v1 NodePool kubelet annotation (Showing a user configured using v1beta1 NodePool at some point)
-// 2.) v1 EC2NodeClass will be used (showing a user configured using v1 EC2NodeClass)
-func GetKubletConfigurationWithNodePool(nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (*v1.KubeletConfiguration, error) {
-	if nodePool != nil {
-		if annotation, ok := nodePool.Annotations[karpv1.KubeletCompatibilityAnnotationKey]; ok {
-			return parseKubeletConfiguration(annotation)
-		}
-	}
-	return nodeClass.Spec.Kubelet, nil
-}
-
-func GetKubeletConfigurationWithNodeClaim(nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) (*v1.KubeletConfiguration, error) {
-	if annotation, ok := nodeClaim.Annotations[karpv1.KubeletCompatibilityAnnotationKey]; ok {
-		return parseKubeletConfiguration(annotation)
-	}
-	return nodeClass.Spec.Kubelet, nil
-}
-
-func parseKubeletConfiguration(annotation string) (*v1.KubeletConfiguration, error) {
-	kubelet := &karpv1beta1.KubeletConfiguration{}
-	err := json.Unmarshal([]byte(annotation), kubelet)
-	if err != nil {
-		return nil, fmt.Errorf("parsing kubelet config from %s annotation, %w", karpv1.KubeletCompatibilityAnnotationKey, err)
-	}
-	return &v1.KubeletConfiguration{
-		ClusterDNS:                  kubelet.ClusterDNS,
-		MaxPods:                     kubelet.MaxPods,
-		PodsPerCore:                 kubelet.PodsPerCore,
-		SystemReserved:              kubelet.SystemReserved,
-		KubeReserved:                kubelet.KubeReserved,
-		EvictionSoft:                kubelet.EvictionSoft,
-		EvictionHard:                kubelet.EvictionHard,
-		EvictionSoftGracePeriod:     kubelet.EvictionSoftGracePeriod,
-		EvictionMaxPodGracePeriod:   kubelet.EvictionMaxPodGracePeriod,
-		ImageGCHighThresholdPercent: kubelet.ImageGCHighThresholdPercent,
-		ImageGCLowThresholdPercent:  kubelet.ImageGCLowThresholdPercent,
-		CPUCFSQuota:                 kubelet.CPUCFSQuota,
-	}, nil
-}
-
-func GetHashKubelet(nodePool *karpv1.NodePool, nodeClass *v1.EC2NodeClass) (string, error) {
-	kubelet, err := GetKubletConfigurationWithNodePool(nodePool, nodeClass)
-	if err != nil {
-		return "", err
-	}
-	return fmt.Sprint(lo.Must(hashstructure.Hash(kubelet, hashstructure.FormatV2, &hashstructure.HashOptions{
-		SlicesAsSets:    true,
-		IgnoreZeroValue: true,
-		ZeroNil:         true,
-	}))), nil
-}
-
-func ResolveNodePoolFromNodeClaim(ctx context.Context, kubeClient client.Client, nodeClaim *karpv1.NodeClaim) (*karpv1.NodePool, error) {
-	if nodePoolName, ok := nodeClaim.Labels[karpv1.NodePoolLabelKey]; ok {
-		nodePool := &karpv1.NodePool{}
-		if err := kubeClient.Get(ctx, types.NamespacedName{Name: nodePoolName}, nodePool); err != nil {
-			return nil, err
-		}
-		return nodePool, nil
-	}
-	// There will be no nodePool referenced inside the nodeClaim in case of standalone nodeClaims
-	return nil, nil
 }
