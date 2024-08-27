@@ -88,6 +88,14 @@ spec:
             - name: LOG_LEVEL
               value: "{{ . }}"
           {{- end }}
+          {{- with .Values.logOutputPaths }}
+            - name: LOG_OUTPUT_PATHS
+              value: "{{ join "," . }}"
+          {{- end }}
+          {{- with .Values.logErrorOutputPaths }}
+            - name: LOG_ERROR_OUTPUT_PATHS
+              value: "{{ join "," . }}"
+          {{- end }}
             - name: METRICS_PORT
               value: "{{ .Values.controller.metrics.port }}"
             - name: HEALTH_PROBE_PORT

@@ -19,7 +19,7 @@ spec:
   template:
     spec:
       nodeClassRef:
-        apiVersion: karpenter.k8s.aws/v1
+        group: karpenter.k8s.aws
         kind: EC2NodeClass
         name: default
 ---
@@ -271,7 +271,7 @@ spec:
           registryPullQPS: 10
 ```
 
-Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kublet` and `spec.userData`.
+Note that when using the `Custom` AMIFamily you will need to specify fields **both** in `spec.kubelet` and `spec.userData`.
 {{% /alert %}}
 
 {{% alert title="Warning" color="warning" %}}
@@ -280,7 +280,6 @@ The Bottlerocket AMIFamily does not support the following fields:
 * `evictionSoft`
 * `evictionSoftGracePeriod`
 * `evictionMaxPodGracePeriod`
-* `cpuCFSQuota`
 
 If any of these fields are specified on a Bottlerocket EC2NodeClass, they will be ommited from generated UserData and ignored for scheduling purposes.
 Support for these fields can be tracked via GitHub issue [#3722](https://github.com/aws/karpenter-provider-aws/issues/3722).
@@ -400,7 +399,7 @@ AMIFamily does not impact which AMI is discovered, only the UserData generation 
 
 {{% alert title="Ubuntu Support Dropped at v1" color="warning" %}}
 
-Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.0`.
+Support for the Ubuntu AMIFamily has been dropped at Karpenter `v1.0.1`.
 This means Karpenter no longer supports automatic AMI discovery and UserData generation for Ubuntu.
 To continue using Ubuntu AMIs, you will need to select Ubuntu AMIs using `amiSelectorTerms`.
 
@@ -1525,28 +1524,14 @@ status:
 
 [`status.conditions`]({{< ref "#statusconditions" >}}) indicates EC2NodeClass readiness. This will be `Ready` when Karpenter successfully discovers AMIs, Instance Profile, Subnets, Cluster CIDR (AL2023 only) and SecurityGroups for the EC2NodeClass.
 
-```yaml
-spec:
-  role: "KarpenterNodeRole-${CLUSTER_NAME}"
-status:
-  conditions:
-    Last Transition Time:  2024-05-06T06:04:45Z
-    Message:               Ready
-    Reason:                Ready
-    Status:                True
-    Type:                  Ready
-```
+NodeClasses have the following status conditions:
 
-If any of the underlying conditions are not resolved then `Status` is `False` and `Message` indicates the dependency that was not resolved.
+| Condition Type       | Description                                                                                                                                                                                                                       |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| SubnetsReady         | Subnets are discovered.                                                                                                                                                                                                           |
+| SecurityGroupsReady  | Security Groups are discovered.                                                                                                                                                                                                   |
+| InstanceProfileReady | Instance Profile is discovered.                                                                                                                                                                                                   |
+| AMIsReady            | AMIs are discovered                                                                                                                                                                                                               |
+| Ready                | Top level condition that indicates if the nodeClass is ready. If any of the underlying conditions is `False` then this condition is set to `False` and `Message` on the condition indicates the dependency that was not resolved. |
 
-```yaml
-spec:
-  role: "KarpenterNodeRole-${CLUSTER_NAME}"
-status:
-  conditions:
-    Last Transition Time:  2024-05-06T06:19:46Z
-    Message:               unable to resolve instance profile for node class
-    Reason:                NodeClassNotReady
-    Status:                False
-    Type:                  Ready
-```
+If a NodeClass is not ready, NodePools that reference it through their `nodeClassRef` will not be considered for scheduling.

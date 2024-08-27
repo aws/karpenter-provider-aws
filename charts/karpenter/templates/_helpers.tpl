@@ -75,17 +75,6 @@ Karpenter image to use
 {{- end }}
 {{- end }}
 
-{{/*
-Karpenter post-install hook image to use
-*/}}
-{{- define "karpenter.postInstallHook.image" -}}
-{{- if .Values.postInstallHook.image.digest }}
-{{- printf "%s:%s@%s" .Values.postInstallHook.image.repository  (default (printf "v%s" .Chart.AppVersion) .Values.postInstallHook.image.tag) .Values.postInstallHook.image.digest }}
-{{- else }}
-{{- printf "%s:%s" .Values.postInstallHook.image.repository  (default (printf "v%s" .Chart.AppVersion) .Values.postInstallHook.image.tag) }}
-{{- end }}
-{{- end }}
-
 
 {{/* Get PodDisruptionBudget API Version */}}
 {{- define "karpenter.pdb.apiVersion" -}}
@@ -151,29 +140,3 @@ This works because Helm treats dictionaries as mutable objects and allows passin
 {{- include "karpenter.patchLabelSelector" (merge (dict "_target" $constraint) $) }}
 {{- end }}
 {{- end }}
-
-{{/*
-Flatten the stdout logging outputs from args provided
-*/}}
-{{- define "karpenter.outputPathsList" -}}
-{{ $paths := list -}}
-{{- range .Values.logOutputPaths -}}
-    {{- if not (has (printf "%s" . | quote) $paths) -}}
-        {{- $paths = printf "%s" . | quote  | append $paths -}}
-    {{- end -}}
-{{- end -}}
-{{ $paths | join ", " }}
-{{- end -}}
-
-{{/*
-Flatten the stderr logging outputs from args provided
-*/}}
-{{- define "karpenter.errorOutputPathsList" -}}
-{{ $paths := list -}}
-{{- range .Values.logErrorOutputPaths -}}
-    {{- if not (has (printf "%s" . | quote) $paths) -}}
-        {{- $paths = printf "%s" . | quote  | append $paths -}}
-    {{- end -}}
-{{- end -}}
-{{ $paths | join ", " }}
-{{- end -}}

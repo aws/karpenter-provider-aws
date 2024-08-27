@@ -44,11 +44,7 @@ rules:
   {{- if .Values.webhook.enabled }}
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
-    verbs: ["get", "watch", "list"]
-  {{- else }}
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["get"]
+    verbs: ["watch", "list"]
   {{- end }}
   - apiGroups: ["policy"]
     resources: ["poddisruptionbudgets"]
@@ -75,11 +71,7 @@ rules:
   {{- if .Values.webhook.enabled }}
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
-    verbs: ["update", "patch"]
-  {{- else }}
-  - apiGroups: ["apiextensions.k8s.io"]
-    resources: ["customresourcedefinitions"]
-    verbs: ["patch"]
+    verbs: ["update"]
   {{- end }}
   {{- with .Values.additionalClusterRoleRules -}}
   {{ toYaml . | nindent 2 }}
