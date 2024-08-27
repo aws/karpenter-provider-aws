@@ -125,9 +125,6 @@ var (
 	AnnotationEC2NodeClassHashVersion         = apis.Group + "/ec2nodeclass-hash-version"
 	AnnotationInstanceTagged                  = apis.Group + "/tagged"
 
-	AnnotationUbuntuCompatibilityKey          = apis.CompatibilityGroup + "/v1beta1-ubuntu"
-	AnnotationUbuntuCompatibilityIncompatible = "incompatible"
-
 	TagNodeClaim             = coreapis.Group + "/nodeclaim"
 	TagManagedLaunchTemplate = apis.Group + "/cluster"
 	TagName                  = "Name"

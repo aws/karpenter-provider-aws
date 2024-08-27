@@ -47,7 +47,6 @@ import (
 	crmetrics "sigs.k8s.io/controller-runtime/pkg/metrics"
 
 	karpv1 "sigs.k8s.io/karpenter/pkg/apis/v1"
-	karpv1beta1 "sigs.k8s.io/karpenter/pkg/apis/v1beta1"
 	"sigs.k8s.io/karpenter/pkg/operator"
 
 	awscache "github.com/aws/karpenter-provider-aws/pkg/cache"
@@ -65,7 +64,6 @@ import (
 )
 
 func init() {
-	karpv1beta1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 
