@@ -1067,17 +1067,3 @@ spec:
       storage: false
       subresources:
         status: {}
-{{- if .Values.webhook.enabled }} 
-  conversion:
-    strategy: Webhook
-    webhook:
-      conversionReviewVersions:
-        - v1beta1
-        - v1
-      clientConfig:
-        service:
-          name: {{ .Values.webhook.serviceName }}
-          namespace: {{ .Values.webhook.serviceNamespace | default .Release.Namespace }}
-          port: {{ .Values.webhook.port }}
-{{- end }}
-

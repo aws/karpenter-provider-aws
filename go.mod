@@ -32,7 +32,7 @@ require (
 	k8s.io/utils v0.0.0-20240102154912-e7106e64919e
 	knative.dev/pkg v0.0.0-20231010144348-ca8c009405dd
 	sigs.k8s.io/controller-runtime v0.18.5
-	sigs.k8s.io/karpenter v1.0.1-0.20240821214627-9469d1919054
+	sigs.k8s.io/karpenter v1.0.1-0.20240827185856-dccd9c8fcd88
 	sigs.k8s.io/yaml v1.4.0
 )
 
@@ -42,7 +42,6 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1 // indirect
 	github.com/andybalholm/cascadia v1.3.2 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
-	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/blendle/zapdriver v1.3.1 // indirect
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
@@ -91,7 +90,6 @@ require (
 	github.com/spf13/cobra v1.8.0 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.uber.org/automaxprocs v1.5.3 // indirect
 	golang.org/x/net v0.28.0 // indirect
 	golang.org/x/oauth2 v0.21.0 // indirect
 	golang.org/x/sys v0.23.0 // indirect
