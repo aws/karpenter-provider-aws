@@ -44,13 +44,9 @@ type Provider interface {
 	UpdateInflightIPs(*ec2.CreateFleetInput, *ec2.CreateFleetOutput, []*cloudprovider.InstanceType, []*Subnet, string)
 }
 
-type EC2API interface {
-	describeSubnets(ctx context.Context, params *ec2.DescribeSubnetsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeSubnetsOutput, error)
-}
-
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api                        EC2API
+	awsClient                     awsAPI.AWSAPI
 	cache                         *cache.Cache
 	availableIPAddressCache       *cache.Cache
 	associatePublicIPAddressCache *cache.Cache
@@ -65,9 +61,9 @@ type Subnet struct {
 	AvailableIPAddressCount int64
 }
 
-func NewDefaultProvider(ec2api EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(awsClient awsapi.AWSAPI, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api: ec2api,
+		awsClient: awsClient,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache when we utilize the resolved subnets from the EC2NodeClass.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
@@ -99,7 +95,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Ensure that all the subnets that are returned here are unique
 	subnets := map[string]*ec2.Subnet{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+		output, err := p.awsClient.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 		if err != nil {
 			return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 		}
