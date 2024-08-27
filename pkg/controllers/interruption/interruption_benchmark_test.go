@@ -162,13 +162,6 @@ func benchmarkNotificationController(b *testing.B, messageCount int) {
 	b.ReportMetric(float64(messageCount)/duration.Seconds(), "Messages/Second")
 }
 
-type SQSAPI interface {
-	GetQueueUrl(ctx context.Context, params *servicesqs.GetQueueUrlInput, optFns ...func(*servicesqs.Options)) (*sqs.GetQueueUrlOutput, error)
-	ReceiveMessage(ctx context.Context, params *servicesqs.ReceiveMessageInput, optFns ...func(*servicesqs.Options)) (*sqs.ReceiveMessageOutput, error)
-	CreateQueue(ctx context.Context, params *servicesqs.CreateQueueInput, optFns ...func(*servicesqs.Options)) (*sqs.CreateQueueOutput, error)
-	DeleteQueue(ctx context.Context, params *servicesqs.DeleteQueueInput, optFns ...func(*servicesqs.Options)) (*sqs.DeleteQueueOutput, error)
-}
-
 type providerSet struct {
 	kubeClient  client.Client
 	sqsAPI      SQSAPI

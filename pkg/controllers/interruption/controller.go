@@ -22,7 +22,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"sigs.k8s.io/karpenter/pkg/metrics"
 
-	sqsapi "github.com/aws/aws-sdk-go/service/sqs"
+	sqsapi "github.com/aws/aws-sdk-go-v2/service/sqs"
 	"github.com/awslabs/operatorpkg/singleton"
 	"go.uber.org/multierr"
 	corev1 "k8s.io/api/core/v1"

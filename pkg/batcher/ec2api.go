@@ -16,20 +16,14 @@ package batcher
 
 import (
 	"context"
-
+	"karpenter-provider-aws/pkg/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
-type EC2API struct {
-	CreateFleet(ctx context.Context, params *ec2.CreateFleetInput, optFns ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error)
-	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
-	TerminateInstances(ctx context.Context, params *ec2.TerminateInstancesInput, optFns ...func(*ec2.Options)) (*ec2.TerminateInstancesOutput, error)
-}
-
-func EC2(ctx context.Context, ec2api EC2API) *EC2API {
+func EC2(ctx context.Context, awsClient awsapi.AWSAPI) *AWSAPI {
 	return &EC2API{
-		CreateFleetBatcher:        NewCreateFleetBatcher(ctx, ec2api),
-		DescribeInstancesBatcher:  NewDescribeInstancesBatcher(ctx, ec2api),
-		TerminateInstancesBatcher: NewTerminateInstancesBatcher(ctx, ec2api),
+		CreateFleetBatcher:        NewCreateFleetBatcher(ctx, awsClient),
+		DescribeInstancesBatcher:  NewDescribeInstancesBatcher(ctx, awsClient),
+		TerminateInstancesBatcher: NewTerminateInstancesBatcher(ctx, awsClient),
 	}
 }

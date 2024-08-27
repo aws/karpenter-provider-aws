@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"time"
 
+	"karpenter-provider-aws/pkg/aws"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -29,18 +30,14 @@ type CreateFleetBatcher struct {
 	batcher *Batcher[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 }
 
-type EC2API interface {
-	CreateFleet(ctx context.Context, params *ec2.CreateFleetInput, optFns ...func(*ec2.Options)) (*ec2.CreateFleetOutput, error)
-}
-
-func NewCreateFleetBatcher(ctx context.Context, ec2api EC2API) *CreateFleetBatcher {
+func NewCreateFleetBatcher(ctx context.Context, awsClient awsapi.AWSAPI) *CreateFleetBatcher {
 	options := Options[ec2.CreateFleetInput, ec2.CreateFleetOutput]{
 		Name:          "create_fleet",
 		IdleTimeout:   35 * time.Millisecond,
 		MaxTimeout:    1 * time.Second,
 		MaxItems:      1_000,
 		RequestHasher: DefaultHasher[ec2.CreateFleetInput],
-		BatchExecutor: execCreateFleetBatch(ec2api),
+		BatchExecutor: execCreateFleetBatch(awsClient),
 	}
 	return &CreateFleetBatcher{batcher: NewBatcher(ctx, options)}
 }
@@ -53,12 +50,12 @@ func (b *CreateFleetBatcher) CreateFleet(ctx context.Context, createFleetInput *
 	return result.Output, result.Err
 }
 
-func execCreateFleetBatch(ec2api EC2API) BatchExecutor[ec2.CreateFleetInput, ec2.CreateFleetOutput] {
+func execCreateFleetBatch(awsClient awsapi.AWSAPI) BatchExecutor[ec2.CreateFleetInput, ec2.CreateFleetOutput] {
 	return func(ctx context.Context, inputs []*ec2.CreateFleetInput) []Result[ec2.CreateFleetOutput] {
 		results := make([]Result[ec2.CreateFleetOutput], 0, len(inputs))
 		firstInput := inputs[0]
 		firstInput.TargetCapacitySpecification.TotalTargetCapacity = aws.Int64(int64(len(inputs)))
-		output, err := ec2api.CreateFleet(ctx, firstInput)
+		output, err := awsClient.CreateFleet(ctx, firstInput)
 		if err != nil {
 			for range inputs {
 				results = append(results, Result[ec2.CreateFleetOutput]{Err: err})

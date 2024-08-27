@@ -70,12 +70,9 @@ func NewControllers(ctx context.Context, mgr manager.Manager, cfg aws.Config, cl
 	}
 	if options.FromContext(ctx).InterruptionQueue != "" {
 		sqsClient := servicesqs.NewFromConfig(cfg)
-		out, err := sqsClient.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{
+		out:= lo.Must(sqsClient.GetQueueUrl(ctx, &servicesqs.GetQueueUrlInput{
 			QueueName: lo.ToPtr(options.FromContext(ctx).InterruptionQueue)
-		})
-		if err != nil {
-			log.Fatalf("Failed to get queue URL: %v", err)
-		}
+		}))
 		controllers = append(controllers, interruption.NewController(KubeClient, clk, recorder, lo.Must(sqs.NewDefaultProvider(sqsClient, lo.FromPtr(out.QueueURL))), unavailableOfferings))
 	}
 	return controllers

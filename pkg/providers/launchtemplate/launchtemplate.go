@@ -50,6 +50,7 @@ import (
 
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+	"karpenter-provider-aws/pkg/aws"
 )
 
 type Provider interface {
@@ -79,7 +80,7 @@ type LaunchTemplate struct {
 
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api                EC2API
+	awsClient             awsAPI.AWSAPI
 	eksapi                EKSAPI
 	amiFamily             *amifamily.Resolver
 	securityGroupProvider securitygroup.Provider

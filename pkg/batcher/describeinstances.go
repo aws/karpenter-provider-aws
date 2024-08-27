@@ -20,6 +20,7 @@ import (
 	"sync"
 	"time"
 
+	"karpenter-provider-aws/pkg/aws"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -29,22 +30,18 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
 
-type EC2API interface {
-	DescribeInstances(ctx context.Context, params *ec2.DescribeInstancesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstancesOutput, error)
-}
-
 type DescribeInstancesBatcher struct {
 	batcher *Batcher[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
 }
 
-func NewDescribeInstancesBatcher(ctx context.Context, ec2api EC2API) *DescribeInstancesBatcher {
+func NewDescribeInstancesBatcher(ctx context.Context, awsClient awsapi.AWSAPI) *DescribeInstancesBatcher {
 	options := Options[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]{
 		Name:          "describe_instances",
 		IdleTimeout:   100 * time.Millisecond,
 		MaxTimeout:    1 * time.Second,
 		MaxItems:      500,
 		RequestHasher: FilterHasher,
-		BatchExecutor: execDescribeInstancesBatch(ec2api),
+		BatchExecutor: execDescribeInstancesBatch(awsClient),
 	}
 	return &DescribeInstancesBatcher{batcher: NewBatcher(ctx, options)}
 }
@@ -65,7 +62,7 @@ func FilterHasher(ctx context.Context, input *ec2.DescribeInstancesInput) uint64
 	return hash
 }
 
-func execDescribeInstancesBatch(ec2api EC2API) BatchExecutor[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput] {
+func execDescribeInstancesBatch(awsClient awsapi.AWSAPI) BatchExecutor[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput] {
 	return func(ctx context.Context, inputs []*ec2.DescribeInstancesInput) []Result[ec2.DescribeInstancesOutput] {
 		results := make([]Result[ec2.DescribeInstancesOutput], len(inputs))
 		firstInput := inputs[0]
@@ -77,7 +74,7 @@ func execDescribeInstancesBatch(ec2api EC2API) BatchExecutor[ec2.DescribeInstanc
 
 		// Execute fully aggregated request
 		// We don't care about the error here since we'll break up the batch upon any sort of failure
-		output, err := ec2api.DescribeInstances(ctx, firstInput)
+		output, err := awsClient.DescribeInstances(ctx, firstInput)
 		if err != nil {
 			for i := range inputs {
 				results[i] = Result[ec2.DescribeInstancesOutput]{Err: err}
@@ -115,7 +112,7 @@ func execDescribeInstancesBatch(ec2api EC2API) BatchExecutor[ec2.DescribeInstanc
 			go func(instanceID string) {
 				defer wg.Done()
 				// try to execute separately
-				out, err := ec2api.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
+				out, err := awsClient.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					Filters:     firstInput.Filters,
 					InstanceIds: []*string{instanceID},
 				})

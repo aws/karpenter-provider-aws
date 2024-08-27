@@ -22,6 +22,7 @@ import (
 	"net"
 	"os"
 
+	"karpenter-provider-aws/pkg/aws"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	awsclient "github.com/aws/aws-sdk-go-v2/aws/client"
 	"github.com/aws/aws-sdk-go-v2/aws/ec2metadata"
@@ -69,21 +70,13 @@ func init() {
 	karpv1.NormalizedLabels = lo.Assign(karpv1.NormalizedLabels, map[string]string{"topology.ebs.csi.aws.com/zone": corev1.LabelTopologyZone})
 }
 
-type EC2API interface { 
-	DescribeInstanceTypes(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error)
-}
-
-type EKSAPI interface {
-	DescribeCluster(ctx context.Context, params *eks.DescribeClusterInput, optFns ...func(*eks.Options)) (*eks.DescribeClusterOutput, error)
-}
-
 // Operator is injected into the AWS CloudProvider's factories
 type Operator struct {
 	*operator.Operator
 
 	Config                    aws.Config
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	EC2API                    EC2API
+	awsClient                 awsapi.AWSAPI                
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider
@@ -137,7 +130,7 @@ func NewOperator(ctx context.Context, operator *operator.Operator) (context.Cont
 		log.FromContext(ctx).Error(err, "ec2 api connectivity check failed")
 		os.Exit(1)
 	}
-	log.Printf("discovered region: %s\n", cfg.Region)
+	log.FromContext(ctx).WithValues("region", cfg.Region).V(1).Info("discovered region")
 
 	clusterEndpoint, err := ResolveClusterEndpoint(ctx, eksapi)
 

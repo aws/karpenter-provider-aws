@@ -54,14 +54,9 @@ type Provider interface {
 	UpdateInstanceTypeOfferings(ctx context.Context) error
 }
 
-type EC2API interface {
-	DescribeInstanceTypes(ctx context.Context, params *ec2.DescribeInstanceTypesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error)
-	DescribeInstanceTypeOfferings(ctx context.Context, params *ec2.DescribeInstanceTypeOfferingsInput, optFns ...func(*ec2.Options)) (*ec2.DescribeInstanceTypeOfferingsOutput, error)
-}
-
 type DefaultProvider struct {
 	region          string
-	ec2api          EC2API
+	awsClient       awsapi.AWSAPI
 	subnetProvider  subnet.Provider
 	pricingProvider pricing.Provider
 
@@ -86,10 +81,10 @@ type DefaultProvider struct {
 	instanceTypeOfferingsSeqNum uint64
 }
 
-func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, ec2api EC2API, subnetProvider subnet.Provider,
+func NewDefaultProvider(region string, instanceTypesCache *cache.Cache, awsClient awsapi.AWSAPI, subnetProvider subnet.Provider,
 	unavailableOfferingsCache *awscache.UnavailableOfferings, pricingProvider pricing.Provider) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api:                ec2api,
+		awsClient:             awsClient,
 		region:                region,
 		subnetProvider:        subnetProvider,
 		pricingProvider:       pricingProvider,
@@ -195,7 +190,7 @@ func (p *DefaultProvider) UpdateInstanceTypes(ctx context.Context) error {
 	defer p.muInstanceTypeInfo.Unlock()
 	var instanceTypes []*ec2.InstanceTypeInfo
 
-	if err := p.ec2api.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
+	if err := p.awsClient.DescribeInstanceTypesPages(ctx, &ec2.DescribeInstanceTypesInput{
 		Filters: []*ec2.Filter{
 			{
 				Name:   aws.String("supported-virtualization-type"),
@@ -235,7 +230,7 @@ func (p *DefaultProvider) UpdateInstanceTypeOfferings(ctx context.Context) error
 
 	// Get offerings from EC2
 	instanceTypeOfferings := map[string]sets.Set[string]{}
-	if err := p.ec2api.DescribeInstanceTypeOfferingsPages(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
+	if err := p.awsClient.DescribeInstanceTypeOfferingsPages(ctx, &ec2.DescribeInstanceTypeOfferingsInput{LocationType: aws.String("availability-zone")},
 		func(output *ec2.DescribeInstanceTypeOfferingsOutput, lastPage bool) bool {
 			for _, offering := range output.InstanceTypeOfferings {
 				if _, ok := instanceTypeOfferings[aws.StringValue(offering.InstanceType)]; !ok {

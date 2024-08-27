@@ -42,23 +42,19 @@ type Provider interface {
 	List(ctx context.Context, nodeClass *v1.EC2NodeClass) (AMIs, error)
 }
 
-type EC2API interface {
-	DescribeImages(ctx context.Context, params *ec2.DescribeImagesInput, optFns ...func(*ec2.Options)) (*ec2.DescribeImagesOutput, error)
-}
-
 type DefaultProvider struct {
 	sync.Mutex
 	cache           *cache.Cache
-	ec2api          EC2API
+	awsClient		awsapi.AWSAPI          
 	cm              *pretty.ChangeMonitor
 	versionProvider version.Provider
 	ssmProvider     ssm.Provider
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2api EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, awsClient awsapi.AWSAPI, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		cache:           cache,
-		ec2api:          ec2api,
+		awsClient:       awsClient,
 		cm:              pretty.NewChangeMonitor(),
 		versionProvider: versionProvider,
 		ssmProvider:     ssmProvider,
@@ -161,7 +157,7 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 	}
 	images := map[uint64]AMI{}
 	for _, query := range queries {
-		if err = p.ec2api.DescribeImagesPages(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
+		if err = p.awsClient.DescribeImagesPages(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for _, image := range page.Images {
 				arch, ok := v1.AWSToKubeArchitectures[lo.FromPtr(image.Architecture)]
 				if !ok {

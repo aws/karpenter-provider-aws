@@ -24,6 +24,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"karpenter-provider-aws/pkg/aws"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -85,11 +86,7 @@ func main() {
 	}
 }
 
-type EC2API interface {
-	DescribeInstanceTypes(aws.Context, *ec2.DescribeInstanceTypesInput, ...func(*ec2.Options)) (*ec2.DescribeInstanceTypesOutput, error)
-}
-
-func getDescribeInstanceTypesOutput(ctx context.Context, ec2Client EC2API, instanceTypes []string) string {
+func getDescribeInstanceTypesOutput(ctx context.Context, ec2Client *ec2.client, instanceTypes []string) string {
 	out, err := ec2Client.DescribeInstanceTypes(ctx, &ec2.DescribeInstanceTypesInput{
 		InstanceTypes: instanceTypes,
 	})

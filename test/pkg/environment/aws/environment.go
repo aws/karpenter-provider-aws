@@ -87,16 +87,6 @@ type ZoneInfo struct {
 func NewEnvironment(t *testing.T) *Environment {
 	env := common.NewEnvironment(t)
 
-	cfg := lo.Must(config.LoadDefaultConfig(context.TODO(),
-		config.WithRegion(os.Getenv("AWS_REGION")),
-		config.WithSTSRegionalEndpoint(endpoints.RegionalSTSEndpoint),
-		config.WithRetryer(func() aws.Retryer {
-			return retry.NewStandard(func(o *standard.RetryerOptions) {
-				o.MaxAttempts = 10
-			})
-		}),
-	))
-
 	awsEnv := &Environment{
 		Region:      cfg.Region,
 		Environment: env,
@@ -135,7 +125,7 @@ func NewEnvironment(t *testing.T) *Environment {
 	return awsEnv
 }
 
-func GetTimeStreamAPI(ctx context.Context, cfg aws.Config) timestreamwrite.Client {
+func GetTimeStreamAPI(cfg aws.Config) timestreamwrite.Client {
 	if lo.Must(env.GetBool("ENABLE_METRICS", false)) {
 		By("enabling metrics firing for this suite")
 
@@ -151,7 +141,7 @@ func GetTimeStreamAPI(ctx context.Context, cfg aws.Config) timestreamwrite.Clien
 	return &NoOpTimeStreamAPI{}
 }
 
-func (n *NoOpTimeStreamAPI) WriteRecords(ctx context.Context, params *timestreamwrite.WriteRecordsInput, optFns ...func(*timestreamwrite.Options)) (*timestreamwrite.WriteRecordsOutput, error) {
+func (n *NoOpTimeStreamAPI) WriteRecords() (*timestreamwrite.WriteRecordsOutput, error) {
 	return &timestreamwrite.WriteRecordsOutput{}, nil
 } 
 
