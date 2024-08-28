@@ -55,7 +55,7 @@ func main() {
 		WithControllers(ctx, controllers.NewControllers(
 			ctx,
 			op.Manager,
-			awsConfig,
+			op.Config,
 			op.Clock,
 			op.GetClient(),
 			op.EventRecorder,
