@@ -1,0 +1,53 @@
+# This example NodePool will provision AL2 instances with
+# local NVMe instance-store disks used for node ephemeral storage.
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+  annotations:
+    kubernetes.io/description: "General purpose NodePool for generic workloads"
+spec:
+  template:
+    spec:
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+        - key: karpenter.k8s.aws/instance-local-nvme
+          operator: Gt
+          values: ["300"]
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: instance-store-ephemeral-storage
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: instance-store-ephemeral-storage
+  annotations:
+    kubernetes.io/description: "EC2NodeClass to provision nodes with instance-store ephemeral storage"
+spec:
+  instanceStorePolicy: "RAID0"
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - alias: al2023@latest  # Amazon Linux 2023

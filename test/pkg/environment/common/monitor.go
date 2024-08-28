@@ -133,7 +133,6 @@ func (m *Monitor) DeletedNodes() []*corev1.Node {
 func (m *Monitor) PendingPods(selector labels.Selector) []*corev1.Pod {
 	var pods []*corev1.Pod
 	for _, pod := range m.poll().pods.Items {
-		pod := pod
 		if pod.Status.Phase != corev1.PodPending {
 			continue
 		}
@@ -152,7 +151,6 @@ func (m *Monitor) PendingPodsCount(selector labels.Selector) int {
 func (m *Monitor) RunningPods(selector labels.Selector) []*corev1.Pod {
 	var pods []*corev1.Pod
 	for _, pod := range m.poll().pods.Items {
-		pod := pod
 		if pod.Status.Phase != corev1.PodRunning {
 			continue
 		}

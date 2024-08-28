@@ -1,0 +1,65 @@
+# This example NodePool provisions instances using an AMI that belongs to a custom AMIFamily
+# Keep in mind, that you're in charge of bootstrapping your worker nodes.
+---
+apiVersion: karpenter.sh/v1
+kind: NodePool
+metadata:
+  name: default
+  annotations:
+    kubernetes.io/description: "General purpose NodePool for generic workloads"
+spec:
+  template:
+    spec:
+      requirements:
+        - key: kubernetes.io/arch
+          operator: In
+          values: ["amd64"]
+        - key: kubernetes.io/os
+          operator: In
+          values: ["linux"]
+        - key: karpenter.sh/capacity-type
+          operator: In
+          values: ["on-demand"]
+        - key: karpenter.k8s.aws/instance-category
+          operator: In
+          values: ["c", "m", "r"]
+        - key: karpenter.k8s.aws/instance-generation
+          operator: Gt
+          values: ["2"]
+      nodeClassRef:
+        group: karpenter.k8s.aws
+        kind: EC2NodeClass
+        name: custom-family
+---
+apiVersion: karpenter.k8s.aws/v1
+kind: EC2NodeClass
+metadata:
+  name: custom-family
+  annotations:
+    kubernetes.io/description: "EC2NodeClass for running Custom AMIFamily with custom user data that doesn't conform to the other AMIFamilies"
+spec:
+  amiFamily: Custom
+  role: "KarpenterNodeRole-${CLUSTER_NAME}" # replace with your cluster name
+  subnetSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  securityGroupSelectorTerms:
+    - tags:
+        karpenter.sh/discovery: "${CLUSTER_NAME}" # replace with your cluster name
+  amiSelectorTerms:
+    - id: ami-123
+    - id: ami-456
+  userData: |
+    MIME-Version: 1.0
+    Content-Type: multipart/mixed; boundary="BOUNDARY"
+
+    --BOUNDARY
+    Content-Type: text/x-shellscript; charset="us-ascii"
+
+    #!/bin/bash
+    echo "Running my custom set-up"
+    
+    # Have the kubelet label the node
+    /etc/eks/bootstrap.sh my-cluster --kubelet-extra-args='--node-labels=foo=bar'
+
+    --BOUNDARY

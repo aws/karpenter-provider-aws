@@ -149,7 +149,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		nodePool = coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Template: karpv1.NodeClaimTemplate{
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -192,7 +192,7 @@ var _ = Describe("InstanceTypeProvider", func() {
 		windowsNodePool = coretest.NodePool(karpv1.NodePool{
 			Spec: karpv1.NodePoolSpec{
 				Template: karpv1.NodeClaimTemplate{
-					Spec: karpv1.NodeClaimSpec{
+					Spec: karpv1.NodeClaimTemplateSpec{
 						Requirements: []karpv1.NodeSelectorRequirementWithMinValues{
 							{
 								NodeSelectorRequirement: corev1.NodeSelectorRequirement{
@@ -2495,7 +2495,6 @@ func generateSpotPricing(cp *cloudprovider.CloudProvider, nodePool *karpv1.NodeP
 			}
 		}
 		for _, o := range instanceType.Offerings {
-			o := o
 			if o.Requirements.Get(karpv1.CapacityTypeLabelKey).Any() != karpv1.CapacityTypeSpot {
 				continue
 			}

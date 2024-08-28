@@ -48,6 +48,7 @@ var (
 	CleanableObjects = []client.Object{
 		&corev1.Pod{},
 		&appsv1.Deployment{},
+		&appsv1.StatefulSet{},
 		&appsv1.DaemonSet{},
 		&policyv1.PodDisruptionBudget{},
 		&corev1.PersistentVolumeClaim{},
@@ -100,6 +101,7 @@ func (env *Environment) ExpectCleanCluster() {
 
 func (env *Environment) Cleanup() {
 	env.CleanupObjects(CleanableObjects...)
+	env.EventuallyExpectNoLeakedKubeNodeLease()
 	env.eventuallyExpectScaleDown()
 	env.ExpectNoCrashes()
 }

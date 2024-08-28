@@ -45,7 +45,7 @@ After setting up the tools, set the Karpenter and Kubernetes version:
 
 ```bash
 export KARPENTER_NAMESPACE="kube-system"
-export KARPENTER_VERSION="0.36.2"
+export KARPENTER_VERSION="0.36.4"
 export K8S_VERSION="1.29"
 ```
 
@@ -112,17 +112,17 @@ See [Enabling Windows support](https://docs.aws.amazon.com/eks/latest/userguide/
 As the OCI Helm chart is signed by [Cosign](https://github.com/sigstore/cosign) as part of the release process you can verify the chart before installing it by running the following command.
 
 ```bash
-cosign verify public.ecr.aws/karpenter/karpenter:0.36.2 \
+cosign verify public.ecr.aws/karpenter/karpenter:0.36.4 \
   --certificate-oidc-issuer=https://token.actions.githubusercontent.com \
   --certificate-identity-regexp='https://github\.com/aws/karpenter-provider-aws/\.github/workflows/release\.yaml@.+' \
   --certificate-github-workflow-repository=aws/karpenter-provider-aws \
   --certificate-github-workflow-name=Release \
-  --certificate-github-workflow-ref=refs/tags/v0.36.2 \
-  --annotations version=0.36.2
+  --certificate-github-workflow-ref=refs/tags/v0.36.4 \
+  --annotations version=0.36.4
 ```
 
 {{% alert title="DNS Policy Notice" color="warning" %}}
-Karpenter uses the `ClusterFirst` pod DNS policy by default. This is the Kubernetes cluster default and this ensures that Karpetner can reach-out to internal Kubernetes services during its lifetime. There may be cases where you do not have the DNS service that you are using on your cluster up-and-running before Karpenter starts up. The most common case of this is you want Karpenter to manage the node capacity where your DNS service pods are running.
+Karpenter uses the `ClusterFirst` pod DNS policy by default. This is the Kubernetes cluster default and this ensures that Karpenter can reach-out to internal Kubernetes services during its lifetime. There may be cases where you do not have the DNS service that you are using on your cluster up-and-running before Karpenter starts up. The most common case of this is you want Karpenter to manage the node capacity where your DNS service pods are running.
 
 If you need Karpenter to manage the DNS service pods' capacity, this means that DNS won't be running when Karpenter starts-up. In this case, you will need to set the pod DNS policy to `Default` with `--set dnsPolicy=Default`. This will tell Karpenter to use the host's DNS resolution instead of the internal DNS resolution, ensuring that you don't have a dependency on the DNS service pods to run. More details on this issue can be found in the following Github issues: [#2186](https://github.com/aws/karpenter-provider-aws/issues/2186) and [#4947](https://github.com/aws/karpenter-provider-aws/issues/4947).
 {{% /alert %}}

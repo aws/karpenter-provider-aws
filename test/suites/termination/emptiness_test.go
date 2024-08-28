@@ -38,7 +38,7 @@ var _ = Describe("Emptiness", func() {
 	var numPods int
 	BeforeEach(func() {
 		nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmpty
-		nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
+		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 
 		numPods = 1
 		dep = test.Deployment(test.DeploymentOptions{
@@ -67,7 +67,7 @@ var _ = Describe("Emptiness", func() {
 			// Delete the deployment so there is nothing running on the node
 			env.ExpectDeleted(dep)
 
-			env.EventuallyExpectEmpty(nodeClaim)
+			env.EventuallyExpectConsolidatable(nodeClaim)
 			env.ConsistentlyExpectNoDisruptions(1, time.Minute)
 		})
 		It("should not allow emptiness if the budget is fully blocking during a scheduled time", func() {
@@ -91,12 +91,12 @@ var _ = Describe("Emptiness", func() {
 			// Delete the deployment so there is nothing running on the node
 			env.ExpectDeleted(dep)
 
-			env.EventuallyExpectEmpty(nodeClaim)
+			env.EventuallyExpectConsolidatable(nodeClaim)
 			env.ConsistentlyExpectNoDisruptions(1, time.Minute)
 		})
 	})
 	It("should terminate an empty node", func() {
-		nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(time.Hour * 300)}
+		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("10s")
 
 		const numPods = 1
 		deployment := test.Deployment(test.DeploymentOptions{Replicas: numPods})
@@ -112,10 +112,10 @@ var _ = Describe("Emptiness", func() {
 		deployment.Spec.Replicas = lo.ToPtr(int32(0))
 		Expect(env.Client.Patch(env, deployment, client.StrategicMergeFrom(persisted))).To(Succeed())
 
-		env.EventuallyExpectEmpty(nodeClaim)
+		env.EventuallyExpectConsolidatable(nodeClaim)
 
 		By("waiting for the nodeclaim to deprovision when past its ConsolidateAfter timeout of 0")
-		nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(time.Duration(0))}
+		nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 		env.ExpectUpdated(nodePool)
 
 		env.EventuallyExpectNotFound(nodeClaim, node)

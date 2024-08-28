@@ -101,7 +101,7 @@ type EC2NodeClassSpec struct {
 	// +kubebuilder:validation:XValidation:message="evictionSoft OwnerKey does not have a matching evictionSoftGracePeriod",rule="has(self.evictionSoft) ? self.evictionSoft.all(e, (e in self.evictionSoftGracePeriod)):true"
 	// +kubebuilder:validation:XValidation:message="evictionSoftGracePeriod OwnerKey does not have a matching evictionSoft",rule="has(self.evictionSoftGracePeriod) ? self.evictionSoftGracePeriod.all(e, (e in self.evictionSoft)):true"
 	// +optional
-	Kubelet *KubeletConfiguration `json:"kubelet,omitempty" hash:"ignore"`
+	Kubelet *KubeletConfiguration `json:"kubelet,omitempty"`
 	// BlockDeviceMappings to be applied to provisioned nodes.
 	// +kubebuilder:validation:XValidation:message="must have only one blockDeviceMappings with rootVolume",rule="self.filter(x, has(x.rootVolume)?x.rootVolume==true:false).size() <= 1"
 	// +kubebuilder:validation:MaxItems:=50
@@ -178,8 +178,9 @@ type AMISelectorTerm struct {
 	// The version can either be pinned to a specific AMI release, with that AMIs version format (ex: "al2023@v20240625" or "bottlerocket@v1.10.0").
 	// The version can also be set to "latest" for any family. Setting the version to latest will result in drift when a new AMI is released. This is **not** recommended for production environments.
 	// Note: The Windows families do **not** support version pinning, and only latest may be used.
-	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]*@.*$')"
-	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.find('^[^@]+') in ['al2','al2023','bottlerocket','windows2019','windows2022']"
+	// +kubebuilder:validation:XValidation:message="'alias' is improperly formatted, must match the format 'family@version'",rule="self.matches('^[a-zA-Z0-9]+@.+$')"
+	// +kubebuilder:validation:XValidation:message="family is not supported, must be one of the following: 'al2', 'al2023', 'bottlerocket', 'windows2019', 'windows2022'",rule="self.split('@')[0] in ['al2','al2023','bottlerocket','windows2019','windows2022']"
+	// +kubebuilder:validation:XValidation:message="windows families may only specify version 'latest'",rule="self.split('@')[0] in ['windows2019','windows2022'] ? self.split('@')[1] == 'latest' : true"
 	// +kubebuilder:validation:MaxLength=30
 	// +optional
 	Alias string `json:"alias,omitempty"`
@@ -324,14 +325,15 @@ type MetadataOptions struct {
 
 type BlockDeviceMapping struct {
 	// The device name (for example, /dev/sdh or xvdh).
-	// +required
+	// +optional
 	DeviceName *string `json:"deviceName,omitempty"`
 	// EBS contains parameters used to automatically set up EBS volumes when an instance is launched.
 	// +kubebuilder:validation:XValidation:message="snapshotID or volumeSize must be defined",rule="has(self.snapshotID) || has(self.volumeSize)"
-	// +required
+	// +optional
 	EBS *BlockDevice `json:"ebs,omitempty"`
 	// RootVolume is a flag indicating if this device is mounted as kubelet root dir. You can
 	// configure at most one root volume in BlockDeviceMappings.
+	// +optional
 	RootVolume bool `json:"rootVolume,omitempty"`
 }
 
@@ -441,7 +443,7 @@ type EC2NodeClass struct {
 // 1. A field changes its default value for an existing field that is already hashed
 // 2. A field is added to the hash calculation with an already-set value
 // 3. A field is removed from the hash calculations
-const EC2NodeClassHashVersion = "v3"
+const EC2NodeClassHashVersion = "v4"
 
 func (in *EC2NodeClass) Hash() string {
 	return fmt.Sprint(lo.Must(hashstructure.Hash([]interface{}{

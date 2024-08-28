@@ -1,7 +1,7 @@
 ---
 title: "Disruption"
 linkTitle: "Disruption"
-weight: 4
+weight: 50
 description: >
   Understand different ways Karpenter disrupts nodes
 ---
@@ -78,18 +78,16 @@ Disruption is configured through the NodePool's disruption block by the `consoli
 ```yaml
 spec:
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
   template:
     spec:
       expireAfter: 720h
 ```
 {{% /alert %}}
 
-{{% alert title="Warning" color="warning" %}}
-`consolidateAfter` **cannot** be set if `consolidationPolicy` is set to `WhenUnderutilized`. See [kubernetes-sigs/karpenter#735](https://github.com/kubernetes-sigs/karpenter/issues/735) for more information.
-{{% /alert %}}
-
 ### Consolidation
+
+Consolidation is configured by `consolidationPolicy` and `consolidateAfter`. `consolidationPolicy` determines the pre-conditions for nodes to be considered consolidatable, and are `whenEmpty` or `whenEmptyOrUnderutilized`. If a node has no running non-daemon pods, it is considered empty.  `consolidateAfter` can be set to indicate how long Karpenter should wait after a pod schedules or is removed from the node before considering the node consolidatable. With `whenEmptyOrUnderutilized`, Karpenter will consider a node consolidatable when its `consolidateAfter` has been reached, empty or not.
 
 Karpenter has two mechanisms for cluster consolidation:
 1. **Deletion** - A node is eligible for deletion if all of its pods can run on free capacity of other nodes in the cluster.
@@ -202,12 +200,20 @@ To enable interruption handling, configure the `--interruption-queue` CLI argume
 
 ## Controls
 
-### Disruption Budgets
+### TerminationGracePeriod 
+
+You can set a NodePool's `terminationGracePeriod` through the `spec.template.spec.terminationGracePeriod` field. This field defines  the duration of time that a node can be draining before it's forcibly deleted. A node begins draining when it's deleted. Pods will be deleted preemptively based on its TerminationGracePeriodSeconds before this terminationGracePeriod ends to give as much time to cleanup as possible. Note that if your pod's terminationGracePeriodSeconds is larger than this terminationGracePeriod, Karpenter may forcibly delete the pod before it has its full terminationGracePeriod to cleanup. 
+
+This is especially useful in combination with `nodepool.spec.template.spec.expireAfter` to define an absolute maximum on the lifetime of a node, where a node is deleted at `expireAfter` and finishes draining within the `terminationGracePeriod` thereafter. Pods blocking eviction like PDBs and do-not-disrupt will block full draining until the `terminationGracePeriod` is reached. 
+
+For instance, a NodeClaim with `terminationGracePeriod` set to `1h` and an `expireAfter` set to `23h` will begin draining after it's lived for `23h`. Let's say a `do-not-disrupt` pod has `TerminationGracePeriodSeconds` set to `300` seconds. If the node hasn't been fully drained after `55m`, Karpenter will delete the pod to allow it's full `terminationGracePeriodSeconds` to cleanup. If no pods are blocking draining, Karpenter will cleanup the node as soon as the node is fully drained, rather than waiting for the NodeClaim's `terminationGracePeriod` to finish.
+
+### NodePool Disruption Budgets
 
 You can rate limit Karpenter's disruption through the NodePool's `spec.disruption.budgets`. If undefined, Karpenter will default to one budget with `nodes: 10%`. Budgets will consider nodes that are actively being deleted for any reason, and will only block Karpenter from disrupting nodes voluntarily through drift, emptiness, and consolidation. Note that NodePool Disruption Budgets do not prevent Karpenter from cleaning up expired or drifted nodes. 
 
 #### Reasons
-Karpenter allows specifying if a budget applies to any of `drifted`, `underutilized`, or `empty`. When a budget has no reasons, it's assumed that it applies to all reasons. When calculating allowed disruptions for a given reason, Karpenter will take the minimum of the budgets that have listed the reason or have left reasons undefined.
+Karpenter allows specifying if a budget applies to any of `Drifted`, `Underutilized`, or `Empty`. When a budget has no reasons, it's assumed that it applies to all reasons. When calculating allowed disruptions for a given reason, Karpenter will take the minimum of the budgets that have listed the reason or have left reasons undefined.
 
 #### Nodes
 When calculating if a budget will block nodes from disruption, Karpenter lists the total number of nodes owned by a NodePool, subtracting out the nodes owned by that NodePool that are currently being deleted and nodes that are NotReady. If the number of nodes being deleted by Karpenter or any other processes is greater than the number of allowed disruptions, disruption for this node will not proceed.
@@ -229,18 +235,18 @@ spec:
     spec: 
       expireAfter: 720h # 30 * 24h = 720h
   disruption:
-    consolidationPolicy: WhenUnderutilized
+    consolidationPolicy: WhenEmptyOrUnderutilized
     budgets:
     - nodes: "20%"
       reasons: 
-      - "empty"
-      - "drifted"
+      - "Empty"
+      - "Drifted"
     - nodes: "5"
     - nodes: "0"
       schedule: "@daily"
       duration: 10m
       reasons: 
-      - "underutilized"
+      - "Underutilized"
 ```
 
 #### Schedule

@@ -7,23 +7,9 @@ description: >
   Inspect Karpenter Metrics
 ---
 <!-- this document is generated from hack/docs/metrics_gen_docs.go -->
-Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8000/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
+Karpenter makes several metrics available in Prometheus format to allow monitoring cluster provisioning status. These metrics are available by default at `karpenter.karpenter.svc.cluster.local:8080/metrics` configurable via the `METRICS_PORT` environment variable documented [here](../settings)
 ### `karpenter_build_info`
 A metric with a constant '1' value labeled by version from which karpenter was built.
-- Stability Level: STABLE
-
-## Nodepool Metrics
-
-### `karpenter_nodepool_usage`
-The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
-- Stability Level: STABLE
-
-### `karpenter_nodepool_limit`
-Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
-- Stability Level: STABLE
-
-### `karpenter_nodepool_allowed_disruptions`
-The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
 - Stability Level: STABLE
 
 ## Nodeclaims Metrics
@@ -33,31 +19,15 @@ Duration of NodeClaim termination in seconds.
 - Stability Level: BETA
 
 ### `karpenter_nodeclaims_terminated_total`
-Number of nodeclaims terminated in total by Karpenter. Labeled by reason the nodeclaim was terminated and the owning nodepool.
+Number of nodeclaims terminated in total by Karpenter. Labeled by the owning nodepool.
 - Stability Level: STABLE
-
-### `karpenter_nodeclaims_registered_total`
-Number of nodeclaims registered in total by Karpenter. Labeled by the owning nodepool.
-- Stability Level: ALPHA
-
-### `karpenter_nodeclaims_launched_total`
-Number of nodeclaims launched in total by Karpenter. Labeled by the owning nodepool.
-- Stability Level: ALPHA
 
 ### `karpenter_nodeclaims_instance_termination_duration_seconds`
 Duration of CloudProvider Instance termination in seconds.
 - Stability Level: BETA
 
-### `karpenter_nodeclaims_initialized_total`
-Number of nodeclaims initialized in total by Karpenter. Labeled by the owning nodepool.
-- Stability Level: ALPHA
-
-### `karpenter_nodeclaims_drifted_total`
-Number of nodeclaims drifted reasons in total by Karpenter. Labeled by drift type of the nodeclaim and the owning nodepool.
-- Stability Level: ALPHA
-
 ### `karpenter_nodeclaims_disrupted_total`
-Number of nodeclaims disrupted in total by Karpenter. Labeled by disruption type of the nodeclaim and the owning nodepool.
+Number of nodeclaims disrupted in total by Karpenter. Labeled by reason the nodeclaim was disrupted and the owning nodepool.
 - Stability Level: ALPHA
 
 ### `karpenter_nodeclaims_created_total`
@@ -67,11 +37,11 @@ Number of nodeclaims created in total by Karpenter. Labeled by reason the nodecl
 ## Nodes Metrics
 
 ### `karpenter_nodes_total_pod_requests`
-Node total pod requests are the resources requested by non-DaemonSet pods bound to nodes.
+Node total pod requests are the resources requested by pods bound to nodes, including the DaemonSet pods.
 - Stability Level: BETA
 
 ### `karpenter_nodes_total_pod_limits`
-Node total pod limits are the resources specified by non-DaemonSet pod limits.
+Node total pod limits are the resources specified by pod limits, including the DaemonSet pods.
 - Stability Level: BETA
 
 ### `karpenter_nodes_total_daemon_requests`
@@ -82,7 +52,7 @@ Node total daemon requests are the resource requested by DaemonSet pods bound to
 Node total daemon limits are the resources specified by DaemonSet pod limits.
 - Stability Level: BETA
 
-### `karpenter_nodes_termination_time_seconds`
+### `karpenter_nodes_termination_duration_seconds`
 The time taken between a node's deletion request and the removal of its finalizer
 - Stability Level: BETA
 
@@ -116,19 +86,51 @@ Pod state is the current state of pods. This metric can be used several ways as 
 The time from pod creation until the pod is running.
 - Stability Level: STABLE
 
-## Provisioner Metrics
+## Voluntary Disruption Metrics
 
-### `karpenter_provisioner_scheduling_simulation_duration_seconds`
+### `karpenter_voluntary_disruption_queue_failures_total`
+The number of times that an enqueued disruption decision failed. Labeled by disruption method.
+- Stability Level: BETA
+
+### `karpenter_voluntary_disruption_eligible_nodes`
+Number of nodes eligible for disruption by Karpenter. Labeled by disruption reason.
+- Stability Level: BETA
+
+### `karpenter_voluntary_disruption_decisions_total`
+Number of disruption decisions performed. Labeled by disruption decision, reason, and consolidation type.
+- Stability Level: STABLE
+
+### `karpenter_voluntary_disruption_decision_evaluation_duration_seconds`
+Duration of the disruption decision evaluation process in seconds. Labeled by method and consolidation type.
+- Stability Level: BETA
+
+### `karpenter_voluntary_disruption_consolidation_timeouts_total`
+Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
+- Stability Level: BETA
+
+## Scheduler Metrics
+
+### `karpenter_scheduler_scheduling_duration_seconds`
 Duration of scheduling simulations used for deprovisioning and provisioning in seconds.
 - Stability Level: STABLE
 
-### `karpenter_provisioner_scheduling_queue_depth`
+### `karpenter_scheduler_queue_depth`
 The number of pods currently waiting to be scheduled.
 - Stability Level: BETA
 
-### `karpenter_provisioner_scheduling_duration_seconds`
-Duration of scheduling process in seconds.
-- Stability Level: STABLE
+## Nodepools Metrics
+
+### `karpenter_nodepools_usage`
+The amount of resources that have been provisioned for a nodepool. Labeled by nodepool name and resource type.
+- Stability Level: ALPHA
+
+### `karpenter_nodepools_limit`
+Limits specified on the nodepool that restrict the quantity of resources provisioned. Labeled by nodepool name and resource type.
+- Stability Level: ALPHA
+
+### `karpenter_nodepools_allowed_disruptions`
+The number of nodes for a given NodePool that can be concurrently disrupting at a point in time. Labeled by NodePool. Note that allowed disruptions can change very rapidly, as new nodes may be created and others may be deleted at any point.
+- Stability Level: ALPHA
 
 ## Interruption Metrics
 
@@ -137,48 +139,12 @@ Count of messages received from the SQS queue. Broken down by message type and w
 - Stability Level: STABLE
 
 ### `karpenter_interruption_message_queue_duration_seconds`
-Length of time between message creation in queue and an action taken on the message by the controller.
+Amount of time an interruption message is on the queue before it is processed by karpenter.
 - Stability Level: STABLE
 
 ### `karpenter_interruption_deleted_messages_total`
 Count of messages deleted from the SQS queue.
 - Stability Level: STABLE
-
-## Disruption Metrics
-
-### `karpenter_disruption_replacement_nodeclaim_initialized_seconds`
-Amount of time required for a replacement nodeclaim to become initialized.
-- Stability Level: ALPHA
-
-### `karpenter_disruption_queue_failures_total`
-The number of times that an enqueued disruption decision failed. Labeled by disruption method.
-- Stability Level: BETA
-
-### `karpenter_disruption_pods_disrupted_total`
-Total number of reschedulable pods disrupted on nodes. Labeled by NodePool, disruption action, method, and consolidation type.
-- Stability Level: ALPHA
-
-### `karpenter_disruption_evaluation_duration_seconds`
-Duration of the disruption evaluation process in seconds. Labeled by method and consolidation type.
-- Stability Level: BETA
-
-### `karpenter_disruption_eligible_nodes`
-Number of nodes eligible for disruption by Karpenter. Labeled by disruption method and consolidation type.
-- Stability Level: BETA
-
-### `karpenter_disruption_decisions_total`
-Number of disruption decisions performed. Labeled by disruption action, method, and consolidation type.
-- Stability Level: STABLE
-
-### `karpenter_disruption_consolidation_timeouts_total`
-Number of times the Consolidation algorithm has reached a timeout. Labeled by consolidation type.
-- Stability Level: BETA
-
-## Consistency Metrics
-
-### `karpenter_consistency_errors_total`
-Number of consistency checks that have failed.
-- Stability Level: ALPHA
 
 ## Cluster State Metrics
 
@@ -284,8 +250,16 @@ Total number of adds handled by workqueue
 
 ## Status Condition Metrics
 
+### `operator_status_condition_transitions_total`
+The count of transitions of a given object, type and status.
+- Stability Level: BETA
+
 ### `operator_status_condition_transition_seconds`
 The amount of time a condition was in a given state before transitioning. e.g. Alarm := P99(Updated=False) > 5 minutes
+- Stability Level: BETA
+
+### `operator_status_condition_current_status_seconds`
+The current amount of time in seconds that a status condition has been in a specific state. Alarm := P99(Updated=Unknown) > 5 minutes
 - Stability Level: BETA
 
 ### `operator_status_condition_count`

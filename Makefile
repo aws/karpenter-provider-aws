@@ -46,7 +46,6 @@ run: ## Run Karpenter controller binary against your local cluster
 	SYSTEM_NAMESPACE=${KARPENTER_NAMESPACE} \
 		KUBERNETES_MIN_VERSION="1.19.0-0" \
 		DISABLE_LEADER_ELECTION=true \
-		DISABLE_WEBHOOK=true \
 		CLUSTER_NAME=${CLUSTER_NAME} \
 		INTERRUPTION_QUEUE=${CLUSTER_NAME} \
 		FEATURE_GATES="SpotToSpotConsolidation=true" \
@@ -105,7 +104,7 @@ verify: tidy download ## Verify code. Includes dependencies, linting, formatting
 	hack/validation/kubelet.sh
 	hack/validation/requirements.sh
 	hack/validation/labels.sh
-	hack/mutation/conversion_webhooks_injection.sh
+	cp pkg/apis/crds/* charts/karpenter-crd/templates
 	hack/github/dependabot.sh
 	$(foreach dir,$(MOD_DIRS),cd $(dir) && golangci-lint run $(newline))
 	@git diff --quiet ||\

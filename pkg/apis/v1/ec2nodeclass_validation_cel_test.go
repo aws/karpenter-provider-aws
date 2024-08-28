@@ -600,10 +600,31 @@ var _ = Describe("CEL/Validation", func() {
 			Entry("windows2019 (latest)", "windows2019@latest", v1.AMIFamilyWindows2019),
 			Entry("windows2022 (latest)", "windows2022@latest", v1.AMIFamilyWindows2022),
 		)
+		DescribeTable(
+			"should fail for incorrectly formatted aliases",
+			func(aliases ...string) {
+				for _, alias := range aliases {
+					nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+					Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+				}
+			},
+			Entry("missing family", "@latest"),
+			Entry("missing version", "al2023", "al2023@"),
+			Entry("invalid separator", "al2023-latest"),
+		)
 		It("should fail for an alias with an invalid family", func() {
 			nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "ubuntu@latest"}}
 			Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
 		})
+		DescribeTable(
+			"should fail when specifying non-latest versions with Windows aliases",
+			func(alias string) {
+				nc.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: alias}}
+				Expect(env.Client.Create(ctx, nc)).ToNot(Succeed())
+			},
+			Entry("Windows2019", "windows2019@v1.0.0"),
+			Entry("Windows2022", "windows2022@v1.0.0"),
+		)
 	})
 	Context("Kubelet", func() {
 		It("should fail on kubeReserved with invalid keys", func() {

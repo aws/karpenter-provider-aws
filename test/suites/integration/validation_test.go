@@ -16,7 +16,6 @@ package integration_test
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -101,15 +100,15 @@ var _ = Describe("Validation", func() {
 				}})
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
-		It("should error when ttlSecondAfterEmpty is negative", func() {
+		It("should error when consolidateAfter is negative", func() {
 			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmpty
-			nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(-time.Second)}
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("-1s")
 			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
 		})
-		It("should error when ConsolidationPolicy=WhenUnderutilized is used with consolidateAfter", func() {
-			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-			nodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{Duration: lo.ToPtr(time.Minute)}
-			Expect(env.Client.Create(env.Context, nodePool)).ToNot(Succeed())
+		It("should succeed when ConsolidationPolicy=WhenEmptyOrUnderutilized is used with consolidateAfter", func() {
+			nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
+			nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("1m")
+			Expect(env.Client.Create(env.Context, nodePool)).To(Succeed())
 		})
 		It("should error when minValues for a requirement key is negative", func() {
 			nodePool = coretest.ReplaceRequirements(nodePool, karpv1.NodeSelectorRequirementWithMinValues{

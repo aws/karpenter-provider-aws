@@ -250,7 +250,7 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			nodePoolMap[noExpirationValue].Spec = *nodePoolMap[expirationValue].Spec.DeepCopy()
 
 			// Enable consolidation, emptiness, and expiration
-			nodePoolMap[consolidationValue].Spec.Disruption.ConsolidateAfter = nil
+			nodePoolMap[consolidationValue].Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmpty
 			nodePoolMap[emptinessValue].Spec.Disruption.ConsolidateAfter.Duration = lo.ToPtr(time.Duration(0))
 			nodePoolMap[expirationValue].Spec.Template.Spec.ExpireAfter.Duration = lo.ToPtr(time.Duration(0))
@@ -382,8 +382,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
-				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-				nodePool.Spec.Disruption.ConsolidateAfter = nil
+				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", expectedNodeCount)
@@ -436,8 +436,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 
 			env.MeasureDeprovisioningDurationFor(func() {
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
-				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-				nodePool.Spec.Disruption.ConsolidateAfter = nil
+				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 				env.ExpectUpdated(nodePool)
 
 				env.EventuallyExpectDeletedNodeCount("==", int(float64(expectedNodeCount)*0.8))
@@ -503,8 +503,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				By("kicking off deprovisioning by setting the consolidation enabled value on the nodePool")
 				// The nodePool defaults to a larger instance type than we need so enabling consolidation and making
 				// the requirements wide-open should cause deletes and increase our utilization on the cluster
-				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenUnderutilized
-				nodePool.Spec.Disruption.ConsolidateAfter = nil
+				nodePool.Spec.Disruption.ConsolidationPolicy = karpv1.ConsolidationPolicyWhenEmptyOrUnderutilized
+				nodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("0s")
 				nodePool.Spec.Template.Spec.Requirements = lo.Reject(nodePool.Spec.Template.Spec.Requirements, func(r karpv1.NodeSelectorRequirementWithMinValues, _ int) bool {
 					return r.Key == v1.LabelInstanceSize
 				})
@@ -589,6 +589,8 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 			nodeClass.Spec.Kubelet = &v1.KubeletConfiguration{
 				MaxPods: lo.ToPtr[int32](int32(maxPodDensity)),
 			}
+			// Enable Expiration
+			nodePool.Spec.Template.Spec.ExpireAfter = karpv1.MustParseNillableDuration("5m")
 
 			By("waiting for the deployment to deploy all of its pods")
 			env.ExpectCreated(deployment)
@@ -616,13 +618,11 @@ var _ = Describe("Deprovisioning", Label(debug.NoWatch), Label(debug.NoEvents), 
 				By("kicking off deprovisioning expiration by setting the ttlSecondsUntilExpired value on the nodePool")
 				// Change limits so that replacement nodes will use another nodePool.
 				nodePool.Spec.Limits = disableProvisioningLimits
-				// Enable Expiration
-				nodePool.Spec.Template.Spec.ExpireAfter.Duration = lo.ToPtr(time.Duration(0))
 
 				noExpireNodePool := test.NodePool(*nodePool.DeepCopy())
 
 				// Disable Expiration
-				noExpireNodePool.Spec.Disruption.ConsolidateAfter = &karpv1.NillableDuration{}
+				noExpireNodePool.Spec.Disruption.ConsolidateAfter = karpv1.MustParseNillableDuration("Never")
 				noExpireNodePool.Spec.Template.Spec.ExpireAfter.Duration = nil
 
 				noExpireNodePool.ObjectMeta = metav1.ObjectMeta{Name: test.RandomName()}

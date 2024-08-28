@@ -16,6 +16,7 @@ package cloudprovider
 
 import (
 	"context"
+	stderrors "errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -77,6 +78,7 @@ func New(instanceTypeProvider instancetype.Provider, instanceProvider instance.P
 }
 
 // Create a NodeClaim given the constraints.
+// nolint: gocyclo
 func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim) (*karpv1.NodeClaim, error) {
 	nodeClass, err := c.resolveNodeClassFromNodeClaim(ctx, nodeClaim)
 	if err != nil {
@@ -87,18 +89,12 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return nil, cloudprovider.NewInsufficientCapacityError(fmt.Errorf("resolving node class, %w", err))
 	}
 
-	// TODO: Remove this after v1
-	nodePool, err := utils.ResolveNodePoolFromNodeClaim(ctx, c.kubeClient, nodeClaim)
-	if err != nil {
-		return nil, err
-	}
-	kubeletHash, err := utils.GetHashKubelet(nodePool, nodeClass)
-	if err != nil {
-		return nil, err
-	}
 	nodeClassReady := nodeClass.StatusConditions().Get(status.ConditionReady)
-	if !nodeClassReady.IsTrue() {
-		return nil, fmt.Errorf("resolving ec2nodeclass, %s", nodeClassReady.Message)
+	if nodeClassReady.IsFalse() {
+		return nil, cloudprovider.NewNodeClassNotReadyError(stderrors.New(nodeClassReady.Message))
+	}
+	if nodeClassReady.IsUnknown() {
+		return nil, fmt.Errorf("resolving NodeClass readiness, NodeClass is in Ready=Unknown, %s", nodeClassReady.Message)
 	}
 	instanceTypes, err := c.resolveInstanceTypes(ctx, nodeClaim, nodeClass)
 	if err != nil {
@@ -115,10 +111,9 @@ func (c *CloudProvider) Create(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 		return i.Name == instance.Type
 	})
 	nc := c.instanceToNodeClaim(instance, instanceType, nodeClass)
-	nc.Annotations = lo.Assign(nodeClass.Annotations, map[string]string{
-		v1.AnnotationKubeletCompatibilityHash: kubeletHash,
-		v1.AnnotationEC2NodeClassHash:         nodeClass.Hash(),
-		v1.AnnotationEC2NodeClassHashVersion:  v1.EC2NodeClassHashVersion,
+	nc.Annotations = lo.Assign(nc.Annotations, map[string]string{
+		v1.AnnotationEC2NodeClassHash:        nodeClass.Hash(),
+		v1.AnnotationEC2NodeClassHashVersion: v1.EC2NodeClassHashVersion,
 	})
 	return nc, nil
 }
@@ -180,12 +175,8 @@ func (c *CloudProvider) GetInstanceTypes(ctx context.Context, nodePool *karpv1.N
 		// as the cause.
 		return nil, fmt.Errorf("resolving node class, %w", err)
 	}
-	kubeletConfig, err := utils.GetKubletConfigurationWithNodePool(nodePool, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("resolving kubelet configuration, %w", err)
-	}
 	// TODO, break this coupling
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, kubeletConfig, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
 	if err != nil {
 		return nil, err
 	}
@@ -199,6 +190,10 @@ func (c *CloudProvider) Delete(ctx context.Context, nodeClaim *karpv1.NodeClaim)
 	}
 	ctx = log.IntoContext(ctx, log.FromContext(ctx).WithValues("id", id))
 	return c.instanceProvider.Delete(ctx, id)
+}
+
+func (c *CloudProvider) DisruptionReasons() []karpv1.DisruptionReason {
+	return nil
 }
 
 func (c *CloudProvider) IsDrifted(ctx context.Context, nodeClaim *karpv1.NodeClaim) (cloudprovider.DriftReason, error) {
@@ -265,11 +260,7 @@ func (c *CloudProvider) resolveNodeClassFromNodePool(ctx context.Context, nodePo
 }
 
 func (c *CloudProvider) resolveInstanceTypes(ctx context.Context, nodeClaim *karpv1.NodeClaim, nodeClass *v1.EC2NodeClass) ([]*cloudprovider.InstanceType, error) {
-	kubeletConfig, err := utils.GetKubeletConfigurationWithNodeClaim(nodeClaim, nodeClass)
-	if err != nil {
-		return nil, fmt.Errorf("resovling kubelet configuration, %w", err)
-	}
-	instanceTypes, err := c.instanceTypeProvider.List(ctx, kubeletConfig, nodeClass)
+	instanceTypes, err := c.instanceTypeProvider.List(ctx, nodeClass.Spec.Kubelet, nodeClass)
 	if err != nil {
 		return nil, fmt.Errorf("getting instance types, %w", err)
 	}

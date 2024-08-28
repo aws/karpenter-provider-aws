@@ -253,6 +253,8 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
+			// Use AL2 AMIs instead of AL2023 since accelerated AMIs aren't yet available
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
@@ -272,6 +274,8 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				NodePreferences:  requirements,
 				NodeRequirements: requirements,
 			}})
+			// Use AL2 AMIs instead of AL2023 since accelerated AMIs aren't yet available
+			nodeClass.Spec.AMISelectorTerms = []v1.AMISelectorTerm{{Alias: "al2@latest"}}
 			env.ExpectCreated(nodeClass, nodePool, deployment)
 			env.EventuallyExpectHealthyPodCount(labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels), int(*deployment.Spec.Replicas))
 			env.ExpectCreatedNodeCount("==", 1)
@@ -420,7 +424,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Spec: karpv1.NodePoolSpec{
 					Weight: lo.ToPtr(int32(10)),
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,
@@ -450,7 +454,7 @@ var _ = Describe("Scheduling", Ordered, ContinueOnFailure, func() {
 				Spec: karpv1.NodePoolSpec{
 					Weight: lo.ToPtr(int32(100)),
 					Template: karpv1.NodeClaimTemplate{
-						Spec: karpv1.NodeClaimSpec{
+						Spec: karpv1.NodeClaimTemplateSpec{
 							NodeClassRef: &karpv1.NodeClassReference{
 								Group: object.GVK(nodeClass).Group,
 								Kind:  object.GVK(nodeClass).Kind,
