@@ -27,6 +27,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"karpenter-provider-aws/pkg/aws"
 
 	v1 "github.com/aws/karpenter-provider-aws/pkg/apis/v1"
 	"github.com/aws/karpenter-provider-aws/pkg/providers/version"
@@ -45,16 +46,16 @@ type Provider interface {
 type DefaultProvider struct {
 	sync.Mutex
 	cache           *cache.Cache
-	awsClient		awsapi.AWSAPI          
+	ec2Client		awsapi.EC2API          
 	cm              *pretty.ChangeMonitor
 	versionProvider version.Provider
 	ssmProvider     ssm.Provider
 }
 
-func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, awsClient awsapi.AWSAPI, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(versionProvider version.Provider, ssmProvider ssm.Provider, ec2Client awsapi.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
 		cache:           cache,
-		awsClient:       awsClient,
+		ec2Client:       ec2Client,
 		cm:              pretty.NewChangeMonitor(),
 		versionProvider: versionProvider,
 		ssmProvider:     ssmProvider,
@@ -157,7 +158,7 @@ func (p *DefaultProvider) amis(ctx context.Context, queries []DescribeImageQuery
 	}
 	images := map[uint64]AMI{}
 	for _, query := range queries {
-		if err = p.awsClient.DescribeImagesPages(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
+		if err = p.ec2Client.DescribeImagesPages(ctx, query.DescribeImagesInput(), func(page *ec2.DescribeImagesOutput, _ bool) bool {
 			for _, image := range page.Images {
 				arch, ok := v1.AWSToKubeArchitectures[lo.FromPtr(image.Architecture)]
 				if !ok {

@@ -20,10 +20,10 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 )
 
-func EC2(ctx context.Context, awsClient awsapi.AWSAPI) *AWSAPI {
+func EC2(ctx context.Context, ec2Client awsapi.EC2API) *AWSAPI {
 	return &EC2API{
-		CreateFleetBatcher:        NewCreateFleetBatcher(ctx, awsClient),
-		DescribeInstancesBatcher:  NewDescribeInstancesBatcher(ctx, awsClient),
-		TerminateInstancesBatcher: NewTerminateInstancesBatcher(ctx, awsClient),
+		CreateFleetBatcher:        NewCreateFleetBatcher(ctx, ec2Client),
+		DescribeInstancesBatcher:  NewDescribeInstancesBatcher(ctx, ec2Client),
+		TerminateInstancesBatcher: NewTerminateInstancesBatcher(ctx, ec2Client),
 	}
 }

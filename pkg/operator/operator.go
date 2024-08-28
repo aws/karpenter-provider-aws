@@ -36,7 +36,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/eks/types"
 	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/ssm"
-	prometheusv1 "github.com/jonathan-innis/aws-sdk-go-prometheus/v1"
+	prometheusv2 "github.com/jonathan-innis/aws-sdk-go-prometheus/v2"
 	"github.com/patrickmn/go-cache"
 	"github.com/samber/lo"
 	corev1 "k8s.io/api/core/v1"
@@ -76,7 +76,7 @@ type Operator struct {
 
 	Config                    aws.Config
 	UnavailableOfferingsCache *awscache.UnavailableOfferings
-	awsClient                 awsapi.AWSAPI                
+	ec2Client                 awsapi.EC2API                
 	SubnetProvider            subnet.Provider
 	SecurityGroupProvider     securitygroup.Provider
 	InstanceProfileProvider   instanceprofile.Provider

@@ -30,14 +30,14 @@ type CreateFleetBatcher struct {
 	batcher *Batcher[ec2.CreateFleetInput, ec2.CreateFleetOutput]
 }
 
-func NewCreateFleetBatcher(ctx context.Context, awsClient awsapi.AWSAPI) *CreateFleetBatcher {
+func NewCreateFleetBatcher(ctx context.Context, ec2Client awsapi.EC2API) *CreateFleetBatcher {
 	options := Options[ec2.CreateFleetInput, ec2.CreateFleetOutput]{
 		Name:          "create_fleet",
 		IdleTimeout:   35 * time.Millisecond,
 		MaxTimeout:    1 * time.Second,
 		MaxItems:      1_000,
 		RequestHasher: DefaultHasher[ec2.CreateFleetInput],
-		BatchExecutor: execCreateFleetBatch(awsClient),
+		BatchExecutor: execCreateFleetBatch(ec2Client),
 	}
 	return &CreateFleetBatcher{batcher: NewBatcher(ctx, options)}
 }
@@ -50,12 +50,12 @@ func (b *CreateFleetBatcher) CreateFleet(ctx context.Context, createFleetInput *
 	return result.Output, result.Err
 }
 
-func execCreateFleetBatch(awsClient awsapi.AWSAPI) BatchExecutor[ec2.CreateFleetInput, ec2.CreateFleetOutput] {
+func execCreateFleetBatch(ec2Client awsapi.EC2API) BatchExecutor[ec2.CreateFleetInput, ec2.CreateFleetOutput] {
 	return func(ctx context.Context, inputs []*ec2.CreateFleetInput) []Result[ec2.CreateFleetOutput] {
 		results := make([]Result[ec2.CreateFleetOutput], 0, len(inputs))
 		firstInput := inputs[0]
 		firstInput.TargetCapacitySpecification.TotalTargetCapacity = aws.Int64(int64(len(inputs)))
-		output, err := awsClient.CreateFleet(ctx, firstInput)
+		output, err := ec2Client.CreateFleet(ctx, firstInput)
 		if err != nil {
 			for range inputs {
 				results = append(results, Result[ec2.CreateFleetOutput]{Err: err})

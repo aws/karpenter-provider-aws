@@ -34,14 +34,14 @@ type DescribeInstancesBatcher struct {
 	batcher *Batcher[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]
 }
 
-func NewDescribeInstancesBatcher(ctx context.Context, awsClient awsapi.AWSAPI) *DescribeInstancesBatcher {
+func NewDescribeInstancesBatcher(ctx context.Context, ec2Client awsapi.EC2API) *DescribeInstancesBatcher {
 	options := Options[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput]{
 		Name:          "describe_instances",
 		IdleTimeout:   100 * time.Millisecond,
 		MaxTimeout:    1 * time.Second,
 		MaxItems:      500,
 		RequestHasher: FilterHasher,
-		BatchExecutor: execDescribeInstancesBatch(awsClient),
+		BatchExecutor: execDescribeInstancesBatch(ec2Client),
 	}
 	return &DescribeInstancesBatcher{batcher: NewBatcher(ctx, options)}
 }
@@ -62,7 +62,7 @@ func FilterHasher(ctx context.Context, input *ec2.DescribeInstancesInput) uint64
 	return hash
 }
 
-func execDescribeInstancesBatch(awsClient awsapi.AWSAPI) BatchExecutor[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput] {
+func execDescribeInstancesBatch(ec2Client awsapi.EC2API) BatchExecutor[ec2.DescribeInstancesInput, ec2.DescribeInstancesOutput] {
 	return func(ctx context.Context, inputs []*ec2.DescribeInstancesInput) []Result[ec2.DescribeInstancesOutput] {
 		results := make([]Result[ec2.DescribeInstancesOutput], len(inputs))
 		firstInput := inputs[0]
@@ -74,7 +74,7 @@ func execDescribeInstancesBatch(awsClient awsapi.AWSAPI) BatchExecutor[ec2.Descr
 
 		// Execute fully aggregated request
 		// We don't care about the error here since we'll break up the batch upon any sort of failure
-		output, err := awsClient.DescribeInstances(ctx, firstInput)
+		output, err := ec2Client.DescribeInstances(ctx, firstInput)
 		if err != nil {
 			for i := range inputs {
 				results[i] = Result[ec2.DescribeInstancesOutput]{Err: err}
@@ -112,7 +112,7 @@ func execDescribeInstancesBatch(awsClient awsapi.AWSAPI) BatchExecutor[ec2.Descr
 			go func(instanceID string) {
 				defer wg.Done()
 				// try to execute separately
-				out, err := awsClient.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
+				out, err := ec2Client.DescribeInstances(ctx, &ec2.DescribeInstancesInput{
 					Filters:     firstInput.Filters,
 					InstanceIds: []*string{instanceID},
 				})

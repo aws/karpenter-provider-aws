@@ -147,9 +147,6 @@ func getAllInstanceTypes() []string {
 		log.Fatalf("setting AWS_REGION, %s", err)
 	}
 	cfg := lo.Must(config.LoadDefaultConfig(context.Background()))
-	if err != nil {
-		panic(err)
-	}
 
 	ec2api := ec2.New(cfg)
 	var allInstanceTypes []string

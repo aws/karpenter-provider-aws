@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"sync"
 
+	"karpenter-provider-aws/pkg/aws"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/aws/aws-sdk-go-v2/service/ec2/types"
@@ -36,20 +37,16 @@ type Provider interface {
 	List(context.Context, *v1.EC2NodeClass) ([]*ec2.SecurityGroup, error)
 }
 
-type EC2API interface {
-	DescribeSecurityGroups(context.Context, *ec2.DescribeSecurityGroupsInput, ...func(*ec2.Options)) (*ec2.DescribeSecurityGroupsOutput, error)
-}
-
 type DefaultProvider struct {
 	sync.Mutex
-	ec2api EC2API
+	ec2Client awsapi.EC2API
 	cache  *cache.Cache
 	cm     *pretty.ChangeMonitor
 }
 
-func NewDefaultProvider(ec2api EC2API, cache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ec2Client awsapi.EC2API, cache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		ec2api: ec2api,
+		ec2Client: ec2Client,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache cache when we utilize the security groups from the EC2NodeClass.status
 		cache: cache,
@@ -87,7 +84,7 @@ func (p *DefaultProvider) getSecurityGroups(ctx context.Context, filterSets [][]
 	}
 	securityGroups := map[string]*ec2.SecurityGroup{}
 	for _, filters := range filterSets {
-		output, err := p.ec2api.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
+		output, err := p.ec2Client.DescribeSecurityGroups(ctx, &ec2.DescribeSecurityGroupsInput{Filters: filters})
 		if err != nil {
 			return nil, fmt.Errorf("describing security groups %+v, %w", filterSets, err)
 		}

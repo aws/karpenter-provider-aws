@@ -35,6 +35,7 @@ import (
 	"sigs.k8s.io/karpenter/pkg/cloudprovider"
 	"sigs.k8s.io/karpenter/pkg/scheduling"
 	"sigs.k8s.io/karpenter/pkg/utils/pretty"
+	"karpenter-provider-aws/pkg/aws"
 )
 
 type Provider interface {
@@ -46,7 +47,7 @@ type Provider interface {
 
 type DefaultProvider struct {
 	sync.Mutex
-	awsClient                     awsAPI.AWSAPI
+	ec2Client                     awsAPI.EC2API
 	cache                         *cache.Cache
 	availableIPAddressCache       *cache.Cache
 	associatePublicIPAddressCache *cache.Cache
@@ -61,9 +62,9 @@ type Subnet struct {
 	AvailableIPAddressCount int64
 }
 
-func NewDefaultProvider(awsClient awsapi.AWSAPI, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
+func NewDefaultProvider(ec2Client awsapi.EC2API, cache *cache.Cache, availableIPAddressCache *cache.Cache, associatePublicIPAddressCache *cache.Cache) *DefaultProvider {
 	return &DefaultProvider{
-		awsClient: awsClient,
+		ec2Client: ec2Client,
 		cm:     pretty.NewChangeMonitor(),
 		// TODO: Remove cache when we utilize the resolved subnets from the EC2NodeClass.status
 		// Subnets are sorted on AvailableIpAddressCount, descending order
@@ -95,7 +96,7 @@ func (p *DefaultProvider) List(ctx context.Context, nodeClass *v1.EC2NodeClass) 
 	// Ensure that all the subnets that are returned here are unique
 	subnets := map[string]*ec2.Subnet{}
 	for _, filters := range filterSets {
-		output, err := p.awsClient.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
+		output, err := p.ec2Client.DescribeSubnets(ctx, &ec2.DescribeSubnetsInput{Filters: filters})
 		if err != nil {
 			return nil, fmt.Errorf("describing subnets %s, %w", pretty.Concise(filters), err)
 		}
