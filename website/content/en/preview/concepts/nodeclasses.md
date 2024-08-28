@@ -56,7 +56,8 @@ spec:
     imageGCLowThresholdPercent: 80
     cpuCFSQuota: true
     clusterDNS: ["10.0.1.100"]
-  # Required, resolves a default ami and userdata
+  # Optional, dictates UserData generation and default block device mappings.
+  # May be ommited when using an `alias` amiSelectorTerm, otherwise required.
   amiFamily: AL2
 
   # Required, discovers subnets to attach to instances
