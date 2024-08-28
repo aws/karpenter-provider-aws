@@ -51,7 +51,7 @@ var _ = Describe("TerminationGracePeriod", func() {
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 			_, ok := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
-				return karpv1.IsDisruptingTaint(t)
+				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
 			})
 			g.Expect(ok).To(BeTrue())
 		}).WithTimeout(3 * time.Second).WithPolling(100 * time.Millisecond).Should(Succeed())
@@ -81,7 +81,7 @@ var _ = Describe("TerminationGracePeriod", func() {
 		Eventually(func(g Gomega) {
 			g.Expect(env.Client.Get(env.Context, client.ObjectKeyFromObject(node), node)).Should(Succeed())
 			_, ok := lo.Find(node.Spec.Taints, func(t corev1.Taint) bool {
-				return karpv1.IsDisruptingTaint(t)
+				return t.MatchTaint(&karpv1.DisruptedNoScheduleTaint)
 			})
 			g.Expect(ok).To(BeTrue())
 		}).WithTimeout(3 * time.Second).WithPolling(100 * time.Millisecond).Should(Succeed())
