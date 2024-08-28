@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	ec22 "github.com/aws/aws-sdk-go-v2/service/ec2"
 	"github.com/samber/lo"
 
 	controllerspricing "github.com/aws/karpenter-provider-aws/pkg/controllers/providers/pricing"
